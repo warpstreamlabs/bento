@@ -20,8 +20,7 @@ VER_PATCH := $(shell echo $(VER_CUT) | cut -f3 -d.)
 VER_RC    := $(shell echo $(VER_PATCH) | cut -f2 -d-)
 DATE      := $(shell date +"%Y-%m-%dT%H:%M:%SZ")
 
-VER_FLAGS = -X github.com/warpstreamlabs/bento/internal/cli.Version=$(VERSION) \
-	-X github.com/warpstreamlabs/bento/internal/cli.DateBuilt=$(DATE)
+VER_FLAGS = -X main.Version=$(VERSION) -X main.DateBuilt=$(DATE)
 
 LD_FLAGS   ?= -w -s
 GO_FLAGS   ?=
