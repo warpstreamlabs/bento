@@ -15,6 +15,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/value"
@@ -23,18 +24,18 @@ import (
 var red = color.New(color.FgRed).SprintFunc()
 
 // CliCommand is a cli.Command definition for running a blobl mapping.
-func CliCommand() *cli.Command {
+func CliCommand(opts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "blobl",
-		Usage: "Execute a Bloblang mapping on documents consumed via stdin",
-		Description: `
+		Usage: opts.ExecTemplate("Execute a {{.ProductName}} mapping on documents consumed via stdin"),
+		Description: opts.ExecTemplate(`
 Provides a convenient tool for mapping JSON documents over the command line:
 
-  cat documents.jsonl | bento blobl 'foo.bar.map_each(this.uppercase())'
+  cat documents.jsonl | {{.BinaryName}} blobl 'foo.bar.map_each(this.uppercase())'
 
-  echo '{"foo":"bar"}' | bento blobl -f ./mapping.blobl
+  echo '{"foo":"bar"}' | {{.BinaryName}} blobl -f ./mapping.blobl
 
-Find out more about Bloblang at: https://warpstreamlabs.github.io/bento/docs/guides/bloblang/about`[1:],
+Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1:],
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "threads",
