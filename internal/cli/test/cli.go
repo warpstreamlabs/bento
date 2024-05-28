@@ -16,17 +16,17 @@ import (
 func CliCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "test",
-		Usage: "Execute Bento unit tests",
-		Description: `
-Execute any number of Bento unit test definitions. If one or more tests
+		Usage: cliOpts.ExecTemplate("Execute {{.ProductName}} unit tests"),
+		Description: cliOpts.ExecTemplate(`
+Execute any number of {{.ProductName}} unit test definitions. If one or more tests
 fail the process will report the errors and exit with a status code 1.
 
-  bento test ./path/to/configs/...
-  bento test ./foo_configs/*.yaml ./bar_configs/*.yaml
-  bento test ./foo.yaml
+  {{.BinaryName}} test ./path/to/configs/...
+  {{.BinaryName}} test ./foo_configs/*.yaml ./bar_configs/*.yaml
+  {{.BinaryName}} test ./foo.yaml
 
 For more information check out the docs at:
-https://warpstreamlabs.github.io/bento/docs/configuration/unit_testing`[1:],
+{{.DocumentationURL}}/configuration/unit_testing`)[1:],
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "log",
