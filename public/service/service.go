@@ -63,6 +63,13 @@ func CLIOptSetVersion(version, dateBuilt string) CLIOptFunc {
 	}
 }
 
+// CLIOptSetBinaryName overrides the default binary name in CLI help docs.
+func CLIOptSetBinaryName(n string) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.BinaryName = n
+	}
+}
+
 // CLIOptSetProductName overrides the default product name in CLI help docs.
 func CLIOptSetProductName(n string) CLIOptFunc {
 	return func(c *CLIOptBuilder) {
