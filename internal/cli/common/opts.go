@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"os"
+	"path"
 	"text/template"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
@@ -32,7 +33,7 @@ type CLIOpts struct {
 func NewCLIOpts(version, dateBuilt string) *CLIOpts {
 	binaryName := ""
 	if len(os.Args) > 0 {
-		binaryName = os.Args[0]
+		binaryName = path.Base(os.Args[0])
 	}
 	return &CLIOpts{
 		Version:          version,
