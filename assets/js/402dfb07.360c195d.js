@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[5242],{98475:function(l){l.exports=JSON.parse('{"label":"Bloblang","permalink":"/blog/tags/bloblang","allTagsPath":"/blog/tags","count":2,"unlisted":false}')}}]);

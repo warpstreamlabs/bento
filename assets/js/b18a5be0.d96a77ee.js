@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[8982],{46358:function(e){e.exports=JSON.parse('{"label":"Bloblang","permalink":"/bento/blog/tags/bloblang","allTagsPath":"/bento/blog/tags","count":2,"unlisted":false}')}}]);

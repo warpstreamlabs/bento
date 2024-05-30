@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[2839],{56832:function(a){a.exports=JSON.parse('{"label":"roadmap","permalink":"/blog/tags/roadmap","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

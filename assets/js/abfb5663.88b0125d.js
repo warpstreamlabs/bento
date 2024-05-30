@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[8817],{44152:function(e){e.exports=JSON.parse('{"label":"Workflows","permalink":"/bento/blog/tags/workflows","allTagsPath":"/bento/blog/tags","count":1,"unlisted":false}')}}]);
