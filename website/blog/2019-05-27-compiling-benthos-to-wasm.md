@@ -169,7 +169,7 @@ to completion without rushing the conclusion. Yes, I'm still bitter about Game
 of Thrones.
 
 [meltwater]: https://underthehood.meltwater.com/blog/2019/06/17/benthos-lab-a-case-study-of-hackathon-innovation/
-[Bento]: https://www.benthos.dev/
+[Bento]: https://warpstreamlabs.github.io/bento/
 [wasm-go-wiki]: https://github.com/golang/go/wiki/WebAssembly
 [syscall-js-func]: https://godoc.org/syscall/js#Func
 [go-build-constraint]: https://golang.org/pkg/go/build/#hdr-Build_Constraints

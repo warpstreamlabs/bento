@@ -238,7 +238,7 @@ tables:
 
 ### `cursor_cache`
 
-A [cache resource](https://www.benthos.dev/docs/components/caches/about) to use for storing the current latest cursor that has been successfully delivered, this allows Bento to continue from that cursor upon restart, rather than consume the entire state of the table.
+A [cache resource](https://warpstreamlabs.github.io/bento/docs/components/caches/about) to use for storing the current latest cursor that has been successfully delivered, this allows Bento to continue from that cursor upon restart, rather than consume the entire state of the table.
 
 
 Type: `string`  

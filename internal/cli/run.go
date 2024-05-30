@@ -115,7 +115,7 @@ func App(opts *common.CLIOpts) *cli.App {
 
 	app := &cli.App{
 		Name:  "Bento",
-		Usage: "A stream processor for mundane tasks - https://www.benthos.dev",
+		Usage: "A stream processor for mundane tasks - https://warpstreamlabs.github.io/bento",
 		Description: `
 Either run Bento as a stream processor or choose a command:
 

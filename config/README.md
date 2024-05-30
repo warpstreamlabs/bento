@@ -9,4 +9,4 @@ If you're looking for specific config examples for a use case you have then try 
 bento create kafka/schema_registry_decode/nats_jetstream > example.yaml
 ```
 
-[unit-tests]: https://www.benthos.dev/docs/configuration/unit_testing
+[unit-tests]: https://warpstreamlabs.github.io/bento/docs/configuration/unit_testing

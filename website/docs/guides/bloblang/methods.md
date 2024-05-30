@@ -2998,7 +2998,7 @@ Attempts to parse a URL from a string value, returning a structured result that 
 ```coffee
 root.foo_url = this.foo_url.parse_url()
 
-# In:  {"foo_url":"https://www.benthos.dev/docs/guides/bloblang/about"}
+# In:  {"foo_url":"https://warpstreamlabs.github.io/bento/docs/guides/bloblang/about"}
 # Out: {"foo_url":{"fragment":"","host":"www.benthos.dev","opaque":"","path":"/docs/guides/bloblang/about","raw_fragment":"","raw_path":"","raw_query":"","scheme":"https"}}
 ```
 

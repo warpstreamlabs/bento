@@ -102,6 +102,6 @@ missing (or broken, obviously) then please [open an issue][lab-issues].
 [wasm-blog]: /blog/2019/05/27/compiling-benthos-to-wasm/
 [lab-repo]: https://github.com/warpstreamlabs/bento-lab
 [lab-issues]: https://github.com/warpstreamlabs/bento-lab/issues
-[benthos]: https://www.benthos.dev
+[benthos]: https://warpstreamlabs.github.io/bento
 [under-the-hood]: https://underthehood.meltwater.com/
 [benthos-procs]: https://benthos.dev/docs/components/processors/about

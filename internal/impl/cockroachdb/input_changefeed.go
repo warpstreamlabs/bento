@@ -41,7 +41,7 @@ func crdbChangefeedInputConfig() *service.ConfigSpec {
 				Description("CSV of tables to be included in the changefeed").
 				Example([]string{"table1", "table2"}),
 			service.NewStringField("cursor_cache").
-				Description("A [cache resource](https://www.benthos.dev/docs/components/caches/about) to use for storing the current latest cursor that has been successfully delivered, this allows Bento to continue from that cursor upon restart, rather than consume the entire state of the table.").
+				Description("A [cache resource](https://warpstreamlabs.github.io/bento/docs/components/caches/about) to use for storing the current latest cursor that has been successfully delivered, this allows Bento to continue from that cursor upon restart, rather than consume the entire state of the table.").
 				Optional(),
 			service.NewStringListField("options").
 				Description("A list of options to be included in the changefeed (WITH X, Y...).\n**NOTE: Both the CURSOR option and UPDATED will be ignored from these options when a `cursor_cache` is specified, as they are set explicitly by Bento in this case.**").

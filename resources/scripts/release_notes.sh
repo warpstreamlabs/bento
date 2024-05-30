@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "For installation instructions check out the [getting started guide](https://www.benthos.dev/docs/guides/getting_started)."
+echo "For installation instructions check out the [getting started guide](https://warpstreamlabs.github.io/bento/docs/guides/getting_started)."
 cat CHANGELOG.md | awk '
   /^## [0-9]/ {
       release++;

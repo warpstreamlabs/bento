@@ -288,7 +288,7 @@ metrics:
 
 I'm sure you'll make great use of Bento plugins with your extremely important work /s.
 
-[benthos]: https://www.benthos.dev
+[benthos]: https://warpstreamlabs.github.io/bento
 [benthos-repo]: https://github.com/warpstreamlabs/bento
 [plugin-repo]: https://github.com/warpstreamlabs/bento-plugin-example
 [processors]: https://benthos.dev/docs/components/processors/about

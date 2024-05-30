@@ -4,5 +4,5 @@ pipeline:
       root = match {
         meta("topic").or("") == "foo" ||
         doc.type.or("") == "bar" ||
-        doc.urls.contains("https://www.benthos.dev/").catch(false) => deleted()
+        doc.urls.contains("https://warpstreamlabs.github.io/bento/").catch(false) => deleted()
       }

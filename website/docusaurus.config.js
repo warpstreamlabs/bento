@@ -4,8 +4,8 @@ const {components} = require('./src/plugins/components');
 module.exports = {
   title: 'Bento',
   tagline: 'Fancy stream processing made operationally mundane',
-  url: 'https://www.benthos.dev',
-  baseUrl: '/',
+  url: 'https://warpstreamlabs.github.io/',
+  baseUrl: '/bento/',
   favicon: 'img/favicon.ico',
   organizationName: 'warpstreamlabs',
   projectName: 'bento',

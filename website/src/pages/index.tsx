@@ -15,7 +15,7 @@ const installs = [
     label: 'Curl',
     language: 'bash',
     children: `# Install
-curl -Lsf https://www.benthos.dev/sh/install | bash
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash
 
 # Make a config
 bento create nats/protobuf/aws_sqs > ./config.yaml
