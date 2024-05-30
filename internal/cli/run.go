@@ -72,7 +72,13 @@ func traverseHelp(cmd *cli.Command, pieces []string) []pluginHelp {
 	pieces = append(pieces, cmd.Name)
 	var args []string
 	for _, a := range cmd.Flags {
-		args = append(args, "--"+a.Names()[0])
+		for _, n := range a.Names() {
+			if len(n) > 1 {
+				args = append(args, "--"+n)
+			} else {
+				args = append(args, "-"+n)
+			}
+		}
 	}
 	help := []pluginHelp{{
 		Path:  strings.Join(pieces, "_"),
@@ -81,27 +87,16 @@ func traverseHelp(cmd *cli.Command, pieces []string) []pluginHelp {
 		Args:  args,
 	}}
 	for _, cmd := range cmd.Subcommands {
+		if cmd.Hidden {
+			continue
+		}
 		help = append(help, traverseHelp(cmd, pieces)...)
 	}
 	return help
 }
 
-// App returns the full CLI app definition, this is useful for writing unit
-// tests around the CLI.
-func App(opts *common.CLIOpts) *cli.App {
-	flags := []cli.Flag{
-		&cli.BoolFlag{
-			Name:    "version",
-			Aliases: []string{"v"},
-			Value:   false,
-			Usage:   "display version info, then exit",
-		},
-		&cli.StringSliceFlag{
-			Name:    "env-file",
-			Aliases: []string{"e"},
-			Value:   cli.NewStringSlice(),
-			Usage:   "import environment variables from a dotenv file",
-		},
+func runFlags(opts *common.CLIOpts) []cli.Flag {
+	return []cli.Flag{
 		&cli.StringFlag{
 			Name:  "log.level",
 			Value: "",
@@ -112,21 +107,10 @@ func App(opts *common.CLIOpts) *cli.App {
 			Aliases: []string{"s"},
 			Usage:   "set a field (identified by a dot path) in the main configuration file, e.g. `\"metrics.type=prometheus\"`",
 		},
-		&cli.StringFlag{
-			Name:    "config",
-			Aliases: []string{"c"},
-			Value:   "",
-			Usage:   "a path to a configuration file",
-		},
 		&cli.StringSliceFlag{
 			Name:    "resources",
 			Aliases: []string{"r"},
 			Usage:   "pull in extra resources from a file, which can be referenced the same as resources defined in the main config, supports glob patterns (requires quotes)",
-		},
-		&cli.StringSliceFlag{
-			Name:    "templates",
-			Aliases: []string{"t"},
-			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
 		&cli.BoolFlag{
 			Name:  "chilled",
@@ -139,6 +123,81 @@ func App(opts *common.CLIOpts) *cli.App {
 			Value:   false,
 			Usage:   "EXPERIMENTAL: watch config files for changes and automatically apply them",
 		},
+		&cli.StringSliceFlag{
+			Name:    "env-file",
+			Aliases: []string{"e"},
+			Value:   cli.NewStringSlice(),
+			Usage:   "import environment variables from a dotenv file",
+		},
+		&cli.StringSliceFlag{
+			Name:    "templates",
+			Aliases: []string{"t"},
+			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
+		},
+	}
+}
+
+func preRun(c *cli.Context, opts *common.CLIOpts) error {
+	dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
+	if err != nil {
+		fmt.Printf("Failed to resolve env file glob pattern: %v\n", err)
+		os.Exit(1)
+	}
+	for _, dotEnvFile := range dotEnvPaths {
+		dotEnvBytes, err := ifs.ReadFile(ifs.OS(), dotEnvFile)
+		if err != nil {
+			fmt.Printf("Failed to read dotenv file: %v\n", err)
+			os.Exit(1)
+		}
+		vars, err := parser.ParseDotEnvFile(dotEnvBytes)
+		if err != nil {
+			fmt.Printf("Failed to parse dotenv file: %v\n", err)
+			os.Exit(1)
+		}
+		for k, v := range vars {
+			if err = os.Setenv(k, v); err != nil {
+				fmt.Printf("Failed to set env var '%v': %v\n", k, err)
+				os.Exit(1)
+			}
+		}
+	}
+
+	templatesPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("templates"))
+	if err != nil {
+		fmt.Printf("Failed to resolve template glob pattern: %v\n", err)
+		os.Exit(1)
+	}
+	lints, err := template.InitTemplates(templatesPaths...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Template file read error: %v\n", err)
+		os.Exit(1)
+	}
+	if !c.Bool("chilled") && len(lints) > 0 {
+		for _, lint := range lints {
+			fmt.Fprintln(os.Stderr, lint)
+		}
+		fmt.Println(opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
+		os.Exit(1)
+	}
+	return nil
+}
+
+// App returns the full CLI app definition, this is useful for writing unit
+// tests around the CLI.
+func App(opts *common.CLIOpts) *cli.App {
+	flags := []cli.Flag{
+		&cli.BoolFlag{
+			Name:    "version",
+			Aliases: []string{"v"},
+			Value:   false,
+			Usage:   "display version info, then exit",
+		},
+		&cli.StringFlag{
+			Name:    "config",
+			Aliases: []string{"c"},
+			Value:   "",
+			Usage:   "a path to a configuration file",
+		},
 		&cli.BoolFlag{
 			Name:   "help-autocomplete",
 			Value:  false,
@@ -146,10 +205,11 @@ func App(opts *common.CLIOpts) *cli.App {
 			Hidden: true,
 		},
 	}
+	flags = append(flags, runFlags(opts)...)
 
 	app := &cli.App{
 		Name:  opts.BinaryName,
-		Usage: opts.ExecTemplate("A stream processor for mundane tasks - {{.DocumentationURL}}"),
+		Usage: opts.ExecTemplate("A stream processor for mundane tasks - {{.DocumentationURL}}/about"),
 		Description: opts.ExecTemplate(`
 Either run {{.ProductName}} as a stream processor or choose a command:
 
@@ -159,48 +219,7 @@ Either run {{.ProductName}} as a stream processor or choose a command:
   {{.BinaryName}} -r "./production/*.yaml" -c ./config.yaml`)[1:],
 		Flags: flags,
 		Before: func(c *cli.Context) error {
-			dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
-			if err != nil {
-				fmt.Printf("Failed to resolve env file glob pattern: %v\n", err)
-				os.Exit(1)
-			}
-			for _, dotEnvFile := range dotEnvPaths {
-				dotEnvBytes, err := ifs.ReadFile(ifs.OS(), dotEnvFile)
-				if err != nil {
-					fmt.Printf("Failed to read dotenv file: %v\n", err)
-					os.Exit(1)
-				}
-				vars, err := parser.ParseDotEnvFile(dotEnvBytes)
-				if err != nil {
-					fmt.Printf("Failed to parse dotenv file: %v\n", err)
-					os.Exit(1)
-				}
-				for k, v := range vars {
-					if err = os.Setenv(k, v); err != nil {
-						fmt.Printf("Failed to set env var '%v': %v\n", k, err)
-						os.Exit(1)
-					}
-				}
-			}
-
-			templatesPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("templates"))
-			if err != nil {
-				fmt.Printf("Failed to resolve template glob pattern: %v\n", err)
-				os.Exit(1)
-			}
-			lints, err := template.InitTemplates(templatesPaths...)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Template file read error: %v\n", err)
-				os.Exit(1)
-			}
-			if !c.Bool("chilled") && len(lints) > 0 {
-				for _, lint := range lints {
-					fmt.Fprintln(os.Stderr, lint)
-				}
-				fmt.Println(opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
-				os.Exit(1)
-			}
-			return nil
+			return preRun(c, opts)
 		},
 		Action: func(c *cli.Context) error {
 			if c.Bool("version") {
@@ -260,6 +279,30 @@ variables have been resolved:
 				},
 			},
 			lintCliCommand(opts),
+			{
+				Name:   "run",
+				Hidden: !opts.ShowRunCommand,
+				Usage:  opts.ExecTemplate("Run {{.ProductName}} in normal mode against a specified config file"),
+				Before: func(c *cli.Context) error {
+					return preRun(c, opts)
+				},
+				Description: opts.ExecTemplate(`
+Run a {{.ProductName}} config.
+
+  {{.BinaryName}} run ./foo.yaml`)[1:],
+				Flags: runFlags(opts),
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() > 0 {
+						if c.Args().Len() > 1 {
+							fmt.Fprintln(os.Stderr, "A maximum of one config must be specified with the run command")
+							os.Exit(1)
+						}
+						_ = c.Set("config", c.Args().First())
+					}
+					os.Exit(common.RunService(c, opts, false))
+					return nil
+				},
+			},
 			{
 				Name:  "streams",
 				Usage: opts.ExecTemplate("Run {{.ProductName}} in streams mode"),

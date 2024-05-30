@@ -21,6 +21,9 @@ type CLIOpts struct {
 	ProductName      string
 	DocumentationURL string
 
+	ShowRunCommand    bool
+	ConfigSearchPaths []string
+
 	MainConfigSpecCtor   func() docs.FieldSpecs // TODO: This becomes a service.Environment
 	OnManagerInitialised func(mgr bundle.NewManagement, pConf *docs.ParsedConfig) error
 	OnLoggerInit         func(l log.Modular) (log.Modular, error)
@@ -32,11 +35,17 @@ func NewCLIOpts(version, dateBuilt string) *CLIOpts {
 		binaryName = os.Args[0]
 	}
 	return &CLIOpts{
-		Version:            version,
-		DateBuilt:          dateBuilt,
-		BinaryName:         binaryName,
-		ProductName:        "Bento",
-		DocumentationURL:   "https://warpstreamlabs.github.io/bento/docs",
+		Version:          version,
+		DateBuilt:        dateBuilt,
+		BinaryName:       binaryName,
+		ProductName:      "Bento",
+		DocumentationURL: "https://warpstreamlabs.github.io/bento/docs",
+		ShowRunCommand:   false,
+		ConfigSearchPaths: []string{
+			"/bento.yaml",
+			"/etc/bento/config.yaml",
+			"/etc/bento.yaml",
+		},
 		MainConfigSpecCtor: config.Spec,
 		OnManagerInitialised: func(mgr bundle.NewManagement, pConf *docs.ParsedConfig) error {
 			return nil
