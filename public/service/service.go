@@ -78,6 +78,23 @@ func CLIOptSetDocumentationURL(n string) CLIOptFunc {
 	}
 }
 
+// CLIOptSetShowRunCommand determines whether a `run` subcommand should appear
+// in CLI help and autocomplete.
+func CLIOptSetShowRunCommand(show bool) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ShowRunCommand = show
+	}
+}
+
+// CLIOptSetDefaultConfigPaths overrides the default paths used for detecting
+// and loading config files when one was not provided explicitly with the
+// --config flag.
+func CLIOptSetDefaultConfigPaths(paths ...string) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ConfigSearchPaths = paths
+	}
+}
+
 // CLIOptOnLoggerInit sets a closure to be called when the service-wide logger
 // is initialised. A modified version can be returned, allowing you to mutate
 // the fields and settings that it has.
