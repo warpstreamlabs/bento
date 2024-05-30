@@ -6,7 +6,6 @@ module.exports = {
   tagline: 'Fancy stream processing made operationally mundane',
   url: 'https://warpstreamlabs.github.io/',
   baseUrl: '/bento/',
-  favicon: 'img/favicon.ico',
   organizationName: 'warpstreamlabs',
   projectName: 'bento',
   customFields: {
