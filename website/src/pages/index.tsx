@@ -256,7 +256,7 @@ interface FeatureArgs {
   description: JSX.Element;
 };
 
-function Feature({imageUrl, title, description}: FeatureArgs) {
+function Feature({ imageUrl, title, description }: FeatureArgs) {
   const imgUrl = useBaseUrl(imageUrl);
   return (
     <div className={classnames('col col--6')}>
@@ -311,37 +311,37 @@ function Home() {
               </p>
               {installs && installs.length && (
                 <Tabs defaultValue={installs[0].label} values={installs.map((props, idx) => {
-                  return {label:props.label, value:props.label};
+                  return { label: props.label, value: props.label };
                 })}>
                   {installs.map((props, idx) => (
                     <TabItem key={idx} value={props.label}>
-                      <CodeBlock {...props}/>
+                      <CodeBlock {...props} />
                     </TabItem>
                   ))}
                 </Tabs>
               )}
             </div>
             <div className={classnames('col col--6')}>
-                {snippets && snippets.length && (
-                  <section className={styles.configSnippets}>
-                    <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
-                      return {label:props.label, value:props.label};
-                    })}>
-                      {snippets.map((props, idx) => (
-                        <TabItem key={idx} value={props.label}>
-                          <div style={{position: 'relative'}}>
-                            <CodeBlock {...props}/>
-                            {props.further && <Link
-                              className={classnames(styles.furtherButton, 'button button--outline button--primary')}
-                              to={props.further}>
-                              Read about
-                            </Link>}
-                          </div>
-                        </TabItem>
-                      ))}
-                    </Tabs>
-                  </section>
-                )}
+              {snippets && snippets.length && (
+                <section className={styles.configSnippets}>
+                  <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
+                    return { label: props.label, value: props.label };
+                  })}>
+                    {snippets.map((props, idx) => (
+                      <TabItem key={idx} value={props.label}>
+                        <div style={{ position: 'relative' }}>
+                          <CodeBlock {...props} />
+                          {props.further && <Link
+                            className={classnames(styles.furtherButton, 'button button--outline button--primary')}
+                            to={props.further}>
+                            Read about
+                          </Link>}
+                        </div>
+                      </TabItem>
+                    ))}
+                  </Tabs>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -362,11 +362,11 @@ function Home() {
               <div className={classnames('col col--6')}>
                 <h3 id="sponsored-by">Sponsored by the following heroes</h3>
                 <div className="container">
-                  <div>
-                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
-                  </div>
                   <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
                     <a href="https://www.warpstream.com/"><img src="/bento/img/sponsors/warpstream_logo.svg" /></a>
+                  </div>
+                  <div>
+                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
                   </div>
                 </div>
               </div>
