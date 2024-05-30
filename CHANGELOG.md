@@ -680,7 +680,7 @@ to the [`database/sql` docs](https://pkg.go.dev/database/sql#DB.SetMaxIdleConns)
 
 ## 4.0.0 - 2022-04-20
 
-This is a major version release, for more information and guidance on how to migrate please refer to [https://benthos.dev/docs/guides/migration/v4](https://warpstreamlabs.github.io/bento/docs/guides/migration/v4).
+This is a major version release, for more information and guidance on how to migrate please refer to [https://warpstreamlabs.github.io/bento/docs/guides/migration/v4](https://warpstreamlabs.github.io/bento/docs/guides/migration/v4).
 
 ### Added
 
@@ -1993,7 +1993,7 @@ This is a major version release, for more information and guidance on how to mig
 
 ## 3.0.0 - 2019-09-17
 
-This is a major version release, for more information and guidance on how to migrate please refer to [https://benthos.dev/docs/guides/migration/v3](https://warpstreamlabs.github.io/bento/docs/guides/migration/v3).
+This is a major version release, for more information and guidance on how to migrate please refer to [https://warpstreamlabs.github.io/bento/docs/guides/migration/v3](https://warpstreamlabs.github.io/bento/docs/guides/migration/v3).
 
 ### Added
 

@@ -26,7 +26,7 @@ fail the process will report the errors and exit with a status code 1.
   bento test ./foo.yaml
 
 For more information check out the docs at:
-https://benthos.dev/docs/configuration/unit_testing`[1:],
+https://warpstreamlabs.github.io/bento/docs/configuration/unit_testing`[1:],
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "log",

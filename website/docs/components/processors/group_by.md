@@ -41,7 +41,7 @@ Type: `string`
 
 check: this.type == "foo"
 
-check: this.contents.urls.contains("https://benthos.dev/")
+check: this.contents.urls.contains("https://warpstreamlabs.github.io/bento/")
 
 check: "true"
 ```

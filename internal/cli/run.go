@@ -240,7 +240,7 @@ pipeline, output) will be ignored. Other fields will be shared across all
 loaded streams (resources, metrics, etc).
 
 For more information check out the docs at:
-https://benthos.dev/docs/guides/streams_mode/about`[1:],
+https://warpstreamlabs.github.io/bento/docs/guides/streams_mode/about`[1:],
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:  "no-api",

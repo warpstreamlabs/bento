@@ -60,7 +60,7 @@ pipeline:
 				Description("A [Bloblang query](/docs/guides/bloblang/about) that should return a boolean value indicating whether a message should have the processors of this case executed on it. If left empty the case always passes. If the check mapping throws an error the message will be flagged [as having failed](/docs/configuration/error_handling) and will not be tested against any other cases.").
 				Examples(
 					`this.type == "foo"`,
-					`this.contents.urls.contains("https://benthos.dev/")`,
+					`this.contents.urls.contains("https://warpstreamlabs.github.io/bento/")`,
 				).
 				Default(""),
 			service.NewProcessorListField(spFieldProcessors).
