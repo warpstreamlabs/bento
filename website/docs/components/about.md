@@ -6,7 +6,7 @@ description: Learn about Bento components
 
 A good ninja gets clued up on its gear.
 
-<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/img/Blobninja.svg" /></div>
+<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/Blobninja.svg" /></div>
 
 ## Core Components
 

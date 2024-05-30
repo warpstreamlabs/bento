@@ -189,7 +189,7 @@ func init() {
 	}
 }
 
-// gcpCloudStorageOutput is a benthos writer.Type implementation that writes
+// gcpCloudStorageOutput is a bento writer.Type implementation that writes
 // messages to a GCP Cloud Storage bucket.
 type gcpCloudStorageOutput struct {
 	conf csoConfig

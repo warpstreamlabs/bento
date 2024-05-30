@@ -66,7 +66,7 @@ function CookbookListPage(props) {
         <div className="container">
           <div className="row">
             <div className="col col--5 col--offset-1">
-              <img className={styles.headerImgMobile} src="/img/Blobchef.svg" />
+              <img className={styles.headerImgMobile} src="/bento/img/Blobchef.svg" />
               <div>
                 <h1>Bento Cookbooks</h1>
                 <p>A collection of guides to walk you through more advanced Bento applications.</p>
@@ -80,7 +80,7 @@ function CookbookListPage(props) {
               </div>
             </div>
             <div className="col col--5">
-              <img className={styles.headerImg} src="/img/Blobchef.svg" />
+              <img className={styles.headerImg} src="/bento/img/Blobchef.svg" />
             </div>
           </div>
         </div>

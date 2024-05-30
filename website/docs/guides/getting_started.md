@@ -5,7 +5,7 @@ description: Getting started with Bento
 
 Woops! You fell for the marketing hype. Let's try and get through this together.
 
-<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/img/teacher-blob.svg" /></div>
+<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
 
 ## Install
 

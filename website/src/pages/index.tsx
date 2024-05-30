@@ -363,34 +363,12 @@ function Home() {
                 <h3 id="sponsored-by">Sponsored by the following heroes</h3>
                 <div className="container">
                   <div>
-                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/img/sponsors/synadia.svg" /></a>
+                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
                   </div>
                   <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
-                    <a href="https://www.warpstream.com/"><img src="/img/sponsors/warpstream_logo.svg" /></a>
-                  </div>
-                  <div className={classnames(styles.sponsorsBox, styles.silverSponsors)}>
-                    <a href="https://www.meltwater.com/"><img src="/img/sponsors/mw_logo.png" /></a>
-                    <a href="https://www.humansecurity.com"><img src="/img/sponsors/HUMAN_logo.png" /></a>
-                    <a href="https://community.com/"><img src="/img/sponsors/community.svg" /></a>
-                    <a href="https://www.optum.com/"><img src="/img/sponsors/optum_logo.png" /></a>
-                    <a href="https://aurora.dev/"><img src="/img/sponsors/aurora.svg" /></a>
-                    <a href="https://www.opala.com"><img src="/img/sponsors/opala.svg" /></a>
-                    <a href="https://formance.com"><img src="/img/sponsors/formance.svg" /></a>
-                    <a href="https://www.umh.app/"><img src="/img/sponsors/umh_logo.svg" /></a>
+                    <a href="https://www.warpstream.com/"><img src="/bento/img/sponsors/warpstream_logo.svg" /></a>
                   </div>
                 </div>
-              </div>
-              <div className={classnames('col col--6', styles.loveSectionPlea)}>
-                <div>
-                  <a href="https://github.com/sponsors/Jeffail">
-                    <img className={styles.loveImg} src="img/blobheart.svg" alt="Blob Heart" />
-                  </a>
-                </div>
-                <Link
-                  className={classnames('button button--danger')}
-                  to="https://github.com/sponsors/Jeffail">
-                  Become a sponsor
-                </Link>
               </div>
             </div>
           </div>

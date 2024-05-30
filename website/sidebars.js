@@ -135,15 +135,6 @@ module.exports = {
             'guides/streams_mode/using_rest_api',
             'guides/streams_mode/streams_api',
           ],
-        },
-        {
-          type: 'category',
-          label: 'Migration',
-          items: [
-            'guides/migration/v4',
-            'guides/migration/v3',
-            'guides/migration/v2',
-          ]
         }
       ],
     },

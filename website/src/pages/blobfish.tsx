@@ -46,7 +46,7 @@ function Blobfish() {
         <div className="container">
           <div className="row">
             <div className="col col--6 col--offset-3 text--center">
-              <img className={styles.headerImg} src="/img/logo.svg" />
+              <img className={styles.headerImg} src="/bento/img/logo.svg" />
               <div>
                 <h1>Bento</h1>
                 <div className="hero--subtitle">
@@ -66,7 +66,7 @@ function Blobfish() {
 The Bento blobfish began its life as a dumb placeholder logo, and since nothing has changed this is still the case.
                 </p>
                 <p>
-Variations of the mascot such as the <a href="/img/Blobpirate.svg">dapper captain blobfish</a> and the utterly flawless <a href="/img/Blobchef.svg">chef blobish</a> were created with love by <a href="https://biscuittowndesigns.com/">Esther Arzola</a>. Sticker packs and other swag can be purchased directly from <a href="https://www.redbubble.com/people/earzola/shop">https://www.redbubble.com/people/earzola/shop</a>.
+Variations of the mascot such as the <a href="/bento/img/Blobpirate.svg">dapper captain blobfish</a> and the utterly flawless <a href="/bento/img/Blobchef.svg">chef blobish</a> were created with love by <a href="https://biscuittowndesigns.com/">Esther Arzola</a>. Sticker packs and other swag can be purchased directly from <a href="https://www.redbubble.com/people/earzola/shop">https://www.redbubble.com/people/earzola/shop</a>.
                 </p>
               </div>
             </div>
@@ -83,8 +83,8 @@ Variations of the mascot such as the <a href="/img/Blobpirate.svg">dapper captai
             <div className="row">
               <div className={classnames("margin-bottom--lg", "col", "col--8", "col--offset-2", styles.emojiContainer)}>
                 {emojis.map((emoji, idx) => (
-                  <a key={idx} href={`/img/emojis/${emoji}`}>
-                    <img className={styles.emoji} src={`/img/emojis/${emoji}`}/>
+                  <a key={idx} href={`/bento/img/emojis/${emoji}`}>
+                    <img className={styles.emoji} src={`/bento/img/emojis/${emoji}`}/>
                   </a>
                 ))}
               </div>
