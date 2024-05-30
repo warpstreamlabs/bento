@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[4297],{30507:function(e){e.exports=JSON.parse('{"label":"v4","permalink":"/blog/tags/v-4","allTagsPath":"/blog/tags","count":5,"unlisted":false}')}}]);
