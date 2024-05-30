@@ -3,7 +3,7 @@ title: Outputs
 sidebar_label: About
 ---
 
-An output is a sink where we wish to send our consumed data after applying an optional array of [processors][processors]. Only one output is configured at the root of a Benthos config. However, the output can be a [broker][output.broker] which combines multiple outputs under a chosen brokering pattern, or a [switch][output.switch] which is used to multiplex against different outputs.
+An output is a sink where we wish to send our consumed data after applying an optional array of [processors][processors]. Only one output is configured at the root of a Bento config. However, the output can be a [broker][output.broker] which combines multiple outputs under a chosen brokering pattern, or a [switch][output.switch] which is used to multiplex against different outputs.
 
 An output config section looks like this:
 
@@ -22,13 +22,13 @@ output:
 
 ## Back Pressure
 
-Benthos outputs apply back pressure to components upstream. This means if your output target starts blocking traffic Benthos will gracefully stop consuming until the issue is resolved.
+Bento outputs apply back pressure to components upstream. This means if your output target starts blocking traffic Bento will gracefully stop consuming until the issue is resolved.
 
 ## Retries
 
-When a Benthos output fails to send a message the error is propagated back up to the input, where depending on the protocol it will either be pushed back to the source as a Noack (e.g. AMQP) or will be reattempted indefinitely with the commit withheld until success (e.g. Kafka).
+When a Bento output fails to send a message the error is propagated back up to the input, where depending on the protocol it will either be pushed back to the source as a Noack (e.g. AMQP) or will be reattempted indefinitely with the commit withheld until success (e.g. Kafka).
 
-It's possible to instead have Benthos indefinitely retry an output until success with a [`retry`][output.retry] output. Some other outputs, such as the [`broker`][output.broker], might also retry indefinitely depending on their configuration.
+It's possible to instead have Bento indefinitely retry an output until success with a [`retry`][output.retry] output. Some other outputs, such as the [`broker`][output.broker], might also retry indefinitely depending on their configuration.
 
 ## Dead Letter Queues
 
@@ -48,7 +48,7 @@ output:
 
 ## Multiplexing Outputs
 
-There are a few different ways of multiplexing in Benthos, here's a quick run through:
+There are a few different ways of multiplexing in Bento, here's a quick run through:
 
 ### Interpolation Multiplexing
 

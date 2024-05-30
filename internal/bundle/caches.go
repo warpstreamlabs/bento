@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllCaches is a set containing every single cache that has been imported.
@@ -42,7 +42,7 @@ type cacheSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// CacheSet contains an explicit set of caches available to a Benthos service.
+// CacheSet contains an explicit set of caches available to a Bento service.
 type CacheSet struct {
 	specs map[string]cacheSpec
 }

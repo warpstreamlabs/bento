@@ -14,7 +14,7 @@ import (
 var ErrExhausted = errors.New("retry list is exhausted")
 
 // AckFunc is a synchronous function that matches the standard acknowledgment
-// signature in Benthos.
+// signature in Bento.
 type AckFunc func(context.Context, error) error
 
 // ReadFunc is a closure used to obtain a new T, this is done asynchronously

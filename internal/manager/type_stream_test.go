@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
-	"github.com/benthosdev/benthos/v4/public/service"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

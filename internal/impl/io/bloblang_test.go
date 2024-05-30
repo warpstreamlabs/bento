@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 func TestEnvFunctionCaching(t *testing.T) {
-	key := "BENTHOS_TEST_BLOBLANG_FUNCTION"
+	key := "BENTO_TEST_BLOBLANG_FUNCTION"
 	require.NoError(t, os.Setenv(key, "foobar"))
 	t.Cleanup(func() {
 		os.Unsetenv(key)

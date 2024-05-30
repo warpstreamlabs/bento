@@ -6,9 +6,9 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/tracer"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/tracer"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllTracers is a set containing every single tracer that has been imported.
@@ -44,7 +44,7 @@ type tracerSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// TracerSet contains an explicit set of tracers available to a Benthos service.
+// TracerSet contains an explicit set of tracers available to a Bento service.
 type TracerSet struct {
 	specs map[string]tracerSpec
 }

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-aws s3 mb --endpoint http://localhost:4566 s3://benthos-test
+aws s3 mb --endpoint http://localhost:4566 s3://bento-test
 
 sqs_queue_url=$(aws sqs create-queue \
   --endpoint http://localhost:4566 \
-  --queue-name benthos-test \
+  --queue-name bento-test \
   --region eu-west-1 \
   --attributes 'ReceiveMessageWaitTimeSeconds=20,VisibilityTimeout=300'  \
   --output text \
@@ -32,7 +32,7 @@ sqs_policy='{
         "Resource":"'$sqs_queue_arn'",
         "Condition":{
           "ArnLike": {
-            "aws:SourceArn": "arn:aws:s3:*:*:benthos-test"
+            "aws:SourceArn": "arn:aws:s3:*:*:bento-test"
           }
         }
       }
@@ -49,7 +49,7 @@ aws sqs set-queue-attributes \
 
 aws s3api put-bucket-notification-configuration \
   --endpoint http://localhost:4566 \
-  --bucket "benthos-test" \
+  --bucket "bento-test" \
   --region eu-west-1 \
   --notification-configuration '{
     "QueueConfigurations": [{

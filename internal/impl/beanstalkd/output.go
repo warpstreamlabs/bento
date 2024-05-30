@@ -7,7 +7,7 @@ import (
 
 	"github.com/beanstalkd/go-beanstalk"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func beanstalkdOutputConfig() *service.ConfigSpec {

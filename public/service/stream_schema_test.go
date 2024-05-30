@@ -10,8 +10,8 @@ import (
 
 	jsonschema "github.com/xeipuuv/gojsonschema"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func testEnvWithPlugins(t testing.TB) *service.Environment {

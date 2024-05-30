@@ -11,13 +11,13 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
 )
 
 func pullCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "pull",
-		Usage: "Run deployments configured within a Benthos Studio session",
+		Usage: "Run deployments configured within a Bento Studio session",
 		Description: `
 When a Studio session has one or more deployments added this command will
 synchronise with the session and obtain a deployment assignment. The assigned

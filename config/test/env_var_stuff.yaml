@@ -1,8 +1,8 @@
 pipeline:
   processors:
     - mutation: |
-        root.foo = "${BENTHOS_TEST_FOO:woof}"
-        root.bar = env("BENTHOS_TEST_BAR").or("meow")
+        root.foo = "${BENTO_TEST_FOO:woof}"
+        root.bar = env("BENTO_TEST_BAR").or("meow")
 
 tests:
   - name: only defaults
@@ -15,8 +15,8 @@ tests:
 
   - name: both defined
     environment:
-      BENTHOS_TEST_FOO: quack
-      BENTHOS_TEST_BAR: moo
+      BENTO_TEST_FOO: quack
+      BENTO_TEST_BAR: moo
     input_batch:
       - content: '{"id":"1"}'
     output_batches:
@@ -25,8 +25,8 @@ tests:
 
   - name: both defined again
     environment:
-      BENTHOS_TEST_FOO: tweet
-      BENTHOS_TEST_BAR: neigh
+      BENTO_TEST_FOO: tweet
+      BENTO_TEST_BAR: neigh
     input_batch:
       - content: '{"id":"1"}'
     output_batches:

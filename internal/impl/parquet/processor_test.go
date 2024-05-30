@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func TestParquetProcessorConfigLinting(t *testing.T) {
@@ -61,7 +61,7 @@ parquet:
 }
 
 func TestParquetProcessorConfigParse(t *testing.T) {
-	tmpSchemaFile, err := os.CreateTemp("", "benthos_parquet_test")
+	tmpSchemaFile, err := os.CreateTemp("", "bento_parquet_test")
 	require.NoError(t, err)
 
 	_, err = tmpSchemaFile.WriteString(`{

@@ -11,7 +11,7 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	jsonschema "github.com/xeipuuv/gojsonschema"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 var _ = registerSimpleMethod(
@@ -767,7 +767,7 @@ var _ = registerSimpleMethod(
 		),
 		NewExampleSpec(
 			"In order to load a schema from a file use the `file` function.",
-			`root = this.json_schema(file(env("BENTHOS_TEST_BLOBLANG_SCHEMA_FILE")))`,
+			`root = this.json_schema(file(env("BENTO_TEST_BLOBLANG_SCHEMA_FILE")))`,
 		),
 	).Beta().Param(ParamString("schema", "The schema to check values against.")),
 	func(args *ParsedParams) (simpleMethod, error) {

@@ -6,8 +6,8 @@ package query
 import (
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 type badFunctionErr string
@@ -25,7 +25,7 @@ func (e badMethodErr) Error() string {
 //------------------------------------------------------------------------------
 
 // MessageBatch is an interface type to be given to a query function, it allows
-// the function to resolve fields and metadata from a Benthos message batch.
+// the function to resolve fields and metadata from a Bento message batch.
 type MessageBatch interface {
 	Get(p int) *message.Part
 	Len() int

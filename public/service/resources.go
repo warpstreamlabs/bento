@@ -7,13 +7,13 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
 )
 
 // Resources provides access to service-wide resources.
@@ -68,7 +68,7 @@ func MockResourcesOptAddRateLimit(name string, fn func(context.Context) (time.Du
 }
 
 // EngineVersion returns the version stamp associated with the underlying
-// benthos engine. The version string is not guaranteed to match any particular
+// bento engine. The version string is not guaranteed to match any particular
 // scheme.
 func (r *Resources) EngineVersion() string {
 	return r.mgr.EngineVersion()
@@ -135,14 +135,14 @@ func (f *wrapperFS) MkdirAll(path string, perm fs.FileMode) error {
 	return f.fallback.MkdirAll(path, perm)
 }
 
-// FS implements a superset of fs.FS and includes goodies that benthos
+// FS implements a superset of fs.FS and includes goodies that bento
 // components specifically need.
 type FS struct {
 	i ifs.FS
 }
 
 // NewFS provides a new instance of a filesystem. The fs.FS passed in can
-// optionally implement methods from benthos ifs.FS
+// optionally implement methods from bento ifs.FS
 func NewFS(filesystem fs.FS) *FS {
 	if fsimpl, ok := filesystem.(ifs.FS); ok {
 		return &FS{fsimpl}
@@ -270,7 +270,7 @@ func (r *Resources) XUnwrapper() any {
 // ManagedBatchOutput takes a BatchOutput implementation and wraps it within a
 // mechanism that automatically manages QOL details such as connect/reconnect
 // looping, max in flight, back pressure, and so on. This is similar to how an
-// output would be executed within a standard Benthos pipeline.
+// output would be executed within a standard Bento pipeline.
 func (r *Resources) ManagedBatchOutput(typeName string, maxInFlight int, b BatchOutput) (*OwnedOutput, error) {
 	w := newAirGapBatchWriter(b)
 	o, err := output.NewAsyncWriter(typeName, maxInFlight, w, r.mgr)

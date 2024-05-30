@@ -19,9 +19,9 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/public/service"
-	"github.com/benthosdev/benthos/v4/public/service/codec"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service/codec"
 )
 
 const (
@@ -44,7 +44,7 @@ func socketServerInputSpec() *service.ConfigSpec {
 				Description("A network type to accept."),
 			service.NewStringField(isFieldAddress).
 				Description("The address to listen from.").
-				Examples("/tmp/benthos.sock", "0.0.0.0:6000"),
+				Examples("/tmp/bento.sock", "0.0.0.0:6000"),
 			service.NewStringField(issFieldAddressCache).
 				Description("An optional [`cache`](/docs/components/caches/about) within which this input should write it's bound address once known. The key of the cache item containing the address will be the label of the component suffixed with `_address` (e.g. `foo_address`), or `socket_server_address` when a label has not been provided. This is useful in situations where the address is dynamically allocated by the server (`127.0.0.1:0`) and you want to store the allocated address somewhere for reference by other systems and components.").
 				Optional().

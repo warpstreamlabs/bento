@@ -15,7 +15,7 @@ categories: ["Utility"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Stores consumed messages in memory and acknowledges them at the input level. During shutdown Benthos will make a best attempt at flushing all remaining messages before exiting cleanly.
+Stores consumed messages in memory and acknowledges them at the input level. During shutdown Bento will make a best attempt at flushing all remaining messages before exiting cleanly.
 
 
 <Tabs defaultValue="common" values={[

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

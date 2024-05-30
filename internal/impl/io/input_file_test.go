@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/component/testutil"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 func TestFileDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	tmpInnerDir, err := os.MkdirTemp(tmpDir, "benthos_inner")
+	tmpInnerDir, err := os.MkdirTemp(tmpDir, "bento_inner")
 	require.NoError(t, err)
 
 	tmpFile, err := os.CreateTemp(tmpDir, "f1*.txt")
@@ -107,7 +107,7 @@ file:
 func TestFileDirectoryDeprecated(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	tmpInnerDir, err := os.MkdirTemp(tmpDir, "benthos_inner")
+	tmpInnerDir, err := os.MkdirTemp(tmpDir, "bento_inner")
 	require.NoError(t, err)
 
 	tmpFile, err := os.CreateTemp(tmpDir, "f1*.txt")

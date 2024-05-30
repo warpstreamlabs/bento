@@ -6,11 +6,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only pure Benthos components, switch with `components/all` for all
+	// Import only pure Bento components, switch with `components/all` for all
 	// standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 type RandomRateLimit struct {
@@ -27,7 +27,7 @@ func (r *RandomRateLimit) Close(ctx context.Context) error {
 
 // This example demonstrates how to create a rate limit plugin, which is
 // configured by providing a struct containing the fields to be parsed from
-// within the Benthos configuration.
+// within the Bento configuration.
 func Example_rateLimitPlugin() {
 	configSpec := service.NewConfigSpec().
 		Summary("A rate limit that's pretty much just random.").
@@ -51,6 +51,6 @@ func Example_rateLimitPlugin() {
 		panic(err)
 	}
 
-	// And then execute Benthos with:
+	// And then execute Bento with:
 	// service.RunCLI(context.Background())
 }

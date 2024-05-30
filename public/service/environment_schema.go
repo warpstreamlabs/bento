@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/config/schema"
-	"github.com/benthosdev/benthos/v4/internal/cuegen"
+	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/v4/internal/cuegen"
 )
 
 // EnvironmentSchema represents a schema definition for all components

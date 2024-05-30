@@ -11,7 +11,7 @@ import (
 	client "github.com/influxdata/influxdb1-client/v2"
 	"github.com/rcrowley/go-metrics"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (

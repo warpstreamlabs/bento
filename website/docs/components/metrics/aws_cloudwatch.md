@@ -30,7 +30,7 @@ Introduced in version 3.36.0.
 # Common config fields, showing default values
 metrics:
   aws_cloudwatch:
-    namespace: Benthos
+    namespace: Bento
   mapping: ""
 ```
 
@@ -41,7 +41,7 @@ metrics:
 # All config fields, showing default values
 metrics:
   aws_cloudwatch:
-    namespace: Benthos
+    namespace: Bento
     flush_period: 100ms
     region: ""
     endpoint: ""
@@ -87,7 +87,7 @@ The namespace used to distinguish metrics from other services.
 
 
 Type: `string`  
-Default: `"Benthos"`  
+Default: `"Bento"`  
 
 ### `flush_period`
 

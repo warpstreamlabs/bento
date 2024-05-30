@@ -33,7 +33,7 @@ import (
 	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 var _ = registerSimpleMethod(

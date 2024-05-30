@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
 // Logger is an object with support for levelled logging and modular components.

@@ -12,7 +12,7 @@ type logHandler struct {
 	slog *slog.Logger
 }
 
-func NewBenthosLogAdapter(l *slog.Logger) *logHandler {
+func NewBentoLogAdapter(l *slog.Logger) *logHandler {
 	return &logHandler{slog: l}
 }
 

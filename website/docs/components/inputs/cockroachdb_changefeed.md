@@ -70,7 +70,7 @@ input:
 </TabItem>
 </Tabs>
 
-This input will continue to listen to the changefeed until shutdown. A backfill of the full current state of the table will be delivered upon each run unless a cache is configured for storing cursor timestamps, as this is how Benthos keeps track as to which changes have been successfully delivered.
+This input will continue to listen to the changefeed until shutdown. A backfill of the full current state of the table will be delivered upon each run unless a cache is configured for storing cursor timestamps, as this is how Bento keeps track as to which changes have been successfully delivered.
 
 Note: You must have `SET CLUSTER SETTING kv.rangefeed.enabled = true;` on your CRDB cluster, for more information refer to [the official CockroachDB documentation.](https://www.cockroachlabs.com/docs/stable/changefeed-examples?filters=core)
 
@@ -238,7 +238,7 @@ tables:
 
 ### `cursor_cache`
 
-A [cache resource](https://www.benthos.dev/docs/components/caches/about) to use for storing the current latest cursor that has been successfully delivered, this allows Benthos to continue from that cursor upon restart, rather than consume the entire state of the table.
+A [cache resource](https://www.benthos.dev/docs/components/caches/about) to use for storing the current latest cursor that has been successfully delivered, this allows Bento to continue from that cursor upon restart, rather than consume the entire state of the table.
 
 
 Type: `string`  
@@ -246,7 +246,7 @@ Type: `string`
 ### `options`
 
 A list of options to be included in the changefeed (WITH X, Y...).
-**NOTE: Both the CURSOR option and UPDATED will be ignored from these options when a `cursor_cache` is specified, as they are set explicitly by Benthos in this case.**
+**NOTE: Both the CURSOR option and UPDATED will be ignored from these options when a `cursor_cache` is specified, as they are set explicitly by Bento in this case.**
 
 
 Type: `array`  

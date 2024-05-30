@@ -18,7 +18,7 @@ type ObservedProcessor struct {
 	Error    int64 `json:"error"`
 }
 
-// Observed is a subset of typical Benthos metrics collected by streams that
+// Observed is a subset of typical Bento metrics collected by streams that
 // we're interested in for studios purposes.
 type Observed struct {
 	Input     map[string]ObservedInput     `json:"input"`

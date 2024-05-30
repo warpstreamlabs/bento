@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/youmark/pkcs8"
 
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
 func createCertificates() (certPem, keyPem []byte) {
@@ -31,8 +31,8 @@ func createCertificates() (certPem, keyPem []byte) {
 		NotAfter:     time.Now().AddDate(5, 0, 0),
 		SerialNumber: big.NewInt(123123),
 		Subject: pkix.Name{
-			CommonName:   "Benthos",
-			Organization: []string{"Benthos"},
+			CommonName:   "Bento",
+			Organization: []string{"Bento"},
 		},
 		BasicConstraintsValid: true,
 	}
@@ -94,11 +94,11 @@ func TestCertificateFileWithEncryptedKey(t *testing.T) {
 	}{
 		{
 			name: "PKCS#1",
-			kp:   createCertificatesWithEncryptedPKCS1Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS1Key(t, "bento"),
 		},
 		{
 			name: "PKCS#8",
-			kp:   createCertificatesWithEncryptedPKCS8Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS8Key(t, "bento"),
 		},
 	}
 
@@ -115,7 +115,7 @@ func TestCertificateFileWithEncryptedKey(t *testing.T) {
 		c := ClientCertConfig{
 			KeyFile:  fKey.Name(),
 			CertFile: fCert.Name(),
-			Password: "benthos",
+			Password: "bento",
 		}
 
 		_, err := c.Load(ifs.OS())
@@ -132,11 +132,11 @@ func TestCertificateWithEncryptedKey(t *testing.T) {
 	}{
 		{
 			name: "PKCS#1",
-			kp:   createCertificatesWithEncryptedPKCS1Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS1Key(t, "bento"),
 		},
 		{
 			name: "PKCS#8",
-			kp:   createCertificatesWithEncryptedPKCS8Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS8Key(t, "bento"),
 		},
 	}
 
@@ -144,7 +144,7 @@ func TestCertificateWithEncryptedKey(t *testing.T) {
 		c := ClientCertConfig{
 			Cert:     string(test.kp.cert),
 			Key:      string(test.kp.key),
-			Password: "benthos",
+			Password: "bento",
 		}
 
 		_, err := c.Load(ifs.OS())
@@ -162,12 +162,12 @@ func TestCertificateFileWithEncryptedKeyAndWrongPassword(t *testing.T) {
 	}{
 		{
 			name: "PKCS#1",
-			kp:   createCertificatesWithEncryptedPKCS1Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS1Key(t, "bento"),
 			err:  "x509: decryption password incorrect",
 		},
 		{
 			name: "PKCS#8",
-			kp:   createCertificatesWithEncryptedPKCS8Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS8Key(t, "bento"),
 			err:  "pkcs8: incorrect password",
 		},
 	}
@@ -201,12 +201,12 @@ func TestEncryptedKeyWithWrongPassword(t *testing.T) {
 	}{
 		{
 			name: "PKCS#1",
-			kp:   createCertificatesWithEncryptedPKCS1Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS1Key(t, "bento"),
 			err:  "x509: decryption password incorrect",
 		},
 		{
 			name: "PKCS#8",
-			kp:   createCertificatesWithEncryptedPKCS8Key(t, "benthos"),
+			kp:   createCertificatesWithEncryptedPKCS8Key(t, "bento"),
 			err:  "pkcs8: incorrect password",
 		},
 	}

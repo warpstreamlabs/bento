@@ -8,10 +8,10 @@ import (
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	ifilepath "github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/template"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/template"
 )
 
 var (
@@ -62,16 +62,16 @@ func lintFile(path string) (pathLints []pathLint) {
 func lintCliCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "lint",
-		Usage: "Parse Benthos templates and report any linting errors",
+		Usage: "Parse Bento templates and report any linting errors",
 		Description: `
 Exits with a status code 1 if any linting errors are detected:
 
-  benthos template lint
-  benthos template lint ./templates/*.yaml
-  benthos template lint ./foo.yaml ./bar.yaml
-  benthos template lint ./templates/...
+  bento template lint
+  bento template lint ./templates/*.yaml
+  bento template lint ./foo.yaml ./bar.yaml
+  bento template lint ./templates/...
 
-If a path ends with '...' then Benthos will walk the target and lint any
+If a path ends with '...' then Bento will walk the target and lint any
 files with the .yaml or .yml extension.`[1:],
 		Action: func(c *cli.Context) error {
 			targets, err := ifilepath.GlobsAndSuperPaths(ifs.OS(), c.Args().Slice(), "yaml", "yml")

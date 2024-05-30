@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
 )
 
 // Metrics allows plugin authors to emit custom metrics from components that are
-// exported the same way as native Benthos metrics. It's safe to pass around a
+// exported the same way as native Bento metrics. It's safe to pass around a
 // nil pointer for testing components.
 type Metrics struct {
 	t metrics.Type
@@ -82,7 +82,7 @@ type MetricTimer struct {
 }
 
 // Timing adds a delta to a timing metric. Delta should be measured in
-// nanoseconds for consistency with other Benthos timing metrics.
+// nanoseconds for consistency with other Bento timing metrics.
 //
 // The number of label values must match the number and order of labels
 // specified when the timing was created.
@@ -120,7 +120,7 @@ func (g *MetricGauge) SetFloat64(value float64, labelValues ...string) {
 
 //------------------------------------------------------------------------------
 
-// MetricsExporter is an interface implemented by Benthos metrics exporters.
+// MetricsExporter is an interface implemented by Bento metrics exporters.
 type MetricsExporter interface {
 	NewCounterCtor(name string, labelKeys ...string) MetricsExporterCounterCtor
 	NewTimerCtor(name string, labelKeys ...string) MetricsExporterTimerCtor
@@ -161,7 +161,7 @@ type MetricsExporterCounter interface {
 // MetricsExporterTimer represents a timing metric of a given name and labels.
 type MetricsExporterTimer interface {
 	// Timing adds a delta to a timing metric. Delta should be measured in
-	// nanoseconds for consistency with other Benthos timing metrics.
+	// nanoseconds for consistency with other Bento timing metrics.
 	//
 	// The number of label values must match the number and order of labels
 	// specified when the timing was created.

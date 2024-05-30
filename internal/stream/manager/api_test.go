@@ -20,17 +20,17 @@ import (
 	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/testutil"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	bmanager "github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/stream/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	bmanager "github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/stream/manager"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 func router(m *manager.Type) *mux.Router {

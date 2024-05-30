@@ -3,7 +3,7 @@ title: Metrics
 sidebar_label: About
 ---
 
-Benthos emits lots of metrics in order to expose how components configured within your pipeline are behaving. You can configure exactly where these metrics end up with the config field `metrics`, which describes a metrics format and destination. For example, if you wished to push them via the StatsD protocol you could use this configuration:
+Bento emits lots of metrics in order to expose how components configured within your pipeline are behaving. You can configure exactly where these metrics end up with the config field `metrics`, which describes a metrics format and destination. For example, if you wished to push them via the StatsD protocol you could use this configuration:
 
 ```yaml
 metrics:
@@ -16,11 +16,11 @@ The default metrics configuration is to expose Prometheus metrics on the [servic
 
 ### Timings
 
-It's worth noting that timing metrics within Benthos are measured in nanoseconds and are therefore named with a `_ns` suffix. However, some exporters do not support this level of precision and are downgraded, or have the unit converted for convenience. In these cases the exporter documentation outlines the conversion and why it is made.
+It's worth noting that timing metrics within Bento are measured in nanoseconds and are therefore named with a `_ns` suffix. However, some exporters do not support this level of precision and are downgraded, or have the unit converted for convenience. In these cases the exporter documentation outlines the conversion and why it is made.
 
 ## Metric Names
 
-Each major Benthos component type emits one or more metrics with the name prefixed by the type. These metrics are intended to provide an overview of behaviour, performance and health. Some specific component implementations may provide their own unique metrics on top of these standardised ones, these extra metrics can be found listed on their respective documentation pages.
+Each major Bento component type emits one or more metrics with the name prefixed by the type. These metrics are intended to provide an overview of behaviour, performance and health. Some specific component implementations may provide their own unique metrics on top of these standardised ones, these extra metrics can be found listed on their respective documentation pages.
 
 ### Inputs
 
@@ -86,7 +86,7 @@ All cache metrics have a label `operation` denoting the operation that triggered
 
 ## Metric Labels
 
-The standard metric names are unique to the component type, but a benthos config may consist of any number of component instantiations. In order to provide a metrics series that is unique for each instantiation Benthos adds labels (or tags) that uniquely identify the instantiation. These labels are as follows:
+The standard metric names are unique to the component type, but a bento config may consist of any number of component instantiations. In order to provide a metrics series that is unique for each instantiation Bento adds labels (or tags) that uniquely identify the instantiation. These labels are as follows:
 
 ### `path`
 
@@ -100,11 +100,11 @@ The `label` label contains the unique label configured for a component emitting 
 
 ### `stream`
 
-The `stream` label is present in a metric series emitted from a stream config executed when Benthos is running in [streams mode][streams.about], and is populated with the stream name.
+The `stream` label is present in a metric series emitted from a stream config executed when Bento is running in [streams mode][streams.about], and is populated with the stream name.
 
 ## Example
 
-The following Benthos configuration:
+The following Bento configuration:
 
 ```yaml
 input:
@@ -151,7 +151,7 @@ output_sent{label="bar",path="root.output"}
 
 ## Metric Mapping
 
-Since Benthos emits a large variety of metrics it is often useful to restrict or modify the metrics that are emitted. This can be done using the [Bloblang mapping language][bloblang.about] in the field `metrics.mapping`. This is a mapping executed for each metric that is registered within the Benthos service and allows you to delete an entire series, modify the series name and delete or modify individual labels.
+Since Bento emits a large variety of metrics it is often useful to restrict or modify the metrics that are emitted. This can be done using the [Bloblang mapping language][bloblang.about] in the field `metrics.mapping`. This is a mapping executed for each metric that is registered within the Bento service and allows you to delete an entire series, modify the series name and delete or modify individual labels.
 
 Within the mapping the input document (referenced by the keyword `this`) is a string value containing the metric name, and the resulting document (referenced by the keyword `root`) must be a string value containing the resulting name. As is standard in Bloblang mappings, if the value of `root` is not assigned within the mapping then the metric name remains unchanged. If the value of `root` is `deleted()` then the metric series is dropped.
 

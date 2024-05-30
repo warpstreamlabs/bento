@@ -15,8 +15,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Jeffail/gabs/v2"
 
-	"github.com/benthosdev/benthos/v4/public/service"
-	"github.com/benthosdev/benthos/v4/public/service/codec"
+	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service/codec"
 )
 
 const (
@@ -88,7 +88,7 @@ When downloading large files it's often necessary to process it in streamed part
 
 ## Streaming New Files
 
-By default this input will consume all files found within the target container and will then gracefully terminate. This is referred to as a "batch" mode of operation. However, it's possible to instead configure a container as [an Event Grid source](https://learn.microsoft.com/en-gb/azure/event-grid/event-schema-blob-storage) and then use this as a `+"[`targets_input`](#targetsinput)"+`, in which case new files are consumed as they're uploaded and Benthos will continue listening for and downloading files as they arrive. This is referred to as a "streamed" mode of operation.
+By default this input will consume all files found within the target container and will then gracefully terminate. This is referred to as a "batch" mode of operation. However, it's possible to instead configure a container as [an Event Grid source](https://learn.microsoft.com/en-gb/azure/event-grid/event-schema-blob-storage) and then use this as a `+"[`targets_input`](#targetsinput)"+`, in which case new files are consumed as they're uploaded and Bento will continue listening for and downloading files as they arrive. This is referred to as a "streamed" mode of operation.
 
 ## Metadata
 
@@ -119,7 +119,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Advanced().
 				Default(false),
 			service.NewInputField(bsiFieldTargetsInput).
-				Description("EXPERIMENTAL: An optional source of download targets, configured as a [regular Benthos input](/docs/components/inputs/about). Each message yielded by this input should be a single structured object containing a field `name`, which represents the blob to be downloaded.").
+				Description("EXPERIMENTAL: An optional source of download targets, configured as a [regular Bento input](/docs/components/inputs/about). Each message yielded by this input should be a single structured object containing a field `name`, which represents the blob to be downloaded.").
 				Optional().
 				Version("4.27.0").
 				Example(map[string]any{

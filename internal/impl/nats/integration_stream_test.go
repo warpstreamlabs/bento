@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegrationNatsStream(t *testing.T) {
@@ -30,7 +30,7 @@ func TestIntegrationNatsStream(t *testing.T) {
 	_ = resource.Expire(900)
 	require.NoError(t, pool.Retry(func() error {
 		natsConn, err := stan.Connect(
-			"test-cluster", "benthos_test_client",
+			"test-cluster", "bento_test_client",
 			stan.NatsURL(fmt.Sprintf("tcp://localhost:%v", resource.GetPort("4222/tcp"))),
 		)
 		if err != nil {

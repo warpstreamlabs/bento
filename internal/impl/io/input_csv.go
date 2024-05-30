@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 var (
@@ -70,7 +70,7 @@ Note: The `+"`header`"+` field is only set when `+"`parse_header_row`"+` is `+"`
 
 ### Output CSV column order
 
-When [creating CSV](/docs/guides/bloblang/advanced#creating-csv) from Benthos messages, the columns must be sorted lexicographically to make the output deterministic. Alternatively, when using the `+"`csv`"+` input, one can leverage the `+"`header`"+` metadata field to retrieve the column order:
+When [creating CSV](/docs/guides/bloblang/advanced#creating-csv) from Bento messages, the columns must be sorted lexicographically to make the output deterministic. Alternatively, when using the `+"`csv`"+` input, one can leverage the `+"`header`"+` metadata field to retrieve the column order:
 
 `+"```yaml"+`
 input:

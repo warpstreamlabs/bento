@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
 func TestLoggerWith(t *testing.T) {
@@ -16,7 +16,7 @@ func TestLoggerWith(t *testing.T) {
 	loggerConfig.Format = "logfmt"
 	loggerConfig.LogLevel = "WARN"
 	loggerConfig.StaticFields = map[string]string{
-		"@service": "benthos_service",
+		"@service": "bento_service",
 		"@system":  "foo",
 	}
 
@@ -35,9 +35,9 @@ func TestLoggerWith(t *testing.T) {
 
 	logger.Warn("Warning message root module\n")
 
-	expected := `level=warning msg="Warning message root module" @service=benthos_service @system=foo
-level=warning msg="Warning message foo fields" @service=benthos_service @system=foo count=10 foo=bar iscool=true thing="is a string"
-level=warning msg="Warning message root module" @service=benthos_service @system=foo
+	expected := `level=warning msg="Warning message root module" @service=bento_service @system=foo
+level=warning msg="Warning message foo fields" @service=bento_service @system=foo count=10 foo=bar iscool=true thing="is a string"
+level=warning msg="Warning message root module" @service=bento_service @system=foo
 `
 
 	assert.Equal(t, expected, buf.String())
@@ -49,7 +49,7 @@ func TestLoggerWithOddArgs(t *testing.T) {
 	loggerConfig.Format = "logfmt"
 	loggerConfig.LogLevel = "WARN"
 	loggerConfig.StaticFields = map[string]string{
-		"@service": "benthos_service",
+		"@service": "bento_service",
 		"@system":  "foo",
 	}
 
@@ -65,7 +65,7 @@ func TestLoggerWithOddArgs(t *testing.T) {
 
 	logger.Warn("Warning message foo fields")
 
-	expected := `level=warning msg="Warning message foo fields" @service=benthos_service @system=foo count=10 foo=bar iscool=true thing="is a string"
+	expected := `level=warning msg="Warning message foo fields" @service=bento_service @system=foo count=10 foo=bar iscool=true thing="is a string"
 `
 
 	assert.Equal(t, expected, buf.String())
@@ -77,7 +77,7 @@ func TestLoggerWithNonStringKeys(t *testing.T) {
 	loggerConfig.Format = "logfmt"
 	loggerConfig.LogLevel = "WARN"
 	loggerConfig.StaticFields = map[string]string{
-		"@service": "benthos_service",
+		"@service": "bento_service",
 		"@system":  "foo",
 	}
 
@@ -95,7 +95,7 @@ func TestLoggerWithNonStringKeys(t *testing.T) {
 
 	logger.Warn("Warning message foo fields")
 
-	expected := `level=warning msg="Warning message foo fields" @service=benthos_service @system=foo component=meow foo=bar iscool=true thing="is a string"
+	expected := `level=warning msg="Warning message foo fields" @service=bento_service @system=foo component=meow foo=bar iscool=true thing="is a string"
 `
 
 	assert.Equal(t, expected, buf.String())
@@ -107,7 +107,7 @@ func TestLoggerWithOtherNames(t *testing.T) {
 	loggerConfig.Format = "json"
 	loggerConfig.LogLevel = "WARN"
 	loggerConfig.StaticFields = map[string]string{
-		"@service": "benthos_service",
+		"@service": "bento_service",
 		"@system":  "foo",
 	}
 	loggerConfig.LevelName = "severity"
@@ -125,7 +125,7 @@ func TestLoggerWithOtherNames(t *testing.T) {
 
 	logger.Warn("Warning message foo fields")
 
-	expected := `{"@service":"benthos_service","@system":"foo","foo":"bar","message":"Warning message foo fields","severity":"warning"}
+	expected := `{"@service":"bento_service","@system":"foo","foo":"bar","message":"Warning message foo fields","severity":"warning"}
 `
 
 	require.JSONEq(t, expected, buf.String())

@@ -30,16 +30,16 @@ pub unsafe extern "C" fn _process() {
 
 //------------------------------------------------------------------------------
 
-#[link(wasm_import_module = "benthos_wasm")]
+#[link(wasm_import_module = "bento_wasm")]
 extern "C" {
-    /// WebAssembly import for mutating Benthos messages.
+    /// WebAssembly import for mutating Bento messages.
     ///
     /// Note: This is not an ownership transfer: Rust still owns the pointer
     /// and ensures it isn't deallocated during this call.
     #[link_name = "v0_msg_set_bytes"]
     fn _msg_set_bytes(ptr: u32, size: u32);
 
-    /// WebAssembly import for accessing Benthos messages.
+    /// WebAssembly import for accessing Bento messages.
     ///
     /// Note: This is not an ownership transfer: Rust still owns the pointer
     /// and ensures it isn't deallocated during this call.

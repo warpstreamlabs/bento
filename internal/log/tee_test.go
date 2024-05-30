@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
 func TestLoggerTee(t *testing.T) {
@@ -18,7 +18,7 @@ func TestLoggerTee(t *testing.T) {
 	loggerConfig.Format = "logfmt"
 	loggerConfig.LogLevel = "WARN"
 	loggerConfig.StaticFields = map[string]string{
-		"@service": "benthos_service",
+		"@service": "bento_service",
 		"@system":  "foo",
 	}
 
@@ -30,7 +30,7 @@ func TestLoggerTee(t *testing.T) {
 	loggerConfig.Format = "logfmt"
 	loggerConfig.LogLevel = "DEBUG"
 	loggerConfig.StaticFields = map[string]string{
-		"@service": "benthos_service",
+		"@service": "bento_service",
 		"@system":  "bar",
 	}
 
@@ -52,18 +52,18 @@ func TestLoggerTee(t *testing.T) {
 	logger.Warn("Warning message root module\n")
 	logger.Debug("Debug message root again")
 
-	expectedA := `level=warning msg="Warning message root module" @service=benthos_service @system=foo
-level=warning msg="Warning message foo fields" @service=benthos_service @system=foo count=10 foo=bar iscool=true thing="is a string"
-level=warning msg="Warning message root module" @service=benthos_service @system=foo
+	expectedA := `level=warning msg="Warning message root module" @service=bento_service @system=foo
+level=warning msg="Warning message foo fields" @service=bento_service @system=foo count=10 foo=bar iscool=true thing="is a string"
+level=warning msg="Warning message root module" @service=bento_service @system=foo
 `
 	assert.Equal(t, expectedA, bufA.String())
 
-	expectedB := `level=warning msg="Warning message root module" @service=benthos_service @system=bar
-level=debug msg="Debug log root module" @service=benthos_service @system=bar
-level=debug msg="Debug log foo fields" @service=benthos_service @system=bar count=10 foo=bar iscool=true thing="is a string"
-level=warning msg="Warning message foo fields" @service=benthos_service @system=bar count=10 foo=bar iscool=true thing="is a string"
-level=warning msg="Warning message root module" @service=benthos_service @system=bar
-level=debug msg="Debug message root again" @service=benthos_service @system=bar
+	expectedB := `level=warning msg="Warning message root module" @service=bento_service @system=bar
+level=debug msg="Debug log root module" @service=bento_service @system=bar
+level=debug msg="Debug log foo fields" @service=bento_service @system=bar count=10 foo=bar iscool=true thing="is a string"
+level=warning msg="Warning message foo fields" @service=bento_service @system=bar count=10 foo=bar iscool=true thing="is a string"
+level=warning msg="Warning message root module" @service=bento_service @system=bar
+level=debug msg="Debug message root again" @service=bento_service @system=bar
 `
 	assert.Equal(t, expectedB, bufB.String())
 }

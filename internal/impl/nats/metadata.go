@@ -3,7 +3,7 @@ package nats
 import (
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (

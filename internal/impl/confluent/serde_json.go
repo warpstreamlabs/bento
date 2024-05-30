@@ -6,7 +6,7 @@ import (
 
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func resolveJSONSchema(ctx context.Context, client *schemaRegistryClient, info SchemaInfo) (*gojsonschema.Schema, error) {
@@ -43,7 +43,7 @@ func getJSONTranscoder(ctx context.Context, cl *schemaRegistryClient, info Schem
 		return nil, err
 	}
 
-	// -- we only need to verify if the message is valid since the input format which benthos uses (json) is the same
+	// -- we only need to verify if the message is valid since the input format which bento uses (json) is the same
 	// -- as the output format
 	return func(m *service.Message) error {
 		b, err := m.AsBytes()

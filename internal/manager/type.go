@@ -10,23 +10,23 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/buffer"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/component/scanner"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/component/scanner"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // ErrResourceNotFound represents an error where a named resource could not be
@@ -47,7 +47,7 @@ type APIReg interface {
 
 //------------------------------------------------------------------------------
 
-// Type is an implementation of types.Manager, which is expected by Benthos
+// Type is an implementation of types.Manager, which is expected by Bento
 // components that need to register service wide behaviours such as HTTP
 // endpoints and event listeners, and obtain service wide shared resources such
 // as caches and other resources.
@@ -180,7 +180,7 @@ func OptSetFS(fs ifs.FS) OptFunc {
 }
 
 // New returns an instance of manager.Type, which can be shared amongst
-// components and logical threads of a Benthos service.
+// components and logical threads of a Bento service.
 func New(conf ResourceConfig, opts ...OptFunc) (*Type, error) {
 	t := &Type{
 		apiReg:                   mock.NewManager(),

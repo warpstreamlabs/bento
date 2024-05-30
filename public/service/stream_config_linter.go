@@ -9,8 +9,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // StreamConfigLinter provides utilities for linting stream configs.
@@ -88,7 +88,7 @@ func (s *StreamConfigLinter) LintYAML(yamlBytes []byte) (lints []Lint, err error
 		}
 	}
 
-	if bytes.HasPrefix(yamlBytes, []byte("# BENTHOS LINT DISABLE")) {
+	if bytes.HasPrefix(yamlBytes, []byte("# BENTO LINT DISABLE")) {
 		return
 	}
 

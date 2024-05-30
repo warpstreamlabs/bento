@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/scanner"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/scanner"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllScanners is a set containing every single scanner that has been imported.
@@ -42,7 +42,7 @@ type scannerSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// ScannerSet contains an explicit set of scanners available to a Benthos
+// ScannerSet contains an explicit set of scanners available to a Bento
 // service.
 type ScannerSet struct {
 	specs map[string]scannerSpec

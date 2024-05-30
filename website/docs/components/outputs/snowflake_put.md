@@ -131,7 +131,7 @@ openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8
 ```
 
 to generate an encrypted SSH private key. However, in this case, it uses an encryption algorithm called
-`pbeWithMD5AndDES-CBC`, which is part of the PKCS#5 v1.5 and is considered insecure. Due to this, Benthos does not
+`pbeWithMD5AndDES-CBC`, which is part of the PKCS#5 v1.5 and is considered insecure. Due to this, Bento does not
 support it and, if you wish to use password-protected keys directly, you must use PKCS#5 v2.0 to encrypt them by using
 the following command (as the current Snowflake docs suggest):
 
@@ -158,20 +158,20 @@ For the optimal batch size, please consult the Snowflake [documentation](https:/
 
 ### Snowpipe
 
-Given a table called `BENTHOS_TBL` with one column of type `variant`:
+Given a table called `BENTO_TBL` with one column of type `variant`:
 
 ```sql
-CREATE OR REPLACE TABLE BENTHOS_DB.PUBLIC.BENTHOS_TBL(RECORD variant)
+CREATE OR REPLACE TABLE BENTO_DB.PUBLIC.BENTO_TBL(RECORD variant)
 ```
 
-and the following `BENTHOS_PIPE` Snowpipe:
+and the following `BENTO_PIPE` Snowpipe:
 
 ```sql
-CREATE OR REPLACE PIPE BENTHOS_DB.PUBLIC.BENTHOS_PIPE AUTO_INGEST = FALSE AS COPY INTO BENTHOS_DB.PUBLIC.BENTHOS_TBL FROM (SELECT * FROM @%BENTHOS_TBL) FILE_FORMAT = (TYPE = JSON COMPRESSION = AUTO)
+CREATE OR REPLACE PIPE BENTO_DB.PUBLIC.BENTO_PIPE AUTO_INGEST = FALSE AS COPY INTO BENTO_DB.PUBLIC.BENTO_TBL FROM (SELECT * FROM @%BENTO_TBL) FILE_FORMAT = (TYPE = JSON COMPRESSION = AUTO)
 ```
 
-you can configure Benthos to use the implicit table stage `@%BENTHOS_TBL` as the `stage` and
-`BENTHOS_PIPE` as the `snowpipe`. In this case, you must set `compression` to `AUTO` and, if
+you can configure Bento to use the implicit table stage `@%BENTO_TBL` as the `stage` and
+`BENTO_PIPE` as the `snowpipe`. In this case, you must set `compression` to `AUTO` and, if
 using message batching, you'll need to configure an [`archive`](/docs/components/processors/archive) processor
 with the `concatenate` format. Since the `compression` is set to `AUTO`, the
 [gosnowflake](https://github.com/snowflakedb/gosnowflake) client library will compress the messages automatically so you
@@ -211,7 +211,7 @@ If you need to pass in a valid `requestId` to any of these Snowpipe REST API end
 [uuid_v4()](https://www.benthos.dev/docs/guides/bloblang/functions#uuid_v4) string in a metadata field called
 `request_id`, log it via the [`log`](https://www.benthos.dev/docs/components/processors/log) processor and
 then configure `request_id: ${ @request_id }` ). Alternatively, you can enable debug logging as described
-[here](/docs/components/logger/about) and Benthos will print the Request IDs that it sends to Snowpipe.
+[here](/docs/components/logger/about) and Bento will print the Request IDs that it sends to Snowpipe.
 
 ### General Troubleshooting
 
@@ -221,7 +221,7 @@ docs for details on how to change this directory via environment variables.
 
 A silent failure can occur due to [this issue](https://github.com/snowflakedb/gosnowflake/issues/701), where the
 underlying [`gosnowflake` driver](https://github.com/snowflakedb/gosnowflake) doesn't return an error and doesn't
-log a failure if it can't figure out the current username. One way to trigger this behaviour is by running Benthos in a
+log a failure if it can't figure out the current username. One way to trigger this behaviour is by running Bento in a
 Docker container with a non-existent user ID (such as `--user 1000:1000`).
 
 
@@ -253,7 +253,7 @@ input:
       - localhost:9092
     topics:
       - foo
-    consumer_group: benthos
+    consumer_group: bento
     batching:
       count: 10
       period: 3s
@@ -267,19 +267,19 @@ input:
 
 output:
   snowflake_put:
-    account: benthos
-    user: test@benthos.dev
+    account: bento
+    user: test@warpstreamlabs.com
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
-    database: BENTHOS_DB
+    database: BENTO_DB
     warehouse: COMPUTE_WH
     schema: PUBLIC
-    stage: "@%BENTHOS_TBL"
-    path: benthos/BENTHOS_TBL/${! @kafka_partition }
+    stage: "@%BENTO_TBL"
+    path: bento/BENTO_TBL/${! @kafka_partition }
     file_name: ${! @kafka_start_offset }_${! @kafka_end_offset }_${! meta("batch_timestamp") }
     upload_parallel_threads: 4
     compression: NONE
-    snowpipe: BENTHOS_PIPE
+    snowpipe: BENTO_PIPE
 ```
 
 </TabItem>
@@ -290,15 +290,15 @@ Upload concatenated messages into a `.json` file to a table stage without callin
 ```yaml
 output:
   snowflake_put:
-    account: benthos
-    user: test@benthos.dev
+    account: bento
+    user: test@warpstreamlabs.com
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
-    database: BENTHOS_DB
+    database: BENTO_DB
     warehouse: COMPUTE_WH
     schema: PUBLIC
-    stage: "@%BENTHOS_TBL"
-    path: benthos
+    stage: "@%BENTO_TBL"
+    path: bento
     upload_parallel_threads: 4
     compression: NONE
     batching:
@@ -317,15 +317,15 @@ Upload concatenated messages into a `.parquet` file to a table stage without cal
 ```yaml
 output:
   snowflake_put:
-    account: benthos
-    user: test@benthos.dev
+    account: bento
+    user: test@warpstreamlabs.com
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
-    database: BENTHOS_DB
+    database: BENTO_DB
     warehouse: COMPUTE_WH
     schema: PUBLIC
-    stage: "@%BENTHOS_TBL"
-    path: benthos
+    stage: "@%BENTO_TBL"
+    path: bento
     file_extension: parquet
     upload_parallel_threads: 4
     compression: NONE
@@ -350,15 +350,15 @@ Upload concatenated messages compressed automatically into a `.gz` archive file 
 ```yaml
 output:
   snowflake_put:
-    account: benthos
-    user: test@benthos.dev
+    account: bento
+    user: test@warpstreamlabs.com
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
-    database: BENTHOS_DB
+    database: BENTO_DB
     warehouse: COMPUTE_WH
     schema: PUBLIC
-    stage: "@%BENTHOS_TBL"
-    path: benthos
+    stage: "@%BENTO_TBL"
+    path: bento
     upload_parallel_threads: 4
     compression: AUTO
     batching:
@@ -377,18 +377,18 @@ Upload concatenated messages compressed into a `.deflate` archive file to a tabl
 ```yaml
 output:
   snowflake_put:
-    account: benthos
-    user: test@benthos.dev
+    account: bento
+    user: test@warpstreamlabs.com
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
-    database: BENTHOS_DB
+    database: BENTO_DB
     warehouse: COMPUTE_WH
     schema: PUBLIC
-    stage: "@%BENTHOS_TBL"
-    path: benthos
+    stage: "@%BENTO_TBL"
+    path: bento
     upload_parallel_threads: 4
     compression: DEFLATE
-    snowpipe: BENTHOS_PIPE
+    snowpipe: BENTO_PIPE
     batching:
       count: 10
       period: 3s
@@ -407,18 +407,18 @@ Upload concatenated messages compressed into a `.raw_deflate` archive file to a 
 ```yaml
 output:
   snowflake_put:
-    account: benthos
-    user: test@benthos.dev
+    account: bento
+    user: test@warpstreamlabs.com
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
-    database: BENTHOS_DB
+    database: BENTO_DB
     warehouse: COMPUTE_WH
     schema: PUBLIC
-    stage: "@%BENTHOS_TBL"
-    path: benthos
+    stage: "@%BENTO_TBL"
+    path: bento
     upload_parallel_threads: 4
     compression: RAW_DEFLATE
-    snowpipe: BENTHOS_PIPE
+    snowpipe: BENTO_PIPE
     batching:
       count: 10
       period: 3s

@@ -11,13 +11,13 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/config/test"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	ifilepath "github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/config/test"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
 )
 
 var (

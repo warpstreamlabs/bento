@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 
-	_ "github.com/benthosdev/benthos/v4/internal/impl/io"
+	_ "github.com/warpstreamlabs/bento/v4/internal/impl/io"
 )
 
 func sendMsg(t *testing.T, msg string, tChan chan message.Transaction) {

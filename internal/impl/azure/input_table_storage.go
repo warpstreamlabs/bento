@@ -7,7 +7,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -99,7 +99,7 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-// AzureTableStorage is a benthos reader.Type implementation that reads rows
+// AzureTableStorage is a bento reader.Type implementation that reads rows
 // from an Azure Storage Table.
 type azureTableStorage struct {
 	conf  tsiConfig

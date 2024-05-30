@@ -4,17 +4,17 @@ sidebar_label: Walkthrough
 description: A step by step introduction to Bloblang
 ---
 
-Bloblang is the most advanced mapping language that you'll learn from this walkthrough (probably). It is designed for readability, the power to shape even the most outrageous input documents, and to easily make erratic schemas bend to your will. Bloblang is the native mapping language of Benthos, but it has been designed as a general purpose technology ready to be adopted by other tools.
+Bloblang is the most advanced mapping language that you'll learn from this walkthrough (probably). It is designed for readability, the power to shape even the most outrageous input documents, and to easily make erratic schemas bend to your will. Bloblang is the native mapping language of Bento, but it has been designed as a general purpose technology ready to be adopted by other tools.
 
-In this walkthrough you'll learn how to make new friends by mapping their documents, and lose old friends as they grow jealous and bitter of your mapping abilities. There are a few ways to execute Bloblang but the way we'll do it in this guide is to pull a Benthos docker image and run the command `benthos blobl server`, which opens up an interactive Bloblang editor:
+In this walkthrough you'll learn how to make new friends by mapping their documents, and lose old friends as they grow jealous and bitter of your mapping abilities. There are a few ways to execute Bloblang but the way we'll do it in this guide is to pull a Bento docker image and run the command `bento blobl server`, which opens up an interactive Bloblang editor:
 
 ```sh
-docker pull ghcr.io/benthosdev/benthos:latest
-docker run -p 4195:4195 --rm ghcr.io/benthosdev/benthos blobl server --no-open --host 0.0.0.0
+docker pull ghcr.io/warpstreamlabs/bento:latest
+docker run -p 4195:4195 --rm ghcr.io/warpstreamlabs/bento blobl server --no-open --host 0.0.0.0
 ```
 
 :::note Alternatives
-For alternative Benthos installation options check out the [getting started guide][guides.getting_started].
+For alternative Bento installation options check out the [getting started guide][guides.getting_started].
 :::
 
 Next, open your browser at `http://localhost:4195` and you should see an app with three panels, the top-left is where you paste an input document, the bottom is your Bloblang mapping and on the top-right is the output.
@@ -370,7 +370,7 @@ This version is more granular and will capture each of the errors individually, 
 
 I'm worried that I've turned you into some sort of error hating thug, hell-bent on eliminating all errors from existence. However, sometimes errors are what we want. Failing a mapping with an error allows us to handle the bad document in other ways, such as routing it to a dead-letter queue or filtering it entirely.
 
-You can read about common Benthos error handling patterns for bad data in the [error handling guide][configuration.error_handling], but the first step is to create the error. Luckily, Bloblang has a range of ways of creating errors under certain circumstances, which can be used in order to validate the data being mapped.
+You can read about common Bento error handling patterns for bad data in the [error handling guide][configuration.error_handling], but the first step is to create the error. Luckily, Bloblang has a range of ways of creating errors under certain circumstances, which can be used in order to validate the data being mapped.
 
 There are [a few helper methods][blobl.methods.coercion] that make validating and coercing fields nice and easy, try this mapping out:
 
@@ -651,7 +651,7 @@ Charlie will be upset but at least we'll be safe.
 
 You are truly a champion of mappings, and you're probably feeling pretty confident right now. Maybe you even have a mapping that you're particularly proud of. Well, I'm sorry to inform you that your mapping is DOOMED, as a mapping without unit tests is like a Twitter session, with the progression of time it will inevitably descend into madness.
 
-However, if you act now there is still time to spare your mapping from this fate, as Benthos has it's own [unit testing capabilities][configuration.unit_testing] that you can also use for your mappings. To start with save a mapping into a file called something like `naughty_man.blobl`, we can use the example above from the reusable mappings section:
+However, if you act now there is still time to spare your mapping from this fate, as Bento has it's own [unit testing capabilities][configuration.unit_testing] that you can also use for your mappings. To start with save a mapping into a file called something like `naughty_man.blobl`, we can use the example above from the reusable mappings section:
 
 ```coffee
 map remove_naughty_man {
@@ -705,7 +705,7 @@ tests:
 
 As you can see we've defined a single test, where we point to our mapping file which will be executed in our test. We then specify an input message which is a reduced version of the document we tried out before, and finally we specify output predicates, which is a JSON comparison against the output document.
 
-We can execute these tests with `benthos test ./naughty_man_test.yaml`, Benthos will also automatically find our tests if you simply run `benthos test ./...`. You should see an output something like:
+We can execute these tests with `bento test ./naughty_man_test.yaml`, Bento will also automatically find our tests if you simply run `bento test ./...`. You should see an output something like:
 
 ```text
 Test 'naughty_man_test.yaml' failed
@@ -735,11 +735,11 @@ Because in actual fact our expected output is wrong, I'll leave it to you to spo
 Test 'naughty_man_test.yaml' succeeded
 ```
 
-And now our mapping, should we need to expand it in the future, is better protected against regressions. You can read more about the Benthos unit test specification, including alternative output predicates, in [this document][configuration.unit_testing].
+And now our mapping, should we need to expand it in the future, is better protected against regressions. You can read more about the Bento unit test specification, including alternative output predicates, in [this document][configuration.unit_testing].
 
 ## Final Words
 
-That's it for this walkthrough, if you're hungry for more then I suggest you re-evaluate your priorities in life. If you have feedback then please [get in touch][community], despite being terrible people the Benthos community are very welcoming.
+That's it for this walkthrough, if you're hungry for more then I suggest you re-evaluate your priorities in life. If you have feedback then please [get in touch][community], despite being terrible people the Bento community are very welcoming.
 
 [guides.getting_started]: /docs/guides/getting_started
 [blobl.methods]: /docs/guides/bloblang/methods

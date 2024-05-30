@@ -9,7 +9,7 @@ import (
 
 var _ fs.FS = OS()
 
-// FS is a superset of fs.FS that includes goodies that benthos components
+// FS is a superset of fs.FS that includes goodies that bento components
 // specifically need.
 type FS interface {
 	Open(name string) (fs.File, error)

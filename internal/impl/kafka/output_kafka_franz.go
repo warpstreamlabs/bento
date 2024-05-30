@@ -13,7 +13,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func franzKafkaOutputConfig() *service.ConfigSpec {
@@ -50,7 +50,7 @@ This output often out-performs the traditional ` + "`kafka`" + ` output as well 
 			Optional()).
 		Field(service.NewStringField("client_id").
 			Description("An identifier for the client connection.").
-			Default("benthos").
+			Default("bento").
 			Advanced()).
 		Field(service.NewStringField("rack_id").
 			Description("A rack identifier for this client.").

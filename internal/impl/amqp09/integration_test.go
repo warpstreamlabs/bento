@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func doSetupAndAssertions(setQueueDeclareAutoDelete bool, t *testing.T) {
@@ -66,7 +66,7 @@ output:
       - amqp://guest:guest@localhost:4567/
     max_in_flight: $MAX_IN_FLIGHT
     exchange: exchange-$ID
-    key: benthos-key
+    key: bento-key
     exchange_declare:
       enabled: true
       type: direct
@@ -87,7 +87,7 @@ input:
       enabled: true%s
     bindings_declare:
       - exchange: exchange-$ID
-        key: benthos-key
+        key: bento-key
 `,
 			queueDeclareAutoDeleteFragment,
 		)

@@ -1,4 +1,4 @@
-module github.com/benthosdev/benthos/v4
+module github.com/warpstreamlabs/bento/v4
 
 replace github.com/99designs/keyring => github.com/Jeffail/keyring v1.2.3
 

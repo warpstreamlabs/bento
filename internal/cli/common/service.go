@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/stream"
-	strmmgr "github.com/benthosdev/benthos/v4/internal/stream/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
+	strmmgr "github.com/warpstreamlabs/bento/v4/internal/stream/manager"
 
 	"github.com/urfave/cli/v2"
 )
@@ -38,7 +38,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 		return 1
 	}
 
-	verLogger := logger.With("benthos_version", cliOpts.Version)
+	verLogger := logger.With("bento_version", cliOpts.Version)
 	if mainPath == "" {
 		verLogger.Info("Running without a main config file")
 	} else if inferredMainPath {
@@ -56,7 +56,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 		}
 	}
 	if strict && len(lints) > 0 {
-		logger.Error("Shutting down due to linter errors, to prevent shutdown run Benthos with --chilled")
+		logger.Error("Shutting down due to linter errors, to prevent shutdown run Bento with --chilled")
 		return 1
 	}
 
@@ -133,7 +133,7 @@ func initStreamsMode(
 		}
 	}
 	if strict && len(lints) > 0 {
-		logger.Error("Shutting down due to stream linter errors, to prevent shutdown run Benthos with --chilled")
+		logger.Error("Shutting down due to stream linter errors, to prevent shutdown run Bento with --chilled")
 		os.Exit(1)
 	}
 
@@ -143,7 +143,7 @@ func initStreamsMode(
 			os.Exit(1)
 		}
 	}
-	logger.Info("Launching benthos in streams mode, use CTRL+C to close")
+	logger.Info("Launching bento in streams mode, use CTRL+C to close")
 
 	if err := confReader.SubscribeStreamChanges(func(id string, newStreamConf *stream.Config) error {
 		ctx, done := context.WithTimeout(context.Background(), time.Second*30)
@@ -202,7 +202,7 @@ func initNormalMode(
 
 	stoppableStream := NewSwappableStopper(initStream)
 
-	logger.Info("Launching a benthos instance, use CTRL+C to close")
+	logger.Info("Launching a bento instance, use CTRL+C to close")
 
 	if err := confReader.SubscribeConfigChanges(func(newStreamConf *config.Type) error {
 		ctx, done := context.WithTimeout(context.Background(), 30*time.Second)

@@ -44,7 +44,7 @@ input:
     query: SELECT c.foo FROM testcontainer AS c WHERE c.bar = "baz" AND c.timestamp < @timestamp # No default (required)
     args_mapping: |- # No default (optional)
       root = [
-        { "Name": "@name", "Value": "benthos" },
+        { "Name": "@name", "Value": "bento" },
       ]
     auto_replay_nacks: true
 ```
@@ -66,7 +66,7 @@ input:
     query: SELECT c.foo FROM testcontainer AS c WHERE c.bar = "baz" AND c.timestamp < @timestamp # No default (required)
     args_mapping: |- # No default (optional)
       root = [
-        { "Name": "@name", "Value": "benthos" },
+        { "Name": "@name", "Value": "bento" },
       ]
     batch_count: -1
     auto_replay_nacks: true
@@ -247,7 +247,7 @@ Type: `string`
 
 args_mapping: |-
   root = [
-    { "Name": "@name", "Value": "benthos" },
+    { "Name": "@name", "Value": "bento" },
   ]
 ```
 

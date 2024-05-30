@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func TestAvroReferences(t *testing.T) {
@@ -17,12 +17,12 @@ func TestAvroReferences(t *testing.T) {
 	defer done()
 
 	rootSchema := `[
-  "benthos.namespace.com.foo",
-  "benthos.namespace.com.bar"
+  "bento.namespace.com.foo",
+  "bento.namespace.com.bar"
 ]`
 
 	fooSchema := `{
-	"namespace": "benthos.namespace.com",
+	"namespace": "bento.namespace.com",
 	"type": "record",
 	"name": "foo",
 	"fields": [
@@ -31,7 +31,7 @@ func TestAvroReferences(t *testing.T) {
 }`
 
 	barSchema := `{
-	"namespace": "benthos.namespace.com",
+	"namespace": "bento.namespace.com",
 	"type": "record",
 	"name": "bar",
 	"fields": [
@@ -48,8 +48,8 @@ func TestAvroReferences(t *testing.T) {
 				"schema":     rootSchema,
 				"schemaType": "AVRO",
 				"references": []any{
-					map[string]any{"name": "benthos.namespace.com.foo", "subject": "foo", "version": 10},
-					map[string]any{"name": "benthos.namespace.com.bar", "subject": "bar", "version": 20},
+					map[string]any{"name": "bento.namespace.com.foo", "subject": "foo", "version": 10},
+					map[string]any{"name": "bento.namespace.com.bar", "subject": "bar", "version": 20},
 				},
 			}), nil
 		case "/subjects/foo/versions/10", "/schemas/ids/2":

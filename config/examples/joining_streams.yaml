@@ -4,12 +4,12 @@ input:
       - kafka:
           addresses: [ TODO ]
           topics: [ comments ]
-          consumer_group: benthos_comments_group
+          consumer_group: bento_comments_group
 
       - kafka:
           addresses: [ TODO ]
           topics: [ comments_retry ]
-          consumer_group: benthos_comments_group
+          consumer_group: bento_comments_group
 
         processors:
           - for_each:

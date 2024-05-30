@@ -6,7 +6,7 @@ import (
 
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func processorConfig() *service.ConfigSpec {

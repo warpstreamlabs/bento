@@ -1,5 +1,5 @@
 ---
-title: Write a Benthos Plugin
+title: Write a Bento Plugin
 author: Ashley Jeffs
 author_url: https://github.com/Jeffail
 author_image_url: /img/ash.jpg
@@ -14,7 +14,7 @@ keywords: [
 tags: [ "Plugins" ]
 ---
 
-I'm going to walk you through writing a Benthos plugin from scratch in Go.
+I'm going to walk you through writing a Bento plugin from scratch in Go.
 
 <!--truncate-->
 
@@ -22,7 +22,7 @@ Too lazy to read? You can find a video equivalent of this post at: [https://yout
 
 ![benthos-plugged](/img/write-a-benthos-plugin/benthos-plugged.png)
 
-Plugins allow you to embed your code within Benthos as a component. [Processors][benthos-proc] are the most common type of component to get plugged, which is what we're going to do in this post. If you want to run non-Go code from Benthos then you still have options, such as the [`subprocess`][subprocess-proc], [`http`][http-proc] or [`lambda`][lambda-proc] processors.
+Plugins allow you to embed your code within Bento as a component. [Processors][benthos-proc] are the most common type of component to get plugged, which is what we're going to do in this post. If you want to run non-Go code from Bento then you still have options, such as the [`subprocess`][subprocess-proc], [`http`][http-proc] or [`lambda`][lambda-proc] processors.
 
 ## Roleplay
 
@@ -42,15 +42,15 @@ You are confident that `HowSarcastic` is 100% accurate and wish to apply it to a
 
 You want this service to be resilient with at-least-once delivery guarantees, scalable both horizontally and vertically, and able to expose various metrics about the health of the data stream.
 
-You have decided to use Benthos for this service because you love the logo.
+You have decided to use Bento for this service because you love the logo.
 
 ![charming-benthos-logo](/img/write-a-benthos-plugin/blobfish.jpg)
 
 ### Stuff you don't need to care about yet
 
-Since you are using Benthos you don't need to choose a queue system, metrics aggregator or deployment platform yet, those items can be configured.
+Since you are using Bento you don't need to choose a queue system, metrics aggregator or deployment platform yet, those items can be configured.
 
-You don't even need to know what format the data comes in or how it needs to look when it leaves your service, as Benthos [has plenty of processors][processors] for configuring that stuff on the fly.
+You don't even need to know what format the data comes in or how it needs to look when it leaves your service, as Bento [has plenty of processors][processors] for configuring that stuff on the fly.
 
 ## Getting Started
 
@@ -61,10 +61,10 @@ mkdir foo && cd foo
 go mod init github.com/bar/foo
 ```
 
-Next, you need to pull in your only dependency, [Benthos][benthos-repo]:
+Next, you need to pull in your only dependency, [Bento][benthos-repo]:
 
 ```sh
-go get github.com/Jeffail/benthos/v3
+go get github.com/warpstreamlabs/bento/v3
 # Look! Now you have more dependencies than friends!
 ```
 
@@ -74,7 +74,7 @@ That'll automatically add the dep to your `go.mod` file at the latest v3 tag. Ne
 package main
 
 import (
-    "github.com/Jeffail/benthos/v3/lib/service"
+    "github.com/warpstreamlabs/bento/v3/lib/service"
 )
 
 func main() {
@@ -82,7 +82,7 @@ func main() {
 }
 ```
 
-That's it, you've got a full Benthos. If you want to verify then you can run it:
+That's it, you've got a full Bento. If you want to verify then you can run it:
 
 ```sh
 go run ./main.go --help
@@ -166,13 +166,13 @@ func main() {
 }
 ```
 
-The first argument is a string that identifies the type of this plugin, that's the string used to specify it within a Benthos config file.
+The first argument is a string that identifies the type of this plugin, that's the string used to specify it within a Bento config file.
 
-The second argument is a function that creates our config structure, this will be embedded within the Benthos config specification. In this case our processor implementation is the same type as the configuration struct, but you can separate them if you prefer.
+The second argument is a function that creates our config structure, this will be embedded within the Bento config specification. In this case our processor implementation is the same type as the configuration struct, but you can separate them if you prefer.
 
 The third argument is the generic function that constructs our processor. In this case we've already constructed it as our configuration type and so we can simply cast it and return it.
 
-Now you're going to build your custom Benthos with:
+Now you're going to build your custom Bento with:
 
 ```sh
 go build -o benthos
@@ -180,7 +180,7 @@ go build -o benthos
 
 ## Run Your Plugin
 
-In order to execute your plugin with Benthos you need a config. Write the following to a file `config.yaml`:
+In order to execute your plugin with Bento you need a config. Write the following to a file `config.yaml`:
 
 ```yaml
 pipeline:
@@ -194,7 +194,7 @@ And run it:
 ./benthos -c ./config.yaml
 ```
 
-Your config hasn't specified an input or output so they will default to `stdin` and `stdout`. Write the line `'this is not sarcastic'`, followed by the line `'this is sarcastic /s'`. Benthos should print `0` and `100` respectively.
+Your config hasn't specified an input or output so they will default to `stdin` and `stdout`. Write the line `'this is not sarcastic'`, followed by the line `'this is sarcastic /s'`. Bento should print `0` and `100` respectively.
 
 Cool, but this config is pretty useless, good job idiot. Now you're going to fix your mistake. Let's imagine you are processing a stream of JSON documents of the form `{"id":"fooid","content":"this is the content"}` and you want to add a field `sarcasm` containing the sarcasm level of `content`. You can do that purely through config by using the [`json`][json-proc] and [`process_field`][process-field-proc] processors:
 
@@ -227,7 +227,7 @@ You'll see some log events but also you should see your two modified documents:
 {"content":"but this isnt sarcastic at all","id":"foo2","sarcasm":0}
 ```
 
-That's much more useful, but this is just barely scratching the surface of what Benthos can do. For example, here's a config that calculates sarcasm with your processor and removes anything with a sarcasm level at or above 80:
+That's much more useful, but this is just barely scratching the surface of what Bento can do. For example, here's a config that calculates sarcasm with your processor and removes anything with a sarcasm level at or above 80:
 
 ```yaml
 pipeline:
@@ -244,11 +244,11 @@ pipeline:
 
 Note that it makes use of your `metadata_key` field in order to filter the documents without changing their content.
 
-Try experimenting with other Benthos processors, you can find the documentation at [benthos.dev/docs/components/processors/about][processors].
+Try experimenting with other Bento processors, you can find the documentation at [benthos.dev/docs/components/processors/about][processors].
 
 ## Next Steps
 
-After playing around with Benthos processors you should check out the various [inputs][inputs], [outputs][outputs], [metrics aggregators][metrics] and [tracers][tracers] that it's able to hook up with.
+After playing around with Bento processors you should check out the various [inputs][inputs], [outputs][outputs], [metrics aggregators][metrics] and [tracers][tracers] that it's able to hook up with.
 
 For example, here's a modified version of the previous config where we write from Kafka to an S3 bucket, sending our metrics to Prometheus:
 
@@ -286,11 +286,11 @@ metrics:
   type: prometheus
 ```
 
-I'm sure you'll make great use of Benthos plugins with your extremely important work /s.
+I'm sure you'll make great use of Bento plugins with your extremely important work /s.
 
 [benthos]: https://www.benthos.dev
-[benthos-repo]: https://github.com/Jeffail/benthos
-[plugin-repo]: https://github.com/benthosdev/benthos-plugin-example
+[benthos-repo]: https://github.com/warpstreamlabs/bento
+[plugin-repo]: https://github.com/warpstreamlabs/bento-plugin-example
 [processors]: https://benthos.dev/docs/components/processors/about
 [inputs]: https://benthos.dev/docs/components/inputs/about
 [outputs]: https://benthos.dev/docs/components/outputs/about
@@ -302,5 +302,5 @@ I'm sure you'll make great use of Benthos plugins with your extremely important 
 [http-proc]: https://benthos.dev/docs/components/processors/http
 [lambda-proc]: https://benthos.dev/docs/components/processors/lambda
 [process-field-proc]: https://benthos.dev/docs/components/processors/process_field
-[types-processor]: https://godoc.org/github.com/Jeffail/benthos/lib/types#Processor
-[proc-register-plugin]: https://godoc.org/github.com/Jeffail/benthos/lib/processor#RegisterPlugin
+[types-processor]: https://godoc.org/github.com/warpstreamlabs/bento/lib/types#Processor
+[proc-register-plugin]: https://godoc.org/github.com/warpstreamlabs/bento/lib/processor#RegisterPlugin

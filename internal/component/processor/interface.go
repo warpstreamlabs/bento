@@ -3,12 +3,12 @@ package processor
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // V1 is a common interface implemented by processors. The implementation of a
 // V1 processor is responsible for all expected observability and error handling
-// behaviour described within Benthos documentation.
+// behaviour described within Bento documentation.
 type V1 interface {
 	// Process a batch of messages into one or more resulting batches, or return
 	// an error if the entire batch could not be processed, currently the only

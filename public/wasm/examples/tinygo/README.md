@@ -1,7 +1,7 @@
-TinyGo Benthos WASM Module
+TinyGo Bento WASM Module
 ==========================
 
-This example builds a Benthos plugin as a WASM module written in Go and can be compiled using [TinyGo][tinygo] with the following command:
+This example builds a Bento plugin as a WASM module written in Go and can be compiled using [TinyGo][tinygo] with the following command:
 
 ```sh
 tinygo build -scheduler=none -target=wasi -o uppercase.wasm .

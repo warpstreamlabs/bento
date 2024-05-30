@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: benthos-generator-config
+  name: bento-generator-config
 data:
   config.yaml: |
     input:
@@ -19,29 +19,29 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: benthos-generator
+  name: bento-generator
 spec:
   replicas: 1
   strategy: {}
   selector:
     matchLabels:
-      app: benthos-generator
+      app: bento-generator
   template:
     metadata:
       labels:
-        app: benthos-generator
+        app: bento-generator
     spec:
       volumes:
         - name: config-volume
           configMap:
-            name: benthos-generator-config
+            name: bento-generator-config
       containers:
-        - name: benthos
-          image: ghcr.io/benthosdev/benthos:latest
+        - name: bento
+          image: ghcr.io/warpstreamlabs/bento:latest
           args:
             - "-c"
-            - "/etc/benthos/config.yaml"
+            - "/etc/bento/config.yaml"
           volumeMounts:
             - name: config-volume
-              mountPath: "/etc/benthos"
+              mountPath: "/etc/bento"
               readOnly: true

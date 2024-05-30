@@ -1,9 +1,9 @@
 package stream
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/pipeline"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/pipeline"
 )
 
 // Spec returns a docs.FieldSpec for a stream configuration.

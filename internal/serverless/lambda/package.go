@@ -1,3 +1,3 @@
-// Package lambda contains the execution logic for running Benthos as an AWS
+// Package lambda contains the execution logic for running Bento as an AWS
 // lambda function.
 package lambda

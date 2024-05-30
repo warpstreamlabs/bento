@@ -96,7 +96,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 
 ### Authentication
 
-There are several components within Benthos which utilise NATS services. You will find that each of these components
+There are several components within Bento which utilise NATS services. You will find that each of these components
 support optional advanced authentication parameters for [NKeys](https://docs.nats.io/nats-server/configuration/securing_nats/auth_intro/nkey_auth)
 and [User Credentials](https://docs.nats.io/developing-with-nats/security/creds).
 

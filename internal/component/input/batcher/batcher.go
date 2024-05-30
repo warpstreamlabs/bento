@@ -7,11 +7,11 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/batch/policy"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/transaction"
+	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/transaction"
 )
 
 // Impl wraps an input with a batch policy.

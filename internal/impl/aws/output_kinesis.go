@@ -11,9 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/cenkalti/backoff/v4"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/aws/config"
-	"github.com/benthosdev/benthos/v4/internal/retries"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v4/internal/retries"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -65,7 +65,7 @@ Both the `+"`partition_key`"+`(required) and `+"`hash_key`"+` (optional) fields 
 
 ### Credentials
 
-By default Benthos will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).`+service.OutputPerformanceDocs(true, true)).
+By default Bento will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).`+service.OutputPerformanceDocs(true, true)).
 		Fields(
 			service.NewStringField(koFieldStream).
 				Description("The stream to publish messages to. Streams can either be specified by their name or full ARN.").
@@ -128,7 +128,7 @@ func newKinesisWriter(conf koConfig, mgr *service.Resources) (*kinesisWriter, er
 	}, nil
 }
 
-// toRecords converts an individual benthos message into a slice of Kinesis
+// toRecords converts an individual bento message into a slice of Kinesis
 // batch put entries by promoting each message part into a single part message
 // and passing each new message through the partition and hash key interpolation
 // process, allowing the user to define the partition and hash key per message

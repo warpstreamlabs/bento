@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // NewProcessorField defines a new processor field, it is then possible to

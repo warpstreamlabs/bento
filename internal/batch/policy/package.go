@@ -1,3 +1,3 @@
-// Package policy provides tooling for creating and executing Benthos message
+// Package policy provides tooling for creating and executing Bento message
 // batch policies.
 package policy

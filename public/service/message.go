@@ -4,25 +4,25 @@ import (
 	"context"
 	"errors"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/mapping"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/transaction"
-	"github.com/benthosdev/benthos/v4/internal/value"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/transaction"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 // MessageHandlerFunc is a function signature defining a component that consumes
-// Benthos messages. An error must be returned if the context is cancelled, or
+// Bento messages. An error must be returned if the context is cancelled, or
 // if the message could not be delivered or processed.
 type MessageHandlerFunc func(context.Context, *Message) error
 
 // MessageBatchHandlerFunc is a function signature defining a component that
-// consumes Benthos message batches. An error must be returned if the context is
+// consumes Bento message batches. An error must be returned if the context is
 // cancelled, or if the messages could not be delivered or processed.
 type MessageBatchHandlerFunc func(context.Context, MessageBatch) error
 
-// Message represents a single discrete message passing through a Benthos
+// Message represents a single discrete message passing through a Bento
 // pipeline. It is safe to mutate the message via Set methods, but the
 // underlying byte data should not be edited directly.
 type Message struct {

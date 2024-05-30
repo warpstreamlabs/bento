@@ -13,18 +13,18 @@ import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/urfave/cli/v2"
 
-	ibloblang "github.com/benthosdev/benthos/v4/internal/bloblang"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/bundle/tracing"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/cli/studio/metrics"
-	stracing "github.com/benthosdev/benthos/v4/internal/cli/studio/tracing"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/stream"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	ibloblang "github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/studio/metrics"
+	stracing "github.com/warpstreamlabs/bento/v4/internal/cli/studio/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 type noopStopper struct{}
@@ -39,7 +39,7 @@ func (n noopStopper) Stop(_ context.Context) error {
 // configured.
 const defaultCloseDeadline = time.Second * 30
 
-// PullRunner encapsulates a component that runs a Benthos stream continuously
+// PullRunner encapsulates a component that runs a Bento stream continuously
 // by obtaining a deployment allocation from a Studio session, pulling the
 // configs from that deployment, and then executing the configs in the
 // background.
@@ -149,7 +149,7 @@ func NewPullRunner(c *cli.Context, cliOpts *common.CLIOpts, token, secret string
 		if confPath != "" || len(confResPaths) > 0 || len(setSlice) > 0 {
 			r.logLints(localLints)
 			if r.strictMode && len(localLints) > 0 {
-				return nil, errors.New("linter errors were found in local configuration files, to ignore these errors run Benthos with --chilled")
+				return nil, errors.New("linter errors were found in local configuration files, to ignore these errors run Bento with --chilled")
 			}
 
 			newSpec := cliOpts.MainConfigSpecCtor()
@@ -253,7 +253,7 @@ func (r *PullRunner) bootstrapConfigReader(ctx context.Context) (bootstrapErr er
 
 	confReaderTmp := config.NewReader(initMainFile, initResources,
 		config.OptAddOverrides(r.cliContext.StringSlice("set")...),
-		config.OptTestSuffix("_benthos_test"),
+		config.OptTestSuffix("_bento_test"),
 		config.OptUseFS(sessFS),
 		config.OptSetLintConfig(lintConf),
 		config.OptSetFullSpec(func() docs.FieldSpecs {

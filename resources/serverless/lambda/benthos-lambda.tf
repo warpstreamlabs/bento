@@ -1,11 +1,11 @@
-resource "aws_lambda_function" "benthos-lambda" {
-  function_name = "benthos-lambda"
+resource "aws_lambda_function" "bento-lambda" {
+  function_name = "bento-lambda"
   role          = "${aws_iam_role.lambda-role.arn}"
-  handler       = "benthos-lambda"
+  handler       = "bento-lambda"
   runtime       = "go1.x"
 
   s3_bucket = "${var.bucket_name}"
-  s3_key    = "benthos-lambda-${var.version}.zip"
+  s3_key    = "bento-lambda-${var.version}.zip"
 
   environment {
     variables = {

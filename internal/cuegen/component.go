@@ -6,7 +6,7 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/token"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 type componentOptions struct {

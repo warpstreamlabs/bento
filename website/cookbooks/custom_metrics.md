@@ -4,7 +4,7 @@ title: Custom Metrics
 description: Learn how to emit custom metrics from messages.
 ---
 
-You can't build cool graphs without metrics, and [Benthos emits many][internal-metrics]. However, occasionally you might want to also emit custom metrics that track data extracted from messages being processed. In this cookbook we'll explore how to achieve this by configuring Benthos to pull download stats from Github, Dockerhub and Homebrew and emit them as gauges.
+You can't build cool graphs without metrics, and [Bento emits many][internal-metrics]. However, occasionally you might want to also emit custom metrics that track data extracted from messages being processed. In this cookbook we'll explore how to achieve this by configuring Bento to pull download stats from Github, Dockerhub and Homebrew and emit them as gauges.
 
 ## The Basics
 
@@ -31,7 +31,7 @@ input:
 pipeline:
   processors:
     - http:
-        url: https://formulae.brew.sh/api/formula/benthos.json
+        url: https://formulae.brew.sh/api/formula/bento.json
         verb: GET
 ```
 
@@ -42,7 +42,7 @@ pipeline:
 ```yaml
 input:
   http_client:
-    url: https://formulae.brew.sh/api/formula/benthos.json
+    url: https://formulae.brew.sh/api/formula/bento.json
     verb: GET
     rate_limit: brewlimit
 
@@ -64,13 +64,13 @@ The homebrew formula API gives us a JSON blob that looks like this (removing fie
 
 ```json
 {
-    "name":"benthos",
+    "name":"bento",
     "desc":"Stream processor for mundane tasks written in Go",
-    "analytics":{"install":{"30d":{"benthos":78978979},"90d":{"benthos":253339124},"365d":{"benthos":681356871}}}
+    "analytics":{"install":{"30d":{"bento":78978979},"90d":{"bento":253339124},"365d":{"bento":681356871}}}
 }
 ```
 
-This format makes it fairly easy to emit the value of `analytics.install.30d.benthos` as a gauge with the [`metric` processor][processors.metric]:
+This format makes it fairly easy to emit the value of `analytics.install.30d.bento` as a gauge with the [`metric` processor][processors.metric]:
 
 ```yaml
 http:
@@ -84,7 +84,7 @@ input:
 pipeline:
   processors:
     - http:
-        url: https://formulae.brew.sh/api/formula/benthos.json
+        url: https://formulae.brew.sh/api/formula/bento.json
         verb: GET
 
     - metric:
@@ -92,7 +92,7 @@ pipeline:
         name: downloads
         labels:
           source: homebrew
-        value: ${! json("analytics.install.30d.benthos") }
+        value: ${! json("analytics.install.30d.bento") }
 
     - mapping: root = deleted()
 
@@ -101,9 +101,9 @@ metrics:
   prometheus: {}
 ```
 
-With the above config we have selected the [`prometheus` metrics type][metrics.prometheus], which allows us to use [Prometheus][prometheus] to scrape metrics from Benthos by polling its HTTP API at the url `http://localhost:4195/stats`.
+With the above config we have selected the [`prometheus` metrics type][metrics.prometheus], which allows us to use [Prometheus][prometheus] to scrape metrics from Bento by polling its HTTP API at the url `http://localhost:4195/stats`.
 
-We have also specified a [`path_mapping`][metrics.prometheus.path_mapping] that deletes any internal metrics usually emitted by Benthos by filtering on our custom metric name.
+We have also specified a [`path_mapping`][metrics.prometheus.path_mapping] that deletes any internal metrics usually emitted by Bento by filtering on our custom metric name.
 
 Finally, there's also a [`mapping` processor][processors.mapping] added to the end of our pipeline that deletes all messages since we're not interested in sending the raw data anywhere after this point anyway.
 
@@ -116,9 +116,9 @@ curl -s http://localhost:4195/stats | grep downloads
 Giving something like:
 
 ```text
-# HELP benthos_downloads Benthos Gauge metric
-# TYPE benthos_downloads gauge
-benthos_downloads{source="homebrew"} 78978979
+# HELP bento_downloads Bento Gauge metric
+# TYPE bento_downloads gauge
+bento_downloads{source="homebrew"} 78978979
 ```
 
 Easy! The Dockerhub API is also pretty simple, and adding it to our pipeline is just:
@@ -132,12 +132,12 @@ Easy! The Dockerhub API is also pretty simple, and adding it to our pipeline is 
 
 ```diff
            source: homebrew
-         value: ${! json("analytics.install.30d.benthos") }
+         value: ${! json("analytics.install.30d.bento") }
 
 +    - mapping: root = ""
 +
 +    - http:
-+        url: https://hub.docker.com/v2/repositories/jeffail/benthos/
++        url: https://hub.docker.com/v2/repositories/jeffail/bento/
 +        verb: GET
 +        headers:
 +          Content-Type: application/json
@@ -167,7 +167,7 @@ input:
 pipeline:
   processors:
     - http:
-        url: https://formulae.brew.sh/api/formula/benthos.json
+        url: https://formulae.brew.sh/api/formula/bento.json
         verb: GET
 
     - metric:
@@ -175,12 +175,12 @@ pipeline:
         name: downloads
         labels:
           source: homebrew
-        value: ${! json("analytics.install.30d.benthos") }
+        value: ${! json("analytics.install.30d.bento") }
 
     - mapping: root = ""
 
     - http:
-        url: https://hub.docker.com/v2/repositories/jeffail/benthos/
+        url: https://hub.docker.com/v2/repositories/jeffail/bento/
         verb: GET
         headers:
           Content-Type: application/json
@@ -212,10 +212,10 @@ So that's the basics covered. Next, we're going to target the Github releases AP
   {
     "tag_name": "X.XX.X",
     "assets":[
-      {"name":"benthos-lambda_X.XX.X_linux_amd64.zip","download_count":543534545},
-      {"name":"benthos_X.XX.X_darwin_amd64.tar.gz","download_count":43242342},
-      {"name":"benthos_X.XX.X_freebsd_amd64.tar.gz","download_count":534565656},
-      {"name":"benthos_X.XX.X_linux_amd64.tar.gz","download_count":743282474324}
+      {"name":"bento-lambda_X.XX.X_linux_amd64.zip","download_count":543534545},
+      {"name":"bento_X.XX.X_darwin_amd64.tar.gz","download_count":43242342},
+      {"name":"bento_X.XX.X_freebsd_amd64.tar.gz","download_count":534565656},
+      {"name":"bento_X.XX.X_linux_amd64.tar.gz","download_count":743282474324}
     ]
   }
 ]
@@ -248,13 +248,13 @@ input:
 pipeline:
   processors:
     - http:
-        url: https://api.github.com/repos/benthosdev/benthos/releases
+        url: https://api.github.com/repos/warpstreamlabs/bento/releases
         verb: GET
 
     - mapping: |
         root = this.map_each(release -> release.assets.map_each(asset -> {
           "source":         "github",
-          "dist":           asset.name.re_replace_all("^benthos-?((lambda_)|_)[0-9\\.]+(-rc[0-9]+)?_([^\\.]+).*", "$2$4"),
+          "dist":           asset.name.re_replace_all("^bento-?((lambda_)|_)[0-9\\.]+(-rc[0-9]+)?_([^\\.]+).*", "$2$4"),
           "download_count": asset.download_count,
           "version":        release.tag_name.trim("v"),
         }).filter(asset -> asset.dist != "checksums")).flatten()
@@ -307,7 +307,7 @@ processor_resources:
       processors:
         - try:
           - http:
-              url: https://hub.docker.com/v2/repositories/jeffail/benthos/
+              url: https://hub.docker.com/v2/repositories/jeffail/bento/
               verb: GET
               headers:
                 Content-Type: application/json
@@ -324,12 +324,12 @@ processor_resources:
       processors:
         - try:
           - http:
-              url: https://api.github.com/repos/benthosdev/benthos/releases
+              url: https://api.github.com/repos/warpstreamlabs/bento/releases
               verb: GET
           - mapping: |
               root = this.map_each(release -> release.assets.map_each(asset -> {
                 "source":         "github",
-                "dist":           asset.name.re_replace_all("^benthos-?((lambda_)|_)[0-9\\.]+(-rc[0-9]+)?_([^\\.]+).*", "$2$4"),
+                "dist":           asset.name.re_replace_all("^bento-?((lambda_)|_)[0-9\\.]+(-rc[0-9]+)?_([^\\.]+).*", "$2$4"),
                 "download_count": asset.download_count,
                 "version":        release.tag_name.trim("v"),
               }).filter(asset -> asset.dist != "checksums")).flatten()
@@ -344,12 +344,12 @@ processor_resources:
       processors:
         - try:
           - http:
-              url: https://formulae.brew.sh/api/formula/benthos.json
+              url: https://formulae.brew.sh/api/formula/bento.json
               verb: GET
           - mapping: |
               root.source = "homebrew"
               root.dist = "homebrew"
-              root.download_count = this.analytics.install.30d.benthos
+              root.download_count = this.analytics.install.30d.bento
               root.version = "all"
           - resource: metric_gauge
 

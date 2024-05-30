@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 var WriterDocs = NewWriterDocs("codec")

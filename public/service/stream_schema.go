@@ -7,20 +7,20 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/config/schema"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/stream"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 // ConfigSchema contains the definitions of all config fields for the overall
-// Benthos config as well as all component plugins. A schema can be used in
+// Bento config as well as all component plugins. A schema can be used in
 // order to analyse, export and import the schemas of varying distributions and
-// versions of Benthos.
+// versions of Bento.
 type ConfigSchema struct {
 	fields             docs.FieldSpecs
 	env                *Environment
@@ -38,7 +38,7 @@ func (e *Environment) FullConfigSchema(version, dateBuilt string) *ConfigSchema 
 	}
 }
 
-// CoreConfigSchema returns a config schema containing only the core Benthos
+// CoreConfigSchema returns a config schema containing only the core Bento
 // pipeline fields (input, buffer, pipeline, output), and all plugin definitions
 // from the environment.
 func (e *Environment) CoreConfigSchema(version, dateBuilt string) *ConfigSchema {

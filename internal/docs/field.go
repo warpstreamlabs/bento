@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 // FieldType represents a field type.
@@ -666,7 +666,7 @@ func (f FieldSpecs) SetDefault(v any, path ...string) {
 
 //------------------------------------------------------------------------------
 
-// LintConfig describes which rules apply when linting benthos configs, and also
+// LintConfig describes which rules apply when linting bento configs, and also
 // determines which component and bloblang environments are used.
 type LintConfig struct {
 	// Provides documentation for component implementations.
@@ -782,7 +782,7 @@ const (
 	LintDeprecated LintType = iota
 )
 
-// Lint describes a single linting issue found with a Benthos config.
+// Lint describes a single linting issue found with a Bento config.
 type Lint struct {
 	Line   int
 	Column int // Optional, set to 1 by default

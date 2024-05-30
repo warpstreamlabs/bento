@@ -9,7 +9,7 @@ title: Logger
      internal/log/docs.md
 -->
 
-Benthos logging prints to stdout (or stderr if your output is stdout) and is formatted as [logfmt](https://brandur.org/logfmt) by default. Use these configuration options to change both the logging formats as well as the destination of logs.
+Bento logging prints to stdout (or stderr if your output is stdout) and is formatted as [logfmt](https://brandur.org/logfmt) by default. Use these configuration options to change both the logging formats as well as the destination of logs.
 
 import Tabs from '@theme/Tabs';
 
@@ -28,7 +28,7 @@ logger:
   format: logfmt
   add_timestamp: false
   static_fields:
-    '@service': benthos
+    '@service': bento
 ```
 
 </TabItem>
@@ -39,7 +39,7 @@ logger:
   level: WARN
   format: json
   file:
-    path: ./logs/benthos.ndjson
+    path: ./logs/bento.ndjson
     rotate: true
 ```
 

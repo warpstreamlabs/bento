@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/httpclient"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/httpclient"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func httpProcSpec() *service.ConfigSpec {
@@ -23,7 +23,7 @@ In order to map or encode the payload to a specific request body, and map the re
 
 ## Response Codes
 
-Benthos considers any response code between 200 and 299 inclusive to indicate a successful response, you can add more success status codes with the field `+"`successful_on`"+`.
+Bento considers any response code between 200 and 299 inclusive to indicate a successful response, you can add more success status codes with the field `+"`successful_on`"+`.
 
 When a request returns a response code within the `+"`backoff_on`"+` field it will be retried after increasing intervals.
 
@@ -48,7 +48,7 @@ pipeline:
         request_map: 'root = ""'
         processors:
           - http:
-              url: https://hub.docker.com/v2/repositories/jeffail/benthos
+              url: https://hub.docker.com/v2/repositories/warpstreamlabs/bento
               verb: GET
               headers:
                 Content-Type: application/json

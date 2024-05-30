@@ -36,7 +36,7 @@ Sometimes inputs close themselves. For example, when the `file` input type reach
 
 ### Metadata
 
-A metadata key `benthos_read_until` containing the value `final` is added to the first part of the message that triggers the input to stop.
+A metadata key `bento_read_until` containing the value `final` is added to the first part of the message that triggers the input to stop.
 
 ## Fields
 

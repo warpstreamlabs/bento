@@ -179,7 +179,7 @@ use_histogram_timing: true
 }
 
 func TestPrometheusWithFileOutputPath(t *testing.T) {
-	fPath := t.TempDir() + "/benthos_metrics.prom"
+	fPath := t.TempDir() + "/bento_metrics.prom"
 
 	p := promFromYAML(t, `
 file_output_path: %v

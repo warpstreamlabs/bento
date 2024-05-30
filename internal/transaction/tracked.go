@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/benthosdev/benthos/v4/internal/batch"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/batch"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // Tracked is a transaction type that adds identifying tags to messages such

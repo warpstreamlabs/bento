@@ -1,13 +1,13 @@
 package schema
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
-// Full represents the entirety of the Benthos instances configuration spec and
+// Full represents the entirety of the Bento instances configuration spec and
 // all plugins.
 type Full struct {
 	Version           string               `json:"version"`
@@ -26,7 +26,7 @@ type Full struct {
 	BloblangMethods   []query.MethodSpec   `json:"bloblang-methods,omitempty"`
 }
 
-// New walks all registered Benthos components and creates a full schema
+// New walks all registered Bento components and creates a full schema
 // definition of it.
 func New(version, date string) Full {
 	s := Full{

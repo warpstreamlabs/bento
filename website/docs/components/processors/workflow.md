@@ -54,7 +54,7 @@ workflow:
 
 ### Performance
 
-Most of the time the best way to compose processors is also the simplest, just configure them in series. This is because processors are often CPU bound, low-latency, and you can gain vertical scaling by increasing the number of processor pipeline threads, allowing Benthos to process [multiple messages in parallel][configuration.pipelines].
+Most of the time the best way to compose processors is also the simplest, just configure them in series. This is because processors are often CPU bound, low-latency, and you can gain vertical scaling by increasing the number of processor pipeline threads, allowing Bento to process [multiple messages in parallel][configuration.pipelines].
 
 However, some processors such as [`http`][processors.http], [`aws_lambda`][processors.aws_lambda] or [`cache`][processors.cache] interact with external services and therefore spend most of their time waiting for a response. These processors tend to be high-latency and low CPU activity, which causes messages to process slowly.
 
@@ -72,7 +72,7 @@ A --|          |--> D
      \--> C --/
 ```
 
-This flow would be easy to express in a standard Benthos config, we could simply use a [`switch` processor][processors.switch] to route to either B or C depending on a condition on the result of A. However, this method of flow control quickly becomes unfeasible as the DAG gets more complicated, imagine expressing this flow using switch processors:
+This flow would be easy to express in a standard Bento config, we could simply use a [`switch` processor][processors.switch] to route to either B or C depending on a condition on the result of A. However, this method of flow control quickly becomes unfeasible as the DAG gets more complicated, imagine expressing this flow using switch processors:
 
 ```text
       /--> B -------------|--> D
@@ -356,7 +356,7 @@ If a field `<meta_path>.apply` exists in the meta object for a message and is an
 
 ## Resources
 
-It's common to configure processors (and other components) [as resources][configuration.resources] in order to keep the pipeline configuration cleaner. With the workflow processor you can include branch processors configured as resources within your workflow either by specifying them by name in the field `order`, if Benthos doesn't find a branch within the workflow configuration of that name it'll refer to the resources.
+It's common to configure processors (and other components) [as resources][configuration.resources] in order to keep the pipeline configuration cleaner. With the workflow processor you can include branch processors configured as resources within your workflow either by specifying them by name in the field `order`, if Bento doesn't find a branch within the workflow configuration of that name it'll refer to the resources.
 
 Alternatively, if you do not wish to have an explicit ordering, you can add resource names to the field `branch_resources` and they will be included in the workflow with automatic DAG resolution along with any branches configured in the `branches` field.
 

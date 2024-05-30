@@ -5,11 +5,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/all"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/all"
 )
 
 func TestComponentExamples(t *testing.T) {

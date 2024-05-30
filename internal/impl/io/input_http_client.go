@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/httpclient"
-	"github.com/benthosdev/benthos/v4/public/service"
-	"github.com/benthosdev/benthos/v4/public/service/codec"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/httpclient"
+	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service/codec"
 )
 
 func httpClientInputSpec() *service.ConfigSpec {
@@ -33,7 +33,7 @@ The URL and header values of this type can be dynamically set using function int
 
 ### Streaming
 
-If you enable streaming then Benthos will consume the body of the response as a continuous stream of data, breaking messages out following a chosen scanner. This allows you to consume APIs that provide long lived streamed data feeds (such as Twitter).
+If you enable streaming then Bento will consume the body of the response as a continuous stream of data, breaking messages out following a chosen scanner. This allows you to consume APIs that provide long lived streamed data feeds (such as Twitter).
 
 ### Pagination
 

@@ -9,8 +9,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -23,7 +23,7 @@ func loggerMetricsSpec() *service.ConfigSpec {
 		Beta().
 		Summary(`Prints aggregated metrics through the logger.`).
 		Description(`
-Prints each metric produced by Benthos as a log event (level `+"`info`"+` by default) during shutdown, and optionally on an interval.
+Prints each metric produced by Bento as a log event (level `+"`info`"+` by default) during shutdown, and optionally on an interval.
 
 This metrics type is useful for debugging pipelines when you only have access to the logger output and not the service-wide server. Otherwise it's recommended that you use either the `+"`prometheus` or `json_api`"+`types.`).
 		Fields(

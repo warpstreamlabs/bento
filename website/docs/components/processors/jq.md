@@ -48,7 +48,7 @@ jq:
 </Tabs>
 
 :::note Try out Bloblang
-For better performance and improved capabilities try out native Benthos mapping with the [`mapping` processor](/docs/components/processors/mapping).
+For better performance and improved capabilities try out native Bento mapping with the [`mapping` processor](/docs/components/processors/mapping).
 :::
 
 The provided query is executed on each message, targeting either the contents as a structured JSON value or as a raw string using the field `raw`, and the message is replaced with the query result.

@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
 )
 
-// RateLimit is an interface implemented by Benthos rate limits.
+// RateLimit is an interface implemented by Bento rate limits.
 type RateLimit interface {
 	// Access the rate limited resource. Returns a duration or an error if the
 	// rate limit check fails. The returned duration is either zero (meaning the

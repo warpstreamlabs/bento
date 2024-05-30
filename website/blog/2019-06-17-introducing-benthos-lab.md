@@ -1,5 +1,5 @@
 ﻿---
-title: Introducing Benthos Lab
+title: Introducing Bento Lab
 author: "Ashley Jeffs"
 author_url: https://github.com/Jeffail
 author_image_url: /img/ash.jpg
@@ -13,16 +13,16 @@ keywords: [
     "golang",
     "stream processor",
 ]
-tags: [ "Benthos Lab" ]
+tags: [ "Bento Lab" ]
 ---
 
 After experimenting with innovative new ways to choke your browser to death I am
-pleased to announce Benthos Lab, which lives at
+pleased to announce Bento Lab, which lives at
 [https://lab.benthos.dev](https://lab.benthos.dev).
 
 <!--truncate-->
 
-Benthos Lab is a website where users of the [Benthos stream processor][benthos]
+Bento Lab is a website where users of the [Bento stream processor][benthos]
 can write, format, execute and share their pipeline configurations. This was
 made possible by compiling the entire service (written in Go) into Web Assembly
 so that it can run directly in your browser.
@@ -31,7 +31,7 @@ Here's a video of it in action: [https://youtu.be/1ZN-42A0sJU][lab-video].
 
 Some technical details about how this was achieved can be found in
 [a previous post of mine][wasm-blog]. The repo can be found at:
-[https://github.com/benthosdev/benthos-lab][lab-repo], feel free to clone it,
+[https://github.com/warpstreamlabs/bento-lab][lab-repo], feel free to clone it,
 hack it and host your own version.
 
 [![benthos-lab](/img/introducing-benthos-lab/banner.svg)][benthos-lab]
@@ -46,7 +46,7 @@ this, you vile parasite.
 
 ## Why
 
-At Meltwater we have many distributed teams using Benthos for a wide and ever
+At Meltwater we have many distributed teams using Bento for a wide and ever
 increasing list of use cases, which results in a lot of remote collaboration.
 
 For the slower moving, asynchronous types of work we are usually fine with ye
@@ -71,7 +71,7 @@ needed up front with a single URL.
 
 ### Use it to build your own web app
 
-There's also plenty of unintended use cases for Benthos Lab as it basically
+There's also plenty of unintended use cases for Bento Lab as it basically
 allows you to build your own custom web applications. Here's a session that
 lower cases and normalises a JSON document, computes its sha256 hash and then
 hex encodes the hash:
@@ -80,7 +80,7 @@ hex encodes the hash:
 Pro tip: if you add the anchor `#input` to the end of the session URL then it
 opens up at the input tab for quickly inserting stuff.
 
-Since there's such a vast catalogue of Benthos
+Since there's such a vast catalogue of Bento
 [processors available][benthos-procs] I've already found myself bookmarking a
 few lab sessions as general utilities.
 
@@ -100,8 +100,8 @@ missing (or broken, obviously) then please [open an issue][lab-issues].
 [benthos-lab]: https://lab.benthos.dev
 [lab-video]: https://youtu.be/1ZN-42A0sJU
 [wasm-blog]: /blog/2019/05/27/compiling-benthos-to-wasm/
-[lab-repo]: https://github.com/benthosdev/benthos-lab
-[lab-issues]: https://github.com/benthosdev/benthos-lab/issues
+[lab-repo]: https://github.com/warpstreamlabs/bento-lab
+[lab-issues]: https://github.com/warpstreamlabs/bento-lab/issues
 [benthos]: https://www.benthos.dev
 [under-the-hood]: https://underthehood.meltwater.com/
 [benthos-procs]: https://benthos.dev/docs/components/processors/about

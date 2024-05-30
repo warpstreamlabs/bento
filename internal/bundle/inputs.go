@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllInputs is a set containing every single input that has been imported.
@@ -42,7 +42,7 @@ type inputSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// InputSet contains an explicit set of inputs available to a Benthos service.
+// InputSet contains an explicit set of inputs available to a Bento service.
 type InputSet struct {
 	specs map[string]inputSpec
 }

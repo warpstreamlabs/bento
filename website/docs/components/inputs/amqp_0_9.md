@@ -208,7 +208,7 @@ Default: `false`
 
 ### `nack_reject_patterns`
 
-A list of regular expression patterns whereby if a message that has failed to be delivered by Benthos has an error that matches it will be dropped (or delivered to a dead-letter queue if one exists). By default failed messages are nacked with requeue enabled.
+A list of regular expression patterns whereby if a message that has failed to be delivered by Bento has an error that matches it will be dropped (or delivered to a dead-letter queue if one exists). By default failed messages are nacked with requeue enabled.
 
 
 Type: `array`  

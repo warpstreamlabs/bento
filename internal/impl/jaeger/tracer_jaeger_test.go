@@ -62,7 +62,7 @@ func TestNewJaeger(t *testing.T) {
 	}{
 		{
 			Name:           "no tags",
-			ServiceName:    "benthos",
+			ServiceName:    "bento",
 			ServiceVersion: dummyVersion,
 		},
 		{

@@ -1,4 +1,4 @@
-// Package api implements a type used for creating the Benthos HTTP API.
+// Package api implements a type used for creating the Bento HTTP API.
 package api
 
 import (

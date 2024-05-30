@@ -42,7 +42,7 @@ output:
       processors:
         - mapping: 'root = "failed to send this message to foo: " + content()'
     - file:
-        path: /usr/local/benthos/everything_failed.jsonl
+        path: /usr/local/bento/everything_failed.jsonl
 ```
 
 ### Metadata
@@ -65,10 +65,10 @@ output:
           count: 10
           period: 1s
     - file:
-        path: /usr/local/benthos/failed_stuff.jsonl
+        path: /usr/local/bento/failed_stuff.jsonl
 ```
 
-Benthos makes a best attempt at inferring which specific messages of the batch failed, and only propagates those individual messages to the next fallback tier.
+Bento makes a best attempt at inferring which specific messages of the batch failed, and only propagates those individual messages to the next fallback tier.
 
 However, depending on the output and the error returned it is sometimes not possible to determine the individual messages that failed, in which case the whole batch is passed to the next tier in order to preserve at-least-once delivery guarantees.
 

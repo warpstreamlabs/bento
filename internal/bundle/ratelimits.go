@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllRateLimits is a set containing every single ratelimit that has been imported.
@@ -42,7 +42,7 @@ type rateLimitSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// RateLimitSet contains an explicit set of ratelimits available to a Benthos service.
+// RateLimitSet contains an explicit set of ratelimits available to a Bento service.
 type RateLimitSet struct {
 	specs map[string]rateLimitSpec
 }

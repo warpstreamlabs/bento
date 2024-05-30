@@ -12,17 +12,17 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/mapping"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/parser"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 type cachedConfig struct {
@@ -30,7 +30,7 @@ type cachedConfig struct {
 	procs []processor.Config
 }
 
-// ProcessorsProvider consumes a Benthos config and, given a JSON Pointer,
+// ProcessorsProvider consumes a Bento config and, given a JSON Pointer,
 // extracts and constructs the target processors from the config file.
 type ProcessorsProvider struct {
 	targetPath     string
@@ -78,7 +78,7 @@ func OptProcessorsProviderSetLogger(logger log.Modular) func(*ProcessorsProvider
 
 //------------------------------------------------------------------------------
 
-// Provide attempts to extract an array of processors from a Benthos config.
+// Provide attempts to extract an array of processors from a Bento config.
 // Supports injected mocked components in the parsed config. If the JSON Pointer
 // targets a single processor config it will be constructed and returned as an
 // array of one element.

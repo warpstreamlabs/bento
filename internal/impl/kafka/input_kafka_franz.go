@@ -16,7 +16,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func franzKafkaInputConfig() *service.ConfigSpec {
@@ -70,7 +70,7 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Optional()).
 		Field(service.NewStringField("client_id").
 			Description("An identifier for the client connection.").
-			Default("benthos").
+			Default("bento").
 			Advanced()).
 		Field(service.NewStringField("rack_id").
 			Description("A rack identifier for this client.").

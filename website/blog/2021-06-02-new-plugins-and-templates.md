@@ -13,7 +13,7 @@ keywords: [
 tags: [ "v4", "plugins", "templates", "roadmap" ]
 ---
 
-I need help, attention and affirmation, and therefore it's time for a development update. Around five months ago I posted a [roadmap for Benthos v4](/blog/2021/01/04/v4-roadmap) that included some utterly unattainable goals that only a super human could achieve.
+I need help, attention and affirmation, and therefore it's time for a development update. Around five months ago I posted a [roadmap for Bento v4](/blog/2021/01/04/v4-roadmap) that included some utterly unattainable goals that only a super human could achieve.
 
 Now that most of those features are ready to test, namely a new plugins API and config templating, I'm looking for people to try them out and give feedback. Please read on if that sounds like fun to you, or also if it doesn't sound fun but you intend to do it anyway.
 
@@ -21,7 +21,7 @@ Now that most of those features are ready to test, namely a new plugins API and 
 
 ## Config Templates
 
-The new config templates functionality allows you to define parameterised templates for Benthos configuration snippets. These templates can then be imported with a cli flag and used in Benthos configs like native Benthos components.
+The new config templates functionality allows you to define parameterised templates for Bento configuration snippets. These templates can then be imported with a cli flag and used in Bento configs like native Bento components.
 
 This is going to be super useful in situations where you have commonly used configuration patterns with small differences that prevent you from using resources.
 
@@ -66,11 +66,11 @@ To find out more about configuration templates, including how to try them out, c
 
 ## The V2 Go Plugins API
 
-Benthos has had Go plugins for a while now and they're fairly well received. However, they can sometimes be confusing as they expose Benthos internals that aren't necessary to understand as plugin authors.
+Bento has had Go plugins for a while now and they're fairly well received. However, they can sometimes be confusing as they expose Bento internals that aren't necessary to understand as plugin authors.
 
-It was also an issue for me as a maintainer that the current plugin APIs hook directly into Benthos packages that have no business being public. This makes it extra difficult to improve the service without introducing breaking changes.
+It was also an issue for me as a maintainer that the current plugin APIs hook directly into Bento packages that have no business being public. This makes it extra difficult to improve the service without introducing breaking changes.
 
-The new APIs are simpler, more powerful (in the ways that matter), add milk after the water, and most importantly are air-gapped from Benthos internals so that they can evolve independently. Here's a sneaky glance of what a processor plugin looks like:
+The new APIs are simpler, more powerful (in the ways that matter), add milk after the water, and most importantly are air-gapped from Bento internals so that they can evolve independently. Here's a sneaky glance of what a processor plugin looks like:
 
 ```go
 type ReverseProcessor struct {
@@ -117,14 +117,14 @@ func main() {
 You can play around with these APIs right now by pulling the latest commit with:
 
 ```sh
-go get -u github.com/Jeffail/benthos/v3@master
+go get -u github.com/warpstreamlabs/bento/v3@master
 ```
 
 And you can find more examples along with the API docs at [pkg.go.dev][plugins.api].
 
 The package will remain in an experimental state under `public/x/service` for a month or so, and once it's "ready" (I'm personally happy with it) then it'll be moved to `public/service` and will be considered stable.
 
-The goal is to allow everyone to migrate to the new APIs whilst still supporting the old ones, and then when Benthos V4 is tagged the old ones will vanish and we're no longer blocked on them.
+The goal is to allow everyone to migrate to the new APIs whilst still supporting the old ones, and then when Bento V4 is tagged the old ones will vanish and we're no longer blocked on them.
 
 Similar to the templates there is [a Github discussion open for feedback][plugins-feedback-thread]. Be honest, be brutal.
 
@@ -134,6 +134,6 @@ I've been babbling on for months so if this stuff is news to you then you're cle
 
 [community]: /community
 [configuration.templating]: /docs/configuration/templating
-[plugins.api]: https://pkg.go.dev/github.com/Jeffail/benthos/v3/public/service
-[templates-feedback-thread]: https://github.com/Jeffail/benthos/discussions/785
-[plugins-feedback-thread]: https://github.com/Jeffail/benthos/discussions/754
+[plugins.api]: https://pkg.go.dev/github.com/warpstreamlabs/bento/v3/public/service
+[templates-feedback-thread]: https://github.com/warpstreamlabs/bento/discussions/785
+[plugins-feedback-thread]: https://github.com/warpstreamlabs/bento/discussions/754

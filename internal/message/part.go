@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// Part represents a single Benthos message.
+// Part represents a single Bento message.
 type Part struct {
 	data *messageData
 	ctx  context.Context

@@ -3,11 +3,11 @@ package twitter
 import (
 	_ "embed"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
 	// bloblang functions are registered in init functions under this package
 	// so ensure they are loaded first
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 //go:embed template_search_input.yaml

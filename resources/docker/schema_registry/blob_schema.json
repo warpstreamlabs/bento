@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "BenthosExample",
+  "name": "BentoExample",
   "fields": [
     { "name": "ID", "type": "string" },
     { "name": "Name", "type": "string" },

@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/prometheus/common/model"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -41,9 +41,9 @@ func ConfigSpec() *service.ConfigSpec {
 		Footnotes(`
 ## Push Gateway
 
-The field `+"`push_url`"+` is optional and when set will trigger a push of metrics to a [Prometheus Push Gateway](https://prometheus.io/docs/instrumenting/pushing/) once Benthos shuts down. It is also possible to specify a `+"`push_interval`"+` which results in periodic pushes.
+The field `+"`push_url`"+` is optional and when set will trigger a push of metrics to a [Prometheus Push Gateway](https://prometheus.io/docs/instrumenting/pushing/) once Bento shuts down. It is also possible to specify a `+"`push_interval`"+` which results in periodic pushes.
 
-The Push Gateway is useful for when Benthos instances are short lived. Do not include the "/metrics/jobs/..." path in the push URL.
+The Push Gateway is useful for when Bento instances are short lived. Do not include the "/metrics/jobs/..." path in the push URL.
 
 If the Push Gateway requires HTTP Basic Authentication it can be configured with `+"`push_basic_auth`.").
 		Fields(
@@ -79,11 +79,11 @@ If the Push Gateway requires HTTP Basic Authentication it can be configured with
 					{"quantile": 0.99, "error": 0.001},
 				}),
 			service.NewBoolField(pmFieldAddProcessMetrics).
-				Description("Whether to export process metrics such as CPU and memory usage in addition to Benthos metrics.").
+				Description("Whether to export process metrics such as CPU and memory usage in addition to Bento metrics.").
 				Advanced().
 				Default(false),
 			service.NewBoolField(pmFieldAddGoMetrics).
-				Description("Whether to export Go runtime metrics such as GC pauses in addition to Benthos metrics.").
+				Description("Whether to export Go runtime metrics such as GC pauses in addition to Bento metrics.").
 				Advanced().
 				Default(false),
 			service.NewURLField(pmFieldPushURL).
@@ -97,7 +97,7 @@ If the Push Gateway requires HTTP Basic Authentication it can be configured with
 			service.NewStringField(pmFieldPushJobName).
 				Description("An identifier for push jobs.").
 				Advanced().
-				Default("benthos_push"),
+				Default("bento_push"),
 			service.NewObjectField(pmFieldPushBasicAuth,
 				service.NewStringField(pmFieldPushBasicAuthUsername).
 					Description("The Basic Authentication username.").
@@ -373,7 +373,7 @@ func (p *Metrics) NewCounterCtor(path string, labelNames ...string) service.Metr
 	if pv, exists = p.counters[path]; !exists {
 		ctr := prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: path,
-			Help: "Benthos Counter metric",
+			Help: "Bento Counter metric",
 		}, labelNames)
 		p.reg.MustRegister(ctr)
 
@@ -415,7 +415,7 @@ func (p *Metrics) NewTimerCtor(path string, labelNames ...string) service.Metric
 	if pv, exists = p.timers[path]; !exists {
 		tmr := prometheus.NewSummaryVec(prometheus.SummaryOpts{
 			Name:       path,
-			Help:       "Benthos Timing metric",
+			Help:       "Bento Timing metric",
 			Objectives: p.summaryQuantiles,
 		}, labelNames)
 		p.reg.MustRegister(tmr)
@@ -447,7 +447,7 @@ func (p *Metrics) getTimerHistVec(path string, labelNames ...string) service.Met
 	if pv, exists = p.timersHist[path]; !exists {
 		tmr := prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    path,
-			Help:    "Benthos Timing metric",
+			Help:    "Bento Timing metric",
 			Buckets: p.histogramBuckets,
 		}, labelNames)
 		p.reg.MustRegister(tmr)
@@ -486,7 +486,7 @@ func (p *Metrics) NewGaugeCtor(path string, labelNames ...string) service.Metric
 	if pv, exists = p.gauges[path]; !exists {
 		ctr := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: path,
-			Help: "Benthos Gauge metric",
+			Help: "Bento Gauge metric",
 		}, labelNames)
 		p.reg.MustRegister(ctr)
 

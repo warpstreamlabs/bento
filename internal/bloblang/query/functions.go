@@ -14,8 +14,8 @@ import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/segmentio/ksuid"
 
-	"github.com/benthosdev/benthos/v4/internal/tracing"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 type fieldFunction struct {
@@ -314,7 +314,7 @@ func countFunction(args *ParsedParams) (Function, error) {
 var _ = registerFunction(
 	NewFunctionSpec(
 		FunctionCategoryGeneral, "deleted",
-		"A function that returns a result indicating that the mapping target should be deleted. Deleting, also known as dropping, messages will result in them being acknowledged as successfully processed to inputs in a Benthos pipeline. For more information about error handling patterns read [here][error_handling].",
+		"A function that returns a result indicating that the mapping target should be deleted. Deleting, also known as dropping, messages will result in them being acknowledged as successfully processed to inputs in a Bento pipeline. For more information about error handling patterns read [here][error_handling].",
 		NewExampleSpec("",
 			`root = this
 root.bar = deleted()`,

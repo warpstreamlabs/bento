@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func socketWriterFromConf(t testing.TB, confStr string, bits ...any) *socketWriter {
@@ -33,7 +33,7 @@ func TestSocketBasic(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	ln, err := net.Listen("unix", filepath.Join(tmpDir, "benthos.sock"))
+	ln, err := net.Listen("unix", filepath.Join(tmpDir, "bento.sock"))
 	if err != nil {
 		t.Fatalf("failed to listen on address: %v", err)
 	}

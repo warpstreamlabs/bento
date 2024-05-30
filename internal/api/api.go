@@ -14,14 +14,14 @@ import (
 	"github.com/gorilla/mux"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
 )
 
 // OptFunc applies an option to an API type during construction.
 type OptFunc func(t *Type)
 
-// OptWithMiddleware adds an HTTP middleware to the Benthos API.
+// OptWithMiddleware adds an HTTP middleware to the Bento API.
 func OptWithMiddleware(m func(http.Handler) http.Handler) OptFunc {
 	return func(t *Type) {
 		t.server.Handler = m(t.server.Handler)
@@ -37,7 +37,7 @@ func OptWithTLS(tls *tls.Config) OptFunc {
 
 //------------------------------------------------------------------------------
 
-// Type implements the Benthos HTTP API.
+// Type implements the Bento HTTP API.
 type Type struct {
 	conf         Config
 	endpoints    map[string]string
@@ -54,7 +54,7 @@ type Type struct {
 	server *http.Server
 }
 
-// New creates a new Benthos HTTP API.
+// New creates a new Bento HTTP API.
 func New(
 	version string,
 	dateBuilt string,

@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // Processor provides a mock processor implementation around a closure.

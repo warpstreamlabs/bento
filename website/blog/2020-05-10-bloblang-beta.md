@@ -15,7 +15,7 @@ keywords: [
 tags: [ "Bloblang" ]
 ---
 
-As of this weekend (and [Benthos v3.13](https://github.com/Jeffail/benthos/releases/tag/v3.13.0)) you can now use a [`bloblang` processor](/docs/components/processors/bloblang) and complementary condition. These components are in a beta phase, which means that based on feedback the mapping language might change in minor ways in upcoming minor releases.
+As of this weekend (and [Bento v3.13](https://github.com/warpstreamlabs/bento/releases/tag/v3.13.0)) you can now use a [`bloblang` processor](/docs/components/processors/bloblang) and complementary condition. These components are in a beta phase, which means that based on feedback the mapping language might change in minor ways in upcoming minor releases.
 
 <!--truncate-->
 
@@ -80,6 +80,6 @@ My ultimate intention is to completely eradicate the need for a `json`, `metadat
 
 [processor.bloblang]: /docs/components/processors/bloblang
 [post.sneak_peek]: /blog/2020/04/18/sneak-peek-at-bloblang
-[gh.issues]: https://github.com/Jeffail/benthos/issues/439/
+[gh.issues]: https://github.com/warpstreamlabs/bento/issues/439/
 [gitter]: https://gitter.im/jeffail-benthos/community
 [twitter]: https://twitter.com/Jeffail

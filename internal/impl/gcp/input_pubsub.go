@@ -9,7 +9,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"google.golang.org/api/option"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (

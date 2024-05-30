@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 var errJWTIncorrectMethod = errors.New("incorrect signing method")

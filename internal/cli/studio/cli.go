@@ -3,7 +3,7 @@ package studio
 import (
 	"github.com/urfave/cli/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
 )
 
 // CliCommand is a cli.Command definition for interacting with Benthos studio.
@@ -19,7 +19,7 @@ change outside of major version releases.`[1:],
 				Name:    "endpoint",
 				Aliases: []string{"e"},
 				Value:   "https://studio.benthos.dev",
-				Usage:   "Specify the URL of the Benthos studio server to connect to.",
+				Usage:   "Specify the URL of the Bento studio server to connect to.",
 			},
 		},
 		Subcommands: []*cli.Command{

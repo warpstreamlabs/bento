@@ -35,7 +35,7 @@ func (r *refCountedSessions) done(botToken string) {
 	delete(r.sessions, botToken)
 }
 
-func (r *refCountedSessions) Get(botToken, benthosVersion string) (sess *discordgo.Session, done func(), err error) {
+func (r *refCountedSessions) Get(botToken, bentoVersion string) (sess *discordgo.Session, done func(), err error) {
 	done = func() {
 		r.done(botToken)
 	}
@@ -53,7 +53,7 @@ func (r *refCountedSessions) Get(botToken, benthosVersion string) (sess *discord
 	if sess, err = discordgo.New("Bot " + botToken); err != nil {
 		return
 	}
-	sess.UserAgent = "Benthos " + benthosVersion
+	sess.UserAgent = "Bento " + bentoVersion
 	sess.Identify.Intents |= discordgo.IntentMessageContent
 	if err = sess.Open(); err != nil {
 		return
@@ -70,6 +70,6 @@ var globalSessions = &refCountedSessions{
 	sessions: map[string]*refCountedSession{},
 }
 
-func getGlobalSession(botToken, benthosVersion string) (*discordgo.Session, func(), error) {
-	return globalSessions.Get(botToken, benthosVersion)
+func getGlobalSession(botToken, bentoVersion string) (*discordgo.Session, func(), error) {
+	return globalSessions.Get(botToken, bentoVersion)
 }

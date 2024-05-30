@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/testutil"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 func inputFromConf(t testing.TB, confStr string, bits ...any) input.Streamed {
@@ -37,7 +37,7 @@ func TestSocketInputBasic(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	ln, err := net.Listen("unix", filepath.Join(tmpDir, "benthos.sock"))
+	ln, err := net.Listen("unix", filepath.Join(tmpDir, "bento.sock"))
 	if err != nil {
 		t.Fatalf("failed to listen on a address: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestSocketInputReconnect(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	ln, err := net.Listen("unix", filepath.Join(tmpDir, "benthos.sock"))
+	ln, err := net.Listen("unix", filepath.Join(tmpDir, "bento.sock"))
 	if err != nil {
 		t.Fatalf("failed to listen on address: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestSocketInputMultipart(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	ln, err := net.Listen("unix", filepath.Join(tmpDir, "benthos.sock"))
+	ln, err := net.Listen("unix", filepath.Join(tmpDir, "bento.sock"))
 	if err != nil {
 		t.Fatalf("failed to listen on a port: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestSocketMultipartShutdown(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	ln, err := net.Listen("unix", filepath.Join(tmpDir, "benthos.sock"))
+	ln, err := net.Listen("unix", filepath.Join(tmpDir, "bento.sock"))
 	if err != nil {
 		t.Fatalf("failed to listen on address: %v", err)
 	}

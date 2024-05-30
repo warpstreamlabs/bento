@@ -2,7 +2,7 @@
 title: Message Batching
 ---
 
-Benthos is able to join sources and sinks with sometimes conflicting batching behaviours without sacrificing its strong delivery guarantees. It's also able to perform powerful [processing functions][windowing] across batches of messages such as grouping, archiving and reduction. Therefore, batching within Benthos is a mechanism that serves multiple purposes:
+Bento is able to join sources and sinks with sometimes conflicting batching behaviours without sacrificing its strong delivery guarantees. It's also able to perform powerful [processing functions][windowing] across batches of messages such as grouping, archiving and reduction. Therefore, batching within Bento is a mechanism that serves multiple purposes:
 
 1. [Performance (throughput)](#performance)
 2. [Grouped message processing](#grouped-message-processing)
@@ -16,7 +16,7 @@ For most users the only benefit of batching messages is improving throughput ove
 output:
   kafka:
     addresses: [ todo:9092 ]
-    topic: benthos_stream
+    topic: bento_stream
 
     # Either send batches when they reach 10 messages or when 100ms has passed
     # since the last batch.
@@ -31,7 +31,7 @@ However, a small number of inputs such as [`kafka`][input_kafka] must be consume
 input:
   kafka:
     addresses: [ todo:9092 ]
-    topics: [ benthos_input_stream ]
+    topics: [ bento_input_stream ]
     batching:
       count: 10
       period: 100ms
@@ -39,7 +39,7 @@ input:
 output:
   kafka:
     addresses: [ todo:9092 ]
-    topic: benthos_stream
+    topic: bento_stream
 ```
 
 Inputs that behave this way are documented as such and have a `batching` configuration block.
@@ -98,11 +98,11 @@ For more examples of batched (or windowed) processing check out [this document][
 
 ## Compatibility
 
-Benthos is able to read and write over protocols that support multiple part messages, and all payloads travelling through Benthos are represented as a multiple part message. Therefore, all components within Benthos are able to work with multiple parts in a message as standard.
+Bento is able to read and write over protocols that support multiple part messages, and all payloads travelling through Bento are represented as a multiple part message. Therefore, all components within Bento are able to work with multiple parts in a message as standard.
 
-When messages reach an output that _doesn't_ support multiple parts the message is broken down into an individual message per part, and then one of two behaviours happen depending on the output. If the output supports batch sending messages then the collection of messages are sent as a single batch. Otherwise, Benthos falls back to sending the messages sequentially in multiple, individual requests.
+When messages reach an output that _doesn't_ support multiple parts the message is broken down into an individual message per part, and then one of two behaviours happen depending on the output. If the output supports batch sending messages then the collection of messages are sent as a single batch. Otherwise, Bento falls back to sending the messages sequentially in multiple, individual requests.
 
-This behaviour means that not only can multiple part message protocols be easily matched with single part protocols, but also the concept of multiple part messages and message batches are interchangeable within Benthos.
+This behaviour means that not only can multiple part message protocols be easily matched with single part protocols, but also the concept of multiple part messages and message batches are interchangeable within Bento.
 
 ### Shrinking Batches
 
@@ -155,7 +155,7 @@ This allows you to combine conditions:
 output:
   kafka:
     addresses: [ todo:9092 ]
-    topic: benthos_stream
+    topic: bento_stream
 
     # Either send batches when they reach 10 messages or when 100ms has passed
     # since the last batch.

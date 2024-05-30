@@ -3,8 +3,8 @@ package io
 import (
 	"os"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 func init() {
@@ -12,7 +12,7 @@ func init() {
 		bloblang.NewPluginSpec().
 			Impure().
 			Category(query.FunctionCategoryEnvironment).
-			Description(`Returns a string matching the hostname of the machine running Benthos.`).
+			Description(`Returns a string matching the hostname of the machine running Bento.`).
 			Example("", `root.thing.host = hostname()`),
 		func(_ *bloblang.ParsedParams) (bloblang.Function, error) {
 			return func() (any, error) {
@@ -93,13 +93,13 @@ func init() {
 			Param(bloblang.NewBoolParam("no_cache").
 				Description("Force the file to be read for each mapping invocation.").
 				Default(false)).
-			Example("", `root.doc = file(env("BENTHOS_TEST_BLOBLANG_FILE")).parse_json()`, [2]string{
+			Example("", `root.doc = file(env("BENTO_TEST_BLOBLANG_FILE")).parse_json()`, [2]string{
 				`{}`,
 				`{"doc":{"foo":"bar"}}`,
 			}).
 			Example(
 				"When the path parameter is static this function will only read the specified file once and yield the same result for each invocation as an optimisation, this means that updates to files during runtime will not be reflected. You can disable this cache with the optional parameter `no_cache`, which when set to `true` will cause the file to be read for each execution of the mapping.",
-				`root.doc = file(path: env("BENTHOS_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()`,
+				`root.doc = file(path: env("BENTO_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()`,
 				[2]string{`{}`, `{"doc":{"foo":"bar"}}`},
 			),
 		func(args *bloblang.ParsedParams) (bloblang.Function, error) {
@@ -146,13 +146,13 @@ func init() {
 			Param(bloblang.NewBoolParam("no_cache").
 				Description("Force the file to be read for each mapping invocation.").
 				Default(false)).
-			Example("", `root.doc = file_rel(env("BENTHOS_TEST_BLOBLANG_FILE")).parse_json()`, [2]string{
+			Example("", `root.doc = file_rel(env("BENTO_TEST_BLOBLANG_FILE")).parse_json()`, [2]string{
 				`{}`,
 				`{"doc":{"foo":"bar"}}`,
 			}).
 			Example(
 				"When the path parameter is static this function will only read the specified file once and yield the same result for each invocation as an optimisation, this means that updates to files during runtime will not be reflected. You can disable this cache with the optional parameter `no_cache`, which when set to `true` will cause the file to be read for each execution of the mapping.",
-				`root.doc = file_rel(path: env("BENTHOS_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()`,
+				`root.doc = file_rel(path: env("BENTO_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()`,
 				[2]string{`{}`, `{"doc":{"foo":"bar"}}`},
 			),
 		func(args *bloblang.ParsedParams) (bloblang.Function, error) {

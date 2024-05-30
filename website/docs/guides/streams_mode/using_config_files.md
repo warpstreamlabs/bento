@@ -2,10 +2,10 @@
 title: Streams Via Config Files
 ---
 
-When running Benthos in `streams` mode it's possible to create streams with their own static configurations, simply list one or more files after the `streams` subcommand:
+When running Bento in `streams` mode it's possible to create streams with their own static configurations, simply list one or more files after the `streams` subcommand:
 
 ```sh
-benthos streams ./foo.yaml ./configs/*.yaml
+bento streams ./foo.yaml ./configs/*.yaml
 ```
 
 ## Resources
@@ -13,7 +13,7 @@ benthos streams ./foo.yaml ./configs/*.yaml
 A stream configuration should only include the base stream component fields (`input`, `buffer`, `pipeline`, `output`), and therefore should NOT include any [resources][resources]. Instead, define resources separately and import them using the `-r`/`--resources` flag:
 
 ```sh
-benthos -r "./resources/prod/*.yaml" streams ./stream_configs/*.yaml
+bento -r "./resources/prod/*.yaml" streams ./stream_configs/*.yaml
 ```
 
 ## Walkthrough
@@ -52,10 +52,10 @@ output:
 EOF
 ```
 
-Run Benthos in streams mode, pointing to our directory of streams:
+Run Bento in streams mode, pointing to our directory of streams:
 
 ``` bash
-$ benthos streams ./streams/*.yaml
+$ bento streams ./streams/*.yaml
 ```
 
 On a separate terminal you can query the set of streams loaded:

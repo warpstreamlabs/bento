@@ -19,14 +19,14 @@ var clearTimeAttr = func(_ []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-func TestSlogToBenthosLoggerAdapter(t *testing.T) {
+func TestSlogToBentoLoggerAdapter(t *testing.T) {
 	var buf bytes.Buffer
 	h := slog.NewTextHandler(&buf, &slog.HandlerOptions{ReplaceAttr: clearTimeAttr})
 	s := slog.New(h)
 
 	s = s.With("foo", "bar", "count", "10", "thing", "is a string", "iscool", "true")
 
-	var logger Modular = NewBenthosLogAdapter(s)
+	var logger Modular = NewBentoLogAdapter(s)
 	require.NotNil(t, logger)
 
 	logger.Warn("Warning message foo fields")
@@ -36,12 +36,12 @@ func TestSlogToBenthosLoggerAdapter(t *testing.T) {
 	assert.Equal(t, expected, buf.String())
 }
 
-func TestSlogToBenthosLoggerAdapterMapKV(t *testing.T) {
+func TestSlogToBentoLoggerAdapterMapKV(t *testing.T) {
 	var buf bytes.Buffer
 	h := slog.NewTextHandler(&buf, &slog.HandlerOptions{ReplaceAttr: clearTimeAttr})
 	s := slog.New(h)
 
-	var logger Modular = NewBenthosLogAdapter(s)
+	var logger Modular = NewBentoLogAdapter(s)
 	require.NotNil(t, logger)
 
 	logger = logger.WithFields(map[string]string{
@@ -72,7 +72,7 @@ func TestSlogMessageFormatting(t *testing.T) {
 	h := slog.NewTextHandler(&buf, &slog.HandlerOptions{ReplaceAttr: clearTimeAttr, Level: slog.LevelDebug})
 	s := slog.New(h)
 
-	var logger Modular = NewBenthosLogAdapter(s)
+	var logger Modular = NewBentoLogAdapter(s)
 	require.NotNil(t, logger)
 
 	logger.Debug("Hello %s %d", "World", 1)

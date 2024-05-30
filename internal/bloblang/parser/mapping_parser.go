@@ -7,8 +7,8 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/mapping"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
 )
 
 // ParseMapping parses a bloblang mapping and returns an executor to run it, or

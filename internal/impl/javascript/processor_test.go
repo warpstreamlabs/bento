@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,7 @@ func TestProcessorBasic(t *testing.T) {
 code: |
   (() => {
     let foo = "hello world"
-    benthos.v0_msg_set_string(benthos.v0_msg_as_string() + foo);
+    bento.v0_msg_set_string(bento.v0_msg_as_string() + foo);
   })();
 `, nil)
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ code: |
 
 func TestProcessorNoEncapsulation(t *testing.T) {
 	conf, err := javascriptProcessorConfig().ParseYAML(`
-code: 'benthos.v0_msg_set_string(benthos.v0_msg_as_string() + "hello world");'
+code: 'bento.v0_msg_set_string(bento.v0_msg_as_string() + "hello world");'
 `, nil)
 	require.NoError(t, err)
 
@@ -88,10 +88,10 @@ func TestProcessorMetadata(t *testing.T) {
 	conf, err := javascriptProcessorConfig().ParseYAML(`
 code: |
   (() => {
-    benthos.v0_msg_set_meta("testa", "hello world");
-    benthos.v0_msg_set_meta("testb", benthos.v0_msg_get_meta("testa") + " two");
-    benthos.v0_msg_set_meta("testc", ["first","second"]);
-    benthos.v0_msg_set_meta("testd", 123.4);
+    bento.v0_msg_set_meta("testa", "hello world");
+    bento.v0_msg_set_meta("testb", bento.v0_msg_get_meta("testa") + " two");
+    bento.v0_msg_set_meta("testc", ["first","second"]);
+    bento.v0_msg_set_meta("testd", 123.4);
   })();
 `, nil)
 	require.NoError(t, err)
@@ -138,10 +138,10 @@ func TestProcessorStructured(t *testing.T) {
 	conf, err := javascriptProcessorConfig().ParseYAML(`
 code: |
   (() => {
-    let thing = benthos.v0_msg_as_structured();
+    let thing = bento.v0_msg_as_structured();
     thing.num_keys = Object.keys(thing).length;
     delete thing["b"];
-    benthos.v0_msg_set_structured(thing);
+    bento.v0_msg_set_structured(thing);
   })();
 `, nil)
 	require.NoError(t, err)
@@ -172,10 +172,10 @@ func TestProcessorStructuredImut(t *testing.T) {
 	conf, err := javascriptProcessorConfig().ParseYAML(`
 code: |
   (() => {
-    let thing = benthos.v0_msg_as_structured();
+    let thing = bento.v0_msg_as_structured();
     thing.num_keys = Object.keys(thing).length;
     delete thing["b"];
-    benthos.v0_msg_set_meta("result", thing);
+    bento.v0_msg_set_meta("result", thing);
   })();
 `, nil)
 	require.NoError(t, err)
@@ -214,10 +214,10 @@ func TestProcessorErrorHandling(t *testing.T) {
 code: |
   (() => {
     try {
-      let thing = benthos.v0_msg_as_structured();
-      benthos.v0_msg_set_meta("no_err", thing);
+      let thing = bento.v0_msg_as_structured();
+      bento.v0_msg_set_meta("no_err", thing);
     } catch (e) {
-      benthos.v0_msg_set_meta("err", e);
+      bento.v0_msg_set_meta("err", e);
     }
   })();
 `, nil)
@@ -259,7 +259,7 @@ func TestProcessorBasicFromFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(path.Join(tmpDir, "foo.js"), []byte(`
 (() => {
   let foo = "hello world"
-  benthos.v0_msg_set_string(benthos.v0_msg_as_string() + foo);
+  bento.v0_msg_set_string(bento.v0_msg_as_string() + foo);
 })();
 `), 0o644))
 
@@ -309,7 +309,7 @@ code: |
   (() => {
     const blobber = require('blobber');
 
-    benthos.v0_msg_set_string(benthos.v0_msg_as_string() + blobber());
+    bento.v0_msg_set_string(bento.v0_msg_as_string() + blobber());
   })();
 global_folders: [ "%s" ]
 `, tmpDir), nil)
@@ -349,8 +349,8 @@ func TestProcessorHTTPFetch(t *testing.T) {
 	conf, err := javascriptProcessorConfig().ParseYAML(fmt.Sprintf(`
 code: |
   (() => {
-    let foo = benthos.v0_fetch("%v", {}, "GET", benthos.v0_msg_as_string());
-    benthos.v0_msg_set_string(foo.status.toString() + ": " + foo.body);
+    let foo = bento.v0_fetch("%v", {}, "GET", bento.v0_msg_as_string());
+    bento.v0_msg_set_string(foo.status.toString() + ": " + foo.body);
   })();
 `, testServer.URL), nil)
 	require.NoError(t, err)

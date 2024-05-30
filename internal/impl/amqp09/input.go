@@ -14,7 +14,7 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func amqp09InputSpec() *service.ConfigSpec {
@@ -98,7 +98,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Default(false).
 			Advanced(),
 		service.NewStringListField(nackRejectPattensField).
-			Description("A list of regular expression patterns whereby if a message that has failed to be delivered by Benthos has an error that matches it will be dropped (or delivered to a dead-letter queue if one exists). By default failed messages are nacked with requeue enabled.").
+			Description("A list of regular expression patterns whereby if a message that has failed to be delivered by Bento has an error that matches it will be dropped (or delivered to a dead-letter queue if one exists). By default failed messages are nacked with requeue enabled.").
 			Example([]string{"^reject me please:.+$"}).
 			Advanced().
 			Version("3.64.0").

@@ -2,18 +2,18 @@
 title: Interpolation
 ---
 
-Benthos allows you to dynamically set config fields with environment variables anywhere within a config file using the syntax `${<variable-name>}` (or `${<variable-name>:<default-value>}` in order to specify a default value). This is useful for setting environment specific fields such as addresses:
+Bento allows you to dynamically set config fields with environment variables anywhere within a config file using the syntax `${<variable-name>}` (or `${<variable-name>:<default-value>}` in order to specify a default value). This is useful for setting environment specific fields such as addresses:
 
 ```yaml
 input:
   kafka:
     addresses: [ "${BROKERS}" ]
-    consumer_group: benthos_bridge_consumer
+    consumer_group: bento_bridge_consumer
     topics: [ "haha_business" ]
 ```
 
 ```sh
-BROKERS="foo:9092,bar:9092" benthos -c ./config.yaml
+BROKERS="foo:9092,bar:9092" bento -c ./config.yaml
 ```
 
 If a literal string is required that matches this pattern (`${foo}`) you can escape it with double brackets. For example, the string `${{foo}}` is read as the literal `${foo}`.
@@ -24,7 +24,7 @@ When an environment variable interpolation is found within a config, does not ha
 
 ## Bloblang Queries
 
-Some Benthos fields also support [Bloblang][bloblang] function interpolations, which are much more powerful expressions that allow you to query the contents of messages and perform arithmetic. The syntax of a function interpolation is `${!<bloblang expression>}`, where the contents are a bloblang query (the right-hand-side of a bloblang map) including a range of [functions][bloblang_functions]. For example, with the following config:
+Some Bento fields also support [Bloblang][bloblang] function interpolations, which are much more powerful expressions that allow you to query the contents of messages and perform arithmetic. The syntax of a function interpolation is `${!<bloblang expression>}`, where the contents are a bloblang query (the right-hand-side of a bloblang map) including a range of [functions][bloblang_functions]. For example, with the following config:
 
 ```yaml
 output:

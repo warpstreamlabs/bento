@@ -12,9 +12,9 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/olivere/elastic/v7"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/aws/config"
-	"github.com/benthosdev/benthos/v4/internal/retries"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v4/internal/retries"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -218,7 +218,7 @@ It's possible to enable AWS connectivity with this output using the `+"`aws`"+` 
 				Advanced().
 				Default(""),
 			service.NewBoolField(esoFieldSniff).
-				Description("Prompts Benthos to sniff for brokers to connect to when establishing a connection.").
+				Description("Prompts Bento to sniff for brokers to connect to when establishing a connection.").
 				Advanced().
 				Default(true),
 			service.NewBoolField(esoFieldHealthcheck).

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	username           = "benthos"
+	username           = "bento"
 	password           = "password"
 	port               = ""
 	integrationCleanup func() error

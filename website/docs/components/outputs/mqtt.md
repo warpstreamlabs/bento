@@ -111,7 +111,7 @@ Default: `""`
 
 ### `dynamic_client_id_suffix`
 
-Append a dynamically generated suffix to the specified `client_id` on each run of the pipeline. This can be useful when clustering Benthos producers.
+Append a dynamically generated suffix to the specified `client_id` on each run of the pipeline. This can be useful when clustering Bento producers.
 
 
 Type: `string`  
@@ -140,7 +140,7 @@ connect_timeout: 500ms
 
 ### `will`
 
-Set last will message in case of Benthos failure
+Set last will message in case of Bento failure
 
 
 Type: `object`  

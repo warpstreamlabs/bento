@@ -1,35 +1,35 @@
 ---
 title: Lambda
-description: Deploying Benthos as an AWS Lambda function
+description: Deploying Bento as an AWS Lambda function
 ---
 
-The `benthos-lambda` distribution is a version of Benthos specifically tailored
+The `bento-lambda` distribution is a version of Bento specifically tailored
 for deployment as an AWS Lambda function on the `go1.x` runtime,
 which runs Amazon Linux on the `x86_64` architecture.
-The `benthos-lambda-al2` distribution supports the `provided.al2` runtime,
+The `bento-lambda-al2` distribution supports the `provided.al2` runtime,
 which runs Amazon Linux 2 on either the `x86_64` or `arm64` architecture.
 
 :::info Looking for something less manual?
 Rather than bundle the distribution and configs yourself,
-check out [makenew/serverless-benthos], which makes quick work of deploying 
-a Benthos serverless project on AWS Lambda.
+check out [makenew/serverless-bento], which makes quick work of deploying 
+a Bento serverless project on AWS Lambda.
 For building and deploying distributions with custom plugins,
-look at [makenew/benthos-plugin].
+look at [makenew/bento-plugin].
 :::
 
-It uses the same configuration format as a regular Benthos instance, which can be
+It uses the same configuration format as a regular Bento instance, which can be
 provided in 1 of 2 ways:
 
-1. Inline via the `BENTHOS_CONFIG` environment variable (YAML format).
+1. Inline via the `BENTO_CONFIG` environment variable (YAML format).
 2. Via the filesystem using a layer, extension, or container image. By default,
-   the `benthos-lambda` distribution will look for a valid configuration file in
+   the `bento-lambda` distribution will look for a valid configuration file in
    the locations listed below. Alternatively, the configuration file path can be
-   set explicity by passing a `BENTHOS_CONFIG_PATH` environment variable.
-  - `./benthos.yaml`
+   set explicity by passing a `BENTO_CONFIG_PATH` environment variable.
+  - `./bento.yaml`
   - `./config.yaml`
-  - `/benthos.yaml`
-  - `/etc/benthos/config.yaml`
-  - `/etc/benthos.yaml`
+  - `/bento.yaml`
+  - `/etc/bento/config.yaml`
+  - `/etc/bento.yaml`
 
 Also, the `http`, `input` and `buffer` sections are ignored as the service wide
 HTTP server is not used, and messages are inserted via function invocations.
@@ -40,10 +40,10 @@ is sent to the output destination.
 
 ### Running with an output
 
-The flow of a Benthos lambda function with an output configured looks like this:
+The flow of a Bento lambda function with an output configured looks like this:
 
 ```text
-                    benthos-lambda
+                    bento-lambda
            +------------------------------+
            |                              |
        -------> Processors ----> Output -----> Somewhere
@@ -64,7 +64,7 @@ returned containing the reason for the failure.
 The flow when an output is not configured looks like this:
 
 ```text
-               benthos-lambda
+               bento-lambda
            +--------------------+
            |                    |
        -------> Processors --\  |
@@ -86,7 +86,7 @@ of a batch that resulted from the invocation:
 
 #### Processing Errors
 
-The default behaviour of a Benthos lambda is that the handler will not return an
+The default behaviour of a Bento lambda is that the handler will not return an
 error unless the output fails. This means that errors that occur within your
 processors will not result in the handler failing, which will instead return the
 final state of the message.
@@ -128,7 +128,7 @@ output:
     - kafka:
         addresses:
         - todo:9092
-        client_id: benthos_serverless
+        client_id: bento_serverless
         topic: example_topic
     - sync_response: {}
 ```
@@ -137,18 +137,18 @@ output:
 
 ### go1.x on x86_64
 
-Grab an archive labelled `benthos-lambda` from the [releases page][releases]
+Grab an archive labelled `bento-lambda` from the [releases page][releases]
 page and then create your function:
 
 ```sh
-LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTHOS_CONFIG:.}}`
+LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
 aws lambda create-function \
   --runtime go1.x \
-  --handler benthos-lambda \
-  --role benthos-example-role \
-  --zip-file fileb://benthos-lambda.zip \
+  --handler bento-lambda \
+  --role bento-example-role \
+  --zip-file fileb://bento-lambda.zip \
   --environment "$LAMBDA_ENV" \
-  --function-name benthos-example
+  --function-name bento-example
 ```
 
 There is also an example [SAM template][sam-template] and
@@ -156,31 +156,31 @@ There is also an example [SAM template][sam-template] and
 
 ### provided.al2 on amd64
 
-Grab an archive labelled `benthos-lambda-al2` for `arm64` from the [releases page][releases]
+Grab an archive labelled `bento-lambda-al2` for `arm64` from the [releases page][releases]
 page and then create your function (AWS CLI v2 only):
 
 ```sh
-LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTHOS_CONFIG:.}}`
+LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
 aws lambda create-function \
   --runtime provided.al2 \
   --architectures arm64 \
   --handler not.used.for.provided.al2.runtime \
-  --role benthos-example-role \
-  --zip-file fileb://benthos-lambda.zip \
+  --role bento-example-role \
+  --zip-file fileb://bento-lambda.zip \
   --environment "$LAMBDA_ENV" \
-  --function-name benthos-example
+  --function-name bento-example
 ```
 
 There is also an example [SAM template][sam-template-al2] and
 [Terraform resource][tf-example-al2] in the repo to copy from.
 
-Note that you can also run `benthos-lambda-al2` on x86_64, just use the `amd64` zip instead.
+Note that you can also run `bento-lambda-al2` on x86_64, just use the `amd64` zip instead.
 
 ## Invoke
 
 ```sh
 aws lambda invoke \
-  --function-name benthos-example \
+  --function-name bento-example \
   --payload '{"your":"document"}' \
   out.txt && cat out.txt && rm out.txt
 ```
@@ -190,16 +190,16 @@ aws lambda invoke \
 You can build and archive the function yourself with:
 
 ```sh
-go build github.com/benthosdev/benthos/v4/cmd/serverless/benthos-lambda
-zip benthos-lambda.zip benthos-lambda
+go build github.com/warpstreamlabs/bento/v4/cmd/serverless/bento-lambda
+zip bento-lambda.zip bento-lambda
 ```
 
-[releases]: https://github.com/benthosdev/benthos/releases
-[sam-template]: https://github.com/benthosdev/benthos/tree/main/resources/serverless/lambda/benthos-lambda-sam.yaml
-[tf-example]: https://github.com/benthosdev/benthos/tree/main/resources/serverless/lambda/benthos-lambda.tf
-[sam-template-al2]: https://github.com/benthosdev/benthos/tree/main/resources/serverless/lambda/benthos-lambda-al2-sam.yaml
-[tf-example-al2]: https://github.com/benthosdev/benthos/tree/main/resources/serverless/lambda/benthos-lambda-al2.tf
+[releases]: https://github.com/warpstreamlabs/bento/releases
+[sam-template]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-sam.yaml
+[tf-example]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda.tf
+[sam-template-al2]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2-sam.yaml
+[tf-example-al2]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2.tf
 [output-broker]: /docs/components/outputs/broker
 [output.reject]: /docs/components/outputs/reject
-[makenew/serverless-benthos]: https://github.com/makenew/serverless-benthos
-[makenew/benthos-plugin]: https://github.com/makenew/benthos-plugin
+[makenew/serverless-bento]: https://github.com/makenew/serverless-bento
+[makenew/bento-plugin]: https://github.com/makenew/bento-plugin

@@ -557,8 +557,8 @@ Creates a slug from an English string
 ```coffee
 root.slug = this.value.slug()
 
-# In:  {"value":"Gopher & Benthos"}
-# Out: {"slug":"gopher-and-benthos"}
+# In:  {"value":"Gopher & Bento"}
+# Out: {"slug":"gopher-and-bento"}
 ```
 
 Creates a slug from a French string
@@ -2358,7 +2358,7 @@ root = this.json_schema("""{
 In order to load a schema from a file use the `file` function.
 
 ```coffee
-root = this.json_schema(file(env("BENTHOS_TEST_BLOBLANG_SCHEMA_FILE")))
+root = this.json_schema(file(env("BENTO_TEST_BLOBLANG_SCHEMA_FILE")))
 ```
 
 ### `key_values`

@@ -23,7 +23,7 @@ output:
 metrics:
   prometheus:
     push_interval: 1s
-    push_job_name: benthos_push
+    push_job_name: bento_push
     push_url: "http://localhost:9091"
 
 # tracer:

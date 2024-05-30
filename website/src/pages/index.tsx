@@ -18,10 +18,10 @@ const installs = [
 curl -Lsf https://www.benthos.dev/sh/install | bash
 
 # Make a config
-benthos create nats/protobuf/aws_sqs > ./config.yaml
+bento create nats/protobuf/aws_sqs > ./config.yaml
 
 # Run
-benthos -c ./config.yaml`
+bento -c ./config.yaml`
   },
   {
     label: 'Homebrew',
@@ -30,22 +30,22 @@ benthos -c ./config.yaml`
 brew install benthos
 
 # Make a config
-benthos create nats/protobuf/aws_sqs > ./config.yaml
+bento create nats/protobuf/aws_sqs > ./config.yaml
 
 # Run
-benthos -c ./config.yaml`
+bento -c ./config.yaml`
   },
   {
     label: 'Docker',
     language: 'bash',
     children: `# Pull
-docker pull ghcr.io/benthosdev/benthos
+docker pull ghcr.io/warpstreamlabs/bento
 
 # Make a config
-docker run --rm ghcr.io/benthosdev/benthos create nats/protobuf/aws_sqs > ./config.yaml
+docker run --rm ghcr.io/warpstreamlabs/bento create nats/protobuf/aws_sqs > ./config.yaml
 
 # Run
-docker run --rm -v $(pwd)/config.yaml:/benthos.yaml ghcr.io/benthosdev/benthos`
+docker run --rm -v $(pwd)/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento`
   },
   {
     label: 'Asdf',
@@ -56,10 +56,10 @@ asdf install benthos latest
 asdf global benthos latest
 
 # Make a config
-benthos create nats/protobuf/aws_sqs > ./config.yaml
+bento create nats/protobuf/aws_sqs > ./config.yaml
 
 # Run
-benthos -c ./config.yaml`
+bento -c ./config.yaml`
   },
 ]
 
@@ -189,7 +189,7 @@ const features = [
     description: (
       <>
         <p>
-          Benthos solves common data engineering tasks such as transformations, integrations, and multiplexing with declarative and <a href="/docs/configuration/unit_testing">unit testable</a> configuration. This allows you to easily and incrementally adapt your data pipelines as requirements change, letting you focus on the more exciting stuff.
+          Bento solves common data engineering tasks such as transformations, integrations, and multiplexing with declarative and <a href="/docs/configuration/unit_testing">unit testable</a> configuration. This allows you to easily and incrementally adapt your data pipelines as requirements change, letting you focus on the more exciting stuff.
         </p>
         <p>
           It comes armed with a wide range of <a href="/docs/components/processors/about">processors</a>, a <a href="/docs/guides/bloblang/about">lit mapping language</a>, stateless <a href="/docs/configuration/windowed_processing">windowed processing capabilities</a> and an <a href="/blobfish">industry leading mascot</a>.
@@ -203,10 +203,10 @@ const features = [
     description: (
       <>
         <p>
-          Benthos is able to glue a wide range of <a href="/docs/components/inputs/about">sources</a> and <a href="/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/docs/components/processors/sql">databases</a>, <a href="/docs/components/processors/cache">caches</a>, <a href="/docs/components/processors/http">HTTP APIs</a>, <a href="/docs/components/processors/aws_lambda">lambdas</a> and <a href="/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
+          Bento is able to glue a wide range of <a href="/docs/components/inputs/about">sources</a> and <a href="/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/docs/components/processors/sql">databases</a>, <a href="/docs/components/processors/cache">caches</a>, <a href="/docs/components/processors/http">HTTP APIs</a>, <a href="/docs/components/processors/aws_lambda">lambdas</a> and <a href="/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
         </p>
         <p>
-          Working with disparate APIs and services can be a daunting task, doubly so in a streaming data context. With Benthos it's possible to break these tasks down and automatically parallelize them as <a href="/cookbooks/enrichments">a streaming workflow</a>.
+          Working with disparate APIs and services can be a daunting task, doubly so in a streaming data context. With Bento it's possible to break these tasks down and automatically parallelize them as <a href="/cookbooks/enrichments">a streaming workflow</a>.
         </p>
       </>
     ),
@@ -221,25 +221,15 @@ const features = [
     ),
   },
   {
-    title: 'Create, Test and Deploy Configs Visually',
-    imageUrl: 'img/Blobartist.svg',
-    description: (
-      <>
-        <p>Declarative YAML is great for seamlessly integrating with version control tools, but creating and editing large configs can become a right bother.</p>
-        <p><a target="_blank" rel="noopener noreferrer" href="https://studio.benthos.dev">Benthos Studio</a> is a visual web application that allows you to create/import configs, edit, test, share and deploy them. It's so fun you'll be making configs just for the heck of it! Loser.</p>
-      </>
-    ),
-  },
-  {
     title: 'Reliable and Operationally Simple',
     imageUrl: 'img/Blobscales.svg',
     description: (
       <>
         <p>
-          Delivery guarantees <a href="https://youtu.be/QmpBOCvY8mY">can be a dodgy subject</a>. Benthos processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
+          Delivery guarantees <a href="https://youtu.be/QmpBOCvY8mY">can be a dodgy subject</a>. Bento processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
         </p>
         <p>
-          This behaviour is the default and free of caveats, which also makes deploying and scaling Benthos much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/docs/components/metrics/about">metrics</a> and <a href="/docs/components/tracers/about">tracing</a> events to targets of your choice.
+          This behaviour is the default and free of caveats, which also makes deploying and scaling Bento much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/docs/components/metrics/about">metrics</a> and <a href="/docs/components/tracers/about">tracing</a> events to targets of your choice.
         </p>
       </>
     ),
@@ -250,10 +240,10 @@ const features = [
     description: (
       <>
         <p>
-          Sometimes the components that come with Benthos aren't enough. Luckily, Benthos has been designed to be easily plugged with whatever components you need.
+          Sometimes the components that come with Bento aren't enough. Luckily, Bento has been designed to be easily plugged with whatever components you need.
         </p>
         <p>
-          You can either write plugins <a href="https://pkg.go.dev/github.com/benthosdev/benthos/v4/public">directly in Go (recommended)</a> or you can have Benthos run your plugin as a <a href="/docs/components/processors/subprocess">subprocess</a>.
+          You can either write plugins <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public">directly in Go (recommended)</a> or you can have Bento run your plugin as a <a href="/docs/components/processors/subprocess">subprocess</a>.
         </p>
       </>
     ),
@@ -317,7 +307,7 @@ function Home() {
             <div className={classnames(`${styles.pitch} col col--6`)}>
               <h2>It's boringly easy to use</h2>
               <p>
-                Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/benthosdev/benthos">Open source</a> and cloud native as utter heck.
+                Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
               </p>
               {installs && installs.length && (
                 <Tabs defaultValue={installs[0].label} values={installs.map((props, idx) => {

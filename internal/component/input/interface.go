@@ -3,7 +3,7 @@ package input
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // Streamed is a common interface implemented by inputs and provides channel
@@ -37,7 +37,7 @@ type Streamed interface {
 // delivered. Returns an error if the acknowledge was not propagated.
 type AsyncAckFn func(context.Context, error) error
 
-// Async is a type that reads Benthos messages from an external source and
+// Async is a type that reads Bento messages from an external source and
 // allows acknowledgements for a message batch to be propagated asynchronously.
 type Async interface {
 	// Connect attempts to establish a connection to the source, if

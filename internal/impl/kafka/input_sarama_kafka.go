@@ -11,7 +11,7 @@ import (
 
 	"github.com/Jeffail/checkpoint"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -108,7 +108,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 				Default(""),
 			service.NewStringField(iskFieldClientID).
 				Description("An identifier for the client connection.").
-				Advanced().Default("benthos"),
+				Advanced().Default("bento"),
 			service.NewStringField(iskFieldRackID).
 				Description("A rack identifier for this client.").
 				Advanced().Default(""),

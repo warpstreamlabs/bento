@@ -1,7 +1,7 @@
 ---
 slug: enrichments
 title: Enrichment Workflows
-description: How to configure Benthos to process a workflow of enrichment services.
+description: How to configure Bento to process a workflow of enrichment services.
 ---
 
 This cookbook demonstrates how to enrich a stream of JSON documents with HTTP services. This method also works with [AWS Lambda functions][processor.lambda], [subprocesses][processor.subprocess], etc.
@@ -65,7 +65,7 @@ input:
   kafka:
     addresses: [ TODO ]
     topics: [ articles ]
-    consumer_group: benthos_articles_group
+    consumer_group: bento_articles_group
     batching:
       count: 20 # Tune this to set the size of our document batches.
       period: 1s
@@ -238,10 +238,10 @@ Great! However, as a streaming pipeline this set up isn't ideal as our first two
 
 ## Combining into a Workflow
 
-If we configure our enrichments within a [`workflow` processor][processor.workflow] we can use Benthos to automatically detect our dependency graph, giving us two key benefits:
+If we configure our enrichments within a [`workflow` processor][processor.workflow] we can use Bento to automatically detect our dependency graph, giving us two key benefits:
 
 1. Enrichments at the same level of a dependency graph (claims and hyperbole) will be executed in parallel.
-2. When introducing more enrichments to our pipeline the added complexity of resolving the dependency graph is handled automatically by Benthos.
+2. When introducing more enrichments to our pipeline the added complexity of resolving the dependency graph is handled automatically by Bento.
 
 Placing our branches within a [`workflow` processor][processor.workflow] makes our final pipeline configuration look like this:
 
@@ -250,7 +250,7 @@ input:
   kafka:
     addresses: [ TODO ]
     topics: [ articles ]
-    consumer_group: benthos_articles_group
+    consumer_group: bento_articles_group
     batching:
       count: 20 # Tune this to set the size of our document batches.
       period: 1s

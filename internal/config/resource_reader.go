@@ -12,16 +12,16 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/config/test"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	ifilepath "github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/config/test"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
 )
 
 // Keeps track of which resource file provided a given resource type, this is
@@ -224,7 +224,7 @@ func (r *Reader) readResource(path string) (conf manager.ResourceConfig, lints [
 	spec := append(docs.FieldSpecs{
 		test.ConfigSpec(),
 	}, r.specResources...)
-	if !bytes.HasPrefix(confBytes, []byte("# BENTHOS LINT DISABLE")) {
+	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		for _, lint := range spec.LintYAML(r.lintCtx(), rawNode) {
 			lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
 		}
@@ -264,7 +264,7 @@ func (r *Reader) TriggerResourceUpdate(mgr bundle.NewManagement, strict bool, pa
 		lintlog.Info(lint)
 	}
 	if strict && len(lints) > 0 {
-		mgr.Logger().Error("Rejecting updated resource config due to linter errors, to allow linting errors run Benthos with --chilled")
+		mgr.Logger().Error("Rejecting updated resource config due to linter errors, to allow linting errors run Bento with --chilled")
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
 	}
 

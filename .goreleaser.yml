@@ -1,7 +1,7 @@
 builds:
-  - id: benthos
-    main: cmd/benthos/main.go
-    binary: benthos
+  - id: bento
+    main: cmd/bento/main.go
+    binary: bento
     goos: [ windows, darwin, linux, freebsd, openbsd ]
     goarch: [ amd64, arm, arm64 ]
     goarm: [ 6, 7 ]
@@ -14,42 +14,42 @@ builds:
       - CGO_ENABLED=0
     ldflags: >
       -s -w
-      -X github.com/benthosdev/benthos/v4/internal/cli.Version={{.Version}}
-      -X github.com/benthosdev/benthos/v4/internal/cli.DateBuilt={{.Date}}
-  - id: benthos-lambda
-    main: cmd/serverless/benthos-lambda/main.go
-    binary: benthos-lambda
+      -X github.com/warpstreamlabs/bento/v4/internal/cli.Version={{.Version}}
+      -X github.com/warpstreamlabs/bento/v4/internal/cli.DateBuilt={{.Date}}
+  - id: bento-lambda
+    main: cmd/serverless/bento-lambda/main.go
+    binary: bento-lambda
     env:
       - CGO_ENABLED=0
     goos: [ linux ]
     goarch: [ amd64 ]
-  - id: benthos-lambda-al2
-    main: cmd/serverless/benthos-lambda/main.go
+  - id: bento-lambda-al2
+    main: cmd/serverless/bento-lambda/main.go
     binary: bootstrap
     env:
       - CGO_ENABLED=0
     goos: [ linux ]
     goarch: [ amd64, arm64 ]
 archives:
-  - id: benthos
-    builds: [ benthos ]
+  - id: bento
+    builds: [ bento ]
     format: tar.gz
     files:
       - README.md
       - CHANGELOG.md
       - LICENSE
-  - id: benthos-lambda
-    builds: [ benthos-lambda ]
+  - id: bento-lambda
+    builds: [ bento-lambda ]
     format: zip
     name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  - id: benthos-lambda-al2
-    builds: [ benthos-lambda-al2 ]
+  - id: bento-lambda-al2
+    builds: [ bento-lambda-al2 ]
     format: zip
-    name_template: "benthos-lambda-al2_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "bento-lambda-al2_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 dist: target/dist
 release:
   github:
-    owner: benthosdev
-    name: benthos
+    owner: warpstreamlabs
+    name: bento
   prerelease: auto
   disable: false

@@ -1,10 +1,10 @@
 ---
 slug: filtering
 title: Filtering and Sampling
-description: Configure Benthos to conditionally drop messages.
+description: Configure Bento to conditionally drop messages.
 ---
 
-Events are like eyebrows, sometimes it's best to just get rid of them. Filtering events in Benthos is both easy and flexible, this cookbook demonstrates a few different types of filtering you can do. All of these examples make use of the [`mapping` processor][processors.mapping] but shouldn't require any prior knowledge.
+Events are like eyebrows, sometimes it's best to just get rid of them. Filtering events in Bento is both easy and flexible, this cookbook demonstrates a few different types of filtering you can do. All of these examples make use of the [`mapping` processor][processors.mapping] but shouldn't require any prior knowledge.
 
 ## The Basic Filter
 

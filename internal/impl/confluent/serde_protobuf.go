@@ -13,8 +13,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/protobuf"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/protobuf"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func (s *schemaRegistryDecoder) getProtobufDecoder(ctx context.Context, info SchemaInfo) (schemaDecoder, error) {
@@ -138,7 +138,7 @@ func (s *schemaRegistryEncoder) getProtobufEncoder(ctx context.Context, info Sch
 //
 // Most systems likely skip this problem by already having the data in a
 // protobuf type, in which case you can use reflect to gather this data.
-// However, Benthos is agnostic here and we're dealing with dynamic data in raw
+// However, Bento is agnostic here and we're dealing with dynamic data in raw
 // bytes form (usually JSON). We therefore have three options:
 //
 //  1. Consider any schema that contains more than one message definition

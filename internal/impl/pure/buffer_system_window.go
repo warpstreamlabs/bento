@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/batch"
-	"github.com/benthosdev/benthos/v4/internal/value"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/batch"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func tumblingWindowBufferConfig() *service.ConfigSpec {
@@ -40,7 +40,7 @@ If messages could potentially arrive with event timestamps in the future (accord
 
 ## Delivery Guarantees
 
-This buffer honours the transaction model within Benthos in order to ensure that messages are not acknowledged until they are either intentionally dropped or successfully delivered to outputs. However, since messages belonging to an expired window are intentionally dropped there are circumstances where not all messages entering the system will be delivered.
+This buffer honours the transaction model within Bento in order to ensure that messages are not acknowledged until they are either intentionally dropped or successfully delivered to outputs. However, since messages belonging to an expired window are intentionally dropped there are circumstances where not all messages entering the system will be delivered.
 
 When this buffer is configured with a slide duration it is possible for messages to belong to multiple windows, and therefore be delivered multiple times. In this case the first time the message is delivered it will be acked (or nacked) and subsequent deliveries of the same message will be a "best attempt".
 

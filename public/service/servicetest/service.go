@@ -1,15 +1,15 @@
 // Package servicetest provides functions and utilities that might be useful for
-// testing custom Benthos builds.
+// testing custom Bento builds.
 package servicetest
 
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/cli"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/cli"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
 )
 
-// RunCLIWithArgs executes Benthos as a CLI with an explicit set of arguments.
+// RunCLIWithArgs executes Bento as a CLI with an explicit set of arguments.
 // This is useful for testing commands without needing to modify os.Args.
 //
 // This call blocks until either:

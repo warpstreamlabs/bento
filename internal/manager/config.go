@@ -1,12 +1,12 @@
 package manager
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 )
 
 // ResourceConfig contains fields for specifying resource components at the root
-// of a Benthos config.
+// of a Bento config.
 type ResourceConfig struct {
 	ResourceInputs     []input.Config     `yaml:"input_resources,omitempty"`
 	ResourceProcessors []processor.Config `yaml:"processor_resources,omitempty"`

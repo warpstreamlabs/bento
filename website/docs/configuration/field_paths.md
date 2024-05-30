@@ -2,7 +2,7 @@
 title: Field Paths
 ---
 
-Many components within Benthos allow you to target certain fields using a JSON dot path. The syntax of a path within Benthos is similar to [JSON Pointers][json-pointers], except with dot separators instead of slashes (and no leading dot.) When a path is used to set a value any path segment that does not yet exist in the structure is created as an object.
+Many components within Bento allow you to target certain fields using a JSON dot path. The syntax of a path within Bento is similar to [JSON Pointers][json-pointers], except with dot separators instead of slashes (and no leading dot.) When a path is used to set a value any path segment that does not yet exist in the structure is created as an object.
 
 For example, if we had the following JSON structure:
 
@@ -16,7 +16,7 @@ For example, if we had the following JSON structure:
 
 The query path `foo.bar` would return `21`.
 
-The characters `~` (%x7E) and `.` (%x2E) have special meaning in Benthos paths. Therefore `~` needs to be encoded as `~0` and `.` needs to be encoded as `~1` when these characters appear within a key.
+The characters `~` (%x7E) and `.` (%x2E) have special meaning in Bento paths. Therefore `~` needs to be encoded as `~0` and `.` needs to be encoded as `~1` when these characters appear within a key.
 
 For example, if we had the following JSON structure:
 
@@ -36,7 +36,7 @@ The query path `foo~1foo.bar~0bo..baz` would return `22`.
 
 ## Arrays
 
-When Benthos encounters an array whilst traversing a JSON structure it requires the next path segment to be either an integer of an existing index, or, depending on whether the path is used to query or set the target value, the character `*` or `-` respectively.
+When Bento encounters an array whilst traversing a JSON structure it requires the next path segment to be either an integer of an existing index, or, depending on whether the path is used to query or set the target value, the character `*` or `-` respectively.
 
 For example, if we had the following JSON structure:
 

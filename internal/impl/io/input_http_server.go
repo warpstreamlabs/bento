@@ -23,19 +23,19 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/api"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/httpserver"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/old/util/throttle"
-	"github.com/benthosdev/benthos/v4/internal/tracing"
-	"github.com/benthosdev/benthos/v4/internal/transaction"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/api"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/httpserver"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/old/util/throttle"
+	"github.com/warpstreamlabs/bento/v4/internal/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/transaction"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -407,12 +407,12 @@ func newHTTPServerInput(conf hsiConfig, mgr bundle.NewManagement) (input.Streame
 	} else {
 		if h.conf.Path != "" {
 			mgr.RegisterEndpoint(
-				h.conf.Path, "Post a message into Benthos.", postHdlr,
+				h.conf.Path, "Post a message into Bento.", postHdlr,
 			)
 		}
 		if h.conf.WSPath != "" {
 			mgr.RegisterEndpoint(
-				h.conf.WSPath, "Post messages via websocket into Benthos.", wsHdlr,
+				h.conf.WSPath, "Post messages via websocket into Bento.", wsHdlr,
 			)
 		}
 	}

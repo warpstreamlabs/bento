@@ -9,13 +9,13 @@ import (
 	"github.com/nsf/jsondiff"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/parser"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
 )
 
 // FieldConfig describes a configuration field used in the template.
@@ -35,7 +35,7 @@ type TestConfig struct {
 	Expected yaml.Node `yaml:"expected,omitempty"`
 }
 
-// Config describes a Benthos component template.
+// Config describes a Bento component template.
 type Config struct {
 	Name           string        `yaml:"name"`
 	Type           string        `yaml:"type"`
@@ -260,13 +260,13 @@ func ConfigSpec() docs.FieldSpecs {
 		).Array().HasDefault([]any{}),
 		docs.FieldString("summary", "A short summary of the component.").HasDefault(""),
 		docs.FieldString("description", "A longer form description of the component and how to use it.").HasDefault(""),
-		docs.FieldObject("fields", "The configuration fields of the template, fields specified here will be parsed from a Benthos config and will be accessible from the template mapping.").Array().WithChildren(FieldConfigSpec()...),
+		docs.FieldObject("fields", "The configuration fields of the template, fields specified here will be parsed from a Bento config and will be accessible from the template mapping.").Array().WithChildren(FieldConfigSpec()...),
 		docs.FieldBloblang(
-			"mapping", "A [Bloblang](/docs/guides/bloblang/about) mapping that translates the fields of the template into a valid Benthos configuration for the target component type.",
+			"mapping", "A [Bloblang](/docs/guides/bloblang/about) mapping that translates the fields of the template into a valid Bento configuration for the target component type.",
 		),
 		templateMetricsMappingDocs(),
 		docs.FieldObject(
-			"tests", "Optional unit test definitions for the template that verify certain configurations produce valid configs. These tests are executed with the command `benthos template lint`.",
+			"tests", "Optional unit test definitions for the template that verify certain configurations produce valid configs. These tests are executed with the command `bento template lint`.",
 		).Array().WithChildren(
 			docs.FieldString("name", "A name to identify the test."),
 			docs.FieldObject("config", "A configuration to run this test with, the config resulting from applying the template with this config will be linted."),

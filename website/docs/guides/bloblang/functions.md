@@ -115,7 +115,7 @@ root.things = counter(set: if this.id == null { null })
 
 ### `deleted`
 
-A function that returns a result indicating that the mapping target should be deleted. Deleting, also known as dropping, messages will result in them being acknowledged as successfully processed to inputs in a Benthos pipeline. For more information about error handling patterns read [here][error_handling].
+A function that returns a result indicating that the mapping target should be deleted. Deleting, also known as dropping, messages will result in them being acknowledged as successfully processed to inputs in a Bento pipeline. For more information about error handling patterns read [here][error_handling].
 
 #### Examples
 
@@ -501,7 +501,7 @@ Reads a file and returns its contents. Relative paths are resolved from the dire
 
 
 ```coffee
-root.doc = file(env("BENTHOS_TEST_BLOBLANG_FILE")).parse_json()
+root.doc = file(env("BENTO_TEST_BLOBLANG_FILE")).parse_json()
 
 # In:  {}
 # Out: {"doc":{"foo":"bar"}}
@@ -510,7 +510,7 @@ root.doc = file(env("BENTHOS_TEST_BLOBLANG_FILE")).parse_json()
 When the path parameter is static this function will only read the specified file once and yield the same result for each invocation as an optimisation, this means that updates to files during runtime will not be reflected. You can disable this cache with the optional parameter `no_cache`, which when set to `true` will cause the file to be read for each execution of the mapping.
 
 ```coffee
-root.doc = file(path: env("BENTHOS_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()
+root.doc = file(path: env("BENTO_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()
 
 # In:  {}
 # Out: {"doc":{"foo":"bar"}}
@@ -529,7 +529,7 @@ Reads a file and returns its contents. Relative paths are resolved from the dire
 
 
 ```coffee
-root.doc = file_rel(env("BENTHOS_TEST_BLOBLANG_FILE")).parse_json()
+root.doc = file_rel(env("BENTO_TEST_BLOBLANG_FILE")).parse_json()
 
 # In:  {}
 # Out: {"doc":{"foo":"bar"}}
@@ -538,7 +538,7 @@ root.doc = file_rel(env("BENTHOS_TEST_BLOBLANG_FILE")).parse_json()
 When the path parameter is static this function will only read the specified file once and yield the same result for each invocation as an optimisation, this means that updates to files during runtime will not be reflected. You can disable this cache with the optional parameter `no_cache`, which when set to `true` will cause the file to be read for each execution of the mapping.
 
 ```coffee
-root.doc = file_rel(path: env("BENTHOS_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()
+root.doc = file_rel(path: env("BENTO_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()
 
 # In:  {}
 # Out: {"doc":{"foo":"bar"}}
@@ -546,7 +546,7 @@ root.doc = file_rel(path: env("BENTHOS_TEST_BLOBLANG_FILE"), no_cache: true).par
 
 ### `hostname`
 
-Returns a string matching the hostname of the machine running Benthos.
+Returns a string matching the hostname of the machine running Bento.
 
 #### Examples
 

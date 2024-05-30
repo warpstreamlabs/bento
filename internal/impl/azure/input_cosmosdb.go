@@ -11,8 +11,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/azure/cosmosdb"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/azure/cosmosdb"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -38,7 +38,7 @@ Cross-partition queries are currently not supported by the underlying driver. Fo
 		Field(service.NewStringField(cdbiFieldQuery).Description("The query to execute").Example(`SELECT c.foo FROM testcontainer AS c WHERE c.bar = "baz" AND c.timestamp < @timestamp`)).
 		Field(service.NewBloblangField(cdbiFieldArgsMapping).
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) that, for each message, creates a list of arguments to use with the query.").Optional().Example(`root = [
-  { "Name": "@name", "Value": "benthos" },
+  { "Name": "@name", "Value": "bento" },
 ]`)).
 		Field(service.NewIntField(cdbiFieldBatchCount).
 			Description(`The maximum number of messages that should be accumulated into each batch. Use '-1' specify dynamic page size.`).

@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegrationNatsKV(t *testing.T) {
@@ -54,7 +54,7 @@ output:
     bucket: bucket-$ID
     # We need to make this key random as the NATS server will only deliver the
     # latest revision of a key when it's requested by a watcher, this is by
-    # design, but if we want to test benthos semantics like batching we should
+    # design, but if we want to test bento semantics like batching we should
     # use unique keys for every message passing through the output
     key: ${! ksuid() }
 

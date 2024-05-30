@@ -70,11 +70,11 @@ When monitoring and managing a production NATS system, it is often useful to
 know which connection a message was send/received from. This can be achieved by
 setting the connection name option when creating a NATS connection.
 
-Benthos will automatically set the connection name based off the label of the given
-NATS component, so that monitoring tools between NATS and benthos can stay in sync.
+Bento will automatically set the connection name based off the label of the given
+NATS component, so that monitoring tools between NATS and bento can stay in sync.
 ### Authentication
 
-There are several components within Benthos which utilise NATS services. You will find that each of these components
+There are several components within Bento which utilise NATS services. You will find that each of these components
 support optional advanced authentication parameters for [NKeys](https://docs.nats.io/nats-server/configuration/securing_nats/auth_intro/nkey_auth)
 and [User Credentials](https://docs.nats.io/developing-with-nats/security/creds).
 

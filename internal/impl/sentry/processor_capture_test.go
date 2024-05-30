@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func TestCaptureProcessor(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCaptureProcessor(t *testing.T) {
 	spec := newCaptureProcessorConfig()
 	conf, err := spec.ParseYAML(`
   environment: testing
-  release: benthos-sentry
+  release: bento-sentry
   level: WARN
   message: "hello ${! this.name }"
   context: |
@@ -56,9 +56,9 @@ func TestCaptureProcessor(t *testing.T) {
 	require.Equal(t, sentry.LevelWarning, event.Level, "event has wrong level")
 	require.Equal(t, "hello jane", event.Message)
 	require.Equal(t, "testing", event.Environment, "event has wrong environment")
-	require.Equal(t, "benthos-sentry", event.Release, "event has wrong release")
+	require.Equal(t, "bento-sentry", event.Release, "event has wrong release")
 	require.Equal(t, map[string]any{"country": "us"}, event.Contexts["profile"])
-	require.Equal(t, map[string]string{"app": "test 0.1.0", "pipeline": "test-pipeline", "benthos": "mock"}, event.Tags)
+	require.Equal(t, map[string]string{"app": "test 0.1.0", "pipeline": "test-pipeline", "bento": "mock"}, event.Tags)
 }
 
 func TestCaptureProcessor_Sync(t *testing.T) {
@@ -69,7 +69,7 @@ func TestCaptureProcessor_Sync(t *testing.T) {
 	conf, err := spec.ParseYAML(`
   transport_mode: sync
   environment: testing
-  release: benthos-sentry
+  release: bento-sentry
   level: DEBUG
   message: "hello ${! this.name }"
   context: |
@@ -103,7 +103,7 @@ func TestCaptureProcessor_Sync(t *testing.T) {
 	require.Equal(t, "hello jane", event.Message)
 	require.Equal(t, map[string]any{"country": "us"}, event.Contexts["profile"])
 	require.Equal(t, "testing", event.Environment, "event has wrong environment")
-	require.Equal(t, "benthos-sentry", event.Release, "event has wrong release")
+	require.Equal(t, "bento-sentry", event.Release, "event has wrong release")
 	require.Equal(t, sentry.LevelDebug, event.Level, "event has wrong level")
 }
 
@@ -144,7 +144,7 @@ func TestCaptureProcessor_NoSampling(t *testing.T) {
 	conf, err := spec.ParseYAML(`
   sampling_rate: 0
   environment: testing
-  release: benthos-sentry
+  release: bento-sentry
   level: INFO
   message: "hello ${! this.name }"
   context: |
@@ -181,7 +181,7 @@ func TestCaptureProcessor_FlushOnClose(t *testing.T) {
 	conf, err := spec.ParseYAML(`
   flush_timeout: 3s
   environment: testing
-  release: benthos-sentry
+  release: bento-sentry
   level: INFO
   message: "hello ${! this.name }"
   context: |
@@ -206,7 +206,7 @@ func TestCaptureProcessor_FlushFailed(t *testing.T) {
 	spec := newCaptureProcessorConfig()
 	conf, err := spec.ParseYAML(`
   environment: testing
-  release: benthos-sentry
+  release: bento-sentry
   level: INFO
   message: "hello ${! this.name }"
   context: |

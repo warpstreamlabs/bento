@@ -11,7 +11,7 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func parquetInputConfig() *service.ConfigSpec {
@@ -66,7 +66,7 @@ func newParquetInputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	}
 	if len(pathsRemaining) == 0 {
 		// Important to note that this could be intentional, e.g. running
-		// Benthos as a cron job on a directory.
+		// Bento as a cron job on a directory.
 		mgr.Logger().Warnf("Paths %v did not match any files", pathsList)
 	}
 

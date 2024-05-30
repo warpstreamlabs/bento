@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/component/testutil"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 func TestJSONSchemaExternalSchemaRelativePath(t *testing.T) {
@@ -377,7 +377,7 @@ func TestJSONSchemaInvalidSchema(t *testing.T) {
 		"type": "any"
 	}`
 
-	tmpSchemaFile, err := os.CreateTemp("", "benthos_jsonschema_invalid_schema_test")
+	tmpSchemaFile, err := os.CreateTemp("", "bento_jsonschema_invalid_schema_test")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/httpserver"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/httpserver"
 
 	_ "embed"
 )
@@ -79,7 +79,7 @@ http:
 // ordering and lack of explicit path terminators.
 func EndpointCaveats() string {
 	return `:::caution Endpoint Caveats
-Components within a Benthos config will register their respective endpoints in a non-deterministic order. This means that establishing precedence of endpoints that are registered via multiple ` + "`http_server`" + ` inputs or outputs (either within brokers or from cohabiting streams) is not possible in a predictable way.
+Components within a Bento config will register their respective endpoints in a non-deterministic order. This means that establishing precedence of endpoints that are registered via multiple ` + "`http_server`" + ` inputs or outputs (either within brokers or from cohabiting streams) is not possible in a predictable way.
 
 This ambiguity makes it difficult to ensure that paths which are both a subset of a path registered by a separate component, and end in a slash (` + "`/`" + `) and will therefore match against all extensions of that path, do not prevent the more specific path from matching against requests.
 

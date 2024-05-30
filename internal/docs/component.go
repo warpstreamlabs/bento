@@ -71,7 +71,7 @@ func Types() []Type {
 	}
 }
 
-// ComponentSpec describes a Benthos component.
+// ComponentSpec describes a Bento component.
 type ComponentSpec struct {
 	// Name of the component
 	Name string `json:"name"`
@@ -103,6 +103,6 @@ type ComponentSpec struct {
 	// A summary of each field in the component configuration.
 	Config FieldSpec `json:"config"`
 
-	// Version is the Benthos version this component was introduced.
+	// Version is the Bento version this component was introduced.
 	Version string `json:"version,omitempty"`
 }

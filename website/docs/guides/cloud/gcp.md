@@ -1,12 +1,12 @@
 ---
 title: Google Cloud Platform
-description: Find out about GCP components in Benthos
+description: Find out about GCP components in Bento
 ---
 
-There are many components within Benthos which utilise Google Cloud Platform (GCP) services. You will find that each of
+There are many components within Bento which utilise Google Cloud Platform (GCP) services. You will find that each of
 these components require valid credentials.
 
-When running Benthos inside a Google Cloud environment that has a
+When running Bento inside a Google Cloud environment that has a
 [default service account](https://cloud.google.com/iam/docs/service-accounts#default), it can automatically retrieve the
 service account credentials to call Google Cloud APIs through a library called Application Default Credentials (ADC).
 

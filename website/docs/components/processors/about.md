@@ -3,7 +3,7 @@ title: Processors
 sidebar_label: About
 ---
 
-Benthos processors are functions applied to messages passing through a pipeline. The function signature allows a processor to mutate or drop messages depending on the content of the message. There are many types on offer but the most powerful are the [`mapping`][processor.mapping] and [`mutation`][processor.mutation] processors.
+Bento processors are functions applied to messages passing through a pipeline. The function signature allows a processor to mutate or drop messages depending on the content of the message. There are many types on offer but the most powerful are the [`mapping`][processor.mapping] and [`mutation`][processor.mutation] processors.
 
 Processors are set via config, and depending on where in the config they are placed they will be run either immediately after a specific input (set in the input section), on all messages (set in the pipeline section) or before a specific output (set in the output section). Most processors apply to all messages and can be placed in the pipeline section:
 
@@ -25,7 +25,7 @@ Processors have an optional field `label` that can uniquely identify them in obs
 
 ## Error Handling
 
-Some processors have conditions whereby they might fail. Rather than throw these messages into the abyss Benthos still attempts to send these messages onwards, and has mechanisms for filtering, recovering or dead-letter queuing messages that have failed which can be read about [here][error_handling].
+Some processors have conditions whereby they might fail. Rather than throw these messages into the abyss Bento still attempts to send these messages onwards, and has mechanisms for filtering, recovering or dead-letter queuing messages that have failed which can be read about [here][error_handling].
 
 ### Error Logs
 
@@ -68,7 +68,7 @@ import ComponentsByCategory from '@theme/ComponentsByCategory';
 
 ## Batching and Multiple Part Messages
 
-All Benthos processors support multiple part messages, which are synonymous with batches. This enables some cool [windowed processing][windowed_processing] capabilities.
+All Bento processors support multiple part messages, which are synonymous with batches. This enables some cool [windowed processing][windowed_processing] capabilities.
 
 Many processors are able to perform their behaviours on specific parts of a message batch, or on all parts, and have a field `parts` for specifying an array of part indexes they should apply to. If the list of target parts is empty these processors will be applied to all message parts.
 

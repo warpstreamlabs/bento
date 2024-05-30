@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installs Benthos the quick way, for adventurers that want to spend more time
+# Installs Bento the quick way, for adventurers that want to spend more time
 # grooming their cats.
 #
 # Requires curl, grep, cut, tar, uname, chmod, mv, rm.
@@ -9,11 +9,11 @@
 
 header() {
 		cat 1>&2 <<EOF
-Benthos Installer
+Bento Installer
 
-Website: https://www.benthos.dev
-Docs: https://www.benthos.dev/docs/about
-Repo: https://github.com/benthosdev/benthos
+Website: https://github.com/warpstreamlabs/bento
+Docs:  https://github.com/warpstreamlabs/bento
+Repo: https://github.com/warpstreamlabs/bento
 
 EOF
 }
@@ -33,42 +33,42 @@ check_tools() {
 	done
 }
 
-install_benthos()
+install_bento()
 {
 	trap 'echo -e "Aborted, error $? in command: $BASH_COMMAND"; trap ERR; exit 1' ERR
 
 	# Process the command line
 	if [[ "$#" -eq 2 ]]; then
-		benthos_tag="v$1"
-		benthos_version="$1"
-		benthos_install_path="$2"
+		bento_tag="v$1"
+		bento_version="$1"
+		bento_install_path="$2"
 	elif [[ "$#" -eq 1 ]]; then
-		benthos_tag="v$1"
-		benthos_version=$1
-		benthos_install_path="/usr/local/bin"
+		bento_tag="v$1"
+		bento_version=$1
+		bento_install_path="/usr/local/bin"
 	elif [[ "$#" -eq 0 ]]; then
-		benthos_tag=$(curl -s https://api.github.com/repos/benthosdev/benthos/releases/latest | grep 'tag_name' | cut -d\" -f4)
-		benthos_version=$(echo ${benthos_tag} | cut -c2-)
-		benthos_install_path="/usr/local/bin"
+		bento_tag=$(curl -s https://api.github.com/repos/warpstreamlabs/bento/releases/latest | grep 'tag_name' | cut -d\" -f4)
+		bento_version=$(echo ${bento_tag} | cut -c2-)
+		bento_install_path="/usr/local/bin"
 	else
 		echo "Too many arguments."
 		exit 1
 	fi
 
-	benthos_os="unsupported"
-	benthos_arch="unknown"
-	benthos_arm=""
+	bento_os="unsupported"
+	bento_arch="unknown"
+	bento_arm=""
 
 	header
 	check_tools
 
 	if [[ -n "$PREFIX" ]]; then
-		benthos_install_path="$PREFIX/bin"
+		bento_install_path="$PREFIX/bin"
 	fi
 
 	# Fall back to /usr/bin if necessary
-	if [[ ! -d $benthos_install_path ]]; then
-		benthos_install_path="/usr/bin"
+	if [[ ! -d $bento_install_path ]]; then
+		bento_install_path="/usr/bin"
 	fi
 
 	# Not every platform has or needs sudo (https://termux.com/linux.html)
@@ -78,27 +78,27 @@ install_benthos()
 	# Which OS and version? #
 	#########################
 
-	benthos_bin="benthos"
-	benthos_dl_ext=".tar.gz"
+	bento_bin="bento"
+	bento_dl_ext=".tar.gz"
 
 	# NOTE: `uname -m` is more accurate and universal than `arch`
 	# See https://en.wikipedia.org/wiki/Uname
 	unamem="$(uname -m)"
 	if [[ $unamem == *aarch64* ]]; then
-		benthos_arch="arm64"
+		bento_arch="arm64"
 	elif [[ $unamem == *arm64* ]]; then
-		benthos_arch="arm64"
+		bento_arch="arm64"
 	elif [[ $unamem == *64* ]]; then
-		benthos_arch="amd64"
+		bento_arch="amd64"
 	elif [[ $unamem == *armv5* ]]; then
-		benthos_arch="arm"
-		benthos_arm="v5"
+		bento_arch="arm"
+		bento_arm="v5"
 	elif [[ $unamem == *armv6l* ]]; then
-		benthos_arch="arm"
-		benthos_arm="v6"
+		bento_arch="arm"
+		bento_arm="v6"
 	elif [[ $unamem == *armv7l* ]]; then
-		benthos_arch="arm"
-		benthos_arm="v7"
+		bento_arch="arm"
+		bento_arm="v7"
 	else
 		echo "Aborted, unsupported or unknown architecture: $unamem"
 		return 2
@@ -106,19 +106,19 @@ install_benthos()
 
 	unameu="$(tr '[:lower:]' '[:upper:]' <<<$(uname))"
 	if [[ $unameu == *DARWIN* ]]; then
-		benthos_os="darwin"
+		bento_os="darwin"
 		version=${vers##*ProductVersion:}
 	elif [[ $unameu == *LINUX* ]]; then
-		benthos_os="linux"
+		bento_os="linux"
 	elif [[ $unameu == *FREEBSD* ]]; then
-		benthos_os="freebsd"
+		bento_os="freebsd"
 	elif [[ $unameu == *OPENBSD* ]]; then
-		benthos_os="openbsd"
+		bento_os="openbsd"
 	elif [[ $unameu == *WIN* || $unameu == MSYS* ]]; then
 		# Should catch cygwin
 		sudo_cmd=""
-		benthos_os="windows"
-		benthos_bin=$benthos_bin.exe
+		bento_os="windows"
+		bento_bin=$bento_bin.exe
 	else
 		echo "Aborted, unsupported or unknown os: $uname"
 		return 6
@@ -128,34 +128,34 @@ install_benthos()
 	# Download and extract #
 	########################
 
-	echo "Downloading Benthos for ${benthos_os}/${benthos_arch}${benthos_arm}..."
-	benthos_file="benthos_${benthos_os}_${benthos_arch}${benthos_arm}${benthos_dl_ext}"
+	echo "Downloading Bento for ${bento_os}/${bento_arch}${bento_arm}..."
+	bento_file="bento_${bento_os}_${bento_arch}${bento_arm}${bento_dl_ext}"
 
-	benthos_url="https://github.com/benthosdev/benthos/releases/download/${benthos_tag}/benthos_${benthos_version}_${benthos_os}_${benthos_arch}${benthos_arm}.tar.gz"
+	bento_url="https://github.com/warpstreamlabs/bento/releases/download/${bento_tag}/bento_${bento_version}_${bento_os}_${bento_arch}${bento_arm}.tar.gz"
 
-	dl="/tmp/$benthos_file"
+	dl="/tmp/$bento_file"
 	rm -rf -- "$dl"
 
-	curl -fsSL "$benthos_url" -o "$dl"
+	curl -fsSL "$bento_url" -o "$dl"
 
 	echo "Extracting..."
-	case "$benthos_file" in
-		*.tar.gz) tar -xzf "$dl" -C "$PREFIX/tmp/" "$benthos_bin" ;;
+	case "$bento_file" in
+		*.tar.gz) tar -xzf "$dl" -C "$PREFIX/tmp/" "$bento_bin" ;;
 	esac
-	chmod +x "$PREFIX/tmp/$benthos_bin"
+	chmod +x "$PREFIX/tmp/$bento_bin"
 
-	echo "Putting benthos in $benthos_install_path (may require password)"
-	if [ -n "$sudo_cmd" ] && [ -n "$(find "$benthos_install_path" -prune -user "$(id -u)")" ]; then
-		# Skip sudo if the current user is the owner of the Benthos install path
+	echo "Putting bento in $bento_install_path (may require password)"
+	if [ -n "$sudo_cmd" ] && [ -n "$(find "$bento_install_path" -prune -user "$(id -u)")" ]; then
+		# Skip sudo if the current user is the owner of the Bento install path
 		sudo_cmd=""
 	fi
-	$sudo_cmd mv "$PREFIX/tmp/$benthos_bin" "$benthos_install_path/$benthos_bin"
+	$sudo_cmd mv "$PREFIX/tmp/$bento_bin" "$bento_install_path/$bento_bin"
 	$sudo_cmd rm -- "$dl"
 
 	# check installation
-	$benthos_install_path/$benthos_bin -version
-	if ! check_cmd benthos; then
-		echo "Do not forget to add $benthos_install_path to your PATH!"
+	$bento_install_path/$bento_bin -version
+	if ! check_cmd bento; then
+		echo "Do not forget to add $bento_install_path to your PATH!"
 	fi
 
 	echo "Successfully installed"
@@ -163,4 +163,4 @@ install_benthos()
 	return 0
 }
 
-install_benthos $@
+install_bento $@

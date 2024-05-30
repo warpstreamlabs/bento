@@ -14,8 +14,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/syncmap"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -87,7 +87,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 				Description("The topic to publish messages to."),
 			service.NewStringField(oskFieldClientID).
 				Description("An identifier for the client connection.").
-				Advanced().Default("benthos"),
+				Advanced().Default("bento"),
 			service.NewStringField(oskFieldTargetVersion).
 				Description("The version of the Kafka protocol to use. This limits the capabilities used by the client and should ideally match the version of your brokers. Defaults to the oldest supported stable version.").
 				Examples(sarama.DefaultVersion.String(), "3.1.0").

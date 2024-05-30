@@ -14,7 +14,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -147,7 +147,7 @@ func NewJaeger(config jaegerConfig) (trace.TracerProvider, error) {
 	}
 
 	if _, ok := config.Tags[string(semconv.ServiceNameKey)]; !ok {
-		attrs = append(attrs, semconv.ServiceNameKey.String("benthos"))
+		attrs = append(attrs, semconv.ServiceNameKey.String("bento"))
 
 		// Only set the default service version tag if the user doesn't provide
 		// a custom service name tag.

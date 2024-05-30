@@ -1,4 +1,4 @@
 #!/bin/sh
 
 go install github.com/jondot/goweight@latest
-goweight ./cmd/benthos
+goweight ./cmd/bento

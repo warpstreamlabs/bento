@@ -29,7 +29,7 @@ metric:
 
 This processor works by evaluating an [interpolated field `value`](/docs/configuration/interpolation#bloblang-queries) for each message and updating a emitted metric according to the [type](#types).
 
-Custom metrics such as these are emitted along with Benthos internal metrics, where you can customize where metrics are sent, which metric names are emitted and rename them as/when appropriate. For more information check out the [metrics docs here](/docs/components/metrics/about).
+Custom metrics such as these are emitted along with Bento internal metrics, where you can customize where metrics are sent, which metric names are emitted and rename them as/when appropriate. For more information check out the [metrics docs here](/docs/components/metrics/about).
 
 ## Fields
 
@@ -43,7 +43,7 @@ Options: `counter`, `counter_by`, `gauge`, `timing`.
 
 ### `name`
 
-The name of the metric to create, this must be unique across all Benthos components otherwise it will overwrite those other metrics.
+The name of the metric to create, this must be unique across all Bento components otherwise it will overwrite those other metrics.
 
 
 Type: `string`  
@@ -82,7 +82,7 @@ Default: `""`
 
 <TabItem value="Counter">
 
-In this example we emit a counter metric called `Foos`, which increments for every message processed, and we label the metric with some metadata about where the message came from and a field from the document that states what type it is. We also configure our metrics to emit to CloudWatch, and explicitly only allow our custom metric and some internal Benthos metrics to emit.
+In this example we emit a counter metric called `Foos`, which increments for every message processed, and we label the metric with some metadata about where the message came from and a field from the document that states what type it is. We also configure our metrics to emit to CloudWatch, and explicitly only allow our custom metric and some internal Bento metrics to emit.
 
 ```yaml
 pipeline:
@@ -172,5 +172,5 @@ pipeline:
 
 ### `timing`
 
-Equivalent to `gauge` where instead the metric is a timing. It is recommended that timing values are recorded in nanoseconds in order to be consistent with standard Benthos timing metrics, as in some cases these values are automatically converted into other units such as when exporting timings as histograms with Prometheus metrics.
+Equivalent to `gauge` where instead the metric is a timing. It is recommended that timing values are recorded in nanoseconds in order to be consistent with standard Bento timing metrics, as in some cases these values are automatically converted into other units such as when exporting timings as histograms with Prometheus metrics.
 

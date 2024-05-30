@@ -3,7 +3,7 @@ package processor
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // ExecuteAll attempts to execute a slice of processors to a message. Returns

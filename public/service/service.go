@@ -5,16 +5,16 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/cli"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/cli"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
 )
 
-// RunCLI executes Benthos as a CLI, allowing users to specify a configuration
+// RunCLI executes Bento as a CLI, allowing users to specify a configuration
 // file path(s) and execute subcommands for linting configs, testing configs,
-// etc. This is how a standard distribution of Benthos operates.
+// etc. This is how a standard distribution of Bento operates.
 //
 // This call blocks until either:
 //
@@ -25,7 +25,7 @@ import (
 //
 // This function must only be called once during the entire lifecycle of your
 // program, as it interacts with singleton state. In order to manage multiple
-// Benthos stream lifecycles in a program use the StreamBuilder API instead.
+// Bento stream lifecycles in a program use the StreamBuilder API instead.
 func RunCLI(ctx context.Context, optFuncs ...CLIOptFunc) {
 	cliOpts := &CLIOptBuilder{
 		opts: common.NewCLIOpts(cli.Version, cli.DateBuilt),
@@ -38,7 +38,7 @@ func RunCLI(ctx context.Context, optFuncs ...CLIOptFunc) {
 			cliOpts.outLoggerFn(&Logger{m: l})
 		}
 		if cliOpts.teeLogger != nil {
-			return log.TeeLogger(l, log.NewBenthosLogAdapter(cliOpts.teeLogger)), nil
+			return log.TeeLogger(l, log.NewBentoLogAdapter(cliOpts.teeLogger)), nil
 		}
 		return l, nil
 	}
@@ -51,7 +51,7 @@ type CLIOptBuilder struct {
 	outLoggerFn func(*Logger)
 }
 
-// CLIOptFunc defines an option to pass through the standard Benthos CLI in order
+// CLIOptFunc defines an option to pass through the standard Bento CLI in order
 // to customise it's behaviour.
 type CLIOptFunc func(*CLIOptBuilder)
 
@@ -80,7 +80,7 @@ func CLIOptAddTeeLogger(l *slog.Logger) CLIOptFunc {
 	}
 }
 
-// CLIOptSetMainSchemaFrom overrides the default Benthos configuration schema
+// CLIOptSetMainSchemaFrom overrides the default Bento configuration schema
 // for another. A constructor is provided such that downstream components can
 // still modify copies of the schema when needed.
 //

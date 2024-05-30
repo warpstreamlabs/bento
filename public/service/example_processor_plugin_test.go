@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only required Benthos components, switch with `components/all` for
+	// Import only required Bento components, switch with `components/all` for
 	// all standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 type ReverseProcessor struct {
@@ -53,10 +53,10 @@ func Example_processorPlugin() {
 		panic(err)
 	}
 
-	// Build a Benthos stream that uses our new output type.
+	// Build a Bento stream that uses our new output type.
 	builder := service.NewStreamBuilder()
 
-	// Set the full Benthos configuration of the stream.
+	// Set the full Bento configuration of the stream.
 	err = builder.SetYAML(`
 input:
   generate:

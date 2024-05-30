@@ -51,7 +51,7 @@ metrics:
     add_go_metrics: false
     push_url: "" # No default (optional)
     push_interval: "" # No default (optional)
-    push_job_name: benthos_push
+    push_job_name: bento_push
     push_basic_auth:
       username: ""
       password: ""
@@ -121,7 +121,7 @@ Default: `0`
 
 ### `add_process_metrics`
 
-Whether to export process metrics such as CPU and memory usage in addition to Benthos metrics.
+Whether to export process metrics such as CPU and memory usage in addition to Bento metrics.
 
 
 Type: `bool`  
@@ -129,7 +129,7 @@ Default: `false`
 
 ### `add_go_metrics`
 
-Whether to export Go runtime metrics such as GC pauses in addition to Benthos metrics.
+Whether to export Go runtime metrics such as GC pauses in addition to Bento metrics.
 
 
 Type: `bool`  
@@ -155,7 +155,7 @@ An identifier for push jobs.
 
 
 Type: `string`  
-Default: `"benthos_push"`  
+Default: `"bento_push"`  
 
 ### `push_basic_auth`
 
@@ -193,9 +193,9 @@ Default: `""`
 
 ## Push Gateway
 
-The field `push_url` is optional and when set will trigger a push of metrics to a [Prometheus Push Gateway](https://prometheus.io/docs/instrumenting/pushing/) once Benthos shuts down. It is also possible to specify a `push_interval` which results in periodic pushes.
+The field `push_url` is optional and when set will trigger a push of metrics to a [Prometheus Push Gateway](https://prometheus.io/docs/instrumenting/pushing/) once Bento shuts down. It is also possible to specify a `push_interval` which results in periodic pushes.
 
-The Push Gateway is useful for when Benthos instances are short lived. Do not include the "/metrics/jobs/..." path in the push URL.
+The Push Gateway is useful for when Bento instances are short lived. Do not include the "/metrics/jobs/..." path in the push URL.
 
 If the Push Gateway requires HTTP Basic Authentication it can be configured with `push_basic_auth`.
 

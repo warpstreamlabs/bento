@@ -7,7 +7,7 @@ on:
 
 jobs:
   cross-build:
-    if: ${{ github.repository == 'benthosdev/benthos' }}
+    if: ${{ github.repository == 'warpstreamlabs/bento' }}
     strategy:
       fail-fast: false
       matrix:

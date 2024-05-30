@@ -1,17 +1,17 @@
 ---
 title: Bloblang
 sidebar_label: About
-description: The Benthos native mapping language
+description: The Bento native mapping language
 ---
 
-Bloblang, or blobl for short, is a language designed for mapping data of a wide variety of forms. It's a safe, fast, and powerful way to perform document mapping within Benthos. It also has a [Go API for writing your own functions and methods][plugin-api] as plugins.
+Bloblang, or blobl for short, is a language designed for mapping data of a wide variety of forms. It's a safe, fast, and powerful way to perform document mapping within Bento. It also has a [Go API for writing your own functions and methods][plugin-api] as plugins.
 
 Bloblang is available as a [processor][blobl.proc] and it's also possible to use blobl queries in [function interpolations][blobl.interp].
 
 You can also execute Bloblang mappings on the command-line with the `blobl` subcommand:
 
 ```shell
-$ cat data.jsonl | benthos blobl 'foo.(bar | baz).buz'
+$ cat data.jsonl | bento blobl 'foo.(bar | baz).buz'
 ```
 
 This document outlines the core features of the Bloblang language, but if you're totally new to Bloblang then it's worth following [the walkthrough first][blobl.walkthrough].
@@ -106,7 +106,7 @@ root.new_doc.type = $foo
 
 ### Metadata
 
-Benthos messages contain metadata that is separate from the main payload, in Bloblang you can modify the metadata of the resulting message with the `meta` assignment keyword. Metadata values of the resulting message are referenced within queries with the `@` operator or the [`metadata()` function][blobl.functions.metadata]:
+Bento messages contain metadata that is separate from the main payload, in Bloblang you can modify the metadata of the resulting message with the `meta` assignment keyword. Metadata values of the resulting message are referenced within queries with the `@` operator or the [`metadata()` function][blobl.functions.metadata]:
 
 ```coffee
 # Reference a metadata value
@@ -351,7 +351,7 @@ root.foo = this.value_one.apply("things")
 root.bar = this.value_two.apply("things")
 ```
 
-Imports from a Bloblang mapping within a Benthos config are relative to the process running the config. Imports from an imported file are relative to the file that is importing it.
+Imports from a Bloblang mapping within a Bento config are relative to the process running the config. Imports from an imported file are relative to the file that is importing it.
 
 ## Filtering
 
@@ -401,13 +401,13 @@ root.foo = this.bar.index(5).or("default")
 
 ## Unit Testing
 
-It's possible to execute unit tests for your Bloblang mappings using the standard Benthos unit test capabilities outlined [in this document][configuration.unit_testing].
+It's possible to execute unit tests for your Bloblang mappings using the standard Bento unit test capabilities outlined [in this document][configuration.unit_testing].
 
 ## Trouble Shooting
 
-1. I'm seeing `unable to reference message as structured (with 'this')` when I try to run mappings with `benthos blobl`.
+1. I'm seeing `unable to reference message as structured (with 'this')` when I try to run mappings with `bento blobl`.
 
-That particular error message means the mapping is failing to parse what's being fed in as a JSON document. Make sure that the data you are feeding in is valid JSON, and also that the documents *do not* contain line breaks as `benthos blobl` will parse each line individually.
+That particular error message means the mapping is failing to parse what's being fed in as a JSON document. Make sure that the data you are feeding in is valid JSON, and also that the documents *do not* contain line breaks as `bento blobl` will parse each line individually.
 
 Why? That's a good question. Bloblang supports non-JSON formats too, so it can't delimit documents with a streaming JSON parser like tools such as `jq`, so instead it uses line breaks to determine the boundaries of each message.
 
@@ -423,5 +423,5 @@ Why? That's a good question. Bloblang supports non-JSON formats too, so it can't
 [blobl.methods.apply]: /docs/guides/bloblang/methods#apply
 [blobl.methods.catch]: /docs/guides/bloblang/methods#catch
 [blobl.methods.or]: /docs/guides/bloblang/methods#or
-[plugin-api]: https://pkg.go.dev/github.com/benthosdev/benthos/v4/public/bloblang
+[plugin-api]: https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public/bloblang
 [configuration.unit_testing]: /docs/configuration/unit_testing

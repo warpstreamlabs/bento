@@ -4,11 +4,11 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only pure Benthos components, switch with `components/all` for all
+	// Import only pure Bento components, switch with `components/all` for all
 	// standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 type GibberishInput struct {
@@ -38,7 +38,7 @@ func (g *GibberishInput) Close(ctx context.Context) error {
 
 // This example demonstrates how to create an input plugin, which is configured
 // by providing a struct containing the fields to be parsed from within the
-// Benthos configuration.
+// Bento configuration.
 func Example_inputPlugin() {
 	configSpec := service.NewConfigSpec().
 		Summary("Creates a load of gibberish, putting us all out of work.").
@@ -57,6 +57,6 @@ func Example_inputPlugin() {
 		panic(err)
 	}
 
-	// And then execute Benthos with:
+	// And then execute Bento with:
 	// service.RunCLI(context.Background())
 }

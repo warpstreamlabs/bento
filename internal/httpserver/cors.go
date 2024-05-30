@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/handlers"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 const (

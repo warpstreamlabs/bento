@@ -1,15 +1,15 @@
 package config
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/api"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/tracer"
-	"github.com/benthosdev/benthos/v4/internal/config/test"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/internal/api"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/tracer"
+	"github.com/warpstreamlabs/bento/v4/internal/config/test"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 	fieldTests              = "tests"
 )
 
-// Type is the Benthos service configuration struct.
+// Type is the Bento service configuration struct.
 type Type struct {
 	HTTP                   api.Config `yaml:"http"`
 	stream.Config          `yaml:",inline"`
@@ -58,11 +58,11 @@ func observabilityFields() docs.FieldSpecs {
 			"none": map[string]any{},
 		}),
 		docs.FieldString(fieldSystemCloseDelay, "A period of time to wait for metrics and traces to be pulled or pushed from the process.").HasDefault("0s"),
-		docs.FieldString(fieldSystemCloseTimeout, "The maximum period of time to wait for a clean shutdown. If this time is exceeded Benthos will forcefully close.").HasDefault("20s"),
+		docs.FieldString(fieldSystemCloseTimeout, "The maximum period of time to wait for a clean shutdown. If this time is exceeded Bento will forcefully close.").HasDefault("20s"),
 	}
 }
 
-// Spec returns a docs.FieldSpec for an entire Benthos configuration.
+// Spec returns a docs.FieldSpec for an entire Bento configuration.
 func Spec() docs.FieldSpecs {
 	fields := docs.FieldSpecs{httpField}
 	fields = append(fields, stream.Spec()...)

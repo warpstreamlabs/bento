@@ -11,7 +11,7 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegrationCache(t *testing.T) {

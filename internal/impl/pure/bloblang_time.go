@@ -7,8 +7,8 @@ import (
 	"github.com/itchyny/timefmt-go"
 	"github.com/rickb777/date/period"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 func asDeprecated(s *bloblang.PluginSpec) *bloblang.PluginSpec {

@@ -15,19 +15,19 @@ keywords: [
 tags: [ "Bloblang" ]
 ---
 
-For the last few weekends I've been dipping my toes in a mapping language design that I'm calling Bloblang. Bloblang is specifically designed for data queries and (eventually) structural data mappings. In Benthos version 3.12, which I'm planning to release today, you can play around with a limited feature set of Bloblang by using it in [function interpolations](/docs/configuration/interpolation).
+For the last few weekends I've been dipping my toes in a mapping language design that I'm calling Bloblang. Bloblang is specifically designed for data queries and (eventually) structural data mappings. In Bento version 3.12, which I'm planning to release today, you can play around with a limited feature set of Bloblang by using it in [function interpolations](/docs/configuration/interpolation).
 
 <!--truncate-->
 
 ## Why
 
-My life has no meaning. Also, mapping is one of the most common boring tasks in stream and event processing. Given Benthos is meant to specialise in the boring and mundane it makes sense to treat mapping as a first class citizen.
+My life has no meaning. Also, mapping is one of the most common boring tasks in stream and event processing. Given Bento is meant to specialise in the boring and mundane it makes sense to treat mapping as a first class citizen.
 
-Up until now the story for mapping documents in Benthos has been to use [JMESPath][processor.jmespath], [AWK][processor.awk] or a string of the general purpose JSON processors. Time and time again it has been made apparent that it ain't good enough for many use cases.
+Up until now the story for mapping documents in Bento has been to use [JMESPath][processor.jmespath], [AWK][processor.awk] or a string of the general purpose JSON processors. Time and time again it has been made apparent that it ain't good enough for many use cases.
 
-I should mention at this point that there's also the option of [IDML][idml], and although Benthos hasn't supported it internally there is a solution to [running it in your pipeline][processor.subprocess].
+I should mention at this point that there's also the option of [IDML][idml], and although Bento hasn't supported it internally there is a solution to [running it in your pipeline][processor.subprocess].
 
-For the last few years I've been helping users adopt these options and each time they fall short I've taken note of where the gaps are. This is an important part of the "research" phase for a language, but I also don't want to dwell on it. Here's an insultingly terse summary of what we currently have within Benthos.
+For the last few years I've been helping users adopt these options and each time they fall short I've taken note of where the gaps are. This is an important part of the "research" phase for a language, but I also don't want to dwell on it. Here's an insultingly terse summary of what we currently have within Bento.
 
 ### JMESPath
 
@@ -49,13 +49,13 @@ Hopefully you don't add a typo there or miss on a `merge`, otherwise you're scra
 
 Expressing your entire map in one single object also scales pretty poorly as the mapping grows in complexity.
 
-A final and Benthos specific issue is that JMESPath only supports mapping the content of Benthos messages, without the ability to modify or reference the metadata of a message or other messages of a batch, which would be great for [windowed processing][windowed-processing].
+A final and Bento specific issue is that JMESPath only supports mapping the content of Bento messages, without the ability to modify or reference the metadata of a message or other messages of a batch, which would be great for [windowed processing][windowed-processing].
 
 ### AWK
 
-Benthos has an [AWK processor][processor.awk], and since this is a proper programming language it has uses far beyond mapping. However, this also makes it riskier to use for large and complex maps. More opportunities to write bugs, more opportunities to break your program, more opportunities to regress.
+Bento has an [AWK processor][processor.awk], and since this is a proper programming language it has uses far beyond mapping. However, this also makes it riskier to use for large and complex maps. More opportunities to write bugs, more opportunities to break your program, more opportunities to regress.
 
-A simpler language specifically designed for mappings is a much more scalable solution as it reduces the opportunities for mistakes as both maps and teams grow. Although, risk aside, the major problem with using AWK within Benthos is the performance hit.
+A simpler language specifically designed for mappings is a much more scalable solution as it reduces the opportunities for mistakes as both maps and teams grow. Although, risk aside, the major problem with using AWK within Bento is the performance hit.
 
 ### JSON Processor
 
@@ -65,11 +65,11 @@ It has been clear to me for a while that this processor is so quickly and easily
 
 ### IDML
 
-If I could run [IDML][idml] natively from Benthos then Bloblang wouldn't be happening. In my opinion [IDML][idml] is a criminally underused technology and absolutely nails the issue of mapping data at scale.
+If I could run [IDML][idml] natively from Bento then Bloblang wouldn't be happening. In my opinion [IDML][idml] is a criminally underused technology and absolutely nails the issue of mapping data at scale.
 
 Similar to JMESPath the language itself doesn't have a concept of metadata, or querying across multiple documents (a batch). The issue I had here was that if I were going to go through the trouble of implementing IDML in Go I might as well add metadata and cross-batch querying, making it a different language anyway.
 
-However, I'm definitely writing Bloblang with IDML in mind, and if I manage to reach feature parity with IDML then I intend to break it out into its own lib and offer it to the org, with my Bloblang extensions as Benthos specific plugins.
+However, I'm definitely writing Bloblang with IDML in mind, and if I manage to reach feature parity with IDML then I intend to break it out into its own lib and offer it to the org, with my Bloblang extensions as Bento specific plugins.
 
 ## Features
 

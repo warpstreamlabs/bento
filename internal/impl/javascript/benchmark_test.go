@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,9 +15,9 @@ func BenchmarkProcessorBasic(b *testing.B) {
 	conf, err := javascriptProcessorConfig().ParseYAML(`
 code: |
   (() => {
-    let tmp = benthos.v0_msg_as_structured();
+    let tmp = bento.v0_msg_as_structured();
     tmp.sum = tmp.a + tmp.b
-    benthos.v0_msg_set_structured(tmp);
+    bento.v0_msg_set_structured(tmp);
   })();
 `, nil)
 	require.NoError(b, err)

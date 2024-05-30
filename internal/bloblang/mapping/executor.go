@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 // Message is an interface type to be given to a query function, it allows the
@@ -37,7 +37,7 @@ func LineAndColOf(input, clip []rune) (line, col int) {
 
 //------------------------------------------------------------------------------
 
-// Executor is a parsed bloblang mapping that can be executed on a Benthos
+// Executor is a parsed bloblang mapping that can be executed on a Bento
 // message.
 type Executor struct {
 	annotation string

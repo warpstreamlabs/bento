@@ -4,8 +4,8 @@ http:
 input:
   kafka:
     addresses: [ redpanda:9092 ]
-    consumer_group: benthos_consumer_group
-    topics: [ benthos_redpanda ]
+    consumer_group: bento_consumer_group
+    topics: [ bento_redpanda ]
 
 pipeline:
   processors:

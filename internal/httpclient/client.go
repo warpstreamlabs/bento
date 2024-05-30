@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/old/util/throttle"
-	"github.com/benthosdev/benthos/v4/internal/tracing/v2"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/old/util/throttle"
+	"github.com/warpstreamlabs/bento/v4/internal/tracing/v2"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
-// Client is a component able to send and receive Benthos messages over HTTP.
+// Client is a component able to send and receive Bento messages over HTTP.
 type Client struct {
 	reqCreator *RequestCreator
 

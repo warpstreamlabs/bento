@@ -3,10 +3,10 @@ package pure
 import (
 	"errors"
 
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/input/batcher"
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input/batcher"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 // ErrBrokerNoInputs is returned when creating a broker with zero inputs.
@@ -36,8 +36,8 @@ input:
       - amqp_0_9:
           urls:
             - amqp://guest:guest@localhost:5672/
-          consumer_tag: benthos-consumer
-          queue: benthos-queue
+          consumer_tag: bento-consumer
+          queue: bento-queue
 
         # Optional list of input specific processing steps
         processors:
@@ -49,9 +49,9 @@ input:
       - kafka:
           addresses:
             - localhost:9092
-          client_id: benthos_kafka_input
-          consumer_group: benthos_consumer_group
-          topics: [ benthos_stream:0 ]
+          client_id: bento_kafka_input
+          consumer_group: bento_consumer_group
+          topics: [ bento_stream:0 ]
 `+"```"+`
 
 If the number of copies is greater than zero the list will be copied that number of times. For example, if your inputs were of type foo and bar, with 'copies' set to '2', you would end up with two 'foo' inputs and two 'bar' inputs.

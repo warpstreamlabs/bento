@@ -16,13 +16,13 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -55,13 +55,13 @@ The subprocess must then either return a line over stdout or stderr. If a respon
 
 Rather than separating data by a newline it's possible to specify alternative `+"[`codec_send`](#codec_send) and [`codec_recv`](#codec_recv)"+` values, which allow binary messages to be encoded for logical separation.
 
-The execution environment of the subprocess is the same as the Benthos instance, including environment variables and the current working directory.
+The execution environment of the subprocess is the same as the Bento instance, including environment variables and the current working directory.
 
 The field `+"`max_buffer`"+` defines the maximum response size able to be read from the subprocess. This value should be set significantly above the real expected maximum response size.
 
 ## Subprocess requirements
 
-It is required that subprocesses flush their stdout and stderr pipes for each line. Benthos will attempt to keep the process alive for as long as the pipeline is running. If the process exits early it will be restarted.
+It is required that subprocesses flush their stdout and stderr pipes for each line. Bento will attempt to keep the process alive for as long as the pipeline is running. If the process exits early it will be restarted.
 
 ## Messages containing line breaks
 

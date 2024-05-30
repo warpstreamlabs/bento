@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 // UnmarshalYAML attempts to parse a byte slice as a YAML document and returns
@@ -21,7 +21,7 @@ func UnmarshalYAML(rawBytes []byte) (*yaml.Node, error) {
 }
 
 // MarshalYAML marshals a structure into YAML with consistent formatting across
-// all Benthos components.
+// all Bento components.
 func MarshalYAML(v yaml.Node) ([]byte, error) {
 	var cbytes bytes.Buffer
 	enc := yaml.NewEncoder(&cbytes)

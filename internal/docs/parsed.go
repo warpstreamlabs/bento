@@ -8,7 +8,7 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 func (f FieldSpec) ParsedConfigFromAny(v any) (pConf *ParsedConfig, err error) {

@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 func condsFromYAML(t testing.TB, str string, args ...any) OutputConditionsMap {
@@ -461,11 +461,11 @@ func TestFileJSONEqualsCondition(t *testing.T) {
 	formattedPath := filepath.Join(tmpDir, "formatted.json")
 
 	require.NoError(t, os.MkdirAll(filepath.Dir(unformattedPath), 0o755))
-	require.NoError(t, os.WriteFile(unformattedPath, []byte(`{"id":123456,"name":"Benthos"}`), 0o644))
+	require.NoError(t, os.WriteFile(unformattedPath, []byte(`{"id":123456,"name":"Bento"}`), 0o644))
 	require.NoError(t, os.WriteFile(formattedPath, []byte(
 		`{
     "id": 123456,
-    "name": "Benthos"
+    "name": "Bento"
 }`), 0o644))
 
 	type testCase struct {
@@ -479,23 +479,23 @@ func TestFileJSONEqualsCondition(t *testing.T) {
 		{
 			name:  "positive 1",
 			path:  `./inner/unformatted.json`,
-			input: `{"name":"Benthos","id":123456}`,
+			input: `{"name":"Bento","id":123456}`,
 		},
 		{
 			name:  "positive 2",
 			path:  `./formatted.json`,
-			input: `{"name":"Benthos","id":123456}`,
+			input: `{"name":"Bento","id":123456}`,
 		},
 		{
 			name:        "negative 1",
 			path:        `./inner/unformatted.json`,
-			input:       `{"name":"Benthos"}`,
+			input:       `{"name":"Bento"}`,
 			errContains: "content mismatch",
 		},
 		{
 			name:        "negative 2",
 			path:        `./formatted.json`,
-			input:       `{"name":"Benthos"}`,
+			input:       `{"name":"Bento"}`,
 			errContains: "content mismatch",
 		},
 	}
@@ -523,11 +523,11 @@ func TestFileJSONContainsCondition(t *testing.T) {
 	formattedPath := filepath.Join(tmpDir, "formatted.json")
 
 	require.NoError(t, os.MkdirAll(filepath.Dir(unformattedPath), 0o755))
-	require.NoError(t, os.WriteFile(unformattedPath, []byte(`{"id":123456,"name":"Benthos"}`), 0o644))
+	require.NoError(t, os.WriteFile(unformattedPath, []byte(`{"id":123456,"name":"Bento"}`), 0o644))
 	require.NoError(t, os.WriteFile(formattedPath, []byte(
 		`{
     "id": 123456,
-    "name": "Benthos"
+    "name": "Bento"
 }`), 0o644))
 
 	type testCase struct {
@@ -541,22 +541,22 @@ func TestFileJSONContainsCondition(t *testing.T) {
 		{
 			name:  "positive 1",
 			path:  `./inner/unformatted.json`,
-			input: `{"name":"Benthos","id":123456}`,
+			input: `{"name":"Bento","id":123456}`,
 		},
 		{
 			name:  "positive 2",
 			path:  `./formatted.json`,
-			input: `{"name":"Benthos","id":123456}`,
+			input: `{"name":"Bento","id":123456}`,
 		},
 		{
 			name:  "positive 3",
 			path:  `./inner/unformatted.json`,
-			input: `{"name":"Benthos","id":123456,"file":"test"}`,
+			input: `{"name":"Bento","id":123456,"file":"test"}`,
 		},
 		{
 			name:        "negative 1",
 			path:        `./inner/unformatted.json`,
-			input:       `{"name":"Benthos", "file":"test"}`,
+			input:       `{"name":"Bento", "file":"test"}`,
 			errContains: "JSON superset mismatch",
 		},
 		{

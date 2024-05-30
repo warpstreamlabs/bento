@@ -3,11 +3,11 @@ package bloblang
 import (
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 // ValueToString converts any value into a string according to the same rules
-// that other native benthos components including bloblang would follow, where
+// that other native bento components including bloblang would follow, where
 // simple value types are stringified, but complex types are converted into JSON
 // marshalled as a string.
 func ValueToString(v any) string {

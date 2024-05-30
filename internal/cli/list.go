@@ -10,22 +10,22 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/config/schema"
-	"github.com/benthosdev/benthos/v4/internal/cuegen"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/v4/internal/cuegen"
 )
 
 func listCliCommand(opts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "list",
-		Usage: "List all Benthos component types",
+		Usage: "List all Bento component types",
 		Description: `
 If any component types are explicitly listed then only types of those
 components will be shown.
 
-  benthos list
-  benthos list --format json inputs output
-  benthos list rate-limits buffers`[1:],
+  bento list
+  bento list --format json inputs output
+  bento list rate-limits buffers`[1:],
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "format",

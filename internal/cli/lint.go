@@ -13,12 +13,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	ifilepath "github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
 var (
@@ -138,16 +138,16 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 func lintCliCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "lint",
-		Usage: "Parse Benthos configs and report any linting errors",
+		Usage: "Parse Bento configs and report any linting errors",
 		Description: `
 Exits with a status code 1 if any linting errors are detected:
 
-  benthos -c target.yaml lint
-  benthos lint ./configs/*.yaml
-  benthos lint ./foo.yaml ./bar.yaml
-  benthos lint ./configs/...
+  bento -c target.yaml lint
+  bento lint ./configs/*.yaml
+  bento lint ./foo.yaml ./bar.yaml
+  bento lint ./configs/...
 
-If a path ends with '...' then Benthos will walk the target and lint any
+If a path ends with '...' then Bento will walk the target and lint any
 files with the .yaml or .yml extension.`[1:],
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
@@ -175,7 +175,7 @@ files with the .yaml or .yml extension.`[1:],
 	}
 }
 
-// LintAction performs the benthos lint subcommand and returns the appropriate
+// LintAction performs the bento lint subcommand and returns the appropriate
 // exit code. This function is exported for testing purposes only.
 func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 	targets, err := ifilepath.GlobsAndSuperPaths(ifs.OS(), c.Args().Slice(), "yaml", "yml")

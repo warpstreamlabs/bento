@@ -33,7 +33,7 @@ javascript:
 
 The [execution engine](https://github.com/dop251/goja) behind this processor provides full ECMAScript 5.1 support (including regex and strict mode). Most of the ECMAScript 6 spec is implemented but this is a work in progress.
 
-Imports via `require` should work similarly to NodeJS, and access to the console is supported which will print via the Benthos logger. More caveats can be [found here](https://github.com/dop251/goja#known-incompatibilities-and-caveats).
+Imports via `require` should work similarly to NodeJS, and access to the console is supported which will print via the Bento logger. More caveats can be [found here](https://github.com/dop251/goja#known-incompatibilities-and-caveats).
 
 This processor is implemented using the [github.com/dop251/goja](https://github.com/dop251/goja) library.
 
@@ -78,7 +78,7 @@ In this example we define a simple function that performs a basic mutation again
 pipeline:
   processors:
     - javascript:
-        code: 'benthos.v0_msg_set_string(benthos.v0_msg_as_string() + "hello world");'
+        code: 'bento.v0_msg_set_string(bento.v0_msg_as_string() + "hello world");'
 ```
 
 </TabItem>
@@ -92,10 +92,10 @@ pipeline:
     - javascript:
         code: |
           (() => {
-            let thing = benthos.v0_msg_as_structured();
+            let thing = bento.v0_msg_as_structured();
             thing.num_keys = Object.keys(thing).length;
             delete thing["b"];
-            benthos.v0_msg_set_structured(thing);
+            bento.v0_msg_set_structured(thing);
           })();
 ```
 
@@ -110,7 +110,7 @@ Although technically possible, it is recommended that you do not rely on the glo
 
 ## Functions
 
-### `benthos.v0_fetch`
+### `bento.v0_fetch`
 
 Executes an HTTP request synchronously and returns the result as an object of the form `{"status":200,"body":"foo"}`.
 
@@ -124,31 +124,31 @@ Executes an HTTP request synchronously and returns the result as an object of th
 #### Examples
 
 ```javascript
-let result = benthos.v0_fetch("http://example.com", {}, "GET", "")
-benthos.v0_msg_set_structured(result);
+let result = bento.v0_fetch("http://example.com", {}, "GET", "")
+bento.v0_msg_set_structured(result);
 ```
 
-### `benthos.v0_msg_as_string`
+### `bento.v0_msg_as_string`
 
 Obtain the raw contents of the processed message as a string.
 
 #### Examples
 
 ```javascript
-let contents = benthos.v0_msg_as_string();
+let contents = bento.v0_msg_as_string();
 ```
 
-### `benthos.v0_msg_as_structured`
+### `bento.v0_msg_as_structured`
 
 Obtain the root of the processed message as a structured value. If the message is not valid JSON or has not already been expanded into a structured form this function will throw an error.
 
 #### Examples
 
 ```javascript
-let foo = benthos.v0_msg_as_structured().foo;
+let foo = bento.v0_msg_as_structured().foo;
 ```
 
-### `benthos.v0_msg_exists_meta`
+### `bento.v0_msg_exists_meta`
 
 Check that a metadata key exists.
 
@@ -159,10 +159,10 @@ Check that a metadata key exists.
 #### Examples
 
 ```javascript
-if (benthos.v0_msg_exists_meta("kafka_key")) {}
+if (bento.v0_msg_exists_meta("kafka_key")) {}
 ```
 
-### `benthos.v0_msg_get_meta`
+### `bento.v0_msg_get_meta`
 
 Get the value of a metadata key from the processed message.
 
@@ -173,10 +173,10 @@ Get the value of a metadata key from the processed message.
 #### Examples
 
 ```javascript
-let key = benthos.v0_msg_get_meta("kafka_key");
+let key = bento.v0_msg_get_meta("kafka_key");
 ```
 
-### `benthos.v0_msg_set_meta`
+### `bento.v0_msg_set_meta`
 
 Set a metadata key on the processed message to a value.
 
@@ -188,10 +188,10 @@ Set a metadata key on the processed message to a value.
 #### Examples
 
 ```javascript
-benthos.v0_msg_set_meta("thing", "hello world");
+bento.v0_msg_set_meta("thing", "hello world");
 ```
 
-### `benthos.v0_msg_set_string`
+### `bento.v0_msg_set_string`
 
 Set the contents of the processed message to a given string.
 
@@ -202,10 +202,10 @@ Set the contents of the processed message to a given string.
 #### Examples
 
 ```javascript
-benthos.v0_msg_set_string("hello world");
+bento.v0_msg_set_string("hello world");
 ```
 
-### `benthos.v0_msg_set_structured`
+### `bento.v0_msg_set_structured`
 
 Set the root of the processed message to a given value of any type.
 
@@ -216,7 +216,7 @@ Set the root of the processed message to a given value of any type.
 #### Examples
 
 ```javascript
-benthos.v0_msg_set_structured({
+bento.v0_msg_set_structured({
   "foo": "a thing",
   "bar": "something else",
   "baz": 1234

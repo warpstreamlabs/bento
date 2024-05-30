@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/testutil"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 func socketServerInputFromConf(t testing.TB, confStr string, bits ...any) (input.Streamed, string) {
@@ -56,7 +56,7 @@ func TestSocketServerBasic(t *testing.T) {
 socket_server:
   network: unix
   address: %v
-`, filepath.Join(tmpDir, "benthos.sock"))
+`, filepath.Join(tmpDir, "bento.sock"))
 
 	defer func() {
 		rdr.TriggerStopConsuming()
@@ -121,7 +121,7 @@ func TestSocketServerRetries(t *testing.T) {
 socket_server:
   network: unix
   address: %v
-`, filepath.Join(tmpDir, "benthos.sock"))
+`, filepath.Join(tmpDir, "bento.sock"))
 
 	defer func() {
 		rdr.TriggerStopConsuming()
@@ -201,7 +201,7 @@ func TestSocketServerWriteClosed(t *testing.T) {
 socket_server:
   network: unix
   address: %v
-`, filepath.Join(tmpDir, "benthos.sock"))
+`, filepath.Join(tmpDir, "bento.sock"))
 
 	conn, err := net.Dial("unix", addr)
 	require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestSocketServerRecon(t *testing.T) {
 socket_server:
   network: unix
   address: %v
-`, filepath.Join(tmpDir, "benthos.sock"))
+`, filepath.Join(tmpDir, "bento.sock"))
 
 	defer func() {
 		rdr.TriggerStopConsuming()
@@ -302,7 +302,7 @@ socket_server:
   network: unix
   address: %v
   codec: lines/multipart
-`, filepath.Join(tmpDir, "benthos.sock"))
+`, filepath.Join(tmpDir, "bento.sock"))
 
 	defer func() {
 		rdr.TriggerStopConsuming()

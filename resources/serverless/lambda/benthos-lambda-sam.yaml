@@ -2,10 +2,10 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
 
 Parameters:
-  BenthosConfig:
+  BentoConfig:
     Type: String
     Description: >
-      A YAML configuration for the Benthos pipeline, can include any traditional
+      A YAML configuration for the Bento pipeline, can include any traditional
       sections except for input or buffer.
     Default: |
       pipeline:
@@ -20,10 +20,10 @@ Resources:
   MyFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Handler: benthos-lambda
+      Handler: bento-lambda
       Runtime: go1.x
-      CodeUri: 'target/serverless/benthos-lambda.zip'
+      CodeUri: 'target/serverless/bento-lambda.zip'
       Environment:
         Variables:
-          BENTHOS_CONFIG:
-            Ref: BenthosConfig
+          BENTO_CONFIG:
+            Ref: BentoConfig

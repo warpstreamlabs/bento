@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegrationGCPPubSub(t *testing.T) {
@@ -35,7 +35,7 @@ func TestIntegrationGCPPubSub(t *testing.T) {
 		ExposedPorts: []string{"8432/tcp"},
 		Env: []string{
 			"PUBSUB_LISTEN_ADDRESS=0.0.0.0:8432",
-			"PUBSUB_PROJECT_ID=benthos-test-project",
+			"PUBSUB_PROJECT_ID=bento-test-project",
 		},
 	})
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestIntegrationGCPPubSub(t *testing.T) {
 	require.NoError(t, pool.Retry(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		client, err := pubsub.NewClient(ctx, "benthos-test-project")
+		client, err := pubsub.NewClient(ctx, "bento-test-project")
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func TestIntegrationGCPPubSub(t *testing.T) {
 	template := `
 output:
   gcp_pubsub:
-    project: benthos-test-project
+    project: bento-test-project
     topic: topic-$ID
     max_in_flight: $MAX_IN_FLIGHT
     metadata:
@@ -70,7 +70,7 @@ output:
 
 input:
   gcp_pubsub:
-    project: benthos-test-project
+    project: bento-test-project
     subscription: sub-$ID
     create_subscription:
       enabled: true
@@ -81,7 +81,7 @@ input:
 		integration.StreamTestOptSleepAfterOutput(100 * time.Millisecond),
 		integration.StreamTestOptTimeout(time.Minute * 5),
 		integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
-			client, err := pubsub.NewClient(ctx, "benthos-test-project")
+			client, err := pubsub.NewClient(ctx, "bento-test-project")
 			require.NoError(t, err)
 
 			_, err = client.CreateTopic(ctx, fmt.Sprintf("topic-%v", vars.ID))

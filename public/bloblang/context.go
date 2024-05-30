@@ -1,8 +1,8 @@
 package bloblang
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 // ExecContext is an optional context provided to advanced functions and methods

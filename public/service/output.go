@@ -6,12 +6,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/output/batcher"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output/batcher"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
-// Output is an interface implemented by Benthos outputs that support single
+// Output is an interface implemented by Bento outputs that support single
 // message writes. Each call to Write should block until either the message has
 // been successfully or unsuccessfully sent, or the context is cancelled.
 //
@@ -43,8 +43,8 @@ type Output interface {
 
 //------------------------------------------------------------------------------
 
-// BatchOutput is an interface implemented by Benthos outputs that require
-// Benthos to batch messages before dispatch in order to improve throughput.
+// BatchOutput is an interface implemented by Bento outputs that require
+// Bento to batch messages before dispatch in order to improve throughput.
 // Each call to WriteBatch should block until either all messages in the batch
 // have been successfully or unsuccessfully sent, or the context is cancelled.
 //

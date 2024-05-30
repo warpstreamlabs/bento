@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	icli "github.com/benthosdev/benthos/v4/internal/cli"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
+	icli "github.com/warpstreamlabs/bento/v4/internal/cli"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 func TestRunCLIShutdown(t *testing.T) {
@@ -37,7 +37,7 @@ output:
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second))
 	defer cancel()
 
-	require.NoError(t, icli.App(common.NewCLIOpts("1.2.3", "aaa")).RunContext(ctx, []string{"benthos", "-c", confPath}))
+	require.NoError(t, icli.App(common.NewCLIOpts("1.2.3", "aaa")).RunContext(ctx, []string{"bento", "-c", confPath}))
 
 	data, _ := os.ReadFile(outPath)
 	assert.Contains(t, string(data), "foobar")

@@ -1,9 +1,9 @@
 ---
 title: Amazon Web Services
-description: Find out about AWS components in Benthos
+description: Find out about AWS components in Bento
 ---
 
-There are many components within Benthos which utilise AWS services. You will find that each of these components contains a configuration section under the field `credentials`, of the format:
+There are many components within Bento which utilise AWS services. You will find that each of these components contains a configuration section under the field `credentials`, of the format:
 
 ```yml
 credentials:
@@ -19,11 +19,11 @@ This section contains many fields and it isn't immediately clear which of them a
 
 ### None of these fields are compulsory
 
-The first thing to make clear is that _all_ of these fields are optional. When all fields are left blank Benthos will attempt to load credentials from a shared credentials file (`~/.aws/credentials`). The profile loaded will be `default` unless the `AWS_PROFILE` environment variable is set.
+The first thing to make clear is that _all_ of these fields are optional. When all fields are left blank Bento will attempt to load credentials from a shared credentials file (`~/.aws/credentials`). The profile loaded will be `default` unless the `AWS_PROFILE` environment variable is set.
 
 ## Explicit Credentials
 
-By explicitly setting the credentials you are using at the component level it's possible to connect to components using different accounts within the same Benthos process.
+By explicitly setting the credentials you are using at the component level it's possible to connect to components using different accounts within the same Bento process.
 
 ### Selecting a Profile
 
@@ -55,7 +55,7 @@ credentials:
 
 ## Assuming a Role
 
-It's also possible to configure Benthos to [assume a role][assuming-role] using your credentials by setting the field `role` to your target role ARN.
+It's also possible to configure Bento to [assume a role][assuming-role] using your credentials by setting the field `role` to your target role ARN.
 
 ```yml
 credentials:

@@ -5,8 +5,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/component/buffer"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // BatchBuffer is an interface implemented by Buffers able to read and write
@@ -20,7 +20,7 @@ import (
 // applies (such as with windowing algorithms).
 //
 // Buffers are advanced component types that weaken delivery guarantees of a
-// Benthos pipeline. Therefore, if you aren't absolutely sure that a component
+// Bento pipeline. Therefore, if you aren't absolutely sure that a component
 // you wish to build should be a buffer type then it likely shouldn't be.
 type BatchBuffer interface {
 	// Write a batch of messages to the buffer, the batch is accompanied with an

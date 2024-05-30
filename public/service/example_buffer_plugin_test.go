@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only pure Benthos components, switch with `components/all` for all
+	// Import only pure Bento components, switch with `components/all` for all
 	// standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 type memoryBuffer struct {
@@ -87,6 +87,6 @@ func Example_bufferPlugin() {
 		panic(err)
 	}
 
-	// And then execute Benthos with:
+	// And then execute Bento with:
 	// service.RunCLI(context.Background())
 }

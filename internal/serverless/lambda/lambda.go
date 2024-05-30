@@ -8,27 +8,27 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/serverless"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/serverless"
 )
 
 var handler *serverless.Handler
 
-// Run executes Benthos as an AWS Lambda function. Configuration can be stored
-// within the environment variable BENTHOS_CONFIG.
+// Run executes Bento as an AWS Lambda function. Configuration can be stored
+// within the environment variable BENTO_CONFIG.
 func Run() {
 	// A list of default config paths to check for if not explicitly defined
 	defaultPaths := []string{
-		"./benthos.yaml",
+		"./bento.yaml",
 		"./config.yaml",
-		"/benthos.yaml",
-		"/etc/benthos/config.yaml",
-		"/etc/benthos.yaml",
+		"/bento.yaml",
+		"/etc/bento/config.yaml",
+		"/etc/bento.yaml",
 	}
-	if path := os.Getenv("BENTHOS_CONFIG_PATH"); path != "" {
+	if path := os.Getenv("BENTO_CONFIG_PATH"); path != "" {
 		defaultPaths = append([]string{path}, defaultPaths...)
 	}
 
@@ -38,7 +38,7 @@ func Run() {
 		os.Exit(1)
 	}
 
-	if confStr := os.Getenv("BENTHOS_CONFIG"); confStr != "" {
+	if confStr := os.Getenv("BENTO_CONFIG"); confStr != "" {
 		confBytes, err := config.ReplaceEnvVariables([]byte(confStr), os.LookupEnv)
 		if err != nil {
 			// TODO: Make this configurable somehow maybe, along with linting

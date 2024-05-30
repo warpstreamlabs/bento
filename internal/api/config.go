@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/httpserver"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/httpserver"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 	fieldBasicAuth      = "basic_auth"
 )
 
-// Config contains the configuration fields for the Benthos API.
+// Config contains the configuration fields for the Bento API.
 type Config struct {
 	Address        string                     `json:"address" yaml:"address"`
 	Enabled        bool                       `json:"enabled" yaml:"enabled"`

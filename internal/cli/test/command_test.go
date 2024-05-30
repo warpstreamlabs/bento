@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/benthosdev/benthos/v4/internal/cli/test"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/test"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
 )
 
 func TestGetBothPaths(t *testing.T) {
@@ -22,63 +22,63 @@ func TestGetBothPaths(t *testing.T) {
 			input: "/foo/bar/baz.yaml",
 			output: [2]string{
 				"/foo/bar/baz.yaml",
-				"/foo/bar/baz_benthos_test.yaml",
+				"/foo/bar/baz_bento_test.yaml",
 			},
 		},
 		{
 			input: "baz.yaml",
 			output: [2]string{
 				"baz.yaml",
-				"baz_benthos_test.yaml",
+				"baz_bento_test.yaml",
 			},
 		},
 		{
-			input: "./foo/bar/baz_benthos_test.yaml",
+			input: "./foo/bar/baz_bento_test.yaml",
 			output: [2]string{
 				"foo/bar/baz.yaml",
-				"foo/bar/baz_benthos_test.yaml",
+				"foo/bar/baz_bento_test.yaml",
 			},
 		},
 		{
-			input: "baz_benthos_test.yaml",
+			input: "baz_bento_test.yaml",
 			output: [2]string{
 				"baz.yaml",
-				"baz_benthos_test.yaml",
+				"baz_bento_test.yaml",
 			},
 		},
 		{
 			input: "/foo/bar/baz.foo",
 			output: [2]string{
 				"/foo/bar/baz.foo",
-				"/foo/bar/baz_benthos_test.foo",
+				"/foo/bar/baz_bento_test.foo",
 			},
 		},
 		{
 			input: "baz",
 			output: [2]string{
 				"baz",
-				"baz_benthos_test",
+				"baz_bento_test",
 			},
 		},
 		{
-			input: "/foo/bar/baz_benthos_test.foo",
+			input: "/foo/bar/baz_bento_test.foo",
 			output: [2]string{
 				"/foo/bar/baz.foo",
-				"/foo/bar/baz_benthos_test.foo",
+				"/foo/bar/baz_bento_test.foo",
 			},
 		},
 		{
-			input: "baz_benthos_test",
+			input: "baz_bento_test",
 			output: [2]string{
 				"baz",
-				"baz_benthos_test",
+				"baz_bento_test",
 			},
 		},
 	}
 
 	for i, testDef := range tests {
 		t.Run(fmt.Sprintf("Test case %v", i), func(tt *testing.T) {
-			cPath, dPath := test.GetPathPair(testDef.input, "_benthos_test")
+			cPath, dPath := test.GetPathPair(testDef.input, "_bento_test")
 			if exp, act := testDef.output[0], cPath; exp != act {
 				tt.Errorf("Wrong config path: %v != %v", act, exp)
 			}
@@ -91,15 +91,15 @@ func TestGetBothPaths(t *testing.T) {
 
 func TestGetTargetsSingle(t *testing.T) {
 	testDir, err := initTestFiles(t, map[string]string{
-		"foo.yaml":              `tests: [{name: ""}]`,
-		"foo_benthos_test.yaml": `tests: [{name: ""}]`,
+		"foo.yaml":            `tests: [{name: ""}]`,
+		"foo_bento_test.yaml": `tests: [{name: ""}]`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
 
-	paths, err := test.GetTestTargets([]string{filepath.Join(testDir, "foo.yaml")}, "_benthos_test")
+	paths, err := test.GetTestTargets([]string{filepath.Join(testDir, "foo.yaml")}, "_bento_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestGetTargetsSingle(t *testing.T) {
 		t.Errorf("Wrong path returned: %v does not contain foo.yaml", paths)
 	}
 
-	paths, err = test.GetTestTargets([]string{filepath.Join(testDir, "foo_benthos_test.yaml")}, "_benthos_test")
+	paths, err = test.GetTestTargets([]string{filepath.Join(testDir, "foo_bento_test.yaml")}, "_bento_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,39 +124,39 @@ func TestGetTargetsSingle(t *testing.T) {
 
 func TestGetTargetsSingleError(t *testing.T) {
 	testDir, err := initTestFiles(t, map[string]string{
-		"foo.yaml":              `foobar: {}`,
-		"bar_benthos_test.yaml": `tests: [{}]`,
+		"foo.yaml":            `foobar: {}`,
+		"bar_bento_test.yaml": `tests: [{}]`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
 
-	if _, err = test.GetTestTargets([]string{filepath.Join(testDir, "bar_benthos_test.yaml")}, "_benthos_test"); err == nil {
+	if _, err = test.GetTestTargets([]string{filepath.Join(testDir, "bar_bento_test.yaml")}, "_bento_test"); err == nil {
 		t.Error("Expected error")
 	}
-	if _, err = test.GetTestTargets([]string{"/does/not/exist/foo.yaml"}, "_benthos_test"); err == nil {
+	if _, err = test.GetTestTargets([]string{"/does/not/exist/foo.yaml"}, "_bento_test"); err == nil {
 		t.Error("Expected error")
 	}
 }
 
 func TestGetTargetsDir(t *testing.T) {
 	testDir, err := initTestFiles(t, map[string]string{
-		"foo.yaml":                     `foobar: {}`,
-		"foo_benthos_test.yaml":        `tests: [{name: ""}]`,
-		"bar.yaml":                     `tests: [{name: ""}]`,
-		"not_a_yaml.txt":               `foobar this isnt json or yaml`,
-		"nested/baz.yaml":              `foobar: {}`,
-		"nested/baz_benthos_test.yaml": `tests: [{name: ""}]`,
-		"ignored.yaml":                 `foobar: {}`,
-		"nested/also_ignored.yaml":     `foobar: {}`,
+		"foo.yaml":                   `foobar: {}`,
+		"foo_bento_test.yaml":        `tests: [{name: ""}]`,
+		"bar.yaml":                   `tests: [{name: ""}]`,
+		"not_a_yaml.txt":             `foobar this isnt json or yaml`,
+		"nested/baz.yaml":            `foobar: {}`,
+		"nested/baz_bento_test.yaml": `tests: [{name: ""}]`,
+		"ignored.yaml":               `foobar: {}`,
+		"nested/also_ignored.yaml":   `foobar: {}`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
 
-	paths, err := test.GetTestTargets([]string{testDir + "/..."}, "_benthos_test")
+	paths, err := test.GetTestTargets([]string{testDir + "/..."}, "_bento_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,34 +176,34 @@ func TestGetTargetsDir(t *testing.T) {
 
 func TestGetTargetsDirError(t *testing.T) {
 	testDir, err := initTestFiles(t, map[string]string{
-		"foo_benthos_test.yaml": `tests: [{}]`,
-		"bar.yaml":              `foobar: {}`,
-		"bar_benthos_test.yaml": `tests: [{}]`,
+		"foo_bento_test.yaml": `tests: [{}]`,
+		"bar.yaml":            `foobar: {}`,
+		"bar_bento_test.yaml": `tests: [{}]`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
 
-	if _, err = test.GetTestTargets([]string{testDir + "/..."}, "_benthos_test"); err == nil {
+	if _, err = test.GetTestTargets([]string{testDir + "/..."}, "_bento_test"); err == nil {
 		t.Error("Expected error")
 	}
 }
 
 func TestGetTargetsDirRecurseError(t *testing.T) {
 	testDir, err := initTestFiles(t, map[string]string{
-		"foo.yaml":                     `foobar: {}`,
-		"foo_benthos_test.yaml":        `tests: [{}]`,
-		"bar.yaml":                     `foobar: {}`,
-		"bar_benthos_test.yaml":        `tests: [{}]`,
-		"nested/baz_benthos_test.yaml": `tests: [{}]`,
+		"foo.yaml":                   `foobar: {}`,
+		"foo_bento_test.yaml":        `tests: [{}]`,
+		"bar.yaml":                   `foobar: {}`,
+		"bar_bento_test.yaml":        `tests: [{}]`,
+		"nested/baz_bento_test.yaml": `tests: [{}]`,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
 
-	if _, err = test.GetTestTargets([]string{testDir + "/..."}, "_benthos_test"); err == nil {
+	if _, err = test.GetTestTargets([]string{testDir + "/..."}, "_bento_test"); err == nil {
 		t.Error("Expected error")
 	}
 }
@@ -215,7 +215,7 @@ pipeline:
   meow: woof
   processors:
   - bloblang: 'root = content().uppercase()'`,
-		"foo_benthos_test.yaml": `
+		"foo_bento_test.yaml": `
 tests:
   - name: example test
     target_processors: '/pipeline/processors'
@@ -229,7 +229,7 @@ tests:
 pipeline:
   processors:
   - bloblang: 'root = content().uppercase()'`,
-		"bar_benthos_test.yaml": `
+		"bar_bento_test.yaml": `
 tests:
   - name: example test
     target_processors: '/pipeline/processors'
@@ -245,15 +245,15 @@ tests:
 	}
 	defer os.RemoveAll(testDir)
 
-	if !test.RunAll([]string{filepath.Join(testDir, "foo.yaml")}, config.Spec(), "_benthos_test", false, log.Noop(), nil) {
+	if !test.RunAll([]string{filepath.Join(testDir, "foo.yaml")}, config.Spec(), "_bento_test", false, log.Noop(), nil) {
 		t.Error("Unexpected result")
 	}
 
-	if test.RunAll([]string{filepath.Join(testDir, "foo.yaml")}, config.Spec(), "_benthos_test", true, log.Noop(), nil) {
+	if test.RunAll([]string{filepath.Join(testDir, "foo.yaml")}, config.Spec(), "_bento_test", true, log.Noop(), nil) {
 		t.Error("Unexpected result")
 	}
 
-	if test.RunAll([]string{testDir}, config.Spec(), "_benthos_test", true, log.Noop(), nil) {
+	if test.RunAll([]string{testDir}, config.Spec(), "_bento_test", true, log.Noop(), nil) {
 		t.Error("Unexpected result")
 	}
 }

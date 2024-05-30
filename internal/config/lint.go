@@ -9,8 +9,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
 // ReadYAMLFileLinted will attempt to read a configuration file path into a
@@ -49,7 +49,7 @@ func ReadYAMLFileLinted(fs ifs.FS, spec docs.FieldSpecs, path string, skipEnvVar
 		return Type{}, nil, err
 	}
 
-	if !bytes.HasPrefix(configBytes, []byte("# BENTHOS LINT DISABLE")) {
+	if !bytes.HasPrefix(configBytes, []byte("# BENTO LINT DISABLE")) {
 		lints = append(lints, spec.LintYAML(docs.NewLintContext(lConf), cNode)...)
 	}
 	return conf, lints, nil
@@ -58,7 +58,7 @@ func ReadYAMLFileLinted(fs ifs.FS, spec docs.FieldSpecs, path string, skipEnvVar
 // LintYAMLBytes attempts to report errors within a user config. Returns a slice of
 // lint results.
 func LintYAMLBytes(lintConf docs.LintConfig, rawBytes []byte) ([]docs.Lint, error) {
-	if bytes.HasPrefix(rawBytes, []byte("# BENTHOS LINT DISABLE")) {
+	if bytes.HasPrefix(rawBytes, []byte("# BENTO LINT DISABLE")) {
 		return nil, nil
 	}
 

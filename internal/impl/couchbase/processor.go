@@ -7,9 +7,9 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/couchbase/client"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/couchbase/client"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 var (

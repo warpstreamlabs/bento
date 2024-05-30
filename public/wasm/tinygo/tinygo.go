@@ -12,7 +12,7 @@ import (
 //
 // Note: In TinyGo "//export" on a func is actually an import!
 //
-//go:wasm-module benthos_wasm
+//go:wasm-module bento_wasm
 //export v0_msg_set_bytes
 func _v0_msg_set_bytes(ptr, size uint32)
 
@@ -32,7 +32,7 @@ func SetMsgBytes(b []byte) error {
 //
 // Note: In TinyGo "//export" on a func is actually an import!
 //
-//go:wasm-module benthos_wasm
+//go:wasm-module bento_wasm
 //export v0_msg_as_bytes
 func _v0_msg_as_bytes() (ptrSize uint64)
 

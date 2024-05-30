@@ -2,7 +2,7 @@
 title: Streams API
 ---
 
-When Benthos is run in `streams` mode it will open up an HTTP REST API for creating and managing independent streams of data instead of creating a single stream.
+When Bento is run in `streams` mode it will open up an HTTP REST API for creating and managing independent streams of data instead of creating a single stream.
 
 Each stream has its own input, buffer, pipeline and output sections which contains an isolated stream of data with its own lifetime. A stream config cannot include [resources][resources], and instead these should be created and modified using the `/resources/{type}/{id}` endpoint.
 
@@ -38,7 +38,7 @@ Sets the entire collection of streams to the body of the request. Streams that e
 
 ```json
 {
-	"<string, stream id>": "<object, a standard Benthos stream configuration>"
+	"<string, stream id>": "<object, a standard Bento stream configuration>"
 }
 ```
 
@@ -62,7 +62,7 @@ If you wish for the streams API to proceed with configurations that contain lint
 
 ### POST `/streams/{id}`
 
-Create a new stream identified by `id` by posting a body containing the stream configuration in either JSON or YAML format. The configuration should be a standard Benthos configuration containing the sections `input`, `buffer`, `pipeline` and `output`.
+Create a new stream identified by `id` by posting a body containing the stream configuration in either JSON or YAML format. The configuration should be a standard Bento configuration containing the sections `input`, `buffer`, `pipeline` and `output`.
 
 #### Request Body Example
 
@@ -115,7 +115,7 @@ Read the details of an existing stream identified by `id`.
 
 ### PUT `/streams/{id}`
 
-Update an existing stream identified by `id` by posting a body containing the new stream configuration in either JSON or YAML format. The configuration should be a standard Benthos configuration containing the sections `input`, `buffer`, `pipeline` and `output`.
+Update an existing stream identified by `id` by posting a body containing the new stream configuration in either JSON or YAML format. The configuration should be a standard Bento configuration containing the sections `input`, `buffer`, `pipeline` and `output`.
 
 The previous stream will be shut down before and a new stream will take its place.
 

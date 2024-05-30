@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: Getting started with Benthos
+description: Getting started with Bento
 ---
 
 Woops! You fell for the marketing hype. Let's try and get through this together.
@@ -9,7 +9,7 @@ Woops! You fell for the marketing hype. Let's try and get through this together.
 
 ## Install
 
-The easiest way to install Benthos is with this handy script:
+The easiest way to install Bento is with this handy script:
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -34,20 +34,20 @@ curl -Lsf https://www.benthos.dev/sh/install | bash -s -- 3.56.0
 </TabItem>
 </Tabs>
 
-Or you can grab an archive containing Benthos from the [releases page][releases].
+Or you can grab an archive containing Bento from the [releases page][releases].
 
 ### Docker
 
-If you have docker installed you can pull the latest official Benthos image with:
+If you have docker installed you can pull the latest official Bento image with:
 
 ```sh
-docker pull ghcr.io/benthosdev/benthos
-docker run --rm -v /path/to/your/config.yaml:/benthos.yaml ghcr.io/benthosdev/benthos
+docker pull ghcr.io/warpstreamlabs/bento
+docker run --rm -v /path/to/your/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento
 ```
 
 ### Homebrew
 
-On macOS, Benthos can be installed via Homebrew:
+On macOS, Bento can be installed via Homebrew:
 
 ```sh
 brew install benthos
@@ -55,7 +55,7 @@ brew install benthos
 
 ### Asdf
 
-If you use the [asdf](https://asdf-vm.com/) tool version manager you can install Benthos with:
+If you use the [asdf](https://asdf-vm.com/) tool version manager you can install Bento with:
 
 ```sh
 asdf plugin add benthos
@@ -65,14 +65,14 @@ asdf global benthos latest
 
 ### Serverless
 
-For information about serverless deployments of Benthos check out the serverless section [here][serverless].
+For information about serverless deployments of Bento check out the serverless section [here][serverless].
 
 ## Run
 
-A Benthos stream pipeline is configured with a single [config file][configuration], you can generate a fresh one with:
+A Bento stream pipeline is configured with a single [config file][configuration], you can generate a fresh one with:
 
 ```shell
-benthos create > config.yaml
+bento create > config.yaml
 ```
 
 The main sections that make up a config are `input`, `pipeline` and `output`. When you generate a fresh config it'll simply pipe `stdin` to `stdout` like this:
@@ -91,7 +91,7 @@ output:
 Eventually we'll want to configure a more useful [input][inputs] and [output][outputs], but for now this is useful for quickly testing processors. You can execute this config with:
 
 ```sh
-benthos -c ./config.yaml
+bento -c ./config.yaml
 ```
 
 Anything you write to stdin will get written unchanged to stdout, cool! Resist the temptation to play with this for hours, there's more stuff to try out.
@@ -110,9 +110,9 @@ output:
   stdout: {}
 ```
 
-Now your messages should come out in all caps, how whacky! IT'S LIKE BENTHOS IS SHOUTING BACK AT YOU!
+Now your messages should come out in all caps, how whacky! IT'S LIKE BENTO IS SHOUTING BACK AT YOU!
 
-You can add as many [processing steps][processors] as you like, and since processors are what make Benthos powerful they are worth experimenting with. Let's create a more advanced pipeline that works with JSON documents:
+You can add as many [processing steps][processors] as you like, and since processors are what make Bento powerful they are worth experimenting with. Let's create a more advanced pipeline that works with JSON documents:
 
 ```yaml
 input:
@@ -137,7 +137,7 @@ Try running that config with some sample documents:
 
 ```sh
 echo '{"id":"1","names":["celine","dion"]}
-{"id":"2","names":["chad","robert","kroeger"]}' | benthos -c ./config.yaml
+{"id":"2","names":["chad","robert","kroeger"]}' | bento -c ./config.yaml
 ```
 
 You should see (amongst some logs):
@@ -147,7 +147,7 @@ You should see (amongst some logs):
 {"doc":{"id":"2","names":["chad","robert","kroeger"]},"first_name":"CHAD","last_name":"uXXg5wCKPjpyj/qbivPbD9H9CZ5DH/F0Q1Twytnt2hQ="}
 ```
 
-How exciting! I don't know about you but I'm going to need to lie down for a while. Now that you are a Benthos expert might I suggest you peruse these sections to see if anything tickles your fancy?
+How exciting! I don't know about you but I'm going to need to lie down for a while. Now that you are a Bento expert might I suggest you peruse these sections to see if anything tickles your fancy?
 
 - [Bloblang Walkthrough][bloblang.walkthrough]
 - [Inputs][inputs]
@@ -164,7 +164,7 @@ How exciting! I don't know about you but I'm going to need to lie down for a whi
 [inputs]: /docs/components/inputs/about
 [outputs]: /docs/components/outputs/about
 [jmespath]: http://jmespath.org/
-[releases]: https://github.com/benthosdev/benthos/releases
+[releases]: https://github.com/warpstreamlabs/bento/releases
 [serverless]: /docs/guides/serverless/about
 [configuration]: /docs/configuration/about
 [monitoring]: /docs/guides/monitoring

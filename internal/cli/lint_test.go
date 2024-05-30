@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 
-	icli "github.com/benthosdev/benthos/v4/internal/cli"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
+	icli "github.com/warpstreamlabs/bento/v4/internal/cli"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 func executeLintSubcmd(t *testing.T, args []string) (exitCode int, printedErr string) {
@@ -49,7 +49,7 @@ func TestLints(t *testing.T) {
 	}{
 		{
 			name: "one file no errors",
-			args: []string{"benthos", "lint", tFile("foo.yaml")},
+			args: []string{"bento", "lint", tFile("foo.yaml")},
 			files: map[string]string{
 				"foo.yaml": `
 input:
@@ -62,7 +62,7 @@ output:
 		},
 		{
 			name: "one file unexpected fields",
-			args: []string{"benthos", "lint", tFile("foo.yaml")},
+			args: []string{"bento", "lint", tFile("foo.yaml")},
 			files: map[string]string{
 				"foo.yaml": `
 input:
@@ -82,7 +82,7 @@ output:
 		},
 		{
 			name: "one file with c flag",
-			args: []string{"benthos", "-c", tFile("foo.yaml"), "lint"},
+			args: []string{"bento", "-c", tFile("foo.yaml"), "lint"},
 			files: map[string]string{
 				"foo.yaml": `
 input:
@@ -102,7 +102,7 @@ output:
 		},
 		{
 			name: "one file with r flag",
-			args: []string{"benthos", "-r", tFile("foo.yaml"), "lint"},
+			args: []string{"bento", "-r", tFile("foo.yaml"), "lint"},
 			files: map[string]string{
 				"foo.yaml": `
 input:
@@ -122,29 +122,29 @@ output:
 		},
 		{
 			name: "env var missing",
-			args: []string{"benthos", "lint", tFile("foo.yaml")},
+			args: []string{"bento", "lint", tFile("foo.yaml")},
 			files: map[string]string{
 				"foo.yaml": `
 input:
   generate:
-    mapping: 'root.id = "${BENTHOS_ENV_VAR_HOPEFULLY_MISSING}"'
+    mapping: 'root.id = "${BENTO_ENV_VAR_HOPEFULLY_MISSING}"'
 output:
   drop: {}
 `,
 			},
 			expectedCode: 1,
 			expectedLints: []string{
-				"required environment variables were not set: [BENTHOS_ENV_VAR_HOPEFULLY_MISSING]",
+				"required environment variables were not set: [BENTO_ENV_VAR_HOPEFULLY_MISSING]",
 			},
 		},
 		{
 			name: "env var missing but we dont care",
-			args: []string{"benthos", "lint", "--skip-env-var-check", tFile("foo.yaml")},
+			args: []string{"bento", "lint", "--skip-env-var-check", tFile("foo.yaml")},
 			files: map[string]string{
 				"foo.yaml": `
 input:
   generate:
-    mapping: 'root.id = "${BENTHOS_ENV_VAR_HOPEFULLY_MISSING}"'
+    mapping: 'root.id = "${BENTO_ENV_VAR_HOPEFULLY_MISSING}"'
 output:
   drop: {}
 `,

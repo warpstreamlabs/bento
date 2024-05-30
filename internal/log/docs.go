@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 
 	_ "embed"
 )
@@ -21,7 +21,7 @@ func Spec() docs.FieldSpecs {
 		docs.FieldString(fieldTimestampName, "The name of the timestamp field added to logs when `add_timestamp` is set to `true` and the `format` is `json`.").HasDefault("time"),
 		docs.FieldString(fieldMessageName, "The name of the message field added to logs when the `format` is `json`.").HasDefault("msg"),
 		docs.FieldString(fieldStaticFields, "A map of key/value pairs to add to each structured log.").Map().HasDefault(map[string]any{
-			"@service": "benthos",
+			"@service": "bento",
 		}),
 		docs.FieldObject(fieldFile, "Experimental: Specify fields for optionally writing logs to a file.").WithChildren(
 			docs.FieldString(fieldFilePath, "The file path to write logs to, if the file does not exist it will be created. Leave this field empty or unset to disable file based logging.").HasDefault(""),

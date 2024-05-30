@@ -14,7 +14,7 @@ import (
 	"github.com/oklog/ulid"
 	frand "golang.org/x/exp/rand"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 func init() {
@@ -29,8 +29,8 @@ func init() {
 		Example("Creates a slug from an English string",
 			`root.slug = this.value.slug()`,
 			[2]string{
-				`{"value":"Gopher & Benthos"}`,
-				`{"slug":"gopher-and-benthos"}`,
+				`{"value":"Gopher & Bento"}`,
+				`{"slug":"gopher-and-bento"}`,
 			}).
 		Example("Creates a slug from a French string",
 			`root.slug = this.value.slug("fr")`,

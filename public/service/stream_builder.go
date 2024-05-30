@@ -13,34 +13,34 @@ import (
 	"github.com/gofrs/uuid"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/api"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/bundle/tracing"
-	"github.com/benthosdev/benthos/v4/internal/cli"
-	"github.com/benthosdev/benthos/v4/internal/component/buffer"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/component/tracer"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/internal/api"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/cli"
+	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/component/tracer"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
 )
 
-// StreamBuilder provides methods for building a Benthos stream configuration.
-// When parsing Benthos configs this builder follows the schema and field
-// defaults of a standard Benthos configuration. Environment variable
+// StreamBuilder provides methods for building a Bento stream configuration.
+// When parsing Bento configs this builder follows the schema and field
+// defaults of a standard Bento configuration. Environment variable
 // interpolations are also parsed and resolved the same as regular configs.
 //
 // Streams built with a stream builder have the HTTP server for exposing metrics
 // and ready checks disabled by default, which is the only deviation away from a
-// standard Benthos default configuration. In order to enable the server set the
+// standard Bento default configuration. In order to enable the server set the
 // configuration field `http.enabled` to `true` explicitly, or use `SetHTTPMux`
 // in order to provide an explicit HTTP multiplexer for registering those
 // endpoints.
@@ -97,9 +97,9 @@ func (s *StreamBuilder) getLintContext() docs.LintContext {
 
 //------------------------------------------------------------------------------
 
-// SetEngineVersion sets the version string representing the Benthos engine that
+// SetEngineVersion sets the version string representing the Bento engine that
 // components will see. By default a best attempt will be made to determine a
-// version either from the benthos module import or a build-time flag.
+// version either from the bento module import or a build-time flag.
 func (s *StreamBuilder) SetEngineVersion(ev string) {
 	s.engineVersion = ev
 }
@@ -141,9 +141,9 @@ func (s *StreamBuilder) SetPrintLogger(l PrintLogger) {
 }
 
 // SetLogger sets a customer logger via Go's standard logging interface,
-// allowing you to replace the default Benthos logger with your own.
+// allowing you to replace the default Bento logger with your own.
 func (s *StreamBuilder) SetLogger(l *slog.Logger) {
-	s.customLogger = log.NewBenthosLogAdapter(l)
+	s.customLogger = log.NewBentoLogAdapter(l)
 }
 
 // HTTPMultiplexer is an interface supported by most HTTP multiplexers.
@@ -161,7 +161,7 @@ func (w *muxWrapper) RegisterEndpoint(path, desc string, h http.HandlerFunc) {
 
 // SetHTTPMux sets an HTTP multiplexer to be used by stream components when
 // registering endpoints instead of a new server spawned following the `http`
-// fields of a Benthos config.
+// fields of a Bento config.
 func (s *StreamBuilder) SetHTTPMux(m HTTPMultiplexer) {
 	s.apiMut = &muxWrapper{m}
 }
@@ -493,7 +493,7 @@ func (s *StreamBuilder) AddResourcesYAML(conf string) error {
 
 //------------------------------------------------------------------------------
 
-// SetYAML parses a full Benthos config and uses it to configure the builder. If
+// SetYAML parses a full Bento config and uses it to configure the builder. If
 // any inputs, processors, outputs, resources, etc, have previously been added
 // to the builder they will be overridden by this new config.
 func (s *StreamBuilder) SetYAML(conf string) error {
@@ -749,7 +749,7 @@ func (w *WalkedComponent) ConfigYAML() string {
 	return w.confYAML
 }
 
-// WalkComponents walks the Benthos configuration as it is currently built and
+// WalkComponents walks the Bento configuration as it is currently built and
 // for each component type (input, processor, output, etc) calls a provided
 // function with a struct containing information about the component.
 //
@@ -815,13 +815,13 @@ func (s *StreamBuilder) runConsumerFunc(mgr *manager.Type) error {
 	return nil
 }
 
-// Build a Benthos stream pipeline according to the components specified by this
+// Build a Bento stream pipeline according to the components specified by this
 // stream builder.
 func (s *StreamBuilder) Build() (*Stream, error) {
 	return s.buildWithEnv(s.env.internal)
 }
 
-// BuildTraced creates a Benthos stream pipeline according to the components
+// BuildTraced creates a Bento stream pipeline according to the components
 // specified by this stream builder, where each major component (input,
 // processor, output) is wrapped with a tracing module that, during the lifetime
 // of the stream, aggregates tracing events into the returned *TracingSummary.

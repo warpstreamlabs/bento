@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/batch/policy"
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/output/batcher"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output/batcher"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -48,7 +48,7 @@ The broker pattern determines the way in which messages are allocated and can be
 
 ### `+"`fan_out`"+`
 
-With the fan out pattern all outputs will be sent every message that passes through Benthos in parallel.
+With the fan out pattern all outputs will be sent every message that passes through Bento in parallel.
 
 If an output applies back pressure it will block all subsequent messages, and if an output fails to send a message it will be retried continuously until completion or service shut down. This mechanism is in place in order to prevent one bad output from causing a larger retry loop that results in a good output from receiving unbounded message duplicates.
 

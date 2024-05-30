@@ -15,15 +15,15 @@ keywords: [
 tags: [ "Workflows" ]
 ---
 
-For the last few weeks I've been working on improving the workflow story in Benthos. That means reducing the number of processors, simplifying them, and at the same time making them more powerful than before. The new functionality outlined here can be used in the latest release [v3.26.0](https://github.com/Jeffail/benthos/releases/tag/v3.26.0).
+For the last few weeks I've been working on improving the workflow story in Bento. That means reducing the number of processors, simplifying them, and at the same time making them more powerful than before. The new functionality outlined here can be used in the latest release [v3.26.0](https://github.com/warpstreamlabs/bento/releases/tag/v3.26.0).
 
 <!--truncate-->
 
 ## The Motivation
 
-After similar efforts to [improve the mapping story][post.bloblang-beta] in Benthos it seemed sensible to target workflows. Specifically, I've added a new [`branch` processor][processor.branch] for wrapping child processors in request/result maps, and have reworked the [`workflow` processor][processor.workflow] to use them.
+After similar efforts to [improve the mapping story][post.bloblang-beta] in Bento it seemed sensible to target workflows. Specifically, I've added a new [`branch` processor][processor.branch] for wrapping child processors in request/result maps, and have reworked the [`workflow` processor][processor.workflow] to use them.
 
-If you haven't used workflows in Benthos then there's a section in the new [`workflow` processor][processor.workflow.why] page outlining why they're useful. In short, when performing multiple integrations within a pipeline such as hitting HTTP services, lambdas, caches, etc, it's best to perform them in parallel when possible in order to reduce the processing latency of messages, organizing these integrations into a topology with a workflow makes it easier to manage their interdependencies and ensure they're executed in the right order.
+If you haven't used workflows in Bento then there's a section in the new [`workflow` processor][processor.workflow.why] page outlining why they're useful. In short, when performing multiple integrations within a pipeline such as hitting HTTP services, lambdas, caches, etc, it's best to perform them in parallel when possible in order to reduce the processing latency of messages, organizing these integrations into a topology with a workflow makes it easier to manage their interdependencies and ensure they're executed in the right order.
 
 In the old world you could use the `process_dag` processor which has child `process_map` processors, where the mappings were a series of clunky to/from [dot paths][configuration.field_paths], separated into optional and non-optional mappings. There was no way to manually specify the dependency tree, and conditional flows required a separate list of conditions which didn't factor into dependency resolution.
 

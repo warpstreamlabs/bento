@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only pure Benthos components, switch with `components/all` for all
+	// Import only pure Bento components, switch with `components/all` for all
 	// standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 type batchOfJSONWriter struct{}
@@ -64,11 +64,11 @@ func Example_outputBatchedPlugin() {
 		panic(err)
 	}
 
-	// Use the stream builder API to create a Benthos stream that uses our new
+	// Use the stream builder API to create a Bento stream that uses our new
 	// output type.
 	builder := service.NewStreamBuilder()
 
-	// Set the full Benthos configuration of the stream.
+	// Set the full Bento configuration of the stream.
 	err = builder.SetYAML(`
 input:
   generate:

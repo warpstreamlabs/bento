@@ -13,14 +13,14 @@ services:
       - '--pandaproxy-addr 0.0.0.0:8082'
       - '--advertise-pandaproxy-addr redpanda:8082'
 
-  benthos-in:
-    image: ghcr.io/benthosdev/benthos
-    command: [ '-w', '-c', '/benthos.yaml' ]
+  bento-in:
+    image: ghcr.io/warpstreamlabs/bento
+    command: [ '-w', '-c', '/bento.yaml' ]
     volumes:
-      - ./in.yaml:/benthos.yaml
+      - ./in.yaml:/bento.yaml
 
-  benthos-out:
-    image: ghcr.io/benthosdev/benthos
-    command: [ '-w', '-c', '/benthos.yaml' ]
+  bento-out:
+    image: ghcr.io/warpstreamlabs/bento
+    command: [ '-w', '-c', '/bento.yaml' ]
     volumes:
-      - ./out.yaml:/benthos.yaml
+      - ./out.yaml:/bento.yaml

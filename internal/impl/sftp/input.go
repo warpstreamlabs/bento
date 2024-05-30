@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/sftp"
 
-	"github.com/benthosdev/benthos/v4/public/service"
-	"github.com/benthosdev/benthos/v4/public/service/codec"
+	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service/codec"
 )
 
 const (

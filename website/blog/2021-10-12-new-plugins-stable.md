@@ -13,7 +13,7 @@ keywords: [
 tags: [ "v4", "plugins" ]
 ---
 
-The [new plugin APIs](https://pkg.go.dev/github.com/Jeffail/benthos/v3/public/service) are ready to use, are being used, and [here's a video of them in action](https://youtu.be/uH6mKw-Ly0g).
+The [new plugin APIs](https://pkg.go.dev/github.com/warpstreamlabs/bento/v3/public/service) are ready to use, are being used, and [here's a video of them in action](https://youtu.be/uH6mKw-Ly0g).
 
 import ReactPlayer from 'react-player/youtube';
 
@@ -28,4 +28,4 @@ import ReactPlayer from 'react-player/youtube';
   </div>
 </div>
 
-The full API docs can be found at [pkg.go.dev/github.com/Jeffail/benthos/v3/public](https://pkg.go.dev/github.com/Jeffail/benthos/v3/public), and there's an example repository demonstrating a few different component plugin types at [github.com/benthosdev/benthos-plugin-example](https://github.com/benthosdev/benthos-plugin-example).
+The full API docs can be found at [pkg.go.dev/github.com/warpstreamlabs/bento/v3/public](https://pkg.go.dev/github.com/warpstreamlabs/bento/v3/public), and there's an example repository demonstrating a few different component plugin types at [github.com/warpstreamlabs/bento-plugin-example](https://github.com/warpstreamlabs/bento-plugin-example).

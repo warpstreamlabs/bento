@@ -14,11 +14,11 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
 )
 
 const (
@@ -35,7 +35,7 @@ type fileWatcher interface {
 	Close() error
 }
 
-// Reader provides utilities for parsing a Benthos config as a main file with
+// Reader provides utilities for parsing a Bento config as a main file with
 // a collection of resource files, and options such as overrides.
 type Reader struct {
 	// The suffix given to unit test definition files, this is used in order to
@@ -92,7 +92,7 @@ func NewReader(mainPath string, resourcePaths []string, opts ...OptFunc) *Reader
 		mainPath = filepath.Clean(mainPath)
 	}
 	r := &Reader{
-		testSuffix:         "_benthos_test",
+		testSuffix:         "_bento_test",
 		fs:                 ifs.OS(),
 		lintConf:           docs.NewLintConfig(bundle.GlobalEnvironment),
 		mainPath:           mainPath,
@@ -178,7 +178,7 @@ func (r *Reader) lintCtx() docs.LintContext {
 	return docs.NewLintContext(r.lintConf)
 }
 
-// Read a Benthos config from the files and options specified.
+// Read a Bento config from the files and options specified.
 func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, err error) {
 	if conf, pConf, lints, err = r.readMain(r.mainPath); err != nil {
 		return
@@ -194,7 +194,7 @@ func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, er
 	return
 }
 
-// ReadStreams attempts to read Benthos stream configs from one or more paths.
+// ReadStreams attempts to read Bento stream configs from one or more paths.
 // Stream configs are extracted and added to a provided map, where the id is
 // derived from the path of the stream config file.
 func (r *Reader) ReadStreams(confs map[string]stream.Config) (lints []string, err error) {
@@ -318,7 +318,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 		return
 	}
 
-	if !bytes.HasPrefix(confBytes, []byte("# BENTHOS LINT DISABLE")) {
+	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		lintFilePrefix := mainPath
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
 			lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
@@ -375,7 +375,7 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 		lintlog.Info(lint)
 	}
 	if strict && len(lints) > 0 {
-		mgr.Logger().Error("Rejecting updated main config due to linter errors, to allow linting errors run Benthos with --chilled")
+		mgr.Logger().Error("Rejecting updated main config due to linter errors, to allow linting errors run Bento with --chilled")
 
 		// Rejecting from linters means we do not want to try again.
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))

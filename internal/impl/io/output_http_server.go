@@ -17,17 +17,17 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/api"
-	"github.com/benthosdev/benthos/v4/internal/batch"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/httpserver"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/api"
+	"github.com/warpstreamlabs/bento/v4/internal/batch"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/httpserver"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -251,21 +251,21 @@ func newHTTPServerOutput(conf hsoConfig, mgr bundle.NewManagement) (output.Strea
 	} else {
 		if h.conf.Path != "" {
 			mgr.RegisterEndpoint(
-				h.conf.Path, "Read a single message from Benthos.",
+				h.conf.Path, "Read a single message from Bento.",
 				h.getHandler,
 			)
 		}
 		if h.conf.StreamPath != "" {
 			mgr.RegisterEndpoint(
 				h.conf.StreamPath,
-				"Read a continuous stream of messages from Benthos.",
+				"Read a continuous stream of messages from Bento.",
 				h.streamHandler,
 			)
 		}
 		if h.conf.WSPath != "" {
 			mgr.RegisterEndpoint(
 				h.conf.WSPath,
-				"Read messages from Benthos via websockets.",
+				"Read messages from Bento via websockets.",
 				h.wsHandler,
 			)
 		}

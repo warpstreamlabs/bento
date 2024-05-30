@@ -3,7 +3,7 @@ package query
 import (
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 var _ Function = &mapLiteral{}

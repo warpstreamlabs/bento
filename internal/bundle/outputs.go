@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllOutputs is a set containing every single output that has been imported.
@@ -47,7 +47,7 @@ type outputSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// OutputSet contains an explicit set of outputs available to a Benthos service.
+// OutputSet contains an explicit set of outputs available to a Bento service.
 type OutputSet struct {
 	specs map[string]outputSpec
 }

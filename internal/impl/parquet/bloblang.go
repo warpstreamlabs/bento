@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 func init() {

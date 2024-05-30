@@ -7,7 +7,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 type vmRunner struct {
@@ -42,7 +42,7 @@ func (j *javascriptProcessor) newVM() (*vmRunner, error) {
 }
 
 // The namespace within all our function definitions
-const fnCtxName = "benthos"
+const fnCtxName = "bento"
 
 func setFunction(vr *vmRunner, name string, function jsFunction) error {
 	var targetObj *goja.Object
@@ -51,7 +51,7 @@ func setFunction(vr *vmRunner, name string, function jsFunction) error {
 	}
 	if targetObj == nil {
 		if err := vr.vm.GlobalObject().Set(fnCtxName, map[string]any{}); err != nil {
-			return fmt.Errorf("failed to set global benthos object: %w", err)
+			return fmt.Errorf("failed to set global bento object: %w", err)
 		}
 		targetObj = vr.vm.GlobalObject().Get(fnCtxName).ToObject(vr.vm)
 	}

@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func TestFileCache(t *testing.T) {
-	dir, err := os.MkdirTemp("", "benthos_file_cache_test")
+	dir, err := os.MkdirTemp("", "bento_file_cache_test")
 	require.NoError(t, err)
 
 	defer os.RemoveAll(dir)

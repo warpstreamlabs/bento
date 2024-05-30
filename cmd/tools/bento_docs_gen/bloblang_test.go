@@ -12,16 +12,16 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/tracing"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/all"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/all"
 )
 
 func TestFunctionExamples(t *testing.T) {
-	tmpJSONFile, err := os.CreateTemp("", "benthos_bloblang_functions_test")
+	tmpJSONFile, err := os.CreateTemp("", "bento_bloblang_functions_test")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.Remove(tmpJSONFile.Name())
@@ -30,7 +30,7 @@ func TestFunctionExamples(t *testing.T) {
 	_, err = tmpJSONFile.WriteString(`{"foo":"bar"}`)
 	require.NoError(t, err)
 
-	key := "BENTHOS_TEST_BLOBLANG_FILE"
+	key := "BENTO_TEST_BLOBLANG_FILE"
 	t.Setenv(key, tmpJSONFile.Name())
 
 	for _, spec := range query.FunctionDocs() {
@@ -68,7 +68,7 @@ func TestFunctionExamples(t *testing.T) {
 }
 
 func TestMethodExamples(t *testing.T) {
-	tmpJSONFile, err := os.CreateTemp("", "benthos_bloblang_methods_test")
+	tmpJSONFile, err := os.CreateTemp("", "bento_bloblang_methods_test")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		os.Remove(tmpJSONFile.Name())
@@ -85,7 +85,7 @@ func TestMethodExamples(t *testing.T) {
 }`)
 	require.NoError(t, err)
 
-	key := "BENTHOS_TEST_BLOBLANG_SCHEMA_FILE"
+	key := "BENTO_TEST_BLOBLANG_SCHEMA_FILE"
 	t.Setenv(key, tmpJSONFile.Name())
 
 	for _, spec := range query.MethodDocs() {

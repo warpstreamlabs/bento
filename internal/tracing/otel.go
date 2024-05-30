@@ -8,11 +8,11 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 const (
-	name = "benthos"
+	name = "bento"
 )
 
 // GetSpan returns a span attached to a message part. Returns nil if the part

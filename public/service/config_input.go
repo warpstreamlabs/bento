@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 const AutoRetryNacksToggleFieldName = "auto_replay_nacks"

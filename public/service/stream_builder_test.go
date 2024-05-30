@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 func TestStreamBuilderDefault(t *testing.T) {
@@ -164,16 +164,16 @@ file:
 }
 
 func TestStreamBuilderEnvVarInterpolation(t *testing.T) {
-	t.Setenv("BENTHOS_TEST_ONE", "foo")
-	t.Setenv("BENTHOS_TEST_TWO", "warn")
+	t.Setenv("BENTO_TEST_ONE", "foo")
+	t.Setenv("BENTO_TEST_TWO", "warn")
 
 	b := service.NewStreamBuilder()
 	require.NoError(t, b.AddInputYAML(`
 generate:
-  mapping: 'root = "${BENTHOS_TEST_ONE}"'
+  mapping: 'root = "${BENTO_TEST_ONE}"'
 `))
 
-	require.NoError(t, b.SetLoggerYAML(`level: ${BENTHOS_TEST_TWO}`))
+	require.NoError(t, b.SetLoggerYAML(`level: ${BENTO_TEST_TWO}`))
 
 	act, err := b.AsYAML()
 	require.NoError(t, err)
@@ -191,9 +191,9 @@ generate:
 	require.NoError(t, b.SetYAML(`
 input:
   generate:
-    mapping: 'root = "${BENTHOS_TEST_ONE}"'
+    mapping: 'root = "${BENTO_TEST_ONE}"'
 logger:
-  level: ${BENTHOS_TEST_TWO}
+  level: ${BENTO_TEST_TWO}
 `))
 
 	act, err = b.AsYAML()

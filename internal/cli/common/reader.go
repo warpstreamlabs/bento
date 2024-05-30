@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 
 	"github.com/urfave/cli/v2"
 )
@@ -15,9 +15,9 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 	if path == "" {
 		// Iterate default config paths
 		for _, dpath := range []string{
-			"/benthos.yaml",
-			"/etc/benthos/config.yaml",
-			"/etc/benthos.yaml",
+			"/bento.yaml",
+			"/etc/bento/config.yaml",
+			"/etc/bento.yaml",
 		} {
 			if _, err := ifs.OS().Stat(dpath); err == nil {
 				inferred = true
@@ -29,7 +29,7 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 	opts := []config.OptFunc{
 		config.OptSetFullSpec(cliOpts.MainConfigSpecCtor),
 		config.OptAddOverrides(c.StringSlice("set")...),
-		config.OptTestSuffix("_benthos_test"),
+		config.OptTestSuffix("_bento_test"),
 	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))

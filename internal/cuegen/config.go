@@ -3,7 +3,7 @@ package cuegen
 import (
 	"cuelang.org/go/cue/ast"
 
-	"github.com/benthosdev/benthos/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
 )
 
 func doConfig(sch schema.Full) ([]ast.Decl, error) {

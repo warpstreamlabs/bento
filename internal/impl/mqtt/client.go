@@ -10,7 +10,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -41,7 +41,7 @@ func ClientFields() []*service.ConfigField {
 		service.NewStringAnnotatedEnumField(msFieldClientDynClientIDSuffix, map[string]string{
 			"nanoid": "append a nanoid of length 21 characters",
 		}).
-			Description("Append a dynamically generated suffix to the specified `client_id` on each run of the pipeline. This can be useful when clustering Benthos producers.").
+			Description("Append a dynamically generated suffix to the specified `client_id` on each run of the pipeline. This can be useful when clustering Bento producers.").
 			Optional().
 			Advanced().
 			LintRule(`root = []`), // Disable linting for now
@@ -67,7 +67,7 @@ func ClientFields() []*service.ConfigField {
 				Description("Set payload for last will message.").
 				Default(""),
 		).
-			Description("Set last will message in case of Benthos failure").
+			Description("Set last will message in case of Bento failure").
 			Advanced(),
 		service.NewStringField(msFieldClientUser).
 			Description("A username to connect with.").

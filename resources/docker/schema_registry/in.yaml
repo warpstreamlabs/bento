@@ -14,7 +14,7 @@ pipeline:
   processors:
     - schema_registry_encode:
         url: http://redpanda:8081
-        subject: benthos_example
+        subject: bento_example
         refresh_period: 15s
 
     - catch:
@@ -26,4 +26,4 @@ pipeline:
 output:
   kafka:
     addresses: [ redpanda:9092 ]
-    topic: benthos_redpanda
+    topic: bento_redpanda

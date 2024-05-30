@@ -2,7 +2,7 @@
 title: Resources
 ---
 
-Resources are components within Benthos that are declared with a unique label and can be referenced any number of times within a configuration. Only one instance of each named resource is created, but it is safe to use it in multiple places as they can be shared without consequence.
+Resources are components within Bento that are declared with a unique label and can be referenced any number of times within a configuration. Only one instance of each named resource is created, but it is safe to use it in multiple places as they can be shared without consequence.
 
 Some components such as caches and rate limits can _only_ be created as a resource. However, for components where it's optional there are a few reasons why it might be advantageous to do so.
 
@@ -96,11 +96,11 @@ processor_resources:
         Desires: "are-empty"
 ```
 
-Then when you execute Benthos use the environment variable to choose your resource: `FEATURE_REQUEST=get_foo benthos -c ./your_config.yaml`.
+Then when you execute Bento use the environment variable to choose your resource: `FEATURE_REQUEST=get_foo bento -c ./your_config.yaml`.
 
 ### With Imports
 
-However, Benthos allows you to import resources from separate files with the cli flag `-r` or `-resources`, which can be a useful way to switch out resources with common names based on your chosen environment. For example, with a main configuration file `config.yaml`:
+However, Bento allows you to import resources from separate files with the cli flag `-r` or `-resources`, which can be a useful way to switch out resources with common names based on your chosen environment. For example, with a main configuration file `config.yaml`:
 
 ```yaml
 pipeline:
@@ -136,13 +136,13 @@ processor_resources:
 We can select our chosen resource by changing which file we import, either running:
 
 ```sh
-benthos -r ./staging/request.yaml -c ./config.yaml
+bento -r ./staging/request.yaml -c ./config.yaml
 ```
 
 Or:
 
 ```sh
-benthos -r ./production/request.yaml -c ./config.yaml
+bento -r ./production/request.yaml -c ./config.yaml
 ```
 
-These flags also support wildcards, which allows you to import an entire directory of resource files like `benthos -r "./staging/*.yaml" -c ./config.yaml`.
+These flags also support wildcards, which allows you to import an entire directory of resource files like `bento -r "./staging/*.yaml" -c ./config.yaml`.

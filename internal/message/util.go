@@ -13,7 +13,7 @@ import (
 var useNumber = true
 
 func init() {
-	if os.Getenv("BENTHOS_USE_NUMBER") == "false" {
+	if os.Getenv("BENTO_USE_NUMBER") == "false" {
 		useNumber = false
 	}
 }

@@ -2,13 +2,13 @@ const path = require('path');
 const {components} = require('./src/plugins/components');
 
 module.exports = {
-  title: 'Benthos',
+  title: 'Bento',
   tagline: 'Fancy stream processing made operationally mundane',
   url: 'https://www.benthos.dev',
   baseUrl: '/',
   favicon: 'img/favicon.ico',
-  organizationName: 'benthosdev',
-  projectName: 'benthos',
+  organizationName: 'warpstreamlabs',
+  projectName: 'bento',
   customFields: {
     components: {
       inputs: components("inputs"),
@@ -36,26 +36,25 @@ module.exports = {
       {name: 'twitter:card', content: 'summary'},
     ],
     navbar: {
-      title: 'Benthos',
+      title: 'Bento',
       logo: {
-        alt: 'Benthos Blobfish',
+        alt: 'Bento',
         src: 'img/logo.svg',
       },
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},
         {to: 'cookbooks', label: 'Cookbooks', position: 'left'},
-        {to: 'https://studio.benthos.dev', label: 'Studio', position: 'left'},
         {to: 'blog', label: 'Blog', position: 'left'},
         {to: 'community', label: 'Community', position: 'right'},
         {to: 'support', label: 'Support', position: 'right'},
         {
-          href: 'https://github.com/benthosdev/benthos/releases/latest',
+          href: 'https://github.com/warpstreamlabs/bento/releases/latest',
           position: 'right',
           className: 'header-download-link header-icon-link',
           'aria-label': 'Download',
         },
         {
-          href: 'https://github.com/benthosdev/benthos',
+          href: 'https://github.com/warpstreamlabs/bento',
           position: 'right',
           className: 'header-github-link header-icon-link',
           'aria-label': 'GitHub repository',
@@ -83,41 +82,20 @@ module.exports = {
           ],
         },
         {
-          title: 'Swag',
-          items: [
-            {
-              label: 'Meet the Mascot',
-              to: 'blobfish',
-            },
-            {
-              label: 'Purchase Stickers',
-              href: 'https://www.redbubble.com/people/earzola/shop',
-            },
-          ],
-        },
-        {
           title: 'Community',
           items: [
             {
-              label: 'Join the chat',
-              to: 'community',
-            },
-            {
               label: 'See the Code',
-              href: 'https://github.com/benthosdev/benthos',
-            },
-            {
-              label: 'Sponsor the Developers',
-              href: 'https://github.com/sponsors/Jeffail',
-            },
+              href: 'https://github.com/warpstreamlabs/bento',
+            }
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Ashley Jeffs.`,
+      copyright: `Copyright © ${new Date().getFullYear()} WarpStream Labs. Portions used under MIT License from Ashley Jeffs.`,
     },
     announcementBar: {
       id: 'star_the_dang_repo',
-      content: `<strong>Hey, 🫵 you, make sure you've <a target="_blank" rel="noopener noreferrer" href="https://github.com/benthosdev/benthos">⭐ starred the repo ⭐</a> otherwise you won't be entered into our daily prize draw for silent admiration.</strong>`,
+      content: `<strong>Hey, 🫵 you, make sure you've <a target="_blank" rel="noopener noreferrer" href="https://github.com/warpstreamlabs/bento">⭐ starred the repo ⭐</a> otherwise you won't be entered into our daily prize draw for silent admiration.</strong>`,
       backgroundColor: 'var(--ifm-color-primary)',
       textColor: 'var(--ifm-background-color)',
       isCloseable: true,
@@ -136,7 +114,7 @@ module.exports = {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
-            'https://github.com/benthosdev/benthos/edit/main/website/',
+            'https://github.com/warpstreamlabs/bento/edit/main/website/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),

@@ -98,7 +98,7 @@ Note: The `header` field is only set when `parse_header_row` is `true`.
 
 ### Output CSV column order
 
-When [creating CSV](/docs/guides/bloblang/advanced#creating-csv) from Benthos messages, the columns must be sorted lexicographically to make the output deterministic. Alternatively, when using the `csv` input, one can leverage the `header` metadata field to retrieve the column order:
+When [creating CSV](/docs/guides/bloblang/advanced#creating-csv) from Bento messages, the columns must be sorted lexicographically to make the output deterministic. Alternatively, when using the `csv` input, one can leverage the `header` metadata field to retrieve the column order:
 
 ```yaml
 input:

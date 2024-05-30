@@ -1,7 +1,7 @@
 package tracing
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/bundle/tracing"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle/tracing"
 )
 
 type ObservedSummary struct {
@@ -16,9 +16,9 @@ type ObservedEvent struct {
 	Metadata map[string]any `json:"metadata"`
 }
 
-// Observed is a structured form of tracing events extracted from Benthos
+// Observed is a structured form of tracing events extracted from Bento
 // components during execution. This is entirely unrelated to Open Telemetry
-// tracing concepts and is Benthos specific.
+// tracing concepts and is Bento specific.
 type Observed struct {
 	InputEvents     map[string][]ObservedEvent `json:"input_events,omitempty"`
 	ProcessorEvents map[string][]ObservedEvent `json:"processor_events,omitempty"`

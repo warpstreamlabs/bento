@@ -12,13 +12,13 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nkeys"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func authDescription() string {
 	return `### Authentication
 
-There are several components within Benthos which utilise NATS services. You will find that each of these components
+There are several components within Bento which utilise NATS services. You will find that each of these components
 support optional advanced authentication parameters for [NKeys](https://docs.nats.io/nats-server/configuration/securing_nats/auth_intro/nkey_auth)
 and [User Credentials](https://docs.nats.io/developing-with-nats/security/creds).
 

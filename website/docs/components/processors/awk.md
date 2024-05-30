@@ -37,7 +37,7 @@ This processor uses [GoAWK][goawk], in order to understand the differences in ho
 
 ### `codec`
 
-A [codec](#codecs) defines how messages should be inserted into the AWK program as variables. The codec does not change which [custom Benthos functions](#awk-functions) are available. The `text` codec is the closest to a typical AWK use case.
+A [codec](#codecs) defines how messages should be inserted into the AWK program as variables. The codec does not change which [custom Bento functions](#awk-functions) are available. The `text` codec is the closest to a typical AWK use case.
 
 
 Type: `string`  
@@ -60,7 +60,7 @@ Type: `string`
 <TabItem value="JSON Mapping and Arithmetic">
 
 
-Because AWK is a full programming language it's much easier to map documents and perform arithmetic with it than with other Benthos processors. For example, if we were expecting documents of the form:
+Because AWK is a full programming language it's much easier to map documents and perform arithmetic with it than with other Bento processors. For example, if we were expecting documents of the form:
 
 ```json
 {"doc":{"val1":5,"val2":10},"id":"1","type":"add"}
@@ -379,7 +379,7 @@ will be used.
 
 Signature: `print_log(message, level)`
 
-Prints a Benthos log message at a particular log level. The log level is
+Prints a Bento log message at a particular log level. The log level is
 optional, and if omitted the level `INFO` will be used.
 
 ### `base64_encode`

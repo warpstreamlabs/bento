@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 var configSpec = docs.FieldSpecs{
@@ -96,7 +96,7 @@ input:
 output:
   nats:
     urls: [ nats://127.0.0.1:4222 ]
-    subject: benthos_messages
+    subject: bento_messages
     max_in_flight: 1
 `,
 			path: "/input",
@@ -110,7 +110,7 @@ input:
 output:
   nats:
     urls: [ nats://127.0.0.1:4222 ]
-    subject: benthos_messages
+    subject: bento_messages
     max_in_flight: 1
 `,
 		},
@@ -712,7 +712,7 @@ input:
 output:
   nats:
     urls: [ nats://127.0.0.1:4222 ]
-    subject: benthos_messages
+    subject: bento_messages
     max_in_flight: 1
 `,
 			output: map[string][]string{},
@@ -736,7 +736,7 @@ output:
   label: foooutput
   nats:
     urls: [ nats://127.0.0.1:4222 ]
-    subject: benthos_messages
+    subject: bento_messages
     max_in_flight: 1
 `,
 			output: map[string][]string{

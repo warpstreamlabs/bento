@@ -78,8 +78,8 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          jeffail/benthos
-          ghcr.io/${{ github.repository_owner }}/benthos
+          warpstreamlabs/bento
+          ghcr.io/${{ github.repository_owner }}/bento
         flavor: |
           latest=auto
           suffix=-cgo
@@ -101,8 +101,8 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          jeffail/benthos
-          ghcr.io/${{ github.repository_owner }}/benthos
+          warpstreamlabs/bento
+          ghcr.io/${{ github.repository_owner }}/bento
         tags: |
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}

@@ -42,7 +42,7 @@ Type: `string`
 
 | Option | Summary |
 |---|---|
-| `binary` | Extract messages from a [binary blob format](https://github.com/benthosdev/benthos/blob/main/internal/message/message.go#L96). |
+| `binary` | Extract messages from a [binary blob format](https://github.com/warpstreamlabs/bento/blob/main/internal/message/message.go#L96). |
 | `csv` | Attempt to parse the message as a csv file (header required) and for each row in the file expands its contents into a json object in a new message. |
 | `csv:x` | Attempt to parse the message as a csv file (header required) and for each row in the file expands its contents into a json object in a new message using a custom delimiter. The custom delimiter must be a single character, e.g. the format "csv:\t" would consume a tab delimited file. |
 | `json_array` | Attempt to parse a message as a JSON array, and extract each element into its own message. |

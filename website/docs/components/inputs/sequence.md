@@ -82,7 +82,7 @@ input:
 </TabItem>
 <TabItem value="Joining Data (Simple)">
 
-Benthos can be used to join unordered data from fragmented datasets in memory by specifying a common identifier field and a number of sharded iterations. For example, given two CSV files, the first called "main.csv", which contains rows of user data:
+Bento can be used to join unordered data from fragmented datasets in memory by specifying a common identifier field and a number of sharded iterations. For example, given two CSV files, the first called "main.csv", which contains rows of user data:
 
 ```csv
 uuid,name,age

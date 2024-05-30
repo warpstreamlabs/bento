@@ -184,7 +184,7 @@ Default: `""`
 
 ### `sniff`
 
-Prompts Benthos to sniff for brokers to connect to when establishing a connection.
+Prompts Bento to sniff for brokers to connect to when establishing a connection.
 
 
 Type: `bool`  

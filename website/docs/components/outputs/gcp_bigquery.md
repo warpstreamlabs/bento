@@ -90,7 +90,7 @@ output:
 
 ## Credentials
 
-By default Benthos will use a shared credentials file when connecting to GCP services. You can find out more [in this document](/docs/guides/cloud/gcp).
+By default Bento will use a shared credentials file when connecting to GCP services. You can find out more [in this document](/docs/guides/cloud/gcp).
 
 ## Format
 
@@ -270,7 +270,7 @@ Options: `UTF-8`, `ISO-8859-1`.
 
 ### `csv.skip_leading_rows`
 
-The number of rows at the top of a CSV file that BigQuery will skip when reading data. The default value is 1 since Benthos will add the specified header in the first line of each batch sent to BigQuery.
+The number of rows at the top of a CSV file that BigQuery will skip when reading data. The default value is 1 since Bento will add the specified header in the first line of each batch sent to BigQuery.
 
 
 Type: `int`  

@@ -11,8 +11,8 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
-	"github.com/benthosdev/benthos/v4/public/service"
-	"github.com/benthosdev/benthos/v4/public/service/codec"
+	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service/codec"
 )
 
 const (
@@ -70,7 +70,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 
 ### Credentials
 
-By default Benthos will use a shared credentials file when connecting to GCP services. You can find out more [in this document](/docs/guides/cloud/gcp).`).
+By default Bento will use a shared credentials file when connecting to GCP services. You can find out more [in this document](/docs/guides/cloud/gcp).`).
 		Fields(
 			service.NewStringField(csiFieldBucket).
 				Description("The name of the bucket from which to download objects."),
@@ -223,7 +223,7 @@ func (r gcpCloudStorageTargetReader) Close(context.Context) error {
 
 //------------------------------------------------------------------------------
 
-// gcpCloudStorage is a benthos reader.Type implementation that reads messages
+// gcpCloudStorage is a bento reader.Type implementation that reads messages
 // from a Google Cloud Storage bucket.
 type gcpCloudStorageInput struct {
 	conf csiConfig

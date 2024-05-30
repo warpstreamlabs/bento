@@ -17,7 +17,7 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -46,7 +46,7 @@ func javascriptProcessorConfig() *service.ConfigSpec {
 		Description(`
 The [execution engine](https://github.com/dop251/goja) behind this processor provides full ECMAScript 5.1 support (including regex and strict mode). Most of the ECMAScript 6 spec is implemented but this is a work in progress.
 
-Imports via `+"`require`"+` should work similarly to NodeJS, and access to the console is supported which will print via the Benthos logger. More caveats can be [found here](https://github.com/dop251/goja#known-incompatibilities-and-caveats).
+Imports via `+"`require`"+` should work similarly to NodeJS, and access to the console is supported which will print via the Bento logger. More caveats can be [found here](https://github.com/dop251/goja#known-incompatibilities-and-caveats).
 
 This processor is implemented using the [github.com/dop251/goja](https://github.com/dop251/goja) library.`).
 		Footnotes(`
@@ -83,7 +83,7 @@ root = if $codeLen == 0 && $fileLen == 0 {
 pipeline:
   processors:
     - javascript:
-        code: 'benthos.v0_msg_set_string(benthos.v0_msg_as_string() + "hello world");'
+        code: 'bento.v0_msg_set_string(bento.v0_msg_as_string() + "hello world");'
 `,
 		).
 		Example(
@@ -95,10 +95,10 @@ pipeline:
     - javascript:
         code: |
           (() => {
-            let thing = benthos.v0_msg_as_structured();
+            let thing = bento.v0_msg_as_structured();
             thing.num_keys = Object.keys(thing).length;
             delete thing["b"];
-            benthos.v0_msg_set_structured(thing);
+            bento.v0_msg_set_structured(thing);
           })();
 `,
 		)
@@ -126,7 +126,7 @@ type javascriptProcessor struct {
 
 func sourceLoader(serviceFS *service.FS) require.SourceLoader {
 	// Copy of `require.DefaultSourceLoader`: https://github.com/dop251/goja_nodejs/blob/e84d9a924c5ca9e541575e643b7efbca5705862f/require/module.go#L116-L141
-	// with some slight adjustments because we need to use the Benthos manager filesystem for opening and reading files.
+	// with some slight adjustments because we need to use the Bento manager filesystem for opening and reading files.
 	return func(filename string) ([]byte, error) {
 		fp := filepath.FromSlash(filename)
 		f, err := serviceFS.Open(fp)

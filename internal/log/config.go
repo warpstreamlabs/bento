@@ -1,6 +1,6 @@
 package log
 
-import "github.com/benthosdev/benthos/v4/internal/docs"
+import "github.com/warpstreamlabs/bento/v4/internal/docs"
 
 const (
 	fieldLogLevel         = "level"
@@ -45,7 +45,7 @@ func NewConfig() Config {
 		TimestampName: "time",
 		MessageName:   "msg",
 		StaticFields: map[string]string{
-			"@service": "benthos",
+			"@service": "bento",
 		},
 	}
 }

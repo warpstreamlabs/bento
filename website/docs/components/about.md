@@ -1,7 +1,7 @@
 ---
 title: Components
 sidebar_label: About
-description: Learn about Benthos components
+description: Learn about Bento components
 ---
 
 A good ninja gets clued up on its gear.
@@ -10,7 +10,7 @@ A good ninja gets clued up on its gear.
 
 ## Core Components
 
-Every Benthos pipeline has at least one [input][inputs], an optional [buffer][buffers], an [output][outputs] and any number of [processors][processors]:
+Every Bento pipeline has at least one [input][inputs], an optional [buffer][buffers], an [output][outputs] and any number of [processors][processors]:
 
 ```yaml
 input:
@@ -34,11 +34,11 @@ output:
     path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
 ```
 
-These are the main components within Benthos and they provide the majority of useful behaviour.
+These are the main components within Bento and they provide the majority of useful behaviour.
 
 ## Observability Components
 
-There are also the observability components [http][http], [logger][logger], [metrics][metrics], and [tracing][tracers], which allow you to specify how Benthos exposes observability data:
+There are also the observability components [http][http], [logger][logger], [metrics][metrics], and [tracing][tracers], which allow you to specify how Bento exposes observability data:
 
 ```yaml
 http:

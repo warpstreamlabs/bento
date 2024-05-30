@@ -2,13 +2,13 @@
 title: Metadata
 ---
 
-In Benthos each message has raw contents and metadata, which is a map of key/value pairs representing an arbitrary amount of complementary data.
+In Bento each message has raw contents and metadata, which is a map of key/value pairs representing an arbitrary amount of complementary data.
 
 When an input protocol supports attributes or metadata they will automatically be added to your messages, refer to the respective input documentation for a list of metadata keys. When an output supports attributes or metadata any metadata key/value pairs in a message will be sent (subject to service limits).
 
 ## Editing Metadata
 
-Benthos allows you to add and remove metadata using the [`mapping` processor][processors.mapping]. For example, you can do something like this in your pipeline:
+Bento allows you to add and remove metadata using the [`mapping` processor][processors.mapping]. For example, you can do something like this in your pipeline:
 
 ```yaml
 pipeline:
@@ -45,7 +45,7 @@ output:
     topic: ${! meta("target_topic") }
 ```
 
-Benthos also allows you to conditionally process messages based on their metadata with the [`switch` processor][processors.switch]:
+Bento also allows you to conditionally process messages based on their metadata with the [`switch` processor][processors.switch]:
 
 ```yaml
 pipeline:

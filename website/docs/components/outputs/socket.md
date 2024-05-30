@@ -23,7 +23,7 @@ output:
   label: ""
   socket:
     network: "" # No default (required)
-    address: /tmp/benthos.sock # No default (required)
+    address: /tmp/bento.sock # No default (required)
     codec: lines
 ```
 
@@ -47,7 +47,7 @@ Type: `string`
 ```yml
 # Examples
 
-address: /tmp/benthos.sock
+address: /tmp/bento.sock
 
 address: 127.0.0.1:6000
 ```

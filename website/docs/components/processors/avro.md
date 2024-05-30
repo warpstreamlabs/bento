@@ -37,7 +37,7 @@ WARNING: If you are consuming or generating messages using a schema registry ser
 ### `to_json`
 
 Converts Avro documents into a JSON structure. This makes it easier to
-manipulate the contents of the document within Benthos. The encoding field
+manipulate the contents of the document within Bento. The encoding field
 specifies how the source documents are encoded.
 
 ### `from_json`

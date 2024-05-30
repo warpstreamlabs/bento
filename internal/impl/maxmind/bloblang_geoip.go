@@ -8,7 +8,7 @@ import (
 
 	"github.com/oschwald/geoip2-golang"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 func registerMaxmindMethodSpec(name, entity string, fn func(*geoip2.Reader, net.IP) (any, error)) {

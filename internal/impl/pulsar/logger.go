@@ -3,10 +3,10 @@ package pulsar
 import (
 	plog "github.com/apache/pulsar-client-go/pulsar/log"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
-// DefaultLogger returns a logger that wraps Benthos Modular logger.
+// DefaultLogger returns a logger that wraps Bento Modular logger.
 func createDefaultLogger(l *service.Logger) plog.Logger {
 	return defaultLogger{
 		backend: l,

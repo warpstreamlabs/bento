@@ -15,9 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/cenkalti/backoff/v4"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/aws/config"
-	"github.com/benthosdev/benthos/v4/internal/retries"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v4/internal/retries"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -103,7 +103,7 @@ In which case the top level document fields will be written at the root of the i
 
 ### Credentials
 
-By default Benthos will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).
+By default Bento will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).
 
 ## Performance
 

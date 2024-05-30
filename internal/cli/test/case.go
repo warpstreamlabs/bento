@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io/fs"
 
-	iprocessor "github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/config/test"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	iprocessor "github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/config/test"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // CaseFailure encapsulates information about a failed test case.
@@ -25,7 +25,7 @@ func (c CaseFailure) String() string {
 	return fmt.Sprintf("%v [line %v]: %v", c.Name, c.TestLine, c.Reason)
 }
 
-// ProcProvider returns compiled processors extracted from a Benthos config
+// ProcProvider returns compiled processors extracted from a Bento config
 // using a JSON Pointer.
 type ProcProvider interface {
 	Provide(jsonPtr string, environment map[string]string, mocks map[string]any) ([]iprocessor.V1, error)

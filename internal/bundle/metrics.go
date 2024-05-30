@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllMetrics is a set containing every single metrics that has been imported.
@@ -42,7 +42,7 @@ type metricsSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// MetricsSet contains an explicit set of metrics available to a Benthos
+// MetricsSet contains an explicit set of metrics available to a Bento
 // service.
 type MetricsSet struct {
 	specs map[string]metricsSpec

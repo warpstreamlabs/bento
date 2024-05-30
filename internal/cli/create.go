@@ -9,10 +9,10 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
 )
 
 func addExpression(conf map[string]any, expression string) error {
@@ -111,15 +111,15 @@ func addExpression(conf map[string]any, expression string) error {
 func createCliCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "create",
-		Usage: "Create a new Benthos config",
+		Usage: "Create a new Bento config",
 		Description: `
-Prints a new Benthos config to stdout containing specified components
+Prints a new Bento config to stdout containing specified components
 according to an expression. The expression must take the form of three
 comma-separated lists of inputs, processors and outputs, divided by
 forward slashes:
 
-  benthos create stdin/bloblang,awk/nats
-  benthos create file,http_server/protobuf/http_client
+  bento create stdin/bloblang,awk/nats
+  bento create file,http_server/protobuf/http_client
 
 If the expression is omitted a default config is created.`[1:],
 		Flags: []cli.Flag{
@@ -127,7 +127,7 @@ If the expression is omitted a default config is created.`[1:],
 				Name:    "small",
 				Aliases: []string{"s"},
 				Value:   false,
-				Usage:   "Print only the main components of a Benthos config (input, pipeline, output) and omit all fields marked as advanced.",
+				Usage:   "Print only the main components of a Bento config (input, pipeline, output) and omit all fields marked as advanced.",
 			},
 		},
 		Action: func(c *cli.Context) error {

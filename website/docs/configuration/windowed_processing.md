@@ -1,6 +1,6 @@
 ---
 title: Windowed Processing
-description: Learn how to process periodic windows of messages with Benthos
+description: Learn how to process periodic windows of messages with Bento
 ---
 
 A window is a batch of messages made with respect to time, with which we are able to perform processing that can analyse or aggregate the messages of the window. This is useful in stream processing as the dataset is never "complete", and therefore in order to perform analysis against a collection of messages we must do so by creating a continuous feed of windows (collections), where our analysis is made against each window. 
@@ -76,7 +76,7 @@ pipeline:
 
 ## Aggregating
 
-Once our window has been grouped the next step is to calculate the aggregated passenger and unique cars counts. For this purpose the Benthos [mapping language Bloblang][bloblang.about] comes in handy as the method [`from_all`][bloblang.methods.from_all] executes the target function against the entire batch and returns an array of the values, allowing us to mutate the result with chained methods such as [`sum`][bloblang.methods.sum]:
+Once our window has been grouped the next step is to calculate the aggregated passenger and unique cars counts. For this purpose the Bento [mapping language Bloblang][bloblang.about] comes in handy as the method [`from_all`][bloblang.methods.from_all] executes the target function against the entire batch and returns an array of the values, allowing us to mutate the result with chained methods such as [`sum`][bloblang.methods.sum]:
 
 ```yaml
 pipeline:

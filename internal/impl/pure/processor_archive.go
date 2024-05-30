@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/batch"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/batch"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func archiveProcConfig() *service.ConfigSpec {
@@ -29,7 +29,7 @@ The functionality of this processor depends on being applied across messages tha
 			`concatenate`: `Join the raw contents of each message into a single binary message.`,
 			`tar`:         `Archive messages to a unix standard tape archive.`,
 			`zip`:         `Archive messages to a zip file.`,
-			`binary`:      `Archive messages to a [binary blob format](https://github.com/benthosdev/benthos/blob/main/internal/message/message.go#L96).`,
+			`binary`:      `Archive messages to a [binary blob format](https://github.com/warpstreamlabs/bento/blob/main/internal/message/message.go#L96).`,
 			`lines`:       `Join the raw contents of each message and insert a line break between each one.`,
 			`json_array`:  `Attempt to parse each message as a JSON document and append the result to an array, which becomes the contents of the resulting message.`,
 		}).Description("The archiving format to apply.")).

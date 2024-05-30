@@ -1,3 +1,3 @@
 // Package serverless contains shared components for serverless distributions of
-// Benthos.
+// Bento.
 package serverless

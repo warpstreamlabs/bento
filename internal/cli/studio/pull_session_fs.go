@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
 )
 
-// Implements ifs.FS around the Benthos Studio node APIs.
+// Implements ifs.FS around the Bento Studio node APIs.
 type sessionFS struct {
 	tracker *sessionTracker
 	backup  ifs.FS

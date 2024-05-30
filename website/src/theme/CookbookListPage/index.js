@@ -61,15 +61,15 @@ function CookbookListPage(props) {
   itemsFiltered = itemsFiltered.slice(0, searchLimit);
 
   return (
-    <Layout title="Cookbooks" description="Benthos Cookbooks">
+    <Layout title="Cookbooks" description="Bento Cookbooks">
       <header className={styles.cookbookListHeader}>
         <div className="container">
           <div className="row">
             <div className="col col--5 col--offset-1">
               <img className={styles.headerImgMobile} src="/img/Blobchef.svg" />
               <div>
-                <h1>Benthos Cookbooks</h1>
-                <p>A collection of guides to walk you through more advanced Benthos applications.</p>
+                <h1>Bento Cookbooks</h1>
+                <p>A collection of guides to walk you through more advanced Bento applications.</p>
               </div>
               <div className="search">
                 <input
@@ -102,7 +102,7 @@ function CookbookListPage(props) {
             </div>}
           {itemsFiltered.length == 0 &&
             <div className="col">
-              <p>Whoops, looks like your search hasn't got any results. If the cookbook you want doesn't exist please <a href="https://github.com/benthosdev/benthos/issues/new">ask for it</a>.</p>
+              <p>Whoops, looks like your search hasn't got any results. If the cookbook you want doesn't exist please <a href="https://github.com/warpstreamlabs/bento/issues/new">ask for it</a>.</p>
             </div>}
         </div>
       </div>

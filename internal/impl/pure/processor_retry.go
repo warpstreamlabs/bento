@@ -8,11 +8,11 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -64,7 +64,7 @@ pipeline:
 `+"```"+`
 `).
 		Example("Stop ignoring me Taz", `
-Here we have a config where I generate animal noises and send them to Taz via HTTP. Taz has a tendency to stop his servers whenever I dispatch my animals upon him, and therefore these HTTP requests sometimes fail. However, I have the retry processor and with this super power I can specify a back off policy and it will ensure that for each animal noise the HTTP processor is attempted until either it succeeds or my Benthos instance is stopped.
+Here we have a config where I generate animal noises and send them to Taz via HTTP. Taz has a tendency to stop his servers whenever I dispatch my animals upon him, and therefore these HTTP requests sometimes fail. However, I have the retry processor and with this super power I can specify a back off policy and it will ensure that for each animal noise the HTTP processor is attempted until either it succeeds or my Bento instance is stopped.
 
 I even go as far as to zero-out the maximum elapsed time field, which means that for each animal noise I will wait indefinitely, because I really really want Taz to receive every single animal noise that he is entitled to.`,
 			`

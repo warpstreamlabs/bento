@@ -3,7 +3,7 @@ package field
 import (
 	"bytes"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // Message is an interface type to be given to a function interpolator, it
@@ -38,7 +38,7 @@ func NewExpression(resolvers ...Resolver) *Expression {
 
 //------------------------------------------------------------------------------
 
-// Expression represents a Benthos dynamic field expression, used to configure
+// Expression represents a Bento dynamic field expression, used to configure
 // string fields where the contents should change based on the contents of
 // messages and other factors.
 //

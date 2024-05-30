@@ -23,7 +23,7 @@ input:
   label: ""
   socket_server:
     network: "" # No default (required)
-    address: /tmp/benthos.sock # No default (required)
+    address: /tmp/bento.sock # No default (required)
     address_cache: "" # No default (optional)
     tls:
       cert_file: "" # No default (optional)
@@ -54,7 +54,7 @@ Type: `string`
 ```yml
 # Examples
 
-address: /tmp/benthos.sock
+address: /tmp/bento.sock
 
 address: 0.0.0.0:6000
 ```

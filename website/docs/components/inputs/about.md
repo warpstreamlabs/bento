@@ -12,9 +12,9 @@ input:
   redis_streams:
     url: tcp://localhost:6379
     streams:
-      - benthos_stream
+      - bento_stream
     body_key: body
-    consumer_group: benthos_group
+    consumer_group: bento_group
 
   # Optional list of processing steps
   processors:
@@ -23,13 +23,13 @@ input:
        root.link_count = this.links.length()
 ```
 
-Some inputs have a logical end, for example a [`csv` input][input.csv] ends once the last row is consumed, when this happens the input gracefully terminates and Benthos will shut itself down once all messages have been processed fully.
+Some inputs have a logical end, for example a [`csv` input][input.csv] ends once the last row is consumed, when this happens the input gracefully terminates and Bento will shut itself down once all messages have been processed fully.
 
 It's also possible to specify a logical end for an input that otherwise doesn't have one with the [`read_until` input][input.read_until], which checks a condition against each consumed message in order to determine whether it should be the last.
 
 ## Brokering
 
-Only one input is configured at the root of a Benthos config. However, the root input can be a [broker][input.broker] which combines multiple inputs and merges the streams:
+Only one input is configured at the root of a Bento config. However, the root input can be a [broker][input.broker] which combines multiple inputs and merges the streams:
 
 ```yaml
 input:
@@ -43,9 +43,9 @@ input:
       - redis_streams:
           url: tcp://localhost:6379
           streams:
-            - benthos_stream
+            - bento_stream
           body_key: body
-          consumer_group: benthos_group
+          consumer_group: bento_group
 ```
 
 ## Labels
@@ -58,7 +58,7 @@ Sometimes it's useful to consume a sequence of inputs, where an input is only co
 
 ## Generating Messages
 
-It's possible to generate data with Benthos using the [`generate` input][input.generate], which is also a convenient way to trigger scheduled pipelines.
+It's possible to generate data with Bento using the [`generate` input][input.generate], which is also a convenient way to trigger scheduled pipelines.
 
 import ComponentsByCategory from '@theme/ComponentsByCategory';
 

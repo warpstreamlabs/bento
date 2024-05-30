@@ -10,9 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/cenkalti/backoff/v4"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/aws/config"
-	"github.com/benthosdev/benthos/v4/internal/retries"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v4/internal/retries"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -50,7 +50,7 @@ func kfoOutputSpec() *service.ConfigSpec {
 		Description(`
 ### Credentials
 
-By default Benthos will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).
+By default Bento will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).
 
 ## Performance
 
@@ -108,7 +108,7 @@ func newKinesisFirehoseWriter(conf kfoConfig, log *service.Logger) (*kinesisFire
 	}, nil
 }
 
-// toRecords converts an individual benthos message into a slice of Kinesis Firehose
+// toRecords converts an individual bento message into a slice of Kinesis Firehose
 // batch put entries by promoting each message part into a single part message
 // and passing each new message through the partition and hash key interpolation
 // process, allowing the user to define the partition and hash key per message

@@ -12,11 +12,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/config/test"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	ifilepath "github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/config/test"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/internal/stream"
 )
 
 // inferStreamID attempts to infer a stream identifier from a file path and
@@ -66,7 +66,7 @@ func (r *Reader) readStreamFileConfig(path string) (conf stream.Config, lints []
 	confSpec := append(docs.FieldSpecs{}, r.specStreamOnly...)
 	confSpec = append(confSpec, test.ConfigSpec())
 
-	if !bytes.HasPrefix(confBytes, []byte("# BENTHOS LINT DISABLE")) {
+	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
 			lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
 		}
@@ -227,7 +227,7 @@ func (r *Reader) TriggerStreamUpdate(mgr bundle.NewManagement, strict bool, path
 		lintlog.Info(lint)
 	}
 	if strict && len(lints) > 0 {
-		mgr.Logger().Error("Rejecting updated stream %v config due to linter errors, to allow linting errors run Benthos with --chilled.", info.id)
+		mgr.Logger().Error("Rejecting updated stream %v config due to linter errors, to allow linting errors run Bento with --chilled.", info.id)
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
 	}
 

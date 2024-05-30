@@ -1,6 +1,6 @@
 ---
 title: Templating
-description: Learn how Benthos templates work.
+description: Learn how Bento templates work.
 ---
 
 <!--
@@ -14,15 +14,15 @@ description: Learn how Benthos templates work.
 Templates are an experimental feature and therefore subject to change outside of major version releases.
 :::
 
-Templates are a way to define new Benthos components (similar to plugins) that are implemented by generating a Benthos config snippet from pre-defined parameter fields. This is useful when a common pattern of Benthos configuration is used but with varying parameters each time.
+Templates are a way to define new Bento components (similar to plugins) that are implemented by generating a Bento config snippet from pre-defined parameter fields. This is useful when a common pattern of Bento configuration is used but with varying parameters each time.
 
-A template is defined in a YAML file that can be imported when Benthos runs using the flag `-t`:
+A template is defined in a YAML file that can be imported when Bento runs using the flag `-t`:
 
 ```sh
-benthos -t "./templates/*.yaml" -c ./config.yaml
+bento -t "./templates/*.yaml" -c ./config.yaml
 ```
 
-The template describes the type of the component and configuration fields that can be used to customize it, followed by a [Bloblang mapping][bloblang.about] that translates an object containing those fields into a benthos config structure. This allows you to use logic to generate more complex configurations:
+The template describes the type of the component and configuration fields that can be used to customize it, followed by a [Bloblang mapping][bloblang.about] that translates an object containing those fields into a bento config structure. This allows you to use logic to generate more complex configurations:
 
 import Tabs from '@theme/Tabs';
 
@@ -101,7 +101,7 @@ pipeline:
 
 </Tabs>
 
-You can see more examples of templates at [https://github.com/benthosdev/benthos/tree/main/config/template_examples](https://github.com/benthosdev/benthos/tree/main/config/template_examples).
+You can see more examples of templates at [https://github.com/warpstreamlabs/bento/tree/main/config/template_examples](https://github.com/warpstreamlabs/bento/tree/main/config/template_examples).
 
 ## Fields
 

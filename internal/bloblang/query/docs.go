@@ -90,7 +90,7 @@ type FunctionSpec struct {
 	// environment, and is therefore unsafe to execute in shared environments.
 	Impure bool `json:"impure"`
 
-	// Version is the Benthos version this component was introduced.
+	// Version is the Bento version this component was introduced.
 	Version string `json:"version,omitempty"`
 }
 
@@ -118,7 +118,7 @@ func (s FunctionSpec) Beta() FunctionSpec {
 	return s
 }
 
-// AtVersion sets the Benthos version this component was introduced.
+// AtVersion sets the Bento version this component was introduced.
 func (s FunctionSpec) AtVersion(v string) FunctionSpec {
 	s.Version = v
 	return s
@@ -208,7 +208,7 @@ type MethodSpec struct {
 	// environment, and is therefore unsafe to execute in shared environments.
 	Impure bool `json:"impure"`
 
-	// Version is the Benthos version this component was introduced.
+	// Version is the Bento version this component was introduced.
 	Version string `json:"version,omitempty"`
 }
 
@@ -256,7 +256,7 @@ func (m MethodSpec) Beta() MethodSpec {
 	return m
 }
 
-// AtVersion sets the Benthos version this component was introduced.
+// AtVersion sets the Bento version this component was introduced.
 func (m MethodSpec) AtVersion(v string) MethodSpec {
 	m.Version = v
 	return m

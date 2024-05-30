@@ -9,7 +9,7 @@ title: HTTP
      internal/api/docs.md
 -->
 
-When Benthos runs it kicks off an HTTP server that provides a few generally useful endpoints and is also where configured components such as the [`http_server` input][inputs.http_server] [and output][outputs.http_server] can register their own endpoints if they don't require their own host/port.
+When Bento runs it kicks off an HTTP server that provides a few generally useful endpoints and is also where configured components such as the [`http_server` input][inputs.http_server] [and output][outputs.http_server] can register their own endpoints if they don't require their own host/port.
 
 The configuration for this server lives under the `http` namespace, with the following default values:
 
@@ -53,16 +53,16 @@ The field `root_path` specifies a general prefix for all endpoints, this can hel
 
 ## Enabling HTTPS
 
-By default Benthos will serve traffic over HTTP. In order to enforce TLS and serve traffic exclusively over HTTPS you must provide a `cert_file` and `key_file` path in your config, which point to a file containing a certificate and a matching private key for the server respectively.
+By default Bento will serve traffic over HTTP. In order to enforce TLS and serve traffic exclusively over HTTPS you must provide a `cert_file` and `key_file` path in your config, which point to a file containing a certificate and a matching private key for the server respectively.
 
 If the certificate is signed by a certificate authority, the `cert_file` should be the concatenation of the server's certificate, any intermediates, and the CA's certificate.
 
 ## Enabling Basic Authentication
 
-By default Benthos does not do any sort of authentication for the service-wide HTTP server. However, it's possible to configure basic authentication with the [`basic_auth`](#basic_auth) field. Passwords configured must be hashed according to the specified algorithm and base64 encoded, for some hashing algorithms you can do this using Benthos itself:
+By default Bento does not do any sort of authentication for the service-wide HTTP server. However, it's possible to configure basic authentication with the [`basic_auth`](#basic_auth) field. Passwords configured must be hashed according to the specified algorithm and base64 encoded, for some hashing algorithms you can do this using Bento itself:
 
 ```sh
-echo mynewpassword | benthos blobl 'root = content().hash("sha256").encode("base64")'
+echo mynewpassword | bento blobl 'root = content().hash("sha256").encode("base64")'
 ```
 
 ## Endpoints
@@ -85,7 +85,7 @@ A list of allowed origins to connect from. The literal value `*` can be specifie
 
 ## Debug Endpoints
 
-The field `debug_endpoints` when set to `true` prompts Benthos to register a few extra endpoints that can be useful for debugging performance or behavioral problems:
+The field `debug_endpoints` when set to `true` prompts Bento to register a few extra endpoints that can be useful for debugging performance or behavioral problems:
 
 - `/debug/config/json` returns the loaded config as JSON.
 - `/debug/config/yaml` returns the loaded config as YAML.

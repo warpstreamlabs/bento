@@ -44,7 +44,7 @@ output:
           - mapping: 'root = content().uppercase()'
 ```
 
-Using the above example and posting the message 'hello world' to the endpoint `/post` Benthos would send it unchanged to the topic `foo_topic` and also respond with 'HELLO WORLD'.
+Using the above example and posting the message 'hello world' to the endpoint `/post` Bento would send it unchanged to the topic `foo_topic` and also respond with 'HELLO WORLD'.
 
 For more information please read [Synchronous Responses](/docs/guides/sync_responses).
 

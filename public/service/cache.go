@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
 )
 
 // Errors returned by cache types.
@@ -16,7 +16,7 @@ var (
 	ErrKeyNotFound      = errors.New("key does not exist")
 )
 
-// Cache is an interface implemented by Benthos caches.
+// Cache is an interface implemented by Bento caches.
 type Cache interface {
 	// Get a cache item.
 	Get(ctx context.Context, key string) ([]byte, error)

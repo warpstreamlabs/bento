@@ -1,11 +1,11 @@
 package stream
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/component/buffer"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/pipeline"
+	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/pipeline"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 	fieldOutput   = "output"
 )
 
-// Config is a configuration struct representing all four layers of a Benthos
+// Config is a configuration struct representing all four layers of a Bento
 // stream.
 type Config struct {
 	Input    input.Config    `yaml:"input"`

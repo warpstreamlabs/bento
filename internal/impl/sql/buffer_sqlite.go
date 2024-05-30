@@ -14,7 +14,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 // SQLiteBufferConfig returns a config spec for an SQLite buffer.
@@ -24,7 +24,7 @@ func SQLiteBufferConfig() *service.ConfigSpec {
 		Categories("Utility").
 		Summary("Stores messages in an SQLite database and acknowledges them at the input level.").
 		Description(`
-Stored messages are then consumed as a stream from the database and deleted only once they are successfully sent at the output level. If the service is restarted Benthos will make a best attempt to finish delivering messages that are already read from the database, and when it starts again it will consume from the oldest message that has not yet been delivered.
+Stored messages are then consumed as a stream from the database and deleted only once they are successfully sent at the output level. If the service is restarted Bento will make a best attempt to finish delivering messages that are already read from the database, and when it starts again it will consume from the oldest message that has not yet been delivered.
 
 ## Delivery Guarantees
 

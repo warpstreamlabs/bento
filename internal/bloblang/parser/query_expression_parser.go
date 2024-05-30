@@ -3,8 +3,8 @@ package parser
 import (
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 func matchCaseParser(pCtx Context) Func[query.MatchCase] {

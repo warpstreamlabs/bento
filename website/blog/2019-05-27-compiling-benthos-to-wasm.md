@@ -1,5 +1,5 @@
 ﻿---
-title: "Compiling Benthos to Web Assembly"
+title: "Compiling Bento to Web Assembly"
 author: "Ashley Jeffs"
 author_url: https://github.com/Jeffail
 author_image_url: /img/ash.jpg
@@ -12,12 +12,12 @@ keywords: [
 	"wasm",
 	"gowasm",
 ]
-tags: [ "Benthos Lab" ]
+tags: [ "Bento Lab" ]
 ---
 
 Web assembly won't fix seasons 7 and 8, but it's still pretty cool. At a
 [Meltwater hackathon](https://underthehood.meltwater.com/blog/2019/06/17/benthos-lab-a-case-study-of-hackathon-innovation/) I had a project in mind (details soon to
-follow) that would benefit hugely from Benthos running directly in the browser.
+follow) that would benefit hugely from Bento running directly in the browser.
 I therefore set out to compile it in wasm, this is my short and sweet journey.
 
 <!--truncate-->
@@ -35,7 +35,7 @@ package main
 import (
 	"syscall/js"
 
-	"github.com/Jeffail/benthos/lib/config"
+	"github.com/warpstreamlabs/bento/lib/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -69,7 +69,7 @@ And compiled it:
 GOOS=js GOARCH=wasm go build -o main.wasm
 ```
 
-I was pretty sure that this would be the end of the road for me. Benthos uses a
+I was pretty sure that this would be the end of the road for me. Bento uses a
 vast swathe of dependencies for its various connectors and so I was sure that I
 would be immobilised with errors. However, to my surprise there were only three
 (formatted for brevity):
@@ -169,8 +169,8 @@ to completion without rushing the conclusion. Yes, I'm still bitter about Game
 of Thrones.
 
 [meltwater]: https://underthehood.meltwater.com/blog/2019/06/17/benthos-lab-a-case-study-of-hackathon-innovation/
-[Benthos]: https://www.benthos.dev/
+[Bento]: https://www.benthos.dev/
 [wasm-go-wiki]: https://github.com/golang/go/wiki/WebAssembly
 [syscall-js-func]: https://godoc.org/syscall/js#Func
 [go-build-constraint]: https://golang.org/pkg/go/build/#hdr-Build_Constraints
-[wasm-commit]: https://github.com/Jeffail/benthos/commit/9903b3d5d8519fcf7ecbce94c336e7f054a75942#diff-146b6fd87106d7f70f56facf7b1e7d98
+[wasm-commit]: https://github.com/warpstreamlabs/bento/commit/9903b3d5d8519fcf7ecbce94c336e7f054a75942#diff-146b6fd87106d7f70f56facf7b1e7d98

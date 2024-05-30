@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
-// Processor is a Benthos processor implementation that works against single
+// Processor is a Bento processor implementation that works against single
 // messages.
 type Processor interface {
 	// Process a message into one or more resulting messages, or return an error
@@ -30,7 +30,7 @@ type Processor interface {
 
 //------------------------------------------------------------------------------
 
-// BatchProcessor is a Benthos processor implementation that works against
+// BatchProcessor is a Bento processor implementation that works against
 // batches of messages, which allows windowed processing.
 //
 // Message batches must be created by upstream components (inputs, buffers, etc)

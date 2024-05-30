@@ -2,16 +2,16 @@
 title: Streams Via REST API
 ---
 
-By using the Benthos `streams` mode REST API you can dynamically control which streams are active at runtime. The full spec for the Benthos streams mode REST API can be [found here][http-interface].
+By using the Bento `streams` mode REST API you can dynamically control which streams are active at runtime. The full spec for the Bento streams mode REST API can be [found here][http-interface].
 
 Note that stream configs created and updated using this API do *not* benefit from [environment variable interpolation][interpolation] (function interpolation will still work).
 
 ## Walkthrough
 
-Start by running Benthos in streams mode:
+Start by running Bento in streams mode:
 
 ```bash
-$ benthos streams
+$ bento streams
 ```
 
 On a separate terminal we can add our first stream `foo` by `POST`ing a JSON or YAML config to the `/streams/foo` endpoint:

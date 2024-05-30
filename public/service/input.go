@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/input/batcher"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input/batcher"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // AckFunc is a common function returned by inputs that must be called once for
@@ -19,7 +19,7 @@ import (
 // to get automatic retries.
 type AckFunc func(ctx context.Context, err error) error
 
-// Input is an interface implemented by Benthos inputs. Calls to Read should
+// Input is an interface implemented by Bento inputs. Calls to Read should
 // block until either a message has been received, the connection is lost, or
 // the provided context is cancelled.
 type Input interface {
@@ -55,7 +55,7 @@ type Input interface {
 
 //------------------------------------------------------------------------------
 
-// BatchInput is an interface implemented by Benthos inputs that produce
+// BatchInput is an interface implemented by Bento inputs that produce
 // messages in batches, where there is a desire to process and send the batch as
 // a logical group rather than as individual messages.
 //

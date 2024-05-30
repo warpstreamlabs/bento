@@ -5,7 +5,7 @@ import (
 	"cuelang.org/go/cue/format"
 
 	// Populating default environment in order to walk it and generate Cue types.
-	"github.com/benthosdev/benthos/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
 )
 
 // GenerateSchema generates a Cue schema which includes definitions for the
@@ -14,7 +14,7 @@ func GenerateSchema(sch schema.Full) ([]byte, error) {
 	root := &ast.File{
 		Decls: []ast.Decl{
 			&ast.Package{
-				Name: ast.NewIdent("benthos"),
+				Name: ast.NewIdent("bento"),
 			},
 		},
 	}

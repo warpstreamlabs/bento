@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegrationPulsar(t *testing.T) {
@@ -41,7 +41,7 @@ func TestIntegrationPulsar(t *testing.T) {
 			return err
 		}
 		prod, err := client.CreateProducer(pulsar.ProducerOptions{
-			Topic: "benthos-connection-test",
+			Topic: "bento-connection-test",
 		})
 		if err == nil {
 			prod.Close()

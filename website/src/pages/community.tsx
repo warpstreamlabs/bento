@@ -30,7 +30,7 @@ function Community() {
                   <i className={classnames(styles.icon, styles.discord)}></i>
                 </div>
                 <div className="card__body">
-                  <p>Join the official Benthos discord server</p>
+                  <p>Join the official Bento discord server</p>
                 </div>
                 <div className="card__footer">
                   <Link to="https://discord.gg/6VaWjzP" className="button button--outline button--primary button--block">Join</Link>
@@ -78,7 +78,7 @@ function Community() {
                   <p>For sensitive or security related queries pop us an email</p>
                 </div>
                 <div className="card__footer">
-                  <Link to="mailto:hello@benthos.dev" className="button button--outline button--primary button--block">hello&#64;benthos.dev</Link>
+                  <Link to="mailto:security@warpstreamlabs.com" className="button button--outline button--primary button--block">hello&#64;warpstreamlabs.com</Link>
                 </div>
               </div>
             </div>

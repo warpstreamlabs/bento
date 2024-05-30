@@ -1,10 +1,10 @@
 package bundle
 
 import (
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
-// Environment is a collection of Benthos component plugins that can be used in
+// Environment is a collection of Bento component plugins that can be used in
 // order to build and run streaming pipelines with access to different sets of
 // plugins. This is useful for sandboxing, testing, etc.
 type Environment struct {

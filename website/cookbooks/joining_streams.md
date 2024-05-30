@@ -73,7 +73,7 @@ input:
   kafka:
     addresses: [ TODO ]
     topics: [ articles ]
-    consumer_group: benthos_articles_group
+    consumer_group: bento_articles_group
 
 pipeline:
   processors:
@@ -109,7 +109,7 @@ input:
   kafka:
     addresses: [ TODO ]
     topics: [ comments ]
-    consumer_group: benthos_comments_group
+    consumer_group: bento_comments_group
 
 pipeline:
   processors:
@@ -158,7 +158,7 @@ cache_resources:
 
 This pipeline satisfies our basic needs but errors aren't handled at all, meaning intermittent cache connectivity problems that span beyond our cache retries will result in failed documents entering our `comments_hydrated` topic. This is also the case if a comment arrives in our pipeline before its parent.
 
-There are [many patterns for error handling][error-handling] to choose from in Benthos. In this example we're going to introduce a delayed retry queue as it enables us to reprocess failed documents after a grace period, which is isolated from our main pipeline.
+There are [many patterns for error handling][error-handling] to choose from in Bento. In this example we're going to introduce a delayed retry queue as it enables us to reprocess failed documents after a grace period, which is isolated from our main pipeline.
 
 ## Adding a Retry Queue
 
@@ -175,12 +175,12 @@ input:
       - kafka:
           addresses: [ TODO ]
           topics: [ comments ]
-          consumer_group: benthos_comments_group
+          consumer_group: bento_comments_group
 
       - kafka:
           addresses: [ TODO ]
           topics: [ comments_retry ]
-          consumer_group: benthos_comments_group
+          consumer_group: bento_comments_group
 
         processors:
           - for_each:
@@ -225,7 +225,7 @@ cache_resources:
       default_ttl: 168h
 ```
 
-You can find a full example [in the project repo][full-example], and with this config we can deploy as many instances of Benthos as we need as the partitions will be balanced across the consumers.
+You can find a full example [in the project repo][full-example], and with this config we can deploy as many instances of Bento as we need as the partitions will be balanced across the consumers.
 
 [caches]: /docs/components/caches/about
 [inputs]: /docs/components/inputs/about
@@ -233,4 +233,4 @@ You can find a full example [in the project repo][full-example], and with this c
 [outputs]: /docs/components/outputs/about
 [error-handling]: /docs/configuration/error_handling
 [processor.branch]: /docs/components/processors/branch
-[full-example]: https://github.com/benthosdev/benthos/blob/master/config/examples/joining_streams.yaml
+[full-example]: https://github.com/warpstreamlabs/bento/blob/master/config/examples/joining_streams.yaml

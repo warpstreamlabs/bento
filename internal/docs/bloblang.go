@@ -1,7 +1,7 @@
 package docs
 
 import (
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 // LintBloblangMapping is function for linting a config field expected to be a

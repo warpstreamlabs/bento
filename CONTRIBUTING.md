@@ -1,7 +1,7 @@
-Contributing to Benthos
+Contributing to Bento
 =======================
 
-Joining Club Blob by contributing to the Benthos project is a selfless, boring and occasionally painful act. As such any contributors to this project will be treated with the respect and compassion that they deserve.
+Joining Club Blob by contributing to the Bento project is a selfless, boring and occasionally painful act. As such any contributors to this project will be treated with the respect and compassion that they deserve.
 
 Please be dull, please be respecting of others and their efforts, please do not take criticism or rejection of your ideas personally.
 
@@ -15,9 +15,9 @@ If you find a bug then please let the project know by opening an issue after doi
 
 ## Suggesting Enhancements
 
-Having even the most casual interest in Benthos gives you honorary membership of Club Blob, entitling you to give a reserved (and hypothetical) tickle of the projects' toes in order to steer it in the direction of your whim.
+Having even the most casual interest in Bento gives you honorary membership of Club Blob, entitling you to give a reserved (and hypothetical) tickle of the projects' toes in order to steer it in the direction of your whim.
 
-Please don't abuse this entitlement, the poor blobfish can only gobble so many features before it starts to droop beyond repair. Enhancements should roughly follow the general goals of Benthos and be:
+Please don't abuse this entitlement, the poor blobfish can only gobble so many features before it starts to droop beyond repair. Enhancements should roughly follow the general goals of Bento and be:
 
 - Common use cases
 - Simple to understand
@@ -49,6 +49,6 @@ The APIs for adding new components (inputs, outputs, processors, caches, etc) ha
 
 ### Plugins
 
-The core components within Benthos (inputs, processors, conditions and outputs) are all easily pluggable. If you are interested in adding new components please raise a ticket and we can discuss whether it's a good fit for the project.
+The core components within Bento (inputs, processors, conditions and outputs) are all easily pluggable. If you are interested in adding new components please raise a ticket and we can discuss whether it's a good fit for the project.
 
-If not then it's still easy to build your own version of Benthos with custom components. For guidance take a look at [this example repo](https://github.com/benthosdev/benthos-plugin-example).
+If not then it's still easy to build your own version of Bento with custom components. For guidance take a look at [this example repo](https://github.com/warpstreamlabs/bento-plugin-example).

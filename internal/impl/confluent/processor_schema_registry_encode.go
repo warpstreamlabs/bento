@@ -14,7 +14,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func schemaRegistryEncoderConfig() *service.ConfigSpec {
@@ -47,15 +47,15 @@ However, it is possible to instead consume documents in [standard/raw JSON forma
 
 #### Known Issues
 
-Important! There is an outstanding issue in the [avro serializing library](https://github.com/linkedin/goavro) that benthos uses which means it [doesn't encode logical types correctly](https://github.com/linkedin/goavro/issues/252). It's still possible to encode logical types that are in-line with the spec if ` + "`avro_raw_json` is set to true" + `, though now of course non-logical types will not be in-line with the spec.
+Important! There is an outstanding issue in the [avro serializing library](https://github.com/linkedin/goavro) that bento uses which means it [doesn't encode logical types correctly](https://github.com/linkedin/goavro/issues/252). It's still possible to encode logical types that are in-line with the spec if ` + "`avro_raw_json` is set to true" + `, though now of course non-logical types will not be in-line with the spec.
 
 ### Protobuf Format
 
-This processor encodes protobuf messages either from any format parsed within Benthos (encoded as JSON by default), or from raw JSON documents, you can read more about JSON mapping of protobuf messages here: https://developers.google.com/protocol-buffers/docs/proto3#json
+This processor encodes protobuf messages either from any format parsed within Bento (encoded as JSON by default), or from raw JSON documents, you can read more about JSON mapping of protobuf messages here: https://developers.google.com/protocol-buffers/docs/proto3#json
 
 #### Multiple Message Support
 
-When a target subject presents a protobuf schema that contains multiple messages it becomes ambiguous which message definition a given input data should be encoded against. In such scenarios Benthos will attempt to encode the data against each of them and select the first to successfully match against the data, this process currently *ignores all nested message definitions*. In order to speed up this exhaustive search the last known successful message will be attempted first for each subsequent input.
+When a target subject presents a protobuf schema that contains multiple messages it becomes ambiguous which message definition a given input data should be encoded against. In such scenarios Bento will attempt to encode the data against each of them and select the first to successfully match against the data, this process currently *ignores all nested message definitions*. In order to speed up this exhaustive search the last known successful message will be attempted first for each subsequent input.
 
 We will be considering alternative approaches in future so please [get in touch](/community) with thoughts and feedback.
 `).

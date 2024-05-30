@@ -71,7 +71,7 @@ With the following JSONSchema document:
 }
 ```
 
-And the following Benthos configuration:
+And the following Bento configuration:
 
 ```yaml
 pipeline:

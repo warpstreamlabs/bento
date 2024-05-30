@@ -11,12 +11,12 @@ function Videos() {
   return (
     <Layout
       title={`${siteConfig.title} Videos`}
-      description="A collection of Benthos videos">
+      description="A collection of Bento videos">
       <header>
         <div className="container">
           <div className="row">
             <div className={classnames('col col--6 col--offset-3')}>
-              <h1 className={styles.videosTitle}>Benthos Videos</h1>
+              <h1 className={styles.videosTitle}>Bento Videos</h1>
               <p>All videos are rated U for Underwhelming. If you'd rather access these videos directly from YouTube you can find them on <a href="https://www.youtube.com/channel/UCjIYEhBrw3GQwpRWe1asufg">the Jeffail channel</a>.</p>
             </div>
           </div>
@@ -27,7 +27,7 @@ function Videos() {
           <div className="row margin-bottom--lg">
             <div className="col col--8 col--offset-2">
               <h2>Tutorials</h2>
-              <p>This playlist contains tutorial videos covering various aspects of Benthos use.</p>
+              <p>This playlist contains tutorial videos covering various aspects of Bento use.</p>
             </div>
             <ReactPlayer
               className={classnames('col col--8 col--offset-2')}

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func TestAvroBasic(t *testing.T) {
@@ -105,7 +105,7 @@ func TestAvroSchemaPath(t *testing.T) {
 	]
 }`
 
-	tmpSchemaFile, err := os.CreateTemp("", "benthos_avro_test")
+	tmpSchemaFile, err := os.CreateTemp("", "bento_avro_test")
 	require.NoError(t, err)
 
 	defer os.Remove(tmpSchemaFile.Name())

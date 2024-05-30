@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// Stoppable represents a resource (a Benthos stream) that can be stopped.
+// Stoppable represents a resource (a Bento stream) that can be stopped.
 type Stoppable interface {
 	Stop(ctx context.Context) error
 }

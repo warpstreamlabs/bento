@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    if: ${{ github.repository == 'benthosdev/benthos' || github.event_name != 'schedule' }}
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: 0
@@ -35,7 +35,7 @@ jobs:
       run: make test
 
   golangci-lint:
-    if: ${{ github.repository == 'benthosdev/benthos' || github.event_name != 'schedule' }}
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: 0

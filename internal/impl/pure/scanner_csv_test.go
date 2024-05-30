@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/benthosdev/benthos/v4/internal/component/scanner/testutil"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/component/scanner/testutil"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func TestCSVScannerDefault(t *testing.T) {

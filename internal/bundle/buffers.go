@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/internal/component/buffer"
-	"github.com/benthosdev/benthos/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
 )
 
 // AllBuffers is a set containing every single buffer that has been imported.
@@ -42,7 +42,7 @@ type bufferSpec struct {
 	spec        docs.ComponentSpec
 }
 
-// BufferSet contains an explicit set of buffers available to a Benthos service.
+// BufferSet contains an explicit set of buffers available to a Bento service.
 type BufferSet struct {
 	specs map[string]bufferSpec
 }

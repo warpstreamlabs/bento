@@ -2,11 +2,11 @@
 title: Secrets
 ---
 
-I sometimes like to fill my mouth with acorns and pretend I am a rodent, free of the burdens of humanity. That was a secret of mine and, similarly to secrets within your software, it's best not to share them publicly lest they become disturbing publications instead. This document outlines how to add secrets to a Benthos config without persisting them, and we won't mention acorns again.
+I sometimes like to fill my mouth with acorns and pretend I am a rodent, free of the burdens of humanity. That was a secret of mine and, similarly to secrets within your software, it's best not to share them publicly lest they become disturbing publications instead. This document outlines how to add secrets to a Bento config without persisting them, and we won't mention acorns again.
 
 ## Using Environment Variables
 
-One of the most prolific approaches to providing secrets to a service is via environment variables. Benthos allows you to inject the values of environment variables into a configuration with the interpolation syntax `${FOO}`, within a config it looks like this:
+One of the most prolific approaches to providing secrets to a service is via environment variables. Bento allows you to inject the values of environment variables into a configuration with the interpolation syntax `${FOO}`, within a config it looks like this:
 
 ```yml
 thing:
@@ -31,7 +31,7 @@ thing:
 And we wanted to set the value of `super_secret` to a value stored within something like Hashicorp Vault we could run the config using the `--set` flag with backticks to execute a shell command for the value:
 
 ```sh
-benthos -c ./config.yaml \
+bento -c ./config.yaml \
   --set "thing.super_secret=`vault kv get -mount=secret thing_secret`"
 ```
 
@@ -39,9 +39,9 @@ Using this method we can inject the secret into the config without "leaking" it 
 
 ## Avoiding Leaked Secrets
 
-There are a few ways in which configs parsed by Benthos can be exported back out of the service. In all of these cases Benthos will attempt to scrub any field values within the config that are known secrets (any field marked as a secret in the docs).
+There are a few ways in which configs parsed by Bento can be exported back out of the service. In all of these cases Bento will attempt to scrub any field values within the config that are known secrets (any field marked as a secret in the docs).
 
-However, if you're embedding secrets within a config outside of the value of secret fields, maybe as part of a Bloblang mapping, then care should be made to avoid exposing the resulting config. This specifically means you should not enable [debug HTTP endpoints][http.debug] when the port is exposed, and don't use the `benthos echo` subcommand on configs containing secrets unless you're printing to a secure pipe.
+However, if you're embedding secrets within a config outside of the value of secret fields, maybe as part of a Bloblang mapping, then care should be made to avoid exposing the resulting config. This specifically means you should not enable [debug HTTP endpoints][http.debug] when the port is exposed, and don't use the `bento echo` subcommand on configs containing secrets unless you're printing to a secure pipe.
 
 [interpolation]: /docs/configuration/interpolation
 [field_paths]: /docs/configuration/field_paths

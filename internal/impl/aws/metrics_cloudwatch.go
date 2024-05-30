@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
-	"github.com/benthosdev/benthos/v4/internal/impl/aws/config"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -64,7 +64,7 @@ metrics:
 		Fields(
 			service.NewStringField(cwmFieldNamespace).
 				Description("The namespace used to distinguish metrics from other services.").
-				Default("Benthos"),
+				Default("Bento"),
 			service.NewDurationField(cwmFieldFlushPeriod).
 				Description("The period of time between PutMetricData requests.").
 				Advanced().

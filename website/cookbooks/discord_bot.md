@@ -1,10 +1,10 @@
 ---
 slug: discord-bot
 title: Create a Discord Bot
-description: Learn how to use Benthos to create a vanity chat bot.
+description: Learn how to use Bento to create a vanity chat bot.
 ---
 
-Stream processing is stupid and boring, and so it's important to re-purpose tools like Benthos for fun things occasionally. This cookbook outlines how Benthos can be used to create a Discord bot for important tasks such as providing insults and bad jokes to your chat. If you're a member of the [Benthos Discord server][discord-link] then you're likely already familiar with Blob Bot which is the resulting product.
+Stream processing is stupid and boring, and so it's important to re-purpose tools like Bento for fun things occasionally. This cookbook outlines how Bento can be used to create a Discord bot for important tasks such as providing insults and bad jokes to your chat. If you're a member of the [Bento Discord server][discord-link] then you're likely already familiar with Blob Bot which is the resulting product.
 
 import ReactPlayer from 'react-player/youtube';
 
@@ -21,7 +21,7 @@ import ReactPlayer from 'react-player/youtube';
 
 ## Consuming Messages
 
-Before you start messing with Benthos you need to register a new bot with the [Discord Developer Portal][discord-applications]. Start by building an Application, then use the build-a-bot page to choose a bot name and avatar. You should end up with a token generated for the bot, and you'll also need to add it to your server.
+Before you start messing with Bento you need to register a new bot with the [Discord Developer Portal][discord-applications]. Start by building an Application, then use the build-a-bot page to choose a bot name and avatar. You should end up with a token generated for the bot, and you'll also need to add it to your server.
 
 As soon as your bot is added to your server and you have a token you can immediately begin consuming messages from a channel with the [`discord` input][inputs.discord]:
 
@@ -47,7 +47,7 @@ The `limit` is the maximum number of messages to consume from the channel when w
 If you were to run this config (setting the channel and bot token as env vars in a file called `testing.env`) you'll see it print messages from the channel to stdout in JSON form:
 
 ```sh
-$ benthos -e testing.env -c ./config.yaml
+$ bento -e testing.env -c ./config.yaml
 {"content":"so i like totally just tripped over my own network cables","author":{"id":"1234"}}
 {"content":"like omg that is SO you!!!","author":{"id":"4321"}}
 {"content":"yas totally","author":{"id":"1234"}}
@@ -140,7 +140,7 @@ The second new command is "/roast" and is exclusively for brave souls as the res
 
 Clicking websites and browsing the internet is very difficult and most people are simply too busy for it, it'd therefore be useful if we could have our bot do some browsing for us occasionally.
 
-The final command we're going to add to our bot is "/release", where it will hit the Github API and find out for us what the latest Benthos release is:
+The final command we're going to add to our bot is "/release", where it will hit the Github API and find out for us what the latest Bento release is:
 
 ```yaml
 pipeline:
@@ -152,9 +152,9 @@ pipeline:
             - mapping: 'root = ""'
             - try:
               - http:
-                  url: https://api.github.com/repos/benthosdev/benthos/releases/latest
+                  url: https://api.github.com/repos/warpstreamlabs/bento/releases/latest
                   verb: GET
-              - mapping: 'root = "The latest release of Benthos is %v: %v".format(this.tag_name, this.html_url)'
+              - mapping: 'root = "The latest release of Bento is %v: %v".format(this.tag_name, this.html_url)'
 
     - catch:
       - log:
@@ -163,7 +163,7 @@ pipeline:
       - mapping: 'root = "Sorry, my circuits are all bent from twerking and I must have malfunctioned."'
 ```
 
-Here we've added a switch case that clears the contents of the message, hits the Github API to obtain the latest Benthos release as a JSON object, and finally maps the tag name and the URL of the release to a useful message.
+Here we've added a switch case that clears the contents of the message, hits the Github API to obtain the latest Bento release as a JSON object, and finally maps the tag name and the URL of the release to a useful message.
 
 > We're hitting the Github API with the [generic `http` processor][processors.http], which can be configured to work with most HTTP based APIs. In fact, the Discord input and output are actually [configuration templates][templates] that use the generic HTTP components [under the hood][templates.discord].
 
@@ -187,7 +187,7 @@ If you want to play with Blob Bot then [join our Discord][discord-link]. There a
 [processors.switch]: /docs/components/processors/switch
 [processors.http]: /docs/components/processors/http
 [bloblang]: /docs/guides/bloblang/about
-[full-config]: https://github.com/benthosdev/benthos/blob/master/config/examples/discord_bot.yaml
+[full-config]: https://github.com/warpstreamlabs/bento/blob/master/config/examples/discord_bot.yaml
 [error-handling]: /docs/configuration/error_handling
 [templates]: /docs/configuration/templating
-[templates.discord]: https://github.com/benthosdev/benthos/blob/master/template/outputs/discord.yaml
+[templates.discord]: https://github.com/warpstreamlabs/bento/blob/master/template/outputs/discord.yaml

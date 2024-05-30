@@ -6,28 +6,28 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	ibloblang "github.com/benthosdev/benthos/v4/internal/bloblang"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/buffer"
-	"github.com/benthosdev/benthos/v4/internal/component/cache"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	iprocessors "github.com/benthosdev/benthos/v4/internal/component/input/processors"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/output/batcher"
-	oprocessors "github.com/benthosdev/benthos/v4/internal/component/output/processors"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/component/ratelimit"
-	"github.com/benthosdev/benthos/v4/internal/component/scanner"
-	"github.com/benthosdev/benthos/v4/internal/component/tracer"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/template"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	ibloblang "github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	iprocessors "github.com/warpstreamlabs/bento/v4/internal/component/input/processors"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output/batcher"
+	oprocessors "github.com/warpstreamlabs/bento/v4/internal/component/output/processors"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v4/internal/component/scanner"
+	"github.com/warpstreamlabs/bento/v4/internal/component/tracer"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/template"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
-// Environment is a collection of Benthos component plugins that can be used in
+// Environment is a collection of Bento component plugins that can be used in
 // order to build and run streaming pipelines with access to different sets of
 // plugins. This can be useful for sandboxing, testing, etc, but most plugin
 // authors do not need to create an Environment and can simply use the global
@@ -84,7 +84,7 @@ func (e *Environment) UseBloblangEnvironment(bEnv *bloblang.Environment) {
 
 // UseFS configures the service environment to use an instantiation of *FS as
 // its filesystem. This provides extra control over the file access of all
-// Benthos components within the stream. However, this functionality is opt-in
+// Bento components within the stream. However, this functionality is opt-in
 // and there is no guarantee that plugin implementations will use this method
 // of file access.
 //
@@ -678,7 +678,7 @@ func (e *Environment) RegisterTemplateYAML(yamlStr string) error {
 	return template.RegisterTemplateYAML(e.internal, []byte(yamlStr))
 }
 
-// XFormatConfigJSON returns a byte slice of the Benthos configuration spec
+// XFormatConfigJSON returns a byte slice of the Bento configuration spec
 // formatted as a JSON object. The schema of this method is undocumented and is
 // not intended for general use.
 //

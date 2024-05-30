@@ -11,13 +11,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/mapping"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/parser"
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 var red = color.New(color.FgRed).SprintFunc()
@@ -30,9 +30,9 @@ func CliCommand() *cli.Command {
 		Description: `
 Provides a convenient tool for mapping JSON documents over the command line:
 
-  cat documents.jsonl | benthos blobl 'foo.bar.map_each(this.uppercase())'
+  cat documents.jsonl | bento blobl 'foo.bar.map_each(this.uppercase())'
 
-  echo '{"foo":"bar"}' | benthos blobl -f ./mapping.blobl
+  echo '{"foo":"bar"}' | bento blobl -f ./mapping.blobl
 
 Find out more about Bloblang at: https://benthos.dev/docs/guides/bloblang/about`[1:],
 		Flags: []cli.Flag{

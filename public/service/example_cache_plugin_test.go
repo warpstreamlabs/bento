@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only pure Benthos components, switch with `components/all` for all
+	// Import only pure Bento components, switch with `components/all` for all
 	// standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 // LossyCache is a terrible cache example and silently drops items when the
@@ -60,7 +60,7 @@ func (l *LossyCache) Close(ctx context.Context) error {
 
 // This example demonstrates how to create a cache plugin, where the
 // implementation of the cache (type `LossyCache`) also contains fields that
-// should be parsed within the Benthos config.
+// should be parsed within the Bento config.
 func Example_cachePlugin() {
 	configSpec := service.NewConfigSpec().
 		Summary("Creates a terrible cache with a fixed capacity.").
@@ -82,6 +82,6 @@ func Example_cachePlugin() {
 		panic(err)
 	}
 
-	// And then execute Benthos with:
+	// And then execute Bento with:
 	// service.RunCLI(context.Background())
 }

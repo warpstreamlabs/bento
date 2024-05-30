@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegration(t *testing.T) {

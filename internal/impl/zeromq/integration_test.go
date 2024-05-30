@@ -1,5 +1,5 @@
-//go:build x_benthos_extra
-// +build x_benthos_extra
+//go:build x_bento_extra
+// +build x_bento_extra
 
 package zeromq
 
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/v4/public/service/integration"
 )
 
 func TestIntegrationZMQ(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/benthosdev/benthos/v4/internal/codec"
-	"github.com/benthosdev/benthos/v4/internal/component"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/codec"
+	"github.com/warpstreamlabs/bento/v4/internal/component"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -26,7 +26,7 @@ func socketOutputSpec() *service.ConfigSpec {
 				Description("A network type to connect as."),
 			service.NewStringField(osFieldAddress).
 				Description("The address to connect to.").
-				Examples("/tmp/benthos.sock", "127.0.0.1:6000"),
+				Examples("/tmp/bento.sock", "127.0.0.1:6000"),
 			service.NewInternalField(codec.NewWriterDocs("codec").HasDefault("lines")),
 		)
 }

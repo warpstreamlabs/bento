@@ -11,12 +11,12 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/mapping"
-	"github.com/benthosdev/benthos/v4/internal/component/input"
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v4/internal/component/input"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -40,7 +40,7 @@ Sometimes inputs close themselves. For example, when the `+"`file`"+` input type
 
 ### Metadata
 
-A metadata key `+"`benthos_read_until` containing the value `final`"+` is added to the first part of the message that triggers the input to stop.`).
+A metadata key `+"`bento_read_until` containing the value `final`"+` is added to the first part of the message that triggers the input to stop.`).
 		Example(
 			"Consume N Messages",
 			"A common reason to use this input is to consume only N messages from an input and then stop. This can easily be done with the [`count` function](/docs/guides/bloblang/functions/#count):",
@@ -267,7 +267,7 @@ runLoop:
 			continue
 		}
 
-		tran.Payload.Get(0).MetaSetMut("benthos_read_until", "final")
+		tran.Payload.Get(0).MetaSetMut("bento_read_until", "final")
 
 		// If this transaction succeeds we shut down.
 		tmpRes := make(chan error)

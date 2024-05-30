@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
-	"github.com/benthosdev/benthos/v4/public/service/servicetest"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	"github.com/warpstreamlabs/bento/v4/public/service/servicetest"
 )
 
 func TestRunCLIShutdown(t *testing.T) {
@@ -35,7 +35,7 @@ output:
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second))
 	defer cancel()
 
-	servicetest.RunCLIWithArgs(ctx, "benthos", "-c", confPath)
+	servicetest.RunCLIWithArgs(ctx, "bento", "-c", confPath)
 
 	data, _ := os.ReadFile(outPath)
 	assert.Contains(t, string(data), "foobar")

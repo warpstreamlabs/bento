@@ -2,7 +2,7 @@
 title: Dynamic Inputs and Outputs
 ---
 
-It is possible to have sets of inputs and outputs in Benthos that can be added,
+It is possible to have sets of inputs and outputs in Bento that can be added,
 updated and removed during runtime with the [dynamic fan in][dynamic_inputs] and
 [dynamic fan out][dynamic_outputs] types.
 

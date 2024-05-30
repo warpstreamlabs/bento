@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
 )
 
 // ConfigField describes a field within a component configuration, to be added
@@ -479,7 +479,7 @@ func (c *ConfigSpec) LintRule(blobl string) *ConfigSpec {
 
 //------------------------------------------------------------------------------
 
-// ConfigView is a struct returned by a Benthos service environment when walking
+// ConfigView is a struct returned by a Bento service environment when walking
 // the list of registered components and provides access to information about
 // the component.
 type ConfigView struct {
@@ -516,7 +516,7 @@ func (c *ConfigView) FormatJSON() ([]byte, error) {
 
 // RenderDocs creates a markdown file that documents the configuration of the
 // component config view. This markdown may include Docusaurus react elements as
-// it matches the documentation generated for the official Benthos website.
+// it matches the documentation generated for the official Bento website.
 //
 // Experimental: This method is not intended for general use and could have its
 // signature and/or behaviour changed outside of major version bumps.
@@ -554,7 +554,7 @@ type ParsedConfig struct {
 }
 
 // EngineVersion returns the version stamp associated with the underlying
-// benthos engine. The version string is not guaranteed to match any particular
+// bento engine. The version string is not guaranteed to match any particular
 // scheme.
 func (p *ParsedConfig) EngineVersion() string {
 	return p.mgr.EngineVersion()

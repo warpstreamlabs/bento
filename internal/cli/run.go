@@ -8,17 +8,17 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/parser"
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/cli/blobl"
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/cli/studio"
-	clitemplate "github.com/benthosdev/benthos/v4/internal/cli/template"
-	"github.com/benthosdev/benthos/v4/internal/cli/test"
-	"github.com/benthosdev/benthos/v4/internal/docs"
-	"github.com/benthosdev/benthos/v4/internal/filepath"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/template"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/blobl"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/studio"
+	clitemplate "github.com/warpstreamlabs/bento/v4/internal/cli/template"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/test"
+	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/template"
 )
 
 // Build stamps.
@@ -33,7 +33,7 @@ func init() {
 	}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, mod := range info.Deps {
-			if mod.Path == "github.com/benthosdev/benthos/v4" {
+			if mod.Path == "github.com/warpstreamlabs/bento/v4" {
 				if mod.Version != "(devel)" {
 					Version = mod.Version
 				}
@@ -98,7 +98,7 @@ func App(opts *common.CLIOpts) *cli.App {
 		&cli.StringSliceFlag{
 			Name:    "templates",
 			Aliases: []string{"t"},
-			Usage:   "EXPERIMENTAL: import Benthos templates, supports glob patterns (requires quotes)",
+			Usage:   "EXPERIMENTAL: import Bento templates, supports glob patterns (requires quotes)",
 		},
 		&cli.BoolFlag{
 			Name:  "chilled",
@@ -114,15 +114,15 @@ func App(opts *common.CLIOpts) *cli.App {
 	}
 
 	app := &cli.App{
-		Name:  "benthos",
+		Name:  "Bento",
 		Usage: "A stream processor for mundane tasks - https://www.benthos.dev",
 		Description: `
-Either run Benthos as a stream processor or choose a command:
+Either run Bento as a stream processor or choose a command:
 
-  benthos list inputs
-  benthos create kafka//file > ./config.yaml
-  benthos -c ./config.yaml
-  benthos -r "./production/*.yaml" -c ./config.yaml`[1:],
+  bento list inputs
+  bento create kafka//file > ./config.yaml
+  bento -c ./config.yaml
+  bento -r "./production/*.yaml" -c ./config.yaml`[1:],
 		Flags: flags,
 		Before: func(c *cli.Context) error {
 			dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
@@ -163,7 +163,7 @@ Either run Benthos as a stream processor or choose a command:
 				for _, lint := range lints {
 					fmt.Fprintln(os.Stderr, lint)
 				}
-				fmt.Println("Shutting down due to linter errors, to prevent shutdown run Benthos with --chilled")
+				fmt.Println("Shutting down due to linter errors, to prevent shutdown run Bento with --chilled")
 				os.Exit(1)
 			}
 			return nil
@@ -193,7 +193,7 @@ This simple command is useful for sanity checking a config if it isn't
 behaving as expected, as it shows you a normalised version after environment
 variables have been resolved:
 
-  benthos -c ./config.yaml echo | less`[1:],
+  bento -c ./config.yaml echo | less`[1:],
 				Action: func(c *cli.Context) error {
 					_, _, confReader := common.ReadConfig(c, opts, false)
 					_, pConf, _, err := confReader.Read()
@@ -224,16 +224,16 @@ variables have been resolved:
 			lintCliCommand(opts),
 			{
 				Name:  "streams",
-				Usage: "Run Benthos in streams mode",
+				Usage: "Run Bento in streams mode",
 				Description: `
-Run Benthos in streams mode, where multiple pipelines can be executed in a
+Run Bento in streams mode, where multiple pipelines can be executed in a
 single process and can be created, updated and removed via REST HTTP
 endpoints.
 
-  benthos streams
-  benthos -c ./root_config.yaml streams
-  benthos streams ./path/to/stream/configs ./and/some/more
-  benthos -c ./root_config.yaml streams ./streams/*.yaml
+  bento streams
+  bento -c ./root_config.yaml streams
+  bento streams ./path/to/stream/configs ./and/some/more
+  bento -c ./root_config.yaml streams ./streams/*.yaml
 
 In streams mode the stream fields of a root target config (input, buffer,
 pipeline, output) will be ignored. Other fields will be shared across all

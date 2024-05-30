@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    if: ${{ github.repository == 'benthosdev/benthos' || github.event_name != 'schedule' }}
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -48,7 +48,7 @@ jobs:
         builder: ${{ steps.buildx.outputs.name }}
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: jeffail/benthos:edge,ghcr.io/${{ github.repository_owner }}/benthos:edge
+        tags: warpstreamlabs/bento:edge,ghcr.io/${{ github.repository_owner }}/bento:edge
 
     - name: Build and push CGO
       uses: docker/build-push-action@v5
@@ -56,4 +56,4 @@ jobs:
         context: ./
         file: ./resources/docker/Dockerfile.cgo
         push: true
-        tags: jeffail/benthos:edge-cgo,ghcr.io/${{ github.repository_owner }}/benthos:edge-cgo
+        tags: warpstreamlabs/bento:edge-cgo,ghcr.io/${{ github.repository_owner }}/bento:edge-cgo

@@ -3,7 +3,7 @@ package docs
 import (
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 // GetInferenceCandidateFromMap checks a map config structure for a component

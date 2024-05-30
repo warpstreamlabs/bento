@@ -8,8 +8,8 @@ import (
 
 	"github.com/getsentry/sentry-go"
 
-	"github.com/benthosdev/benthos/v4/public/bloblang"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 const (
@@ -173,13 +173,13 @@ func newCaptureProcessor(conf *service.ParsedConfig, mgr *service.Resources, opt
 		version = version[:200]
 	}
 	if version == "" {
-		logger.Warn("failed to resolve benthos version to set as sentry tag")
+		logger.Warn("failed to resolve bento version to set as sentry tag")
 		version = "unknown"
 	}
 
 	scope := sentry.NewScope()
 	scope.SetLevel(level)
-	scope.SetTag("benthos", version)
+	scope.SetTag("bento", version)
 
 	label := mgr.Label()
 	if label != "" {

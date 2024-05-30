@@ -7,16 +7,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 
-	// Import only required Benthos components, switch with `components/all` for
+	// Import only required Bento components, switch with `components/all` for
 	// all standard components.
-	_ "github.com/benthosdev/benthos/v4/public/components/io"
-	_ "github.com/benthosdev/benthos/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
 )
 
 // This example demonstrates how to use a stream builder to parse and execute a
-// full Benthos config.
+// full Bento config.
 func Example_streamBuilderConfig() {
 	panicOnErr := func(err error) {
 		if err != nil {
@@ -26,7 +26,7 @@ func Example_streamBuilderConfig() {
 
 	builder := service.NewStreamBuilder()
 
-	// Set the full Benthos configuration of the stream.
+	// Set the full Bento configuration of the stream.
 	err := builder.SetYAML(`
 input:
   generate:
@@ -58,7 +58,7 @@ logger:
 }
 
 // This example demonstrates how to use a stream builder to assemble a stream of
-// Benthos components by adding snippets of configs for different component
+// Bento components by adding snippets of configs for different component
 // types, and then execute it. You can use the Add methods to append any number
 // of components to the stream, following fan in and fan out patterns for inputs
 // and outputs respectively.

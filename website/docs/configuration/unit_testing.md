@@ -9,7 +9,7 @@ title: Unit Testing
      internal/config/test/docs.md
 -->
 
-The Benthos service offers a command `benthos test` for running unit tests on sections of a configuration file. This makes it easy to protect your config files from regressions over time.
+The Bento service offers a command `bento test` for running unit tests on sections of a configuration file. This makes it easy to protect your config files from regressions over time.
 
 ## Contents
 
@@ -40,7 +40,7 @@ output:
     path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
 ```
 
-One way to write our unit tests for this config is to accompany it with a file of the same name and extension but suffixed with `_benthos_test`, which in this case would be `foo_benthos_test.yaml`.
+One way to write our unit tests for this config is to accompany it with a file of the same name and extension but suffixed with `_bento_test`, which in this case would be `foo_bento_test.yaml`.
 
 ```yml
 tests:
@@ -78,7 +78,7 @@ Sometimes it's more convenient to define your tests within the config being test
 
 ### Bloblang Tests
 
-Sometimes when working with large [Bloblang mappings][bloblang] it's preferred to have the full mapping in a separate file to your Benthos configuration. In this case it's possible to write unit tests that target and execute the mapping directly with the field `target_mapping`, which when specified is interpreted as either an absolute path or a path relative to the test definition file that points to a file containing only a Bloblang mapping.
+Sometimes when working with large [Bloblang mappings][bloblang] it's preferred to have the full mapping in a separate file to your Bento configuration. In this case it's possible to write unit tests that target and execute the mapping directly with the field `target_mapping`, which when specified is interpreted as either an absolute path or a path relative to the test definition file that points to a file containing only a Bloblang mapping.
 
 For example, if we were to have a file `cities.blobl` containing a mapping:
 
@@ -111,11 +111,11 @@ tests:
         - json_equals: {"Cities": "Bellevue, Olympia, Seattle"}
 ```
 
-And execute this test the same way we execute other Benthos tests (`benthos test ./dir/cities_test.yaml`, `benthos test ./dir/...`, etc).
+And execute this test the same way we execute other Bento tests (`bento test ./dir/cities_test.yaml`, `bento test ./dir/...`, etc).
 
 ### Fragmented Tests
 
-Sometimes the number of tests you need to define in order to cover a config file is so vast that it's necessary to split them across multiple test definition files. This is possible but Benthos still requires a way to detect the configuration file being targeted by these fragmented test definition files. In order to do this we must prefix our `target_processors` field with the path of the target relative to the definition file.
+Sometimes the number of tests you need to define in order to cover a config file is so vast that it's necessary to split them across multiple test definition files. This is possible but Bento still requires a way to detect the configuration file being targeted by these fragmented test definition files. In order to do this we must prefix our `target_processors` field with the path of the target relative to the definition file.
 
 The syntax of `target_processors` in this case is a full [JSON Pointer][json-pointer] that should look something like `target.yaml#/pipeline/processors`. For example, if we saved our test definition above in an arbitrary location like `./tests/first.yaml` and wanted to target our original `foo.yaml` config file, we could do that with the following:
 
@@ -239,12 +239,12 @@ Checks that both the message and the condition are valid JSON documents, and tha
 
 ## Running Tests
 
-Executing tests for a specific config can be done by pointing the subcommand `test` at either the config to be tested or its test definition, e.g. `benthos test ./config.yaml` and `benthos test ./config_benthos_test.yaml` are equivalent.
+Executing tests for a specific config can be done by pointing the subcommand `test` at either the config to be tested or its test definition, e.g. `bento test ./config.yaml` and `bento test ./config_bento_test.yaml` are equivalent.
 
-The `test` subcommand also supports wildcard patterns e.g. `benthos test ./foo/*.yaml` will execute all tests within matching files. In order to walk a directory tree and execute all tests found you can use the shortcut `./...`, e.g. `benthos test ./...` will execute all tests found in the current directory, any child directories, and so on.
+The `test` subcommand also supports wildcard patterns e.g. `bento test ./foo/*.yaml` will execute all tests within matching files. In order to walk a directory tree and execute all tests found you can use the shortcut `./...`, e.g. `bento test ./...` will execute all tests found in the current directory, any child directories, and so on.
 
 If you want to allow components to write logs at a provided level to stdout when running the tests, you can use
-`benthos test --log <level>`. Please consult the [logger docs][logger] for further details.
+`bento test --log <level>`. Please consult the [logger docs][logger] for further details.
 
 ## Mocking Processors
 

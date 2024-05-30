@@ -9,25 +9,25 @@ import (
 
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/internal/component/metrics"
-	ioutput "github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/component/processor"
-	"github.com/benthosdev/benthos/v4/internal/config"
-	"github.com/benthosdev/benthos/v4/internal/filepath/ifs"
-	"github.com/benthosdev/benthos/v4/internal/log"
-	"github.com/benthosdev/benthos/v4/internal/manager"
-	"github.com/benthosdev/benthos/v4/internal/manager/mock"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/pipeline"
-	"github.com/benthosdev/benthos/v4/internal/transaction"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	ioutput "github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v4/internal/config"
+	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/pipeline"
+	"github.com/warpstreamlabs/bento/v4/internal/transaction"
 )
 
 // ServerlessResponseType is an output type that redirects pipeline outputs back
 // to the handler.
 const ServerlessResponseType = "sync_response"
 
-// Handler contains a live Benthos pipeline and wraps it within an invoke
+// Handler contains a live Bento pipeline and wraps it within an invoke
 // handler.
 type Handler struct {
 	transactionChan chan message.Transaction
@@ -41,7 +41,7 @@ func (h *Handler) Close(tout time.Duration) error {
 }
 
 // Handle is a request/response func that injects a payload into the underlying
-// Benthos pipeline and returns a result.
+// Bento pipeline and returns a result.
 func (h *Handler) Handle(ctx context.Context, obj any) (any, error) {
 	part := message.NewPart(nil)
 	part.SetStructuredMut(obj)
@@ -101,7 +101,7 @@ func (h *Handler) Handle(ctx context.Context, obj any) (any, error) {
 	return genBatchOfBatches, nil
 }
 
-// NewHandler returns a Handler by creating a Benthos pipeline.
+// NewHandler returns a Handler by creating a Bento pipeline.
 func NewHandler(conf config.Type) (*Handler, error) {
 	// Logging and stats aggregation.
 	logger, err := log.New(os.Stdout, ifs.OS(), conf.Logger)

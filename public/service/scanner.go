@@ -6,8 +6,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/benthosdev/benthos/v4/internal/component/scanner"
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/component/scanner"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // ScannerSourceDetails contains exclusively optional information which could be
@@ -36,7 +36,7 @@ func (r *ScannerSourceDetails) Name() string {
 	return r.details.Name
 }
 
-// BatchScannerCreator is an interface implemented by Benthos scanner plugins.
+// BatchScannerCreator is an interface implemented by Bento scanner plugins.
 // Calls to Create must create a new instantiation of BatchScanner that consumes
 // the provided io.ReadCloser, produces batches of messages (batches containing
 // a single message are valid) and calls the provided AckFunc once all derived

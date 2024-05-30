@@ -3,10 +3,10 @@ title: Using CUE
 ---
 
 :::warning EXPERIMENTAL
-CUE support is experimental. It may change for some time to improve CUE's ability to type-check Benthos configurations at the expense of causing new validation errors when moving from one Benthos release to the next.
+CUE support is experimental. It may change for some time to improve CUE's ability to type-check Bento configurations at the expense of causing new validation errors when moving from one Bento release to the next.
 :::
 
-[**CUE**](https://cuelang.org/) is a powerful configuration language that makes it easier and safer to build Benthos configurations. It achieves this by validating and type-checking configurations as well as allowing you to build useful utilities that reduce boilerplate. In this guide, we will see how to build a Benthos configuration using CUE, export it to YAML and execute it.
+[**CUE**](https://cuelang.org/) is a powerful configuration language that makes it easier and safer to build Bento configurations. It achieves this by validating and type-checking configurations as well as allowing you to build useful utilities that reduce boilerplate. In this guide, we will see how to build a Bento configuration using CUE, export it to YAML and execute it.
 
 ## Prerequisites
 
@@ -25,11 +25,11 @@ touch config.cue
 
 > CUE modules must start with a hostname. This will typically be the URL of your repository. For example: `cue mod init github.com/benthosdev/hello-cue`.
 
-The `benthos list` command will generate a CUE package containing the types we'll need to build our configuration. Let's write this package into our project:
+The `bento list` command will generate a CUE package containing the types we'll need to build our configuration. Let's write this package into our project:
 
 ```shell
-mkdir benthos
-benthos list --format cue > benthos/schema.cue
+mkdir bento
+bento list --format cue > bento/schema.cue
 ```
 
 At this point, you should now have the following directory structure:
@@ -45,12 +45,12 @@ hello-cue/
     config.cue
 ```
 
-We are now ready to write our Benthos config in CUE. Let's start by editing our `config.cue` to include the following snippet:
+We are now ready to write our Bento config in CUE. Let's start by editing our `config.cue` to include the following snippet:
 
 ```cue
 import "example.com/hello-cue/benthos"
 
-benthos.#Config & {
+bento.#Config & {
   input: {
     generate: {
       mapping: """
@@ -99,13 +99,13 @@ output:
 tests: []
 ```
 
-We can run this with Benthos to see that it indeed works:
+We can run this with Bento to see that it indeed works:
 
 ```shell
-benthos -c <(cue export --out yaml config.cue)
+bento -c <(cue export --out yaml config.cue)
 ```
 
-When you are satisfied with the results, terminate the Benthos process and let's move on to look at some of the nice features that we get with CUE.
+When you are satisfied with the results, terminate the Bento process and let's move on to look at some of the nice features that we get with CUE.
 
 ## Enhance
 
@@ -114,7 +114,7 @@ The `config.cue` above looks eerily like JSON. This is because CUE is a superset
 ```cue
 import "example.com/hello-cue/benthos"
 
-benthos.#Config & {
+bento.#Config & {
   input: generate: mapping: """
   root = { "message": "Hello, CUE!" }
   """
@@ -155,7 +155,7 @@ output:
 
 There are quite a few lines of YAML here and we seem to be going sideways as we compose more functionality. We can try and make this more manageable with CUE!
 
-Let's create a new file in our `hello-cue` directory called `benthos/helpers.cue`:
+Let's create a new file in our `hello-cue` directory called `bento/helpers.cue`:
 
 ```shell
 touch benthos/helpers.cue
@@ -164,7 +164,7 @@ touch benthos/helpers.cue
 In this file, add the following snippet:
 
 ```cue
-package benthos
+package bento
 
 #Guarded: self = {
   // The desired output that will be wrapped with error handling mechanisms
@@ -222,7 +222,7 @@ Now, let's get back to `config.cue` and edit a few bits while leveraging this he
 ```cue
 import "example.com/hello-cue/benthos"
 
-benthos.#Config & {
+bento.#Config & {
   input: generate: {
     count: 1
     interval: "0"
@@ -231,7 +231,7 @@ benthos.#Config & {
     """
   }
 
-  output: benthos.#Guarded & {
+  output: bento.#Guarded & {
     #errorMessage: "failed to process message: ${! error() }"
 
     #maxRetries: 3
@@ -295,23 +295,23 @@ hello-cue/
 
 ## Included CUE types
 
-The `benthos.cue` file we emitted earlier contains a number of useful types that we can use when build configuration files and helpers. These include:
+The `bento.cue` file we emitted earlier contains a number of useful types that we can use when build configuration files and helpers. These include:
 
-* `benthos.#Config`
+* `bento.#Config`
 
-This definition describes the format of a Benthos config file. You'll want to use it at the top of your configuration file to validate its overall structure.
+This definition describes the format of a Bento config file. You'll want to use it at the top of your configuration file to validate its overall structure.
 
-* `benthos.#Input`
-* `benthos.#Output`
-* `benthos.#Processor`
-* `benthos.#RateLimit`
-* `benthos.#Buffer`
-* `benthos.#Cache`
-* `benthos.#Metric`
-* `benthos.#Tracer`
+* `bento.#Input`
+* `bento.#Output`
+* `bento.#Processor`
+* `bento.#RateLimit`
+* `bento.#Buffer`
+* `bento.#Cache`
+* `bento.#Metric`
+* `bento.#Tracer`
 
-Each of these definitions is a disjunction that holds all the corresponding components in Benthos. In other words, a CUE field that is specified as `benthos.#Input`, such as `myfield: benthos.#Input`, must resolve to a valid Benthos input.
+Each of these definitions is a disjunction that holds all the corresponding components in Bento. In other words, a CUE field that is specified as `bento.#Input`, such as `myfield: bento.#Input`, must resolve to a valid Bento input.
 
 ## Wrap up
 
-Being able to define helper packages and definitions like `#Guarded` and reusing them across your Benthos configurations is a really powerful feature of CUE. This will allow you to share consistent good practices without messy boilerplate across projects and teams!
+Being able to define helper packages and definitions like `#Guarded` and reusing them across your Bento configurations is a really powerful feature of CUE. This will allow you to share consistent good practices without messy boilerplate across projects and teams!

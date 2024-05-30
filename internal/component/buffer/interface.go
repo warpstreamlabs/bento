@@ -3,7 +3,7 @@ package buffer
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
 )
 
 // Streamed is an interface implemented by all buffer types that provides stream

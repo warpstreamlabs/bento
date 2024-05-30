@@ -8,8 +8,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
-	"github.com/benthosdev/benthos/v4/internal/bundle"
-	"github.com/benthosdev/benthos/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v4/internal/bundle"
+	"github.com/warpstreamlabs/bento/v4/public/bloblang"
 )
 
 const (
@@ -112,7 +112,7 @@ func (s *spanInjectBatchInput) ReadBatch(ctx context.Context) (MessageBatch, Ack
 	textProp := otel.GetTextMapPropagator()
 	for i, p := range m {
 		ctx := textProp.Extract(p.Context(), c)
-		pCtx, _ := prov.Tracer("benthos").Start(ctx, operationName)
+		pCtx, _ := prov.Tracer("bento").Start(ctx, operationName)
 		m[i] = p.WithContext(pCtx)
 	}
 	return m, afn, nil
@@ -159,7 +159,7 @@ func (s *spanInjectInput) Read(ctx context.Context) (*Message, AckFunc, error) {
 
 	textProp := otel.GetTextMapPropagator()
 
-	pCtx, _ := prov.Tracer("benthos").Start(textProp.Extract(m.Context(), c), operationName)
+	pCtx, _ := prov.Tracer("bento").Start(textProp.Extract(m.Context(), c), operationName)
 	m = m.WithContext(pCtx)
 
 	return m, afn, nil

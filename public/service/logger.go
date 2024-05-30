@@ -3,11 +3,11 @@ package service
 import (
 	"fmt"
 
-	"github.com/benthosdev/benthos/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v4/internal/log"
 )
 
 // Logger allows plugin authors to write custom logs from components that are
-// exported the same way as native Benthos logs. It's safe to pass around a nil
+// exported the same way as native Bento logs. It's safe to pass around a nil
 // pointer for testing components.
 type Logger struct {
 	m log.Modular

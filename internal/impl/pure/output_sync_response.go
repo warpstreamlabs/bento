@@ -3,11 +3,11 @@ package pure
 import (
 	"context"
 
-	"github.com/benthosdev/benthos/v4/internal/component/interop"
-	"github.com/benthosdev/benthos/v4/internal/component/output"
-	"github.com/benthosdev/benthos/v4/internal/message"
-	"github.com/benthosdev/benthos/v4/internal/transaction"
-	"github.com/benthosdev/benthos/v4/public/service"
+	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v4/internal/component/output"
+	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v4/internal/transaction"
+	"github.com/warpstreamlabs/bento/v4/public/service"
 )
 
 func init() {
@@ -37,7 +37,7 @@ output:
           - mapping: 'root = content().uppercase()'
 `+"```"+`
 
-Using the above example and posting the message 'hello world' to the endpoint `+"`/post`"+` Benthos would send it unchanged to the topic `+"`foo_topic`"+` and also respond with 'HELLO WORLD'.
+Using the above example and posting the message 'hello world' to the endpoint `+"`/post`"+` Bento would send it unchanged to the topic `+"`foo_topic`"+` and also respond with 'HELLO WORLD'.
 
 For more information please read [Synchronous Responses](/docs/guides/sync_responses).`).
 			Field(service.NewObjectField("").Default(map[string]any{})),

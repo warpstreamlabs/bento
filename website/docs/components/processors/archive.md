@@ -42,7 +42,7 @@ Type: `string`
 
 | Option | Summary |
 |---|---|
-| `binary` | Archive messages to a [binary blob format](https://github.com/benthosdev/benthos/blob/main/internal/message/message.go#L96). |
+| `binary` | Archive messages to a [binary blob format](https://github.com/warpstreamlabs/bento/blob/main/internal/message/message.go#L96). |
 | `concatenate` | Join the raw contents of each message into a single binary message. |
 | `json_array` | Attempt to parse each message as a JSON document and append the result to an array, which becomes the contents of the resulting message. |
 | `lines` | Join the raw contents of each message and insert a line break between each one. |

@@ -8,8 +8,8 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/bloblang/query"
-	"github.com/benthosdev/benthos/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v4/internal/value"
 )
 
 //------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ type AssignmentContext struct {
 }
 
 // Assignment represents a way of assigning a queried value to something within
-// an assignment context. This could be a Benthos message, a variable, a
+// an assignment context. This could be a Bento message, a variable, a
 // metadata field, etc.
 type Assignment interface {
 	Apply(value any, ctx AssignmentContext) error

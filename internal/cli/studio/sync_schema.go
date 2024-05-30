@@ -12,17 +12,17 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/benthosdev/benthos/v4/internal/cli/common"
-	"github.com/benthosdev/benthos/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
 )
 
 func syncSchemaCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "sync-schema",
-		Usage: "Synchronizes the schema of this Benthos instance with a studio session",
+		Usage: "Synchronizes the schema of this Bento instance with a studio session",
 		Description: `
 This sync allows custom plugins and templates to be configured and linted
-correctly within Benthos studio.
+correctly within Bento studio.
 
 In order to synchronize a single use token must be generated from the session
 page within the studio application.`[1:],
