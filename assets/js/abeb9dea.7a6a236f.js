@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[4843],{22320:function(e){e.exports=JSON.parse('{"permalink":"/bento/blog/tags/plugins","page":1,"postsPerPage":10,"totalPages":1,"totalCount":3,"blogDescription":"Blog","blogTitle":"Blog"}')}}]);

@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[4420],{93093:function(e){e.exports=JSON.parse('{"label":"studio","permalink":"/bento/blog/tags/studio","allTagsPath":"/bento/blog/tags","count":1,"unlisted":false}')}}]);
