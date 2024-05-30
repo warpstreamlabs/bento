@@ -3,7 +3,8 @@ title: Getting Started
 description: Getting started with Bento
 ---
 
-Woops! You fell for the marketing hype. Let's try and get through this together.
+<!-- TODO(install): Fix me. -->
+<!-- Woops! You fell for the marketing hype. Let's try and get through this together.
 
 <div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
 
@@ -65,7 +66,7 @@ asdf global benthos latest
 
 ### Serverless
 
-For information about serverless deployments of Bento check out the serverless section [here][serverless].
+For information about serverless deployments of Bento check out the serverless section [here][serverless]. -->
 
 ## Run
 

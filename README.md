@@ -51,23 +51,7 @@ For guidance on building your own custom plugins in Go check out [the public API
 
 ## Install
 
-Grab a binary for your OS from [here.][releases] Or use this script:
-
-```shell
-curl -Lsf https://www.bento.dev/sh/install | bash
-```
-
-Or pull the docker image:
-
-```shell
-docker pull ghcr.io/warpstreamlabs/bento
-```
-
-Bento can also be installed via Homebrew:
-
-```shell
-brew install bento
-```
+We're working on the release process + docker images, but for now you can compile from source.
 
 For more information check out the [getting started guide][getting-started].
 

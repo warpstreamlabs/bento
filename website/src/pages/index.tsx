@@ -212,15 +212,6 @@ const features = [
     ),
   },
   {
-    description: (
-      <ReactPlayer
-        className={classnames('col col-6 padding--lg')}
-        url='https://youtu.be/uvbp2LCmQMY'
-        controls={true}
-      />
-    ),
-  },
-  {
     title: 'Reliable and Operationally Simple',
     imageUrl: 'img/Blobscales.svg',
     description: (
@@ -309,7 +300,8 @@ function Home() {
               <p>
                 Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
               </p>
-              {installs && installs.length && (
+              {/* TODO(install): fix me */}
+              {/* {installs && installs.length && (
                 <Tabs defaultValue={installs[0].label} values={installs.map((props, idx) => {
                   return { label: props.label, value: props.label };
                 })}>
@@ -319,7 +311,7 @@ function Home() {
                     </TabItem>
                   ))}
                 </Tabs>
-              )}
+              )} */}
             </div>
             <div className={classnames('col col--6')}>
               {snippets && snippets.length && (
