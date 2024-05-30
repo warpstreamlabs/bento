@@ -185,7 +185,6 @@ output:
 const features = [
   {
     title: 'Takes Care of the Dull Stuff',
-    imageUrl: 'img/Blobboring.svg',
     description: (
       <>
         <p>
@@ -199,7 +198,6 @@ const features = [
   },
   {
     title: 'Well Connected',
-    imageUrl: 'img/Blobborg.svg',
     description: (
       <>
         <p>
@@ -212,21 +210,11 @@ const features = [
     ),
   },
   {
-    description: (
-      <ReactPlayer
-        className={classnames('col col-6 padding--lg')}
-        url='https://youtu.be/uvbp2LCmQMY'
-        controls={true}
-      />
-    ),
-  },
-  {
     title: 'Reliable and Operationally Simple',
-    imageUrl: 'img/Blobscales.svg',
     description: (
       <>
         <p>
-          Delivery guarantees <a href="https://youtu.be/QmpBOCvY8mY">can be a dodgy subject</a>. Bento processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
+          Delivery guarantees can be a dodgy subject. Bento processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
         </p>
         <p>
           This behaviour is the default and free of caveats, which also makes deploying and scaling Bento much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/docs/components/metrics/about">metrics</a> and <a href="/docs/components/tracers/about">tracing</a> events to targets of your choice.
@@ -236,7 +224,6 @@ const features = [
   },
   {
     title: 'Extendable',
-    imageUrl: 'img/Blobextended.svg',
     description: (
       <>
         <p>
