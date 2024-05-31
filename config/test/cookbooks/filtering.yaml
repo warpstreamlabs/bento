@@ -1,8 +1,8 @@
 pipeline:
   processors:
-  - bloblang: |
-      root = match {
-        meta("topic").or("") == "foo" ||
-        doc.type.or("") == "bar" ||
-        doc.urls.contains("https://warpstreamlabs.github.io/bento/").catch(false) => deleted()
-      }
+    - bloblang: |
+        root = match {
+          meta("topic").or("") == "foo" ||
+          doc.type.or("") == "bar" ||
+          doc.urls.contains("https://warpstreamlabs.github.io/bento/").catch(false) => deleted()
+        }
