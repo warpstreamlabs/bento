@@ -51,7 +51,11 @@ For guidance on building your own custom plugins in Go check out [the public API
 
 ## Install
 
-We're working on the release process + docker images, but for now you can compile from source.
+We're working on the release process, but you can either compile from source or pull the docker image:
+
+```
+docker pull public.ecr.aws/warpstream-labs/warpstream_bento:0.0.1-rc1
+```
 
 For more information check out the [getting started guide][getting-started].
 
