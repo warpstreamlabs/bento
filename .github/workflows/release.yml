@@ -79,7 +79,7 @@ jobs:
       with:
         images: |
           warpstreamlabs/bento
-          ghcr.io/${{ github.repository_owner }}/bento
+          public.ecr.aws/q3y3o3o4/bento
         flavor: |
           latest=auto
           suffix=-cgo
