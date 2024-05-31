@@ -8,6 +8,6 @@ tests:
         metadata:
           topic: foo
       - content: '{"doc":{"should":"not remain","type":"bar"},"id":"3"}'
-      - content: '{"doc":{"should":"not remain","urls":["https://www.benthos.dev/"]},"id":"4"}'
+      - content: '{"doc":{"should":"not remain","urls":["https://warpstreamlabs.github.io/bento/"]},"id":"4"}'
     output_batches:
       - - content_equals: '{"doc":{"should":"remain"},"id":"1"}'

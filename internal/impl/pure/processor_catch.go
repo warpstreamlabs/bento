@@ -34,7 +34,7 @@ When messages leave the catch block their fail flags are cleared. This processor
 
 More information about error handling can be found [here](/docs/configuration/error_handling).`).
 		LintRule(`if this.or([]).any(pconf -> pconf.type.or("") == "try" || pconf.try.type() == "array" ) {
-  "'catch' block contains a 'try' block which will never execute due to errors only being cleared at the end of the 'catch', for more information about nesting 'try' within 'catch' read: https://www.benthos.dev/docs/components/processors/try#nesting-within-a-catch-block"
+  "'catch' block contains a 'try' block which will never execute due to errors only being cleared at the end of the 'catch', for more information about nesting 'try' within 'catch' read: https://warpstreamlabs.github.io/bento/docs/components/processors/try#nesting-within-a-catch-block"
 }`).
 		Field(service.NewProcessorListField("").Default([]any{})),
 		func(conf *service.ParsedConfig, res *service.Resources) (service.BatchProcessor, error) {

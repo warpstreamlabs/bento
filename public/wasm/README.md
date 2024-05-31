@@ -5,6 +5,6 @@ In this directory are libraries and examples tailored to help developers create 
 
 Most of these are adapted from the fantastic range of examples provided by [the Wazero library][wazero_examples]. Our goal is to eventually provide libraries and examples for all popular languages and we'll be tackling them one at a time based on demand. Please be patient but also make [yourself heard][community].
 
-[processor.wasm]: https://www.benthos.dev/docs/components/processors/wasm
+[processor.wasm]: https://warpstreamlabs.github.io/bento/docs/components/processors/wasm
 [wazero_examples]: https://github.com/tetratelabs/wazero/tree/main/examples
-[community]: https://www.benthos.dev/community
+[community]: https://warpstreamlabs.github.io/bento/community

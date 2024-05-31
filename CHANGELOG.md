@@ -62,7 +62,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Fixed a regression in v4.25.0 where [template based components](https://www.benthos.dev/docs/configuration/templating) were not parsing correctly from configs.
+- Fixed a regression in v4.25.0 where [template based components](https://warpstreamlabs.github.io/bento/docs/configuration/templating) were not parsing correctly from configs.
 
 ## 4.25.0 - 2024-03-01
 
@@ -70,7 +70,7 @@ All notable changes to this project will be documented in this file.
 
 - Field `address_cache` added to the `socket_server` input.
 - Field `read_header` added to the `amqp_1` input.
-- All inputs with a `codec` field now support a new field `scanner` to replace it. Scanners are more powerful as they are configured in a structured way similar to other component types rather than via a single string field, for more information [check out the scanners page](https://www.benthos.dev/docs/components/scanners/about).
+- All inputs with a `codec` field now support a new field `scanner` to replace it. Scanners are more powerful as they are configured in a structured way similar to other component types rather than via a single string field, for more information [check out the scanners page](https://warpstreamlabs.github.io/bento/docs/components/scanners/about).
 - New `diff` and `patch` Bloblang methods.
 - New `processors` processor.
 - Field `read_header` added to the `amqp_1` input.
@@ -680,7 +680,7 @@ to the [`database/sql` docs](https://pkg.go.dev/database/sql#DB.SetMaxIdleConns)
 
 ## 4.0.0 - 2022-04-20
 
-This is a major version release, for more information and guidance on how to migrate please refer to [https://benthos.dev/docs/guides/migration/v4](https://www.benthos.dev/docs/guides/migration/v4).
+This is a major version release, for more information and guidance on how to migrate please refer to [https://warpstreamlabs.github.io/bento/docs/guides/migration/v4](https://warpstreamlabs.github.io/bento/docs/guides/migration/v4).
 
 ### Added
 
@@ -720,7 +720,7 @@ This is a major version release, for more information and guidance on how to mig
 - The `switch` output field `retry_until_success` now defaults to `false`.
 - All AWS components now have a default `region` field that is empty, allowing environment variables or profile values to be used by default.
 - Serverless distributions of Bento (AWS lambda, etc) have had the default output config changed to reject messages when the processing fails, this should make it easier to handle errors from invocation.
-- The standard metrics emitted by Bento have been largely simplified and improved, for more information [check out the metrics page](https://www.benthos.dev/docs/components/metrics/about).
+- The standard metrics emitted by Bento have been largely simplified and improved, for more information [check out the metrics page](https://warpstreamlabs.github.io/bento/docs/components/metrics/about).
 - The default metrics type is now `prometheus`.
 - The `http_server` metrics type has been renamed to `json_api`.
 - The `stdout` metrics type has been renamed to `logger`.
@@ -1993,7 +1993,7 @@ This is a major version release, for more information and guidance on how to mig
 
 ## 3.0.0 - 2019-09-17
 
-This is a major version release, for more information and guidance on how to migrate please refer to [https://benthos.dev/docs/guides/migration/v3](https://www.benthos.dev/docs/guides/migration/v3).
+This is a major version release, for more information and guidance on how to migrate please refer to [https://warpstreamlabs.github.io/bento/docs/guides/migration/v3](https://warpstreamlabs.github.io/bento/docs/guides/migration/v3).
 
 ### Added
 
@@ -2347,11 +2347,11 @@ This is a major version release, for more information and guidance on how to mig
 
 ### Changed
 
-This is a major version released due to a series of minor breaking changes, you can read the [full migration guide here](https://www.benthos.dev/docs/guides/migration/v2).
+This is a major version released due to a series of minor breaking changes, you can read the [full migration guide here](https://warpstreamlabs.github.io/bento/docs/guides/migration/v2).
 
 #### Configuration
 
-- Bento now attempts to infer the `type` of config sections whenever the field is omitted, for more information please read this overview: [Concise Configuration](https://www.benthos.dev/docs/configuration/about#concise-configuration).
+- Bento now attempts to infer the `type` of config sections whenever the field is omitted, for more information please read this overview: [Concise Configuration](https://warpstreamlabs.github.io/bento/docs/configuration/about#concise-configuration).
 - Field `unsubscribe_on_close` of the `nats_stream` input is now `false` by default.
 
 #### Service

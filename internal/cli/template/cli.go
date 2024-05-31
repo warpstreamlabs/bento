@@ -18,7 +18,7 @@ Allows linting and generating Bento templates.
   bento template lint ./path/to/templates/...
 
 For more information check out the docs at:
-https://benthos.dev/docs/configuration/templating`[1:],
+https://warpstreamlabs.github.io/bento/docs/configuration/templating`[1:],
 		Subcommands: []*cli.Command{
 			lintCliCommand(),
 		},

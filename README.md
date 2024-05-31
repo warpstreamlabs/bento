@@ -51,23 +51,7 @@ For guidance on building your own custom plugins in Go check out [the public API
 
 ## Install
 
-Grab a binary for your OS from [here.][releases] Or use this script:
-
-```shell
-curl -Lsf https://www.bento.dev/sh/install | bash
-```
-
-Or pull the docker image:
-
-```shell
-docker pull ghcr.io/warpstreamlabs/bento
-```
-
-Bento can also be installed via Homebrew:
-
-```shell
-brew install bento
-```
+We're working on the release process + docker images, but for now you can compile from source.
 
 For more information check out the [getting started guide][getting-started].
 
@@ -171,23 +155,23 @@ docker run --rm \
 
 Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come and chat (links are on the [community page][community]), and watch your back.
 
-[inputs]: https://www.benthos.dev/docs/components/inputs/about
-[about-categories]: https://www.benthos.dev/docs/about#components
-[processors]: https://www.benthos.dev/docs/components/processors/about
-[outputs]: https://www.benthos.dev/docs/components/outputs/about
-[metrics]: https://www.benthos.dev/docs/components/metrics/about
-[tracers]: https://www.benthos.dev/docs/components/tracers/about
-[config-interp]: https://www.benthos.dev/docs/configuration/interpolation
-[streams-api]: https://www.benthos.dev/docs/guides/streams_mode/streams_api
-[streams-mode]: https://www.benthos.dev/docs/guides/streams_mode/about
-[general-docs]: https://www.benthos.dev/docs/about
-[bloblang-about]: https://www.benthos.dev/docs/guides/bloblang/about
-[config-doc]: https://www.benthos.dev/docs/configuration/about
-[serverless]: https://www.benthos.dev/docs/guides/serverless/about
-[cookbooks]: https://www.benthos.dev/cookbooks
+[inputs]: https://warpstreamlabs.github.io/bento/docs/components/inputs/about
+[about-categories]: https://warpstreamlabs.github.io/bento/docs/about#components
+[processors]: https://warpstreamlabs.github.io/bento/docs/components/processors/about
+[outputs]: https://warpstreamlabs.github.io/bento/docs/components/outputs/about
+[metrics]: https://warpstreamlabs.github.io/bento/docs/components/metrics/about
+[tracers]: https://warpstreamlabs.github.io/bento/docs/components/tracers/about
+[config-interp]: https://warpstreamlabs.github.io/bento/docs/configuration/interpolation
+[streams-api]: https://warpstreamlabs.github.io/bento/docs/guides/streams_mode/streams_api
+[streams-mode]: https://warpstreamlabs.github.io/bento/docs/guides/streams_mode/about
+[general-docs]: https://warpstreamlabs.github.io/bento/docs/about
+[bloblang-about]: https://warpstreamlabs.github.io/bento/docs/guides/bloblang/about
+[config-doc]: https://warpstreamlabs.github.io/bento/docs/configuration/about
+[serverless]: https://warpstreamlabs.github.io/bento/docs/guides/serverless/about
+[cookbooks]: https://warpstreamlabs.github.io/bento/cookbooks
 [releases]: https://github.com/warpstreamlabs/bento/releases
 [plugin-repo]: https://github.com/warpstreamlabs/bento-plugin-example
-[getting-started]: https://www.benthos.dev/docs/guides/getting_started
+[getting-started]: https://warpstreamlabs.github.io/bento/docs/guides/getting_started
 
 [godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/v4/public
 [godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public

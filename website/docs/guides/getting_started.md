@@ -3,9 +3,10 @@ title: Getting Started
 description: Getting started with Bento
 ---
 
-Woops! You fell for the marketing hype. Let's try and get through this together.
+<!-- TODO(install): Fix me. -->
+<!-- Woops! You fell for the marketing hype. Let's try and get through this together.
 
-<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/img/teacher-blob.svg" /></div>
+<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
 
 ## Install
 
@@ -21,14 +22,14 @@ import TabItem from '@theme/TabItem';
 <TabItem value="latest">
 
 ```sh
-curl -Lsf https://www.benthos.dev/sh/install | bash
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash
 ```
 
 </TabItem>
 <TabItem value="version">
 
 ```sh
-curl -Lsf https://www.benthos.dev/sh/install | bash -s -- 3.56.0
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 3.56.0
 ```
 
 </TabItem>
@@ -65,7 +66,7 @@ asdf global benthos latest
 
 ### Serverless
 
-For information about serverless deployments of Bento check out the serverless section [here][serverless].
+For information about serverless deployments of Bento check out the serverless section [here][serverless]. -->
 
 ## Run
 

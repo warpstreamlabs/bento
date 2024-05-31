@@ -115,7 +115,7 @@ func App(opts *common.CLIOpts) *cli.App {
 
 	app := &cli.App{
 		Name:  "Bento",
-		Usage: "A stream processor for mundane tasks - https://www.benthos.dev",
+		Usage: "A stream processor for mundane tasks - https://warpstreamlabs.github.io/bento",
 		Description: `
 Either run Bento as a stream processor or choose a command:
 
@@ -240,7 +240,7 @@ pipeline, output) will be ignored. Other fields will be shared across all
 loaded streams (resources, metrics, etc).
 
 For more information check out the docs at:
-https://benthos.dev/docs/guides/streams_mode/about`[1:],
+https://warpstreamlabs.github.io/bento/docs/guides/streams_mode/about`[1:],
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:  "no-api",

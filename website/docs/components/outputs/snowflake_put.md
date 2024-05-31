@@ -208,8 +208,8 @@ curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://<account>.snowflakecomputi
 ```
 
 If you need to pass in a valid `requestId` to any of these Snowpipe REST API endpoints, you can set a
-[uuid_v4()](https://www.benthos.dev/docs/guides/bloblang/functions#uuid_v4) string in a metadata field called
-`request_id`, log it via the [`log`](https://www.benthos.dev/docs/components/processors/log) processor and
+[uuid_v4()](https://www.bento.dev/docs/guides/bloblang/functions#uuid_v4) string in a metadata field called
+`request_id`, log it via the [`log`](https://www.bento.dev/docs/components/processors/log) processor and
 then configure `request_id: ${ @request_id }` ). Alternatively, you can enable debug logging as described
 [here](/docs/components/logger/about) and Bento will print the Request IDs that it sends to Snowpipe.
 
@@ -268,7 +268,7 @@ input:
 output:
   snowflake_put:
     account: bento
-    user: test@warpstreamlabs.com
+    user: test@bento.dev
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
     database: BENTO_DB
@@ -291,7 +291,7 @@ Upload concatenated messages into a `.json` file to a table stage without callin
 output:
   snowflake_put:
     account: bento
-    user: test@warpstreamlabs.com
+    user: test@bento.dev
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
     database: BENTO_DB
@@ -318,7 +318,7 @@ Upload concatenated messages into a `.parquet` file to a table stage without cal
 output:
   snowflake_put:
     account: bento
-    user: test@warpstreamlabs.com
+    user: test@bento.dev
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
     database: BENTO_DB
@@ -351,7 +351,7 @@ Upload concatenated messages compressed automatically into a `.gz` archive file 
 output:
   snowflake_put:
     account: bento
-    user: test@warpstreamlabs.com
+    user: test@bento.dev
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
     database: BENTO_DB
@@ -378,7 +378,7 @@ Upload concatenated messages compressed into a `.deflate` archive file to a tabl
 output:
   snowflake_put:
     account: bento
-    user: test@warpstreamlabs.com
+    user: test@bento.dev
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
     database: BENTO_DB
@@ -408,7 +408,7 @@ Upload concatenated messages compressed into a `.raw_deflate` archive file to a 
 output:
   snowflake_put:
     account: bento
-    user: test@warpstreamlabs.com
+    user: test@bento.dev
     private_key_file: path_to_ssh_key.pem
     role: ACCOUNTADMIN
     database: BENTO_DB

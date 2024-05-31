@@ -62,7 +62,7 @@ output:
 				Description("A [Bloblang query](/docs/guides/bloblang/about) that should return a boolean value indicating whether a message belongs to a given group.").
 				Examples(
 					`this.type == "foo"`,
-					`this.contents.urls.contains("https://benthos.dev/")`,
+					`this.contents.urls.contains("https://warpstreamlabs.github.io/bento/")`,
 					`true`,
 				),
 			service.NewProcessorListField(gbpFieldProcessors).

@@ -4,9 +4,8 @@ const {components} = require('./src/plugins/components');
 module.exports = {
   title: 'Bento',
   tagline: 'Fancy stream processing made operationally mundane',
-  url: 'https://www.benthos.dev',
-  baseUrl: '/',
-  favicon: 'img/favicon.ico',
+  url: 'https://warpstreamlabs.github.io/',
+  baseUrl: '/bento/',
   organizationName: 'warpstreamlabs',
   projectName: 'bento',
   customFields: {
@@ -44,9 +43,7 @@ module.exports = {
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},
         {to: 'cookbooks', label: 'Cookbooks', position: 'left'},
-        {to: 'blog', label: 'Blog', position: 'left'},
-        {to: 'community', label: 'Community', position: 'right'},
-        {to: 'support', label: 'Support', position: 'right'},
+        {to: 'community', label: 'Community / Support', position: 'right'},
         {
           href: 'https://github.com/warpstreamlabs/bento/releases/latest',
           position: 'right',
@@ -68,16 +65,8 @@ module.exports = {
           title: 'Help',
           items: [
             {
-              label: 'Support',
-              to: 'support',
-            },
-            {
               label: 'Documentation',
               to: 'docs/guides/getting_started',
-            },
-            {
-              label: 'Videos',
-              to: 'videos',
             },
           ],
         },

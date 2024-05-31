@@ -24,7 +24,7 @@ pipeline:
   - mapping: |
       root = if @topic.or("") == "foo" ||
         this.doc.type == "bar" ||
-        this.doc.urls.contains("https://www.benthos.dev/").catch(false) {
+        this.doc.urls.contains("https://warpstreamlabs.github.io/bento/").catch(false) {
         deleted()
       }
 ```
@@ -33,7 +33,7 @@ The above config removes any events where:
 
 - The metadata field `topic` is equal to `foo`
 - The event field `doc.type` (a string) is equal to `bar`
-- The event field `doc.urls` (an array) contains the string `https://www.benthos.dev/`
+- The event field `doc.urls` (an array) contains the string `https://warpstreamlabs.github.io/bento/`
 
 Events that do not match any of these conditions will remain unchanged.
 

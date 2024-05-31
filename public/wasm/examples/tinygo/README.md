@@ -17,4 +17,4 @@ pipeline:
 ```
 
 [TinyGo]: https://tinygo.org/
-[processor.wasm]: https://www.benthos.dev/docs/components/processors/wasm
+[processor.wasm]: https://warpstreamlabs.github.io/bento/docs/components/processors/wasm

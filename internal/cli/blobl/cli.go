@@ -34,7 +34,7 @@ Provides a convenient tool for mapping JSON documents over the command line:
 
   echo '{"foo":"bar"}' | bento blobl -f ./mapping.blobl
 
-Find out more about Bloblang at: https://benthos.dev/docs/guides/bloblang/about`[1:],
+Find out more about Bloblang at: https://warpstreamlabs.github.io/bento/docs/guides/bloblang/about`[1:],
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "threads",

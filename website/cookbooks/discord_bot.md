@@ -177,7 +177,7 @@ The full config for Blob Bot (with some super secret responses redacted) can be 
 
 If you want to play with Blob Bot then [join our Discord][discord-link]. There are also some humans in there that will help you manage your disappointment when you see Blob Bot in action.
 
-[discord-link]: https://discord.gg/6VaWjzP
+[discord-link]: https://console.warpstream.com/socials/discord
 [discord-applications]: https://discord.com/developers/applications
 [discord-channel-id]: https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-
 [discord-message-object]: https://discord.com/developers/docs/resources/channel#message-object

@@ -15,7 +15,7 @@ const installs = [
     label: 'Curl',
     language: 'bash',
     children: `# Install
-curl -Lsf https://www.benthos.dev/sh/install | bash
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash
 
 # Make a config
 bento create nats/protobuf/aws_sqs > ./config.yaml
@@ -189,10 +189,10 @@ const features = [
     description: (
       <>
         <p>
-          Bento solves common data engineering tasks such as transformations, integrations, and multiplexing with declarative and <a href="/docs/configuration/unit_testing">unit testable</a> configuration. This allows you to easily and incrementally adapt your data pipelines as requirements change, letting you focus on the more exciting stuff.
+          Bento solves common data engineering tasks such as transformations, integrations, and multiplexing with declarative and <a href="/bento/docs/configuration/unit_testing">unit testable</a> configuration. This allows you to easily and incrementally adapt your data pipelines as requirements change, letting you focus on the more exciting stuff.
         </p>
         <p>
-          It comes armed with a wide range of <a href="/docs/components/processors/about">processors</a>, a <a href="/docs/guides/bloblang/about">lit mapping language</a>, stateless <a href="/docs/configuration/windowed_processing">windowed processing capabilities</a> and an <a href="/blobfish">industry leading mascot</a>.
+          It comes armed with a wide range of <a href="bento/docs/components/processors/about">processors</a>, a <a href="/bento/docs/guides/bloblang/about">lit mapping language</a>, stateless <a href="/bento/docs/configuration/windowed_processing">windowed processing capabilities</a> and an industry leading mascot.
         </p>
       </>
     ),
@@ -203,21 +203,12 @@ const features = [
     description: (
       <>
         <p>
-          Bento is able to glue a wide range of <a href="/docs/components/inputs/about">sources</a> and <a href="/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/docs/components/processors/sql">databases</a>, <a href="/docs/components/processors/cache">caches</a>, <a href="/docs/components/processors/http">HTTP APIs</a>, <a href="/docs/components/processors/aws_lambda">lambdas</a> and <a href="/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
+          Bento is able to glue a wide range of <a href="/bento/docs/components/inputs/about">sources</a> and <a href="/bento/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/bento/docs/components/processors/sql">databases</a>, <a href="/bento/docs/components/processors/cache">caches</a>, <a href="/bento/docs/components/processors/http">HTTP APIs</a>, <a href="/bento/docs/components/processors/aws_lambda">lambdas</a> and <a href="/bento/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
         </p>
         <p>
           Working with disparate APIs and services can be a daunting task, doubly so in a streaming data context. With Bento it's possible to break these tasks down and automatically parallelize them as <a href="/cookbooks/enrichments">a streaming workflow</a>.
         </p>
       </>
-    ),
-  },
-  {
-    description: (
-      <ReactPlayer
-        className={classnames('col col-6 padding--lg')}
-        url='https://youtu.be/uvbp2LCmQMY'
-        controls={true}
-      />
     ),
   },
   {
@@ -229,7 +220,7 @@ const features = [
           Delivery guarantees <a href="https://youtu.be/QmpBOCvY8mY">can be a dodgy subject</a>. Bento processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
         </p>
         <p>
-          This behaviour is the default and free of caveats, which also makes deploying and scaling Bento much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/docs/components/metrics/about">metrics</a> and <a href="/docs/components/tracers/about">tracing</a> events to targets of your choice.
+          This behaviour is the default and free of caveats, which also makes deploying and scaling Bento much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/bento/docs/components/metrics/about">metrics</a> and <a href="/bento/docs/components/tracers/about">tracing</a> events to targets of your choice.
         </p>
       </>
     ),
@@ -243,7 +234,7 @@ const features = [
           Sometimes the components that come with Bento aren't enough. Luckily, Bento has been designed to be easily plugged with whatever components you need.
         </p>
         <p>
-          You can either write plugins <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public">directly in Go (recommended)</a> or you can have Bento run your plugin as a <a href="/docs/components/processors/subprocess">subprocess</a>.
+          You can either write plugins <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public">directly in Go (recommended)</a> or you can have Bento run your plugin as a <a href="/bento/docs/components/processors/subprocess">subprocess</a>.
         </p>
       </>
     ),
@@ -256,7 +247,7 @@ interface FeatureArgs {
   description: JSX.Element;
 };
 
-function Feature({imageUrl, title, description}: FeatureArgs) {
+function Feature({ imageUrl, title, description }: FeatureArgs) {
   const imgUrl = useBaseUrl(imageUrl);
   return (
     <div className={classnames('col col--6')}>
@@ -309,39 +300,40 @@ function Home() {
               <p>
                 Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
               </p>
-              {installs && installs.length && (
+              {/* TODO(install): fix me */}
+              {/* {installs && installs.length && (
                 <Tabs defaultValue={installs[0].label} values={installs.map((props, idx) => {
-                  return {label:props.label, value:props.label};
+                  return { label: props.label, value: props.label };
                 })}>
                   {installs.map((props, idx) => (
                     <TabItem key={idx} value={props.label}>
-                      <CodeBlock {...props}/>
+                      <CodeBlock {...props} />
                     </TabItem>
                   ))}
                 </Tabs>
-              )}
+              )} */}
             </div>
             <div className={classnames('col col--6')}>
-                {snippets && snippets.length && (
-                  <section className={styles.configSnippets}>
-                    <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
-                      return {label:props.label, value:props.label};
-                    })}>
-                      {snippets.map((props, idx) => (
-                        <TabItem key={idx} value={props.label}>
-                          <div style={{position: 'relative'}}>
-                            <CodeBlock {...props}/>
-                            {props.further && <Link
-                              className={classnames(styles.furtherButton, 'button button--outline button--primary')}
-                              to={props.further}>
-                              Read about
-                            </Link>}
-                          </div>
-                        </TabItem>
-                      ))}
-                    </Tabs>
-                  </section>
-                )}
+              {snippets && snippets.length && (
+                <section className={styles.configSnippets}>
+                  <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
+                    return { label: props.label, value: props.label };
+                  })}>
+                    {snippets.map((props, idx) => (
+                      <TabItem key={idx} value={props.label}>
+                        <div style={{ position: 'relative' }}>
+                          <CodeBlock {...props} />
+                          {props.further && <Link
+                            className={classnames(styles.furtherButton, 'button button--outline button--primary')}
+                            to={props.further}>
+                            Read about
+                          </Link>}
+                        </div>
+                      </TabItem>
+                    ))}
+                  </Tabs>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -362,35 +354,13 @@ function Home() {
               <div className={classnames('col col--6')}>
                 <h3 id="sponsored-by">Sponsored by the following heroes</h3>
                 <div className="container">
-                  <div>
-                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/img/sponsors/synadia.svg" /></a>
-                  </div>
                   <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
-                    <a href="https://www.warpstream.com/"><img src="/img/sponsors/warpstream_logo.svg" /></a>
+                    <a href="https://www.warpstream.com/"><img src="/bento/img/sponsors/warpstream_logo.svg" /></a>
                   </div>
-                  <div className={classnames(styles.sponsorsBox, styles.silverSponsors)}>
-                    <a href="https://www.meltwater.com/"><img src="/img/sponsors/mw_logo.png" /></a>
-                    <a href="https://www.humansecurity.com"><img src="/img/sponsors/HUMAN_logo.png" /></a>
-                    <a href="https://community.com/"><img src="/img/sponsors/community.svg" /></a>
-                    <a href="https://www.optum.com/"><img src="/img/sponsors/optum_logo.png" /></a>
-                    <a href="https://aurora.dev/"><img src="/img/sponsors/aurora.svg" /></a>
-                    <a href="https://www.opala.com"><img src="/img/sponsors/opala.svg" /></a>
-                    <a href="https://formance.com"><img src="/img/sponsors/formance.svg" /></a>
-                    <a href="https://www.umh.app/"><img src="/img/sponsors/umh_logo.svg" /></a>
+                  <div>
+                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
                   </div>
                 </div>
-              </div>
-              <div className={classnames('col col--6', styles.loveSectionPlea)}>
-                <div>
-                  <a href="https://github.com/sponsors/Jeffail">
-                    <img className={styles.loveImg} src="img/blobheart.svg" alt="Blob Heart" />
-                  </a>
-                </div>
-                <Link
-                  className={classnames('button button--danger')}
-                  to="https://github.com/sponsors/Jeffail">
-                  Become a sponsor
-                </Link>
               </div>
             </div>
           </div>
