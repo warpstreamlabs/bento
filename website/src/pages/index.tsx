@@ -357,9 +357,9 @@ function Home() {
                   <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
                     <a href="https://www.warpstream.com/"><img src="/bento/img/sponsors/warpstream_logo.svg" /></a>
                   </div>
-                  <div>
+                  {/* <div>
                     <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
