@@ -78,7 +78,6 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          warpstreamlabs/bento
           public.ecr.aws/q3y3o3o4/bento
         flavor: |
           latest=auto
