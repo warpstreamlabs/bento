@@ -88,7 +88,7 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          public.ecr.aws/q3y3o3o4/bento
+          public.ecr.aws/q3y3o3o4/warpstream_bento
         flavor: |
           latest=auto
           suffix=-cgo
