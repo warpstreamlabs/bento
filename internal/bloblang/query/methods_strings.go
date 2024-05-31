@@ -1248,7 +1248,7 @@ var _ = registerSimpleMethod(
 		NewExampleSpec("",
 			`root.foo_url = this.foo_url.parse_url()`,
 			`{"foo_url":"https://warpstreamlabs.github.io/bento/docs/guides/bloblang/about"}`,
-			`{"foo_url":{"fragment":"","host":"www.benthos.dev","opaque":"","path":"/docs/guides/bloblang/about","raw_fragment":"","raw_path":"","raw_query":"","scheme":"https"}}`,
+			`{"foo_url":{"fragment":"","host":"warpstreamlabs.github.io","opaque":"","path":"/docs/guides/bloblang/about","raw_fragment":"","raw_path":"","raw_query":"","scheme":"https"}}`,
 		),
 		NewExampleSpec("",
 			`root.username = this.url.parse_url().user.name | "unknown"`,
