@@ -1,7 +1,9 @@
 [![godoc for warpstreamlabs/bento][godoc-badge]][godoc-url]
 [![Build Status][actions-badge]][actions-url]
-[![Discord invite][discord-badge]][discord-url]
 [![Docs site][website-badge]][website-url]
+
+[Discord](https://console.warpstream.com/socials/discord)
+[Slack](https://console.warpstream.com/socials/slack)
 
 Bento is a high performance and resilient stream processor, able to connect various [sources][inputs] and [sinks][outputs] in a range of brokering patterns and perform [hydration, enrichments, transformations and filters][processors] on payloads.
 
@@ -181,12 +183,10 @@ Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come a
 [godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public
 [actions-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml/badge.svg
 [actions-url]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml
-[discord-badge]: https://img.shields.io/discord/746368194196799589
-[discord-url]: https://discord.com/invite/6VaWjzP
 [website-badge]: https://img.shields.io/badge/Docs-Learn%20more-ffc7c7
-[website-url]: https://github.com/warpstreamlabs/bento
+[website-url]: https://warpstreamlabs.github.io/bento/
 
-[community]: https://github.com/warpstreamlabs/bento
+[community]: https://warpstreamlabs.github.io/bento/community
 
 [golangci-lint]: https://golangci-lint.run/
 [jaeger]: https://www.jaegertracing.io/
