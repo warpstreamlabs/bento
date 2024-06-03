@@ -58,7 +58,7 @@ function Community() {
                   <i className={classnames(styles.icon, styles.slack)}></i>
                 </div>
                 <div className="card__body">
-                  <p>Join us on the &#35;bentho channel in the Gophers slack</p>
+                  <p>Join us on the &#35;bento channel in the WarpStream Labs Community slack</p>
                 </div>
                 <div className="card__footer">
                   <Link to="https://console.warpstream.com/socials/slack" className="button button--outline button--primary button--block">Open</Link>
