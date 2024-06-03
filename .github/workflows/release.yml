@@ -60,24 +60,14 @@ jobs:
         sudo rm -rf "/usr/local/share/boost"
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
+    - name: Log in to registry
+      run: echo "${{ secrets.GH_ACCESS_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-      with:
-        registry-type: public
 
     - name: Install Buildx
       id: buildx
@@ -88,7 +78,7 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          public.ecr.aws/q3y3o3o4/warpstream_bento
+          ghcr.io/${{ github.repository_owner }}/bento
         flavor: |
           latest=auto
           suffix=-cgo
@@ -110,7 +100,7 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: |
-          public.ecr.aws/q3y3o3o4/warpstream_bento
+          ghcr.io/${{ github.repository_owner }}/bento
         tags: |
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
