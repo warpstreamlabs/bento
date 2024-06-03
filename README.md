@@ -109,6 +109,7 @@ Build with Go (any [currently supported version](https://go.dev/dl/)):
 git clone git@github.com:warpstreamlabs/bento
 cd bento
 make
+go build -o bento ./cmd/bento/main.go
 ```
 
 ## Lint
