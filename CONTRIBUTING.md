@@ -51,4 +51,4 @@ The APIs for adding new components (inputs, outputs, processors, caches, etc) ha
 
 The core components within Bento (inputs, processors, conditions and outputs) are all easily pluggable. If you are interested in adding new components please raise a ticket and we can discuss whether it's a good fit for the project.
 
-If not then it's still easy to build your own version of Bento with custom components. For guidance take a look at [this example repo](https://github.com/warpstreamlabs/bento-plugin-example).
+If not then it's still easy to build your own version of Bento with custom components. For guidance take a look at [this example repo](https://github.com/benthosdev/benthos-plugin-example).
