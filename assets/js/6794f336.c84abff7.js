@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkbento=self.webpackChunkbento||[]).push([[7366],{3246:function(e){e.exports=JSON.parse('{"name":"cookbooks","id":"default"}')}}]);
