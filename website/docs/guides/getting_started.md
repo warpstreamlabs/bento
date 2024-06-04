@@ -3,9 +3,6 @@ title: Getting Started
 description: Getting started with Bento
 ---
 
-<!-- TODO(install): Fix me. -->
-<!-- Woops! You fell for the marketing hype. Let's try and get through this together.
-
 <div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
 
 ## Install
@@ -29,7 +26,7 @@ curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash
 <TabItem value="version">
 
 ```sh
-curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 3.56.0
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 1.0.1
 ```
 
 </TabItem>
@@ -48,7 +45,7 @@ docker run --rm -v /path/to/your/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/
 
 ### Serverless
 
-For information about serverless deployments of Bento check out the serverless section [here][serverless]. -->
+For information about serverless deployments of Bento check out the serverless section [here][serverless].
 
 ## Run
 
