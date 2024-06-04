@@ -56,7 +56,7 @@ For guidance on building your own custom plugins in Go check out [the public API
 We're working on the release process, but you can either compile from source or pull the docker image:
 
 ```
-docker pull public.ecr.aws/warpstream-labs/warpstream_bento:0.0.1-rc1
+docker pull ghcr.io/warpstreamlabs/bento
 ```
 
 For more information check out the [getting started guide][getting-started].
@@ -71,10 +71,10 @@ Or, with docker:
 
 ```shell
 # Using a config file
-docker run --rm -v /path/to/your/config.yaml:/bento.yaml public.ecr.aws/warpstream-labs/warpstream_bento
+docker run --rm -v /path/to/your/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento
 
 # Using a series of -s flags
-docker run --rm -p 4195:4195 public.ecr.aws/warpstream-labs/warpstream_bento \
+docker run --rm -p 4195:4195 ghcr.io/warpstreamlabs/bento \
   -s "input.type=http_server" \
   -s "output.type=kafka" \
   -s "output.kafka.addresses=kafka-server:9092" \
