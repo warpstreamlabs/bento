@@ -26,7 +26,7 @@ curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash
 <TabItem value="version">
 
 ```sh
-curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 3.56.0
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 1.0.1
 ```
 
 </TabItem>
