@@ -3,9 +3,6 @@ title: Getting Started
 description: Getting started with Bento
 ---
 
-<!-- TODO(install): Fix me. -->
-<!-- Woops! You fell for the marketing hype. Let's try and get through this together.
-
 <div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
 
 ## Install
@@ -48,7 +45,7 @@ docker run --rm -v /path/to/your/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/
 
 ### Serverless
 
-For information about serverless deployments of Bento check out the serverless section [here][serverless]. -->
+For information about serverless deployments of Bento check out the serverless section [here][serverless].
 
 ## Run
 
