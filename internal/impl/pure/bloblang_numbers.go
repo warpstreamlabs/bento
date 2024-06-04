@@ -173,4 +173,26 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 		}); err != nil {
 		panic(err)
 	}
+
+	if err := bloblang.RegisterMethodV2("pow",
+		bloblang.NewPluginSpec().
+			Category(query.MethodCategoryNumbers).
+			Description(`Returns the number raised to the specified exponent.`).
+			Example("", `root.new_value = this.value * 10.pow(-2)`,
+				[2]string{`{"value":2}`, `{"new_value":0.02}`}).
+			Example("", `root.new_value = this.value.pow(-2)`,
+				[2]string{`{"value":2}`, `{"new_value":0.25}`}).
+			Param(bloblang.NewFloat64Param("exponent").
+				Description("The exponent you want to raise to the power of.")),
+		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
+			return bloblang.Float64Method(func(input float64) (any, error) {
+				exp, err := args.GetFloat64("exponent")
+				if err != nil {
+					return nil, err
+				}
+				return math.Pow(input, exp), nil
+			}), nil
+		}); err != nil {
+		panic(err)
+	}
 }
