@@ -8,10 +8,10 @@ import (
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/template"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v1/internal/filepath"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/template"
 )
 
 var (

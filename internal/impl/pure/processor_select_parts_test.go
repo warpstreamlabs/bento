@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 func TestSelectParts(t *testing.T) {

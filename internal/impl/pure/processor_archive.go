@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/batch"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/batch"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 func archiveProcConfig() *service.ConfigSpec {

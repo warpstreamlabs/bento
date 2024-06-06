@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync/atomic"
 
-	iprocessor "github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	iprocessor "github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 type tracedProcessor struct {

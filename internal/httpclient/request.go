@@ -10,8 +10,8 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/value"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 // MultipartExpressions represents three dynamic expressions that define a

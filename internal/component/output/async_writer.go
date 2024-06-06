@@ -12,12 +12,12 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v4/internal/batch"
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/internal/tracing"
+	"github.com/warpstreamlabs/bento/v1/internal/batch"
+	"github.com/warpstreamlabs/bento/v1/internal/component"
+	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/tracing"
 )
 
 // AsyncSink is a type that writes Bento messages to a third party sink. If

@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
 
 	_ "embed"
 )

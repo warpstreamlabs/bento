@@ -1,7 +1,7 @@
 package tracing
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/bundle/tracing"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle/tracing"
 )
 
 type ObservedSummary struct {

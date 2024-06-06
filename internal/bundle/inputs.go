@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/component"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
 )
 
 // AllInputs is a set containing every single input that has been imported.

@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/manager"
-	"github.com/warpstreamlabs/bento/v4/internal/stream"
-	strmmgr "github.com/warpstreamlabs/bento/v4/internal/stream/manager"
+	"github.com/warpstreamlabs/bento/v1/internal/config"
+	"github.com/warpstreamlabs/bento/v1/internal/manager"
+	"github.com/warpstreamlabs/bento/v1/internal/stream"
+	strmmgr "github.com/warpstreamlabs/bento/v1/internal/stream/manager"
 
 	"github.com/urfave/cli/v2"
 )

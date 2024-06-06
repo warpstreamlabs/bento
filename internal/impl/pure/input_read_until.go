@@ -11,12 +11,12 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input"
+	"github.com/warpstreamlabs/bento/v1/internal/component/interop"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 const (

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/warpstreamlabs/bento/v4/internal/autoretry"
-	"github.com/warpstreamlabs/bento/v4/internal/batch"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/autoretry"
+	"github.com/warpstreamlabs/bento/v1/internal/batch"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 // AutoRetryNacksBatchedToggled wraps an input implementation with

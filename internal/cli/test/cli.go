@@ -6,10 +6,10 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
 )
 
 // CliCommand is a cli.Command definition for unit testing.

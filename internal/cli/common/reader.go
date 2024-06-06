@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/config"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
 
 	"github.com/urfave/cli/v2"
 )

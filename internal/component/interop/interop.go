@@ -3,13 +3,13 @@ package interop
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/component"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input"
+	"github.com/warpstreamlabs/bento/v1/internal/component/output"
+	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 // UnwrapOwnedInput attempts to unwrap a public owned component into an internal

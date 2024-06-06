@@ -4,11 +4,11 @@ import (
 	"context"
 	"math/rand"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 
 	// Import only pure Bento components, switch with `components/all` for all
 	// standard components.
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
 )
 
 type GibberishInput struct {

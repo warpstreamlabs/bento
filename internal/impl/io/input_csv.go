@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 var (

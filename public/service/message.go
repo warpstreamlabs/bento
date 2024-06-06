@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/internal/transaction"
-	"github.com/warpstreamlabs/bento/v4/internal/value"
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/transaction"
+	"github.com/warpstreamlabs/bento/v1/internal/value"
+	"github.com/warpstreamlabs/bento/v1/public/bloblang"
 )
 
 // MessageHandlerFunc is a function signature defining a component that consumes

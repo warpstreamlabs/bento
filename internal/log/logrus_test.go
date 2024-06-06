@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
 )
 
 func TestLoggerWith(t *testing.T) {

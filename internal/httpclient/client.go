@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/old/util/throttle"
-	"github.com/warpstreamlabs/bento/v4/internal/tracing/v2"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/old/util/throttle"
+	"github.com/warpstreamlabs/bento/v1/internal/tracing/v2"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 // Client is a component able to send and receive Bento messages over HTTP.

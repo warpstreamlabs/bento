@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 var _ service.Cache = (*noopCacheAdapter)(nil)

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/component"
+	"github.com/warpstreamlabs/bento/v1/internal/component/output"
+	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
 )
 
 // AllOutputs is a set containing every single output that has been imported.

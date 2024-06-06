@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 // NewConfigSpec constructs a new Couchbase ConfigSpec with common config fields

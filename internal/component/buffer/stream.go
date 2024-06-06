@@ -10,12 +10,12 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/internal/old/util/throttle"
-	"github.com/warpstreamlabs/bento/v4/internal/tracing"
+	"github.com/warpstreamlabs/bento/v1/internal/component"
+	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/old/util/throttle"
+	"github.com/warpstreamlabs/bento/v1/internal/tracing"
 )
 
 // AckFunc is a function used to acknowledge receipt of a message batch from a

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/pipeline"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input"
+	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/internal/pipeline"
 )
 
 // AppendFromConfig takes a variant arg of pipeline constructor functions and

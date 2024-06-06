@@ -3,7 +3,7 @@ package input
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 // Streamed is a common interface implemented by inputs and provides channel

@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/scanner/testutil"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/component/scanner/testutil"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 func TestLinesChunkerSuite(t *testing.T) {

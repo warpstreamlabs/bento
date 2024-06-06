@@ -1,9 +1,9 @@
 package service
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/value"
 )
 
 type fieldUnwrapper struct {

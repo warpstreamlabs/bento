@@ -11,13 +11,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/value"
 )
 
 var red = color.New(color.FgRed).SprintFunc()

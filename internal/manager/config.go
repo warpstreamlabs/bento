@@ -1,12 +1,12 @@
 package manager
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input"
+	"github.com/warpstreamlabs/bento/v1/internal/component/output"
+	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
 )
 
 const (

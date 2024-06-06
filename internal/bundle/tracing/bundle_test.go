@@ -7,18 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/bundle/tracing"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
-	"github.com/warpstreamlabs/bento/v4/internal/manager"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle/tracing"
+	"github.com/warpstreamlabs/bento/v1/internal/component/output"
+	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v1/internal/manager"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
 )
 
 func TestBundleInputTracing(t *testing.T) {

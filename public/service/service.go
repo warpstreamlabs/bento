@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/cli"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/cli"
+	"github.com/warpstreamlabs/bento/v1/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
 )
 
 // RunCLI executes Bento as a CLI, allowing users to specify a configuration

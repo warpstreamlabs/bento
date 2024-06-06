@@ -7,8 +7,8 @@ import (
 
 	"github.com/IBM/sarama"
 
-	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 
 	"github.com/twmb/franz-go/pkg/sasl"
 	"github.com/twmb/franz-go/pkg/sasl/oauth"

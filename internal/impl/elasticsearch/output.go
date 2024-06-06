@@ -12,9 +12,9 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/olivere/elastic/v7"
 
-	"github.com/warpstreamlabs/bento/v4/internal/impl/aws/config"
-	"github.com/warpstreamlabs/bento/v4/internal/retries"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/v1/internal/retries"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 const (

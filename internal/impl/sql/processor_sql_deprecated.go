@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 )
 
 // DeprecatedProcessorConfig returns a config spec for an sql processor.

@@ -1,11 +1,11 @@
 package stream
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/pipeline"
+	"github.com/warpstreamlabs/bento/v1/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input"
+	"github.com/warpstreamlabs/bento/v1/internal/component/output"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/pipeline"
 )
 
 const (

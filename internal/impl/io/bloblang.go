@@ -3,8 +3,8 @@ package io
 import (
 	"os"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v1/public/bloblang"
 )
 
 func init() {

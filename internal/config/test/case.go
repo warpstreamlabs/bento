@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
 )
 
 const (

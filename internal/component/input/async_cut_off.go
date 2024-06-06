@@ -3,8 +3,8 @@ package input
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/component"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 type asyncCutOffMsg struct {

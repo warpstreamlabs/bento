@@ -8,17 +8,17 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/blobl"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/studio"
-	clitemplate "github.com/warpstreamlabs/bento/v4/internal/cli/template"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/test"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/template"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/cli/blobl"
+	"github.com/warpstreamlabs/bento/v1/internal/cli/common"
+	"github.com/warpstreamlabs/bento/v1/internal/cli/studio"
+	clitemplate "github.com/warpstreamlabs/bento/v1/internal/cli/template"
+	"github.com/warpstreamlabs/bento/v1/internal/cli/test"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/template"
 )
 
 // Build stamps.
@@ -33,7 +33,7 @@ func init() {
 	}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, mod := range info.Deps {
-			if mod.Path == "github.com/warpstreamlabs/bento/v4" {
+			if mod.Path == "github.com/warpstreamlabs/bento/v1" {
 				if mod.Version != "(devel)" {
 					Version = mod.Version
 				}

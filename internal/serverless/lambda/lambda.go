@@ -8,11 +8,11 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/serverless"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/config"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/serverless"
 )
 
 var handler *serverless.Handler

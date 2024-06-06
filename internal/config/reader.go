@@ -14,11 +14,11 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/manager"
-	"github.com/warpstreamlabs/bento/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/manager"
+	"github.com/warpstreamlabs/bento/v1/internal/stream"
 )
 
 const (

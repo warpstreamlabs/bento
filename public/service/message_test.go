@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ibloblang "github.com/warpstreamlabs/bento/v4/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	ibloblang "github.com/warpstreamlabs/bento/v1/internal/bloblang"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/public/bloblang"
 )
 
 func TestMessageCopyAirGap(t *testing.T) {

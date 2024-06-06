@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/v1/public/service"
 
 	// Import only required Bento components, switch with `components/all` for
 	// all standard components.
-	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v1/public/components/io"
+	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
 )
 
 // This example demonstrates how to use a stream builder to parse and execute a

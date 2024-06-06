@@ -14,8 +14,8 @@ import (
 	"github.com/gorilla/mux"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
 )
 
 // OptFunc applies an option to an API type during construction.

@@ -12,11 +12,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/config/test"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/stream"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/config/test"
+	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/v1/internal/filepath"
+	"github.com/warpstreamlabs/bento/v1/internal/stream"
 )
 
 // inferStreamID attempts to infer a stream identifier from a file path and

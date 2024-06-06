@@ -9,18 +9,18 @@ import (
 
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	ioutput "github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/manager"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/internal/pipeline"
-	"github.com/warpstreamlabs/bento/v4/internal/transaction"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
+	ioutput "github.com/warpstreamlabs/bento/v1/internal/component/output"
+	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
+	"github.com/warpstreamlabs/bento/v1/internal/config"
+	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/manager"
+	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/pipeline"
+	"github.com/warpstreamlabs/bento/v1/internal/transaction"
 )
 
 // ServerlessResponseType is an output type that redirects pipeline outputs back

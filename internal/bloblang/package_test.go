@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 func TestMappings(t *testing.T) {

@@ -3,8 +3,8 @@ package mapping
 import (
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/v1/internal/value"
 )
 
 type Statement interface {

@@ -9,15 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
-	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
-	"github.com/warpstreamlabs/bento/v4/internal/impl/pure"
-	"github.com/warpstreamlabs/bento/v4/internal/manager"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/v1/internal/bundle"
+	"github.com/warpstreamlabs/bento/v1/internal/component/cache"
+	"github.com/warpstreamlabs/bento/v1/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/v1/internal/impl/pure"
+	"github.com/warpstreamlabs/bento/v1/internal/manager"
+	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
 )
 
 func testCacheOutput(t testing.TB, res bundle.NewManagement, confPattern string, args ...any) *pure.CacheWriter {

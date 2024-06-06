@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ibatch "github.com/warpstreamlabs/bento/v4/internal/batch"
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy/batchconfig"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input/batcher"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	ibatch "github.com/warpstreamlabs/bento/v1/internal/batch"
+	"github.com/warpstreamlabs/bento/v1/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/v1/internal/batch/policy/batchconfig"
+	"github.com/warpstreamlabs/bento/v1/internal/component/input/batcher"
+	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/v1/internal/message"
 )
 
 func TestBatcherStandard(t *testing.T) {
