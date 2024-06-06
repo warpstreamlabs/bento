@@ -2,7 +2,7 @@ version: '3.3'
 services:
   bento:
     image: ghcr.io/warpstreamlabs/bento
-    command: [ '-c', '/bento.yaml', 'streams', '/streams/*.yaml' ]
+    command: [ '-r', '/bento.yaml', 'streams', '/streams/*.yaml' ]
     volumes:
       - ./bento.yaml:/bento.yaml
       - ./streams:/streams
