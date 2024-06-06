@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/field"
+	"github.com/warpstreamlabs/bento/internal/bloblang/field"
 )
 
 func intoStaticResolver(p Func[string]) Func[field.Resolver] {

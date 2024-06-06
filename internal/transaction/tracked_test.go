@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/warpstreamlabs/bento/v1/internal/batch"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/batch"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 func TestTaggingErrorsSinglePart(t *testing.T) {

@@ -3,8 +3,8 @@ package output
 import (
 	"context"
 
-	iprocessor "github.com/warpstreamlabs/bento/v1/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // WithPipeline is a type that wraps both an output type and a pipeline type

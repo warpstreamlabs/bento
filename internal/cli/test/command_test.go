@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/warpstreamlabs/bento/v1/internal/cli/test"
-	"github.com/warpstreamlabs/bento/v1/internal/config"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/internal/cli/test"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/log"
 )
 
 func TestGetBothPaths(t *testing.T) {

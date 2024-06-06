@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component/testutil"
-	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/message"
 
-	_ "github.com/warpstreamlabs/bento/v1/internal/impl/pure"
+	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
 func TestGroupByValueBasic(t *testing.T) {

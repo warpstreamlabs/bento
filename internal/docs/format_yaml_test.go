@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 func TestSecretScrubbingYAML(t *testing.T) {

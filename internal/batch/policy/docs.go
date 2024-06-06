@@ -1,6 +1,6 @@
 package policy
 
-import "github.com/warpstreamlabs/bento/v1/internal/docs"
+import "github.com/warpstreamlabs/bento/internal/docs"
 
 // FieldSpec returns a spec for a common batching field.
 func FieldSpec() docs.FieldSpec {

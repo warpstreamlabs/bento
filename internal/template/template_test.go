@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component/cache"
-	"github.com/warpstreamlabs/bento/v1/internal/component/input"
-	"github.com/warpstreamlabs/bento/v1/internal/component/output"
-	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v1/internal/component/ratelimit"
-	"github.com/warpstreamlabs/bento/v1/internal/manager"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/internal/template"
+	"github.com/warpstreamlabs/bento/internal/component/cache"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/template"
 
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 func TestCacheTemplate(t *testing.T) {

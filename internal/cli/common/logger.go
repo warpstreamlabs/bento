@@ -6,9 +6,9 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v1/internal/config"
-	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/log"
 )
 
 // CreateLogger from a CLI context and a stream config.

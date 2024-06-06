@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/warpstreamlabs/bento/v1/internal/codec"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/codec"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

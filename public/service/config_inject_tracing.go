@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/tracing"
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/tracing"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 const (

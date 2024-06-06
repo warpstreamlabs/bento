@@ -1,8 +1,8 @@
 package pure
 
 import (
-	"github.com/warpstreamlabs/bento/v1/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func batchedInputConfig() *service.ConfigSpec {

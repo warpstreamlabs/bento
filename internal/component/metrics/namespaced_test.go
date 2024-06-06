@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
 
-	_ "github.com/warpstreamlabs/bento/v1/internal/impl/prometheus"
+	_ "github.com/warpstreamlabs/bento/internal/impl/prometheus"
 )
 
 func getTestProm(t *testing.T) (metrics.Type, http.HandlerFunc) {

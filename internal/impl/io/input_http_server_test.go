@@ -22,17 +22,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/api"
-	"github.com/warpstreamlabs/bento/v1/internal/component/input"
-	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v1/internal/component/testutil"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/manager"
-	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/internal/transaction"
+	"github.com/warpstreamlabs/bento/internal/api"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/transaction"
 
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 type apiRegGorillaMutWrapper struct {

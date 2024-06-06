@@ -9,9 +9,9 @@ import (
 
 	"github.com/quipo/dependencysolver"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 type workflowBranch interface {

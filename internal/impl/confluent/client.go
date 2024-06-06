@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 type schemaRegistryClient struct {

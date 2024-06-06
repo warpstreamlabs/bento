@@ -9,10 +9,10 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component"
-	"github.com/warpstreamlabs/bento/v1/internal/component/output"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // wrappedOutput is a struct that wraps a DynamicOutput with an identifying

@@ -7,7 +7,7 @@ import (
 	"cuelang.org/go/cue/ast"
 	"cuelang.org/go/cue/token"
 
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 func doComponentSpec(cs docs.ComponentSpec) (*ast.Field, error) {

@@ -9,8 +9,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v1/internal/config"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // StreamConfigLinter provides utilities for linting stream configs.

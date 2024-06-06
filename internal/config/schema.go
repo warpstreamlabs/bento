@@ -1,15 +1,15 @@
 package config
 
 import (
-	"github.com/warpstreamlabs/bento/v1/internal/api"
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v1/internal/component/tracer"
-	"github.com/warpstreamlabs/bento/v1/internal/config/test"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/manager"
-	"github.com/warpstreamlabs/bento/v1/internal/stream"
+	"github.com/warpstreamlabs/bento/internal/api"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/component/tracer"
+	"github.com/warpstreamlabs/bento/internal/config/test"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/stream"
 )
 
 const (

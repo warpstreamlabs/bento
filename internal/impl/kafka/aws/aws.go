@@ -3,13 +3,13 @@ package aws
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v1/internal/impl/kafka"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/impl/kafka"
+	"github.com/warpstreamlabs/bento/public/service"
 
 	"github.com/twmb/franz-go/pkg/sasl"
 	kaws "github.com/twmb/franz-go/pkg/sasl/aws"
 
-	sess "github.com/warpstreamlabs/bento/v1/internal/impl/aws"
+	sess "github.com/warpstreamlabs/bento/internal/impl/aws"
 )
 
 func init() {

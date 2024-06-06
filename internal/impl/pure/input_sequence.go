@@ -12,10 +12,10 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component/input"
-	"github.com/warpstreamlabs/bento/v1/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

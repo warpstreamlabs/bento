@@ -1,8 +1,8 @@
 package pure
 
 import (
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func init() {

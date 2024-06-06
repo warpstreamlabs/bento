@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/impl/couchbase"
-	"github.com/warpstreamlabs/bento/v1/public/service"
-	"github.com/warpstreamlabs/bento/v1/public/service/integration"
+	"github.com/warpstreamlabs/bento/internal/impl/couchbase"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestProcessorConfigLinting(t *testing.T) {

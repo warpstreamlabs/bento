@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component/input"
-	bmock "github.com/warpstreamlabs/bento/v1/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	bmock "github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/public/service"
 
-	_ "github.com/warpstreamlabs/bento/v1/internal/impl/pure"
+	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
 func TestDynamicInputAPI(t *testing.T) {

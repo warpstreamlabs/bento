@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 
-	icli "github.com/warpstreamlabs/bento/v1/internal/cli"
-	"github.com/warpstreamlabs/bento/v1/internal/cli/common"
+	icli "github.com/warpstreamlabs/bento/internal/cli"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 
-	_ "github.com/warpstreamlabs/bento/v1/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 func executeLintSubcmd(t *testing.T, args []string) (exitCode int, printedErr string) {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component/input"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 // Connection fields

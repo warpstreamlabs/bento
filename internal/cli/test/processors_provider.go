@@ -12,17 +12,17 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v1/internal/config"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
-	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/manager"
-	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 type cachedConfig struct {

@@ -15,9 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/cenkalti/backoff/v4"
 
-	"github.com/warpstreamlabs/bento/v1/internal/impl/aws/config"
-	"github.com/warpstreamlabs/bento/v1/internal/retries"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/internal/retries"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

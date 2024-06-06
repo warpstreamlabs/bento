@@ -7,10 +7,10 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/warpstreamlabs/bento/v1/internal/cli/test"
-	"github.com/warpstreamlabs/bento/v1/internal/config"
-	dtest "github.com/warpstreamlabs/bento/v1/internal/config/test"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
+	"github.com/warpstreamlabs/bento/internal/cli/test"
+	"github.com/warpstreamlabs/bento/internal/config"
+	dtest "github.com/warpstreamlabs/bento/internal/config/test"
+	"github.com/warpstreamlabs/bento/internal/log"
 )
 
 func TestDefinitionFail(t *testing.T) {

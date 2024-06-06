@@ -13,15 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/output"
-	"github.com/warpstreamlabs/bento/v1/internal/config"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
-	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v1/internal/stream"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/stream"
 
-	_ "github.com/warpstreamlabs/bento/v1/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 func testConfToAny(t testing.TB, conf any) any {

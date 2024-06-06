@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/internal/value"
+	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // Mapping is a compiled Bloblang mapping used to rewrite metrics.

@@ -23,19 +23,19 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v1/internal/api"
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/input"
-	"github.com/warpstreamlabs/bento/v1/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v1/internal/component/ratelimit"
-	"github.com/warpstreamlabs/bento/v1/internal/httpserver"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/internal/old/util/throttle"
-	"github.com/warpstreamlabs/bento/v1/internal/tracing"
-	"github.com/warpstreamlabs/bento/v1/internal/transaction"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/api"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/internal/httpserver"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/old/util/throttle"
+	"github.com/warpstreamlabs/bento/internal/tracing"
+	"github.com/warpstreamlabs/bento/internal/transaction"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

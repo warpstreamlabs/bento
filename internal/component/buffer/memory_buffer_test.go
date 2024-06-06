@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 type memoryBuffer struct {

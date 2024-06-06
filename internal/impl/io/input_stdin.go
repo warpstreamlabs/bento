@@ -6,9 +6,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component"
-	"github.com/warpstreamlabs/bento/v1/public/service"
-	"github.com/warpstreamlabs/bento/v1/public/service/codec"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/codec"
 )
 
 // TODO: Fan this out when appropriate?

@@ -734,8 +734,8 @@ This is a major version release, for more information and guidance on how to mig
 - The `log` processor now executes for each individual message of a batch.
 - The `sleep` processor now executes for each individual message of a batch.
 - The `bento test` subcommand no longer walks when targetting a directory, instead use triple-dot syntax (`./dir/...`) or wildcard patterns.
-- Go API: Module name has changed to `github.com/warpstreamlabs/bento/v1`.
-- Go API: All packages within the `lib` directory have been removed in favour of the newer [APIs within `public`](https://pkg.go.dev/github.com/warpstreamlabs/bento/v1/public).
+- Go API: Module name has changed to `github.com/warpstreamlabs/bento`.
+- Go API: All packages within the `lib` directory have been removed in favour of the newer [APIs within `public`](https://pkg.go.dev/github.com/warpstreamlabs/bento/public).
 - Go API: Distributed tracing is now via the Open Telemetry client library.
 
 ## 3.65.0 - 2022-03-07

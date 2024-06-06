@@ -7,13 +7,13 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v1/internal/api"
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v1/internal/component/output"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
-	"github.com/warpstreamlabs/bento/v1/internal/impl/pure"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/api"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/impl/pure"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

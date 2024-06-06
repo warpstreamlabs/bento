@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/message"
 
 	"github.com/stretchr/testify/assert"
 )

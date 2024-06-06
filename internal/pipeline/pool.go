@@ -8,10 +8,10 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component"
-	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // Pool is a pool of pipelines. Each pipeline reads from a shared transaction

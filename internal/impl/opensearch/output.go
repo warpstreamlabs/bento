@@ -14,8 +14,8 @@ import (
 	"github.com/opensearch-project/opensearch-go/v3/opensearchapi"
 	"github.com/opensearch-project/opensearch-go/v3/opensearchutil"
 
-	"github.com/warpstreamlabs/bento/v1/internal/impl/aws/config"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

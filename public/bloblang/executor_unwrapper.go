@@ -1,6 +1,6 @@
 package bloblang
 
-import "github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
+import "github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 
 type executorUnwrapper struct {
 	child *mapping.Executor

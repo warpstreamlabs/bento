@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	isql "github.com/warpstreamlabs/bento/v1/internal/impl/sql"
-	"github.com/warpstreamlabs/bento/v1/public/service"
-	"github.com/warpstreamlabs/bento/v1/public/service/integration"
+	isql "github.com/warpstreamlabs/bento/internal/impl/sql"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
-	_ "github.com/warpstreamlabs/bento/v1/public/components/sql"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/sql"
 )
 
 type testFn func(t *testing.T, driver, dsn, table string)

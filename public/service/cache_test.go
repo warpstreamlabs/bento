@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component"
-	"github.com/warpstreamlabs/bento/v1/internal/component/cache"
-	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/cache"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
 )
 
 type testCacheItem struct {

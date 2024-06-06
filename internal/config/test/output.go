@@ -13,12 +13,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/nsf/jsondiff"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
-	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/internal/value"
+	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var (

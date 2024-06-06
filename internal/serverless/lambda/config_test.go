@@ -3,8 +3,8 @@ package lambda_test
 import (
 	"testing"
 
-	"github.com/warpstreamlabs/bento/v1/internal/serverless/lambda"
-	_ "github.com/warpstreamlabs/bento/v1/public/components/all"
+	"github.com/warpstreamlabs/bento/internal/serverless/lambda"
+	_ "github.com/warpstreamlabs/bento/public/components/all"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

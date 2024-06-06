@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 // var compressAlgorithms = map[string]

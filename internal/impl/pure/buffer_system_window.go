@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v1/internal/batch"
-	"github.com/warpstreamlabs/bento/v1/internal/value"
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/batch"
+	"github.com/warpstreamlabs/bento/internal/value"
+	"github.com/warpstreamlabs/bento/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func tumblingWindowBufferConfig() *service.ConfigSpec {

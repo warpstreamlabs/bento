@@ -6,13 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v1/internal/docs"
-	"github.com/warpstreamlabs/bento/v1/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
 
-	_ "github.com/warpstreamlabs/bento/v1/public/components/prometheus"
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/prometheus"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 func TestMappingConfigAny(t *testing.T) {

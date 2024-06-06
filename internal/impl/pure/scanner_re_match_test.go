@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component/scanner/testutil"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/scanner/testutil"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func TestReMatchScannerSuite(t *testing.T) {

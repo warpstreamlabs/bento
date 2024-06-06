@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/public/service/integration"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationMemcachedCache(t *testing.T) {

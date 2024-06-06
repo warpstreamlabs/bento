@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v1/internal/bundle"
-	"github.com/warpstreamlabs/bento/v1/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v1/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v1/internal/log"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func init() {

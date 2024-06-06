@@ -10,7 +10,7 @@ import (
 
 	"github.com/youmark/pkcs8"
 
-	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
 // ClientCertConfig contains config fields for a client certificate.

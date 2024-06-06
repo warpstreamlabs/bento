@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v1/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func fileCacheConfig() *service.ConfigSpec {

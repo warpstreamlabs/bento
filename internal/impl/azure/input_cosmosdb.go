@@ -11,8 +11,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/warpstreamlabs/bento/v1/internal/impl/azure/cosmosdb"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/impl/azure/cosmosdb"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

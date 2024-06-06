@@ -1,6 +1,6 @@
 package javascript
 
-import "github.com/warpstreamlabs/bento/v1/public/service"
+import "github.com/warpstreamlabs/bento/public/service"
 
 // Logger wraps the service.Logger so that we can define the below methods.
 type Logger struct {

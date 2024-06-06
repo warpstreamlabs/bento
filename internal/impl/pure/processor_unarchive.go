@@ -12,8 +12,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v1/internal/message"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func unarchiveProcConfig() *service.ConfigSpec {

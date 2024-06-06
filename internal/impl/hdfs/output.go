@@ -8,7 +8,7 @@ import (
 
 	"github.com/colinmarc/hdfs"
 
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

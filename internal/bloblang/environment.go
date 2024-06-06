@@ -1,10 +1,10 @@
 package bloblang
 
 import (
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/field"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/bloblang/field"
+	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
 
 // Environment provides an isolated Bloblang environment where the available

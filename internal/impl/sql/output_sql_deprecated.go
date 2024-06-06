@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func sqlDeprecatedOutputConfig() *service.ConfigSpec {

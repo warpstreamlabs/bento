@@ -23,10 +23,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
-	_ "github.com/warpstreamlabs/bento/v1/public/components/pure"
-	"github.com/warpstreamlabs/bento/v1/public/service"
-	"github.com/warpstreamlabs/bento/v1/public/service/integration"
+	"github.com/warpstreamlabs/bento/public/bloblang"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationAzure(t *testing.T) {

@@ -1,7 +1,7 @@
 package bloblang
 
 import (
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/plugins"
+	"github.com/warpstreamlabs/bento/internal/bloblang/plugins"
 )
 
 func init() {

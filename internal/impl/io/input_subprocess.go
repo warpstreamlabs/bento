@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/warpstreamlabs/bento/v1/internal/component"
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

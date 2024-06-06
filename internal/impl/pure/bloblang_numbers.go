@@ -4,9 +4,9 @@ import (
 	"math"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v1/internal/value"
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/value"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func registerIntMethod(name, longName, exampleIn, exampleOut string, method func(input any) (any, error)) {

@@ -3,8 +3,8 @@ package field
 import (
 	"strconv"
 
-	"github.com/warpstreamlabs/bento/v1/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v1/internal/message"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // Resolver is an interface for resolving a string containing Bloblang function

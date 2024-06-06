@@ -6,7 +6,7 @@ import (
 	"io"
 	"regexp"
 
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

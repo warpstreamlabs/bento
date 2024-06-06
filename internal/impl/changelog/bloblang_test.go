@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func Test_Diff__shouldReturnDiff(t *testing.T) {

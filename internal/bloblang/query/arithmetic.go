@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v1/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 //------------------------------------------------------------------------------

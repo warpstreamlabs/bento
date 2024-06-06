@@ -8,7 +8,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"go.uber.org/multierr"
 
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 type bigqueryIterator interface {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v1/internal/value"
-	"github.com/warpstreamlabs/bento/v1/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/value"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 // FieldType represents a field type.

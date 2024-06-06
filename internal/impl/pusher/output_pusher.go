@@ -5,7 +5,7 @@ import (
 
 	"github.com/pusher/pusher-http-go"
 
-	"github.com/warpstreamlabs/bento/v1/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func pusherOutputConfig() *service.ConfigSpec {
