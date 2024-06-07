@@ -3,7 +3,7 @@ package studio
 import (
 	"sync/atomic"
 
-	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/internal/log"
 )
 
 var _ log.Modular = &hotSwapLogger{}

@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	batchInternal "github.com/warpstreamlabs/bento/v4/internal/batch"
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy/batchconfig"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output/batcher"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	batchInternal "github.com/warpstreamlabs/bento/internal/batch"
+	"github.com/warpstreamlabs/bento/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/internal/batch/policy/batchconfig"
+	"github.com/warpstreamlabs/bento/internal/component/output/batcher"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 func TestBatcherEarlyTermination(t *testing.T) {

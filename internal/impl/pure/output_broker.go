@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
-	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output/batcher"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/component/output/batcher"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

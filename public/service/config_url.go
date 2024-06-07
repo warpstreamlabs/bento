@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // NewURLField defines a new config field that describes a string that should

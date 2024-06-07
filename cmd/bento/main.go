@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 
 	// Import all plugins defined within the repo.
-	_ "github.com/warpstreamlabs/bento/v4/public/components/all"
+	_ "github.com/warpstreamlabs/bento/public/components/all"
 )
 
 func main() {

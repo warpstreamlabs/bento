@@ -3,7 +3,7 @@ package pulsar
 import (
 	"errors"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func authField() *service.ConfigField {

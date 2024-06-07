@@ -9,7 +9,7 @@ import (
 	"github.com/sourcegraph/conc/pool"
 	"google.golang.org/api/option"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func newPubSubOutputConfig() *service.ConfigSpec {

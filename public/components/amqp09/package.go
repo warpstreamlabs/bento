@@ -2,5 +2,5 @@ package amqp09
 
 import (
 	// Bring in the internal plugin definitions.
-	_ "github.com/warpstreamlabs/bento/v4/internal/impl/amqp09"
+	_ "github.com/warpstreamlabs/bento/internal/impl/amqp09"
 )

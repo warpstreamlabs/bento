@@ -3,7 +3,7 @@ package bloblang
 import (
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // Method defines a Bloblang function that executes on a value. Arguments are

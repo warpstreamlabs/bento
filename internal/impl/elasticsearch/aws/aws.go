@@ -14,9 +14,9 @@ import (
 
 	"github.com/olivere/elastic/v7"
 
-	baws "github.com/warpstreamlabs/bento/v4/internal/impl/aws"
-	"github.com/warpstreamlabs/bento/v4/internal/impl/elasticsearch"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	baws "github.com/warpstreamlabs/bento/internal/impl/aws"
+	"github.com/warpstreamlabs/bento/internal/impl/elasticsearch"
+	"github.com/warpstreamlabs/bento/public/service"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"

@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/warpstreamlabs/bento/v4/internal/codec"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/codec"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func init() {

@@ -6,9 +6,9 @@ import (
 	"github.com/opensearch-project/opensearch-go/v3/opensearchapi"
 	"github.com/opensearch-project/opensearch-go/v3/signer/awsv2"
 
-	baws "github.com/warpstreamlabs/bento/v4/internal/impl/aws"
-	"github.com/warpstreamlabs/bento/v4/internal/impl/opensearch"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	baws "github.com/warpstreamlabs/bento/internal/impl/aws"
+	"github.com/warpstreamlabs/bento/internal/impl/opensearch"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func init() {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/value"
+	"github.com/warpstreamlabs/bento/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

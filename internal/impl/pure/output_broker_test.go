@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/message"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func TestFanOutBroker(t *testing.T) {

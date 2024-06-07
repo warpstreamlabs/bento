@@ -1,8 +1,8 @@
 package interop
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 // Unwrap a public *service.ConfigField type into an internal docs.FieldSpec.

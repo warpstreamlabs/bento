@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 
-	_ "github.com/warpstreamlabs/bento/v4/internal/impl/pure"
+	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
 func sqsIntegrationSuite(t *testing.T, lsPort string) {

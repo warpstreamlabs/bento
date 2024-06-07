@@ -15,8 +15,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Jeffail/gabs/v2"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
-	"github.com/warpstreamlabs/bento/v4/public/service/codec"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/codec"
 )
 
 const (

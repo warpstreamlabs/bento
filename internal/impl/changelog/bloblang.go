@@ -5,7 +5,7 @@ import (
 	"github.com/r3labs/diff/v3"
 	"go.uber.org/multierr"
 
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func init() {

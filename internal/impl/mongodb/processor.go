@@ -9,8 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/warpstreamlabs/bento/v4/internal/retries"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/retries"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

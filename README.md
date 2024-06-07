@@ -132,7 +132,7 @@ By default Bento does not build with components that require linking to external
 
 ```shell
 # With go
-go install -tags "x_bento_extra" github.com/warpstreamlabs/bento/v4/cmd/bento@latest
+go install -tags "x_bento_extra" github.com/warpstreamlabs/bento/cmd/bento@latest
 
 # Using make
 make TAGS=x_bento_extra
@@ -180,8 +180,8 @@ Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come a
 [plugin-repo]: https://github.com/warpstreamlabs/bento-plugin-example
 [getting-started]: https://warpstreamlabs.github.io/bento/docs/guides/getting_started
 
-[godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/v4/public
-[godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public
+[godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/public
+[godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public
 [actions-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml/badge.svg
 [actions-url]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml
 [website-badge]: https://img.shields.io/badge/Docs-Learn%20more-ffc7c7

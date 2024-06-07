@@ -10,9 +10,9 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
-	"github.com/warpstreamlabs/bento/v4/internal/cuegen"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/config/schema"
+	"github.com/warpstreamlabs/bento/internal/cuegen"
 )
 
 func listCliCommand(opts *common.CLIOpts) *cli.Command {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 var errInvalidInterpolation = errors.New("failed to parse interpolated field")

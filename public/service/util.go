@@ -5,8 +5,8 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/filepath"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
 // ReadFile opens a file from an fs.FS and reads all bytes. When the OpenFile

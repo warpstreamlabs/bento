@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
 )
 
 // Metrics allows plugin authors to emit custom metrics from components that are

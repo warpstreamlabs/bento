@@ -1,7 +1,7 @@
 package bloblang
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang"
 )
 
 type environmentUnwrapper struct {

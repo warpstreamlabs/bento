@@ -5,8 +5,8 @@ package servicetest
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/cli"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/cli"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 )
 
 // RunCLIWithArgs executes Bento as a CLI with an explicit set of arguments.

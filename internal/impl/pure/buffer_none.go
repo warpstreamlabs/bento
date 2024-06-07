@@ -3,7 +3,7 @@ package pure
 import (
 	"errors"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func init() {

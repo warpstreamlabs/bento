@@ -8,14 +8,14 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/warpstreamlabs/bento/v4/internal/api"
-	"github.com/warpstreamlabs/bento/v4/internal/config/test"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/template"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/api"
+	"github.com/warpstreamlabs/bento/internal/config/test"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/template"
+	"github.com/warpstreamlabs/bento/public/service"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/all"
+	_ "github.com/warpstreamlabs/bento/public/components/all"
 )
 
 func create(t, path string, resBytes []byte) {

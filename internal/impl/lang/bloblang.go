@@ -14,7 +14,7 @@ import (
 	"github.com/oklog/ulid"
 	frand "golang.org/x/exp/rand"
 
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func init() {

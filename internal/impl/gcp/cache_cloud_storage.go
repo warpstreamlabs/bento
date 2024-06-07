@@ -8,7 +8,7 @@ import (
 
 	"cloud.google.com/go/storage"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func gcpCloudStorageCacheConfig() *service.ConfigSpec {

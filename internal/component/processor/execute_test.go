@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 type passthrough struct {

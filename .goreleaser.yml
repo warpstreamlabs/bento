@@ -14,8 +14,8 @@ builds:
       - CGO_ENABLED=0
     ldflags: >
       -s -w
-      -X github.com/warpstreamlabs/bento/v4/internal/cli.Version={{.Version}}
-      -X github.com/warpstreamlabs/bento/v4/internal/cli.DateBuilt={{.Date}}
+      -X github.com/warpstreamlabs/bento/internal/cli.Version={{.Version}}
+      -X github.com/warpstreamlabs/bento/internal/cli.DateBuilt={{.Date}}
   - id: bento-lambda
     main: cmd/serverless/bento-lambda/main.go
     binary: bento-lambda

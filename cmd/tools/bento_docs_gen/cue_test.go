@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
-	"github.com/warpstreamlabs/bento/v4/internal/cuegen"
+	"github.com/warpstreamlabs/bento/internal/config/schema"
+	"github.com/warpstreamlabs/bento/internal/cuegen"
 
 	_ "embed"
 )

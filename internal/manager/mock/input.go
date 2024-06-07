@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // Input provides a mocked input implementation.

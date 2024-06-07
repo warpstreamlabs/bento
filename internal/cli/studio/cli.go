@@ -3,7 +3,7 @@ package studio
 import (
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 )
 
 // CliCommand is a cli.Command definition for interacting with Benthos studio.

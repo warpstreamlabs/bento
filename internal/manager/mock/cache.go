@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 )
 
 // CacheItem represents a cached key/ttl pair.

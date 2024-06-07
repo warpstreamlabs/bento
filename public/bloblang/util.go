@@ -3,7 +3,7 @@ package bloblang
 import (
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // ValueToString converts any value into a string according to the same rules

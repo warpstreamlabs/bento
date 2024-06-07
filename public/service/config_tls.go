@@ -7,8 +7,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	btls "github.com/warpstreamlabs/bento/v4/internal/tls"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	btls "github.com/warpstreamlabs/bento/internal/tls"
 )
 
 // NewTLSField defines a new object type config field that describes TLS

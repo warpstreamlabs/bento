@@ -11,7 +11,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 )
 
 func pullCommand(cliOpts *common.CLIOpts) *cli.Command {
