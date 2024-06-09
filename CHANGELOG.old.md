@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## v4.28.2 - TBD
+
+### Added
+
+- Field `omit_empty` added to the `lines` scanner.
+
 ## 4.28.0 - 2024-05-29
 
 ### Added
@@ -1150,10 +1156,10 @@ This is a major version release, for more information and guidance on how to mig
 ### Changed
 
 - The following beta components have been promoted to stable:
-    + `ristretto` cache
-    + `csv` and `generate` inputs
-    + `reject` output
-    + `branch`, `jq` and `workflow` processors
+  + `ristretto` cache
+  + `csv` and `generate` inputs
+  + `reject` output
+  + `branch`, `jq` and `workflow` processors
 
 ## 3.44.1 - 2021-04-15
 
@@ -1835,36 +1841,36 @@ This is a major version release, for more information and guidance on how to mig
 ### Added
 
 - New field `max_in_flight` added to the following outputs:
-    + `amqp_0_9`
-    + `cache`
-    + `dynamodb`
-    + `elasticsearch`
-    + `gcp_pubsub`
-    + `hdfs`
-    + `http_client`
-    + `kafka`
-    + `kinesis`
-    + `kinesis_firehose`
-    + `mqtt`
-    + `nanomsg`
-    + `nats`
-    + `nats_stream`
-    + `nsq`
-    + `redis_hash`
-    + `redis_list`
-    + `redis_pubsub`
-    + `redis_streams`
-    + `s3`
-    + `sns`
-    + `sqs`
+  + `amqp_0_9`
+  + `cache`
+  + `dynamodb`
+  + `elasticsearch`
+  + `gcp_pubsub`
+  + `hdfs`
+  + `http_client`
+  + `kafka`
+  + `kinesis`
+  + `kinesis_firehose`
+  + `mqtt`
+  + `nanomsg`
+  + `nats`
+  + `nats_stream`
+  + `nsq`
+  + `redis_hash`
+  + `redis_list`
+  + `redis_pubsub`
+  + `redis_streams`
+  + `s3`
+  + `sns`
+  + `sqs`
 - Batching fields added to the following outputs:
-    + `dynamodb`
-    + `elasticsearch`
-    + `http_client`
-    + `kafka`
-    + `kinesis`
-    + `kinesis_firehose`
-    + `sqs`
+  + `dynamodb`
+  + `elasticsearch`
+  + `http_client`
+  + `kafka`
+  + `kinesis`
+  + `kinesis_firehose`
+  + `sqs`
 - More TRACE level logs added throughout the pipeline.
 - Operator `delete` added to `cache` processor.
 - Operator `explode` added to `json` processor.
@@ -2017,14 +2023,14 @@ This is a major version release, for more information and guidance on how to mig
 - Names of `process_dag` stages must now match the regexp `[a-zA-Z0-9_-]+`.
 - Go API: buffer constructors now take a `types.Manager` argument in parity with other components.
 - JSON dot paths within the following components have been updated to allow array-based operations:
-    + `awk` processor
-    + `json` processor
-    + `process_field` processor
-    + `process_map` processor
-    + `check_field` condition
-    + `json_field` function interpolation
-    + `s3` input
-    + `dynamodb` output
+  + `awk` processor
+  + `json` processor
+  + `process_field` processor
+  + `process_map` processor
+  + `check_field` condition
+  + `json_field` function interpolation
+  + `s3` input
+  + `dynamodb` output
 
 ### Fixed
 
@@ -3518,8 +3524,8 @@ This is a major version released due to a series of minor breaking changes, you 
 - New `batch` processor for combining payloads up to a number of bytes.
 - New `conditional` processor, allows you to configure a chain of processors to only be run if the payload passes a `condition`.
 - New `--stream` mode features:
-    + POST verb for `/streams` path now supported.
-    + New `--streams-dir` flag for parsing a directory of stream configs.
+  + POST verb for `/streams` path now supported.
+  + New `--streams-dir` flag for parsing a directory of stream configs.
 
 ### Changed
 
