@@ -195,4 +195,22 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 		}); err != nil {
 		panic(err)
 	}
+
+	//------------------------------------------------------------------------------
+
+	if err := bloblang.RegisterFunctionV2("pi",
+		bloblang.NewPluginSpec().
+			Category(query.FunctionCategoryGeneral).
+			Description(`Returns the value of the mathematical constant Pi.`).
+			Example("", `root.radians = this.degrees * (pi() / 180)`,
+				[2]string{`{"degrees":45}`, `{"radians":0.78540}`}).
+			Example("", `root.degrees = this.radians * (180 / pi())`,
+				[2]string{`{"radians":0.78540}`, `{"degrees":45}`}),
+		func(args *bloblang.ParsedParams) (bloblang.Function, error) {
+			return func() (any, error) {
+				return math.Pi, nil
+			}, nil
+		}); err != nil {
+		panic(err)
+	}
 }
