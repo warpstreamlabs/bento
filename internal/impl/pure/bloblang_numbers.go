@@ -196,6 +196,24 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 		panic(err)
 	}
 
+	if err := bloblang.RegisterMethodV2("sin",
+		bloblang.NewPluginSpec().
+			Category(query.MethodCategoryNumbers).
+			Description(`Calculates the sine of a given angle specified in radians.`).
+			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
+				[2]string{`{"value":45}`, `{"new_value":0.707}`}).
+			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
+				[2]string{`{"value":0}`, `{"new_value":0}`}).
+			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
+				[2]string{`{"value":90}`, `{"new_value":1}`}),
+		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
+			return bloblang.Float64Method(func(input float64) (any, error) {
+				return math.Sin(input), nil
+			}), nil
+		}); err != nil {
+		panic(err)
+	}
+
 	//------------------------------------------------------------------------------
 
 	if err := bloblang.RegisterFunctionV2("pi",
