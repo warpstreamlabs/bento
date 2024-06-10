@@ -3,11 +3,15 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## v4.28.2 - TBD
+## 4.29.0 - 2024-06-10
 
 ### Added
 
-- Field `omit_empty` added to the `lines` scanner.
+- Go API: New APIs added for extracting struct based documentation for plugins, which can be used for executing custom
+  documentation templates for each registered component and/or bloblang plugin.
+- Field `omit_empty` added to the `lines` scanner. (@mihaitodor)
+- New scheme `gcm` added to the `encrypt_aes` and `decrypy_aes` Bloblang methods. (@abergmeier)
+- New Bloblang method `pow`. (@mfamador)
 
 ## 4.28.0 - 2024-05-29
 
@@ -278,7 +282,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Restore message ordering support to `gcp_pubsub` output. This issue was introduced in 4.16.0 as a result of [#1836](https://github.com/benthosdev/benthos/pull/1836).
+- Restore message ordering support to `gcp_pubsub` output. This issue was introduced in 4.16.0 as a result
+  of [#1836](https://github.com/redpanda-data/benthos/pull/1836).
 - Specifying structured metadata values (non-strings) in unit test definitions should no longer cause linting errors.
 
 ### Changed
@@ -715,7 +720,10 @@ This is a major version release, for more information and guidance on how to mig
 
 - The `sftp` output no longer opens files in both read and write mode.
 - The `aws_sqs` input with `reset_visibility` set to `false` will no longer reset timeouts on pending messages during gracefully shutdown.
-- The `schema_registry_decode` processor now handles AVRO logical types correctly. Details in [#1198](https://github.com/benthosdev/benthos/pull/1198) and [#1161](https://github.com/benthosdev/benthos/issues/1161) and also in https://github.com/linkedin/goavro/issues/242.
+- The `schema_registry_decode` processor now handles AVRO logical types correctly. Details
+  in [#1198](https://github.com/redpanda-data/benthos/pull/1198)
+  and [#1161](https://github.com/redpanda-data/benthos/issues/1161) and also
+  in https://github.com/linkedin/goavro/issues/242.
 
 ### Changed
 
