@@ -618,6 +618,51 @@ func (b MessageBatch) InterpolatedBytes(index int, i *InterpolatedString) []byte
 	return bRes
 }
 
+// SyncResponseStore represents a store of data that holds a relationship to an
+// input message. Any processor or output has the potential to add data to a
+// store.
+type SyncResponseStore struct {
+	s transaction.ResultStore
+}
+
+// Read the contents of the response store. Any output or processor that
+// registers a synchronous response will result in a single batch of messages
+// being added to the store, and therefore more than one resulting batch is
+// possible.
+func (s *SyncResponseStore) Read() []MessageBatch {
+	ibb := s.s.Get()
+	bb := make([]MessageBatch, len(ibb))
+	for i, ib := range ibb {
+		bb[i] = make(MessageBatch, len(ib))
+		for j, m := range ib {
+			bb[i][j] = NewInternalMessage(m)
+		}
+	}
+	return bb
+}
+
+// WithSyncResponseStore returns a modified message and a response store
+// associated with it. If the message is sent through a processing pipeline or
+// output there is the potential for sync response components to add messages to
+// the store, which can be consumed once an acknowledgement is received.
+func (m *Message) WithSyncResponseStore() (*Message, *SyncResponseStore) {
+	resStore := transaction.NewResultStore()
+
+	newM := m.Copy()
+	newM.part = transaction.AddResultStoreMsg(m.part, resStore)
+
+	return newM, &SyncResponseStore{s: resStore}
+}
+
+// AddSyncResponse attempts to add this individual message, in its exact current
+// condition, to the synchronous response destined for the original source input
+// of this data. Synchronous responses aren't supported by all inputs, and so
+// it's possible that attempting to mark a message as ready for a synchronous
+// response will return an error.
+func (m *Message) AddSyncResponse() error {
+	return transaction.SetAsResponse(message.Batch{m.part})
+}
+
 // AddSyncResponse attempts to add this batch of messages, in its exact current
 // condition, to the synchronous response destined for the original source input
 // of this data. Synchronous responses aren't supported by all inputs, and so

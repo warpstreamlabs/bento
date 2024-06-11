@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"sync/atomic"
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/gofrs/uuid"
@@ -66,6 +65,7 @@ type StreamBuilder struct {
 	apiMut       manager.APIReg
 	customLogger log.Modular
 
+	configSpec      docs.FieldSpecs
 	env             *Environment
 	lintingDisabled bool
 	envVarLookupFn  func(string) (string, bool)
@@ -75,14 +75,18 @@ type StreamBuilder struct {
 func NewStreamBuilder() *StreamBuilder {
 	httpConf := api.NewConfig()
 	httpConf.Enabled = false
+
+	tmpSpec := config.Spec()
+	tmpSpec.SetDefault(false, "http", "enabled")
+
 	return &StreamBuilder{
-		engineVersion:  cli.Version,
 		http:           httpConf,
 		buffer:         buffer.NewConfig(),
 		resources:      manager.NewResourceConfig(),
 		metrics:        metrics.NewConfig(),
 		tracer:         tracer.NewConfig(),
 		logger:         log.NewConfig(),
+		configSpec:     tmpSpec,
 		env:            globalEnvironment,
 		envVarLookupFn: os.LookupEnv,
 	}
@@ -102,6 +106,20 @@ func (s *StreamBuilder) getLintContext() docs.LintContext {
 // version either from the bento module import or a build-time flag.
 func (s *StreamBuilder) SetEngineVersion(ev string) {
 	s.engineVersion = ev
+}
+
+// SetSchema overrides the default config schema used when linting and parsing
+// full configs with the SetYAML method. Other XYAML methods will not use this
+// schema as they parse individual component configs rather than a larger
+// configuration.
+//
+// This method is useful as a mechanism for modifying the default top-level
+// settings, such as metrics types and so on.
+func (s *StreamBuilder) SetSchema(schema *ConfigSchema) {
+	if s.engineVersion == "" {
+		s.engineVersion = schema.version
+	}
+	s.configSpec = schema.fields
 }
 
 // DisableLinting configures the stream builder to no longer lint YAML configs,
@@ -509,7 +527,7 @@ func (s *StreamBuilder) SetYAML(conf string) error {
 		return err
 	}
 
-	spec := configSpec()
+	spec := s.configSpec
 	if err := s.lintYAMLSpec(spec, node); err != nil {
 		return err
 	}
@@ -526,19 +544,6 @@ func (s *StreamBuilder) SetYAML(conf string) error {
 
 	s.setFromConfig(sconf)
 	return nil
-}
-
-var builderConfigSpec atomic.Pointer[docs.FieldSpecs]
-
-func configSpec() docs.FieldSpecs {
-	spec := builderConfigSpec.Load()
-	if spec == nil {
-		tmpSpec := config.Spec()
-		tmpSpec.SetDefault(false, "http", "enabled")
-		spec = &tmpSpec
-		builderConfigSpec.Store(spec)
-	}
-	return *spec
 }
 
 // SetFields modifies the config by setting one or more fields identified by a
@@ -566,7 +571,7 @@ func (s *StreamBuilder) SetFields(pathValues ...any) error {
 	sanitConf.RemoveDeprecated = false
 	sanitConf.DocsProvider = s.env.internal
 
-	if err := configSpec().SanitiseYAML(&rootNode, sanitConf); err != nil {
+	if err := s.configSpec.SanitiseYAML(&rootNode, sanitConf); err != nil {
 		return err
 	}
 
@@ -579,12 +584,12 @@ func (s *StreamBuilder) SetFields(pathValues ...any) error {
 		if !ok {
 			return fmt.Errorf("variadic pair element %v should be a string, got a %T", i, pathValues[i])
 		}
-		if err := configSpec().SetYAMLPath(s.env.internal, &rootNode, &valueNode, gabs.DotPathToSlice(pathString)...); err != nil {
+		if err := s.configSpec.SetYAMLPath(s.env.internal, &rootNode, &valueNode, gabs.DotPathToSlice(pathString)...); err != nil {
 			return err
 		}
 	}
 
-	spec := configSpec()
+	spec := s.configSpec
 	if err := s.lintYAMLSpec(spec, &rootNode); err != nil {
 		return err
 	}
@@ -724,7 +729,7 @@ func (s *StreamBuilder) AsYAML() (string, error) {
 	sanitConf.RemoveDeprecated = false
 	sanitConf.DocsProvider = s.env.internal
 
-	if err := configSpec().SanitiseYAML(&node, sanitConf); err != nil {
+	if err := s.configSpec.SanitiseYAML(&node, sanitConf); err != nil {
 		return "", err
 	}
 
@@ -767,7 +772,7 @@ func (s *StreamBuilder) WalkComponents(fn func(w *WalkedComponent) error) error 
 	sanitConf.RemoveDeprecated = false
 	sanitConf.DocsProvider = s.env.internal
 
-	spec := configSpec()
+	spec := s.configSpec
 	if err := spec.SanitiseYAML(&node, sanitConf); err != nil {
 		return err
 	}
@@ -847,6 +852,11 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 		}
 	}
 
+	engVer := s.engineVersion
+	if engVer == "" {
+		engVer = cli.Version
+	}
+
 	// This temporary manager is a very lazy way of instantiating a manager that
 	// restricts the bloblang and component environments to custom plugins.
 	// Ideally we would break out the constructor for our general purpose
@@ -854,7 +864,7 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 	// resource constructors until after this metrics exporter is initialised.
 	tmpMgr, err := manager.New(
 		manager.NewResourceConfig(),
-		manager.OptSetEngineVersion(s.engineVersion),
+		manager.OptSetEngineVersion(engVer),
 		manager.OptSetLogger(logger),
 		manager.OptSetEnvironment(env),
 		manager.OptSetBloblangEnvironment(s.env.getBloblangParserEnv()),
@@ -883,7 +893,7 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 			sanitConf.RemoveTypeField = true
 			sanitConf.ScrubSecrets = true
 			sanitConf.DocsProvider = env
-			_ = configSpec().SanitiseYAML(&sanitNode, sanitConf)
+			_ = s.configSpec.SanitiseYAML(&sanitNode, sanitConf)
 		}
 		if apiType, err = api.New("", "", s.http, sanitNode, logger, stats); err != nil {
 			return nil, fmt.Errorf("unable to create stream HTTP server due to: %w. Tip: you can disable the server with `http.enabled` set to `false`, or override the configured server with SetHTTPMux", err)

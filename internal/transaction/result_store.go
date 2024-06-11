@@ -78,6 +78,14 @@ func NewResultStore() ResultStore {
 
 //------------------------------------------------------------------------------
 
+// AddResultStoreMsg sets a result store within the context of the provided
+// message that allows a roundtrip.Writer or any other component to propagate a
+// resulting message back to the origin.
+func AddResultStoreMsg(p *message.Part, store ResultStore) *message.Part {
+	ctx := message.GetContext(p)
+	return message.WithContext(context.WithValue(ctx, ResultStoreKey, store), p)
+}
+
 // AddResultStore sets a result store within the context of the provided message
 // that allows a roundtrip.Writer or any other component to propagate a
 // resulting message back to the origin.
