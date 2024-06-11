@@ -1,3 +1,8 @@
+
+<p align="center">
+    <img src="icon.png" width=50% height=50% alt="Bento">
+</p>
+
 [![godoc for warpstreamlabs/bento][godoc-badge]][godoc-url]
 [![Build Status][actions-badge]][actions-url]
 [![Docs site][website-badge]][website-url]
