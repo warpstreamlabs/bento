@@ -201,10 +201,8 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 			Category(query.MethodCategoryNumbers).
 			Description(`Calculates the sine of a given angle specified in radians.`).
 			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
-				[2]string{`{"value":45}`, `{"new_value":0.707}`}).
-			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
-				[2]string{`{"value":0}`, `{"new_value":0}`}).
-			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
+				[2]string{`{"value":45}`, `{"new_value":0.707}`},
+				[2]string{`{"value":0}`, `{"new_value":0}`},
 				[2]string{`{"value":90}`, `{"new_value":1}`}),
 		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
 			return bloblang.Float64Method(func(input float64) (any, error) {
@@ -219,10 +217,8 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 			Category(query.MethodCategoryNumbers).
 			Description(`Calculates the cosine of a given angle specified in radians.`).
 			Example("", `root.new_value = (this.value * (pi() / 180)).cos()`,
-				[2]string{`{"value":45}`, `{"new_value":0.707}`}).
-			Example("", `root.new_value = (this.value * (pi() / 180)).cos()`,
-				[2]string{`{"value":0}`, `{"new_value":1}`}).
-			Example("", `root.new_value = (this.value * (pi() / 180)).cos()`,
+				[2]string{`{"value":45}`, `{"new_value":0.707}`},
+				[2]string{`{"value":0}`, `{"new_value":1}`},
 				[2]string{`{"value":180}`, `{"new_value":-1}`}),
 		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
 			return bloblang.Float64Method(func(input float64) (any, error) {
@@ -237,10 +233,8 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 			Category(query.MethodCategoryNumbers).
 			Description(`Calculates the tangent of a given angle specified in radians.`).
 			Example("", `root.new_value = (this.value * (pi() / 180)).tan()`,
-				[2]string{`{"value":0}`, `{"new_value":0}`}).
-			Example("", `root.new_value = (this.value * (pi() / 180)).tan()`,
-				[2]string{`{"value":45}`, `{"new_value":1}`}).
-			Example("", `root.new_value = (this.value * (pi() / 180)).tan()`,
+				[2]string{`{"value":0}`, `{"new_value":0}`},
+				[2]string{`{"value":45}`, `{"new_value":1}`},
 				[2]string{`{"value":180}`, `{"new_value":0.32491}`}),
 		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
 			return bloblang.Float64Method(func(input float64) (any, error) {
