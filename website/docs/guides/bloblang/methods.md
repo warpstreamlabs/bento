@@ -897,6 +897,26 @@ root.new_value = this.value.ceil()
 # Out: {"new_value":-5}
 ```
 
+### `cos`
+
+Calculates the cosine of a given angle specified in radians.
+
+#### Examples
+
+
+```coffee
+root.new_value = (this.value * (pi() / 180)).cos()
+
+# In:  {"value":45}
+# Out: {"new_value":0.7071067811865476}
+
+# In:  {"value":0}
+# Out: {"new_value":1}
+
+# In:  {"value":180}
+# Out: {"new_value":-1}
+```
+
 ### `float32`
 
 
@@ -1155,6 +1175,31 @@ root.new_value = [10,this.value].min()
 # Out: {"new_value":10}
 ```
 
+### `pow`
+
+Returns the number raised to the specified exponent.
+
+#### Parameters
+
+**`exponent`** &lt;float&gt; The exponent you want to raise to the power of.  
+
+#### Examples
+
+
+```coffee
+root.new_value = this.value * 10.pow(-2)
+
+# In:  {"value":2}
+# Out: {"new_value":0.02}
+```
+
+```coffee
+root.new_value = this.value.pow(-2)
+
+# In:  {"value":2}
+# Out: {"new_value":0.25}
+```
+
 ### `round`
 
 Rounds numbers to the nearest integer, rounding half away from zero. If the resulting value fits within a 64-bit integer then that is returned, otherwise a new floating point number is returned.
@@ -1170,6 +1215,46 @@ root.new_value = this.value.round()
 
 # In:  {"value":5.9}
 # Out: {"new_value":6}
+```
+
+### `sin`
+
+Calculates the sine of a given angle specified in radians.
+
+#### Examples
+
+
+```coffee
+root.new_value = (this.value * (pi() / 180)).sin()
+
+# In:  {"value":45}
+# Out: {"new_value":0.7071067811865475}
+
+# In:  {"value":0}
+# Out: {"new_value":0}
+
+# In:  {"value":90}
+# Out: {"new_value":1}
+```
+
+### `tan`
+
+Calculates the tangent of a given angle specified in radians.
+
+#### Examples
+
+
+```coffee
+root.new_value = "%f".format((this.value * (pi() / 180)).tan())
+
+# In:  {"value":0}
+# Out: {"new_value":"0.000000"}
+
+# In:  {"value":45}
+# Out: {"new_value":"1.000000"}
+
+# In:  {"value":180}
+# Out: {"new_value":"-0.000000"}
 ```
 
 ### `uint16`
@@ -3153,11 +3238,11 @@ root.result = this.compressed.decode("base64").decompress("lz4").string()
 
 ### `decrypt_aes`
 
-Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `ofb`, `cbc`.
+Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `ofb`, `cbc`.
 
 #### Parameters
 
-**`scheme`** &lt;string&gt; The scheme to use for decryption, one of `ctr`, `ofb`, `cbc`.  
+**`scheme`** &lt;string&gt; The scheme to use for decryption, one of `ctr`, `gcm`, `ofb`, `cbc`.  
 **`key`** &lt;string&gt; A key to decrypt with.  
 **`iv`** &lt;string&gt; An initialization vector / nonce.  
 
@@ -3200,11 +3285,11 @@ root.encoded = content().encode("ascii85")
 
 ### `encrypt_aes`
 
-Encrypts a string or byte array target according to a chosen AES encryption method and returns a string result. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `ofb`, `cbc`.
+Encrypts a string or byte array target according to a chosen AES encryption method and returns a string result. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `ofb`, `cbc`.
 
 #### Parameters
 
-**`scheme`** &lt;string&gt; The scheme to use for encryption, one of `ctr`, `ofb`, `cbc`.  
+**`scheme`** &lt;string&gt; The scheme to use for encryption, one of `ctr`, `gcm`, `ofb`, `cbc`.  
 **`key`** &lt;string&gt; A key to encrypt with.  
 **`iv`** &lt;string&gt; An initialization vector / nonce.  
 
