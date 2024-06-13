@@ -173,4 +173,92 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 		}); err != nil {
 		panic(err)
 	}
+
+	if err := bloblang.RegisterMethodV2("pow",
+		bloblang.NewPluginSpec().
+			Category(query.MethodCategoryNumbers).
+			Description(`Returns the number raised to the specified exponent.`).
+			Example("", `root.new_value = this.value * 10.pow(-2)`,
+				[2]string{`{"value":2}`, `{"new_value":0.02}`}).
+			Example("", `root.new_value = this.value.pow(-2)`,
+				[2]string{`{"value":2}`, `{"new_value":0.25}`}).
+			Param(bloblang.NewFloat64Param("exponent").
+				Description("The exponent you want to raise to the power of.")),
+		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
+			return bloblang.Float64Method(func(input float64) (any, error) {
+				exp, err := args.GetFloat64("exponent")
+				if err != nil {
+					return nil, err
+				}
+				return math.Pow(input, exp), nil
+			}), nil
+		}); err != nil {
+		panic(err)
+	}
+
+	if err := bloblang.RegisterMethodV2("sin",
+		bloblang.NewPluginSpec().
+			Category(query.MethodCategoryNumbers).
+			Description(`Calculates the sine of a given angle specified in radians.`).
+			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
+				[2]string{`{"value":45}`, `{"new_value":0.7071067811865475}`},
+				[2]string{`{"value":0}`, `{"new_value":0}`},
+				[2]string{`{"value":90}`, `{"new_value":1}`}),
+		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
+			return bloblang.Float64Method(func(input float64) (any, error) {
+				return math.Sin(input), nil
+			}), nil
+		}); err != nil {
+		panic(err)
+	}
+
+	if err := bloblang.RegisterMethodV2("cos",
+		bloblang.NewPluginSpec().
+			Category(query.MethodCategoryNumbers).
+			Description(`Calculates the cosine of a given angle specified in radians.`).
+			Example("", `root.new_value = (this.value * (pi() / 180)).cos()`,
+				[2]string{`{"value":45}`, `{"new_value":0.7071067811865476}`},
+				[2]string{`{"value":0}`, `{"new_value":1}`},
+				[2]string{`{"value":180}`, `{"new_value":-1}`}),
+		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
+			return bloblang.Float64Method(func(input float64) (any, error) {
+				return math.Cos(input), nil
+			}), nil
+		}); err != nil {
+		panic(err)
+	}
+
+	if err := bloblang.RegisterMethodV2("tan",
+		bloblang.NewPluginSpec().
+			Category(query.MethodCategoryNumbers).
+			Description(`Calculates the tangent of a given angle specified in radians.`).
+			Example("", `root.new_value = "%f".format((this.value * (pi() / 180)).tan())`,
+				[2]string{`{"value":0}`, `{"new_value":"0.000000"}`},
+				[2]string{`{"value":45}`, `{"new_value":"1.000000"}`},
+				[2]string{`{"value":180}`, `{"new_value":"-0.000000"}`}),
+		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
+			return bloblang.Float64Method(func(input float64) (any, error) {
+				return math.Tan(input), nil
+			}), nil
+		}); err != nil {
+		panic(err)
+	}
+
+	//------------------------------------------------------------------------------
+
+	if err := bloblang.RegisterFunctionV2("pi",
+		bloblang.NewPluginSpec().
+			Category(query.FunctionCategoryGeneral).
+			Description(`Returns the value of the mathematical constant Pi.`).
+			Example("", `root.radians = this.degrees * (pi() / 180)`,
+				[2]string{`{"degrees":45}`, `{"radians":0.7853981633974483}`}).
+			Example("", `root.degrees = this.radians * (180 / pi())`,
+				[2]string{`{"radians":0.78540}`, `{"degrees":45.00010522957486}`}),
+		func(args *bloblang.ParsedParams) (bloblang.Function, error) {
+			return func() (any, error) {
+				return math.Pi, nil
+			}, nil
+		}); err != nil {
+		panic(err)
+	}
 }

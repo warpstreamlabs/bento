@@ -281,7 +281,7 @@ var _ = registerSimpleMethod(
 		"encrypt_aes", "",
 	).InCategory(
 		MethodCategoryEncoding,
-		"Encrypts a string or byte array target according to a chosen AES encryption method and returns a string result. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `ofb`, `cbc`.",
+		"Encrypts a string or byte array target according to a chosen AES encryption method and returns a string result. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `ofb`, `cbc`.",
 		NewExampleSpec("",
 			`let key = "2b7e151628aed2a6abf7158809cf4f3c".decode("hex")
 let vector = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff".decode("hex")
@@ -290,7 +290,7 @@ root.encrypted = this.value.encrypt_aes("ctr", $key, $vector).encode("hex")`,
 			`{"encrypted":"84e9b31ff7400bdf80be7254"}`,
 		),
 	).
-		Param(ParamString("scheme", "The scheme to use for encryption, one of `ctr`, `ofb`, `cbc`.")).
+		Param(ParamString("scheme", "The scheme to use for encryption, one of `ctr`, `gcm`, `ofb`, `cbc`.")).
 		Param(ParamString("key", "A key to encrypt with.")).
 		Param(ParamString("iv", "An initialization vector / nonce.")),
 	func(args *ParsedParams) (simpleMethod, error) {
@@ -312,8 +312,16 @@ root.encrypted = this.value.encrypt_aes("ctr", $key, $vector).encode("hex")`,
 			return nil, err
 		}
 		iv := []byte(ivStr)
-		if len(iv) != block.BlockSize() {
-			return nil, errors.New("the key must match the initialisation vector size")
+
+		switch schemeStr {
+		case "ctr":
+			fallthrough
+		case "ofb":
+			fallthrough
+		case "cbc":
+			if len(iv) != block.BlockSize() {
+				return nil, errors.New("the key must match the initialisation vector size")
+			}
 		}
 
 		var schemeFn func([]byte) (string, error)
@@ -323,6 +331,16 @@ root.encrypted = this.value.encrypt_aes("ctr", $key, $vector).encode("hex")`,
 				ciphertext := make([]byte, len(b))
 				stream := cipher.NewCTR(block, iv)
 				stream.XORKeyStream(ciphertext, b)
+				return string(ciphertext), nil
+			}
+		case "gcm":
+			schemeFn = func(b []byte) (string, error) {
+				ciphertext := make([]byte, 0, len(b))
+				stream, err := cipher.NewGCM(block)
+				if err != nil {
+					return "", fmt.Errorf("creating gcm failed: %w", err)
+				}
+				ciphertext = stream.Seal(ciphertext, iv, b, nil)
 				return string(ciphertext), nil
 			}
 		case "ofb":
@@ -369,7 +387,7 @@ var _ = registerSimpleMethod(
 		"decrypt_aes", "",
 	).InCategory(
 		MethodCategoryEncoding,
-		"Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `ofb`, `cbc`.",
+		"Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `ofb`, `cbc`.",
 		NewExampleSpec("",
 			`let key = "2b7e151628aed2a6abf7158809cf4f3c".decode("hex")
 let vector = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff".decode("hex")
@@ -378,7 +396,7 @@ root.decrypted = this.value.decode("hex").decrypt_aes("ctr", $key, $vector).stri
 			`{"decrypted":"hello world!"}`,
 		),
 	).
-		Param(ParamString("scheme", "The scheme to use for decryption, one of `ctr`, `ofb`, `cbc`.")).
+		Param(ParamString("scheme", "The scheme to use for decryption, one of `ctr`, `gcm`, `ofb`, `cbc`.")).
 		Param(ParamString("key", "A key to decrypt with.")).
 		Param(ParamString("iv", "An initialization vector / nonce.")),
 	func(args *ParsedParams) (simpleMethod, error) {
@@ -401,8 +419,15 @@ root.decrypted = this.value.decode("hex").decrypt_aes("ctr", $key, $vector).stri
 			return nil, err
 		}
 		iv := []byte(ivStr)
-		if len(iv) != block.BlockSize() {
-			return nil, errors.New("the key must match the initialisation vector size")
+		switch schemeStr {
+		case "ctr":
+			fallthrough
+		case "ofb":
+			fallthrough
+		case "cbc":
+			if len(iv) != block.BlockSize() {
+				return nil, errors.New("the key must match the initialisation vector size")
+			}
 		}
 
 		var schemeFn func([]byte) ([]byte, error)
@@ -412,6 +437,19 @@ root.decrypted = this.value.decode("hex").decrypt_aes("ctr", $key, $vector).stri
 				plaintext := make([]byte, len(b))
 				stream := cipher.NewCTR(block, iv)
 				stream.XORKeyStream(plaintext, b)
+				return plaintext, nil
+			}
+		case "gcm":
+			schemeFn = func(b []byte) ([]byte, error) {
+				plaintext := make([]byte, 0, len(b))
+				stream, err := cipher.NewGCM(block)
+				if err != nil {
+					return nil, fmt.Errorf("creating gcm failed: %w", err)
+				}
+				plaintext, err = stream.Open(plaintext, iv, b, nil)
+				if err != nil {
+					return nil, fmt.Errorf("gcm decrypting failed: %w", err)
+				}
 				return plaintext, nil
 			}
 		case "ofb":

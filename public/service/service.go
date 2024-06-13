@@ -133,7 +133,7 @@ func CLIOptSetMainSchemaFrom(fn func() *ConfigSchema) CLIOptFunc {
 	}
 }
 
-// CLIOptOnConfigParsed sets a closure function to be called when a main
+// CLIOptOnConfigParse sets a closure function to be called when a main
 // configuration file load has occurred.
 //
 // If an error is returned this will be treated by the CLI the same as any other

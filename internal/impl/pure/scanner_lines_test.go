@@ -3,6 +3,7 @@ package pure_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"testing"
 
@@ -56,18 +57,48 @@ test:
 
 func TestLinesScannerSuite(t *testing.T) {
 	confSpec := service.NewConfigSpec().Field(service.NewScannerField("test"))
-	pConf, err := confSpec.ParseYAML(`
+
+	tests := []struct {
+		name      string
+		input     string
+		want      []string
+		omitEmpty bool
+	}{
+		{
+			name:      "parses input",
+			input:     "firstXsecondXthird",
+			want:      []string{"first", "second", "third"},
+			omitEmpty: false,
+		},
+		{
+			name:      "parses input and emits empty line",
+			input:     "firstXsecondXXthird",
+			want:      []string{"first", "second", "", "third"},
+			omitEmpty: false,
+		},
+		{
+			name:      "parses input and omits empty line",
+			input:     "firstXsecondXXthird",
+			want:      []string{"first", "second", "third"},
+			omitEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pConf, err := confSpec.ParseYAML(fmt.Sprintf(`
 test:
   lines:
     custom_delimiter: 'X'
     max_buffer_size: 200
-`, nil)
-	require.NoError(t, err)
+    omit_empty: %t
+`, tt.omitEmpty), nil)
+			require.NoError(t, err)
 
-	rdr, err := pConf.FieldScanner("test")
-	require.NoError(t, err)
+			rdr, err := pConf.FieldScanner("test")
+			require.NoError(t, err)
 
-	testutil.ScannerTestSuite(t, rdr, nil, []byte(`firstXsecondXthird`), "first", "second", "third")
-
-	testutil.ScannerTestSuite(t, rdr, nil, []byte(`firstXsecondXXthird`), "first", "second", "", "third")
+			testutil.ScannerTestSuite(t, rdr, nil, []byte(tt.input), tt.want...)
+		})
+	}
 }

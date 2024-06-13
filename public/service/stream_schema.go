@@ -185,6 +185,15 @@ func (s *ConfigSchema) SetVersion(version, dateBuilt string) *ConfigSchema {
 	return s
 }
 
+// SetFieldDefault attempts to change the default value of a field in the config
+// spec, which is the value used when the field is omitted from the config.
+//
+// This method does NOT support walking into arrays, nor component configs
+// themselves.
+func (s *ConfigSchema) SetFieldDefault(value any, path ...string) {
+	s.fields.SetDefault(value, path...)
+}
+
 // Field adds a field to the main config of a schema.
 func (s *ConfigSchema) Field(f *ConfigField) *ConfigSchema {
 	s.fields = append(s.fields, f.field)
