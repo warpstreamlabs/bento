@@ -1033,6 +1033,8 @@ github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAh
 github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
 github.com/wI2L/jsondiff v0.4.0 h1:iP56F9tK83eiLttg3YdmEENtZnwlYd3ezEpNNnfZVyM=
 github.com/wI2L/jsondiff v0.4.0/go.mod h1:nR/vyy1efuDeAtMwc3AF6nZf/2LD1ID8GTyyJ+K8YB0=
+github.com/warpstreamlabs/bento/v4 v4.0.0-20240606202959-2c57b5fd77f8 h1:imwl97e/6ScjVQ0f8sZSzTfl1p/dGFr9izcxc9q1GF8=
+github.com/warpstreamlabs/bento/v4 v4.0.0-20240606202959-2c57b5fd77f8/go.mod h1:iqeHer36zREoNHIl1UkSNq7JKjumFdzmEQktw3146n8=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=

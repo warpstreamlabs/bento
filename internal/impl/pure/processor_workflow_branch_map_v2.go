@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 type workflowBranchMapV2 struct {
