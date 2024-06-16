@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy/batchconfig"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/mapping"
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	iprocessor "github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/batch/policy/batchconfig"
+	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // Batcher implements a batching policy by buffering messages until, based on a

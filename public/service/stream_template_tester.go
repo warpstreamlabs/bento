@@ -3,8 +3,8 @@ package service
 import (
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/template"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/template"
 )
 
 // StreamTemplateTester provides utilities for testing templates.

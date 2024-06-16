@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var _ = registerSimpleMethod(

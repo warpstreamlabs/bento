@@ -12,16 +12,16 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component/cache"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
-	"github.com/warpstreamlabs/bento/v4/internal/config/test"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/cache"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/internal/config/test"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/internal/filepath"
+	"github.com/warpstreamlabs/bento/internal/manager"
 )
 
 // Keeps track of which resource file provided a given resource type, this is

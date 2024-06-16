@@ -1,24 +1,26 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/blobl"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/studio"
-	clitemplate "github.com/warpstreamlabs/bento/v4/internal/cli/template"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/test"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/template"
+	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/cli/studio"
+	clitemplate "github.com/warpstreamlabs/bento/internal/cli/template"
+	"github.com/warpstreamlabs/bento/internal/cli/test"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/filepath"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/template"
 )
 
 // Build stamps.
@@ -33,7 +35,7 @@ func init() {
 	}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, mod := range info.Deps {
-			if mod.Path == "github.com/warpstreamlabs/bento/v4" {
+			if mod.Path == "github.com/warpstreamlabs/bento" {
 				if mod.Version != "(devel)" {
 					Version = mod.Version
 				}
@@ -58,22 +60,43 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-// App returns the full CLI app definition, this is useful for writing unit
-// tests around the CLI.
-func App(opts *common.CLIOpts) *cli.App {
-	flags := []cli.Flag{
-		&cli.BoolFlag{
-			Name:    "version",
-			Aliases: []string{"v"},
-			Value:   false,
-			Usage:   "display version info, then exit",
-		},
-		&cli.StringSliceFlag{
-			Name:    "env-file",
-			Aliases: []string{"e"},
-			Value:   cli.NewStringSlice(),
-			Usage:   "import environment variables from a dotenv file",
-		},
+type pluginHelp struct {
+	Path  string   `json:"path,omitempty"`
+	Short string   `json:"short,omitempty"`
+	Long  string   `json:"long,omitempty"`
+	Args  []string `json:"args,omitempty"`
+}
+
+// In support of --help-autocomplete.
+func traverseHelp(cmd *cli.Command, pieces []string) []pluginHelp {
+	pieces = append(pieces, cmd.Name)
+	var args []string
+	for _, a := range cmd.Flags {
+		for _, n := range a.Names() {
+			if len(n) > 1 {
+				args = append(args, "--"+n)
+			} else {
+				args = append(args, "-"+n)
+			}
+		}
+	}
+	help := []pluginHelp{{
+		Path:  strings.Join(pieces, "_"),
+		Short: cmd.Usage,
+		Long:  cmd.Description,
+		Args:  args,
+	}}
+	for _, cmd := range cmd.Subcommands {
+		if cmd.Hidden {
+			continue
+		}
+		help = append(help, traverseHelp(cmd, pieces)...)
+	}
+	return help
+}
+
+func runFlags(opts *common.CLIOpts) []cli.Flag {
+	return []cli.Flag{
 		&cli.StringFlag{
 			Name:  "log.level",
 			Value: "",
@@ -84,21 +107,10 @@ func App(opts *common.CLIOpts) *cli.App {
 			Aliases: []string{"s"},
 			Usage:   "set a field (identified by a dot path) in the main configuration file, e.g. `\"metrics.type=prometheus\"`",
 		},
-		&cli.StringFlag{
-			Name:    "config",
-			Aliases: []string{"c"},
-			Value:   "",
-			Usage:   "a path to a configuration file",
-		},
 		&cli.StringSliceFlag{
 			Name:    "resources",
 			Aliases: []string{"r"},
 			Usage:   "pull in extra resources from a file, which can be referenced the same as resources defined in the main config, supports glob patterns (requires quotes)",
-		},
-		&cli.StringSliceFlag{
-			Name:    "templates",
-			Aliases: []string{"t"},
-			Usage:   "EXPERIMENTAL: import Bento templates, supports glob patterns (requires quotes)",
 		},
 		&cli.BoolFlag{
 			Name:  "chilled",
@@ -111,66 +123,111 @@ func App(opts *common.CLIOpts) *cli.App {
 			Value:   false,
 			Usage:   "EXPERIMENTAL: watch config files for changes and automatically apply them",
 		},
+		&cli.StringSliceFlag{
+			Name:    "env-file",
+			Aliases: []string{"e"},
+			Value:   cli.NewStringSlice(),
+			Usage:   "import environment variables from a dotenv file",
+		},
+		&cli.StringSliceFlag{
+			Name:    "templates",
+			Aliases: []string{"t"},
+			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
+		},
+	}
+}
+
+func preRun(c *cli.Context, opts *common.CLIOpts) error {
+	dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
+	if err != nil {
+		fmt.Printf("Failed to resolve env file glob pattern: %v\n", err)
+		os.Exit(1)
+	}
+	for _, dotEnvFile := range dotEnvPaths {
+		dotEnvBytes, err := ifs.ReadFile(ifs.OS(), dotEnvFile)
+		if err != nil {
+			fmt.Printf("Failed to read dotenv file: %v\n", err)
+			os.Exit(1)
+		}
+		vars, err := parser.ParseDotEnvFile(dotEnvBytes)
+		if err != nil {
+			fmt.Printf("Failed to parse dotenv file: %v\n", err)
+			os.Exit(1)
+		}
+		for k, v := range vars {
+			if err = os.Setenv(k, v); err != nil {
+				fmt.Printf("Failed to set env var '%v': %v\n", k, err)
+				os.Exit(1)
+			}
+		}
 	}
 
-	app := &cli.App{
-		Name:  "Bento",
-		Usage: "A stream processor for mundane tasks - https://warpstreamlabs.github.io/bento",
-		Description: `
-Either run Bento as a stream processor or choose a command:
+	templatesPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("templates"))
+	if err != nil {
+		fmt.Printf("Failed to resolve template glob pattern: %v\n", err)
+		os.Exit(1)
+	}
+	lints, err := template.InitTemplates(templatesPaths...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Template file read error: %v\n", err)
+		os.Exit(1)
+	}
+	if !c.Bool("chilled") && len(lints) > 0 {
+		for _, lint := range lints {
+			fmt.Fprintln(os.Stderr, lint)
+		}
+		fmt.Println(opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
+		os.Exit(1)
+	}
+	return nil
+}
 
-  bento list inputs
-  bento create kafka//file > ./config.yaml
-  bento -c ./config.yaml
-  bento -r "./production/*.yaml" -c ./config.yaml`[1:],
+// App returns the full CLI app definition, this is useful for writing unit
+// tests around the CLI.
+func App(opts *common.CLIOpts) *cli.App {
+	flags := []cli.Flag{
+		&cli.BoolFlag{
+			Name:    "version",
+			Aliases: []string{"v"},
+			Value:   false,
+			Usage:   "display version info, then exit",
+		},
+		&cli.StringFlag{
+			Name:    "config",
+			Aliases: []string{"c"},
+			Value:   "",
+			Usage:   "a path to a configuration file",
+		},
+		&cli.BoolFlag{
+			Name:   "help-autocomplete",
+			Value:  false,
+			Usage:  "print json serialised cli argument definitions to assist with autocomplete",
+			Hidden: true,
+		},
+	}
+	flags = append(flags, runFlags(opts)...)
+
+	app := &cli.App{
+		Name:  opts.BinaryName,
+		Usage: opts.ExecTemplate("A stream processor for mundane tasks - {{.DocumentationURL}}/about"),
+		Description: opts.ExecTemplate(`
+Either run {{.ProductName}} as a stream processor or choose a command:
+
+  {{.BinaryName}} list inputs
+  {{.BinaryName}} create kafka//file > ./config.yaml
+  {{.BinaryName}} -c ./config.yaml
+  {{.BinaryName}} -r "./production/*.yaml" -c ./config.yaml`)[1:],
 		Flags: flags,
 		Before: func(c *cli.Context) error {
-			dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
-			if err != nil {
-				fmt.Printf("Failed to resolve env file glob pattern: %v\n", err)
-				os.Exit(1)
-			}
-			for _, dotEnvFile := range dotEnvPaths {
-				dotEnvBytes, err := ifs.ReadFile(ifs.OS(), dotEnvFile)
-				if err != nil {
-					fmt.Printf("Failed to read dotenv file: %v\n", err)
-					os.Exit(1)
-				}
-				vars, err := parser.ParseDotEnvFile(dotEnvBytes)
-				if err != nil {
-					fmt.Printf("Failed to parse dotenv file: %v\n", err)
-					os.Exit(1)
-				}
-				for k, v := range vars {
-					if err = os.Setenv(k, v); err != nil {
-						fmt.Printf("Failed to set env var '%v': %v\n", k, err)
-						os.Exit(1)
-					}
-				}
-			}
-
-			templatesPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("templates"))
-			if err != nil {
-				fmt.Printf("Failed to resolve template glob pattern: %v\n", err)
-				os.Exit(1)
-			}
-			lints, err := template.InitTemplates(templatesPaths...)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Template file read error: %v\n", err)
-				os.Exit(1)
-			}
-			if !c.Bool("chilled") && len(lints) > 0 {
-				for _, lint := range lints {
-					fmt.Fprintln(os.Stderr, lint)
-				}
-				fmt.Println("Shutting down due to linter errors, to prevent shutdown run Bento with --chilled")
-				os.Exit(1)
-			}
-			return nil
+			return preRun(c, opts)
 		},
 		Action: func(c *cli.Context) error {
 			if c.Bool("version") {
 				fmt.Printf("Version: %v\nDate: %v\n", opts.Version, opts.DateBuilt)
+				os.Exit(0)
+			}
+			if c.Bool("help-autocomplete") {
+				_ = json.NewEncoder(os.Stdout).Encode(traverseHelp(c.Command, nil))
 				os.Exit(0)
 			}
 			if c.Args().Len() > 0 {
@@ -188,12 +245,12 @@ Either run Bento as a stream processor or choose a command:
 			{
 				Name:  "echo",
 				Usage: "Parse a config file and echo back a normalised version",
-				Description: `
+				Description: opts.ExecTemplate(`
 This simple command is useful for sanity checking a config if it isn't
 behaving as expected, as it shows you a normalised version after environment
 variables have been resolved:
 
-  bento -c ./config.yaml echo | less`[1:],
+  {{.BinaryName}} -c ./config.yaml echo | less`)[1:],
 				Action: func(c *cli.Context) error {
 					_, _, confReader := common.ReadConfig(c, opts, false)
 					_, pConf, _, err := confReader.Read()
@@ -223,24 +280,48 @@ variables have been resolved:
 			},
 			lintCliCommand(opts),
 			{
+				Name:   "run",
+				Hidden: !opts.ShowRunCommand,
+				Usage:  opts.ExecTemplate("Run {{.ProductName}} in normal mode against a specified config file"),
+				Before: func(c *cli.Context) error {
+					return preRun(c, opts)
+				},
+				Description: opts.ExecTemplate(`
+Run a {{.ProductName}} config.
+
+  {{.BinaryName}} run ./foo.yaml`)[1:],
+				Flags: runFlags(opts),
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() > 0 {
+						if c.Args().Len() > 1 {
+							fmt.Fprintln(os.Stderr, "A maximum of one config must be specified with the run command")
+							os.Exit(1)
+						}
+						_ = c.Set("config", c.Args().First())
+					}
+					os.Exit(common.RunService(c, opts, false))
+					return nil
+				},
+			},
+			{
 				Name:  "streams",
-				Usage: "Run Bento in streams mode",
-				Description: `
-Run Bento in streams mode, where multiple pipelines can be executed in a
+				Usage: opts.ExecTemplate("Run {{.ProductName}} in streams mode"),
+				Description: opts.ExecTemplate(`
+Run {{.ProductName}} in streams mode, where multiple pipelines can be executed in a
 single process and can be created, updated and removed via REST HTTP
 endpoints.
 
-  bento streams
-  bento -c ./root_config.yaml streams
-  bento streams ./path/to/stream/configs ./and/some/more
-  bento -c ./root_config.yaml streams ./streams/*.yaml
+  {{.BinaryName}} streams
+  {{.BinaryName}} -c ./root_config.yaml streams
+  {{.BinaryName}} streams ./path/to/stream/configs ./and/some/more
+  {{.BinaryName}} -c ./root_config.yaml streams ./streams/*.yaml
 
 In streams mode the stream fields of a root target config (input, buffer,
 pipeline, output) will be ignored. Other fields will be shared across all
 loaded streams (resources, metrics, etc).
 
 For more information check out the docs at:
-https://warpstreamlabs.github.io/bento/docs/guides/streams_mode/about`[1:],
+{{.DocumentationURL}}/guides/streams_mode/about`)[1:],
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:  "no-api",
@@ -261,8 +342,8 @@ https://warpstreamlabs.github.io/bento/docs/guides/streams_mode/about`[1:],
 			listCliCommand(opts),
 			createCliCommand(opts),
 			test.CliCommand(opts),
-			clitemplate.CliCommand(),
-			blobl.CliCommand(),
+			clitemplate.CliCommand(opts),
+			blobl.CliCommand(opts),
 			studio.CliCommand(opts),
 		},
 	}

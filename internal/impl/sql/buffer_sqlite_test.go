@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/impl/sql"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/impl/sql"
+	"github.com/warpstreamlabs/bento/public/service"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure/extended"
+	_ "github.com/warpstreamlabs/bento/public/components/pure/extended"
 )
 
 func msgEqualStr(t testing.TB, expected string, m *service.Message) {

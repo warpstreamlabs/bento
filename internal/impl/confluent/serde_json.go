@@ -6,7 +6,7 @@ import (
 
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func resolveJSONSchema(ctx context.Context, client *schemaRegistryClient, info SchemaInfo) (*gojsonschema.Schema, error) {

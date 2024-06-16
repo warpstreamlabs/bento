@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/cli"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/cli"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/log"
 )
 
 // RunCLI executes Bento as a CLI, allowing users to specify a configuration
@@ -63,6 +63,45 @@ func CLIOptSetVersion(version, dateBuilt string) CLIOptFunc {
 	}
 }
 
+// CLIOptSetBinaryName overrides the default binary name in CLI help docs.
+func CLIOptSetBinaryName(n string) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.BinaryName = n
+	}
+}
+
+// CLIOptSetProductName overrides the default product name in CLI help docs.
+func CLIOptSetProductName(n string) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ProductName = n
+	}
+}
+
+// CLIOptSetDocumentationURL overrides the default documentation URL in CLI help
+// docs.
+func CLIOptSetDocumentationURL(n string) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.DocumentationURL = n
+	}
+}
+
+// CLIOptSetShowRunCommand determines whether a `run` subcommand should appear
+// in CLI help and autocomplete.
+func CLIOptSetShowRunCommand(show bool) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ShowRunCommand = show
+	}
+}
+
+// CLIOptSetDefaultConfigPaths overrides the default paths used for detecting
+// and loading config files when one was not provided explicitly with the
+// --config flag.
+func CLIOptSetDefaultConfigPaths(paths ...string) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ConfigSearchPaths = paths
+	}
+}
+
 // CLIOptOnLoggerInit sets a closure to be called when the service-wide logger
 // is initialised. A modified version can be returned, allowing you to mutate
 // the fields and settings that it has.
@@ -94,7 +133,7 @@ func CLIOptSetMainSchemaFrom(fn func() *ConfigSchema) CLIOptFunc {
 	}
 }
 
-// CLIOptOnConfigParsed sets a closure function to be called when a main
+// CLIOptOnConfigParse sets a closure function to be called when a main
 // configuration file load has occurred.
 //
 // If an error is returned this will be treated by the CLI the same as any other

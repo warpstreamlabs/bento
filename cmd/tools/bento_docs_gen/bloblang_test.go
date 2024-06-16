@@ -12,12 +12,12 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/internal/tracing"
+	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/tracing"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/all"
+	_ "github.com/warpstreamlabs/bento/public/components/all"
 )
 
 func TestFunctionExamples(t *testing.T) {

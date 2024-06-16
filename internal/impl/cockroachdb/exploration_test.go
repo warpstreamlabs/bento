@@ -15,9 +15,9 @@ import (
 
 	_ "github.com/lib/pq"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationExploration(t *testing.T) {

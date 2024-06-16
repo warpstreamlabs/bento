@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v4/internal/log"
+	"github.com/warpstreamlabs/bento/internal/log"
 )
 
 // Logger allows plugin authors to write custom logs from components that are

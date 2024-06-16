@@ -11,7 +11,7 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	jsonschema "github.com/xeipuuv/gojsonschema"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var _ = registerSimpleMethod(

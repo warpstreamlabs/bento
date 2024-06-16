@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/batch/policy"
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func memoryBufferConfig() *service.ConfigSpec {

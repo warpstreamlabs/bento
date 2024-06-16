@@ -20,12 +20,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 
-	icli "github.com/warpstreamlabs/bento/v4/internal/cli"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/studio"
+	icli "github.com/warpstreamlabs/bento/internal/cli"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/cli/studio"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 type validateRequestFn func(t *testing.T, w http.ResponseWriter, r *http.Request)

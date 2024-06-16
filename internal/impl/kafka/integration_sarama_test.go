@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/impl/kafka"
-	"github.com/warpstreamlabs/bento/v4/public/service"
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/internal/impl/kafka"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationSaramaCheckpointOneLockUp(t *testing.T) {

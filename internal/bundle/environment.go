@@ -1,7 +1,7 @@
 package bundle
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // Environment is a collection of Bento component plugins that can be used in

@@ -7,14 +7,14 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/stream"
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/config/schema"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/stream"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 // ConfigSchema contains the definitions of all config fields for the overall
@@ -183,6 +183,15 @@ func (s *ConfigSchema) SetVersion(version, dateBuilt string) *ConfigSchema {
 	s.version = version
 	s.dateBuilt = dateBuilt
 	return s
+}
+
+// SetFieldDefault attempts to change the default value of a field in the config
+// spec, which is the value used when the field is omitted from the config.
+//
+// This method does NOT support walking into arrays, nor component configs
+// themselves.
+func (s *ConfigSchema) SetFieldDefault(value any, path ...string) {
+	s.fields.SetDefault(value, path...)
 }
 
 // Field adds a field to the main config of a schema.

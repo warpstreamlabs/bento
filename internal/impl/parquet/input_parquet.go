@@ -11,7 +11,7 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func parquetInputConfig() *service.ConfigSpec {

@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/cli/test"
-	"github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	dtest "github.com/warpstreamlabs/bento/v4/internal/config/test"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/v4/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/cli/test"
+	"github.com/warpstreamlabs/bento/internal/component/processor"
+	dtest "github.com/warpstreamlabs/bento/internal/config/test"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
 
-	_ "github.com/warpstreamlabs/bento/v4/internal/impl/pure"
+	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
 type mockProvider map[string][]processor.V1

@@ -3,7 +3,7 @@ package aws
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/serverless/lambda"
+	"github.com/warpstreamlabs/bento/internal/serverless/lambda"
 )
 
 // RunLambda executes Bento as an AWS Lambda function. Configuration can be

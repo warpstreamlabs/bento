@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/component/scanner"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/scanner"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // NewScannerField defines a new scanner field, it is then possible to extract

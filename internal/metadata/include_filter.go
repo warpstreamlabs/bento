@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // IncludeFilterDocs returns a docs spec for a metadata filter where keys are

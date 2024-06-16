@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/testutil"
-	bmanager "github.com/warpstreamlabs/bento/v4/internal/manager"
-	"github.com/warpstreamlabs/bento/v4/internal/stream/manager"
+	"github.com/warpstreamlabs/bento/internal/component/testutil"
+	bmanager "github.com/warpstreamlabs/bento/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/stream/manager"
 
 	// Import pure components for tests.
-	_ "github.com/warpstreamlabs/bento/v4/internal/impl/pure"
+	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
 func TestTypeUnderStress(t *testing.T) {

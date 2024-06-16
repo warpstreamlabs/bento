@@ -5,7 +5,7 @@ import (
 	"cuelang.org/go/cue/format"
 
 	// Populating default environment in order to walk it and generate Cue types.
-	"github.com/warpstreamlabs/bento/v4/internal/config/schema"
+	"github.com/warpstreamlabs/bento/internal/config/schema"
 )
 
 // GenerateSchema generates a Cue schema which includes definitions for the

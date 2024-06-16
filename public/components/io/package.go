@@ -10,5 +10,5 @@ package io
 
 import (
 	// Import only io packages.
-	_ "github.com/warpstreamlabs/bento/v4/internal/impl/io"
+	_ "github.com/warpstreamlabs/bento/internal/impl/io"
 )

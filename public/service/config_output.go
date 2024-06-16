@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/output"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // NewOutputField defines a new output field, it is then possible to extract an

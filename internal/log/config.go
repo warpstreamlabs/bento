@@ -1,6 +1,6 @@
 package log
 
-import "github.com/warpstreamlabs/bento/v4/internal/docs"
+import "github.com/warpstreamlabs/bento/internal/docs"
 
 const (
 	fieldLogLevel         = "level"

@@ -3,7 +3,7 @@ package query
 import (
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // MatchCase represents a single match case of a match expression, where a case

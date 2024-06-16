@@ -3,9 +3,6 @@ title: Getting Started
 description: Getting started with Bento
 ---
 
-<!-- TODO(install): Fix me. -->
-<!-- Woops! You fell for the marketing hype. Let's try and get through this together.
-
 <div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
 
 ## Install
@@ -29,7 +26,7 @@ curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash
 <TabItem value="version">
 
 ```sh
-curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 3.56.0
+curl -Lsf https://warpstreamlabs.github.io/bento/sh/install | bash -s -- 1.0.1
 ```
 
 </TabItem>
@@ -46,27 +43,9 @@ docker pull ghcr.io/warpstreamlabs/bento
 docker run --rm -v /path/to/your/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento
 ```
 
-### Homebrew
-
-On macOS, Bento can be installed via Homebrew:
-
-```sh
-brew install benthos
-```
-
-### Asdf
-
-If you use the [asdf](https://asdf-vm.com/) tool version manager you can install Bento with:
-
-```sh
-asdf plugin add benthos
-asdf install benthos latest
-asdf global benthos latest
-```
-
 ### Serverless
 
-For information about serverless deployments of Bento check out the serverless section [here][serverless]. -->
+For information about serverless deployments of Bento check out the serverless section [here][serverless].
 
 ## Run
 

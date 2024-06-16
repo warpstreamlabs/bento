@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func init() {

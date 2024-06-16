@@ -6,7 +6,7 @@ import (
 
 	"github.com/clbanning/mxj/v2"
 
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func init() {

@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ibloblang "github.com/warpstreamlabs/bento/v4/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
-	"github.com/warpstreamlabs/bento/v4/public/bloblang"
+	ibloblang "github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func TestMessageCopyAirGap(t *testing.T) {
@@ -489,4 +489,31 @@ func BenchmarkMessageMappingOld(b *testing.B) {
 			"new_content": "HELLO WORLD",
 		}, resI)
 	}
+}
+
+func TestSyncResponse(t *testing.T) {
+	msgA := NewMessage([]byte("hello world a"))
+
+	msgB, storeB := msgA.WithSyncResponseStore()
+	msgB.SetBytes([]byte("hello world b"))
+
+	require.Error(t, msgA.AddSyncResponse())
+	require.NoError(t, msgB.AddSyncResponse())
+
+	msgC := msgB.Copy()
+	msgC.SetBytes([]byte("hello world c"))
+	require.NoError(t, msgC.AddSyncResponse())
+
+	resBatches := storeB.Read()
+	require.Len(t, resBatches, 2)
+	require.Len(t, resBatches[0], 1)
+	require.Len(t, resBatches[1], 1)
+
+	data, err := resBatches[0][0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, "hello world b", string(data))
+
+	data, err = resBatches[1][0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, "hello world c", string(data))
 }

@@ -1,3 +1,8 @@
+
+<p align="center">
+    <img src="icon.png" width=50% height=50% alt="Bento">
+</p>
+
 [![godoc for warpstreamlabs/bento][godoc-badge]][godoc-url]
 [![Build Status][actions-badge]][actions-url]
 [![Docs site][website-badge]][website-url]
@@ -56,7 +61,7 @@ For guidance on building your own custom plugins in Go check out [the public API
 We're working on the release process, but you can either compile from source or pull the docker image:
 
 ```
-docker pull public.ecr.aws/warpstream-labs/warpstream_bento:0.0.1-rc1
+docker pull ghcr.io/warpstreamlabs/bento
 ```
 
 For more information check out the [getting started guide][getting-started].
@@ -71,10 +76,10 @@ Or, with docker:
 
 ```shell
 # Using a config file
-docker run --rm -v /path/to/your/config.yaml:/bento.yaml public.ecr.aws/warpstream-labs/warpstream_bento
+docker run --rm -v /path/to/your/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento
 
 # Using a series of -s flags
-docker run --rm -p 4195:4195 public.ecr.aws/warpstream-labs/warpstream_bento \
+docker run --rm -p 4195:4195 ghcr.io/warpstreamlabs/bento \
   -s "input.type=http_server" \
   -s "output.type=kafka" \
   -s "output.kafka.addresses=kafka-server:9092" \
@@ -109,6 +114,7 @@ Build with Go (any [currently supported version](https://go.dev/dl/)):
 git clone git@github.com:warpstreamlabs/bento
 cd bento
 make
+go build -o bento ./cmd/bento/main.go
 ```
 
 ## Lint
@@ -131,7 +137,7 @@ By default Bento does not build with components that require linking to external
 
 ```shell
 # With go
-go install -tags "x_bento_extra" github.com/warpstreamlabs/bento/v4/cmd/bento@latest
+go install -tags "x_bento_extra" github.com/warpstreamlabs/bento/cmd/bento@latest
 
 # Using make
 make TAGS=x_bento_extra
@@ -179,8 +185,8 @@ Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come a
 [plugin-repo]: https://github.com/warpstreamlabs/bento-plugin-example
 [getting-started]: https://warpstreamlabs.github.io/bento/docs/guides/getting_started
 
-[godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/v4/public
-[godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/v4/public
+[godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/public
+[godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public
 [actions-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml/badge.svg
 [actions-url]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml
 [website-badge]: https://img.shields.io/badge/Docs-Learn%20more-ffc7c7

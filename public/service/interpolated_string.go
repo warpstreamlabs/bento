@@ -1,9 +1,9 @@
 package service
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang"
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/field"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/field"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // InterpolatedString resolves a string containing dynamic interpolation

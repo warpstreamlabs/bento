@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationZMQ(t *testing.T) {

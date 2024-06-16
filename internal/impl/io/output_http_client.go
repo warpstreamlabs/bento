@@ -3,8 +3,8 @@ package io
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/httpclient"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/httpclient"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func httpClientOutputSpec() *service.ConfigSpec {

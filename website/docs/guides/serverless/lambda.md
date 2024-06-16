@@ -190,7 +190,7 @@ aws lambda invoke \
 You can build and archive the function yourself with:
 
 ```sh
-go build github.com/warpstreamlabs/bento/v4/cmd/serverless/bento-lambda
+go build github.com/warpstreamlabs/bento/cmd/serverless/bento-lambda
 zip bento-lambda.zip bento-lambda
 ```
 

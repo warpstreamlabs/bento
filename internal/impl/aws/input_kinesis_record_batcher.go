@@ -10,7 +10,7 @@ import (
 
 	"github.com/Jeffail/checkpoint"
 
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 type awsKinesisRecordBatcher struct {

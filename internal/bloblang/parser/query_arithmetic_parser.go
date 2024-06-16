@@ -3,7 +3,7 @@ package parser
 import (
 	"fmt"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
 
 var arithmeticOpPattern = OneOf(

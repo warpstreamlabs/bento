@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 func TestResultStore(t *testing.T) {

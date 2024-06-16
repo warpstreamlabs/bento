@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input/batcher"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/input/batcher"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // AckFunc is a common function returned by inputs that must be called once for

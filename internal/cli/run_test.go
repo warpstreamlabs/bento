@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	icli "github.com/warpstreamlabs/bento/v4/internal/cli"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
+	icli "github.com/warpstreamlabs/bento/internal/cli"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 func TestRunCLIShutdown(t *testing.T) {

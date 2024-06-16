@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/scanner"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/scanner"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // AllScanners is a set containing every single scanner that has been imported.

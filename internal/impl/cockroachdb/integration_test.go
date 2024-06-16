@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/io"
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
-	"github.com/warpstreamlabs/bento/v4/public/service"
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationCRDB(t *testing.T) {

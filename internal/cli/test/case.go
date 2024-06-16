@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io/fs"
 
-	iprocessor "github.com/warpstreamlabs/bento/v4/internal/component/processor"
-	"github.com/warpstreamlabs/bento/v4/internal/config/test"
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/config/test"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // CaseFailure encapsulates information about a failed test case.

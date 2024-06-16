@@ -13,12 +13,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/cli/common"
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
-	ifilepath "github.com/warpstreamlabs/bento/v4/internal/filepath"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/docs"
+	ifilepath "github.com/warpstreamlabs/bento/internal/filepath"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
 var (
@@ -138,17 +138,17 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 func lintCliCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "lint",
-		Usage: "Parse Bento configs and report any linting errors",
-		Description: `
+		Usage: cliOpts.ExecTemplate("Parse {{.ProductName}} configs and report any linting errors"),
+		Description: cliOpts.ExecTemplate(`
 Exits with a status code 1 if any linting errors are detected:
 
-  bento -c target.yaml lint
-  bento lint ./configs/*.yaml
-  bento lint ./foo.yaml ./bar.yaml
-  bento lint ./configs/...
+  {{.BinaryName}} -c target.yaml lint
+  {{.BinaryName}} lint ./configs/*.yaml
+  {{.BinaryName}} lint ./foo.yaml ./bar.yaml
+  {{.BinaryName}} lint ./configs/...
 
-If a path ends with '...' then Bento will walk the target and lint any
-files with the .yaml or .yml extension.`[1:],
+If a path ends with '...' then {{.ProductName}} will walk the target and lint any
+files with the .yaml or .yml extension.`)[1:],
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "deprecated",

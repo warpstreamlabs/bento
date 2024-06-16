@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // ParamDefinition describes a single parameter for a function or method.

@@ -1,9 +1,9 @@
 package lambda
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/bundle"
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 func DefaultConfigAndSpec() (conf config.Type, spec docs.FieldSpecs, err error) {

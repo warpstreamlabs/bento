@@ -8,8 +8,8 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	"github.com/warpstreamlabs/bento/v4/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/v4/internal/value"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 //------------------------------------------------------------------------------

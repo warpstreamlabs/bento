@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/metrics"
-	"github.com/warpstreamlabs/bento/v4/internal/component/ratelimit"
+	"github.com/warpstreamlabs/bento/internal/component/metrics"
+	"github.com/warpstreamlabs/bento/internal/component/ratelimit"
 )
 
 // RateLimit is an interface implemented by Bento rate limits.

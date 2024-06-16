@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
 // Implements ifs.FS around the Bento Studio node APIs.

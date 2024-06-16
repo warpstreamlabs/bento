@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/warpstreamlabs/bento/v4/public/components/pure"
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationRedis(t *testing.T) {

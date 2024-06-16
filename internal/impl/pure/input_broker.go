@@ -3,10 +3,10 @@ package pure
 import (
 	"errors"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component/input"
-	"github.com/warpstreamlabs/bento/v4/internal/component/input/batcher"
-	"github.com/warpstreamlabs/bento/v4/internal/component/interop"
-	"github.com/warpstreamlabs/bento/v4/public/service"
+	"github.com/warpstreamlabs/bento/internal/component/input"
+	"github.com/warpstreamlabs/bento/internal/component/input/batcher"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 // ErrBrokerNoInputs is returned when creating a broker with zero inputs.

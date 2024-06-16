@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/warpstreamlabs/bento/v4/internal/component"
-	"github.com/warpstreamlabs/bento/v4/internal/component/buffer"
-	"github.com/warpstreamlabs/bento/v4/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/buffer"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
 // AllBuffers is a set containing every single buffer that has been imported.

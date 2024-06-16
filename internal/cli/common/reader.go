@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/warpstreamlabs/bento/v4/internal/config"
-	"github.com/warpstreamlabs/bento/v4/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 
 	"github.com/urfave/cli/v2"
 )
@@ -14,11 +14,7 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 	path := c.String("config")
 	if path == "" {
 		// Iterate default config paths
-		for _, dpath := range []string{
-			"/bento.yaml",
-			"/etc/bento/config.yaml",
-			"/etc/bento.yaml",
-		} {
+		for _, dpath := range cliOpts.ConfigSearchPaths {
 			if _, err := ifs.OS().Stat(dpath); err == nil {
 				inferred = true
 				path = dpath

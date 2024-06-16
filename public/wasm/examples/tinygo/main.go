@@ -5,7 +5,7 @@ package main
 import (
 	"bytes"
 
-	"github.com/warpstreamlabs/bento/v4/public/wasm/tinygo"
+	"github.com/warpstreamlabs/bento/public/wasm/tinygo"
 )
 
 // main is required for TinyGo to compile to Wasm.

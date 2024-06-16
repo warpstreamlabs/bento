@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/v4/internal/message"
+	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 var linebreakStr = `foo
@@ -1689,6 +1689,46 @@ func TestMethods(t *testing.T) {
 				method("string"),
 			),
 			output: `hello world!`,
+		},
+		"check aes-gcm encryption": {
+			input: methods(
+				methods(
+					literalFn("007c5e5b3e59df24a7c355584fc1518d"),
+					method("decode", "hex"),
+				),
+				method(
+					"encrypt_aes", "gcm",
+					methods(
+						literalFn("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308"),
+						method("decode", "hex"),
+					),
+					methods(
+						literalFn("54cc7dc2c37ec006bcc6d1da"),
+						method("decode", "hex"),
+					),
+				),
+				method("encode", "hex"),
+			),
+			output: `d50b9e252b70945d4240d351677eb10f937cdaef6f2822b6a3191654ba41b197`,
+		},
+		"check aes-gcm decryption": {
+			input: methods(
+				literalFn("d50b9e252b70945d4240d351677eb10f937cdaef6f2822b6a3191654ba41b197"),
+				method("decode", "hex"),
+				method(
+					"decrypt_aes", "gcm",
+					methods(
+						literalFn("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308"),
+						method("decode", "hex"),
+					),
+					methods(
+						literalFn("54cc7dc2c37ec006bcc6d1da"),
+						method("decode", "hex"),
+					),
+				),
+				method("encode", "hex"),
+			),
+			output: `007c5e5b3e59df24a7c355584fc1518d`,
 		},
 		"check aes-ofb encryption": {
 			input: methods(

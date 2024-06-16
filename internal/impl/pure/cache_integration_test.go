@@ -3,7 +3,7 @@ package pure
 import (
 	"testing"
 
-	"github.com/warpstreamlabs/bento/v4/public/service/integration"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func TestIntegrationMultilevelCache(t *testing.T) {
