@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Sends messages to an AWS SNS topic.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -94,7 +94,7 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `message_deduplication_id`
 
@@ -103,7 +103,7 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `max_in_flight`
 
@@ -119,7 +119,7 @@ Specify criteria for which metadata values are sent as headers.
 
 
 Type: `object`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `metadata.exclude_prefixes`
 
@@ -202,7 +202,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

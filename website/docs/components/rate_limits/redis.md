@@ -19,7 +19,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 A rate limit implementation using Redis. It works by using a simple token bucket algorithm to limit the number of requests to a given count within a given time period. The rate limit is shared across all instances of Bento that use the same Redis instance, which must all have a consistent count and interval.
 
-Introduced in version 4.12.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -146,7 +146,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

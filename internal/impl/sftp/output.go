@@ -24,7 +24,7 @@ func sftpOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Categories("Network").
-		Version("3.39.0").
+		Version("1.0.0").
 		Summary(`Writes files to an SFTP server.`).
 		Description(`In order to have a different path for each object you should use function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).`+service.OutputPerformanceDocs(true, false)).
 		Fields(

@@ -34,7 +34,7 @@ The fields 'key', 'exchange' and 'type' can be dynamically set using function in
 				Example([]string{"amqp://guest:guest@127.0.0.1:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
-				Version("3.58.0"),
+				Version("1.0.0"),
 			service.NewInterpolatedStringField(exchangeField).
 				Description("An AMQP exchange to publish to."),
 			service.NewObjectField(exchangeDeclareField,

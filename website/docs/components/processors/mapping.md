@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Executes a [Bloblang](/docs/guides/bloblang/about) mapping on messages, creating a new document that replaces (or filters) the original message.
 
-Introduced in version 4.5.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

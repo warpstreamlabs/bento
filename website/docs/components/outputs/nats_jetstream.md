@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Write messages to a NATS JetStream subject.
 
-Introduced in version 3.46.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -157,7 +157,7 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 Type: `object`  
 Default: `{}`  
-Requires version 4.1.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -252,7 +252,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

@@ -13,7 +13,7 @@ import (
 func beanstalkdOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Services").
-		Version("4.7.0").
+		Version("1.0.0").
 		Summary("Write messages to a Beanstalkd queue.").
 		Field(service.NewStringField("address").
 			Description("An address to connect to.").

@@ -33,7 +33,7 @@ For basic inserts or select queries use either the ` + "[`sql_insert`](/docs/com
 		Field(service.NewStringField("result_codec").
 			Description("Result codec.").
 			Default("none")).
-		Version("3.65.0")
+		Version("1.0.0")
 	// TODO: Add example
 }
 

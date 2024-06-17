@@ -13,7 +13,7 @@ func init() {
 		Beta().
 		Category("Object & Array Manipulation").
 		Description(`Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.`).
-		Version("4.25.0").
+		Version("1.0.0").
 		Param(bloblang.NewAnyParam("other").Description("The value to compare against."))
 
 	if err := bloblang.RegisterMethodV2("diff", diffSpec, func(args *bloblang.ParsedParams) (bloblang.Method, error) {
@@ -46,7 +46,7 @@ func init() {
 		Beta().
 		Category("Object & Array Manipulation").
 		Description(`Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.`).
-		Version("4.25.0").
+		Version("1.0.0").
 		Param(bloblang.NewAnyParam("changelog").Description("The changelog to apply."))
 
 	if err := bloblang.RegisterMethodV2("patch", patchSpec, func(args *bloblang.ParsedParams) (bloblang.Method, error) {

@@ -18,7 +18,7 @@ func init() {
 		Summary("Executes a PartiQL expression against a DynamoDB table for each message.").
 		Description("Both writes or reads are supported, when the query is a read the contents of the message will be replaced with the result. This processor is more efficient when messages are pre-batched as the whole batch will be executed in a single call.").
 		Categories("Integration").
-		Version("3.48.0").
+		Version("1.0.0").
 		Field(service.NewStringField("query").Description("A PartiQL query to execute for each message.")).
 		Field(service.NewBoolField("unsafe_dynamic_query").Description("Whether to enable dynamic queries that support interpolation functions.").Advanced().Default(false)).
 		Field(service.NewBloblangField("args_mapping").

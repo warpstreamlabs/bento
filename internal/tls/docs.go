@@ -17,7 +17,7 @@ func FieldSpec() docs.FieldSpec {
 
 		docs.FieldBool(
 			"enable_renegotiation", "Whether to allow the remote server to repeatedly request renegotiation. Enable this option if you're seeing the error message `local error: tls: no renegotiation`.",
-		).AtVersion("3.45.0").Advanced().HasDefault(false),
+		).AtVersion("1.0.0").Advanced().HasDefault(false),
 
 		docs.FieldString(
 			"root_cas", "An optional root certificate authority to use. This is a string, representing a certificate chain from the parent trusted root certificate, to possible intermediate signing certificates, to the host certificate.", "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",

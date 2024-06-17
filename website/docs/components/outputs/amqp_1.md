@@ -83,7 +83,7 @@ A list of URLs to connect to. The first URL to successfully establish a connecti
 
 
 Type: `array`  
-Requires version 4.23.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -154,7 +154,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

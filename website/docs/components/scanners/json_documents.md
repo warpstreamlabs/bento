@@ -16,7 +16,7 @@ import TabItem from '@theme/TabItem';
 
 Consumes a stream of one or more JSON documents.
 
-Introduced in version 4.27.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

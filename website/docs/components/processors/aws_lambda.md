@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Invokes an AWS lambda for each message. The contents of the message is the payload of the request, and the result of the invocation will become the new contents of the message.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -214,7 +214,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

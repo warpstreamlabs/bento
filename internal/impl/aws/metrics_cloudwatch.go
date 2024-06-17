@@ -39,7 +39,7 @@ func cwmConfigFromParsed(pConf *service.ParsedConfig) (conf cwmConfig, err error
 func cwMetricsSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Send metrics to AWS CloudWatch using the PutMetricData endpoint.`).
 		Description(`
 ### Timing Metrics

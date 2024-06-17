@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Sends messages as new rows to a Google Cloud BigQuery table.
 
-Introduced in version 3.55.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

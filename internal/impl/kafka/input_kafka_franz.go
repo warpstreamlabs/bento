@@ -23,7 +23,7 @@ func franzKafkaInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Categories("Services").
-		Version("3.61.0").
+		Version("1.0.0").
 		Summary(`A Kafka input using the [Franz Kafka client library](https://github.com/twmb/franz-go).`).
 		Description(`
 When a consumer group is specified this input consumes one or more topics where partitions will automatically balance across any other connected clients with the same consumer group. When a consumer group is not specified topics can either be consumed in their entirety or with explicit partitions.

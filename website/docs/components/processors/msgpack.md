@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Converts messages to or from the [MessagePack](https://msgpack.org/) format.
 
-Introduced in version 3.59.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

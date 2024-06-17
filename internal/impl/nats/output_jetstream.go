@@ -16,7 +16,7 @@ func natsJetStreamOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Services").
-		Version("3.46.0").
+		Version("1.0.0").
 		Summary("Write messages to a NATS JetStream subject.").
 		Description(connectionNameDescription() + authDescription()).
 		Fields(connectionHeadFields()...).
@@ -31,7 +31,7 @@ func natsJetStreamOutputConfig() *service.ConfigSpec {
 			Example(map[string]any{
 				"Content-Type": "application/json",
 				"Timestamp":    `${!meta("Timestamp")}`,
-			}).Version("4.1.0")).
+			}).Version("1.0.0")).
 		Field(service.NewMetadataFilterField("metadata").
 			Description("Determine which (if any) metadata values should be added to messages as headers.").
 			Optional()).

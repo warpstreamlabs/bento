@@ -197,7 +197,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 
@@ -401,7 +401,7 @@ A [Bloblang mapping](/docs/guides/bloblang/about) that can be used to provide ar
 
 
 Type: `string`  
-Requires version 3.55.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `consistency`
 

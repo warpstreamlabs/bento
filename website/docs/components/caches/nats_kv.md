@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Cache key/values in a NATS key-value bucket.
 
-Introduced in version 4.27.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -164,7 +164,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

@@ -14,7 +14,7 @@ import (
 func redisScriptProcConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Beta().
-		Version("4.11.0").
+		Version("1.0.0").
 		Summary(`Performs actions against Redis using [LUA scripts](https://redis.io/docs/manual/programmability/eval-intro/).`).
 		Description(`Actions are performed for each message and the message contents are replaced with the result.
 

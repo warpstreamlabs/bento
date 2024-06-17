@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Inserts a row into an SQL database for each message.
 
-Introduced in version 3.59.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -246,7 +246,7 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 4.10.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -269,7 +269,7 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 4.10.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

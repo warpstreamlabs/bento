@@ -18,7 +18,7 @@ func processorConfig() *service.ConfigSpec {
 			"to_json":   "Convert MessagePack messages to JSON format",
 			"from_json": "Convert JSON messages to MessagePack format",
 		}).Description("The operation to perform on messages.")).
-		Version("3.59.0")
+		Version("1.0.0")
 }
 
 func init() {

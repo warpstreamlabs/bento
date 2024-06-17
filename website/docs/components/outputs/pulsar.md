@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Write messages to an Apache Pulsar server.
 
-Introduced in version 3.43.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -152,7 +152,7 @@ Optional configuration of Pulsar authentication methods.
 
 
 Type: `object`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `auth.oauth2`
 

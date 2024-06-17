@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Executes a select query and creates a message for each row received.
 
-Introduced in version 4.10.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -209,7 +209,7 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 4.10.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -232,7 +232,7 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 4.10.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

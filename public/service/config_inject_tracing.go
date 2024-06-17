@@ -21,7 +21,7 @@ func NewInjectTracingSpanMappingField() *ConfigField {
 			`meta = @.merge(this)`,
 			`root.meta.span = this`,
 		).
-		Version("3.45.0").
+		Version("1.0.0").
 		Optional().
 		Advanced()
 }

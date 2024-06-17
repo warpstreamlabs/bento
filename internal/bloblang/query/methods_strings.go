@@ -2011,7 +2011,7 @@ root.description = this.description.trim_prefix("foobar_")`,
 			`{"description":"unchanged","name":"blobton"}`,
 		),
 	).Param(ParamString("prefix", "The leading prefix substring to trim from the string.")).
-		AtVersion("4.12.0"),
+		AtVersion("1.0.0"),
 	func(args *ParsedParams) (simpleMethod, error) {
 		prefix, err := args.FieldString("prefix")
 		if err != nil {
@@ -2043,7 +2043,7 @@ root.description = this.description.trim_suffix("_foobar")`,
 			`{"description":"unchanged","name":"blobton"}`,
 		),
 	).Param(ParamString("suffix", "The trailing suffix substring to trim from the string.")).
-		AtVersion("4.12.0"),
+		AtVersion("1.0.0"),
 	func(args *ParsedParams) (simpleMethod, error) {
 		suffix, err := args.FieldString("suffix")
 		if err != nil {

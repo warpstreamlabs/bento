@@ -20,7 +20,7 @@ func franzKafkaOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Categories("Services").
-		Version("3.61.0").
+		Version("1.0.0").
 		Summary("A Kafka output using the [Franz Kafka client library](https://github.com/twmb/franz-go).").
 		Description(`
 Writes a batch of messages to Kafka brokers and waits for acknowledgement before propagating it back to the input.

@@ -118,7 +118,7 @@ output:
 				Default(","),
 			service.NewBoolField(csviFieldLazyQuotes).
 				Description("If set to `true`, a quote may appear in an unquoted field and a non-doubled quote may appear in a quoted field.").
-				Version("4.1.0").
+				Version("1.0.0").
 				Default(false),
 			service.NewBoolField(csviFieldDeleteOnFinish).
 				Description("Whether to delete input files from the disk once they are fully consumed.").

@@ -13,7 +13,7 @@ func batchedInputConfig() *service.ConfigSpec {
 		Description(`Batching at the input level is sometimes useful for processing across micro-batches, and can also sometimes be a useful performance trick. However, most inputs are fine without it so unless you have a specific plan for batching this component is not worth using.`).
 		Field(service.NewInputField("child").Description("The child input.")).
 		Field(service.NewBatchPolicyField("policy")).
-		Version("4.11.0")
+		Version("1.0.0")
 	return spec
 }
 

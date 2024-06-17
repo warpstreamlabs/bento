@@ -26,7 +26,7 @@ func dynCacheConfig() *service.ConfigSpec {
 
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Stores key/value pairs as a single document in a DynamoDB table. The key is stored as a string value and used as the table hash key. The value is stored as
 a binary value using the ` + "`data_key`" + ` field name.`).
 		Description(`A prefix can be specified to allow multiple cache types to share a single DynamoDB table. An optional TTL duration (` + "`ttl`" + `) and field

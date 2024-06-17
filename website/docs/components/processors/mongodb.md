@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Performs operations against MongoDB for each message, allowing you to store or retrieve data within message payloads.
 
-Introduced in version 3.43.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -220,7 +220,7 @@ The upsert setting is optional and only applies for update-one and replace-one o
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `json_marshal_mode`
 
@@ -229,7 +229,7 @@ The json_marshal_mode setting is optional and controls the format of the output 
 
 Type: `string`  
 Default: `"canonical"`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 | Option | Summary |
 |---|---|

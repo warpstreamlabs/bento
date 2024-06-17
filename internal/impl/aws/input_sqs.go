@@ -90,7 +90,7 @@ You can access these metadata fields using
 				Advanced(),
 			service.NewBoolField(sqsiFieldResetVisibility).
 				Description("Whether to set the visibility timeout of the consumed message to zero once it is nacked. Disabling honors the preset visibility timeout specified for the queue.").
-				Version("3.58.0").
+				Version("1.0.0").
 				Default(true).
 				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).

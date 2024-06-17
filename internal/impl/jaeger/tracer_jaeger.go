@@ -48,7 +48,7 @@ func jaegerConfigSpec() *service.ConfigSpec {
 			service.NewStringField(jtFieldCollectorURL).
 				Description("The URL of a Jaeger collector to send tracing events to. If set, this will override `agent_address`.").
 				Example("https://jaeger-collector:14268/api/traces").
-				Version("3.38.0").
+				Version("1.0.0").
 				Default(""),
 			service.NewStringAnnotatedEnumField(jtFieldSamplerType, map[string]string{
 				"const": "Sample a percentage of traces. 1 or more means all traces are sampled, 0 means no traces are sampled and anything in between means a percentage of traces are sampled. Tuning the sampling rate is recommended for high-volume production workloads.",

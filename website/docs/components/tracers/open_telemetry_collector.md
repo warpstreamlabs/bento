@@ -128,7 +128,7 @@ Settings for trace sampling. Sampling is recommended for high-volume production 
 
 
 Type: `object`  
-Requires version 4.25.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `sampling.enabled`
 

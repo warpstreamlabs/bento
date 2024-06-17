@@ -11,7 +11,7 @@ import (
 func jsonDocumentScannerSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("4.27.0").
+		Version("1.0.0").
 		Summary("Consumes a stream of one or more JSON documents.").
 		// Just a placeholder empty object as we don't have any fields yet
 		Field(service.NewObjectField("").Default(map[string]any{}))

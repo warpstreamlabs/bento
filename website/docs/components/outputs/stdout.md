@@ -34,7 +34,7 @@ The way in which the bytes of messages should be written out into the output dat
 
 Type: `string`  
 Default: `"lines"`  
-Requires version 3.46.0 or newer  
+Requires version 1.0.0 or newer  
 
 | Option | Summary |
 |---|---|

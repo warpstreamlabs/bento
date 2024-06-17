@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Attempts to execute a series of child processors until success.
 
-Introduced in version 4.27.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

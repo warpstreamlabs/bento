@@ -251,7 +251,7 @@ EXPERIMENTAL: Optionally set a level at which the request and response payload o
 
 Type: `string`  
 Default: `""`  
-Requires version 4.12.0 or newer  
+Requires version 1.0.0 or newer  
 Options: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, ``.
 
 ### `oauth`
@@ -356,7 +356,7 @@ A list of optional requested permissions.
 
 Type: `array`  
 Default: `[]`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `oauth2.endpoint_params`
 
@@ -365,7 +365,7 @@ A list of optional endpoint parameters, values should be arrays of strings.
 
 Type: `object`  
 Default: `{}`  
-Requires version 4.21.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -489,7 +489,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

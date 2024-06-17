@@ -79,7 +79,7 @@ func bigQuerySelectInputConfigFromParsed(inConf *service.ParsedConfig) (conf big
 func newBigQuerySelectInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("3.63.0").
+		Version("1.0.0").
 		Categories("Services", "GCP").
 		Summary("Executes a `SELECT` query against BigQuery and creates a message for each row received.").
 		Description(`Once the rows from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a [sequence](/docs/components/inputs/sequence) to execute).`).

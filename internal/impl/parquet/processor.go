@@ -84,7 +84,7 @@ A schema can be derived from a source file using https://github.com/xitongsys/pa
 root = if this.operator == "from_json" && (this.schema | this.schema_file | "") == "" {
 	"a schema or schema_file must be specified when the operator is set to from_json"
 }`).
-		Version("3.62.0")
+		Version("1.0.0")
 }
 
 func init() {

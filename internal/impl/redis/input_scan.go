@@ -40,7 +40,7 @@ This input generates a message for each key value pair in the following format:
 ` + "```" + `
 `).
 		Categories("Services").
-		Version("4.27.0")
+		Version("1.0.0")
 
 	for _, f := range clientFields() {
 		spec = spec.Field(f)

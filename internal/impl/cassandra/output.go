@@ -72,7 +72,7 @@ output:
 				Description("A query to execute for each message."),
 			service.NewBloblangField(coFieldArgsMapping).
 				Description("A [Bloblang mapping](/docs/guides/bloblang/about) that can be used to provide arguments to Cassandra queries. The result of the query must be an array containing a matching number of elements to the query arguments.").
-				Version("3.55.0").
+				Version("1.0.0").
 				Optional(),
 			service.NewStringEnumField(coFieldConsistency,
 				"ANY", "ONE", "TWO", "THREE", "QUORUM", "ALL", "LOCAL_QUORUM", "EACH_QUORUM", "LOCAL_ONE").

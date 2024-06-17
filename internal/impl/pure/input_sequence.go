@@ -54,7 +54,7 @@ func sequenceInputSpec() *service.ConfigSpec {
 When configured the sequence of inputs will be consumed one or more times according to the number of iterations, and when more than one iteration is specified each iteration will process an entirely different set of messages by sharding them by the ID field. Increasing the number of iterations reduces the memory consumption at the cost of needing to fully parse the data each time.
 
 Each message must be structured (JSON or otherwise processed into a structured form) and the fields will be aggregated with those of other messages sharing the ID. At the end of each iteration the joined messages are flushed downstream before the next iteration begins, hence keeping memory usage limited.`).
-				Version("3.40.0").
+				Version("1.0.0").
 				Advanced(),
 			service.NewInputListField(siFieldInputs).
 				Description("An array of inputs to read from sequentially."),

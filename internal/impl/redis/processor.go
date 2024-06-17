@@ -28,14 +28,14 @@ performed for each message and the message contents are replaced with the result
 	return spec.
 		Field(service.NewInterpolatedStringField("command").
 			Description("The command to execute.").
-			Version("4.3.0").
+			Version("1.0.0").
 			Example("scard").
 			Example("incrby").
 			Example(`${! meta("command") }`).
 			Optional()).
 		Field(service.NewBloblangField("args_mapping").
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of arguments required for the specified Redis command.").
-			Version("4.3.0").
+			Version("1.0.0").
 			Optional().
 			Example("root = [ this.key ]").
 			Example(`root = [ meta("kafka_key"), this.count ]`)).

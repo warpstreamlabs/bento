@@ -79,12 +79,12 @@ If a message contains line breaks each line of the message is piped to the subpr
 				Default(bufio.MaxScanTokenSize),
 			service.NewStringEnumField(spFieldCodecSend, "lines", "length_prefixed_uint32_be", "netstring").
 				Description("Determines how messages written to the subprocess are encoded, which allows them to be logically separated.").
-				Version("3.37.0").
+				Version("1.0.0").
 				Advanced().
 				Default("lines"),
 			service.NewStringEnumField(spFieldCodecRecv, "lines", "length_prefixed_uint32_be", "netstring").
 				Description("Determines how messages read from the subprocess are decoded, which allows them to be logically separated.").
-				Version("3.37.0").
+				Version("1.0.0").
 				Advanced().
 				Default("lines"),
 		)

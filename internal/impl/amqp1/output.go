@@ -39,7 +39,7 @@ This output benefits from sending multiple messages in flight in parallel for im
 				Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
 				Optional().
-				Version("4.23.0"),
+				Version("1.0.0"),
 			service.NewStringField(targetAddrField).
 				Description("The target address to write to.").
 				Example("/foo").

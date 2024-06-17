@@ -79,7 +79,7 @@ func sqsoConfigFromParsed(pConf *service.ParsedConfig) (conf sqsoConfig, err err
 func sqsoOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends messages to an SQS queue.`).
 		Description(`

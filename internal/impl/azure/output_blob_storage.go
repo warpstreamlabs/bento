@@ -61,7 +61,7 @@ func bsoConfigFromParsed(pConf *service.ParsedConfig) (conf bsoConfig, err error
 func bsoSpec() *service.ConfigSpec {
 	return azureComponentSpec(true).
 		Beta().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Sends message parts as objects to an Azure Blob Storage Account container. Each object is uploaded with the filename specified with the `+"`container`"+` field.`).
 		Description(`
 In order to have a different path for each object you should use function

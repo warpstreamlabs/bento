@@ -58,7 +58,7 @@ If a statement fails for any reason a warning log will be emitted but the operat
 			Example([]any{`./foo.sql`, `./bar.sql`}).
 			Optional().
 			Advanced().
-			Version("4.10.0"),
+			Version("1.0.0"),
 		service.NewStringField("init_statement").
 			Description(`
 An optional SQL statement to execute immediately upon the first connection to the target database. This is a useful way to initialise tables before processing data. Care should be taken to ensure that the statement is idempotent, and therefore would not cause issues when run multiple times after service restarts.
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS some_table (
 `).
 			Optional().
 			Advanced().
-			Version("4.10.0"),
+			Version("1.0.0"),
 		service.NewDurationField("conn_max_idle_time").
 			Description("An optional maximum amount of time a connection may be idle. Expired connections may be closed lazily before reuse. If `value <= 0`, connections are not closed due to a connections idle time.").
 			Optional().
