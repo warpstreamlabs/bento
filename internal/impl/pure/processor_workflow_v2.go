@@ -35,40 +35,11 @@ func workflowProcSpecV2() *service.ConfigSpec {
 				Description("An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow. The order and parallelism in which branches are executed can either be made explicit with the field `order`, or if omitted an attempt is made to automatically resolve an ordering based on the mappings of each branch."))
 }
 
-// Copy from processor_branch.go
 func branchSpecFieldsV2() []*service.ConfigField {
-	return []*service.ConfigField{
-		service.NewBloblangField(branchProcFieldReqMap).
-			Description("A [Bloblang mapping](/docs/guides/bloblang/about) that describes how to create a request payload suitable for the child processors of this branch. If left empty then the branch will begin with an exact copy of the origin message (including metadata).").
-			Examples(`root = {
-	"id": this.doc.id,
-	"content": this.doc.body.text
-}`,
-				`root = if this.type == "foo" {
-	this.foo.request
-} else {
-	deleted()
-}`).
-			Default(""),
-		service.NewStringListField(wflowProcFieldDependencyListV2).
-			Description("TODO"),
-		service.NewProcessorListField(branchProcFieldProcs).
-			Description("A list of processors to apply to mapped requests. When processing message batches the resulting batch must match the size and ordering of the input batch, therefore filtering, grouping should not be performed within these processors."),
-		service.NewBloblangField(branchProcFieldResMap).
-			Description("A [Bloblang mapping](/docs/guides/bloblang/about) that describes how the resulting messages from branched processing should be mapped back into the original payload. If left empty the origin message will remain unchanged (including metadata).").
-			Examples(`meta foo_code = meta("code")
-root.foo_result = this`,
-				`meta = meta()
-root.bar.body = this.body
-root.bar.id = this.user.id`,
-				`root.raw_result = content().string()`,
-				`root.enrichments.foo = if meta("request_failed") != null {
-  throw(meta("request_failed"))
-} else {
-  this
-}`).
-			Default(""),
-	}
+	branchSpecFields := branchSpecFields()
+	dependencyList := service.NewStringListField(wflowProcFieldDependencyListV2)
+	workflowV2BranchSpecFields := append(branchSpecFields, dependencyList)
+	return workflowV2BranchSpecFields
 }
 
 func init() {
@@ -84,12 +55,11 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 //------------------------------------------------------------------------------
 
-// Workflow is a processor that applies a list of child processors to a new
+// Workflow is a processor that applies a list of child processors to a new TODO
 // payload mapped from the original, and after processing attempts to overlay
 // the results back onto the original payloads according to more mappings.
 type WorkflowV2 struct {
@@ -109,7 +79,7 @@ type WorkflowV2 struct {
 	mLatency       metrics.StatTimer
 }
 
-// NewWorkflow instanciates a new workflow processor.
+// NewWorkflow instanciates a new workflow processor. TODO
 func NewWorkflowV2(conf *service.ParsedConfig, mgr bundle.NewManagement) (*WorkflowV2, error) {
 
 	stats := mgr.Metrics()
