@@ -25,7 +25,7 @@ func retryProcSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Categories("Composition").
-		Version("4.27.0").
+		Version("1.0.0").
 		Summary(`Attempts to execute a series of child processors until success.`).
 		Description(`
 Executes child processors and if a resulting message is errored then, after a specified backoff period, the same original message will be attempted again through those same processors. If the child processors result in more than one message then the retry mechanism will kick in if _any_ of the resulting messages are errored.

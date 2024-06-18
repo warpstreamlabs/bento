@@ -51,7 +51,7 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 		Field(service.NewURLField("url").Description("The base URL of the schema registry service."))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
-		spec = spec.Field(f.Version("4.7.0"))
+		spec = spec.Field(f.Version("1.0.0"))
 	}
 
 	return spec.Field(service.NewTLSField("tls"))

@@ -16,7 +16,7 @@ func init() {
 		"mapping",
 		service.NewConfigSpec().
 			Stable().
-			Version("4.5.0").
+			Version("1.0.0").
 			Categories("Mapping", "Parsing").
 			Field(service.NewBloblangField("")).
 			Summary("Executes a [Bloblang](/docs/guides/bloblang/about) mapping on messages, creating a new document that replaces (or filters) the original message.").

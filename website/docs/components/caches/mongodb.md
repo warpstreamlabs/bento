@@ -19,7 +19,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Use a MongoDB instance as a cache.
 
-Introduced in version 3.43.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

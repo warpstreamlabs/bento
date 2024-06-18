@@ -21,7 +21,7 @@ const (
 
 func outputSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
-		Version("3.43.0").
+		Version("1.0.0").
 		Categories("Services").
 		Summary("Inserts items into a MongoDB collection.").
 		Description(service.OutputPerformanceDocs(true, true)).

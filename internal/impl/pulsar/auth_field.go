@@ -33,7 +33,7 @@ func authField() *service.ConfigField {
 		).Description("Parameters for Pulsar Token authentication.").
 			Optional(),
 	).Description("Optional configuration of Pulsar authentication methods.").
-		Version("3.60.0").
+		Version("1.0.0").
 		Advanced().
 		Optional()
 }

@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Sends message parts as objects to a Google Cloud Storage bucket. Each object is uploaded with the path specified with the `path` field.
 
-Introduced in version 3.43.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -179,7 +179,7 @@ Determines how file path collisions should be dealt with.
 
 Type: `string`  
 Default: `"overwrite"`  
-Requires version 3.53.0 or newer  
+Requires version 1.0.0 or newer  
 
 | Option | Summary |
 |---|---|

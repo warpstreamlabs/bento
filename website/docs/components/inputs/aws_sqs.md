@@ -106,7 +106,7 @@ Whether to set the visibility timeout of the consumed message to zero once it is
 
 Type: `bool`  
 Default: `true`  
-Requires version 3.58.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `max_number_of_messages`
 
@@ -189,7 +189,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

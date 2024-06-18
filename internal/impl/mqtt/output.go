@@ -38,7 +38,7 @@ The `+"`topic`"+` field can be dynamically set using function interpolations des
 				Description("The maximum amount of time to wait to write data before the attempt is abandoned.").
 				Examples("1s", "500ms").
 				Default("3s").
-				Version("3.58.0"),
+				Version("1.0.0"),
 			service.NewBoolField(moFieldRetained).
 				Description("Set message as retained on the topic.").
 				Default(false),
@@ -46,7 +46,7 @@ The `+"`topic`"+` field can be dynamically set using function interpolations des
 				Description("Override the value of `retained` with an interpolable value, this allows it to be dynamically set based on message contents. The value must resolve to either `true` or `false`.").
 				Advanced().
 				Optional().
-				Version("3.59.0"),
+				Version("1.0.0"),
 			service.NewOutputMaxInFlightField(),
 		)
 }

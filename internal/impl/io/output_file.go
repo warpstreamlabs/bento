@@ -33,8 +33,8 @@ func fileOutputSpec() *service.ConfigSpec {
 					"/tmp/${! timestamp_unix() }.txt",
 					`/tmp/${! json("document.id") }.json`,
 				).
-				Version("3.33.0"),
-			service.NewInternalField(codec.NewWriterDocs(fileOutputFieldCodec)).Version("3.33.0").Default("lines"),
+				Version("1.0.0"),
+			service.NewInternalField(codec.NewWriterDocs(fileOutputFieldCodec)).Version("1.0.0").Default("lines"),
 		)
 }
 

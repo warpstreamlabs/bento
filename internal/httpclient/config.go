@@ -54,7 +54,7 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("EXPERIMENTAL: Optionally set a level at which the request and response payload of each request made will be logged.").
 			Advanced().
 			Default("").
-			Version("4.12.0"),
+			Version("1.0.0"),
 	}
 	innerFields = append(innerFields, AuthFieldSpecsExpanded()...)
 

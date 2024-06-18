@@ -19,7 +19,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Use a Couchbase instance as a cache.
 
-Introduced in version 4.12.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

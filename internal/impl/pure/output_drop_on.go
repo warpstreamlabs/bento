@@ -67,7 +67,7 @@ output:
 			service.NewStringListField(dooFieldErrorPatterns).
 				Description("A list of regular expressions (re2) where if the child output returns an error that matches any part of any of these patterns the message will be dropped.").
 				Optional().
-				Version("4.27.0").
+				Version("1.0.0").
 				Examples([]any{
 					"and that was really bad$",
 				}, []any{

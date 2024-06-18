@@ -197,7 +197,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 
@@ -238,7 +238,7 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"to_the_end":{}}`  
-Requires version 4.25.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `sqs`
 

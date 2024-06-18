@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Generates messages at a given interval using a [Bloblang](/docs/guides/bloblang/about) mapping executed without a context. This allows you to generate messages for testing your pipeline configs.
 
-Introduced in version 3.40.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

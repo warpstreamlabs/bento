@@ -56,7 +56,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Example([]string{"amqp://guest:guest@127.0.0.1:5672/"}).
 			Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
 			Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
-			Version("3.58.0"),
+			Version("1.0.0"),
 		service.NewStringField(queueField).
 			Description("An AMQP queue to consume from."),
 		service.NewObjectField(queueDeclareField,
@@ -101,7 +101,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Description("A list of regular expression patterns whereby if a message that has failed to be delivered by Bento has an error that matches it will be dropped (or delivered to a dead-letter queue if one exists). By default failed messages are nacked with requeue enabled.").
 			Example([]string{"^reject me please:.+$"}).
 			Advanced().
-			Version("3.64.0").
+			Version("1.0.0").
 			Default([]any{}),
 		service.NewIntField(prefetchCountField).
 			Description("The maximum number of pending messages to have consumed at a time.").

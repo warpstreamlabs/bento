@@ -20,7 +20,7 @@ This component is deprecated and will be removed in the next major version relea
 :::
 Executes an arbitrary SQL query for each message.
 
-Introduced in version 3.65.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

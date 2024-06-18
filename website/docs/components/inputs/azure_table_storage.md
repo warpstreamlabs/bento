@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Queries an Azure Storage Account Table, optionally with multiple filters.
 
-Introduced in version 4.10.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Executes a PartiQL expression against a DynamoDB table for each message.
 
-Introduced in version 3.48.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -181,7 +181,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

@@ -56,7 +56,7 @@ output:
 
 By default Bento will use a shared credentials file when connecting to AWS services. It's also possible to set them explicitly at the component level, allowing you to transfer data across accounts. You can find out more [in this document](/docs/guides/cloud/aws).`).
 		Categories("Integration").
-		Version("3.36.0").
+		Version("1.0.0").
 		Example(
 			"Branched Invoke",
 			`

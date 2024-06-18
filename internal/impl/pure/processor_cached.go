@@ -16,7 +16,7 @@ import (
 
 func newCachedProcessorConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Version("4.3.0").
+		Version("1.0.0").
 		Categories("Utility").
 		Summary("Cache the result of applying one or more processors to messages identified by a key. If the key already exists within the cache the contents of the message will be replaced with the cached result instead of applying the processors. This component is therefore useful in situations where an expensive set of processors need only be executed periodically.").
 		Description("The format of the data when stored within the cache is a custom and versioned schema chosen to balance performance and storage space. It is therefore not possible to point this processor to a cache that is pre-populated with data that this processor has not created itself.").

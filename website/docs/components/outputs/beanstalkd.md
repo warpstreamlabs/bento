@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Write messages to a Beanstalkd queue.
 
-Introduced in version 4.7.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

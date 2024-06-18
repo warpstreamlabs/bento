@@ -16,7 +16,7 @@ import TabItem from '@theme/TabItem';
 
 Stores each item in an S3 bucket as a file, where an item ID is the path of the item within the bucket.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -210,7 +210,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

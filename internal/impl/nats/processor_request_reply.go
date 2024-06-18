@@ -14,7 +14,7 @@ import (
 func natsRequestReplyConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Services").
-		Version("4.27.0").
+		Version("1.0.0").
 		Summary("Sends a message to a NATS subject and expects a reply, from a NATS subscriber acting as a responder, back.").
 		Description(`
 ### Metadata

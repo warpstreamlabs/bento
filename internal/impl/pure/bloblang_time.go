@@ -28,7 +28,7 @@ func init() {
 		Category(query.MethodCategoryTime).
 		Description(`Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The `+"[`ts_parse`](#ts_parse)"+` method can be used in order to parse different timestamp formats.`).
 		Param(bloblang.NewInt64Param("duration").Description("A duration measured in nanoseconds to round by.")).
-		Version("4.2.0").
+		Version("1.0.0").
 		Example("Use the method `parse_duration` to convert a duration string into an integer argument.",
 			`root.created_at_hour = this.created_at.ts_round("1h".parse_duration())`,
 			[2]string{
@@ -57,7 +57,7 @@ func init() {
 		Category(query.MethodCategoryTime).
 		Description(`Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The `+"[`ts_parse`](#ts_parse)"+` method can be used in order to parse different timestamp formats.`).
 		Param(bloblang.NewStringParam("tz").Description(`The timezone to change to. If set to "UTC" then the timezone will be UTC. If set to "Local" then the local timezone will be used. Otherwise, the argument is taken to be a location name corresponding to a file in the IANA Time Zone database, such as "America/New_York".`)).
-		Version("4.3.0").
+		Version("1.0.0").
 		Example("",
 			`root.created_at_utc = this.created_at.ts_tz("UTC")`,
 			[2]string{
@@ -596,7 +596,7 @@ The output format is defined by showing how the reference time, defined to be Mo
 		Category(query.MethodCategoryTime).
 		Description(`Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The `+"[`ts_parse`](#ts_parse)"+` method can be used in order to parse different timestamp formats.`).
 		Param(bloblang.NewTimestampParam("t2").Description("The second timestamp to be subtracted from the method target.")).
-		Version("4.23.0").
+		Version("1.0.0").
 		Example("Use the `.abs()` method in order to calculate an absolute duration between two timestamps.",
 			`root.between = this.started_at.ts_sub("2020-08-14T05:54:23Z").abs()`,
 			[2]string{

@@ -133,7 +133,7 @@ func s3oConfigFromParsed(pConf *service.ParsedConfig) (conf s3oConfig, err error
 func s3oOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends message parts as objects to an Amazon S3 bucket. Each object is uploaded with the path specified with the `+"`path`"+` field.`).
 		Description(`
@@ -248,7 +248,7 @@ output:
 				Advanced(),
 			service.NewStringField(s3oFieldServerSideEncryption).
 				Description("An optional server side encryption algorithm.").
-				Version("3.63.0").
+				Version("1.0.0").
 				Default("").
 				Advanced(),
 			service.NewBoolField(s3oFieldForcePathStyleURLs).

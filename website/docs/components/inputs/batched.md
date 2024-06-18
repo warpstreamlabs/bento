@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Consumes data from a child input and applies a batching policy to the stream.
 
-Introduced in version 4.11.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

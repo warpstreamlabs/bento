@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Dequeue objects from an Azure Storage Queue.
 
-Introduced in version 3.42.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -121,7 +121,7 @@ The timeout duration until a dequeued message gets visible again, 30s by default
 
 Type: `string`  
 Default: `"30s"`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `max_in_flight`
 

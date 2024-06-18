@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 
 Executes a [Bloblang](/docs/guides/bloblang/about) mapping and directly transforms the contents of messages, mutating (or deleting) them.
 
-Introduced in version 4.5.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

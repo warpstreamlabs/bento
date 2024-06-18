@@ -132,7 +132,7 @@ cache_resources:
 			service.NewInterpolatedStringField(cachePFieldTTL).
 				Description("The TTL of each individual item as a duration string. After this period an item will be eligible for removal during the next compaction. Not all caches support per-key TTLs, those that do will have a configuration field `default_ttl`, and those that do not will fall back to their generally configured TTL setting.").
 				Examples("60s", "5m", "36h").
-				Version("3.33.0").
+				Version("1.0.0").
 				Advanced().
 				Optional(),
 		)

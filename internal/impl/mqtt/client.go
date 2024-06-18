@@ -48,7 +48,7 @@ func ClientFields() []*service.ConfigField {
 		service.NewDurationField(msFieldClientConnectTimeout).
 			Description("The maximum amount of time to wait in order to establish a connection before the attempt is abandoned.").
 			Default("30s").
-			Version("3.58.0").
+			Version("1.0.0").
 			Examples("1s", "500ms"),
 		service.NewObjectField(msFieldClientWill,
 			service.NewBoolField(msFieldClientWillEnabled).

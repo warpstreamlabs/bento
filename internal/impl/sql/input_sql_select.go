@@ -53,7 +53,7 @@ func sqlSelectInputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.
-		Version("3.59.0").
+		Version("1.0.0").
 		Example("Consume a Table (PostgreSQL)",
 			`
 Here we define a pipeline that will consume all rows from a table created within the last hour by comparing the unix timestamp stored in the row column "created_at":`,

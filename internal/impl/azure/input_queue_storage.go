@@ -49,7 +49,7 @@ func qsiConfigFromParsed(pConf *service.ParsedConfig) (conf qsiConfig, err error
 func qsiSpec() *service.ConfigSpec {
 	return azureComponentSpec(false).
 		Beta().
-		Version("3.42.0").
+		Version("1.0.0").
 		Summary(`Dequeue objects from an Azure Storage Queue.`).
 		Description(`
 This input adds the following metadata fields to each message:
@@ -69,7 +69,7 @@ Only one authentication method is required, `+"`storage_connection_string`"+` or
 				Example(`${! env("MESSAGE_TYPE").lowercase() }`),
 			service.NewDurationField(qsiFieldDequeueVisibilityTimeout).
 				Description("The timeout duration until a dequeued message gets visible again, 30s by default").
-				Version("3.45.0").
+				Version("1.0.0").
 				Advanced().
 				Default("30s"),
 			service.NewInputMaxInFlightField().

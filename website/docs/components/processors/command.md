@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Executes a command for each message.
 
-Introduced in version 4.21.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

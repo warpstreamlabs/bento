@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Sends messages to Snowflake stages and, optionally, calls Snowpipe to load this data into one or more tables.
 
-Introduced in version 4.0.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

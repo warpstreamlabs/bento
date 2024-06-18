@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Uses an SQL database table as a destination for storing cache key/value items.
 
-Introduced in version 4.26.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -212,7 +212,7 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 4.10.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -235,7 +235,7 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 4.10.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

@@ -68,7 +68,7 @@ func bsiConfigFromParsed(pConf *service.ParsedConfig) (conf bsiConfig, err error
 func bsiSpec() *service.ConfigSpec {
 	return azureComponentSpec(true).
 		Beta().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Downloads objects within an Azure Blob Storage container, optionally filtered by a prefix.`).
 		Description(`
 Supports multiple authentication methods but only one of the following is required:
@@ -121,7 +121,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			service.NewInputField(bsiFieldTargetsInput).
 				Description("EXPERIMENTAL: An optional source of download targets, configured as a [regular Bento input](/docs/components/inputs/about). Each message yielded by this input should be a single structured object containing a field `name`, which represents the blob to be downloaded.").
 				Optional().
-				Version("4.27.0").
+				Version("1.0.0").
 				Example(map[string]any{
 					"mqtt": map[string]any{
 						"urls": []any{

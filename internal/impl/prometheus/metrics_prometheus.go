@@ -49,13 +49,13 @@ If the Push Gateway requires HTTP Basic Authentication it can be configured with
 		Fields(
 			service.NewBoolField(pmFieldUseHistogramTiming).
 				Description("Whether to export timing metrics as a histogram, if `false` a summary is used instead. When exporting histogram timings the delta values are converted from nanoseconds into seconds in order to better fit within bucket definitions. For more information on histograms and summaries refer to: https://prometheus.io/docs/practices/histograms/.").
-				Version("3.63.0").
+				Version("1.0.0").
 				Advanced().
 				Default(false),
 			service.NewFloatListField(pmFieldHistogramBuckets).
 				Description("Timing metrics histogram buckets (in seconds). If left empty defaults to DefBuckets (https://pkg.go.dev/github.com/prometheus/client_golang/prometheus#pkg-variables). Applicable when `use_histogram_timing` is set to `true`.").
 				Advanced().
-				Version("3.63.0").
+				Version("1.0.0").
 				Default([]any{}),
 			service.NewObjectListField(pmFieldSummaryQuantilesObj,
 				service.NewFloatField(pmFieldSummaryQuantilesObjQuantile).
@@ -72,7 +72,7 @@ If the Push Gateway requires HTTP Basic Authentication it can be configured with
 					{"quantile": 0.99, "error": 0.001},
 				}).
 				Advanced().
-				Version("4.23.0").
+				Version("1.0.0").
 				Default([]map[string]float64{
 					{"quantile": 0.5, "error": 0.05},
 					{"quantile": 0.9, "error": 0.01},

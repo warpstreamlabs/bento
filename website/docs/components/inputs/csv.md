@@ -171,7 +171,7 @@ If set to `true`, a quote may appear in an unquoted field and a non-doubled quot
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.1.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `delete_on_finish`
 

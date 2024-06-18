@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Chops a stream of messages into tumbling or sliding windows of fixed temporal size, following the system clock.
 
-Introduced in version 3.53.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

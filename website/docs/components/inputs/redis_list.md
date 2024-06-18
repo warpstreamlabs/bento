@@ -145,7 +145,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 
@@ -277,7 +277,7 @@ Optionally sets a limit on the number of messages that can be flowing through a 
 
 Type: `int`  
 Default: `0`  
-Requires version 4.9.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `timeout`
 
@@ -294,7 +294,7 @@ The command used to pop elements from the Redis list
 
 Type: `string`  
 Default: `"blpop"`  
-Requires version 4.22.0 or newer  
+Requires version 1.0.0 or newer  
 Options: `blpop`, `brpop`.
 
 

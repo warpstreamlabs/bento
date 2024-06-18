@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Executes a `SELECT` query against BigQuery and creates a message for each row received.
 
-Introduced in version 3.63.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

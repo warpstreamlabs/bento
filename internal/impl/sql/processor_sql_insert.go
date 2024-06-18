@@ -48,7 +48,7 @@ If the insert fails to execute then the message will still remain unchanged and 
 		spec = spec.Field(f)
 	}
 
-	spec = spec.Version("3.59.0").
+	spec = spec.Version("1.0.0").
 		Example("Table Insert (MySQL)",
 			`
 Here we insert rows into a database by populating the columns id, name and topic with values extracted from messages and metadata:`,

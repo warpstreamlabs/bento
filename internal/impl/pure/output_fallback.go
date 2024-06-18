@@ -19,7 +19,7 @@ func init() {
 		"fallback", service.NewConfigSpec().
 			Stable().
 			Categories("Utility").
-			Version("3.58.0").
+			Version("1.0.0").
 			Summary("Attempts to send each message to a child output, starting from the first output on the list. If an output attempt fails then the next output in the list is attempted, and so on.").
 			Description(`
 This pattern is useful for triggering events in the case where certain output targets have broken. For example, if you had an output type `+"`http_client`"+` but wished to reroute messages whenever the endpoint becomes unreachable you could use this pattern:

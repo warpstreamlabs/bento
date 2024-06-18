@@ -15,7 +15,7 @@ func init() {
 			Stable().
 			Categories("Local").
 			Summary(`Prints messages to stdout as a continuous stream of data.`).
-			Fields(service.NewInternalField(codec.NewWriterDocs("codec").AtVersion("3.46.0").HasDefault("lines"))),
+			Fields(service.NewInternalField(codec.NewWriterDocs("codec").AtVersion("1.0.0").HasDefault("lines"))),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Output, int, error) {
 			w, err := newStdoutWriterFromParsed(conf)
 			if err != nil {
