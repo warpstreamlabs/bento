@@ -31,11 +31,11 @@ func workflowProcSpecV2() *service.ConfigSpec {
 			service.NewStringField(wflowProcFieldMetaPathV2).
 				Description("A [dot path](/docs/configuration/field_paths) indicating where to store and reference [structured metadata](#structured-metadata) about the workflow execution.").
 				Default("meta.workflow"),
-			service.NewObjectMapField(wflowProcFieldBranchesV2, branchSpecFieldsV2()...).
+			service.NewObjectMapField(wflowProcFieldBranchesV2, workflowBranchSpecFields()...).
 				Description("An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow. The order and parallelism in which branches are executed can either be made explicit with the field `order`, or if omitted an attempt is made to automatically resolve an ordering based on the mappings of each branch."))
 }
 
-func branchSpecFieldsV2() []*service.ConfigField {
+func workflowBranchSpecFields() []*service.ConfigField {
 	branchSpecFields := branchSpecFields()
 	dependencyList := service.NewStringListField(wflowProcFieldDependencyListV2)
 	workflowV2BranchSpecFields := append(branchSpecFields, dependencyList)
