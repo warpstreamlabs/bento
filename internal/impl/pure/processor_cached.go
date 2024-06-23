@@ -249,7 +249,7 @@ func shouldSkip(batch service.MessageBatch, predicate *bloblang.Executor) (bool,
 		return false, nil
 	}
 
-	predResult, err := batch.BloblangQuery(0, predicate)
+	predResult, err := batch.BloblangExecutor(predicate).Query(0)
 	if err != nil {
 		return false, fmt.Errorf("failed to execute skip_on mapping: %w", err)
 	}

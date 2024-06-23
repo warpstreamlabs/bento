@@ -265,9 +265,9 @@ func (w *systemWindowBuffer) nextSystemWindow() (prevStart, prevEnd, start, end 
 	return
 }
 
-func (w *systemWindowBuffer) getTimestamp(i int, batch service.MessageBatch) (ts time.Time, err error) {
+func (w *systemWindowBuffer) getTimestamp(i int, exec *service.MessageBatchBloblangExecutor) (ts time.Time, err error) {
 	var tsValueMsg *service.Message
-	if tsValueMsg, err = batch.BloblangQuery(i, w.tsMapping); err != nil {
+	if tsValueMsg, err = exec.Query(i); err != nil {
 		w.logger.Errorf("Timestamp mapping failed for message: %v", err)
 		err = fmt.Errorf("timestamp mapping failed: %w", err)
 		return
@@ -321,9 +321,11 @@ func (w *systemWindowBuffer) WriteBatch(ctx context.Context, msgBatch service.Me
 	messageAdded := false
 	aggregatedAck := batch.NewCombinedAcker(batch.AckFunc(aFn))
 
+	bExec := msgBatch.BloblangExecutor(w.tsMapping)
+
 	// And now add new messages.
 	for i, msg := range msgBatch {
-		ts, err := w.getTimestamp(i, msgBatch)
+		ts, err := w.getTimestamp(i, bExec)
 		if err != nil {
 			return err
 		}
