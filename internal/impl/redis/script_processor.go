@@ -186,7 +186,8 @@ func (r *redisScriptProc) Close(ctx context.Context) error {
 }
 
 func getArgsMapping(inBatch service.MessageBatch, index int, mapping *bloblang.Executor) ([]any, error) {
-	resMsg, err := inBatch.BloblangQuery(index, mapping)
+	executor := inBatch.BloblangExecutor(mapping)
+	resMsg, err := executor.Query(index)
 	if err != nil {
 		return nil, fmt.Errorf("mapping failed: %v", err)
 	}
@@ -208,7 +209,8 @@ func getArgsMapping(inBatch service.MessageBatch, index int, mapping *bloblang.E
 }
 
 func getKeysStrMapping(inBatch service.MessageBatch, index int, mapping *bloblang.Executor) ([]string, error) {
-	resMsg, err := inBatch.BloblangQuery(index, mapping)
+	executor := inBatch.BloblangExecutor(mapping)
+	resMsg, err := executor.Query(index)
 	if err != nil {
 		return nil, fmt.Errorf("mapping failed: %v", err)
 	}

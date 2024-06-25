@@ -188,11 +188,16 @@ func (s *sqlRawProcessor) ProcessBatch(ctx context.Context, batch service.Messag
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	var executor *service.MessageBatchBloblangExecutor
+	if s.argsMapping != nil {
+		executor = batch.BloblangExecutor(s.argsMapping)
+	}
+
 	batch = batch.Copy()
 	for i, msg := range batch {
 		var args []any
 		if s.argsMapping != nil {
-			resMsg, err := batch.BloblangQuery(i, s.argsMapping)
+			resMsg, err := executor.Query(i)
 			if err != nil {
 				s.logger.Debugf("Arguments mapping failed: %v", err)
 				msg.SetError(err)

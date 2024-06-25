@@ -218,6 +218,12 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 
 	var tx *sql.Tx
 	var stmt *sql.Stmt
+	var executor *service.MessageBatchBloblangExecutor
+
+	if s.argsMapping != nil {
+		executor = batch.BloblangExecutor(s.argsMapping)
+	}
+
 	if s.useTxStmt {
 		var err error
 		if tx, err = s.db.Begin(); err != nil {
@@ -236,7 +242,7 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 	for i := range batch {
 		var args []any
 		if s.argsMapping != nil {
-			resMsg, err := batch.BloblangQuery(i, s.argsMapping)
+			resMsg, err := executor.Query(i)
 			if err != nil {
 				return err
 			}

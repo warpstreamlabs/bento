@@ -105,6 +105,8 @@ func newDynamoDBPartiQL(
 
 func (d *dynamoDBPartiQL) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 	stmts := []types.BatchStatementRequest{}
+	executor := batch.BloblangExecutor(d.args)
+
 	for i := range batch {
 		req := types.BatchStatementRequest{}
 		req.Statement = &d.query
@@ -116,7 +118,7 @@ func (d *dynamoDBPartiQL) ProcessBatch(ctx context.Context, batch service.Messag
 			req.Statement = &query
 		}
 
-		argMsg, err := batch.BloblangQuery(i, d.args)
+		argMsg, err := executor.Query(i)
 		if err != nil {
 			return nil, fmt.Errorf("error evaluating arg mapping at index %d: %v", i, err)
 		}
