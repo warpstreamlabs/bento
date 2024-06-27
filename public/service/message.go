@@ -465,6 +465,8 @@ func (m *Message) BloblangMutateFrom(blobl *bloblang.Executor, from *Message) (*
 //
 // This method allows mappings to perform windowed aggregations across message
 // batches.
+//
+// Deprecated: Use the much more efficient BloblangExecutor method instead.
 func (b MessageBatch) BloblangQuery(index int, blobl *bloblang.Executor) (*Message, error) {
 	uw := blobl.XUnwrapper().(interface {
 		Unwrap() *mapping.Executor
@@ -493,6 +495,8 @@ func (b MessageBatch) BloblangQuery(index int, blobl *bloblang.Executor) (*Messa
 //
 // This method allows mappings to perform windowed aggregations across message
 // batches.
+//
+// Deprecated: Use the much more efficient BloblangExecutor method instead.
 func (b MessageBatch) BloblangQueryValue(index int, blobl *bloblang.Executor) (any, error) {
 	uw := blobl.XUnwrapper().(interface {
 		Unwrap() *mapping.Executor
@@ -536,6 +540,8 @@ func (b MessageBatch) BloblangQueryValue(index int, blobl *bloblang.Executor) (a
 // Note that using overlay means certain functions within the Bloblang mapping
 // will behave differently. In the root of the mapping the right-hand keywords
 // `root` and `this` refer to the same mutable root of the output document.
+//
+// Deprecated: Use the much more efficient BloblangExecutor method instead.
 func (b MessageBatch) BloblangMutate(index int, blobl *bloblang.Executor) (*Message, error) {
 	uw := blobl.XUnwrapper().(interface {
 		Unwrap() *mapping.Executor
@@ -562,6 +568,10 @@ func (b MessageBatch) BloblangMutate(index int, blobl *bloblang.Executor) (*Mess
 // This method allows interpolation functions to perform windowed aggregations
 // across message batches, and is a more powerful way to interpolate strings
 // than the standard .String method.
+//
+// Note: For performance reasons, if this method is being executed for each
+// member of a batch individually, you should instead use an
+// InterpolationExecutor.
 func (b MessageBatch) TryInterpolatedString(index int, i *InterpolatedString) (string, error) {
 	msg := make(message.Batch, len(b))
 	for i, m := range b {
@@ -576,6 +586,10 @@ func (b MessageBatch) TryInterpolatedString(index int, i *InterpolatedString) (s
 // This method allows interpolation functions to perform windowed aggregations
 // across message batches, and is a more powerful way to interpolate strings
 // than the standard .String method.
+//
+// Note: For performance reasons, if this method is being executed for each
+// member of a batch individually, you should instead use an
+// InterpolationExecutor.
 func (b MessageBatch) TryInterpolatedBytes(index int, i *InterpolatedString) ([]byte, error) {
 	msg := make(message.Batch, len(b))
 	for i, m := range b {

@@ -188,10 +188,15 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	var executor *service.MessageBatchBloblangExecutor
+	if s.argsMapping != nil {
+		executor = batch.BloblangExecutor(s.argsMapping)
+	}
+
 	for i := range batch {
 		var args []any
 		if s.argsMapping != nil {
-			resMsg, err := batch.BloblangQuery(i, s.argsMapping)
+			resMsg, err := executor.Query(i)
 			if err != nil {
 				return err
 			}

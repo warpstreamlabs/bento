@@ -308,7 +308,8 @@ func getRedisOperator(opStr string) (redisOperator, error) {
 }
 
 func (r *redisProc) execRaw(ctx context.Context, index int, inBatch service.MessageBatch, msg *service.Message) error {
-	resMsg, err := inBatch.BloblangQuery(index, r.argsMapping)
+	executor := inBatch.BloblangExecutor(r.argsMapping)
+	resMsg, err := executor.Query(index)
 	if err != nil {
 		return fmt.Errorf("args mapping failed: %v", err)
 	}

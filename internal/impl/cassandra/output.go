@@ -216,7 +216,8 @@ func (c *cassandraWriter) writeBatch(session *gocql.Session, b service.MessageBa
 func (c *cassandraWriter) mapArgs(b service.MessageBatch, index int) ([]any, error) {
 	if c.argsMapping != nil {
 		// We've got an "args_mapping" field, extract values from there.
-		part, err := b.BloblangQuery(index, c.argsMapping)
+		executor := b.BloblangExecutor(c.argsMapping)
+		part, err := executor.Query(index)
 		if err != nil {
 			return nil, fmt.Errorf("executing bloblang mapping: %w", err)
 		}
