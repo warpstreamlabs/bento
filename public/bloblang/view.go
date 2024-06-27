@@ -183,7 +183,7 @@ type TemplateMethodData struct {
 	// Categories further describe the method for a given category.
 	Categories []TemplateMethodCategoryData
 
-	// Version is the Benthos version this component was introduced.
+	// Version is the Bento version this component was introduced.
 	Version string
 }
 
