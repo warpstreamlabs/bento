@@ -207,6 +207,6 @@ type TemplateFunctionData struct {
 	// Examples shows general usage for the function.
 	Examples []TemplateExampleData
 
-	// Version is the Benthos version this component was introduced.
+	// Version is the Bento version this component was introduced.
 	Version string
 }
