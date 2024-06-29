@@ -142,6 +142,7 @@ func createTrackerFromDependencies(dependencies map[string][]string, skipList ma
 		r.notStarted[i] = make(map[string]struct{})
 		r.started[i] = make(map[string]struct{})
 		r.succeeded[i] = make(map[string]struct{})
+		r.skipped[i] = make(map[string]struct{})
 		r.failed[i] = make(map[string]string)
 
 		for k := range dependencies {
@@ -160,6 +161,7 @@ func createTrackerFromDependencies(dependencies map[string][]string, skipList ma
 
 	for i := 0; i < batch_size; i++ {
 		for k := range skipList {
+			r.Skipped(i, k)
 			r.RemoveFromDepTracker(i, k)
 		}
 	}
@@ -181,6 +183,14 @@ func (r *resultTrackerV2) Started(i int, k string) {
 	delete(r.notStarted[i], k)
 
 	r.started[i][k] = struct{}{}
+	r.Unlock()
+}
+
+func (r *resultTrackerV2) Skipped(i int, k string) {
+	r.Lock()
+	delete(r.notStarted[i], k)
+
+	r.skipped[i][k] = struct{}{}
 	r.Unlock()
 }
 
