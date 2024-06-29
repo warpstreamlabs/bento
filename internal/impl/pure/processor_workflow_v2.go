@@ -2,6 +2,7 @@ package pure
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -196,34 +197,57 @@ func (r *resultTrackerV2) RemoveFromDepTracker(i int, k string) {
 }
 
 func (r *resultTrackerV2) isReadyToStart(i int, k string) bool {
-	r.Lock()
-	defer r.Unlock()
 	return len(r.dependencyTracker[i][k]) == 0
 }
 
-func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
-	succeeded := make([]any, 0, len(r.succeeded[0]))
-	notStarted := make([]any, 0, len(r.notStarted[0]))
-	started := make([]any, 0, len(r.started[0]))
-	failed := make([]map[string]any, len(r.failed[0]))
+func (r *resultTrackerV2) isFinished(batch_size int) bool {
+	r.Lock()
+	defer r.Unlock()
+	for i := 0; i < batch_size; i++ {
+		if len(r.succeeded[i])+len(r.failed[i]) != r.numberOfBranches {
+			return true
+		}
+	}
+	return false
+}
 
-	for k := range r.succeeded[0] {
+func (r *resultTrackerV2) getAReadyBranch(batch_size int) (int, string) {
+	r.Lock()
+	defer r.Unlock()
+	for i := 0; i < batch_size; i++ {
+		for eid := range r.notStarted[i] {
+			if r.isReadyToStart(i, eid) {
+				//fmt.Printf("readyToStart: i: %d    eid: %s\n", i, eid)
+				return i, eid
+			}
+		}
+	}
+	return 999, "XXX"
+}
+
+func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
+	succeeded := make([]any, 0, len(r.succeeded[i]))
+	notStarted := make([]any, 0, len(r.notStarted[i]))
+	started := make([]any, 0, len(r.started[i]))
+	failed := make([]map[string]any, len(r.failed[i]))
+
+	for k := range r.succeeded[i] {
 		succeeded = append(succeeded, k)
 	}
 	sort.Slice(succeeded, func(i, j int) bool {
 		return succeeded[i].(string) < succeeded[j].(string)
 	})
-	for k := range r.notStarted[0] {
+	for k := range r.notStarted[i] {
 		notStarted = append(notStarted, k)
 	}
-	for k := range r.started[0] {
+	for k := range r.started[i] {
 		started = append(started, k)
 	}
 
-	if len(r.failed[0]) > 0 {
-		failed[0] = make(map[string]any)
-		for k, v := range r.failed[0] {
-			failed[0][k] = v
+	if len(r.failed[i]) > 0 {
+		failed[i] = make(map[string]any)
+		for k, v := range r.failed[i] {
+			failed[i][k] = v
 		}
 	}
 
@@ -237,7 +261,7 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	if len(started) > 0 {
 		m["started"] = started
 	}
-	if len(failed) > 0 && len(failed[0]) > 0 {
+	if len(failed) > 0 && len(failed[i]) > 0 {
 		m["failed"] = failed
 	}
 	return m
@@ -276,9 +300,10 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	records := createTrackerFromDependencies(dependencies, msg.Len())
 
 	type collector struct {
-		eid     string
-		results [][]*message.Part
-		errors  []error
+		eid        string
+		mssgPartId int
+		results    [][]*message.Part
+		errors     []error
 	}
 
 	batchResultChan := make(chan collector)
@@ -286,59 +311,65 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	go func() {
 		mssge := <-batchResultChan
 		var failed []branchMapError
-		err := mssge.errors[0]
-		if err == nil {
-			failed, err = children[mssge.eid].overlayResult(msg, mssge.results[0])
-		}
+		err := mssge.errors[mssge.mssgPartId]
+		// if err == nil {
+		// 	failed, err = children[mssge.eid].overlayResult(msg, mssge.results[0])
+		// }
 		if err != nil {
 			w.mError.Incr(1)
 			w.log.Error("Failed to perform enrichment '%v': %v\n", mssge.eid, err)
-			records.FailedV2(0, mssge.eid, err.Error())
+			records.FailedV2(mssge.mssgPartId, mssge.eid, err.Error())
 		}
 		for _, e := range failed {
-			records.FailedV2(0, mssge.eid, e.err.Error())
+			records.FailedV2(mssge.mssgPartId, mssge.eid, e.err.Error())
 		}
 	}()
 
-	for len(records.succeeded[0])+len(records.failed[0]) != records.numberOfBranches { // while there is stuff to do...
-		for eid := range records.notStarted[0] {
-
-			results := make([][]*message.Part, 1)
-			errors := make([]error, 1)
-
-			if records.isReadyToStart(0, eid) { // get one that is ready to start...
-				records.Started(0, eid) // record as started...
-
-				branchMsg, branchSpans := tracing.WithChildSpans(w.tracer, eid, propMsg.ShallowCopy())
-
-				go func(id string) {
-					branchParts := make([]*message.Part, branchMsg.Len())
-					_ = branchMsg.Iter(func(partIndex int, part *message.Part) error {
-						// Remove errors so that they aren't propagated into the
-						// branch.
-						part.ErrorSet(nil)
-						branchParts[partIndex] = part
-						return nil
-					})
-
-					var mapErrs []branchMapError
-					results[0], mapErrs, errors[0] = children[id].createResult(ctx, branchParts, propMsg.ShallowCopy())
-					for _, s := range branchSpans {
-						s.Finish()
-					}
-					records.Succeeded(0, id)
-					for _, e := range mapErrs {
-						records.FailedV2(0, id, e.err.Error())
-					}
-					batchResult := collector{
-						eid:     id,
-						results: results,
-						errors:  errors,
-					}
-					batchResultChan <- batchResult
-				}(eid)
-			}
+	for records.isFinished(msg.Len()) { // while there is stuff to do...
+		i, eid := records.getAReadyBranch(msg.Len())
+		if i == 999 && eid == "XXX" {
+			continue
 		}
+		records.Started(i, eid)
+
+		results := make([][]*message.Part, msg.Len())
+		errors := make([]error, msg.Len())
+
+		branchMsg, branchSpans := tracing.WithChildSpans(w.tracer, eid, propMsg.ShallowCopy())
+
+		go func(i int, id string) {
+
+			branchParts := make([]*message.Part, branchMsg.Len())
+			_ = branchMsg.Iter(func(partIndex int, part *message.Part) error {
+				// Remove errors so that they aren't propagated into the
+				// branch.
+				part.ErrorSet(nil)
+				branchParts[partIndex] = part
+				return nil
+			})
+
+			var mapErrs []branchMapError
+
+			testPart := branchParts[i]
+			xxxPart := make([]*message.Part, 1)
+			xxxPart[0] = testPart
+			time.Sleep(time.Second)
+			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, propMsg.ShallowCopy())
+			for _, s := range branchSpans {
+				s.Finish()
+			}
+			records.Succeeded(i, id)
+			for _, e := range mapErrs {
+				records.FailedV2(i, id, e.err.Error())
+			}
+			batchResult := collector{
+				eid:        id,
+				mssgPartId: i,
+				results:    results,
+				errors:     errors,
+			}
+			batchResultChan <- batchResult
+		}(i, eid)
 	}
 
 	// Finally, set the meta records of each document.
@@ -354,7 +385,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 			gObj := gabs.Wrap(pJSON)
 			previous := gObj.S(w.metaPath...).Data()
-			current := records.ToObjectV2(0)
+			current := records.ToObjectV2(i)
 			if previous != nil {
 				current["previous"] = previous
 			}
@@ -364,17 +395,14 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			return nil
 		})
 	} else {
-		// _ = msg.Iter(func(i int, p *message.Part) error {
-		// 	if lf := len(records.failed); lf > 0 {
-		// 		failed := make([]string, 0, lf)
-		// 		for k := range records.failed {
-		// 			failed = append(failed, k)
-		// 		}
-		// 		sort.Strings(failed)
-		// 		p.ErrorSet(fmt.Errorf("workflow branches failed: %v", failed))
-		// 	}
-		// 	return nil
-		// })
+		_ = msg.Iter(func(i int, p *message.Part) error {
+			for _, m := range records.failed {
+				for _, value := range m {
+					p.ErrorSet(fmt.Errorf("workflow branches failed: %v", value))
+				}
+			}
+			return nil
+		})
 	}
 
 	tracing.FinishSpans(propMsg)
