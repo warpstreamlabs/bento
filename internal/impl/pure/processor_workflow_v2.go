@@ -385,7 +385,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		mssge := <-batchResultChan
 		var failed []branchMapError
 		err := mssge.errors[mssge.mssgPartId]
-		// if err == nil {
+		// if err == nil { TODO
 		// 	failed, err = children[mssge.eid].overlayResult(msg, mssge.results[0])
 		// }
 		if err != nil {
@@ -426,7 +426,6 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			testPart := branchParts[i]
 			xxxPart := make([]*message.Part, 1)
 			xxxPart[0] = testPart
-			time.Sleep(time.Second)
 			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, propMsg.ShallowCopy())
 			for _, s := range branchSpans {
 				s.Finish()
