@@ -220,7 +220,7 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 		started = append(started, k)
 	}
 
-	if len(r.failed) > 0 {
+	if len(r.failed[0]) > 0 {
 		failed[0] = make(map[string]any)
 		for k, v := range r.failed[0] {
 			failed[0][k] = v
