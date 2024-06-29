@@ -121,17 +121,19 @@ type resultTrackerV2 struct {
 	notStarted        []map[string]struct{}
 	started           []map[string]struct{}
 	succeeded         []map[string]struct{}
+	skipped           []map[string]struct{}
 	failed            []map[string]string
 	dependencyTracker []map[string][]string
 	numberOfBranches  int
 	sync.Mutex
 }
 
-func createTrackerFromDependencies(dependencies map[string][]string, batch_size int) *resultTrackerV2 {
+func createTrackerFromDependencies(dependencies map[string][]string, skipList map[string]struct{}, batch_size int) *resultTrackerV2 {
 	r := &resultTrackerV2{
 		notStarted:        make([]map[string]struct{}, batch_size),
 		started:           make([]map[string]struct{}, batch_size),
 		succeeded:         make([]map[string]struct{}, batch_size),
+		skipped:           make([]map[string]struct{}, batch_size),
 		failed:            make([]map[string]string, batch_size),
 		dependencyTracker: make([]map[string][]string, batch_size),
 	}
@@ -153,6 +155,12 @@ func createTrackerFromDependencies(dependencies map[string][]string, batch_size 
 		r.dependencyTracker[x] = make(map[string][]string)
 		for k, v := range dependencies {
 			r.dependencyTracker[x][k] = v
+		}
+	}
+
+	for i := 0; i < batch_size; i++ {
+		for k := range skipList {
+			r.RemoveFromDepTracker(i, k)
 		}
 	}
 
@@ -196,15 +204,11 @@ func (r *resultTrackerV2) RemoveFromDepTracker(i int, k string) {
 	}
 }
 
-func (r *resultTrackerV2) isReadyToStart(i int, k string) bool {
-	return len(r.dependencyTracker[i][k]) == 0
-}
-
 func (r *resultTrackerV2) isFinished(batch_size int) bool {
 	r.Lock()
 	defer r.Unlock()
 	for i := 0; i < batch_size; i++ {
-		if len(r.succeeded[i])+len(r.failed[i]) != r.numberOfBranches {
+		if len(r.succeeded[i])+len(r.failed[i])+len(r.skipped[i]) != r.numberOfBranches {
 			return true
 		}
 	}
@@ -216,19 +220,19 @@ func (r *resultTrackerV2) getAReadyBranch(batch_size int) (int, string) {
 	defer r.Unlock()
 	for i := 0; i < batch_size; i++ {
 		for eid := range r.notStarted[i] {
-			if r.isReadyToStart(i, eid) {
-				//fmt.Printf("readyToStart: i: %d    eid: %s\n", i, eid)
+			if len(r.dependencyTracker[i][eid]) == 0 {
 				return i, eid
 			}
 		}
 	}
-	return 999, "XXX"
+	return 999, "XXX" // TODO
 }
 
 func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	succeeded := make([]any, 0, len(r.succeeded[i]))
 	notStarted := make([]any, 0, len(r.notStarted[i]))
 	started := make([]any, 0, len(r.started[i]))
+	skipped := make([]any, 0, len(r.skipped))
 	failed := make([]map[string]any, len(r.failed[i]))
 
 	for k := range r.succeeded[i] {
@@ -242,6 +246,9 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	}
 	for k := range r.started[i] {
 		started = append(started, k)
+	}
+	for k := range r.skipped[i] {
+		skipped = append(skipped, k)
 	}
 
 	if len(r.failed[i]) > 0 {
@@ -261,10 +268,62 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	if len(started) > 0 {
 		m["started"] = started
 	}
+	if len(skipped) > 0 {
+		m["skipped"] = skipped
+	}
 	if len(failed) > 0 && len(failed[i]) > 0 {
 		m["failed"] = failed
 	}
 	return m
+}
+
+// Returns a map of enrichment IDs that should be skipped for this payload.
+func (w *WorkflowV2) skipFromMetaV2(root any) map[string]struct{} {
+	skipList := map[string]struct{}{}
+	if len(w.metaPath) == 0 {
+		return skipList
+	}
+
+	gObj := gabs.Wrap(root)
+
+	// If a whitelist is provided for this flow then skip stages that aren't
+	// within it.
+	if apply, ok := gObj.S(append(w.metaPath, "apply")...).Data().([]any); ok {
+		if len(apply) > 0 {
+			for k := range w.allStages {
+				skipList[k] = struct{}{}
+			}
+			for _, id := range apply {
+				if idStr, isString := id.(string); isString {
+					delete(skipList, idStr)
+				}
+			}
+		}
+	}
+
+	// Skip stages that already succeeded in a previous run of this workflow.
+	if succeeded, ok := gObj.S(append(w.metaPath, "succeeded")...).Data().([]any); ok {
+		for _, id := range succeeded {
+			if idStr, isString := id.(string); isString {
+				if _, exists := w.allStages[idStr]; exists {
+					skipList[idStr] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// Skip stages that were already skipped in a previous run of this workflow.
+	if skipped, ok := gObj.S(append(w.metaPath, "skipped")...).Data().([]any); ok {
+		for _, id := range skipped {
+			if idStr, isString := id.(string); isString {
+				if _, exists := w.allStages[idStr]; exists {
+					skipList[idStr] = struct{}{}
+				}
+			}
+		}
+	}
+
+	return skipList
 }
 
 // ProcessBatch applies workflow stages to each part of a message type.
@@ -289,15 +348,19 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	}
 	defer unlock()
 
-	skipOnMeta := make([]map[string]struct{}, msg.Len())
+	skipOnMeta := make(map[string]struct{}, 1)
 	_ = msg.Iter(func(i int, p *message.Part) error {
-		skipOnMeta[i] = map[string]struct{}{}
+		if jObj, err := p.AsStructured(); err == nil {
+			skipOnMeta = w.skipFromMetaV2(jObj)
+		} else {
+			skipOnMeta = map[string]struct{}{}
+		}
 		return nil
 	})
 
 	propMsg, _ := tracing.WithChildSpans(w.tracer, "workflow", msg)
 
-	records := createTrackerFromDependencies(dependencies, msg.Len())
+	records := createTrackerFromDependencies(dependencies, skipOnMeta, msg.Len())
 
 	type collector struct {
 		eid        string
@@ -325,9 +388,9 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		}
 	}()
 
-	for records.isFinished(msg.Len()) { // while there is stuff to do...
+	for records.isFinished(msg.Len()) {
 		i, eid := records.getAReadyBranch(msg.Len())
-		if i == 999 && eid == "XXX" {
+		if i == 999 && eid == "XXX" { // TODO
 			continue
 		}
 		records.Started(i, eid)
