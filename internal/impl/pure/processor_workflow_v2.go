@@ -2,7 +2,6 @@ package pure
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -118,96 +117,113 @@ func NewWorkflowV2(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Workf
 }
 
 type resultTrackerV2 struct {
-	notStarted        map[string]struct{}
-	started           map[string]struct{}
-	succeeded         map[string]struct{}
-	failed            map[string]string
-	dependencyTracker map[string][]string
+	notStarted        []map[string]struct{}
+	started           []map[string]struct{}
+	succeeded         []map[string]struct{}
+	failed            []map[string]string
+	dependencyTracker []map[string][]string
 	numberOfBranches  int
 	sync.Mutex
 }
 
-func createTrackerFromDependencies(dependencies map[string][]string) *resultTrackerV2 {
+func createTrackerFromDependencies(dependencies map[string][]string, batch_size int) *resultTrackerV2 {
 	r := &resultTrackerV2{
-		notStarted: map[string]struct{}{},
-		started:    map[string]struct{}{},
-		succeeded:  map[string]struct{}{},
-		failed:     map[string]string{},
+		notStarted:        make([]map[string]struct{}, batch_size),
+		started:           make([]map[string]struct{}, batch_size),
+		succeeded:         make([]map[string]struct{}, batch_size),
+		failed:            make([]map[string]string, batch_size),
+		dependencyTracker: make([]map[string][]string, batch_size),
 	}
 
-	for k := range dependencies {
-		r.notStarted[k] = struct{}{}
+	for i := 0; i < batch_size; i++ {
+		r.notStarted[i] = make(map[string]struct{})
+		r.started[i] = make(map[string]struct{})
+		r.succeeded[i] = make(map[string]struct{})
+		r.failed[i] = make(map[string]string)
+
+		for k := range dependencies {
+			r.notStarted[i][k] = struct{}{}
+		}
 	}
 
 	r.numberOfBranches = len(dependencies)
-	r.dependencyTracker = dependencies
+
+	for x := range r.dependencyTracker {
+		r.dependencyTracker[x] = make(map[string][]string)
+		for k, v := range dependencies {
+			r.dependencyTracker[x][k] = v
+		}
+	}
 
 	return r
 }
 
-func (r *resultTrackerV2) Succeeded(k string) {
+func (r *resultTrackerV2) Succeeded(i int, k string) {
 	r.Lock()
-	delete(r.started, k)
+	delete(r.started[i], k)
 
-	r.succeeded[k] = struct{}{}
-	r.RemoveFromDepTracker(k)
+	r.succeeded[i][k] = struct{}{}
+	r.RemoveFromDepTracker(i, k)
 	r.Unlock()
 }
 
-func (r *resultTrackerV2) Started(k string) {
+func (r *resultTrackerV2) Started(i int, k string) {
 	r.Lock()
-	delete(r.notStarted, k)
+	delete(r.notStarted[i], k)
 
-	r.started[k] = struct{}{}
+	r.started[i][k] = struct{}{}
 	r.Unlock()
 }
 
-func (r *resultTrackerV2) FailedV2(k, why string) {
+func (r *resultTrackerV2) FailedV2(i int, k string, why string) {
 	r.Lock()
-	delete(r.started, k)
-	delete(r.succeeded, k)
-	r.failed[k] = why
+	delete(r.started[i], k)
+	delete(r.succeeded[i], k)
+	r.failed[i][k] = why
 	r.Unlock()
 }
 
-func (r *resultTrackerV2) RemoveFromDepTracker(k string) {
-	for key, values := range r.dependencyTracker {
+func (r *resultTrackerV2) RemoveFromDepTracker(i int, k string) {
+	for key, values := range r.dependencyTracker[i] {
 		var updatedValues []string
 		for _, value := range values {
 			if value != k {
 				updatedValues = append(updatedValues, value)
 			}
 		}
-		r.dependencyTracker[key] = updatedValues
+		r.dependencyTracker[i][key] = updatedValues
 	}
 }
 
-func (r *resultTrackerV2) isReadyToStart(k string) bool {
+func (r *resultTrackerV2) isReadyToStart(i int, k string) bool {
 	r.Lock()
 	defer r.Unlock()
-	return len(r.dependencyTracker[k]) == 0
+	return len(r.dependencyTracker[i][k]) == 0
 }
+func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
+	succeeded := make([]any, 0, len(r.succeeded[0]))
+	notStarted := make([]any, 0, len(r.notStarted[0]))
+	started := make([]any, 0, len(r.started[0]))
+	failed := make([]map[string]any, len(r.failed[0]))
 
-func (r *resultTrackerV2) ToObjectV2() map[string]any {
-	succeeded := make([]any, 0, len(r.succeeded))
-	notStarted := make([]any, 0, len(r.notStarted))
-	started := make([]any, 0, len(r.started))
-	failed := make(map[string]any, len(r.failed))
-
-	for k := range r.succeeded {
+	for k := range r.succeeded[0] {
 		succeeded = append(succeeded, k)
 	}
 	sort.Slice(succeeded, func(i, j int) bool {
 		return succeeded[i].(string) < succeeded[j].(string)
 	})
-	for k := range r.notStarted {
+	for k := range r.notStarted[0] {
 		notStarted = append(notStarted, k)
 	}
-	for k := range r.started {
+	for k := range r.started[0] {
 		started = append(started, k)
 	}
-	for k, v := range r.failed {
-		failed[k] = v
+
+	if len(r.failed) > 0 {
+		failed[0] = make(map[string]any)
+		for k, v := range r.failed[0] {
+			failed[0][k] = v
+		}
 	}
 
 	m := map[string]any{}
@@ -220,7 +236,7 @@ func (r *resultTrackerV2) ToObjectV2() map[string]any {
 	if len(started) > 0 {
 		m["started"] = started
 	}
-	if len(failed) > 0 {
+	if len(failed) > 0 && len(failed[0]) > 0 {
 		m["failed"] = failed
 	}
 	return m
@@ -256,7 +272,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 	propMsg, _ := tracing.WithChildSpans(w.tracer, "workflow", msg)
 
-	records := createTrackerFromDependencies(dependencies)
+	records := createTrackerFromDependencies(dependencies, msg.Len())
 
 	type collector struct {
 		eid     string
@@ -276,21 +292,21 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		if err != nil {
 			w.mError.Incr(1)
 			w.log.Error("Failed to perform enrichment '%v': %v\n", mssge.eid, err)
-			records.FailedV2(mssge.eid, err.Error())
+			records.FailedV2(0, mssge.eid, err.Error())
 		}
 		for _, e := range failed {
-			records.FailedV2(mssge.eid, e.err.Error())
+			records.FailedV2(0, mssge.eid, e.err.Error())
 		}
 	}()
 
-	for len(records.succeeded)+len(records.failed) != records.numberOfBranches {
-		for eid := range records.notStarted {
+	for len(records.succeeded[0])+len(records.failed[0]) != records.numberOfBranches { // while there is stuff to do...
+		for eid := range records.notStarted[0] {
 
 			results := make([][]*message.Part, 1)
 			errors := make([]error, 1)
 
-			if records.isReadyToStart(eid) {
-				records.Started(eid)
+			if records.isReadyToStart(0, eid) { // get one that is ready to start...
+				records.Started(0, eid) // record as started...
 
 				branchMsg, branchSpans := tracing.WithChildSpans(w.tracer, eid, propMsg.ShallowCopy())
 
@@ -309,9 +325,9 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 					for _, s := range branchSpans {
 						s.Finish()
 					}
-					records.Succeeded((id))
+					records.Succeeded(0, id)
 					for _, e := range mapErrs {
-						records.FailedV2(id, e.err.Error())
+						records.FailedV2(0, id, e.err.Error())
 					}
 					batchResult := collector{
 						eid:     id,
@@ -337,7 +353,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 			gObj := gabs.Wrap(pJSON)
 			previous := gObj.S(w.metaPath...).Data()
-			current := records.ToObjectV2()
+			current := records.ToObjectV2(0)
 			if previous != nil {
 				current["previous"] = previous
 			}
@@ -347,17 +363,17 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			return nil
 		})
 	} else {
-		_ = msg.Iter(func(i int, p *message.Part) error {
-			if lf := len(records.failed); lf > 0 {
-				failed := make([]string, 0, lf)
-				for k := range records.failed {
-					failed = append(failed, k)
-				}
-				sort.Strings(failed)
-				p.ErrorSet(fmt.Errorf("workflow branches failed: %v", failed))
-			}
-			return nil
-		})
+		// _ = msg.Iter(func(i int, p *message.Part) error {
+		// 	if lf := len(records.failed); lf > 0 {
+		// 		failed := make([]string, 0, lf)
+		// 		for k := range records.failed {
+		// 			failed = append(failed, k)
+		// 		}
+		// 		sort.Strings(failed)
+		// 		p.ErrorSet(fmt.Errorf("workflow branches failed: %v", failed))
+		// 	}
+		// 	return nil
+		// })
 	}
 
 	tracing.FinishSpans(propMsg)

@@ -1,6 +1,6 @@
 input: 
   file:
-    paths: ["input.json"]
+    paths: ["./cmd/bento/input.json"]
     scanner:
       json_documents: {}
 
