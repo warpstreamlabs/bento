@@ -202,3 +202,101 @@ output:
 		t.Error(err)
 	}
 }
+
+func TestHandlerError(t *testing.T) {
+	var results [][]byte
+	var resMut sync.Mutex
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resMut.Lock()
+		defer resMut.Unlock()
+
+		resBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, resBytes)
+
+		_, _ = w.Write([]byte("success"))
+	}))
+	defer ts.Close()
+
+	conf, err := testutil.ConfigFromYAML(`
+pipeline:
+  processors:
+  - bloblang: throw("error")
+
+output:
+  sync_response: {}
+`)
+	require.NoError(t, err)
+
+	h, err := NewHandler(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var res any
+	if res, err = h.Handle(context.Background(), map[string]any{"foo": "bar"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := map[string]any{"foo": "bar"}, res; !reflect.DeepEqual(exp, act) {
+		t.Errorf("Wrong sync response: %v != %v", exp, act)
+	}
+	if len(results) != 0 {
+		t.Error("Wrong sync response: results should be empty")
+	}
+
+	if err = h.Close(time.Second * 10); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHandlerErrorOnReject(t *testing.T) {
+	var results [][]byte
+	var resMut sync.Mutex
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resMut.Lock()
+		defer resMut.Unlock()
+
+		resBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results = append(results, resBytes)
+
+		_, _ = w.Write([]byte("success"))
+	}))
+	defer ts.Close()
+
+	conf, err := testutil.ConfigFromYAML(`
+pipeline:
+  processors:
+    - mapping: throw("error")
+
+output:
+  reject_errored:
+    drop: {}
+`)
+	require.NoError(t, err)
+
+	h, err := NewHandler(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var res any
+	res, err = h.Handle(context.Background(), map[string]any{"foo": "bar"})
+
+	if err == nil {
+		t.Fatalf("expected processing error")
+	}
+
+	if res != nil {
+		t.Errorf("expected %v, got %v", nil, res)
+	}
+
+	if err = h.Close(time.Second * 10); err != nil {
+		t.Error(err)
+	}
+}
