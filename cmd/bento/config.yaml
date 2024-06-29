@@ -15,7 +15,7 @@ pipeline:
           A:
             processors:
               - sleep:
-                  duration: "3s"
+                  duration: "1s"
               - log:
                   level: INFO
                   message: STAGE A FINISHED
@@ -24,7 +24,7 @@ pipeline:
             dependency_list: ["A"]
             processors:
               - sleep: 
-                  duration: "15s"
+                  duration: "5s"
               - log:
                   level: INFO
                   message: STAGE B FINISHED
@@ -33,7 +33,7 @@ pipeline:
             dependency_list: ["A"]
             processors:
               - sleep: 
-                  duration: "3s"
+                  duration: "1s"
               - log:
                   level: INFO
                   message: STAGE C FINISHED
@@ -42,7 +42,7 @@ pipeline:
             dependency_list: ["B", "E"]
             processors:
               - sleep: 
-                  duration: "3s"
+                  duration: "1s"
               - log:
                   level: INFO
                   message: STAGE D FINISHED
@@ -51,7 +51,7 @@ pipeline:
             dependency_list: ["C"]
             processors:
               - sleep: 
-                  duration: "3s"
+                  duration: "1s"
               - log:
                   level: INFO
                   message: STAGE E FINISHED
@@ -60,7 +60,7 @@ pipeline:
             dependency_list: ["C", "E"]
             processors:
               - sleep: 
-                  duration: "3s"
+                  duration: "1s"
               - log:
                   level: INFO
                   message: STAGE F FINISHED

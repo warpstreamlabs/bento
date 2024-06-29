@@ -200,6 +200,7 @@ func (r *resultTrackerV2) isReadyToStart(i int, k string) bool {
 	defer r.Unlock()
 	return len(r.dependencyTracker[i][k]) == 0
 }
+
 func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	succeeded := make([]any, 0, len(r.succeeded[0]))
 	notStarted := make([]any, 0, len(r.notStarted[0]))
