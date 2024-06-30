@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Sends message parts as objects to an Azure Blob Storage Account container. Each object is uploaded with the filename specified with the `container` field.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

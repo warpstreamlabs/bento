@@ -183,7 +183,7 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
-Requires version 3.33.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

@@ -31,7 +31,7 @@ func sftpInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Categories("Network").
-		Version("3.39.0").
+		Version("1.0.0").
 		Summary(`Consumes files from an SFTP server.`).
 		Description(`
 ## Metadata
@@ -74,7 +74,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 					Description("A [cache resource](/docs/components/caches/about) for storing the paths of files already consumed.").
 					Default(""),
 			).Description("An experimental mode whereby the input will periodically scan the target paths for new files and consume them, when all files are consumed the input will continue polling for new files.").
-				Version("3.42.0"),
+				Version("1.0.0"),
 		)
 }
 

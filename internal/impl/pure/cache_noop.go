@@ -12,7 +12,7 @@ var _ service.Cache = (*noopCacheAdapter)(nil)
 func noopCacheConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("4.27.0").
+		Version("1.0.0").
 		Summary("Noop is a cache that stores nothing, all gets returns not found. Why? Sometimes doing nothing is the braver option.").
 		Field(service.NewObjectField("").Default(map[string]any{}))
 

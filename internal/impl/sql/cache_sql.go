@@ -24,7 +24,7 @@ func sqlCacheConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Categories("Services").
 		Summary("Uses an SQL database table as a destination for storing cache key/value items.").
-		Version("4.26.0").
+		Version("1.0.0").
 		Description(`
 Each cache key/value pair will exist as a row within the specified table. Currently only the key and value columns are set, and therefore any other columns present within the target table must allow NULL values if this cache is going to be used for set and add operations.
 

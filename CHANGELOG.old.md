@@ -3,6 +3,19 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 4.30.0 - 2024-06-13
+
+### Added
+
+- Go API: New APIs for capturing synchronous responses from downstream components. (@Jeffail)
+- Go API: Ability to customise the overall configuration schema of a stream builder. (@Jeffail)
+- New `sin`, `cos`, `tan` and `pi` bloblang methods. (@mfamador)
+- Field `proxy_url` added to the `websocket` input and output. (@mihaitodor)
+
+### Fixed
+
+- The `websocket` input and output now obey the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables. (@mihaitodor)
+
 ## 4.29.0 - 2024-06-10
 
 ### Added

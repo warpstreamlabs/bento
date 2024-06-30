@@ -73,7 +73,7 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 
 func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Version("3.64.0").
+		Version("1.0.0").
 		Categories("Integration").
 		Summary("Executes a `SELECT` query against BigQuery and replaces messages with the rows returned.").
 		Field(service.NewStringField("project").Description("GCP project where the query job will execute.")).
@@ -168,12 +168,17 @@ func (proc *bigQuerySelectProcessor) ProcessBatch(ctx context.Context, batch ser
 
 	outBatch := make(service.MessageBatch, 0, len(batch))
 
+	var executor *service.MessageBatchBloblangExecutor
+	if argsMapping != nil {
+		executor = batch.BloblangExecutor(argsMapping)
+	}
+
 	for i, msg := range batch {
 		outBatch = append(outBatch, msg)
 
 		var args []any
 		if argsMapping != nil {
-			resMsg, err := batch.BloblangQuery(i, argsMapping)
+			resMsg, err := executor.Query(i)
 			if err != nil {
 				msg.SetError(fmt.Errorf("failed to resolve args mapping: %w", err))
 				continue

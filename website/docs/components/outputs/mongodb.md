@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Inserts items into a MongoDB collection.
 
-Introduced in version 3.43.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -241,7 +241,7 @@ The upsert setting is optional and only applies for update-one and replace-one o
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.60.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `max_in_flight`
 

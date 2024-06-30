@@ -78,7 +78,7 @@ func csoConfigFromParsed(pConf *service.ParsedConfig) (conf csoConfig, err error
 func csoSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("3.43.0").
+		Version("1.0.0").
 		Categories("Services", "GCP").
 		Summary(`Sends message parts as objects to a Google Cloud Storage bucket. Each object is uploaded with the path specified with the `+"`path`"+` field.`).
 		Description(`
@@ -149,7 +149,7 @@ output:
 				"ignore":          "Do not modify the original file, the new data will be dropped.",
 			}).
 				Description(`Determines how file path collisions should be dealt with.`).
-				Version("3.53.0").
+				Version("1.0.0").
 				Default(GCPCloudStorageOverwriteCollisionMode),
 			service.NewIntField(csoFieldChunkSize).
 				Description("An optional chunk size which controls the maximum number of bytes of the object that the Writer will attempt to send to the server in a single request. If ChunkSize is set to zero, chunking will be disabled.").

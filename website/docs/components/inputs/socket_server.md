@@ -65,7 +65,7 @@ An optional [`cache`](/docs/components/caches/about) within which this input sho
 
 
 Type: `string`  
-Requires version 4.25.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls`
 
@@ -111,6 +111,6 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"lines":{}}`  
-Requires version 4.25.0 or newer  
+Requires version 1.0.0 or newer  
 
 

@@ -21,7 +21,7 @@ const (
 func mongoConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		// Stable(). TODO
-		Version("3.64.0").
+		Version("1.0.0").
 		Categories("Services").
 		Summary("Executes a query and creates a message for each document received.").
 		Description(`Once the documents from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a [sequence](/docs/components/inputs/sequence) to execute).`).
@@ -30,7 +30,7 @@ func mongoConfigSpec() *service.ConfigSpec {
 		Field(service.NewStringEnumField("operation", FindInputOperation, AggregateInputOperation).
 			Description("The mongodb operation to perform.").
 			Default(FindInputOperation).Advanced().
-			Version("4.2.0")).
+			Version("1.0.0")).
 		Field(service.NewStringAnnotatedEnumField("json_marshal_mode", map[string]string{
 			string(JSONMarshalModeCanonical): "A string format that emphasizes type preservation at the expense of readability and interoperability. " +
 				"That is, conversion from canonical to BSON will generally preserve type information except in certain specific cases. ",
@@ -40,7 +40,7 @@ func mongoConfigSpec() *service.ConfigSpec {
 			Description("The json_marshal_mode setting is optional and controls the format of the output message.").
 			Default(string(JSONMarshalModeCanonical)).
 			Advanced().
-			Version("4.7.0")).
+			Version("1.0.0")).
 		Field(service.NewBloblangField("query").
 			Description("Bloblang expression describing MongoDB query.").
 			Example(`
@@ -52,17 +52,17 @@ func mongoConfigSpec() *service.ConfigSpec {
 			Description("A explicit number of documents to batch up before flushing them for processing. Must be greater than `0`. Operations: `find`, `aggregate`").
 			Optional().
 			Example(1000).
-			Version("4.26.0")).
+			Version("1.0.0")).
 		Field(service.NewIntMapField("sort").
 			Description("An object specifying fields to sort by, and the respective sort order (`1` ascending, `-1` descending). Note: The driver currently appears to support only one sorting key. Operations: `find`").
 			Optional().
 			Example(map[string]int{"name": 1}).
 			Example(map[string]int{"age": -1}).
-			Version("4.26.0")).
+			Version("1.0.0")).
 		Field(service.NewIntField("limit").
 			Description("An explicit maximum number of documents to return. Operations: `find`").
 			Optional().
-			Version("4.26.0"))
+			Version("1.0.0"))
 }
 
 func init() {

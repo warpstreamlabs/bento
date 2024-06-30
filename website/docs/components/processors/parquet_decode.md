@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Decodes [Parquet files](https://parquet.apache.org/docs/) into a batch of structured messages.
 
-Introduced in version 4.4.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

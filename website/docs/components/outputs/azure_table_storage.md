@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Stores messages in an Azure Table Storage table.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

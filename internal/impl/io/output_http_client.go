@@ -47,7 +47,7 @@ It's possible to propagate the response from each HTTP request back to the input
 					Example(`${! this.data.part1 }`).
 					Default(""),
 			).Description("EXPERIMENTAL: Create explicit multipart HTTP requests by specifying an array of parts to add to the request, each part specified consists of content headers and a data field that can be populated dynamically. If this field is populated it will override the default request creation behaviour.").
-				Advanced().Version("3.63.0").Default([]any{}),
+				Advanced().Version("1.0.0").Default([]any{}),
 		))
 }
 

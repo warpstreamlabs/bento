@@ -35,7 +35,7 @@ It's not currently possible to execute a single WASM runtime across parallel thr
 		Field(service.NewStringField("function").
 			Default("process").
 			Description("The name of the function exported by the target WASM module to run for each message.")).
-		Version("4.11.0")
+		Version("1.0.0")
 }
 
 func init() {

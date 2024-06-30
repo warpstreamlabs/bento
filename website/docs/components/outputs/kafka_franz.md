@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 A Kafka output using the [Franz Kafka client library](https://github.com/twmb/franz-go).
 
-Introduced in version 3.61.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -402,7 +402,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 
@@ -651,7 +651,7 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 4.2.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `sasl[].aws.credentials.role`
 

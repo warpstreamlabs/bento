@@ -57,7 +57,7 @@ func koConfigFromParsed(pConf *service.ParsedConfig) (conf koConfig, err error) 
 func koOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends messages to a Kinesis stream.`).
 		Description(`

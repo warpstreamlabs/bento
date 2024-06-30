@@ -19,7 +19,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Send metrics to InfluxDB 1.x using the `/write` endpoint.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -120,7 +120,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

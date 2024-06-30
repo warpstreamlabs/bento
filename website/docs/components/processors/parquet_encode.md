@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Encodes [Parquet files](https://parquet.apache.org/docs/) from a batch of structured messages.
 
-Introduced in version 4.4.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -162,7 +162,7 @@ The default encoding type to use for fields. A custom default encoding is only n
 
 Type: `string`  
 Default: `"DELTA_LENGTH_BYTE_ARRAY"`  
-Requires version 4.11.0 or newer  
+Requires version 1.0.0 or newer  
 Options: `DELTA_LENGTH_BYTE_ARRAY`, `PLAIN`.
 
 

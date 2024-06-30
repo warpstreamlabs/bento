@@ -542,7 +542,7 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Creates a "slug" from a given string. Wraps the github.com/gosimple/slug package. See its [docs](https://pkg.go.dev/github.com/gosimple/slug) for more information.
 
-Introduced in version 4.2.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -638,7 +638,7 @@ root.description = this.description.trim()
 
 Remove the provided leading prefix substring from a string. If the string does not have the prefix substring, it is returned unchanged.
 
-Introduced in version 4.12.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -660,7 +660,7 @@ root.description = this.description.trim_prefix("foobar_")
 
 Remove the provided trailing suffix substring from a string. If the string does not have the suffix substring, it is returned unchanged.
 
-Introduced in version 4.12.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -1533,7 +1533,7 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 4.2.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -1636,7 +1636,7 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 4.23.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -1673,7 +1673,7 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 4.3.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -2079,7 +2079,7 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.
 
-Introduced in version 4.25.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters
@@ -2578,7 +2578,7 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.
 
-Introduced in version 4.25.0.
+Introduced in version 1.0.0.
 
 
 #### Parameters

@@ -20,7 +20,7 @@ import (
 func schemaRegistryEncoderConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Beta().
-		Version("3.58.0").
+		Version("1.0.0").
 		Categories("Parsing", "Integration").
 		Summary("Automatically encodes and validates messages with schemas from a Confluent Schema Registry service.").
 		Description(`
@@ -70,10 +70,10 @@ We will be considering alternative approaches in future so please [get in touch]
 			Example("1h")).
 		Field(service.NewBoolField("avro_raw_json").
 			Description("Whether messages encoded in Avro format should be parsed as normal JSON (\"json that meets the expectations of regular internet json\") rather than [Avro JSON](https://avro.apache.org/docs/current/specification/_print/#json-encoding). If `true` the schema returned from the subject should be parsed as [standard json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) instead of as [avro json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodec). There is a [comment in goavro](https://github.com/linkedin/goavro/blob/5ec5a5ee7ec82e16e6e2b438d610e1cab2588393/union.go#L224-L249), the [underlining library used for avro serialization](https://github.com/linkedin/goavro), that explains in more detail the difference between standard json and avro json.").
-			Advanced().Default(false).Version("3.59.0"))
+			Advanced().Default(false).Version("1.0.0"))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
-		spec = spec.Field(f.Version("4.7.0"))
+		spec = spec.Field(f.Version("1.0.0"))
 	}
 
 	return spec.Field(service.NewTLSField("tls"))

@@ -24,7 +24,7 @@ func s3CacheConfig() *service.ConfigSpec {
 
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Stores each item in an S3 bucket as a file, where an item ID is the path of the item within the bucket.`).
 		Description(`It is not possible to atomically upload S3 objects exclusively when the target does not already exist, therefore this cache is not suitable for deduplication.`).
 		Field(service.NewStringField("bucket").

@@ -195,7 +195,7 @@ Each message must be structured (JSON or otherwise processed into a structured f
 
 
 Type: `object`  
-Requires version 3.40.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `sharded_join.type`
 

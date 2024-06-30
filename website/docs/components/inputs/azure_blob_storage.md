@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Downloads objects within an Azure Blob Storage container, optionally filtered by a prefix.
 
-Introduced in version 3.36.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -160,7 +160,7 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"to_the_end":{}}`  
-Requires version 4.25.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `delete_objects`
 
@@ -176,7 +176,7 @@ EXPERIMENTAL: An optional source of download targets, configured as a [regular B
 
 
 Type: `input`  
-Requires version 4.27.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

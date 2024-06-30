@@ -49,7 +49,7 @@ func ServerCORSFieldSpec() docs.FieldSpec {
 	return docs.FieldObject(fieldCORS, "Adds Cross-Origin Resource Sharing headers.").WithChildren(
 		docs.FieldBool(fieldCORSEnabled, "Whether to allow CORS requests.").HasDefault(false),
 		docs.FieldString(fieldCORSAllowedOrigins, "An explicit list of origins that are allowed for CORS requests.").Array().HasDefault([]any{}),
-	).AtVersion("3.63.0").Advanced()
+	).AtVersion("1.0.0").Advanced()
 }
 
 func CORSConfigFromParsed(pConf *docs.ParsedConfig) (conf CORSConfig, err error) {

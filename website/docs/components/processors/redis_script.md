@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Performs actions against Redis using [LUA scripts](https://redis.io/docs/manual/programmability/eval-intro/).
 
-Introduced in version 4.11.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -185,7 +185,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

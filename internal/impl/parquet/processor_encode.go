@@ -28,11 +28,11 @@ func parquetEncodeProcessorConfig() *service.ConfigSpec {
 			Description("The default encoding type to use for fields. A custom default encoding is only necessary when consuming data with libraries that do not support `DELTA_LENGTH_BYTE_ARRAY` and is therefore best left unset where possible.").
 			Default("DELTA_LENGTH_BYTE_ARRAY").
 			Advanced().
-			Version("4.11.0")).
+			Version("1.0.0")).
 		Description(`
 This processor uses [https://github.com/parquet-go/parquet-go](https://github.com/parquet-go/parquet-go), which is itself experimental. Therefore changes could be made into how this processor functions outside of major version releases.
 `).
-		Version("4.4.0").
+		Version("1.0.0").
 		// TODO: Add an example that demonstrates error handling
 		Example("Writing Parquet Files to AWS S3",
 			"In this example we use the batching mechanism of an `aws_s3` output to collect a batch of messages in memory, which then converts it to a parquet file and uploads it.",

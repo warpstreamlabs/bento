@@ -253,7 +253,7 @@ An array of verbs that are allowed for the `path` endpoint.
 
 Type: `array`  
 Default: `["POST"]`  
-Requires version 3.33.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `timeout`
 
@@ -293,7 +293,7 @@ Adds Cross-Origin Resource Sharing headers. Only valid with a custom `address`.
 
 
 Type: `object`  
-Requires version 3.63.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `cors.enabled`
 

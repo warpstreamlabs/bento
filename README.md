@@ -129,7 +129,7 @@ And then run it with `make lint`.
 
 ## Plugins
 
-It's pretty easy to write your own custom plugins for Bento in Go, for information check out [the API docs][godoc-url], and for inspiration there's an [example repo][plugin-repo] demonstrating a variety of plugin implementations.
+It's pretty easy to write your own custom plugins for Bento in Go, for information check out [the API docs][godoc-url].
 
 ## Extra Plugins
 

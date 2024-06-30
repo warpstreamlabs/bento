@@ -131,7 +131,7 @@ The maximum amount of time to wait in order to establish a connection before the
 
 Type: `string`  
 Default: `"30s"`  
-Requires version 3.58.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -245,7 +245,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 

@@ -20,7 +20,7 @@ This component is deprecated and will be removed in the next major version relea
 :::
 Converts batches of documents to or from [Parquet files](https://parquet.apache.org/docs/).
 
-Introduced in version 3.62.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

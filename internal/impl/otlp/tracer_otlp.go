@@ -60,7 +60,7 @@ func oltpSpec() *service.ConfigSpec {
 				Examples(0.85, 0.5).
 				Optional()).
 			Description("Settings for trace sampling. Sampling is recommended for high-volume production workloads.").
-			Version("4.25.0"))
+			Version("1.0.0"))
 }
 
 func init() {

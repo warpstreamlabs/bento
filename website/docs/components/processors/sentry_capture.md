@@ -19,7 +19,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Captures log events from messages and submits them to [Sentry](https://sentry.io/).
 
-Introduced in version 4.16.0.
+Introduced in version 1.0.0.
 
 ```yml
 # Config fields, showing default values

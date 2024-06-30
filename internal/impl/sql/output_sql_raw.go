@@ -40,7 +40,7 @@ func sqlRawOutputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.Field(service.NewBatchPolicyField("batching")).
-		Version("3.65.0").
+		Version("1.0.0").
 		Example("Table Insert (MySQL)",
 			`
 Here we insert rows into a database by populating the columns id, name and topic with values extracted from messages and metadata:`,
@@ -188,10 +188,15 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	var executor *service.MessageBatchBloblangExecutor
+	if s.argsMapping != nil {
+		executor = batch.BloblangExecutor(s.argsMapping)
+	}
+
 	for i := range batch {
 		var args []any
 		if s.argsMapping != nil {
-			resMsg, err := batch.BloblangQuery(i, s.argsMapping)
+			resMsg, err := executor.Query(i)
 			if err != nil {
 				return err
 			}

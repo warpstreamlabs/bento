@@ -157,7 +157,7 @@ A list of topics to consume from. Multiple comma separated topics can be listed 
 
 
 Type: `array`  
-Requires version 3.33.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -226,7 +226,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 
@@ -454,7 +454,7 @@ The maximum number of messages of the same topic and partition that can be proce
 
 Type: `int`  
 Default: `1024`  
-Requires version 3.33.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `auto_replay_nacks`
 
@@ -486,7 +486,7 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

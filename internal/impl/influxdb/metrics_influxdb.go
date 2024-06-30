@@ -35,7 +35,7 @@ const (
 func ConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Send metrics to InfluxDB 1.x using the `+"`/write`"+` endpoint.`).
 		Description(`See https://docs.influxdata.com/influxdb/v1.8/tools/api/#write-http-endpoint for further details on the write API.`).
 		Fields(

@@ -41,7 +41,7 @@ func javascriptProcessorConfig() *service.ConfigSpec {
 
 	return service.NewConfigSpec().
 		Categories("Mapping").
-		Version("4.14.0").
+		Version("1.0.0").
 		Summary("Executes a provided JavaScript code block or file for each message.").
 		Description(`
 The [execution engine](https://github.com/dop251/goja) behind this processor provides full ECMAScript 5.1 support (including regex and strict mode). Most of the ECMAScript 6 spec is implemented but this is a work in progress.

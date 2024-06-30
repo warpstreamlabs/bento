@@ -162,7 +162,7 @@ Whether to allow the remote server to repeatedly request renegotiation. Enable t
 
 Type: `bool`  
 Default: `false`  
-Requires version 3.45.0 or newer  
+Requires version 1.0.0 or newer  
 
 ### `tls.root_cas`
 
@@ -403,7 +403,7 @@ The command used to push elements to the Redis list
 
 Type: `string`  
 Default: `"rpush"`  
-Requires version 4.22.0 or newer  
+Requires version 1.0.0 or newer  
 Options: `rpush`, `lpush`.
 
 

@@ -29,7 +29,7 @@ func genInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Utility").
-		Version("3.40.0").
+		Version("1.0.0").
 		Summary("Generates messages at a given interval using a [Bloblang](/docs/guides/bloblang/about) mapping executed without a context. This allows you to generate messages for testing your pipeline configs.").
 		Fields(
 			service.NewBloblangField(giFieldMapping).

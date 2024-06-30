@@ -54,7 +54,7 @@ If the query fails to execute then the message will remain unchanged and the err
 		spec = spec.Field(f)
 	}
 
-	spec = spec.Version("3.59.0").
+	spec = spec.Version("1.0.0").
 		Example("Table Query (PostgreSQL)",
 			`
 Here we query a database for columns of footable that share a `+"`user_id`"+`
@@ -192,11 +192,16 @@ func (s *sqlSelectProcessor) ProcessBatch(ctx context.Context, batch service.Mes
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	var executor *service.MessageBatchBloblangExecutor
+	if s.argsMapping != nil {
+		executor = batch.BloblangExecutor(s.argsMapping)
+	}
+
 	batch = batch.Copy()
 	for i, msg := range batch {
 		var args []any
 		if s.argsMapping != nil {
-			resMsg, err := batch.BloblangQuery(i, s.argsMapping)
+			resMsg, err := executor.Query(i)
 			if err != nil {
 				s.logger.Debugf("Arguments mapping failed: %v", err)
 				msg.SetError(err)

@@ -41,7 +41,7 @@ func qsoConfigFromParsed(pConf *service.ParsedConfig) (conf qsoConfig, err error
 func qsoSpec() *service.ConfigSpec {
 	return azureComponentSpec(false).
 		Beta().
-		Version("3.36.0").
+		Version("1.0.0").
 		Summary(`Sends messages to an Azure Storage Queue.`).
 		Description(`
 Only one authentication method is required, `+"`storage_connection_string`"+` or `+"`storage_account` and `storage_access_key`"+`. If both are set then the `+"`storage_connection_string`"+` is given priority.

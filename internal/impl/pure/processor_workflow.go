@@ -239,7 +239,7 @@ processor_resources:
 				Default([]any{}),
 			service.NewStringListField(wflowProcFieldBranchResources).
 				Description("An optional list of [`branch` processor](/docs/components/processors/branch) names that are configured as [resources](#resources). These resources will be included in the workflow with any branches configured inline within the [`branches`](#branches) field. The order and parallelism in which branches are executed is automatically resolved based on the mappings of each branch. When using resources with an explicit order it is not necessary to list resources in this field.").
-				Version("3.38.0").
+				Version("1.0.0").
 				Advanced().
 				Default([]any{}),
 			service.NewObjectMapField(wflowProcFieldBranches, branchSpecFields()...).

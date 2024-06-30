@@ -30,7 +30,7 @@ func SessionFields() []*service.ConfigField {
 				Default("").Advanced(),
 			service.NewBoolField("from_ec2_role").
 				Description("Use the credentials of a host EC2 machine configured to assume [an IAM role associated with the instance](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html).").
-				Default(false).Version("4.2.0"),
+				Default(false).Version("1.0.0"),
 			service.NewStringField("role").
 				Description("A role ARN to assume.").
 				Default("").Advanced(),

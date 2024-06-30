@@ -44,7 +44,7 @@ func kfoConfigFromParsed(pConf *service.ParsedConfig) (conf kfoConfig, err error
 func kfoOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("3.36.0").
+		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends messages to a Kinesis Firehose delivery stream.`).
 		Description(`
