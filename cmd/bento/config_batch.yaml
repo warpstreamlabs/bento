@@ -1,0 +1,92 @@
+input: 
+  file:
+    paths: ["./cmd/bento/input.json"]
+    scanner:
+      json_documents: {}
+
+pipeline:
+  processors:
+
+    - noop: {}
+
+    - unarchive:
+        format: "json_array"
+  
+    - workflow_v2:
+        #metapath: ""
+
+        #       /--> B -------------|--> D
+        #      /                   /
+        # A --|          /--> E --|
+        #      \--> C --|          \
+        #                \----------|--> F
+
+        branches:
+          A:
+            processors:
+              - sleep:
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE A FINISHED
+
+          B:
+            dependency_list: ["A"]
+            processors:
+              - sleep: 
+                  duration: "3s"
+              - log:
+                  level: INFO
+                  message: STAGE B FINISHED
+
+          C:
+            dependency_list: ["A"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - branch:
+                  request_map: |
+                    root = if this.error == "error" {
+                      this
+                    } else {
+                      deleted()
+                    }
+                  processors:
+                    - log:
+                        level: WARN
+                        message: HELLO
+                    - http:
+                        url: asdfasdf
+              - log:
+                  level: INFO
+                  message: STAGE C FINISHED
+
+          D:
+            dependency_list: ["B", "E"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE D FINISHED
+
+          E:
+            dependency_list: ["C"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE E FINISHED
+
+          F:
+            dependency_list: ["C", "E"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE F FINISHED
+
+output:
+  stdout: {}
