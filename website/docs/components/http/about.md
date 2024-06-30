@@ -31,7 +31,7 @@ import TabItem from '@theme/TabItem';
 http:
   address: 0.0.0.0:4195
   enabled: true
-  root_path: /benthos
+  root_path: /bento
   debug_endpoints: false
 ```
 
@@ -44,7 +44,7 @@ http:
 http:
   address: 0.0.0.0:4195
   enabled: true
-  root_path: /benthos
+  root_path: /bento
   debug_endpoints: false
   cert_file: ""
   key_file: ""
@@ -138,7 +138,7 @@ Specifies a general prefix for all endpoints, this can help isolate the service 
 
 
 Type: `string`  
-Default: `"/benthos"`  
+Default: `"/bento"`  
 
 ### `debug_endpoints`
 

@@ -33,7 +33,7 @@ func NewConfig() Config {
 	return Config{
 		Address:        "0.0.0.0:4195",
 		Enabled:        true,
-		RootPath:       "/benthos",
+		RootPath:       "/bento",
 		DebugEndpoints: false,
 		CertFile:       "",
 		KeyFile:        "",
