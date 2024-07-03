@@ -2803,6 +2803,7 @@ Serializes a target value into a pretty-printed JSON byte array (with 4 space in
 
 **`indent`** &lt;string, default `"    "`&gt; Indentation string. Each element in a JSON object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.  
 **`no_indent`** &lt;bool, default `false`&gt; Disable indentation.  
+**`escape_html`** &lt;bool, default `true`&gt; Escape problematic HTML characters.  
 
 #### Examples
 
@@ -2845,6 +2846,30 @@ root = this.doc.format_json(no_indent: true)
 
 # In:  {"doc":{"foo":"bar"}}
 # Out: {"foo":"bar"}
+```
+
+Escapes problematic HTML characters.
+
+```coffee
+root = this.doc.format_json()
+
+# In:  {"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}
+# Out: {
+#          "email": "foo\u0026bar@bento.dev",
+#          "name": "foo\u003ebar"
+#      }
+```
+
+Set the `escape_html` parameter to false to disable escaping of problematic HTML characters.
+
+```coffee
+root = this.doc.format_json(escape_html: false)
+
+# In:  {"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}
+# Out: {
+#          "email": "foo&bar@bento.dev",
+#          "name": "foo>bar"
+#      }
 ```
 
 ### `format_msgpack`
