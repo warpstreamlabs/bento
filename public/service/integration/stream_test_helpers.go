@@ -511,7 +511,10 @@ func receiveMessage(
 	require.NoError(t, ackFn(ctx, err))
 	require.Len(t, b, 1)
 
-	return b.Get(0)
+	msg := b.Get(0)
+	require.NoError(t, msg.ErrorGet())
+
+	return msg
 }
 
 func receiveBatch(
