@@ -47,6 +47,7 @@ In order to avoid permanent loops any error associated with messages as they fir
 ## Metadata
 
 This processor adds the following metadata fields to each message:
+
 ```text
 - retry_count - The number of retry attempts.
 - backoff_duration - The total time elapsed while performing retries.
