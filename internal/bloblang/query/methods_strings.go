@@ -1246,6 +1246,22 @@ var _ = registerSimpleMethod(
 			`{"doc":{"foo":"bar"}}`,
 			`{"foo":"bar"}`,
 		),
+		NewExampleSpec("Escapes problematic HTML characters.",
+			`root = this.doc.format_json()`,
+			`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`,
+			`{
+    "email": "foo\u0026bar@bento.dev",
+    "name": "foo\u003ebar"
+}`,
+		),
+		NewExampleSpec("Set the `escape_html` parameter to false to disable escaping of problematic HTML characters.",
+			`root = this.doc.format_json(escape_html: false)`,
+			`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`,
+			`{
+    "email": "foo&bar@bento.dev",
+    "name": "foo>bar"
+}`,
+		),
 	).
 		Beta().
 		Param(ParamString(
@@ -1255,7 +1271,11 @@ var _ = registerSimpleMethod(
 		Param(ParamBool(
 			"no_indent",
 			"Disable indentation.",
-		).Default(false)),
+		).Default(false)).
+		Param(ParamBool(
+			"escape_html",
+			"Escape problematic HTML characters.",
+		).Default(true)),
 	func(args *ParsedParams) (simpleMethod, error) {
 		indentOpt, err := args.FieldOptionalString("indent")
 		if err != nil {
@@ -1269,11 +1289,29 @@ var _ = registerSimpleMethod(
 		if err != nil {
 			return nil, err
 		}
+		escapeHTMLOpt, err := args.FieldOptionalBool("escape_html")
+		if err != nil {
+			return nil, err
+		}
 		return func(v any, ctx FunctionContext) (any, error) {
-			if *noIndentOpt {
-				return json.Marshal(v)
+			buffer := &bytes.Buffer{}
+
+			encoder := json.NewEncoder(buffer)
+			if !*noIndentOpt {
+				encoder.SetIndent("", indent)
 			}
-			return json.MarshalIndent(v, "", indent)
+			if !*escapeHTMLOpt {
+				encoder.SetEscapeHTML(false)
+			}
+
+			if err := encoder.Encode(v); err != nil {
+				return nil, err
+			}
+
+			// This hack is here because `format_json()` initially relied on `json.Marshal()` or `json.MarshalIndent()`
+			// which don't add a trailing newline to the output and, also, other `format_*` methods in bloblang don't
+			// append a trailing newline.
+			return bytes.TrimRight(buffer.Bytes(), "\n"), nil
 		}, nil
 	},
 )

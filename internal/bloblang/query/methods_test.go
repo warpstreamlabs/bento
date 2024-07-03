@@ -115,11 +115,21 @@ func TestMethods(t *testing.T) {
 				jsonFn(`{"doc":{"foo":"bar"}}`),
 				method("format_json", ""),
 			),
-			output: []byte(`{
-"doc": {
-"foo": "bar"
-}
-}`),
+			output: []byte(`{"doc":{"foo":"bar"}}`),
+		},
+		"check format_json with escaping problematic HTML characters": {
+			input: methods(
+				jsonFn(`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`),
+				method("format_json", ""),
+			),
+			output: []byte(`{"doc":{"email":"foo\u0026bar@bento.dev","name":"foo\u003ebar"}}`),
+		},
+		"check format_json without escaping problematic HTML characters": {
+			input: methods(
+				jsonFn(`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`),
+				method("format_json", "", true, false),
+			),
+			output: []byte(`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`),
 		},
 		"check format_yaml": {
 			input: methods(
