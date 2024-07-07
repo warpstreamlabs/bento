@@ -3,6 +3,7 @@ title: workflow_v2
 slug: workflow_v2
 type: processor
 status: experimental
+categories: ["Composition"]
 ---
 
 <!--
@@ -17,32 +18,98 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
+Executes a topology of [`branch` processors][processors.branch], performing them in parallel where possible.
 
 ```yml
 # Config fields, showing default values
 label: ""
 workflow_v2:
-  metapath: meta.workflow
+  metapath: meta.workflow_v2
   branches:
     request_map: ""
     processors: [] # No default (required)
     result_map: ""
-    dependency_list: [] # No default (required)
+    dependency_list: []
 ```
+
+## workflow vs workflow_v2
+
+The workflow_v2 processor is an evolution of the original [`workflow` processor][processors.workflow]. The two key differences are: a change to the way the topology of branch processors are defined & an enhancement that increases the parallelism of the DAG execution. Also, the original workflow processor has some features such as: implicitly creating the DAG based upon the request_map & result_map field of the branch processors, which have been dropped in workflow_v2. 
+
+### Processor Topology Definition 
+
+With the workflow_v2 processor you provide an explicit list of the dependencies for each node in the graph. Take the following for a simple example:
+
+```text
+     /--> B --\
+A --|          |--> D
+     \--> C --/
+```
+
+```yaml
+pipeline:
+  processors:
+    - workflow_v2:
+        branches:
+          A:
+            processors:
+              - noop: {}
+
+          B:
+            dependency_list: ["A"]
+            processors:
+              - noop: {}
+
+          C:
+            dependency_list: ["A"]
+            processors:
+              - noop: {}
+
+          D:
+            dependency_list: ["B", "C"]
+            processors:
+              - noop: {}
+```
+
+### Execution Ordering
+
+The workflow processor executes a DAG of branch processors, "performing them in parallel where possible". However the workflow processor uses a dependency solver that takes the approach: resolve the DAG into series of steps where the steps are performed sequentially but the processors in each step are performed in parallel. This means that there can be a situation where a step could be waiting for all the nodes in the previous step: _even though all dependencies for the step are ready_.
+
+Consider the following DAG, from the workflow processor docs:
+
+```text
+      /--> B -------------|--> D
+     /                   /
+A --|          /--> E --|
+     \--> C --|          \
+               \----------|--> F
+```
+
+The dependency solver would resolve the DAG into a series of stages: 
+
+```text
+[ [ A ], [ B, C ], [ E ], [ D, F ] ]
+```
+
+Consider the Node E on the graph, we can see the that full dependency of this node would be : A -> C -> E, however in the stage before [ E ], there is the node B so in the original workflow processor, E would not execute until B has finished _even though there is no dependency of B for E_.
+
+This workflow_v2 processor takes a different approach, a state for each node is maintained giving greater control to the execution of each node such that when a node's dependency list is fulfilled it will start executing. Also in the case where you are processing a batch of messages in the original workflow processor, each node in the DAG must process all messages in the batch before moving to the next stage, the workflow_v2 processor does not have this limitation.
+
+
 
 ## Fields
 
 ### `metapath`
 
-A [dot path](/docs/configuration/field_paths) indicating where to store and reference [structured metadata](#structured-metadata) about the workflow execution.
+A [dot path](/docs/configuration/field_paths) indicating where to store and reference structured metadata about the workflow_v2 execution.
 
 
 Type: `string`  
-Default: `"meta.workflow"`  
+Default: `"meta.workflow_v2"`  
 
 ### `branches`
 
-An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow. The order and parallelism in which branches are executed can either be made explicit with the field `order`, or if omitted an attempt is made to automatically resolve an ordering based on the mappings of each branch.
+An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow_v2.
 
 
 Type: `object`  
@@ -115,9 +182,22 @@ result_map: |-
 
 ### `branches.<name>.dependency_list`
 
-Sorry! This field is missing documentation.
+This is a list of nodes that this node is dependent upon.
 
 
 Type: `array`  
+Default: `[]`  
+
+[dag_wiki]: https://en.wikipedia.org/wiki/Directed_acyclic_graph
+[processors.switch]: /docs/components/processors/switch
+[processors.http]: /docs/components/processors/http
+[processors.aws_lambda]: /docs/components/processors/aws_lambda
+[processors.cache]: /docs/components/processors/cache
+[processors.branch]: /docs/components/processors/branch
+[processors.workflow]: /docs/components/processors/workflow
+[guides.bloblang]: /docs/guides/bloblang/about
+[configuration.pipelines]: /docs/configuration/processing_pipelines
+[configuration.error-handling]: /docs/configuration/error_handling
+[configuration.resources]: /docs/configuration/resources
 
 

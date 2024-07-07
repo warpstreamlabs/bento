@@ -27,17 +27,99 @@ const (
 
 func workflowProcSpecV2() *service.ConfigSpec {
 	return service.NewConfigSpec().
+		Categories("Composition").
+		Summary(`Executes a topology of `+"[`branch` processors][processors.branch]"+`, performing them in parallel where possible.`).
+		Description(`
+## workflow vs workflow_v2
+
+The workflow_v2 processor is an evolution of the original `+"[`workflow` processor][processors.workflow]"+`. The two key differences are: a change to the way the topology of branch processors are defined & an enhancement that increases the parallelism of the DAG execution. Also, the original workflow processor has some features such as: implicitly creating the DAG based upon the request_map & result_map field of the branch processors, which have been dropped in workflow_v2. 
+
+### Processor Topology Definition 
+
+With the workflow_v2 processor you provide an explicit list of the dependencies for each node in the graph. Take the following for a simple example:
+
+`+"```text"+`
+     /--> B --\
+A --|          |--> D
+     \--> C --/
+`+"```"+`
+
+`+"```yaml"+`
+pipeline:
+  processors:
+    - workflow_v2:
+        branches:
+          A:
+            processors:
+              - noop: {}
+
+          B:
+            dependency_list: ["A"]
+            processors:
+              - noop: {}
+
+          C:
+            dependency_list: ["A"]
+            processors:
+              - noop: {}
+
+          D:
+            dependency_list: ["B", "C"]
+            processors:
+              - noop: {}
+`+"```"+`
+
+### Execution Ordering
+
+The workflow processor executes a DAG of branch processors, "performing them in parallel where possible". However the workflow processor uses a dependency solver that takes the approach: resolve the DAG into series of steps where the steps are performed sequentially but the processors in each step are performed in parallel. This means that there can be a situation where a step could be waiting for all the nodes in the previous step: _even though all dependencies for the step are ready_.
+
+Consider the following DAG, from the workflow processor docs:
+
+`+"```text"+`
+      /--> B -------------|--> D
+     /                   /
+A --|          /--> E --|
+     \--> C --|          \
+               \----------|--> F
+`+"```"+`
+
+The dependency solver would resolve the DAG into a series of stages: 
+
+`+"```text"+`
+[ [ A ], [ B, C ], [ E ], [ D, F ] ]
+`+"```"+`
+
+Consider the Node E on the graph, we can see the that full dependency of this node would be : A -> C -> E, however in the stage before [ E ], there is the node B so in the original workflow processor, E would not execute until B has finished _even though there is no dependency of B for E_.
+
+This workflow_v2 processor takes a different approach, a state for each node is maintained giving greater control to the execution of each node such that when a node's dependency list is fulfilled it will start executing. Also in the case where you are processing a batch of messages in the original workflow processor, each node in the DAG must process all messages in the batch before moving to the next stage, the workflow_v2 processor does not have this limitation.
+
+`).
+		Footnotes(`
+[dag_wiki]: https://en.wikipedia.org/wiki/Directed_acyclic_graph
+[processors.switch]: /docs/components/processors/switch
+[processors.http]: /docs/components/processors/http
+[processors.aws_lambda]: /docs/components/processors/aws_lambda
+[processors.cache]: /docs/components/processors/cache
+[processors.branch]: /docs/components/processors/branch
+[processors.workflow]: /docs/components/processors/workflow
+[guides.bloblang]: /docs/guides/bloblang/about
+[configuration.pipelines]: /docs/configuration/processing_pipelines
+[configuration.error-handling]: /docs/configuration/error_handling
+[configuration.resources]: /docs/configuration/resources
+`).
 		Fields(
 			service.NewStringField(wflowProcFieldMetaPathV2).
-				Description("A [dot path](/docs/configuration/field_paths) indicating where to store and reference [structured metadata](#structured-metadata) about the workflow_v2 execution.").
+				Description("A [dot path](/docs/configuration/field_paths) indicating where to store and reference structured metadata about the workflow_v2 execution.").
 				Default("meta.workflow_v2"),
 			service.NewObjectMapField(wflowProcFieldBranchesV2, workflowv2BranchSpecFields()...).
-				Description("An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow_v2. The order and parallelism in which branches are executed can either be made explicit with the field `order`, or if omitted an attempt is made to automatically resolve an ordering based on the mappings of each branch."))
+				Description("An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow_v2."))
 }
 
 func workflowv2BranchSpecFields() []*service.ConfigField {
 	branchSpecFields := branchSpecFields()
-	dependencyList := service.NewStringListField(wflowProcFieldDependencyListV2)
+	dependencyList := service.NewStringListField(wflowProcFieldDependencyListV2).
+		Description("This is a list of nodes that this node is dependent upon.").
+		Default([]string{})
 	workflowV2BranchSpecFields := append(branchSpecFields, dependencyList)
 	return workflowV2BranchSpecFields
 }
@@ -128,17 +210,17 @@ type resultTrackerV2 struct {
 	sync.Mutex
 }
 
-func createTrackerFromDependencies(dependencies map[string][]string, skipList map[string]struct{}, batch_size int) *resultTrackerV2 {
+func createTrackerFromDependencies(dependencies map[string][]string, skipList map[string]struct{}, batchSize int) *resultTrackerV2 {
 	r := &resultTrackerV2{
-		notStarted:        make([]map[string]struct{}, batch_size),
-		started:           make([]map[string]struct{}, batch_size),
-		succeeded:         make([]map[string]struct{}, batch_size),
-		skipped:           make([]map[string]struct{}, batch_size),
-		failed:            make([]map[string]string, batch_size),
-		dependencyTracker: make([]map[string][]string, batch_size),
+		notStarted:        make([]map[string]struct{}, batchSize),
+		started:           make([]map[string]struct{}, batchSize),
+		succeeded:         make([]map[string]struct{}, batchSize),
+		skipped:           make([]map[string]struct{}, batchSize),
+		failed:            make([]map[string]string, batchSize),
+		dependencyTracker: make([]map[string][]string, batchSize),
 	}
 
-	for i := 0; i < batch_size; i++ {
+	for i := 0; i < batchSize; i++ {
 		r.notStarted[i] = make(map[string]struct{})
 		r.started[i] = make(map[string]struct{})
 		r.succeeded[i] = make(map[string]struct{})
@@ -159,7 +241,7 @@ func createTrackerFromDependencies(dependencies map[string][]string, skipList ma
 		}
 	}
 
-	for i := 0; i < batch_size; i++ {
+	for i := 0; i < batchSize; i++ {
 		for k := range skipList {
 			r.Skipped(i, k)
 			r.RemoveFromDepTracker(i, k)
@@ -214,10 +296,10 @@ func (r *resultTrackerV2) RemoveFromDepTracker(i int, k string) {
 	}
 }
 
-func (r *resultTrackerV2) isFinished(batch_size int) bool {
+func (r *resultTrackerV2) isFinished(batchSize int) bool {
 	r.Lock()
 	defer r.Unlock()
-	for i := 0; i < batch_size; i++ {
+	for i := 0; i < batchSize; i++ {
 		if len(r.succeeded[i])+len(r.failed[i])+len(r.skipped[i]) != r.numberOfBranches {
 			return true
 		}
@@ -225,10 +307,10 @@ func (r *resultTrackerV2) isFinished(batch_size int) bool {
 	return false
 }
 
-func (r *resultTrackerV2) getAReadyBranch(batch_size int) (int, string, bool) {
+func (r *resultTrackerV2) getAReadyBranch(batchSize int) (int, string, bool) {
 	r.Lock()
 	defer r.Unlock()
-	for i := 0; i < batch_size; i++ {
+	for i := 0; i < batchSize; i++ {
 		for eid := range r.notStarted[i] {
 			if len(r.dependencyTracker[i][eid]) == 0 {
 				return i, eid, false
@@ -370,7 +452,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 	type collector struct {
 		eid        string
-		mssgPartId int
+		mssgPartID int
 		results    [][]*message.Part
 		errors     []error
 	}
@@ -381,12 +463,12 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		for {
 			mssge := <-batchResultChan
 			var failed []branchMapError
-			err := mssge.errors[mssge.mssgPartId]
+			err := mssge.errors[mssge.mssgPartID]
 
 			// bodgy
 			resultsBodge := make([]*message.Part, msg.Len())
 			xxx := mssge.results[0]
-			resultsBodge[mssge.mssgPartId] = xxx[0]
+			resultsBodge[mssge.mssgPartID] = xxx[0]
 
 			if err == nil {
 				failed, err = children[mssge.eid].overlayResult(msg, resultsBodge)
@@ -394,12 +476,11 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			if err != nil {
 				w.mError.Incr(1)
 				w.log.Error("Failed to perform enrichment '%v': %v\n", mssge.eid, err)
-				records.FailedV2(mssge.mssgPartId, mssge.eid, err.Error())
+				records.FailedV2(mssge.mssgPartID, mssge.eid, err.Error())
 			}
 			for _, e := range failed {
-				records.FailedV2(mssge.mssgPartId, mssge.eid, e.err.Error())
+				records.FailedV2(mssge.mssgPartID, mssge.eid, e.err.Error())
 			}
-			err = nil
 		}
 	}()
 
@@ -444,7 +525,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			}
 			batchResult := collector{
 				eid:        id,
-				mssgPartId: i,
+				mssgPartID: i,
 				results:    results,
 				errors:     errors,
 			}
