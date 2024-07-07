@@ -23,18 +23,18 @@ bento create nats/protobuf/aws_sqs > ./config.yaml
 # Run
 bento -c ./config.yaml`
   },
-  {
-    label: 'Homebrew',
-    language: 'bash',
-    children: `# Install
-brew install benthos
+//   {
+//     label: 'Homebrew',
+//     language: 'bash',
+//     children: `# Install
+// brew install benthos
 
-# Make a config
-bento create nats/protobuf/aws_sqs > ./config.yaml
+// # Make a config
+// bento create nats/protobuf/aws_sqs > ./config.yaml
 
-# Run
-bento -c ./config.yaml`
-  },
+// # Run
+// bento -c ./config.yaml`
+//   },
   {
     label: 'Docker',
     language: 'bash',
@@ -47,20 +47,20 @@ docker run --rm ghcr.io/warpstreamlabs/bento create nats/protobuf/aws_sqs > ./co
 # Run
 docker run --rm -v $(pwd)/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento`
   },
-  {
-    label: 'Asdf',
-    language: 'bash',
-    children: `# Install
-asdf plugin add benthos
-asdf install benthos latest
-asdf global benthos latest
+//   {
+//     label: 'Asdf',
+//     language: 'bash',
+//     children: `# Install
+// asdf plugin add benthos
+// asdf install benthos latest
+// asdf global benthos latest
 
-# Make a config
-bento create nats/protobuf/aws_sqs > ./config.yaml
+// # Make a config
+// bento create nats/protobuf/aws_sqs > ./config.yaml
 
-# Run
-bento -c ./config.yaml`
-  },
+// # Run
+// bento -c ./config.yaml`
+//   },
 ]
 
 const snippets = [
