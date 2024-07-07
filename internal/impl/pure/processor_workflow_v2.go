@@ -225,17 +225,17 @@ func (r *resultTrackerV2) isFinished(batch_size int) bool {
 	return false
 }
 
-func (r *resultTrackerV2) getAReadyBranch(batch_size int) (int, string) {
+func (r *resultTrackerV2) getAReadyBranch(batch_size int) (int, string, bool) {
 	r.Lock()
 	defer r.Unlock()
 	for i := 0; i < batch_size; i++ {
 		for eid := range r.notStarted[i] {
 			if len(r.dependencyTracker[i][eid]) == 0 {
-				return i, eid
+				return i, eid, false
 			}
 		}
 	}
-	return 999, "XXX" // TODO
+	return 0, "", true
 }
 
 func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
@@ -383,6 +383,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			var failed []branchMapError
 			err := mssge.errors[mssge.mssgPartId]
 
+			// bodgy
 			resultsBodge := make([]*message.Part, msg.Len())
 			xxx := mssge.results[0]
 			resultsBodge[mssge.mssgPartId] = xxx[0]
@@ -403,8 +404,8 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	}()
 
 	for records.isFinished(msg.Len()) {
-		i, eid := records.getAReadyBranch(msg.Len())
-		if i == 999 && eid == "XXX" { // TODO
+		i, eid, isNonFound := records.getAReadyBranch(msg.Len())
+		if isNonFound {
 			continue
 		}
 		records.Started(i, eid)
@@ -427,6 +428,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 			var mapErrs []branchMapError
 
+			// bodgy:
 			testPart := branchParts[i]
 			xxxPart := make([]*message.Part, 1)
 			xxxPart[0] = testPart
