@@ -59,7 +59,7 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-// Workflow is a processor that applies a list of child processors to a new TODO
+// WorkflowV2 is a processor that applies a list of child processors to a new
 // payload mapped from the original, and after processing attempts to overlay
 // the results back onto the original payloads according to more mappings.
 type WorkflowV2 struct {
@@ -79,7 +79,7 @@ type WorkflowV2 struct {
 	mLatency       metrics.StatTimer
 }
 
-// NewWorkflow instanciates a new workflow processor. TODO
+// NewWorkflowV2 instanciates a new workflow processor.
 func NewWorkflowV2(conf *service.ParsedConfig, mgr bundle.NewManagement) (*WorkflowV2, error) {
 
 	stats := mgr.Metrics()
@@ -428,7 +428,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 			var mapErrs []branchMapError
 
-			// bodgy:
+			// bodgy
 			testPart := branchParts[i]
 			xxxPart := make([]*message.Part, 1)
 			xxxPart[0] = testPart
