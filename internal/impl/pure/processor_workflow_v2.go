@@ -378,19 +378,27 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	batchResultChan := make(chan collector)
 
 	go func() {
-		mssge := <-batchResultChan
-		var failed []branchMapError
-		err := mssge.errors[mssge.mssgPartId]
-		// if err == nil { TODO
-		// 	failed, err = children[mssge.eid].overlayResult(msg, mssge.results[0])
-		// }
-		if err != nil {
-			w.mError.Incr(1)
-			w.log.Error("Failed to perform enrichment '%v': %v\n", mssge.eid, err)
-			records.FailedV2(mssge.mssgPartId, mssge.eid, err.Error())
-		}
-		for _, e := range failed {
-			records.FailedV2(mssge.mssgPartId, mssge.eid, e.err.Error())
+		for {
+			mssge := <-batchResultChan
+			var failed []branchMapError
+			err := mssge.errors[mssge.mssgPartId]
+
+			resultsBodge := make([]*message.Part, msg.Len())
+			xxx := mssge.results[0]
+			resultsBodge[mssge.mssgPartId] = xxx[0]
+
+			if err == nil {
+				failed, err = children[mssge.eid].overlayResult(msg, resultsBodge)
+			}
+			if err != nil {
+				w.mError.Incr(1)
+				w.log.Error("Failed to perform enrichment '%v': %v\n", mssge.eid, err)
+				records.FailedV2(mssge.mssgPartId, mssge.eid, err.Error())
+			}
+			for _, e := range failed {
+				records.FailedV2(mssge.mssgPartId, mssge.eid, e.err.Error())
+			}
+			err = nil
 		}
 	}()
 
@@ -422,7 +430,9 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			testPart := branchParts[i]
 			xxxPart := make([]*message.Part, 1)
 			xxxPart[0] = testPart
+
 			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, propMsg.ShallowCopy())
+
 			for _, s := range branchSpans {
 				s.Finish()
 			}
@@ -453,7 +463,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 			gObj := gabs.Wrap(pJSON)
 			previous := gObj.S(w.metaPath...).Data()
-			current := records.ToObjectV2(i) // CALL
+			current := records.ToObjectV2(i)
 			if previous != nil {
 				current["previous"] = previous
 			}

@@ -10,9 +10,10 @@ pipeline:
     - unarchive:
         format: "json_array"
   
-    - workflow_v2:
+    - workflow:
+        order: [ [ A ], [ B, C ], [ E ], [ D, F ] ]
 
-        #       /--> B -------------|--> D
+        #       /--> B -------------|--> Ds
         #      /                   /
         # A --|          /--> E --|
         #      \--> C --|          \
@@ -21,19 +22,13 @@ pipeline:
         branches:
           A:
             processors:
-              - mapping: |
-                  root = this
-                  root.branch_a = "hello world from branch A"
               - sleep:
                   duration: "1s"
               - log:
                   level: INFO
                   message: STAGE A FINISHED
-            result_map: |
-                root = this
 
           B:
-            dependency_list: ["A"]
             processors:
               - sleep: 
                   duration: "3s"
@@ -42,7 +37,6 @@ pipeline:
                   message: STAGE B FINISHED
 
           C:
-            dependency_list: ["A"]
             processors:
               - sleep: 
                   duration: "1s"
@@ -64,16 +58,19 @@ pipeline:
                   message: STAGE C FINISHED
 
           D:
-            dependency_list: ["B", "E"]
             processors:
+              - mapping: |
+                  root = this
+                  root.test = "hello world"
               - sleep: 
                   duration: "1s"
               - log:
                   level: INFO
                   message: STAGE D FINISHED
+            result_map: |
+                root = this
 
           E:
-            dependency_list: ["C"]
             processors:
               - sleep: 
                   duration: "1s"
@@ -82,18 +79,12 @@ pipeline:
                   message: STAGE E FINISHED
 
           F:
-            dependency_list: ["C", "E"]
             processors:
-              - mapping: |
-                  root = this
-                  root.branch_f = "hello world from branch F"
               - sleep: 
                   duration: "1s"
               - log:
                   level: INFO
                   message: STAGE F FINISHED
-            result_map: |
-                root = this
 
 output:
   stdout: {}
