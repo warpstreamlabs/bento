@@ -29,13 +29,13 @@ func workflowProcSpecV2() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Fields(
 			service.NewStringField(wflowProcFieldMetaPathV2).
-				Description("A [dot path](/docs/configuration/field_paths) indicating where to store and reference [structured metadata](#structured-metadata) about the workflow execution.").
-				Default("meta.workflow"),
-			service.NewObjectMapField(wflowProcFieldBranchesV2, workflowBranchSpecFields()...).
-				Description("An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow. The order and parallelism in which branches are executed can either be made explicit with the field `order`, or if omitted an attempt is made to automatically resolve an ordering based on the mappings of each branch."))
+				Description("A [dot path](/docs/configuration/field_paths) indicating where to store and reference [structured metadata](#structured-metadata) about the workflow_v2 execution.").
+				Default("meta.workflow_v2"),
+			service.NewObjectMapField(wflowProcFieldBranchesV2, workflowv2BranchSpecFields()...).
+				Description("An object of named [`branch` processors](/docs/components/processors/branch) that make up the workflow_v2. The order and parallelism in which branches are executed can either be made explicit with the field `order`, or if omitted an attempt is made to automatically resolve an ordering based on the mappings of each branch."))
 }
 
-func workflowBranchSpecFields() []*service.ConfigField {
+func workflowv2BranchSpecFields() []*service.ConfigField {
 	branchSpecFields := branchSpecFields()
 	dependencyList := service.NewStringListField(wflowProcFieldDependencyListV2)
 	workflowV2BranchSpecFields := append(branchSpecFields, dependencyList)
@@ -79,7 +79,7 @@ type WorkflowV2 struct {
 	mLatency       metrics.StatTimer
 }
 
-// NewWorkflowV2 instanciates a new workflow processor.
+// NewWorkflowV2 instanciates a new workflow_v2 processor.
 func NewWorkflowV2(conf *service.ParsedConfig, mgr bundle.NewManagement) (*WorkflowV2, error) {
 
 	stats := mgr.Metrics()
@@ -332,7 +332,7 @@ func (w *WorkflowV2) skipFromMetaV2(root any) map[string]struct{} {
 	return skipList
 }
 
-// ProcessBatch applies workflow stages to each part of a message type.
+// ProcessBatch applies workflow_v2 stages to each part of a message type.
 func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]message.Batch, error) {
 	w.mReceived.Incr(int64(msg.Len()))
 	w.mBatchReceived.Incr(1)
@@ -342,7 +342,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	children, dependencies, unlock, err := w.children.LockV2()
 	if err != nil {
 		w.mError.Incr(1)
-		w.log.Error("Failed to establish workflow: %v\n", err)
+		w.log.Error("Failed to establish workflow_v2: %v\n", err)
 
 		_ = msg.Iter(func(i int, p *message.Part) error {
 			p.ErrorSet(err)
@@ -364,7 +364,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		return nil
 	})
 
-	propMsg, _ := tracing.WithChildSpans(w.tracer, "workflow", msg)
+	propMsg, _ := tracing.WithChildSpans(w.tracer, "workflow_v2", msg)
 
 	records := createTrackerFromDependencies(dependencies, skipOnMeta, msg.Len())
 
@@ -478,7 +478,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		_ = msg.Iter(func(i int, p *message.Part) error {
 			for _, m := range records.failed {
 				for _, value := range m {
-					p.ErrorSet(fmt.Errorf("workflow branches failed: %v", value))
+					p.ErrorSet(fmt.Errorf("workflow_v2 branches failed: %v", value))
 				}
 			}
 			return nil

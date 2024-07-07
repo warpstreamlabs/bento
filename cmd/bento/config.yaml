@@ -14,11 +14,16 @@ pipeline:
         branches:
           A:
             processors:
+              - mapping: |
+                  root = this
+                  root.branch_a = "hello world from branch A"
               - sleep:
                   duration: "1s"
               - log:
                   level: INFO
                   message: STAGE A FINISHED
+            result_map: |
+                root = this
 
           B:
             dependency_list: ["A"]
@@ -52,8 +57,6 @@ pipeline:
             processors:
               - sleep: 
                   duration: "1s"
-              # - http: 
-              #     url: asdf
               - log:
                   level: INFO
                   message: STAGE E FINISHED
@@ -61,11 +64,17 @@ pipeline:
           F:
             dependency_list: ["C", "E"]
             processors:
+              - mapping: |
+                  root = this
+                  root.branch_f = "hello world from branch F"
               - sleep: 
                   duration: "1s"
               - log:
                   level: INFO
                   message: STAGE F FINISHED
+            result_map: |
+                root = this
+
 
 output:
   stdout: {}
