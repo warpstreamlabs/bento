@@ -242,8 +242,8 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	succeeded := make([]any, 0, len(r.succeeded[i]))
 	notStarted := make([]any, 0, len(r.notStarted[i]))
 	started := make([]any, 0, len(r.started[i]))
-	skipped := make([]any, 0, len(r.skipped))
-	failed := make([]map[string]any, len(r.failed[i]))
+	skipped := make([]any, 0, len(r.skipped[i]))
+	failed := make(map[string]any, len(r.failed))
 
 	for k := range r.succeeded[i] {
 		succeeded = append(succeeded, k)
@@ -260,12 +260,8 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	for k := range r.skipped[i] {
 		skipped = append(skipped, k)
 	}
-
-	if len(r.failed[i]) > 0 {
-		failed[i] = make(map[string]any)
-		for k, v := range r.failed[i] {
-			failed[i][k] = v
-		}
+	for k, v := range r.failed[i] {
+		failed[k] = v
 	}
 
 	m := map[string]any{}
@@ -281,7 +277,7 @@ func (r *resultTrackerV2) ToObjectV2(i int) map[string]any {
 	if len(skipped) > 0 {
 		m["skipped"] = skipped
 	}
-	if len(failed) > 0 && len(failed[i]) > 0 {
+	if len(failed) > 0 {
 		m["failed"] = failed
 	}
 	return m
@@ -457,7 +453,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 
 			gObj := gabs.Wrap(pJSON)
 			previous := gObj.S(w.metaPath...).Data()
-			current := records.ToObjectV2(i)
+			current := records.ToObjectV2(i) // CALL
 			if previous != nil {
 				current["previous"] = previous
 			}
