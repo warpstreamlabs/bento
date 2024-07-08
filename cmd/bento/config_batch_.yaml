@@ -54,14 +54,19 @@ pipeline:
                       deleted()
                     }
                   processors:
-                    - sleep: 
-                        duration: "15s"
                     - log:
                         level: WARN
                         message: HELLO
-              - log:
-                  level: INFO
-                  message: STAGE C FINISHED
+                    - mapping: |
+                        root = this
+                        root.branch_c = "hello world from branch C"
+                    - log:
+                        level: INFO
+                        message: STAGE C FINISHED
+                  result_map: |
+                      root = this
+            result_map: |
+                root = this
 
           D:
             dependency_list: ["B", "E"]
