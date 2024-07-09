@@ -13,68 +13,47 @@ pipeline:
 
         branches:
           A:
+            request_map: |
+                root = this
             processors:
               - mapping: |
                   root = this
-                  root.branch_a = "hello, from branch A"
-              - sleep:
-                  duration: "1s"
-              - log:
-                  level: INFO
-                  message: STAGE A FINISHED
+                  root.english = "hello"
             result_map: |
                 root = this
 
           B:
             dependency_list: ["A"]
-            processors:
-              - sleep: 
-                  duration: "5s"
-              - log:
-                  level: INFO
-                  message: STAGE B FINISHED
-
-          C:
-            dependency_list: ["A"]
-            processors:
-              - sleep: 
-                  duration: "1s"
-              - log:
-                  level: INFO
-                  message: STAGE C FINISHED
-
-          D:
-            dependency_list: ["B", "E"]
-            processors:
-              - sleep: 
-                  duration: "1s"
-              - log:
-                  level: INFO
-                  message: STAGE D FINISHED
-
-          E:
-            dependency_list: ["C"]
-            processors:
-              - sleep: 
-                  duration: "1s"
-              - log:
-                  level: INFO
-                  message: STAGE E FINISHED
-
-          F:
-            dependency_list: ["C", "E"]
+            request_map: |
+                root = this
             processors:
               - mapping: |
                   root = this
-                  root.branch_f = "hello, from branch F"
-              - sleep: 
-                  duration: "1s"
-              - log:
-                  level: INFO
-                  message: STAGE F FINISHED
+                  root.french = "bonjour"
             result_map: |
                 root = this
 
+          C:
+            dependency_list: ["A"]
+            request_map: |
+                root = this
+            processors:
+              - mapping: |
+                  root = this
+                  root.thai = "สวัสดี"
+            result_map: |
+                root = this
+
+          D:
+            dependency_list: ["B", "C"]
+            request_map: |
+                root = this
+            processors:
+              - mapping: |
+                  root = this
+                  root.chinese = "你好"
+            result_map: |
+                root = this
 
 output:
   stdout: {}
