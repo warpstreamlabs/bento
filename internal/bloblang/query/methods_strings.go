@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc32"
+	"hash/fnv"
 	"html"
 	"io"
 	"net/url"
@@ -759,7 +760,7 @@ var _ = registerSimpleMethod(
 		`
 Hashes a string or byte array according to a chosen algorithm and returns the result as a byte array. When mapping the result to a JSON field the value should be cast to a string using the method `+"[`string`][methods.string], or encoded using the method [`encode`][methods.encode]"+`, otherwise it will be base64 encoded by default.
 
-Available algorithms are: `+"`hmac_sha1`, `hmac_sha256`, `hmac_sha512`, `md5`, `sha1`, `sha256`, `sha512`, `xxhash64`, `crc32`"+`.
+Available algorithms are: `+"`hmac_sha1`, `hmac_sha256`, `hmac_sha512`, `md5`, `sha1`, `sha256`, `sha512`, `xxhash64`, `crc32`, `fnv32`"+`.
 
 The following algorithms require a key, which is specified as a second argument: `+"`hmac_sha1`, `hmac_sha256`, `hmac_sha512`"+`.`,
 		NewExampleSpec("",
@@ -869,6 +870,12 @@ root.h2 = this.value.hash(algorithm: "crc32", polynomial: "Koopman").encode("hex
 				}
 				_, _ = hasher.Write(b)
 				return hasher.Sum(nil), nil
+			}
+		case "fnv32":
+			hashFn = func(b []byte) ([]byte, error) {
+				h := fnv.New32()
+				_, _ = h.Write(b)
+				return []byte(strconv.FormatUint(uint64(h.Sum32()), 10)), nil
 			}
 		default:
 			return nil, fmt.Errorf("unrecognized hash type: %v", algorithmStr)

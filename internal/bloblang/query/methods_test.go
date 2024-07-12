@@ -873,6 +873,14 @@ func TestMethods(t *testing.T) {
 			),
 			err: `string literal: unsupported crc32 hash key "not-supported"`,
 		},
+		"check fnv32 hash": {
+			input: methods(
+				literalFn("hello world"),
+				method("hash", "fnv32"),
+				method("string"),
+			),
+			output: "1418570095",
+		},
 		"check hex encode": {
 			input: methods(
 				literalFn("hello world"),
