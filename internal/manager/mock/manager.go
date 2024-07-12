@@ -378,6 +378,13 @@ func (m *Manager) GetGeneric(key any) (any, bool) {
 	return m.genericValues.Load(key)
 }
 
+// GetOrSetGeneric attempts to obtain an existing value for a given key if
+// present. Otherwise, it stores and returns the provided value. The loaded
+// result is true if the value was loaded, false if stored.
+func (m *Manager) GetOrSetGeneric(key, value any) (actual any, loaded bool) {
+	return m.genericValues.LoadOrStore(key, value)
+}
+
 // SetGeneric attempts to set a generic resource to a given value by key.
 func (m *Manager) SetGeneric(key, value any) {
 	m.genericValues.Store(key, value)

@@ -564,3 +564,16 @@ func TestManagerGenericResources(t *testing.T) {
 	assert.True(t, exists)
 	assert.Equal(t, "bar", v)
 }
+
+func TestManagerGenericGetOrSet(t *testing.T) {
+	mgr, err := manager.New(manager.NewResourceConfig())
+	require.NoError(t, err)
+
+	v, loaded := mgr.GetOrSetGeneric(testKeyA, "foo")
+	assert.False(t, loaded)
+	assert.Equal(t, "foo", v)
+
+	v, loaded = mgr.GetOrSetGeneric(testKeyA, "bar")
+	assert.True(t, loaded)
+	assert.Equal(t, "foo", v)
+}

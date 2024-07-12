@@ -95,6 +95,7 @@ type NewManagement interface {
 	UnsetPipe(name string, t <-chan message.Transaction)
 
 	GetGeneric(key any) (any, bool)
+	GetOrSetGeneric(key, value any) (actual any, loaded bool)
 	SetGeneric(key, value any)
 }
 
