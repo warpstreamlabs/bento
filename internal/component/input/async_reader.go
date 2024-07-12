@@ -19,7 +19,7 @@ import (
 // AsyncReader is an input implementation that reads messages from an
 // input.Async component.
 type AsyncReader struct {
-	connected   int32
+	connection  atomic.Pointer[component.ConnectionStatus]
 	connBackoff backoff.BackOff
 	readBackoff backoff.BackOff
 
@@ -61,6 +61,7 @@ func NewAsyncReader(
 	for _, opt := range opts {
 		opt(rdr)
 	}
+	rdr.connection.Store(component.ConnectionPending(rdr.mgr))
 
 	go rdr.loop()
 	return rdr, nil
@@ -98,7 +99,7 @@ func (r *AsyncReader) loop() {
 	defer func() {
 		_ = r.reader.Close(context.Background())
 
-		atomic.StoreInt32(&r.connected, 0)
+		r.connection.Store(component.ConnectionClosed(r.mgr))
 
 		close(r.transactions)
 		r.shutSig.TriggerHasStopped()
@@ -120,7 +121,8 @@ func (r *AsyncReader) loop() {
 				if r.shutSig.IsSoftStopSignalled() || errors.Is(err, component.ErrTypeClosed) {
 					return false
 				}
-				r.mgr.Logger().Error("Failed to connect to %v: %v\n", r.typeStr, err)
+				r.connection.Store(component.ConnectionFailing(r.mgr, err))
+				r.mgr.Logger().Error("Failed to connect to %v: %v", r.typeStr, err)
 				mFailedConn.Incr(1)
 
 				var nextBoff time.Duration
@@ -151,7 +153,7 @@ func (r *AsyncReader) loop() {
 
 	r.mgr.Logger().Info("Input type %v is now active", r.typeStr)
 	mConn.Incr(1)
-	atomic.StoreInt32(&r.connected, 1)
+	r.connection.Store(component.ConnectionActive(r.mgr))
 
 	for {
 		msg, ackFn, err := r.reader.ReadBatch(closeAtLeisureCtx)
@@ -159,14 +161,14 @@ func (r *AsyncReader) loop() {
 		// If our reader says it is not connected.
 		if errors.Is(err, component.ErrNotConnected) {
 			mLostConn.Incr(1)
-			atomic.StoreInt32(&r.connected, 0)
+			r.connection.Store(component.ConnectionFailing(r.mgr, component.ErrNotConnected))
 
 			// Continue to try to reconnect while still active.
 			if !initConnection() {
 				return
 			}
 			mConn.Incr(1)
-			atomic.StoreInt32(&r.connected, 1)
+			r.connection.Store(component.ConnectionActive(r.mgr))
 			continue
 		}
 
@@ -242,8 +244,10 @@ func (r *AsyncReader) TransactionChan() <-chan message.Transaction {
 
 // Connected returns a boolean indicating whether this input is currently
 // connected to its target.
-func (r *AsyncReader) Connected() bool {
-	return atomic.LoadInt32(&r.connected) == 1
+func (r *AsyncReader) ConnectionStatus() component.ConnectionStatuses {
+	return []*component.ConnectionStatus{
+		r.connection.Load(),
+	}
 }
 
 // TriggerStopConsuming instructs the input to start shutting down resources

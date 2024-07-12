@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
@@ -77,20 +78,19 @@ func (i *fanInInputBroker) TransactionChan() <-chan message.Transaction {
 	return i.transactions
 }
 
-func (i *fanInInputBroker) Connected() bool {
+func (i *fanInInputBroker) ConnectionStatus() component.ConnectionStatuses {
 	i.remainingMapMut.Lock()
 	defer i.remainingMapMut.Unlock()
 
 	if len(i.remainingMap) == 0 {
-		return false
+		return nil
 	}
 
+	var statuses component.ConnectionStatuses
 	for index := range i.remainingMap {
-		if !i.closables[index].Connected() {
-			return false
-		}
+		statuses = append(statuses, i.closables[index].ConnectionStatus()...)
 	}
-	return true
+	return statuses
 }
 
 func (i *fanInInputBroker) loop() {

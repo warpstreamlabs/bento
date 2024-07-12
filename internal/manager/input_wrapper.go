@@ -74,11 +74,15 @@ func (w *InputWrapper) TransactionChan() <-chan message.Transaction {
 	return w.tranChan
 }
 
-func (w *InputWrapper) Connected() bool {
+// Connected returns a boolean indicating whether the wrapped input is currently
+// connected to its target.
+func (w *InputWrapper) ConnectionStatus() (s component.ConnectionStatuses) {
 	w.inputLock.Lock()
-	con := w.ctrl.input != nil && w.ctrl.input.Connected()
+	if w.ctrl.input != nil {
+		s = w.ctrl.input.ConnectionStatus()
+	}
 	w.inputLock.Unlock()
-	return con
+	return
 }
 
 func (w *InputWrapper) loop() {

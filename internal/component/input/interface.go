@@ -3,6 +3,7 @@ package input
 import (
 	"context"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
@@ -14,9 +15,10 @@ type Streamed interface {
 	// transaction will be sent.
 	TransactionChan() <-chan message.Transaction
 
-	// Connected returns a boolean indicating whether this input is currently
-	// connected to its target.
-	Connected() bool
+	// ConnectionStatus returns the current status of the given component
+	// connection. The result is a slice in order to accommodate higher order
+	// components that wrap several others.
+	ConnectionStatus() component.ConnectionStatuses
 
 	// TriggerStopConsuming instructs the input to start shutting down resources
 	// once all pending messages are delivered and acknowledged. This call does

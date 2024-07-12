@@ -49,7 +49,8 @@ func New(conf Config, mgr bundle.NewManagement, opts ...func(*Type)) (*Type, err
 	}
 
 	healthCheck := func(w http.ResponseWriter, r *http.Request) {
-		inputConnected := t.inputLayer.Connected()
+		inputStatuses := t.inputLayer.ConnectionStatus()
+		inputConnected := inputStatuses.AllActive()
 		outputConnected := t.outputLayer.Connected()
 
 		if atomic.LoadUint32(&t.closed) == 1 {
@@ -92,7 +93,7 @@ func OptOnClose(onClose func()) func(*Type) {
 // IsReady returns a boolean indicating whether both the input and output layers
 // of the stream are connected.
 func (t *Type) IsReady() bool {
-	return t.inputLayer.Connected() && t.outputLayer.Connected()
+	return t.inputLayer.ConnectionStatus().AllActive() && t.outputLayer.Connected()
 }
 
 func (t *Type) start() (err error) {

@@ -3,6 +3,7 @@ package input
 import (
 	"context"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
@@ -51,10 +52,10 @@ func (i *WithPipeline) TransactionChan() <-chan message.Transaction {
 	return i.pipe.TransactionChan()
 }
 
-// Connected returns a boolean indicating whether this input is currently
-// connected to its target.
-func (i *WithPipeline) Connected() bool {
-	return i.in.Connected()
+// ConnectionStatus returns the current status of the connection of the wrapped
+// component.
+func (i *WithPipeline) ConnectionStatus() component.ConnectionStatuses {
+	return i.in.ConnectionStatus()
 }
 
 //------------------------------------------------------------------------------

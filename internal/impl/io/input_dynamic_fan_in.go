@@ -97,9 +97,9 @@ func (d *dynamicFanInInput) TransactionChan() <-chan message.Transaction {
 	return d.transactionChan
 }
 
-func (d *dynamicFanInInput) Connected() bool {
-	// Always return true as this is fuzzy right now.
-	return true
+func (d *dynamicFanInInput) ConnectionStatus() component.ConnectionStatuses {
+	// Always return nil as this is fuzzy right now.
+	return nil
 }
 
 func (d *dynamicFanInInput) addInput(ident string, in input.Streamed) error {

@@ -7,6 +7,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/interop"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
 	"github.com/warpstreamlabs/bento/internal/log"
@@ -108,8 +109,10 @@ func (i *inprocInput) TransactionChan() <-chan message.Transaction {
 	return i.transactions
 }
 
-func (i *inprocInput) Connected() bool {
-	return true
+func (i *inprocInput) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(i.mgr),
+	}
 }
 
 func (i *inprocInput) TriggerStopConsuming() {

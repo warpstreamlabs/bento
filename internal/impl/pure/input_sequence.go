@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/component/interop"
 	"github.com/warpstreamlabs/bento/internal/message"
@@ -602,11 +603,11 @@ func (r *sequenceInput) TransactionChan() <-chan message.Transaction {
 	return r.transactions
 }
 
-func (r *sequenceInput) Connected() bool {
+func (r *sequenceInput) ConnectionStatus() component.ConnectionStatuses {
 	if t, _ := r.getTarget(); t != nil {
-		return t.Connected()
+		return t.ConnectionStatus()
 	}
-	return false
+	return nil
 }
 
 func (r *sequenceInput) TriggerStopConsuming() {

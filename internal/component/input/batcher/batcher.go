@@ -8,6 +8,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/warpstreamlabs/bento/internal/batch/policy"
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
@@ -152,8 +153,8 @@ func (m *Impl) loop() {
 }
 
 // Connected returns true if the underlying input is connected.
-func (m *Impl) Connected() bool {
-	return m.child.Connected()
+func (m *Impl) ConnectionStatus() component.ConnectionStatuses {
+	return m.child.ConnectionStatus()
 }
 
 // TransactionChan returns the channel used for consuming messages from this

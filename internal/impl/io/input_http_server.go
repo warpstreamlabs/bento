@@ -25,6 +25,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/api"
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/component/interop"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
@@ -907,10 +908,10 @@ func (h *httpServerInput) TransactionChan() <-chan message.Transaction {
 	return h.transactions
 }
 
-// Connected returns a boolean indicating whether this input is currently
-// connected to its target.
-func (h *httpServerInput) Connected() bool {
-	return true
+func (h *httpServerInput) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(h.mgr),
+	}
 }
 
 func (h *httpServerInput) TriggerStopConsuming() {
