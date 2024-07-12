@@ -180,6 +180,7 @@ func init() {
 type httpServerOutput struct {
 	conf hsoConfig
 	log  log.Modular
+	mgr  bundle.NewManagement
 
 	mux    *mux.Router
 	server *http.Server
@@ -223,6 +224,7 @@ func newHTTPServerOutput(conf hsoConfig, mgr bundle.NewManagement) (output.Strea
 		shutSig: shutdown.NewSignaller(),
 		conf:    conf,
 		log:     mgr.Logger(),
+		mgr:     mgr,
 		mux:     gMux,
 		server:  server,
 
@@ -473,9 +475,10 @@ func (h *httpServerOutput) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-func (h *httpServerOutput) Connected() bool {
-	// Always return true as this is fuzzy right now.
-	return true
+func (h *httpServerOutput) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(h.mgr),
+	}
 }
 
 func (h *httpServerOutput) TriggerCloseNow() {

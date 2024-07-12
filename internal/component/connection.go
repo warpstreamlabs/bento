@@ -9,8 +9,11 @@ type ConnectionStatus struct {
 	Err       error
 }
 
+// ConnectionStatuses represents an aggregate of connection statuses.
 type ConnectionStatuses []*ConnectionStatus
 
+// AllActive returns true if there is one or more connections and they are all
+// active.
 func (s ConnectionStatuses) AllActive() bool {
 	if len(s) == 0 {
 		return false

@@ -242,8 +242,9 @@ func (r *AsyncReader) TransactionChan() <-chan message.Transaction {
 	return r.transactions
 }
 
-// Connected returns a boolean indicating whether this input is currently
-// connected to its target.
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
 func (r *AsyncReader) ConnectionStatus() component.ConnectionStatuses {
 	return []*component.ConnectionStatus{
 		r.connection.Load(),

@@ -152,7 +152,9 @@ func (m *Impl) loop() {
 	}
 }
 
-// Connected returns true if the underlying input is connected.
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
 func (m *Impl) ConnectionStatus() component.ConnectionStatuses {
 	return m.child.ConnectionStatus()
 }

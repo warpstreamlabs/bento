@@ -6,6 +6,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/output"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
@@ -67,8 +68,8 @@ func (t *tracedOutput) Consume(inChan <-chan message.Transaction) error {
 	return t.wrapped.Consume(t.tChan)
 }
 
-func (t *tracedOutput) Connected() bool {
-	return t.wrapped.Connected()
+func (t *tracedOutput) ConnectionStatus() component.ConnectionStatuses {
+	return t.wrapped.ConnectionStatus()
 }
 
 func (t *tracedOutput) TriggerCloseNow() {

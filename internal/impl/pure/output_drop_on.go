@@ -285,8 +285,8 @@ func (d *dropOnWriter) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-func (d *dropOnWriter) Connected() bool {
-	return d.wrapped.Connected()
+func (d *dropOnWriter) ConnectionStatus() component.ConnectionStatuses {
+	return d.wrapped.ConnectionStatus()
 }
 
 func (d *dropOnWriter) TriggerCloseNow() {

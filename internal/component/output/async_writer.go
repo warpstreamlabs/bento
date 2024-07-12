@@ -41,12 +41,13 @@ type AsyncSink interface {
 
 // AsyncWriter is an output type that writes messages to a writer.Type.
 type AsyncWriter struct {
-	isConnected int32
+	connection atomic.Pointer[component.ConnectionStatus]
 
 	typeStr     string
 	maxInflight int
 	writer      AsyncSink
 
+	mgr    component.Observability
 	log    log.Modular
 	stats  metrics.Type
 	tracer trace.TracerProvider
@@ -62,12 +63,14 @@ func NewAsyncWriter(typeStr string, maxInflight int, w AsyncSink, mgr component.
 		typeStr:      typeStr,
 		maxInflight:  maxInflight,
 		writer:       w,
+		mgr:          mgr,
 		log:          mgr.Logger(),
 		stats:        mgr.Metrics(),
 		tracer:       mgr.Tracer(),
 		transactions: nil,
 		shutSig:      shutdown.NewSignaller(),
 	}
+	aWriter.connection.Store(component.ConnectionPending(mgr))
 	return aWriter, nil
 }
 
@@ -100,7 +103,7 @@ func (w *AsyncWriter) loop() {
 	defer func() {
 		_ = w.writer.Close(context.Background())
 
-		atomic.StoreInt32(&w.isConnected, 0)
+		w.connection.Store(component.ConnectionClosed(w.mgr))
 		w.shutSig.TriggerHasStopped()
 	}()
 
@@ -118,6 +121,7 @@ func (w *AsyncWriter) loop() {
 				if w.shutSig.IsSoftStopSignalled() || errors.Is(err, component.ErrTypeClosed) {
 					return false
 				}
+				w.connection.Store(component.ConnectionFailing(w.mgr, err))
 				w.log.Error("Failed to connect to %v: %v\n", w.typeStr, err)
 				mFailedConn.Incr(1)
 
@@ -145,21 +149,21 @@ func (w *AsyncWriter) loop() {
 
 	w.log.Info("Output type %v is now active", w.typeStr)
 	mConn.Incr(1)
-	atomic.StoreInt32(&w.isConnected, 1)
+	w.connection.Store(component.ConnectionActive(w.mgr))
 
 	wg := sync.WaitGroup{}
 	wg.Add(w.maxInflight)
 
 	connectMut := sync.Mutex{}
 	connectLoop := func(msg message.Batch) (latency int64, err error) {
-		atomic.StoreInt32(&w.isConnected, 0)
+		w.connection.Store(component.ConnectionFailing(w.mgr, component.ErrNotConnected))
 
 		connectMut.Lock()
 		defer connectMut.Unlock()
 
 		// If another goroutine got here first and we're able to send over the
 		// connection, then we gracefully accept defeat.
-		if atomic.LoadInt32(&w.isConnected) == 1 {
+		if w.connection.Load().Connected {
 			if latency, err = w.latencyMeasuringWrite(closeLeisureCtx, msg); err != component.ErrNotConnected {
 				return
 			} else if err != nil {
@@ -175,7 +179,7 @@ func (w *AsyncWriter) loop() {
 				return
 			}
 			if latency, err = w.latencyMeasuringWrite(closeLeisureCtx, msg); err != component.ErrNotConnected {
-				atomic.StoreInt32(&w.isConnected, 1)
+				w.connection.Store(component.ConnectionActive(w.mgr))
 				mConn.Incr(1)
 				return
 			} else if err != nil {
@@ -255,10 +259,11 @@ func (w *AsyncWriter) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-// Connected returns a boolean indicating whether this output is currently
-// connected to its target.
-func (w *AsyncWriter) Connected() bool {
-	return atomic.LoadInt32(&w.isConnected) == 1
+// ConnectionStatus returns the status of the given output connection.
+func (w *AsyncWriter) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		w.connection.Load(),
+	}
 }
 
 // TriggerCloseNow shuts down the output and stops processing messages.

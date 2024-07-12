@@ -248,10 +248,8 @@ func (r *indefiniteRetry) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-// Connected returns a boolean indicating whether this output is currently
-// connected to its target.
-func (r *indefiniteRetry) Connected() bool {
-	return r.wrapped.Connected()
+func (r *indefiniteRetry) ConnectionStatus() component.ConnectionStatuses {
+	return r.wrapped.ConnectionStatus()
 }
 
 // CloseAsync shuts down the Retry input and stops processing requests.

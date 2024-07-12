@@ -146,15 +146,11 @@ func (t *fallbackBroker) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-// Connected returns a boolean indicating whether this output is currently
-// connected to its target.
-func (t *fallbackBroker) Connected() bool {
+func (t *fallbackBroker) ConnectionStatus() (s component.ConnectionStatuses) {
 	for _, out := range t.outputs {
-		if !out.Connected() {
-			return false
-		}
+		s = append(s, out.ConnectionStatus()...)
 	}
-	return true
+	return
 }
 
 //------------------------------------------------------------------------------

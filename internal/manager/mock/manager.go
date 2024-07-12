@@ -67,6 +67,8 @@ func NewManager() *Manager {
 	}
 }
 
+// EngineVersion returns the version stamp associated with the underlying
+// bento engine.
 func (m *Manager) EngineVersion() string {
 	return m.Version
 }

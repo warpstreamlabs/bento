@@ -98,7 +98,8 @@ func (d *dynamicFanInInput) TransactionChan() <-chan message.Transaction {
 }
 
 func (d *dynamicFanInInput) ConnectionStatus() component.ConnectionStatuses {
-	// Always return nil as this is fuzzy right now.
+	// TODO: We need to refactor the mechanisms for serving new inputs in order
+	// to allow access from here.
 	return nil
 }
 

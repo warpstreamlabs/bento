@@ -15,6 +15,7 @@ const (
 	fieldCaseOutputBatches    = "output_batches"
 )
 
+// Case contains a definition of a single Bento config test case.
 type Case struct {
 	Name             string
 	Environment      map[string]string
