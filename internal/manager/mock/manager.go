@@ -37,6 +37,8 @@ type Manager struct {
 	Pipes      map[string]<-chan message.Transaction
 	lock       sync.Mutex
 
+	genericValues *sync.Map
+
 	// OnRegisterEndpoint can be set in order to intercept endpoints registered
 	// by components.
 	OnRegisterEndpoint func(path string, h http.HandlerFunc)
@@ -50,17 +52,18 @@ type Manager struct {
 // NewManager provides a new mock manager.
 func NewManager() *Manager {
 	return &Manager{
-		Version:    "mock",
-		Inputs:     map[string]*Input{},
-		Caches:     map[string]map[string]CacheItem{},
-		RateLimits: map[string]RateLimit{},
-		Outputs:    map[string]OutputWriter{},
-		Processors: map[string]Processor{},
-		Pipes:      map[string]<-chan message.Transaction{},
-		CustomFS:   ifs.OS(),
-		M:          metrics.Noop(),
-		L:          log.Noop(),
-		T:          noop.NewTracerProvider(),
+		Version:       "mock",
+		Inputs:        map[string]*Input{},
+		Caches:        map[string]map[string]CacheItem{},
+		RateLimits:    map[string]RateLimit{},
+		Outputs:       map[string]OutputWriter{},
+		Processors:    map[string]Processor{},
+		Pipes:         map[string]<-chan message.Transaction{},
+		CustomFS:      ifs.OS(),
+		M:             metrics.Noop(),
+		L:             log.Noop(),
+		T:             noop.NewTracerProvider(),
+		genericValues: &sync.Map{},
 	}
 }
 
@@ -368,4 +371,14 @@ func (m *Manager) SetPipe(name string, t <-chan message.Transaction) {
 // UnsetPipe removes a named transaction chan.
 func (m *Manager) UnsetPipe(name string, t <-chan message.Transaction) {
 	delete(m.Pipes, name)
+}
+
+// GetGeneric attempts to obtain and return a generic resource value by key.
+func (m *Manager) GetGeneric(key any) (any, bool) {
+	return m.genericValues.Load(key)
+}
+
+// SetGeneric attempts to set a generic resource to a given value by key.
+func (m *Manager) SetGeneric(key, value any) {
+	m.genericValues.Store(key, value)
 }

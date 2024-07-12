@@ -92,6 +92,9 @@ type Type struct {
 
 	pipes    map[string]<-chan message.Transaction
 	pipeLock *sync.RWMutex
+
+	// Generic key/value store for plugin implementations.
+	genericResources *sync.Map
 }
 
 // OptFunc is an opt setting for a manager type.
@@ -204,6 +207,8 @@ func New(conf ResourceConfig, opts ...OptFunc) (*Type, error) {
 
 		pipes:    map[string]<-chan message.Transaction{},
 		pipeLock: &sync.RWMutex{},
+
+		genericResources: &sync.Map{},
 	}
 
 	for _, opt := range opts {
@@ -412,6 +417,16 @@ func (t *Type) UnsetPipe(name string, tran <-chan message.Transaction) {
 		delete(t.pipes, name)
 	}
 	t.pipeLock.Unlock()
+}
+
+// GetGeneric attempts to obtain and return a generic resource value by key.
+func (t *Type) GetGeneric(key any) (any, bool) {
+	return t.genericResources.Load(key)
+}
+
+// SetGeneric attempts to set a generic resource to a given value by key.
+func (t *Type) SetGeneric(key, value any) {
+	t.genericResources.Store(key, value)
 }
 
 //------------------------------------------------------------------------------
