@@ -184,7 +184,7 @@ func (s *sqlSelectInput) Connect(ctx context.Context) (err error) {
 	}
 
 	var db *sql.DB
-	if db, err = sqlOpenWithReworks(s.logger, s.driver, s.dsn); err != nil {
+	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
 		return
 	}
 	defer func() {
