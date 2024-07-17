@@ -167,7 +167,7 @@ func newSQLRawProcessor(
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(logger, driverStr, dsnStr); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

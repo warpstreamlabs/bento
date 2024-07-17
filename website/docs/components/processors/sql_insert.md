@@ -60,6 +60,7 @@ sql_insert:
       baz varchar(50),
       primary key (foo)
     ) WITHOUT ROWID;
+  init_verify_conn: false
   conn_max_idle_time: "" # No default (optional)
   conn_max_life_time: "" # No default (optional)
   conn_max_idle: 2
@@ -262,6 +263,15 @@ init_statement: |2
     primary key (foo)
   ) WITHOUT ROWID;
 ```
+
+### `init_verify_conn`
+
+Whether to verify the database connection on startup by performing a simple ping, by default this is disabled.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.2.0 or newer  
 
 ### `conn_max_idle_time`
 
