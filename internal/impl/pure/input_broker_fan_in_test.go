@@ -90,15 +90,15 @@ func TestFanInConnected(t *testing.T) {
 	fanIn, err := newFanInInputBroker(Inputs)
 	require.NoError(t, err)
 
-	assert.True(t, fanIn.Connected())
+	assert.True(t, fanIn.ConnectionStatus().AllActive())
 
 	close(tInOne)
 	time.Sleep(time.Millisecond * 100)
-	assert.True(t, fanIn.Connected())
+	assert.True(t, fanIn.ConnectionStatus().AllActive())
 
 	close(tInTwo)
 	assert.Eventually(t, func() bool {
-		return !fanIn.Connected()
+		return !fanIn.ConnectionStatus().AllActive()
 	}, time.Second, time.Millisecond*10)
 }
 

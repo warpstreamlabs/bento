@@ -37,7 +37,7 @@ func TestBasicFanOut(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, oTM.Consume(readChan))
 
-	assert.True(t, oTM.Connected())
+	assert.True(t, oTM.ConnectionStatus().AllActive())
 
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*10)
 	defer done()
@@ -95,7 +95,7 @@ func TestBasicFanOutMutations(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, oTM.Consume(readChan))
 
-	assert.True(t, oTM.Connected())
+	assert.True(t, oTM.ConnectionStatus().AllActive())
 
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*10)
 	defer done()

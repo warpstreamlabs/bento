@@ -282,15 +282,13 @@ func (d *dynamicFanOutOutputBroker) loop() {
 	}
 }
 
-func (d *dynamicFanOutOutputBroker) Connected() bool {
+func (d *dynamicFanOutOutputBroker) ConnectionStatus() (s component.ConnectionStatuses) {
 	d.outputsMut.RLock()
 	defer d.outputsMut.RUnlock()
 	for _, out := range d.outputs {
-		if !out.output.Connected() {
-			return false
-		}
+		s = append(s, out.output.ConnectionStatus()...)
 	}
-	return true
+	return
 }
 
 func (d *dynamicFanOutOutputBroker) TriggerCloseNow() {

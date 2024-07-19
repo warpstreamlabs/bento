@@ -21,7 +21,7 @@ type Processor interface {
 	// with the patterns outlined in https://warpstreamlabs.github.io/bento/docs/configuration/error_handling.
 	//
 	// The Message types returned MUST be derived from the provided message, and
-	// CANNOT be custom implementations of Message. In order to copy the
+	// CANNOT be custom instantiations of Message. In order to copy the
 	// provided message use the Copy method.
 	Process(context.Context, *Message) (MessageBatch, error)
 
@@ -53,7 +53,7 @@ type BatchProcessor interface {
 	// with a nil error.
 	//
 	// The Message types returned MUST be derived from the provided messages,
-	// and CANNOT be custom implementations of Message. In order to copy the
+	// and CANNOT be custom instantiations of Message. In order to copy the
 	// provided messages use the Copy method.
 	ProcessBatch(context.Context, MessageBatch) ([]MessageBatch, error)
 

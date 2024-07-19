@@ -3,6 +3,7 @@ package output
 import (
 	"context"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
@@ -51,10 +52,11 @@ func (i *WithPipeline) Consume(tsChan <-chan message.Transaction) error {
 	return i.pipe.Consume(tsChan)
 }
 
-// Connected returns a boolean indicating whether this output is currently
-// connected to its target.
-func (i *WithPipeline) Connected() bool {
-	return i.out.Connected()
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
+func (i *WithPipeline) ConnectionStatus() component.ConnectionStatuses {
+	return i.out.ConnectionStatus()
 }
 
 //------------------------------------------------------------------------------

@@ -4,12 +4,14 @@ import (
 	"context"
 	"sync"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 // Input provides a mocked input implementation.
 type Input struct {
 	TChan     chan message.Transaction
+	closed    bool
 	closeOnce sync.Once
 }
 
@@ -27,9 +29,16 @@ func NewInput(batches []message.Batch) *Input {
 	return &Input{TChan: ts}
 }
 
-// Connected always returns true.
-func (f *Input) Connected() bool {
-	return true
+// ConnectionStatus returns the current connection activity.
+func (f *Input) ConnectionStatus() component.ConnectionStatuses {
+	if f.closed {
+		return component.ConnectionStatuses{
+			component.ConnectionClosed(component.NoopObservability()),
+		}
+	}
+	return component.ConnectionStatuses{
+		component.ConnectionActive(component.NoopObservability()),
+	}
 }
 
 // TransactionChan returns a transaction channel.
@@ -41,6 +50,7 @@ func (f *Input) TransactionChan() <-chan message.Transaction {
 func (f *Input) TriggerStopConsuming() {
 	f.closeOnce.Do(func() {
 		close(f.TChan)
+		f.closed = true
 	})
 }
 
@@ -48,6 +58,7 @@ func (f *Input) TriggerStopConsuming() {
 func (f *Input) TriggerCloseNow() {
 	f.closeOnce.Do(func() {
 		close(f.TChan)
+		f.closed = true
 	})
 }
 

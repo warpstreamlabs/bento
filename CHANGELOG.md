@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.0 - TBD
+
+### Upstream Changes
+
+- [v4.31.0 - 2024-07-18](./CHANGELOG.old.md#4.31.0-2024-07-18)  
+
 ## 1.1.0 - 2024-07-12
 
 ### Added

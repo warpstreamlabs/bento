@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
@@ -14,9 +15,13 @@ func (o OutputWriter) WriteTransaction(ctx context.Context, t message.Transactio
 	return o(ctx, t)
 }
 
-// Connected always returns true.
-func (o OutputWriter) Connected() bool {
-	return true
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
+func (o OutputWriter) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(component.NoopObservability()),
+	}
 }
 
 // TriggerStopConsuming does nothing.
@@ -38,9 +43,13 @@ type OutputChanneled struct {
 	TChan <-chan message.Transaction
 }
 
-// Connected returns true.
-func (m *OutputChanneled) Connected() bool {
-	return true
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
+func (m *OutputChanneled) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(component.NoopObservability()),
+	}
 }
 
 // Consume sets the read channel. This implementation is NOT thread safe.

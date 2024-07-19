@@ -32,6 +32,30 @@ func ErrInvalidType(typeStr, tried string) error {
 	}
 }
 
+//------------------------------------------------------------------------------
+
+// LabelledError is an error that could be returned by components annotated by
+// their label (or path) in order to provide extra context to which specific
+// component within a config is yielding it. This is particularly useful in
+// situations such as ConnectionStatus aggregates where a broker yields multiple
+// errors from a range of child components.
+type LabelledError struct {
+	Label string
+	Err   error
+}
+
+// Error returns a formatted error string.
+func (e *LabelledError) Error() string {
+	return fmt.Sprintf("%v: %v", e.Label, e.Err)
+}
+
+// Unwrap returns the underlying error value.
+func (e *LabelledError) Unwrap() error {
+	return e.Err
+}
+
+//------------------------------------------------------------------------------
+
 // Errors used throughout the codebase.
 var (
 	ErrTimeout    = errors.New("action timed out")

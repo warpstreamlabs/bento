@@ -93,6 +93,10 @@ type NewManagement interface {
 	GetPipe(name string) (<-chan message.Transaction, error)
 	SetPipe(name string, t <-chan message.Transaction)
 	UnsetPipe(name string, t <-chan message.Transaction)
+
+	GetGeneric(key any) (any, bool)
+	GetOrSetGeneric(key, value any) (actual any, loaded bool)
+	SetGeneric(key, value any)
 }
 
 type componentErr struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/component/interop"
 	"github.com/warpstreamlabs/bento/internal/log"
@@ -302,15 +303,13 @@ func (r *readUntilInput) TransactionChan() <-chan message.Transaction {
 	return r.transactions
 }
 
-// Connected returns a boolean indicating whether this input is currently
-// connected to its target.
-func (r *readUntilInput) Connected() bool {
+func (r *readUntilInput) ConnectionStatus() component.ConnectionStatuses {
 	wrappedP := r.wrappedInputLocked.Load()
 	if wrappedP != nil {
 		i := *wrappedP
-		return i.Connected()
+		return i.ConnectionStatus()
 	}
-	return false
+	return nil
 }
 
 func (r *readUntilInput) TriggerStopConsuming() {

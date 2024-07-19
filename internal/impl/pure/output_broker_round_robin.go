@@ -45,13 +45,11 @@ func (o *roundRobinOutputBroker) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-func (o *roundRobinOutputBroker) Connected() bool {
+func (o *roundRobinOutputBroker) ConnectionStatus() (s component.ConnectionStatuses) {
 	for _, out := range o.outputs {
-		if !out.Connected() {
-			return false
-		}
+		s = append(s, out.ConnectionStatus()...)
 	}
-	return true
+	return
 }
 
 func (o *roundRobinOutputBroker) loop() {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/output"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
@@ -29,8 +30,10 @@ func (m *mockOutput) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-func (m *mockOutput) Connected() bool {
-	return true
+func (m *mockOutput) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(component.NoopObservability()),
+	}
 }
 
 func (m *mockOutput) TriggerCloseNow() {

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc32"
+	"hash/fnv"
 	"html"
 	"io"
 	"net/url"
@@ -759,7 +760,7 @@ var _ = registerSimpleMethod(
 		`
 Hashes a string or byte array according to a chosen algorithm and returns the result as a byte array. When mapping the result to a JSON field the value should be cast to a string using the method `+"[`string`][methods.string], or encoded using the method [`encode`][methods.encode]"+`, otherwise it will be base64 encoded by default.
 
-Available algorithms are: `+"`hmac_sha1`, `hmac_sha256`, `hmac_sha512`, `md5`, `sha1`, `sha256`, `sha512`, `xxhash64`, `crc32`"+`.
+Available algorithms are: `+"`hmac_sha1`, `hmac_sha256`, `hmac_sha512`, `md5`, `sha1`, `sha256`, `sha512`, `xxhash64`, `crc32`, `fnv32`"+`.
 
 The following algorithms require a key, which is specified as a second argument: `+"`hmac_sha1`, `hmac_sha256`, `hmac_sha512`"+`.`,
 		NewExampleSpec("",
@@ -869,6 +870,12 @@ root.h2 = this.value.hash(algorithm: "crc32", polynomial: "Koopman").encode("hex
 				}
 				_, _ = hasher.Write(b)
 				return hasher.Sum(nil), nil
+			}
+		case "fnv32":
+			hashFn = func(b []byte) ([]byte, error) {
+				h := fnv.New32()
+				_, _ = h.Write(b)
+				return []byte(strconv.FormatUint(uint64(h.Sum32()), 10)), nil
 			}
 		default:
 			return nil, fmt.Errorf("unrecognized hash type: %v", algorithmStr)
@@ -1246,6 +1253,22 @@ var _ = registerSimpleMethod(
 			`{"doc":{"foo":"bar"}}`,
 			`{"foo":"bar"}`,
 		),
+		NewExampleSpec("Escapes problematic HTML characters.",
+			`root = this.doc.format_json()`,
+			`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`,
+			`{
+    "email": "foo\u0026bar@bento.dev",
+    "name": "foo\u003ebar"
+}`,
+		),
+		NewExampleSpec("Set the `escape_html` parameter to false to disable escaping of problematic HTML characters.",
+			`root = this.doc.format_json(escape_html: false)`,
+			`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`,
+			`{
+    "email": "foo&bar@bento.dev",
+    "name": "foo>bar"
+}`,
+		),
 	).
 		Beta().
 		Param(ParamString(
@@ -1255,7 +1278,11 @@ var _ = registerSimpleMethod(
 		Param(ParamBool(
 			"no_indent",
 			"Disable indentation.",
-		).Default(false)),
+		).Default(false)).
+		Param(ParamBool(
+			"escape_html",
+			"Escape problematic HTML characters.",
+		).Default(true)),
 	func(args *ParsedParams) (simpleMethod, error) {
 		indentOpt, err := args.FieldOptionalString("indent")
 		if err != nil {
@@ -1269,11 +1296,29 @@ var _ = registerSimpleMethod(
 		if err != nil {
 			return nil, err
 		}
+		escapeHTMLOpt, err := args.FieldOptionalBool("escape_html")
+		if err != nil {
+			return nil, err
+		}
 		return func(v any, ctx FunctionContext) (any, error) {
-			if *noIndentOpt {
-				return json.Marshal(v)
+			buffer := &bytes.Buffer{}
+
+			encoder := json.NewEncoder(buffer)
+			if !*noIndentOpt {
+				encoder.SetIndent("", indent)
 			}
-			return json.MarshalIndent(v, "", indent)
+			if !*escapeHTMLOpt {
+				encoder.SetEscapeHTML(false)
+			}
+
+			if err := encoder.Encode(v); err != nil {
+				return nil, err
+			}
+
+			// This hack is here because `format_json()` initially relied on `json.Marshal()` or `json.MarshalIndent()`
+			// which don't add a trailing newline to the output and, also, other `format_*` methods in bloblang don't
+			// append a trailing newline.
+			return bytes.TrimRight(buffer.Bytes(), "\n"), nil
 		}, nil
 	},
 )
