@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.15.0 - <<TBD>>
+
+### Added
+
+- The `/ready` endpoint in regular operation now provides a detailed summary of all inputs and outputs, including connection errors where applicable.
+
 ## 4.31.0 - 2024-07-18
 
 ### Added

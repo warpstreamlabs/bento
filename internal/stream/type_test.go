@@ -180,12 +180,14 @@ func newMockAPIReg() mockAPIReg {
 	}
 }
 
-func validateHealthCheckResponse(t *testing.T, serverURL, expectedResponse string) {
+func validateHealthCheckResponse(t *testing.T, serverURL string, expectedCode int, expectedResponse string) {
 	t.Helper()
 
 	res, err := http.Get(serverURL + "/ready")
 	require.NoError(t, err)
 	defer res.Body.Close()
+
+	assert.Equal(t, expectedCode, res.StatusCode)
 
 	data, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -222,20 +224,16 @@ output:
 		}
 	}
 
-	validateHealthCheckResponse(t, mockAPIReg.server.URL, "OK")
+	exp := `{"statuses":[{"label":"","path":"input","connected":true},{"label":"","path":"output","connected":true}]}
+`
+	validateHealthCheckResponse(t, mockAPIReg.server.URL, 200, exp)
 
 	stopCtx, stopDone := context.WithTimeout(context.Background(), time.Minute)
 	defer stopDone()
 
 	assert.NoError(t, strm.StopUnordered(stopCtx))
 
-	require.Eventually(t, func() bool {
-		res, err := http.Get(mockAPIReg.server.URL + "/ready")
-		require.NoError(t, err)
-		defer res.Body.Close()
-
-		data, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		return string(data) == "Stream terminated\n"
-	}, 5*time.Second, 100*time.Millisecond, "Expected stream to be terminated")
+	exp = `{"error":"stream terminated","statuses":[{"label":"","path":"input","connected":false},{"label":"","path":"output","connected":false}]}
+`
+	validateHealthCheckResponse(t, mockAPIReg.server.URL, http.StatusServiceUnavailable, exp)
 }

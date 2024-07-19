@@ -3,12 +3,14 @@ package stream
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"runtime/pprof"
 	"sync/atomic"
 	"time"
 
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/buffer"
 	"github.com/warpstreamlabs/bento/internal/component/input"
@@ -48,28 +50,54 @@ func New(conf Config, mgr bundle.NewManagement, opts ...func(*Type)) (*Type, err
 	}
 
 	healthCheck := func(w http.ResponseWriter, r *http.Request) {
+		type connStatus struct {
+			Label     string `json:"label"`
+			Path      string `json:"path"`
+			Connected bool   `json:"connected"`
+			Error     string `json:"error,omitempty"`
+		}
+
+		healthCheckRes := struct {
+			Error    string       `json:"error,omitempty"`
+			Statuses []connStatus `json:"statuses"`
+		}{}
+
 		inputStatuses := t.inputLayer.ConnectionStatus()
-		inputConnected := inputStatuses.AllActive()
+		for _, v := range inputStatuses {
+			s := connStatus{
+				Label:     v.Label,
+				Path:      query.SliceToDotPath(v.Path...),
+				Connected: v.Connected,
+			}
+			if v.Err != nil {
+				s.Error = v.Err.Error()
+			}
+			healthCheckRes.Statuses = append(healthCheckRes.Statuses, s)
+		}
 
 		outputStatuses := t.outputLayer.ConnectionStatus()
-		outputConnected := outputStatuses.AllActive()
+		for _, v := range outputStatuses {
+			s := connStatus{
+				Label:     v.Label,
+				Path:      query.SliceToDotPath(v.Path...),
+				Connected: v.Connected,
+			}
+			if v.Err != nil {
+				s.Error = v.Err.Error()
+			}
+			healthCheckRes.Statuses = append(healthCheckRes.Statuses, s)
+		}
 
 		if atomic.LoadUint32(&t.closed) == 1 {
-			http.Error(w, "Stream terminated", http.StatusNotFound)
-			return
+			w.WriteHeader(http.StatusServiceUnavailable)
+			healthCheckRes.Error = "stream terminated"
+		} else if !inputStatuses.AllActive() || !outputStatuses.AllActive() {
+			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 
-		if inputConnected && outputConnected {
-			_, _ = w.Write([]byte("OK"))
-			return
-		}
-
-		w.WriteHeader(http.StatusServiceUnavailable)
-		if !inputConnected {
-			_, _ = w.Write([]byte("input not connected\n"))
-		}
-		if !outputConnected {
-			_, _ = w.Write([]byte("output not connected\n"))
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(healthCheckRes); err != nil {
+			mgr.Logger().With("error", err.Error()).Error("Failed to encode connection statuses for /ready")
 		}
 	}
 	t.manager.RegisterEndpoint(
