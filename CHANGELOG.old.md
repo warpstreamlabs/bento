@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 - The `--set` run flag now supports structured values, e.g. `--set input={}`. (@Jeffail)
 - Improve error message for unknown component to include name(s) of components (@Bojan Djurkovic)
 - Fixed a bug where certain logs used the `%w` verb to print errors resulting in incorrect output. (@mihaitodor)
+- The `switch` output metrics now emit the case id as part of their labels. This is a regression introduced in v4.25.0. (@mihaitodor)
+
 
 ## 4.31.0 - 2024-07-18
 

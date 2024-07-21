@@ -228,10 +228,11 @@ func switchOutputFromParsed(conf *service.ParsedConfig, mgr bundle.NewManagement
 	}
 
 	for i, cConf := range cases {
-		w, err := cConf.FieldOutput(soFieldCasesOutput)
+		w, err := conf.Namespace(soFieldCases).FieldOutput([]string{strconv.Itoa(i), soFieldCasesOutput}...)
 		if err != nil {
 			return nil, err
 		}
+
 		o.outputs[i] = interop.UnwrapOwnedOutput(w)
 
 		oMgr := mgr.IntoPath("switch", strconv.Itoa(i), "output")

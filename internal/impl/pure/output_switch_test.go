@@ -15,6 +15,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/batch"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func newSwitch(t testing.TB, mockOutputs []*mock.OutputChanneled, confStr string) *switchOutput {
@@ -1012,4 +1013,124 @@ bpLoop:
 	close(readChan)
 	close(doneChan)
 	wg.Wait()
+}
+
+type mockMetricsExporterType struct {
+	labels map[string][]string
+}
+
+func (m *mockMetricsExporterType) Timing(delta int64) {}
+
+func (m *mockMetricsExporterType) Set(value int64) {}
+
+func (m *mockMetricsExporterType) Incr(count int64) {}
+
+type mockMetricsExporter struct {
+	exporters []mockMetricsExporterType
+	lock      *sync.Mutex
+}
+
+func (m *mockMetricsExporter) Close(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockMetricsExporter) NewCounterCtor(name string, labelKeys ...string) service.MetricsExporterCounterCtor {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	exporter := mockMetricsExporterType{
+		labels: make(map[string][]string),
+	}
+	m.exporters = append(m.exporters, exporter)
+
+	return func(labelValues ...string) service.MetricsExporterCounter {
+		exporter.labels[name] = labelValues
+		return &exporter
+	}
+}
+
+func (m *mockMetricsExporter) NewGaugeCtor(name string, labelKeys ...string) service.MetricsExporterGaugeCtor {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	exporter := mockMetricsExporterType{
+		labels: make(map[string][]string),
+	}
+	m.exporters = append(m.exporters, exporter)
+
+	return func(labelValues ...string) service.MetricsExporterGauge {
+		exporter.labels[name] = labelValues
+		return &exporter
+	}
+}
+
+func (m *mockMetricsExporter) NewTimerCtor(name string, labelKeys ...string) service.MetricsExporterTimerCtor {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	exporter := mockMetricsExporterType{
+		labels: make(map[string][]string),
+	}
+	m.exporters = append(m.exporters, exporter)
+
+	return func(labelValues ...string) service.MetricsExporterTimer {
+		exporter.labels[name] = labelValues
+		return &exporter
+	}
+}
+
+func TestSwitchMetricsLabels(t *testing.T) {
+	metricsExporter := &mockMetricsExporter{
+		lock: &sync.Mutex{},
+	}
+
+	env := service.NewEnvironment()
+
+	require.NoError(t, env.RegisterMetricsExporter(
+		"meow", service.NewConfigSpec(),
+		func(conf *service.ParsedConfig, log *service.Logger) (service.MetricsExporter, error) {
+			return metricsExporter, nil
+		}))
+
+	builder := env.NewStreamBuilder()
+	require.NoError(t, builder.SetYAML(`
+input:
+  generate:
+    count: 2
+    interval: 0s
+    mapping: root.foo = counter()
+
+output:
+  switch:
+    cases:
+      - check: json("foo") == 1
+        output:
+          drop: {}
+      - check: json("foo") == 2
+        output:
+          drop: {}
+
+metrics:
+  meow: {}
+`))
+
+	strm, err := builder.Build()
+	require.NoError(t, err)
+
+	ctx, done := context.WithTimeout(context.Background(), 1*time.Second)
+	defer done()
+
+	require.NoError(t, strm.Run(ctx))
+
+	metricsExporter.lock.Lock()
+	defer metricsExporter.lock.Unlock()
+
+	var labels []string
+	for _, exporter := range metricsExporter.exporters {
+		for _, l := range exporter.labels {
+			labels = append(labels, l...)
+		}
+	}
+
+	assert.Subset(t, labels, []string{"root.output.switch.cases.0.output", "root.output.switch.cases.1.output"})
 }
