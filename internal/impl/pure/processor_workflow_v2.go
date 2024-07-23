@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Jeffail/gabs/v2"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/interop"
@@ -140,12 +139,9 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-// WorkflowV2 is a processor that applies a list of child processors to a new
-// payload mapped from the original, and after processing attempts to overlay
-// the results back onto the original payloads according to more mappings.
+// WorkflowV2 is a processor similar to Workflow but has a different execution model.
 type WorkflowV2 struct {
-	log    log.Modular
-	tracer trace.TracerProvider
+	log log.Modular
 
 	children  *workflowBranchMapV2
 	allStages map[string]struct{}
@@ -165,8 +161,7 @@ func NewWorkflowV2(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Workf
 
 	stats := mgr.Metrics()
 	w := &WorkflowV2{
-		log:    mgr.Logger(),
-		tracer: mgr.Tracer(),
+		log: mgr.Logger(),
 
 		metaPath:  nil,
 		allStages: map[string]struct{}{},
@@ -198,6 +193,11 @@ func NewWorkflowV2(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Workf
 
 }
 
+type messageCopies struct {
+	messages map[string]message.Batch
+	sync.Mutex
+}
+
 type resultTrackerV2 struct {
 	notStarted        []map[string]struct{}
 	started           []map[string]struct{}
@@ -205,6 +205,7 @@ type resultTrackerV2 struct {
 	skipped           []map[string]struct{}
 	failed            []map[string]string
 	dependencyTracker []map[string][]string
+	messageCopies     *messageCopies
 	numberOfBranches  int
 	sync.Mutex
 }
@@ -217,6 +218,9 @@ func createTrackerFromDependencies(dependencies map[string][]string, skipList ma
 		skipped:           make([]map[string]struct{}, msg.Len()),
 		failed:            make([]map[string]string, msg.Len()),
 		dependencyTracker: make([]map[string][]string, msg.Len()),
+		messageCopies: &messageCopies{
+			messages: make(map[string]message.Batch),
+		},
 	}
 
 	for i := 0; i < msg.Len(); i++ {
@@ -245,6 +249,11 @@ func createTrackerFromDependencies(dependencies map[string][]string, skipList ma
 			r.Skipped(i, k)
 			r.RemoveFromDepTracker(i, k)
 		}
+	}
+
+	// make a copy of the message for each node
+	for k := range dependencies {
+		r.messageCopies.messages[k] = msg.ShallowCopy()
 	}
 
 	return r
@@ -448,36 +457,52 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	records := createTrackerFromDependencies(dependencies, skipOnMeta, msg)
 
 	type collector struct {
-		eid        string
-		mssgPartID int
-		results    [][]*message.Part
-		errors     []error
+		eid             string
+		msgPartID       int
+		branchMapErrors []branchMapError
+		results         [][]*message.Part
+		errors          []error
 	}
 
-	batchResultChan := make(chan collector)
+	batchResultChan := make(chan collector, 1)
 
 	go func() {
 		for {
-			mssge := <-batchResultChan
-			var failed []branchMapError
-			err := mssge.errors[mssge.mssgPartID]
+			collectorMsg := <-batchResultChan
 
-			// bodgy
+			var failed []branchMapError
+			err := collectorMsg.errors[collectorMsg.msgPartID]
+
 			resultsBodge := make([]*message.Part, msg.Len())
-			xxx := mssge.results[0]
-			resultsBodge[mssge.mssgPartID] = xxx[0]
+			xxx := collectorMsg.results[0]
+			resultsBodge[collectorMsg.msgPartID] = xxx[0]
 
 			if err == nil {
-				failed, err = children[mssge.eid].overlayResult(msg, resultsBodge)
+
+				failed, err = children[collectorMsg.eid].overlayResult(msg, resultsBodge) // here
+
+				for k := range records.messageCopies.messages {
+					if k != collectorMsg.eid {
+						records.messageCopies.messages[k] = msg.ShallowCopy()
+					}
+				}
 			}
+
+			records.Succeeded(collectorMsg.msgPartID, collectorMsg.eid)
+
+			for _, e := range collectorMsg.branchMapErrors {
+				records.FailedV2(collectorMsg.msgPartID, collectorMsg.eid, e.err.Error())
+			}
+
 			if err != nil {
 				w.mError.Incr(1)
-				w.log.Error("Failed to perform enrichment '%v': %v\n", mssge.eid, err)
-				records.FailedV2(mssge.mssgPartID, mssge.eid, err.Error())
+				w.log.Error("Failed to perform enrichment '%v': %v\n", collectorMsg.eid, err)
+				records.FailedV2(collectorMsg.msgPartID, collectorMsg.eid, err.Error())
 			}
 			for _, e := range failed {
-				records.FailedV2(mssge.mssgPartID, mssge.eid, e.err.Error())
+				records.FailedV2(collectorMsg.msgPartID, collectorMsg.eid, e.err.Error())
 			}
+			records.messageCopies.Unlock()
 		}
 	}()
 
@@ -491,7 +516,9 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		results := make([][]*message.Part, msg.Len())
 		errors := make([]error, msg.Len())
 
-		branchMsg := msg.ShallowCopy()
+		records.messageCopies.Lock()
+		branchMsg := records.messageCopies.messages[eid]
+		records.messageCopies.Unlock()
 
 		go func(i int, id string) {
 
@@ -504,24 +531,21 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 				return nil
 			})
 
-			var mapErrs []branchMapError
-
 			// bodgy
 			testPart := branchParts[i]
 			xxxPart := make([]*message.Part, 1)
 			xxxPart[0] = testPart
 
-			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, msg.ShallowCopy())
+			var mapErrs []branchMapError
+			records.messageCopies.Lock()                                                                // here
+			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, msg.ShallowCopy()) // here
 
-			records.Succeeded(i, id)
-			for _, e := range mapErrs {
-				records.FailedV2(i, id, e.err.Error())
-			}
 			batchResult := collector{
-				eid:        id,
-				mssgPartID: i,
-				results:    results,
-				errors:     errors,
+				eid:             id,
+				msgPartID:       i,
+				branchMapErrors: mapErrs,
+				results:         results,
+				errors:          errors,
 			}
 			batchResultChan <- batchResult
 		}(i, eid)
@@ -564,7 +588,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 	w.mBatchSent.Incr(1)
 	w.mLatency.Timing(time.Since(startedAt).Nanoseconds())
 
-	return []message.Batch{msg}, nil
+	return []message.Batch{records.messageCopies.messages["A"]}, nil // return []message.Batch{msg}, nil //
 }
 
 // Close shuts down the processor and stops processing requests.

@@ -2,11 +2,7 @@ input:
   stdin: {}
 
 pipeline:
-  processors:
-
-    # - unarchive:
-    #     format: "json_array"
-  
+  processors:  
     - workflow_v2:
 
         #       /--> B -------------|--> D
@@ -33,7 +29,7 @@ pipeline:
             dependency_list: ["A"]
             processors:
               - sleep: 
-                  duration: "3s"
+                  duration: "5s"
               - log:
                   level: INFO
                   message: STAGE B FINISHED
@@ -43,26 +39,9 @@ pipeline:
             processors:
               - sleep: 
                   duration: "1s"
-              - branch:
-                  request_map: |
-                    root = if this.error == "error" {
-                      this
-                    } else {
-                      deleted()
-                    }
-                  processors:
-                    - http:
-                        url: "dne://doenstexist.com"
-                    - mapping: |
-                        root = this
-                        root.branch_c = "C"
-                    - log:
-                        level: INFO
-                        message: STAGE C FINISHED
-                  result_map: |
-                      root = this
-            result_map: |
-                root = this
+              - log:
+                  level: INFO
+                  message: STAGE C FINISHED
 
           D:
             dependency_list: ["B", "E"]

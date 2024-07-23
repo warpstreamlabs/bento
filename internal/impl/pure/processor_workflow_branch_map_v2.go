@@ -2,6 +2,7 @@ package pure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -78,7 +79,8 @@ func newWorkflowBranchMapV2(conf *service.ParsedConfig, mgr bundle.NewManagement
 	// check dependencies is a DAG
 	isDag := validateDAG(dependencies)
 	if !isDag {
-		return nil, fmt.Errorf("dependency_lists have a cyclical dependency")
+		return nil, errors.New("dependency_lists have a cyclical dependency")
+
 	}
 
 	return &workflowBranchMapV2{

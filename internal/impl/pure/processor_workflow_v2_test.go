@@ -144,7 +144,7 @@ func TestWorkflowsV2(t *testing.T) {
 				msg(`{}`),
 			},
 			output: []mockMsg{
-				msg(`{"meta":{"workflow_v2":{"succeeded":["A"]}}}`),
+				msg(`{"chinese":"你好","english":"hello","french":"bonjour","meta":{"workflow_v2":{"succeeded":["A","B","C","D"]}},"thai":"สวัสดี"}`),
 			},
 		},
 	}
