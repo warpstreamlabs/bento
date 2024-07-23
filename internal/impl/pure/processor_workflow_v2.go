@@ -15,7 +15,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
-	"github.com/warpstreamlabs/bento/internal/tracing"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -210,17 +209,17 @@ type resultTrackerV2 struct {
 	sync.Mutex
 }
 
-func createTrackerFromDependencies(dependencies map[string][]string, skipList map[string]struct{}, batchSize int) *resultTrackerV2 {
+func createTrackerFromDependencies(dependencies map[string][]string, skipList map[string]struct{}, msg message.Batch) *resultTrackerV2 {
 	r := &resultTrackerV2{
-		notStarted:        make([]map[string]struct{}, batchSize),
-		started:           make([]map[string]struct{}, batchSize),
-		succeeded:         make([]map[string]struct{}, batchSize),
-		skipped:           make([]map[string]struct{}, batchSize),
-		failed:            make([]map[string]string, batchSize),
-		dependencyTracker: make([]map[string][]string, batchSize),
+		notStarted:        make([]map[string]struct{}, msg.Len()),
+		started:           make([]map[string]struct{}, msg.Len()),
+		succeeded:         make([]map[string]struct{}, msg.Len()),
+		skipped:           make([]map[string]struct{}, msg.Len()),
+		failed:            make([]map[string]string, msg.Len()),
+		dependencyTracker: make([]map[string][]string, msg.Len()),
 	}
 
-	for i := 0; i < batchSize; i++ {
+	for i := 0; i < msg.Len(); i++ {
 		r.notStarted[i] = make(map[string]struct{})
 		r.started[i] = make(map[string]struct{})
 		r.succeeded[i] = make(map[string]struct{})
@@ -241,7 +240,7 @@ func createTrackerFromDependencies(dependencies map[string][]string, skipList ma
 		}
 	}
 
-	for i := 0; i < batchSize; i++ {
+	for i := 0; i < msg.Len(); i++ {
 		for k := range skipList {
 			r.Skipped(i, k)
 			r.RemoveFromDepTracker(i, k)
@@ -446,9 +445,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		return nil
 	})
 
-	propMsg, _ := tracing.WithChildSpans(w.tracer, "workflow_v2", msg)
-
-	records := createTrackerFromDependencies(dependencies, skipOnMeta, msg.Len())
+	records := createTrackerFromDependencies(dependencies, skipOnMeta, msg)
 
 	type collector struct {
 		eid        string
@@ -494,7 +491,7 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 		results := make([][]*message.Part, msg.Len())
 		errors := make([]error, msg.Len())
 
-		branchMsg, branchSpans := tracing.WithChildSpans(w.tracer, eid, propMsg.ShallowCopy())
+		branchMsg := msg.ShallowCopy()
 
 		go func(i int, id string) {
 
@@ -514,11 +511,8 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			xxxPart := make([]*message.Part, 1)
 			xxxPart[0] = testPart
 
-			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, propMsg.ShallowCopy())
+			results[0], mapErrs, errors[0] = children[id].createResult(ctx, xxxPart, msg.ShallowCopy())
 
-			for _, s := range branchSpans {
-				s.Finish()
-			}
 			records.Succeeded(i, id)
 			for _, e := range mapErrs {
 				records.FailedV2(i, id, e.err.Error())
@@ -565,8 +559,6 @@ func (w *WorkflowV2) ProcessBatch(ctx context.Context, msg message.Batch) ([]mes
 			return nil
 		})
 	}
-
-	tracing.FinishSpans(propMsg)
 
 	w.mSent.Incr(int64(msg.Len()))
 	w.mBatchSent.Incr(1)

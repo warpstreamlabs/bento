@@ -1,6 +1,6 @@
 input: 
   file:
-    paths: ["./cmd/bento/input_batch.json"]
+    paths: ["./input_batch.json"]
     scanner:
       json_documents: {}
 
@@ -23,7 +23,7 @@ pipeline:
             processors:
               - mapping: |
                   root = this
-                  root.branch_a = "hello world from branch A"
+                  root.branch_a = "A"
               - sleep:
                   duration: "1s"
               - log:
@@ -54,12 +54,11 @@ pipeline:
                       deleted()
                     }
                   processors:
-                    - log:
-                        level: WARN
-                        message: HELLO
+                    - http:
+                        url: "dne://doenstexist.com"
                     - mapping: |
                         root = this
-                        root.branch_c = "hello world from branch C"
+                        root.branch_c = "C"
                     - log:
                         level: INFO
                         message: STAGE C FINISHED
@@ -91,7 +90,7 @@ pipeline:
             processors:
               - mapping: |
                   root = this
-                  root.branch_f = "hello world from branch F"
+                  root.branch_f = "F"
               - sleep: 
                   duration: "1s"
               - log:
