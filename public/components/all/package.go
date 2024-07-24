@@ -20,6 +20,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/dgraph"
 	_ "github.com/warpstreamlabs/bento/public/components/discord"
 	_ "github.com/warpstreamlabs/bento/public/components/elasticsearch"
+	_ "github.com/warpstreamlabs/bento/public/components/etcd"
 	_ "github.com/warpstreamlabs/bento/public/components/gcp"
 	_ "github.com/warpstreamlabs/bento/public/components/hdfs"
 	_ "github.com/warpstreamlabs/bento/public/components/influxdb"
