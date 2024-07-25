@@ -1,0 +1,59 @@
+input: 
+  stdin: {}
+
+pipeline:
+  processors:
+    - workflow_v2:
+
+        #       /--> B -------------|--> D
+        #      /                   /
+        # A --|          /--> E --|
+        #      \--> C --|          \
+        #                \----------|--> F
+
+        branches:
+          A:
+            request_map: |
+                root = this
+            processors:
+              - mapping: |
+                  root = this
+                  root.english = "hello"
+            result_map: |
+                root = this
+
+          B:
+            dependency_list: ["A"]
+            request_map: |
+                root = this
+            processors:
+              - mapping: |
+                  root = this
+                  root.french = "bonjour"
+            result_map: |
+                root = this
+
+          C:
+            dependency_list: ["A"]
+            request_map: |
+                root = this
+            processors:
+              - mapping: |
+                  root = this
+                  root.thai = "สวัสดี"
+            result_map: |
+                root = this
+
+          D:
+            dependency_list: ["B", "C"]
+            request_map: |
+                root = this
+            processors:
+              - mapping: |
+                  root = this
+                  root.chinese = "你好"
+            result_map: |
+                root = this
+
+output:
+  stdout: {}

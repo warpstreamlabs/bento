@@ -1,0 +1,99 @@
+input: 
+  file:
+    paths: ["./cmd/bento/input_batch.json"]
+    scanner:
+      json_documents: {}
+
+pipeline:
+  processors:
+
+    - unarchive:
+        format: "json_array"
+  
+    - workflow_v2:
+
+        #       /--> B -------------|--> D
+        #      /                   /
+        # A --|          /--> E --|
+        #      \--> C --|          \
+        #                \----------|--> F
+
+        branches:
+          A:
+            processors:
+              - mapping: |
+                  root = this
+                  root.branch_a = "hello world from branch A"
+              - sleep:
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE A FINISHED
+            result_map: |
+                root = this
+
+          B:
+            dependency_list: ["A"]
+            processors:
+              - sleep: 
+                  duration: "3s"
+              - log:
+                  level: INFO
+                  message: STAGE B FINISHED
+
+          C:
+            dependency_list: ["A"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - branch:
+                  request_map: |
+                    root = if this.error == "error" {
+                      this
+                    } else {
+                      deleted()
+                    }
+                  processors:
+                    - sleep: 
+                        duration: "15s"
+                    - log:
+                        level: WARN
+                        message: HELLO
+              - log:
+                  level: INFO
+                  message: STAGE C FINISHED
+
+          D:
+            dependency_list: ["B", "E"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE D FINISHED
+
+          E:
+            dependency_list: ["C"]
+            processors:
+              - sleep: 
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE E FINISHED
+
+          F:
+            dependency_list: ["C", "E"]
+            processors:
+              - mapping: |
+                  root = this
+                  root.branch_f = "hello world from branch F"
+              - sleep: 
+                  duration: "1s"
+              - log:
+                  level: INFO
+                  message: STAGE F FINISHED
+            result_map: |
+                root = this
+
+output:
+  stdout: {}
