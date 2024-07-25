@@ -136,10 +136,8 @@ func (t *rejectErroredBroker) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-// Connected returns a boolean indicating whether this output is currently
-// connected to its target.
-func (t *rejectErroredBroker) Connected() bool {
-	return t.output.Connected()
+func (t *rejectErroredBroker) ConnectionStatus() component.ConnectionStatuses {
+	return t.output.ConnectionStatus()
 }
 
 //------------------------------------------------------------------------------

@@ -271,13 +271,11 @@ func (o *switchOutput) Consume(transactions <-chan message.Transaction) error {
 	return nil
 }
 
-func (o *switchOutput) Connected() bool {
+func (o *switchOutput) ConnectionStatus() (s component.ConnectionStatuses) {
 	for _, out := range o.outputs {
-		if !out.Connected() {
-			return false
-		}
+		s = append(s, out.ConnectionStatus()...)
 	}
-	return true
+	return
 }
 
 func (o *switchOutput) dispatchToTargets(

@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Optional().
 			Advanced().
 			Version("1.0.0"),
+		service.NewBoolField("init_verify_conn").
+			Description("Whether to verify the database connection on startup by performing a simple ping, by default this is disabled.").
+			Default(false).
+			Optional().
+			Advanced().
+			Version("1.2.0"),
 		service.NewDurationField("conn_max_idle_time").
 			Description("An optional maximum amount of time a connection may be idle. Expired connections may be closed lazily before reuse. If `value <= 0`, connections are not closed due to a connections idle time.").
 			Optional().
@@ -125,6 +131,7 @@ type connSettings struct {
 	initOnce           sync.Once
 	initFileStatements [][2]string // (path,statement)
 	initStatement      string
+	initVerifyConn     bool
 }
 
 func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logger) {
@@ -206,14 +213,21 @@ func connSettingsFromParsed(
 			})
 		}
 	}
+
+	if conf.Contains("init_verify_conn") {
+		if c.initVerifyConn, err = conf.FieldBool("init_verify_conn"); err != nil {
+			return
+		}
+	}
+
 	return
 }
 
-func sqlOpenWithReworks(logger *service.Logger, driver, dsn string) (*sql.DB, error) {
+func reworkDSN(driver, dsn string) (string, error) {
 	if driver == "clickhouse" && strings.HasPrefix(dsn, "tcp") {
 		u, err := url.Parse(dsn)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		u.Scheme = "clickhouse"
@@ -235,8 +249,33 @@ func sqlOpenWithReworks(logger *service.Logger, driver, dsn string) (*sql.DB, er
 		u.RawQuery = uq.Encode()
 		newDSN := u.String()
 
-		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, newDSN)
-		dsn = newDSN
+		return newDSN, nil
 	}
-	return sql.Open(driver, dsn)
+
+	return dsn, nil
+}
+
+func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, shouldPing bool) (*sql.DB, error) {
+	updatedDSN, err := reworkDSN(driver, dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	if updatedDSN != dsn {
+		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
+	}
+
+	db, err := sql.Open(driver, updatedDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	if shouldPing {
+		if err := db.PingContext(ctx); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("could not establish connection to database: %w", err)
+		}
+	}
+
+	return db, nil
 }

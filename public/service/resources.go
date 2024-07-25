@@ -250,6 +250,31 @@ func (r *Resources) HasRateLimit(name string) bool {
 	return r.mgr.ProbeRateLimit(name)
 }
 
+// GetGeneric queries the resources for a generic key value, potentially set by
+// another plugin or instantiation of this plugin.
+func (r *Resources) GetGeneric(key any) (any, bool) {
+	return r.mgr.GetGeneric(key)
+}
+
+// GetOrSetGeneric attempts to obtain an existing generic value for a given key
+// if present. Otherwise, it stores and returns the provided value. The loaded
+// result is true if the value was loaded, false if stored.
+func (r *Resources) GetOrSetGeneric(key, value any) (actual any, loaded bool) {
+	return r.mgr.GetOrSetGeneric(key, value)
+}
+
+// SetGeneric sets a generic key/value pair, which can be accessed by other
+// plugin implementations with access to the same resources.
+//
+// The provided key must be comparable and should not be of type string or any
+// other built-in type to avoid collisions between packages using resources.
+// Users of SetGeneric should define their own types for keys. To avoid
+// allocating when assigning to an any type, keys often have concrete type
+// struct{}.
+func (r *Resources) SetGeneric(key, value any) {
+	r.mgr.SetGeneric(key, value)
+}
+
 //------------------------------------------------------------------------------
 
 type resourcesUnwrapper struct {

@@ -159,10 +159,11 @@ func (m *Impl) loop() {
 	}
 }
 
-// Connected returns a boolean indicating whether this output is currently
-// connected to its target.
-func (m *Impl) Connected() bool {
-	return m.child.Connected()
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
+func (m *Impl) ConnectionStatus() component.ConnectionStatuses {
+	return m.child.ConnectionStatus()
 }
 
 // Consume assigns a messages channel for the output to read.

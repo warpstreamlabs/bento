@@ -144,11 +144,13 @@ func (r *resourceInput) TransactionChan() (tChan <-chan message.Transaction) {
 	return r.tChan
 }
 
-func (r *resourceInput) Connected() (isConnected bool) {
+func (r *resourceInput) ConnectionStatus() (s component.ConnectionStatuses) {
 	if err := r.mgr.AccessInput(context.Background(), r.name, func(i input.Streamed) {
-		isConnected = i.Connected()
+		s = i.ConnectionStatus()
 	}); err != nil {
-		r.log.Error("Failed to obtain input resource '%v': %v", r.name, err)
+		return component.ConnectionStatuses{
+			component.ConnectionFailing(r.mgr, err),
+		}
 	}
 	return
 }

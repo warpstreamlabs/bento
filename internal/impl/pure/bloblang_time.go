@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/itchyny/timefmt-go"
-	"github.com/rickb777/date/period"
+	"github.com/rickb777/period"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 	"github.com/warpstreamlabs/bento/public/bloblang"
@@ -193,8 +193,7 @@ func init() {
 
 	parseDurISOCtor := func(args *bloblang.ParsedParams) (bloblang.Method, error) {
 		return bloblang.StringMethod(func(s string) (any, error) {
-			// No need to normalise the output since we need it expressed as nanoseconds.
-			d, err := period.Parse(s, false)
+			d, err := period.Parse(s)
 			if err != nil {
 				return nil, err
 			}

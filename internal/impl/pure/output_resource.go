@@ -145,12 +145,13 @@ func (r *resourceOutput) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-func (r *resourceOutput) Connected() (isConnected bool) {
-	var err error
-	if err = r.mgr.AccessOutput(context.Background(), r.name, func(o output.Sync) {
-		isConnected = o.Connected()
+func (r *resourceOutput) ConnectionStatus() (s component.ConnectionStatuses) {
+	if err := r.mgr.AccessOutput(context.Background(), r.name, func(o output.Sync) {
+		s = o.ConnectionStatus()
 	}); err != nil {
-		r.log.Error("Failed to obtain output resource '%v': %v", r.name, err)
+		return component.ConnectionStatuses{
+			component.ConnectionFailing(r.mgr, err),
+		}
 	}
 	return
 }

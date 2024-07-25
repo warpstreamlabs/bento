@@ -3,6 +3,7 @@ package output
 import (
 	"context"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
@@ -12,9 +13,10 @@ type Sync interface {
 	// WriteTransaction attempts to write a transaction to an output.
 	WriteTransaction(context.Context, message.Transaction) error
 
-	// Connected returns a boolean indicating whether this output is currently
-	// connected to its target.
-	Connected() bool
+	// ConnectionStatus returns the current status of the given component
+	// connection. The result is a slice in order to accommodate higher order
+	// components that wrap several others.
+	ConnectionStatus() component.ConnectionStatuses
 
 	// TriggerStopConsuming instructs the output to start shutting down
 	// resources once all pending messages are delivered and acknowledged.
@@ -35,9 +37,10 @@ type Streamed interface {
 	// Consume starts the type receiving transactions from a Transactor.
 	Consume(<-chan message.Transaction) error
 
-	// Connected returns a boolean indicating whether this output is currently
-	// connected to its target.
-	Connected() bool
+	// ConnectionStatus returns the current status of the given component
+	// connection. The result is a slice in order to accommodate higher order
+	// components that wrap several others.
+	ConnectionStatus() component.ConnectionStatuses
 
 	// TriggerCloseNow triggers the shut down of this component but should not
 	// block the calling goroutine.

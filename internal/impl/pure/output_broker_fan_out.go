@@ -48,13 +48,11 @@ func (o *fanOutOutputBroker) Consume(transactions <-chan message.Transaction) er
 	return nil
 }
 
-func (o *fanOutOutputBroker) Connected() bool {
+func (o *fanOutOutputBroker) ConnectionStatus() (s component.ConnectionStatuses) {
 	for _, out := range o.outputs {
-		if !out.Connected() {
-			return false
-		}
+		s = append(s, out.ConnectionStatus()...)
 	}
-	return true
+	return
 }
 
 func (o *fanOutOutputBroker) loop() {

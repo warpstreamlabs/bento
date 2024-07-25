@@ -105,8 +105,10 @@ func (i *inprocOutput) Consume(ts <-chan message.Transaction) error {
 	return nil
 }
 
-func (i *inprocOutput) Connected() bool {
-	return true
+func (i *inprocOutput) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{
+		component.ConnectionActive(i.mgr),
+	}
 }
 
 func (i *inprocOutput) TriggerCloseNow() {

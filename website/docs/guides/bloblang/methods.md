@@ -1760,6 +1760,20 @@ root.created_at_unix = this.created_at.ts_unix_nano()
 
 ## Type Coercion
 
+### `array`
+
+Return an array containing the target value. If the value is already an array it is unchanged.
+
+#### Examples
+
+
+```coffee
+root.my_array = this.name.array()
+
+# In:  {"name":"foobar bazson"}
+# Out: {"my_array":["foobar bazson"]}
+```
+
 ### `bool`
 
 Attempt to parse a value into a boolean. An optional argument can be provided, in which case if the value cannot be parsed the argument will be returned instead. If the value is a number then any non-zero value will resolve to `true`, if the value is a string then any of the following values are considered valid: `1, t, T, TRUE, true, True, 0, f, F, FALSE`.
@@ -2803,6 +2817,7 @@ Serializes a target value into a pretty-printed JSON byte array (with 4 space in
 
 **`indent`** &lt;string, default `"    "`&gt; Indentation string. Each element in a JSON object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.  
 **`no_indent`** &lt;bool, default `false`&gt; Disable indentation.  
+**`escape_html`** &lt;bool, default `true`&gt; Escape problematic HTML characters.  
 
 #### Examples
 
@@ -2845,6 +2860,30 @@ root = this.doc.format_json(no_indent: true)
 
 # In:  {"doc":{"foo":"bar"}}
 # Out: {"foo":"bar"}
+```
+
+Escapes problematic HTML characters.
+
+```coffee
+root = this.doc.format_json()
+
+# In:  {"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}
+# Out: {
+#          "email": "foo\u0026bar@bento.dev",
+#          "name": "foo\u003ebar"
+#      }
+```
+
+Set the `escape_html` parameter to false to disable escaping of problematic HTML characters.
+
+```coffee
+root = this.doc.format_json(escape_html: false)
+
+# In:  {"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}
+# Out: {
+#          "email": "foo&bar@bento.dev",
+#          "name": "foo>bar"
+#      }
 ```
 
 ### `format_msgpack`
@@ -3309,7 +3348,7 @@ root.encrypted = this.value.encrypt_aes("ctr", $key, $vector).encode("hex")
 
 Hashes a string or byte array according to a chosen algorithm and returns the result as a byte array. When mapping the result to a JSON field the value should be cast to a string using the method [`string`][methods.string], or encoded using the method [`encode`][methods.encode], otherwise it will be base64 encoded by default.
 
-Available algorithms are: `hmac_sha1`, `hmac_sha256`, `hmac_sha512`, `md5`, `sha1`, `sha256`, `sha512`, `xxhash64`, `crc32`.
+Available algorithms are: `hmac_sha1`, `hmac_sha256`, `hmac_sha512`, `md5`, `sha1`, `sha256`, `sha512`, `xxhash64`, `crc32`, `fnv32`.
 
 The following algorithms require a key, which is specified as a second argument: `hmac_sha1`, `hmac_sha256`, `hmac_sha512`.
 

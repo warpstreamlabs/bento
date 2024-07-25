@@ -15,6 +15,8 @@ type Observability interface {
 	Metrics() metrics.Type
 	Logger() log.Modular
 	Tracer() trace.TracerProvider
+	Path() []string
+	Label() string
 }
 
 type mockObs struct{}
@@ -29,6 +31,14 @@ func (m mockObs) Logger() log.Modular {
 
 func (m mockObs) Tracer() trace.TracerProvider {
 	return noop.NewTracerProvider()
+}
+
+func (m mockObs) Path() []string {
+	return nil
+}
+
+func (m mockObs) Label() string {
+	return ""
 }
 
 // NoopObservability returns an implementation of Observability that does

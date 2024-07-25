@@ -115,11 +115,21 @@ func TestMethods(t *testing.T) {
 				jsonFn(`{"doc":{"foo":"bar"}}`),
 				method("format_json", ""),
 			),
-			output: []byte(`{
-"doc": {
-"foo": "bar"
-}
-}`),
+			output: []byte(`{"doc":{"foo":"bar"}}`),
+		},
+		"check format_json with escaping problematic HTML characters": {
+			input: methods(
+				jsonFn(`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`),
+				method("format_json", ""),
+			),
+			output: []byte(`{"doc":{"email":"foo\u0026bar@bento.dev","name":"foo\u003ebar"}}`),
+		},
+		"check format_json without escaping problematic HTML characters": {
+			input: methods(
+				jsonFn(`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`),
+				method("format_json", "", true, false),
+			),
+			output: []byte(`{"doc":{"email":"foo&bar@bento.dev","name":"foo>bar"}}`),
 		},
 		"check format_yaml": {
 			input: methods(
@@ -492,6 +502,34 @@ func TestMethods(t *testing.T) {
 			),
 			output: false,
 		},
+		"check array": {
+			input: methods(
+				literalFn([]any{1}),
+				method("array"),
+			),
+			output: []any{1},
+		},
+		"check array 2": {
+			input: methods(
+				literalFn(1),
+				method("array"),
+			),
+			output: []any{1},
+		},
+		"check array 3": {
+			input: methods(
+				literalFn(nil),
+				method("array"),
+			),
+			output: []any{nil},
+		},
+		"check array 4": {
+			input: methods(
+				literalFn([]any{}),
+				method("array"),
+			),
+			output: []any{},
+		},
 		"check bool": {
 			input: methods(
 				literalFn("true"),
@@ -834,6 +872,14 @@ func TestMethods(t *testing.T) {
 				method("encode", "hex"),
 			),
 			err: `string literal: unsupported crc32 hash key "not-supported"`,
+		},
+		"check fnv32 hash": {
+			input: methods(
+				literalFn("hello world"),
+				method("hash", "fnv32"),
+				method("string"),
+			),
+			output: "1418570095",
 		},
 		"check hex encode": {
 			input: methods(

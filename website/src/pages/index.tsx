@@ -192,7 +192,7 @@ const features = [
           Bento solves common data engineering tasks such as transformations, integrations, and multiplexing with declarative and <a href="/bento/docs/configuration/unit_testing">unit testable</a> configuration. This allows you to easily and incrementally adapt your data pipelines as requirements change, letting you focus on the more exciting stuff.
         </p>
         <p>
-          It comes armed with a wide range of <a href="bento/docs/components/processors/about">processors</a>, a <a href="/bento/docs/guides/bloblang/about">lit mapping language</a>, stateless <a href="/bento/docs/configuration/windowed_processing">windowed processing capabilities</a> and an industry leading mascot.
+          It comes armed with a wide range of <a href="/bento/docs/components/processors/about">processors</a>, a <a href="/bento/docs/guides/bloblang/about">lit mapping language</a>, stateless <a href="/bento/docs/configuration/windowed_processing">windowed processing capabilities</a> and an industry leading mascot.
         </p>
       </>
     ),
@@ -206,7 +206,7 @@ const features = [
           Bento is able to glue a wide range of <a href="/bento/docs/components/inputs/about">sources</a> and <a href="/bento/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/bento/docs/components/processors/sql">databases</a>, <a href="/bento/docs/components/processors/cache">caches</a>, <a href="/bento/docs/components/processors/http">HTTP APIs</a>, <a href="/bento/docs/components/processors/aws_lambda">lambdas</a> and <a href="/bento/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
         </p>
         <p>
-          Working with disparate APIs and services can be a daunting task, doubly so in a streaming data context. With Bento it's possible to break these tasks down and automatically parallelize them as <a href="/cookbooks/enrichments">a streaming workflow</a>.
+          Working with disparate APIs and services can be a daunting task, doubly so in a streaming data context. With Bento it's possible to break these tasks down and automatically parallelize them as <a href="/bento/cookbooks/enrichments">a streaming workflow</a>.
         </p>
       </>
     ),

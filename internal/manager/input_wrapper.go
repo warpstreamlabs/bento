@@ -70,15 +70,22 @@ func (w *InputWrapper) SwapInput(i input.Streamed) {
 	w.inputLock.Unlock()
 }
 
+// TransactionChan returns a transactions channel for consuming messages from
+// the wrapped input.
 func (w *InputWrapper) TransactionChan() <-chan message.Transaction {
 	return w.tranChan
 }
 
-func (w *InputWrapper) Connected() bool {
+// ConnectionStatus returns the current status of the given component
+// connection. The result is a slice in order to accommodate higher order
+// components that wrap several others.
+func (w *InputWrapper) ConnectionStatus() (s component.ConnectionStatuses) {
 	w.inputLock.Lock()
-	con := w.ctrl.input != nil && w.ctrl.input.Connected()
+	if w.ctrl.input != nil {
+		s = w.ctrl.input.ConnectionStatus()
+	}
 	w.inputLock.Unlock()
-	return con
+	return
 }
 
 func (w *InputWrapper) loop() {

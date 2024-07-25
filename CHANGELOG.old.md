@@ -3,6 +3,17 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 4.31.0 - 2024-07-18
+
+### Added
+
+- Field max_retries added to the retry processor.
+- Algorithm fnv32 added to the hash bloblang method
+- Parameter escape_html added to the format_json() Bloblang method.
+- New array bloblang method
+- Go API: New generic key/value store methods added to the *Resources type.
+- Use new rickb777/period library for parse_duration_iso8601
+
 ## 4.30.0 - 2024-06-13
 
 ### Added
