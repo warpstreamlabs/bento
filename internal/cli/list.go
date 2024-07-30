@@ -10,9 +10,11 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/config/schema"
 	"github.com/warpstreamlabs/bento/internal/cuegen"
+	"github.com/warpstreamlabs/bento/internal/jsonschema"
 )
 
 func listCliCommand(opts *common.CLIOpts) *cli.Command {
@@ -30,7 +32,7 @@ components will be shown.
 			&cli.StringFlag{
 				Name:  "format",
 				Value: "text",
-				Usage: "Print the component list in a specific format. Options are text, json or cue.",
+				Usage: "Print the component list in a specific format. Options are text, json, jsonschema or cue.",
 			},
 			&cli.StringFlag{
 				Name:  "status",
@@ -115,6 +117,12 @@ func listComponents(c *cli.Context, opts *common.CLIOpts) {
 			panic(err)
 		}
 		fmt.Println(string(jsonBytes))
+	case "jsonschema":
+		jsonSchemaBytes, err := jsonschema.Marshal(schema.Config, bundle.GlobalEnvironment)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(jsonSchemaBytes))
 	case "cue":
 		source, err := cuegen.GenerateSchema(schema)
 		if err != nil {
