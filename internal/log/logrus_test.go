@@ -10,125 +10,122 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
-func TestLoggerWith(t *testing.T) {
-	loggerConfig := NewConfig()
-	loggerConfig.AddTimeStamp = false
-	loggerConfig.Format = "logfmt"
-	loggerConfig.LogLevel = "WARN"
-	loggerConfig.StaticFields = map[string]string{
-		"@service": "bento_service",
-		"@system":  "foo",
+func TestLogger(t *testing.T) {
+	tests := []struct {
+		name        string
+		fields      map[string]string
+		message     string
+		level       string
+		format      string
+		levelName   string
+		messageName string
+		expected    string
+	}{
+		{
+			name:    "logger with default format and level emits INFO logs",
+			message: "Info message",
+			expected: `level=info msg="Info message" @service=benthos_service @system=foo
+`,
+		},
+		{
+			name:    "logger with DEBUG level emits DEBUG logs",
+			level:   "DEBUG",
+			message: "Info message",
+			expected: `level=debug msg="debug message" @service=benthos_service @system=foo
+level=info msg="Info message" @service=benthos_service @system=foo
+`,
+		},
+		{
+			name: "logger with WARN level and custom fields doesn't emit INFO logs",
+			fields: map[string]string{
+				"foo": "bar",
+			},
+			level:   "WARN",
+			message: "Warning message",
+			expected: `level=warning msg="Warning message" @service=benthos_service @system=foo foo=bar
+`,
+		},
+		{
+			name: "logger with custom fields",
+			fields: map[string]string{
+				"foo":    "bar",
+				"count":  "10",
+				"thing":  "is a string",
+				"iscool": "true",
+			},
+			level:   "WARN",
+			message: "Warning message foo fields",
+			expected: `level=warning msg="Warning message foo fields" @service=benthos_service @system=foo count=10 foo=bar iscool=true thing="is a string"
+`,
+		},
+		{
+			name:    "logger with fmt strings",
+			message: "foo%22bar",
+			expected: `level=info msg="foo%22bar" @service=benthos_service @system=foo
+`,
+		},
+		{
+			name:        "logger with non-default LevelName and MessageName",
+			message:     "Info message foo fields",
+			levelName:   "severity",
+			messageName: "message",
+			expected: `severity=info message="Info message foo fields" @service=benthos_service @system=foo
+`,
+		},
+		{
+			name: "logger with json format",
+			fields: map[string]string{
+				"foo": "bar",
+			},
+			level:   "WARN",
+			format:  "json",
+			message: "Warning message foo fields",
+			expected: `{"@service":"benthos_service","@system":"foo","foo":"bar","level":"warning","msg":"Warning message foo fields"}
+`,
+		},
 	}
 
-	var buf bytes.Buffer
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			loggerConfig := NewConfig()
+			loggerConfig.AddTimeStamp = false
+			loggerConfig.StaticFields = map[string]string{
+				"@service": "benthos_service",
+				"@system":  "foo",
+			}
 
-	logger, err := New(&buf, ifs.OS(), loggerConfig)
-	require.NoError(t, err)
+			if test.level != "" {
+				loggerConfig.LogLevel = test.level
+			}
+			if test.format != "" {
+				loggerConfig.Format = test.format
+			}
+			if test.levelName != "" {
+				loggerConfig.LevelName = test.levelName
+			}
+			if test.messageName != "" {
+				loggerConfig.MessageName = test.messageName
+			}
 
-	logger.Warn("Warning message root module")
+			var buf bytes.Buffer
 
-	logger2 := logger.WithFields(map[string]string{
-		"foo": "bar", "count": "10", "thing": "is a string", "iscool": "true",
-	})
-	require.NoError(t, err)
-	logger2.Warn("Warning message foo fields")
+			logger, err := New(&buf, ifs.OS(), loggerConfig)
+			require.NoError(t, err)
 
-	logger.Warn("Warning message root module\n")
+			logger.Debug("debug message")
 
-	expected := `level=warning msg="Warning message root module" @service=bento_service @system=foo
-level=warning msg="Warning message foo fields" @service=bento_service @system=foo count=10 foo=bar iscool=true thing="is a string"
-level=warning msg="Warning message root module" @service=bento_service @system=foo
-`
+			if test.fields != nil {
+				logger = logger.WithFields(test.fields)
+				require.NoError(t, err)
 
-	assert.Equal(t, expected, buf.String())
-}
+				logger.Warn(test.message)
+			}
 
-func TestLoggerWithOddArgs(t *testing.T) {
-	loggerConfig := NewConfig()
-	loggerConfig.AddTimeStamp = false
-	loggerConfig.Format = "logfmt"
-	loggerConfig.LogLevel = "WARN"
-	loggerConfig.StaticFields = map[string]string{
-		"@service": "bento_service",
-		"@system":  "foo",
+			logger.Info(test.message)
+
+			assert.Equal(t, test.expected, buf.String())
+		})
 	}
-
-	var buf bytes.Buffer
-
-	logger, err := New(&buf, ifs.OS(), loggerConfig)
-	require.NoError(t, err)
-
-	logger = logger.WithFields(map[string]string{
-		"foo": "bar", "count": "10", "thing": "is a string", "iscool": "true",
-	})
-	require.NoError(t, err)
-
-	logger.Warn("Warning message foo fields")
-
-	expected := `level=warning msg="Warning message foo fields" @service=bento_service @system=foo count=10 foo=bar iscool=true thing="is a string"
-`
-
-	assert.Equal(t, expected, buf.String())
-}
-
-func TestLoggerWithNonStringKeys(t *testing.T) {
-	loggerConfig := NewConfig()
-	loggerConfig.AddTimeStamp = false
-	loggerConfig.Format = "logfmt"
-	loggerConfig.LogLevel = "WARN"
-	loggerConfig.StaticFields = map[string]string{
-		"@service": "bento_service",
-		"@system":  "foo",
-	}
-
-	var buf bytes.Buffer
-
-	logger, err := New(&buf, ifs.OS(), loggerConfig)
-	require.NoError(t, err)
-
-	logger = logger.WithFields(map[string]string{
-		"component": "meow",
-		"foo":       "bar",
-		"thing":     "is a string",
-		"iscool":    "true",
-	})
-
-	logger.Warn("Warning message foo fields")
-
-	expected := `level=warning msg="Warning message foo fields" @service=bento_service @system=foo component=meow foo=bar iscool=true thing="is a string"
-`
-
-	assert.Equal(t, expected, buf.String())
-}
-
-func TestLoggerWithOtherNames(t *testing.T) {
-	loggerConfig := NewConfig()
-	loggerConfig.AddTimeStamp = false
-	loggerConfig.Format = "json"
-	loggerConfig.LogLevel = "WARN"
-	loggerConfig.StaticFields = map[string]string{
-		"@service": "bento_service",
-		"@system":  "foo",
-	}
-	loggerConfig.LevelName = "severity"
-	loggerConfig.MessageName = "message"
-
-	var buf bytes.Buffer
-
-	logger, err := New(&buf, ifs.OS(), loggerConfig)
-	require.NoError(t, err)
-
-	logger = logger.WithFields(map[string]string{
-		"foo": "bar",
-	})
-	require.NoError(t, err)
-
-	logger.Warn("Warning message foo fields")
-
-	expected := `{"@service":"bento_service","@system":"foo","foo":"bar","message":"Warning message foo fields","severity":"warning"}
-`
-
-	require.JSONEq(t, expected, buf.String())
 }
 
 type logCounter struct {
