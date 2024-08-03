@@ -492,7 +492,7 @@ couchbase:
   operation: 'insert'
 `, servicePort, bucket, username, password)))
 
-	// upsert adn remove in parallel
+	// upsert and remove in parallel
 	require.NoError(t, streamOutBuilder.AddProcessorYAML(fmt.Sprintf(`
 workflow:
   meta_path: ""
