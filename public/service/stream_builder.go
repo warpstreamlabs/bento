@@ -821,20 +821,6 @@ func (s *StreamBuilder) AsYAML() (string, error) {
 	return string(b), nil
 }
 
-// WalkedComponent is a struct containing information about a component yielded
-// via the WalkComponents method.
-type WalkedComponent struct {
-	ComponentType string
-	Name          string
-	Label         string
-	confYAML      string
-}
-
-// ConfigYAML returns the configuration of a walked component in YAML form.
-func (w *WalkedComponent) ConfigYAML() string {
-	return w.confYAML
-}
-
 // WalkComponents walks the Bento configuration as it is currently built and
 // for each component type (input, processor, output, etc) calls a provided
 // function with a struct containing information about the component.
@@ -858,19 +844,18 @@ func (s *StreamBuilder) WalkComponents(fn func(w *WalkedComponent) error) error 
 		return err
 	}
 
-	return spec.WalkYAML(&node, s.env.internal,
-		func(c docs.WalkedYAMLComponent) error {
-			yamlBytes, err := yaml.Marshal(c.Conf)
-			if err != nil {
-				return err
+	walkConf := docs.WalkComponentConfig{
+		Provider: s.env.internal,
+		Func: func(c docs.WalkedComponent) error {
+			tmpErr := fn(walkedComponentFromInternal(c))
+			if errors.Is(tmpErr, ErrSkipComponents) {
+				tmpErr = docs.ErrSkipChildComponents
 			}
-			return fn(&WalkedComponent{
-				ComponentType: string(c.ComponentType),
-				Name:          c.Name,
-				Label:         c.Label,
-				confYAML:      string(yamlBytes),
-			})
-		})
+			return tmpErr
+		},
+	}
+
+	return spec.WalkComponentsYAML(walkConf, &node)
 }
 
 //------------------------------------------------------------------------------
