@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 - The `/ready` endpoint in regular operation now provides a detailed summary of all inputs and outputs, including connection errors where applicable. (@Jeffail)
 - The `list` subcommand now supports the format `jsonschema`. (@Jeffail)
+- Go API: New `WithX` methods added to the environment type. (@Jeffail)
 
 ## 4.31.0 - 2024-07-18
 

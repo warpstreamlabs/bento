@@ -117,3 +117,75 @@ var GlobalEnvironment = &Environment{
 	scanners:     AllScanners,
 	constructors: AllConstructors,
 }
+
+// WithBuffers returns a copy of Environment with a cloned plugin registry of
+// buffers, where only the specified plugins are included.
+func (e *Environment) WithBuffers(names ...string) *Environment {
+	newEnv := *e
+	newEnv.buffers = e.buffers.With(names...)
+	return &newEnv
+}
+
+// WithCaches returns a copy of Environment with a cloned plugin registry of
+// caches, where only the specified plugins are included.
+func (e *Environment) WithCaches(names ...string) *Environment {
+	newEnv := *e
+	newEnv.caches = e.caches.With(names...)
+	return &newEnv
+}
+
+// WithInputs returns a copy of Environment with a cloned plugin registry of
+// inputs, where only the specified plugins are included.
+func (e *Environment) WithInputs(names ...string) *Environment {
+	newEnv := *e
+	newEnv.inputs = e.inputs.With(names...)
+	return &newEnv
+}
+
+// WithOutputs returns a copy of Environment with a cloned plugin registry of
+// outputs, where only the specified plugins are included.
+func (e *Environment) WithOutputs(names ...string) *Environment {
+	newEnv := *e
+	newEnv.outputs = e.outputs.With(names...)
+	return &newEnv
+}
+
+// WithProcessors returns a copy of Environment with a cloned plugin registry
+// of processors, where only the specified plugins are included.
+func (e *Environment) WithProcessors(names ...string) *Environment {
+	newEnv := *e
+	newEnv.processors = e.processors.With(names...)
+	return &newEnv
+}
+
+// WithRateLimits returns a copy of Environment with a cloned plugin registry
+// of rate limits, where only the specified plugins are included.
+func (e *Environment) WithRateLimits(names ...string) *Environment {
+	newEnv := *e
+	newEnv.rateLimits = e.rateLimits.With(names...)
+	return &newEnv
+}
+
+// WithMetrics returns a copy of Environment with a cloned plugin registry of
+// metrics, where only the specified plugins are included.
+func (e *Environment) WithMetrics(names ...string) *Environment {
+	newEnv := *e
+	newEnv.metrics = e.metrics.With(names...)
+	return &newEnv
+}
+
+// WithTracers returns a copy of Environment with a cloned plugin registry of
+// tracers, where only the specified plugins are included.
+func (e *Environment) WithTracers(names ...string) *Environment {
+	newEnv := *e
+	newEnv.tracers = e.tracers.With(names...)
+	return &newEnv
+}
+
+// WithScanners returns a copy of Environment with a cloned plugin registry
+// of scanners, where only the specified plugins are included.
+func (e *Environment) WithScanners(names ...string) *Environment {
+	newEnv := *e
+	newEnv.scanners = e.scanners.With(names...)
+	return &newEnv
+}

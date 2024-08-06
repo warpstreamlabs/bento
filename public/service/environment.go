@@ -718,3 +718,95 @@ func XFormatConfigJSON() ([]byte, error) {
 func (e *Environment) XRateLimitInitForTest(conf ratelimit.Config, mgr bundle.NewManagement) (ratelimit.V1, error) {
 	return e.internal.RateLimitInit(conf, mgr)
 }
+
+//------------------------------------------------------------------------------
+
+// WithBuffers returns a copy of Environment with a cloned plugin registry of
+// buffers, where only the specified plugins are included.
+func (e *Environment) WithBuffers(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithBuffers(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithCaches returns a copy of Environment with a cloned plugin registry of
+// caches, where only the specified plugins are included.
+func (e *Environment) WithCaches(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithCaches(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithInputs returns a copy of Environment with a cloned plugin registry of
+// inputs, where only the specified plugins are included.
+func (e *Environment) WithInputs(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithInputs(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithOutputs returns a copy of Environment with a cloned plugin registry of
+// outputs, where only the specified plugins are included.
+func (e *Environment) WithOutputs(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithOutputs(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithProcessors returns a copy of Environment with a cloned plugin registry
+// of processors, where only the specified plugins are included.
+func (e *Environment) WithProcessors(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithProcessors(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithRateLimits returns a copy of Environment with a cloned plugin registry
+// of rate limits, where only the specified plugins are included.
+func (e *Environment) WithRateLimits(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithRateLimits(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithMetrics returns a copy of Environment with a cloned plugin registry of
+// metrics, where only the specified plugins are included.
+func (e *Environment) WithMetrics(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithMetrics(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithTracers returns a copy of Environment with a cloned plugin registry of
+// tracers, where only the specified plugins are included.
+func (e *Environment) WithTracers(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithTracers(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
+
+// WithScanners returns a copy of Environment with a cloned plugin registry
+// of scanners, where only the specified plugins are included.
+func (e *Environment) WithScanners(names ...string) *Environment {
+	return &Environment{
+		internal:    e.internal.WithScanners(names...),
+		bloblangEnv: e.bloblangEnv.Clone(),
+		fs:          e.fs,
+	}
+}
