@@ -59,7 +59,7 @@ The log level to use.
 
 Type: `string`  
 Default: `"INFO"`  
-Options: `FATAL`, `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`, `ALL`.
+Options: `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`, `ALL`.
 
 ### `fields_mapping`
 
