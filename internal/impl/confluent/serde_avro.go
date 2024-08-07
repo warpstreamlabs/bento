@@ -4,11 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/linkedin/goavro/v2"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+type field struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type reference struct {
+	Type      string  `json:"type"`
+	Name      string  `json:"name"`
+	Namespace string  `json:"namespace"`
+	Fields    []field `json:"fields"`
+}
 
 func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, info SchemaInfo) (string, error) {
 	if len(info.References) == 0 {
@@ -23,26 +36,43 @@ func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, in
 		return "", nil
 	}
 
-	schemaDry := []string{}
+	var schemaDry any
 	if err := json.Unmarshal([]byte(info.Schema), &schemaDry); err != nil {
 		return "", fmt.Errorf("failed to parse root schema as enum: %w", err)
 	}
 
-	schemaHydrated := make([]json.RawMessage, len(schemaDry))
-	for i, name := range schemaDry {
-		def, exists := refsMap[name]
-		if !exists {
-			return "", fmt.Errorf("referenced type '%v' was not found in references", name)
-		}
-		schemaHydrated[i] = []byte(def)
-	}
+	schemaRaw, _ := json.Marshal(schemaDry)
+	schemaString := string(schemaRaw)
 
-	schemaHydratedBytes, err := json.Marshal(schemaHydrated)
+	var schema reference
+	err := json.Unmarshal([]byte(schemaRaw), &schema)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal hydrated schema: %w", err)
+		panic(err)
 	}
 
-	return string(schemaHydratedBytes), nil
+	var ref reference
+
+	for {
+		initialSchemaDry := schemaString
+
+		for k, v := range refsMap {
+			err := json.Unmarshal([]byte(refsMap[k]), &ref)
+			if err != nil {
+				panic(err)
+			}
+
+			if schema.Namespace == ref.Namespace {
+				schemaString = strings.ReplaceAll(schemaString, `"type":"`+ref.Name+`"`, `"type":`+v)
+			} else {
+				schemaString = strings.ReplaceAll(schemaString, `"type":"`+ref.Namespace+`.`+ref.Name+`"`, `"type":`+v)
+			}
+		}
+		if schemaString == initialSchemaDry {
+			break
+		}
+	}
+
+	return schemaString, nil
 }
 
 func (s *schemaRegistryEncoder) getAvroEncoder(ctx context.Context, info SchemaInfo) (schemaEncoder, error) {
