@@ -192,6 +192,7 @@ couchbase:
   bucket: %s
   username: %s
   password: %s
+  cas_enabled: true
   id: '${! json("key") }'
   content: 'root = this'
   operation: 'insert'
@@ -211,6 +212,7 @@ couchbase:
   bucket: %s
   username: %s
   password: %s
+  cas_enabled: true
   id: '${! json("key") }'
   content: 'root = this'
   operation: 'replace'
@@ -229,6 +231,7 @@ couchbase:
   bucket: %s
   username: %s
   password: %s
+  cas_enabled: true
   id: '${! json("key") }'
   operation: 'remove'
 `, servicePort, bucket, username, password)))
@@ -296,6 +299,7 @@ couchbase:
   bucket: %s
   username: %s
   password: %s
+  cas_enabled: true
   id: '${! json("key") }'
   content: |
     root = this
@@ -315,6 +319,7 @@ workflow:
             bucket: %[2]s
             username: %[3]s
             password: %[4]s
+            cas_enabled: true
             id: '${! json("key") }'
             content: |
               root = this
@@ -329,6 +334,7 @@ workflow:
             bucket: %[2]s
             username: %[3]s
             password: %[4]s
+            cas_enabled: true
             id: '${! json("key") }'
             content: |
               root = this

@@ -41,6 +41,7 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationReplace): "replace the contents of a document.",
 			string(client.OperationUpsert):  "creates a new document if it does not exist, if it does exist then it updates it.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
+		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(false)). // TODO: Enable by default in next release
 		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert") && !this.exists("content")) { [ "content must be set for insert, replace and upsert operations." ] }`)
 }
 
@@ -61,9 +62,10 @@ func init() {
 // batch.
 type Processor struct {
 	*couchbaseClient
-	id      *service.InterpolatedString
-	content *bloblang.Executor
-	op      func(key string, data []byte, cas gocb.Cas) gocb.BulkOp
+	id         *service.InterpolatedString
+	content    *bloblang.Executor
+	op         func(key string, data []byte, cas gocb.Cas) gocb.BulkOp
+	casEnabled bool
 }
 
 // NewProcessor returns a Couchbase processor.
@@ -84,6 +86,11 @@ func NewProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*Processo
 		if p.content, err = conf.FieldBloblang("content"); err != nil {
 			return nil, err
 		}
+	}
+
+	p.casEnabled, err = conf.FieldBool("cas_enabled")
+	if err != nil {
+		return nil, err
 	}
 
 	op, err := conf.FieldString("operation")
@@ -148,10 +155,12 @@ func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBat
 			}
 		}
 
-		var cas gocb.Cas // retrieve cas if set
-		if val, ok := msg.MetaGetMut(MetaCASKey); ok {
-			if v, ok := val.(gocb.Cas); ok {
-				cas = v
+		var cas gocb.Cas // retrieve cas if set and enabled
+		if p.casEnabled {
+			if val, ok := msg.MetaGetMut(MetaCASKey); ok {
+				if v, ok := val.(gocb.Cas); ok {
+					cas = v
+				}
 			}
 		}
 
