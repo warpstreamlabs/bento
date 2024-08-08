@@ -45,7 +45,7 @@ func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, in
 	schemaString := string(schemaRaw)
 
 	var schema reference
-	err := json.Unmarshal([]byte(schemaRaw), &schema)
+	err := json.Unmarshal(schemaRaw, &schema)
 	if err != nil {
 		panic(err)
 	}
