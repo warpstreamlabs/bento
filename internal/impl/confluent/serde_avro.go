@@ -47,7 +47,7 @@ func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, in
 	var schema reference
 	err := json.Unmarshal(schemaRaw, &schema)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("failed to unmarshal root schema: %w", err)
 	}
 
 	var ref reference
@@ -58,7 +58,7 @@ func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, in
 		for k, v := range refsMap {
 			err := json.Unmarshal([]byte(refsMap[k]), &ref)
 			if err != nil {
-				panic(err)
+				return "", fmt.Errorf("failed to unmarshal refsMap value %s: %w", k, err)
 			}
 
 			if schema.Namespace == ref.Namespace {
