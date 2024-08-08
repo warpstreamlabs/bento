@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - The `list` subcommand now supports the format `jsonschema`. (@Jeffail)
 - Go API: New `WithX` methods added to the environment type. (@Jeffail)
 - Go API: New `ConfigWalker` API added to the schema type. (@Jeffail)
+- Support OAuth 2.0 with bootstrapped refresh token (@nregati)
 
 ## 4.31.0 - 2024-07-18
 

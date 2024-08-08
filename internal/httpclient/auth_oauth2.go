@@ -38,6 +38,25 @@ func (oauth oauth2Config) Client(ctx context.Context, base *http.Client) *http.C
 		return base
 	}
 
+	// Support for refresh_token grant type with bootstrapped refresh token to obtain access token
+	if gt, ok := oauth.EndpointParams["grant_type"]; ok && gt[0] == "refresh_token" {
+		conf := &oauth2.Config{
+			ClientID:     oauth.ClientKey,
+			ClientSecret: oauth.ClientSecret,
+			Endpoint: oauth2.Endpoint{
+				TokenURL:  oauth.TokenURL,
+				AuthStyle: oauth2.AuthStyleAutoDetect,
+			},
+			Scopes: oauth.Scopes,
+		}
+		// We don't consider bootstrapped access token if any as it might be expired, rather we generate a new one
+		token := &oauth2.Token{}
+		if rt, ok := oauth.EndpointParams["refresh_token"]; ok {
+			token.RefreshToken = rt[0]
+		}
+		return conf.Client(ctx, token)
+	}
+
 	conf := &clientcredentials.Config{
 		ClientID:       oauth.ClientKey,
 		ClientSecret:   oauth.ClientSecret,
