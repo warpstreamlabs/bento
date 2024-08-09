@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
-	"github.com/go-faker/faker/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/impl/couchbase"
 	"github.com/warpstreamlabs/bento/public/service"
-	"github.com/warpstreamlabs/bento/public/service/integration"
+
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 func TestProcessorConfigLinting(t *testing.T) {
@@ -102,50 +101,6 @@ couchbase:
 	}
 }
 
-func TestIntegrationCouchbaseProcessor(t *testing.T) {
-	integration.CheckSkip(t)
-
-	servicePort := requireCouchbase(t)
-
-	bucket := fmt.Sprintf("testing-processor-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
-	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
-	})
-
-	uid := faker.UUIDHyphenated()
-	payload := fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
-
-	t.Run("Insert", func(t *testing.T) {
-		testCouchbaseProcessorInsert(uid, payload, bucket, servicePort, t)
-	})
-	t.Run("Get", func(t *testing.T) {
-		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
-	})
-	t.Run("Remove", func(t *testing.T) {
-		testCouchbaseProcessorRemove(uid, bucket, servicePort, t)
-	})
-	t.Run("GetMissing", func(t *testing.T) {
-		testCouchbaseProcessorGetMissing(uid, bucket, servicePort, t)
-	})
-
-	payload = fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
-	t.Run("Upsert", func(t *testing.T) {
-		testCouchbaseProcessorUpsert(uid, payload, bucket, servicePort, t)
-	})
-	t.Run("Get", func(t *testing.T) {
-		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
-	})
-
-	payload = fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
-	t.Run("Replace", func(t *testing.T) {
-		testCouchbaseProcessorReplace(uid, payload, bucket, servicePort, t)
-	})
-	t.Run("Get", func(t *testing.T) {
-		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
-	})
-}
-
 func getProc(tb testing.TB, config string) *couchbase.Processor {
 	tb.Helper()
 
@@ -181,6 +136,11 @@ operation: 'insert'
 	assert.Len(t, msgOut, 1)
 	assert.Len(t, msgOut[0], 1)
 
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
+
 	// message content should stay the same.
 	dataOut, err := msgOut[0][0].AsBytes()
 	assert.NoError(t, err)
@@ -206,6 +166,11 @@ operation: 'upsert'
 	assert.NoError(t, err)
 	assert.Len(t, msgOut, 1)
 	assert.Len(t, msgOut[0], 1)
+
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
 
 	// message content should stay the same.
 	dataOut, err := msgOut[0][0].AsBytes()
@@ -233,6 +198,11 @@ operation: 'replace'
 	assert.Len(t, msgOut, 1)
 	assert.Len(t, msgOut[0], 1)
 
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
+
 	// message content should stay the same.
 	dataOut, err := msgOut[0][0].AsBytes()
 	assert.NoError(t, err)
@@ -258,6 +228,11 @@ operation: 'get'
 	assert.Len(t, msgOut, 1)
 	assert.Len(t, msgOut[0], 1)
 
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
+
 	// message should contain expected payload.
 	dataOut, err := msgOut[0][0].AsBytes()
 	assert.NoError(t, err)
@@ -282,6 +257,11 @@ operation: 'remove'
 	assert.NoError(t, err)
 	assert.Len(t, msgOut, 1)
 	assert.Len(t, msgOut[0], 1)
+
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
 
 	// message content should stay the same.
 	dataOut, err := msgOut[0][0].AsBytes()
@@ -309,7 +289,7 @@ operation: 'get'
 	assert.Len(t, msgOut[0], 1)
 
 	// message should contain an error.
-	assert.Error(t, msgOut[0][0].GetError(), "TODO")
+	assert.Error(t, msgOut[0][0].GetError())
 
 	// message content should stay the same.
 	dataOut, err := msgOut[0][0].AsBytes()
