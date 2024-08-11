@@ -36,6 +36,41 @@ func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, in
 		return "", nil
 	}
 
+	schemaDry := []string{}
+	if err := json.Unmarshal([]byte(info.Schema), &schemaDry); err != nil {
+		return "", fmt.Errorf("failed to parse root schema as enum: %w", err)
+	}
+
+	schemaHydrated := make([]json.RawMessage, len(schemaDry))
+	for i, name := range schemaDry {
+		def, exists := refsMap[name]
+		if !exists {
+			return "", fmt.Errorf("referenced type '%v' was not found in references", name)
+		}
+		schemaHydrated[i] = []byte(def)
+	}
+
+	schemaHydratedBytes, err := json.Marshal(schemaHydrated)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal hydrated schema: %w", err)
+	}
+
+	return string(schemaHydratedBytes), nil
+}
+
+func resolveAvroReferencesNested(ctx context.Context, client *schemaRegistryClient, info SchemaInfo) (string, error) {
+	if len(info.References) == 0 {
+		return info.Schema, nil
+	}
+
+	refsMap := map[string]string{}
+	if err := client.WalkReferences(ctx, info.References, func(ctx context.Context, name string, info SchemaInfo) error {
+		refsMap[name] = info.Schema
+		return nil
+	}); err != nil {
+		return "", nil
+	}
+
 	var schemaDry any
 	if err := json.Unmarshal([]byte(info.Schema), &schemaDry); err != nil {
 		return "", fmt.Errorf("failed to parse root schema as enum: %w", err)
@@ -76,9 +111,19 @@ func resolveAvroReferences(ctx context.Context, client *schemaRegistryClient, in
 }
 
 func (s *schemaRegistryEncoder) getAvroEncoder(ctx context.Context, info SchemaInfo) (schemaEncoder, error) {
-	schema, err := resolveAvroReferences(ctx, s.client, info)
-	if err != nil {
-		return nil, err
+	var schema string
+	var err error
+
+	if s.avroNestedSchemas {
+		schema, err = resolveAvroReferencesNested(ctx, s.client, info)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		schema, err = resolveAvroReferences(ctx, s.client, info)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var codec *goavro.Codec
@@ -114,9 +159,19 @@ func (s *schemaRegistryEncoder) getAvroEncoder(ctx context.Context, info SchemaI
 }
 
 func (s *schemaRegistryDecoder) getAvroDecoder(ctx context.Context, info SchemaInfo) (schemaDecoder, error) {
-	schema, err := resolveAvroReferences(ctx, s.client, info)
-	if err != nil {
-		return nil, err
+	var schema string
+	var err error
+
+	if s.avroNestedSchemas {
+		schema, err = resolveAvroReferencesNested(ctx, s.client, info)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		schema, err = resolveAvroReferences(ctx, s.client, info)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var codec *goavro.Codec
