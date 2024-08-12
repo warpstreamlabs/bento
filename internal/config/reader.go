@@ -279,9 +279,9 @@ func applyOverrides(specs docs.FieldSpecs, root *yaml.Node, overrides ...string)
 			return fmt.Errorf("invalid set expression '%v': expected foo=bar syntax", override)
 		}
 
-		valNode := yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: value,
+		var valNode yaml.Node
+		if err := yaml.Unmarshal([]byte(value), &valNode); err != nil {
+			return fmt.Errorf("invalid set expression '%v': %w", override, err)
 		}
 		if err := specs.SetYAMLPath(bundle.GlobalEnvironment, root, &valNode, gabs.DotPathToSlice(path)...); err != nil {
 			return fmt.Errorf("failed to set config field override: %w", err)

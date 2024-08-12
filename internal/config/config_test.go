@@ -400,3 +400,38 @@ input:
 
 	require.NoError(t, s.Stop(context.Background()))
 }
+
+func TestSetOverridesStructured(t *testing.T) {
+	dir := t.TempDir()
+
+	fullPath := filepath.Join(dir, "main.yaml")
+	require.NoError(t, os.WriteFile(fullPath, []byte(`
+input:
+  generate:
+    count: 10
+    interval: 2s
+    mapping: 'root = "meow"'
+`), 0o644))
+
+	rdr := config.NewReader(fullPath, nil, config.OptAddOverrides(
+		"input.generate={}",
+		"input.generate.count=5",
+		"input.generate.mapping=root.id = uuid_v4()",
+		"output.type=drop",
+	))
+
+	conf, _, lints, _, err := rdr.Read()
+	require.NoError(t, err)
+	assert.Empty(t, lints)
+
+	v := gabs.Wrap(testConfToAny(t, conf))
+
+	assert.Equal(t, `root.id = uuid_v4()`, v.S("input", "generate", "mapping").Data())
+	assert.Nil(t, v.S("input", "generate", "interval").Data())
+	assert.Equal(t, 5, v.S("input", "generate", "count").Data())
+
+	oMap := v.S("output").ChildrenMap()
+	assert.Len(t, oMap, 2)
+	assert.Contains(t, oMap, "drop")
+	assert.Contains(t, oMap, "label")
+}
