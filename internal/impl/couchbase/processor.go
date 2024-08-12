@@ -12,6 +12,11 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+const (
+	// MetaCASKey holds the CAS value of an entry.
+	MetaCASKey = "couchbase_cas"
+)
+
 var (
 	// ErrInvalidOperation specified operation is not supported.
 	ErrInvalidOperation = errors.New("invalid operation")
@@ -26,7 +31,7 @@ func ProcessorConfig() *service.ConfigSpec {
 		Version("1.0.0").
 		Categories("Integration").
 		Summary("Performs operations against Couchbase for each message, allowing you to store or retrieve data within message payloads.").
-		Description("When inserting, replacing or upserting documents, each must have the `content` property set.").
+		Description("When inserting, replacing or upserting documents, each must have the `content` property set.\n\n### Concurrent Document Mutations\nTo prevent read/write conflicts, Couchbase returns a [_Compare And Swap_ (CAS)](https://docs.couchbase.com/go-sdk/current/howtos/concurrent-document-mutations.html) value with each accessed document. Bento stores these as key/value pairs in metadata with the `couchbase_cas` field. Note: CAS checks are disabled by default. You can configure this by changing the value of `cas_enabled: true`. Future versions will see this enabled by default.").
 		Field(service.NewInterpolatedStringField("id").Description("Document id.").Example(`${! json("id") }`)).
 		Field(service.NewBloblangField("content").Description("Document content.").Optional()).
 		Field(service.NewStringAnnotatedEnumField("operation", map[string]string{
@@ -36,6 +41,7 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationReplace): "replace the contents of a document.",
 			string(client.OperationUpsert):  "creates a new document if it does not exist, if it does exist then it updates it.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
+		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(false)). // TODO: Enable by default in next release
 		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert") && !this.exists("content")) { [ "content must be set for insert, replace and upsert operations." ] }`)
 }
 
@@ -56,9 +62,10 @@ func init() {
 // batch.
 type Processor struct {
 	*couchbaseClient
-	id      *service.InterpolatedString
-	content *bloblang.Executor
-	op      func(key string, data []byte) gocb.BulkOp
+	id         *service.InterpolatedString
+	content    *bloblang.Executor
+	op         func(key string, data []byte, cas gocb.Cas) gocb.BulkOp
+	casEnabled bool
 }
 
 // NewProcessor returns a Couchbase processor.
@@ -79,6 +86,11 @@ func NewProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*Processo
 		if p.content, err = conf.FieldBloblang("content"); err != nil {
 			return nil, err
 		}
+	}
+
+	p.casEnabled, err = conf.FieldBool("cas_enabled")
+	if err != nil {
+		return nil, err
 	}
 
 	op, err := conf.FieldString("operation")
@@ -123,7 +135,7 @@ func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBat
 	}
 
 	// generate query
-	for index := range newMsg {
+	for index, msg := range newMsg {
 		// generate id
 		k, err := inBatch.TryInterpolatedString(index, p.id)
 		if err != nil {
@@ -143,7 +155,16 @@ func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBat
 			}
 		}
 
-		ops[index] = p.op(k, content)
+		var cas gocb.Cas // retrieve cas if set and enabled
+		if p.casEnabled {
+			if val, ok := msg.MetaGetMut(MetaCASKey); ok {
+				if v, ok := val.(gocb.Cas); ok {
+					cas = v
+				}
+			}
+		}
+
+		ops[index] = p.op(k, content, cas)
 	}
 
 	// execute
@@ -154,7 +175,7 @@ func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBat
 
 	// set results
 	for index, part := range newMsg {
-		out, err := valueFromOp(ops[index])
+		out, cas, err := valueFromOp(ops[index])
 		if err != nil {
 			part.SetError(fmt.Errorf("couchbase operator failed: %w", err))
 		}
@@ -164,6 +185,8 @@ func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBat
 		} else if out != nil {
 			part.SetStructured(out)
 		}
+
+		part.MetaSetMut(MetaCASKey, cas)
 	}
 
 	return []service.MessageBatch{newMsg}, nil
