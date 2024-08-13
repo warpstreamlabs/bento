@@ -141,3 +141,99 @@ func TestAvroReferences(t *testing.T) {
 		})
 	}
 }
+
+func TestAvroReferencesNested(t *testing.T) {
+	tCtx, done := context.WithTimeout(context.Background(), time.Second*10)
+	defer done()
+
+	userSchema := `{"type":"record","name":"User","namespace":"com.example","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"},{"name":"address","type":"Address"}]}`
+	addressSchema := `{"type":"record","name":"Address","namespace":"com.example","fields":[{"name":"street","type":"string"},{"name":"city","type":"string"},{"name":"state","type":"State"},{"name":"zip","type":"string"}]}`
+	stateSchema := `{"type":"record","name":"State","namespace":"com.example","fields":[{"name":"state","type":"string"}]}`
+
+	urlStr := runSchemaRegistryServer(t, func(path string) ([]byte, error) {
+		switch path {
+		case "/subjects/com.example.User/versions/latest", "/schemas/ids/1":
+			return mustJBytes(t, map[string]any{
+				"id":         1,
+				"version":    1,
+				"schema":     userSchema,
+				"schemaType": "AVRO",
+				"references": []any{
+					map[string]any{"name": "com.example.Address", "subject": "com.example.Address", "version": 1},
+				},
+			}), nil
+		case "/subjects/com.example.Address/versions/1", "/schemas/ids/2":
+			return mustJBytes(t, map[string]any{
+				"id":         1,
+				"version":    1,
+				"schema":     addressSchema,
+				"schemaType": "AVRO",
+				"references": []any{
+					map[string]any{"name": "com.example.State", "subject": "com.example.State", "version": 1},
+				},
+			}), nil
+		case "/subjects/com.example.State/versions/1", "/schemas/ids/3":
+			return mustJBytes(t, map[string]any{
+				"id":         1,
+				"version":    1,
+				"schema":     stateSchema,
+				"schemaType": "AVRO",
+			}), nil
+		}
+		return nil, nil
+	})
+
+	subj, err := service.NewInterpolatedString("com.example.User")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		input       string
+		output      string
+		errContains []string
+	}{
+		{
+			name:   "a foo",
+			input:  `{"name":"JohnDoe","email":"john.doe@example.com","address":{"street":"123MainSt","city":"Anytown","state":{"state":"CA"},"zip":"12345"}}`,
+			output: `{}`,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, true, time.Minute*10, time.Minute, service.MockResources())
+			require.NoError(t, err)
+
+			t.Cleanup(func() {
+				_ = encoder.Close(tCtx)
+			})
+
+			inMsg := service.NewMessage([]byte(test.input))
+			encodedMsgs, err := encoder.ProcessBatch(tCtx, service.MessageBatch{inMsg})
+			require.NoError(t, err)
+			require.Len(t, encodedMsgs, 1)
+			require.Len(t, encodedMsgs[0], 1)
+
+			encodedMsg := encodedMsgs[0][0]
+
+			if len(test.errContains) > 0 {
+				require.Error(t, encodedMsg.GetError())
+				for _, errStr := range test.errContains {
+					assert.Contains(t, encodedMsg.GetError().Error(), errStr)
+				}
+				return
+			}
+
+			b, err := encodedMsg.AsBytes()
+			require.NoError(t, err)
+
+			require.NoError(t, encodedMsg.GetError())
+			require.NotEqual(t, test.input, string(b))
+
+			var n any
+			require.Error(t, json.Unmarshal(b, &n), "message contents should no longer be valid JSON")
+
+		})
+	}
+}
