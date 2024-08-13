@@ -73,7 +73,7 @@ We will be considering alternative approaches in future so please [get in touch]
 			Advanced().Default(false).Version("1.0.0")).
 		Field(service.NewBoolField("avro_nested_schemas").
 			Description("Whether Avro Schemas are nested. If true bento will resolve schema references.").
-			Advanced().Default(false).Version("?.?.?")) // TODO: replace with the version number
+			Advanced().Default(false).Version("1.2.0"))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
 		spec = spec.Field(f.Version("1.0.0"))

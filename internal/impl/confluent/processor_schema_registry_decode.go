@@ -50,7 +50,7 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 			Advanced().Default(false)).
 		Field(service.NewBoolField("avro_nested_schemas").
 			Description("Whether Avro Schemas are nested. If true bento will resolve schema references.").
-			Advanced().Default(false).Version("?.?.?")). // TODO: replace with the version numb
+			Advanced().Default(false).Version("1.2.0")).
 		Field(service.NewURLField("url").Description("The base URL of the schema registry service."))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {

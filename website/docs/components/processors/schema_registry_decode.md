@@ -112,7 +112,7 @@ Whether Avro Schemas are nested. If true bento will resolve schema references.
 
 Type: `bool`  
 Default: `false`  
-Requires version ?.?.? or newer  
+Requires version 1.2.0 or newer  
 
 ### `url`
 
