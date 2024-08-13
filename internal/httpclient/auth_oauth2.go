@@ -54,7 +54,7 @@ func (oauth oauth2Config) Client(ctx context.Context, base *http.Client) *http.C
 		if rt, ok := oauth.EndpointParams["refresh_token"]; ok {
 			token.RefreshToken = rt[0]
 		}
-		return conf.Client(ctx, token)
+		return conf.Client(context.WithValue(ctx, oauth2.HTTPClient, base), token)
 	}
 
 	conf := &clientcredentials.Config{
