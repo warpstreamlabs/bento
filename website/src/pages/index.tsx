@@ -170,7 +170,7 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: '\${! meta("partition") }/\${! timestamp_unix_nano() }.tar.gz'
+    path: '\${! metadata("partition") }/\${! timestamp_unix_nano() }.tar.gz'
     batching:
       count: 100
       period: 10s
