@@ -36,6 +36,10 @@ meta = @.filter(kv -> !kv.key.has_prefix("kafka_"))
 
 ## Using Metadata
 
+:::caution
+There are two functions to reference metadata: [`meta()`][meta] and [`metadata()`][metadata]. [`meta()`][meta] has been depreciated in favor of [`metadata()`][metadata].
+:::
+
 Metadata values can be referenced in any field that supports [interpolation functions][interpolation]. For example, you can route messages to Kafka topics using interpolation of metadata keys:
 
 ```yaml
@@ -111,3 +115,5 @@ output:
 [processors.switch]: /docs/components/processors/switch
 [processors.mapping]: /docs/components/processors/mapping
 [guides.bloblang]: /docs/guides/bloblang/about
+[meta]: /docs/guides/bloblang/functions#meta
+[metadata]: /docs/guides/bloblang/functions#metadata
