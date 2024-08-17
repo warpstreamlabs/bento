@@ -189,7 +189,7 @@ input:
             # because both topics are consumed independently and these processors
             # only apply to the 'comments_retry' input.
             - sleep:
-                duration: '${! 3600 - ( timestamp_unix() - meta("last_attempted").number() ) }s'
+                duration: '${! 3600 - ( timestamp_unix() - metadata("last_attempted") ) }s'
 
 pipeline:
   processors:
@@ -216,7 +216,7 @@ pipeline:
 output:
   kafka:
     addresses: [ TODO ]
-    topic: '${!meta("output_topic")}'
+    topic: '${!metadata("output_topic")}'
 
 cache_resources:
   - label: hydration_cache

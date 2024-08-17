@@ -330,7 +330,7 @@ command: scard
 
 command: incrby
 
-command: ${! meta("command") }
+command: ${! metadata("command") }
 ```
 
 ### `args_mapping`

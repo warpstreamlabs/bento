@@ -31,7 +31,7 @@ performed for each message and the message contents are replaced with the result
 			Version("1.0.0").
 			Example("scard").
 			Example("incrby").
-			Example(`${! meta("command") }`).
+			Example(`${! metadata("command") }`).
 			Optional()).
 		Field(service.NewBloblangField("args_mapping").
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of arguments required for the specified Redis command.").

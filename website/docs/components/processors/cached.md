@@ -136,9 +136,9 @@ key: my_foo_result
 
 key: ${! this.document.id }
 
-key: ${! meta("kafka_key") }
+key: ${! metadata("kafka_key") }
 
-key: ${! meta("kafka_topic") }
+key: ${! metadata("kafka_topic") }
 ```
 
 ### `ttl`

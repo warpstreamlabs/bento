@@ -42,7 +42,7 @@ Metadata values can be referenced in any field that supports [interpolation func
 output:
   kafka:
     addresses: [ TODO ]
-    topic: ${! meta("target_topic") }
+    topic: ${! metadata("target_topic") }
 ```
 
 Bento also allows you to conditionally process messages based on their metadata with the [`switch` processor][processors.switch]:
@@ -76,7 +76,7 @@ For example, if we were sending messages to kafka using a metadata key `target_t
 output:
   kafka:
     addresses: [ TODO ]
-    topic: ${! meta("target_topic") }
+    topic: ${! metadata("target_topic") }
     metadata:
       exclude_prefixes:
         - target_topic
@@ -102,7 +102,7 @@ pipeline:
 output:
   kafka:
     addresses: [ TODO ]
-    topic: ${! meta("_target_topic") }
+    topic: ${! metadata("_target_topic") }
     metadata:
       exclude_prefixes: [ "_" ]
 ```

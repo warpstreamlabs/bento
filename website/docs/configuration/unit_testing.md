@@ -37,7 +37,7 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
+    path: '${! metadata("kafka_topic") }/${! json("message.id") }.json'
 ```
 
 One way to write our unit tests for this config is to accompany it with a file of the same name and extension but suffixed with `_bento_test`, which in this case would be `foo_bento_test.yaml`.

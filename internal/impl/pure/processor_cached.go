@@ -29,8 +29,8 @@ func newCachedProcessorConfigSpec() *service.ConfigSpec {
 			Description("A key to be resolved for each message, if the key already exists in the cache then the cached result is used, otherwise the processors are applied and the result is cached under this key. The key could be static and therefore apply generally to all messages or it could be an interpolated expression that is potentially unique for each message.").
 			Example("my_foo_result").
 			Example(`${! this.document.id }`).
-			Example(`${! meta("kafka_key") }`).
-			Example(`${! meta("kafka_topic") }`)).
+			Example(`${! metadata("kafka_key") }`).
+			Example(`${! metadata("kafka_topic") }`)).
 		Field(service.NewInterpolatedStringField("ttl").
 			Description("An optional expiry period to set for each cache entry. Some caches only have a general TTL and will therefore ignore this setting.").
 			Optional()).
