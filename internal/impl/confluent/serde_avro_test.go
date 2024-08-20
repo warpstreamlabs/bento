@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jeffail/gabs/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -146,9 +147,72 @@ func TestAvroReferencesNested(t *testing.T) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*10)
 	defer done()
 
-	userSchema := `{"type":"record","name":"User","namespace":"com.example","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"},{"name":"address","type":"Address"}]}`
-	addressSchema := `{"type":"record","name":"Address","namespace":"com.example","fields":[{"name":"street","type":"string"},{"name":"city","type":"string"},{"name":"state","type":"State"},{"name":"zip","type":"string"}]}`
-	stateSchema := `{"type":"record","name":"State","namespace":"com.example","fields":[{"name":"state","type":"string"}]}`
+	userSchema := `
+	{
+		"type": "record",
+		"name": "User",
+		"namespace": "com.example",
+		"fields": [
+			{
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"name": "email",
+				"type": "string"
+			},
+			{
+				"name": "address",
+				"type": "Address"
+			}
+		]
+	}`
+
+	addressSchema := `
+	{
+		"type": "record",
+		"name": "Address",
+		"namespace": "com.example",
+		"fields": [
+			{
+				"name": "street",
+				"type": "string"
+			},
+			{
+				"name": "city",
+				"type": "string"
+			},
+			{
+				"name": "state",
+				"type": "State"
+			},
+			{
+				"name": "zip",
+				"type": "string"
+			}
+		]
+	}`
+
+	stateSchema := `
+	{
+		"type": "record",
+		"name": "State",
+		"namespace": "com.example",
+		"fields": [
+			{
+				"name": "state",
+				"type": "string"
+			}
+		]
+	}`
+
+	userGabs, _ := gabs.ParseJSON([]byte(userSchema))
+	addressGabs, _ := gabs.ParseJSON([]byte(addressSchema))
+	stateGabs, _ := gabs.ParseJSON([]byte(stateSchema))
+
+	userSchema = userGabs.String()
+	addressSchema = addressGabs.String()
+	stateSchema = stateGabs.String()
 
 	urlStr := runSchemaRegistryServer(t, func(path string) ([]byte, error) {
 		switch path {
