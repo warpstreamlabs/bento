@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 1 * * *' # run at 1 AM UTC
 
+  # Allow to trigger the integration tests manually
+  workflow_dispatch:
+
 jobs:
   integration-test:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
