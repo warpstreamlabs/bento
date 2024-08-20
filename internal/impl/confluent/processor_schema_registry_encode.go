@@ -72,7 +72,7 @@ We will be considering alternative approaches in future so please [get in touch]
 			Description("Whether messages encoded in Avro format should be parsed as normal JSON (\"json that meets the expectations of regular internet json\") rather than [Avro JSON](https://avro.apache.org/docs/current/specification/_print/#json-encoding). If `true` the schema returned from the subject should be parsed as [standard json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) instead of as [avro json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodec). There is a [comment in goavro](https://github.com/linkedin/goavro/blob/5ec5a5ee7ec82e16e6e2b438d610e1cab2588393/union.go#L224-L249), the [underlining library used for avro serialization](https://github.com/linkedin/goavro), that explains in more detail the difference between standard json and avro json.").
 			Advanced().Default(false).Version("1.0.0")).
 		Field(service.NewBoolField("avro_nested_schemas").
-			Description("Whether Avro Schemas are nested. If true bento will resolve schema references.").
+			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
 			Advanced().Default(false).Version("1.2.0"))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
