@@ -70,7 +70,10 @@ We will be considering alternative approaches in future so please [get in touch]
 			Example("1h")).
 		Field(service.NewBoolField("avro_raw_json").
 			Description("Whether messages encoded in Avro format should be parsed as normal JSON (\"json that meets the expectations of regular internet json\") rather than [Avro JSON](https://avro.apache.org/docs/current/specification/_print/#json-encoding). If `true` the schema returned from the subject should be parsed as [standard json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) instead of as [avro json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodec). There is a [comment in goavro](https://github.com/linkedin/goavro/blob/5ec5a5ee7ec82e16e6e2b438d610e1cab2588393/union.go#L224-L249), the [underlining library used for avro serialization](https://github.com/linkedin/goavro), that explains in more detail the difference between standard json and avro json.").
-			Advanced().Default(false).Version("1.0.0"))
+			Advanced().Default(false).Version("1.0.0")).
+		Field(service.NewBoolField("avro_nested_schemas").
+			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
+			Advanced().Default(false).Version("1.2.0"))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
 		spec = spec.Field(f.Version("1.0.0"))
@@ -96,6 +99,7 @@ type schemaRegistryEncoder struct {
 	client             *schemaRegistryClient
 	subject            *service.InterpolatedString
 	avroRawJSON        bool
+	avroNestedSchemas  bool
 	schemaRefreshAfter time.Duration
 
 	schemas    map[string]cachedSchemaEncoder
@@ -121,6 +125,10 @@ func newSchemaRegistryEncoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
+	avroNestedSchemas, err := conf.FieldBool("avro_nested_schemas")
+	if err != nil {
+		return nil, err
+	}
 	refreshPeriodStr, err := conf.FieldString("refresh_period")
 	if err != nil {
 		return nil, err
@@ -141,7 +149,7 @@ func newSchemaRegistryEncoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
-	return newSchemaRegistryEncoder(urlStr, authSigner, tlsConf, subject, avroRawJSON, refreshPeriod, refreshTicker, mgr)
+	return newSchemaRegistryEncoder(urlStr, authSigner, tlsConf, subject, avroRawJSON, avroNestedSchemas, refreshPeriod, refreshTicker, mgr)
 }
 
 func newSchemaRegistryEncoder(
@@ -150,12 +158,14 @@ func newSchemaRegistryEncoder(
 	tlsConf *tls.Config,
 	subject *service.InterpolatedString,
 	avroRawJSON bool,
+	avroNestedSchemas bool,
 	schemaRefreshAfter, schemaRefreshTicker time.Duration,
 	mgr *service.Resources,
 ) (*schemaRegistryEncoder, error) {
 	s := &schemaRegistryEncoder{
 		subject:            subject,
 		avroRawJSON:        avroRawJSON,
+		avroNestedSchemas:  avroNestedSchemas,
 		schemaRefreshAfter: schemaRefreshAfter,
 		schemas:            map[string]cachedSchemaEncoder{},
 		shutSig:            shutdown.NewSignaller(),

@@ -43,6 +43,7 @@ schema_registry_decode:
 label: ""
 schema_registry_decode:
   avro_raw_json: false
+  avro_nested_schemas: false
   url: "" # No default (required)
   oauth:
     enabled: false
@@ -103,6 +104,15 @@ Whether Avro messages should be decoded into normal JSON ("json that meets the e
 
 Type: `bool`  
 Default: `false`  
+
+### `avro_nested_schemas`
+
+Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.2.0 or newer  
 
 ### `url`
 

@@ -50,6 +50,7 @@ schema_registry_encode:
   subject: foo # No default (required)
   refresh_period: 10m
   avro_raw_json: false
+  avro_nested_schemas: false
   oauth:
     enabled: false
     consumer_key: ""
@@ -162,6 +163,15 @@ Whether messages encoded in Avro format should be parsed as normal JSON ("json t
 Type: `bool`  
 Default: `false`  
 Requires version 1.0.0 or newer  
+
+### `avro_nested_schemas`
+
+Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.2.0 or newer  
 
 ### `oauth`
 

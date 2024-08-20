@@ -48,6 +48,9 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 		Field(service.NewBoolField("avro_raw_json").
 			Description("Whether Avro messages should be decoded into normal JSON (\"json that meets the expectations of regular internet json\") rather than [Avro JSON](https://avro.apache.org/docs/current/specification/_print/#json-encoding). If `true` the schema returned from the subject should be decoded as [standard json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) instead of as [avro json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodec). There is a [comment in goavro](https://github.com/linkedin/goavro/blob/5ec5a5ee7ec82e16e6e2b438d610e1cab2588393/union.go#L224-L249), the [underlining library used for avro serialization](https://github.com/linkedin/goavro), that explains in more detail the difference between the standard json and avro json.").
 			Advanced().Default(false)).
+		Field(service.NewBoolField("avro_nested_schemas").
+			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
+			Advanced().Default(false).Version("1.2.0")).
 		Field(service.NewURLField("url").Description("The base URL of the schema registry service."))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
@@ -71,8 +74,9 @@ func init() {
 //------------------------------------------------------------------------------
 
 type schemaRegistryDecoder struct {
-	avroRawJSON bool
-	client      *schemaRegistryClient
+	avroRawJSON       bool
+	avroNestedSchemas bool
+	client            *schemaRegistryClient
 
 	schemas    map[int]*cachedSchemaDecoder
 	cacheMut   sync.RWMutex
@@ -100,7 +104,11 @@ func newSchemaRegistryDecoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
-	return newSchemaRegistryDecoder(urlStr, authSigner, tlsConf, avroRawJSON, mgr)
+	avroNestedSchemas, err := conf.FieldBool("avro_nested_schemas")
+	if err != nil {
+		return nil, err
+	}
+	return newSchemaRegistryDecoder(urlStr, authSigner, tlsConf, avroRawJSON, avroNestedSchemas, mgr)
 }
 
 func newSchemaRegistryDecoder(
@@ -108,14 +116,16 @@ func newSchemaRegistryDecoder(
 	reqSigner func(f fs.FS, req *http.Request) error,
 	tlsConf *tls.Config,
 	avroRawJSON bool,
+	avroNestedSchemas bool,
 	mgr *service.Resources,
 ) (*schemaRegistryDecoder, error) {
 	s := &schemaRegistryDecoder{
-		avroRawJSON: avroRawJSON,
-		schemas:     map[int]*cachedSchemaDecoder{},
-		shutSig:     shutdown.NewSignaller(),
-		logger:      mgr.Logger(),
-		mgr:         mgr,
+		avroRawJSON:       avroRawJSON,
+		avroNestedSchemas: avroNestedSchemas,
+		schemas:           map[int]*cachedSchemaDecoder{},
+		shutSig:           shutdown.NewSignaller(),
+		logger:            mgr.Logger(),
+		mgr:               mgr,
 	}
 	var err error
 	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, mgr); err != nil {
