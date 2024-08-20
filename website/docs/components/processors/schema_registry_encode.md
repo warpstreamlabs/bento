@@ -166,7 +166,7 @@ Requires version 1.0.0 or newer
 
 ### `avro_nested_schemas`
 
-Whether Avro Schemas are nested. If true bento will resolve schema references.
+Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)
 
 
 Type: `bool`  
