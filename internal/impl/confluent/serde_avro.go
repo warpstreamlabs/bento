@@ -3,6 +3,7 @@ package confluent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -90,7 +91,7 @@ func resolveAvroReferencesNested(ctx context.Context, client *schemaRegistryClie
 
 	for i := 0; i <= maxIterations; i++ {
 		if i == maxIterations {
-			return "", fmt.Errorf("maximum iteration limit reached trying to resolve Avro references: possible circular dependency detected")
+			return "", errors.New("maximum iteration limit reached trying to resolve Avro references: possible circular dependency detected")
 		}
 		initialSchemaDry := schemaString
 
