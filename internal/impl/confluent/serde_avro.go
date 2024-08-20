@@ -68,7 +68,7 @@ func resolveAvroReferencesNested(ctx context.Context, client *schemaRegistryClie
 		refsMap[name] = info.Schema
 		return nil
 	}); err != nil {
-		return "", nil
+		return "", err
 	}
 
 	var schemaDry any
@@ -86,8 +86,12 @@ func resolveAvroReferencesNested(ctx context.Context, client *schemaRegistryClie
 	}
 
 	var ref reference
+	maxIterations := 100
 
-	for {
+	for i := 0; i <= maxIterations; i++ {
+		if i == maxIterations {
+			return "", fmt.Errorf("maximum iteration limit reached trying to resolve Avro references: possible circular dependency detected")
+		}
 		initialSchemaDry := schemaString
 
 		for k, v := range refsMap {
