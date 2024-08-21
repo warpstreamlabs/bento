@@ -3,7 +3,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.2.0 - TBD
+## 1.2.0 - 2024-08-21
+
+### Added
+
+- avro_schema_nested field to registry_schema_decode/encode @jem-davies
+- etcd-component input for watching an etcd key or prefix @gregfurman
+- Couchbase: add CAS support and disable by default @sapk
+- sql: Add optional verification ping on database client initialisation @gregfurman
 
 ### Upstream Changes
 
