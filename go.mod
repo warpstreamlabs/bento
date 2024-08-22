@@ -78,7 +78,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.2
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/klauspost/compress v1.17.7
+	github.com/klauspost/compress v1.17.9
 	github.com/klauspost/pgzip v1.2.6
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
@@ -96,7 +96,7 @@ require (
 	github.com/opensearch-project/opensearch-go/v3 v3.0.0
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/oschwald/geoip2-golang v1.9.0
-	github.com/parquet-go/parquet-go v0.20.0
+	github.com/parquet-go/parquet-go v0.23.0
 	github.com/pebbe/zmq4 v1.2.10
 	github.com/pierrec/lz4/v4 v4.1.21
 	github.com/pkg/sftp v1.13.6
@@ -148,7 +148,7 @@ require (
 	golang.org/x/sync v0.7.0
 	golang.org/x/text v0.16.0
 	google.golang.org/api v0.162.0
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.34.2
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.28.0
@@ -287,7 +287,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/montanaflynn/stats v0.7.0 // indirect
 	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
@@ -309,10 +309,10 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rickb777/plural v1.4.2 // indirect
-	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
-	github.com/segmentio/encoding v0.3.6 // indirect
+	github.com/segmentio/encoding v0.4.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
@@ -333,7 +333,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
