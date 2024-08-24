@@ -78,6 +78,20 @@ input:
 
 Once the documents from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a [sequence](/docs/components/inputs/sequence) to execute).
 
+### Metadata
+
+This input adds the following metadata fields to each message:
+
+```text
+- mongo_database
+- mongo_collection
+```
+
+You can access these metadata fields using
+[function interpolation](/docs/configuration/interpolation#bloblang-queries).
+
+
+
 ## Fields
 
 ### `url`

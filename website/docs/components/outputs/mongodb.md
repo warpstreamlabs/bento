@@ -142,6 +142,7 @@ Default: `""`
 ### `collection`
 
 The name of the target collection.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
