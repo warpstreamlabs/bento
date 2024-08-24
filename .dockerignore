@@ -3,4 +3,5 @@ icon.png
 LICENSE
 README.md
 target/bin/bento
+target/bin/huggingbento
 target/dist

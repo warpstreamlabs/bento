@@ -143,7 +143,24 @@ go install -tags "x_bento_extra" github.com/warpstreamlabs/bento/cmd/bento@lates
 make TAGS=x_bento_extra
 ```
 
-Note that this tag may change or be broken out into granular tags for individual components outside of major version releases. If you attempt a build and these dependencies are not present you'll see error messages such as `ld: library not found for -lzmq`.
+### hugging-bento
+
+`hugging-bento` is a Bento distribution that supports running [ONNX models](https://onnxruntime.ai/). It leverages the [`knights-analytics/hugot`](https://github.com/knights-analytics/hugot) package which in turn has two external dependencies:
+- An `onnxruntime.*` ONNX Runtime dynamic library file. This can be obtained from the [onnxruntime project releases page](https://github.com/microsoft/onnxruntime/releases). This is dynamically linked by hugot and used by the onnxruntime inference library `onnxruntime_go`. This can be set with the `onnx_library_path` flag when loading your `config.yaml`.
+- The `tokenizers.a` file. This should be at `/usr/lib/tokenizers.a` by default otherwise it can be set with `CGO_LDFLAGS=-L/path/to/tokenizers.a` so that hugot can load it.
+
+There are instructions for configuring these external libraries at [`knights-analytics/hugot#use-it-as-a-library`](https://github.com/knights-analytics/hugot?tab=readme-ov-file#use-it-as-a-library). Alternatively, you can use the `hugging-bento` [Docker image](resources/docker/huggingbento/Dockerfile) which has all of these dependencies baked in.
+
+```shell
+# The location of the tokenizers.a file
+export CGO_LDFLAGS="-L/usr/lib"
+
+# With go
+go install -tags "huggingbento" github.com/warpstreamlabs/bento/cmd/bento@latest
+
+# Using make
+make TAGS=huggingbento NODOWNLOAD
+```
 
 ## Docker Builds
 
