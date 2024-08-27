@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Go API: New `ConfigWalker` API added to the schema type. (@Jeffail)
 - Support OAuth 2.0 with bootstrapped refresh token (@nregati)
 - The `--set` run flag now supports structured values, e.g. `--set input={}`. (@Jeffail)
+- Improve error message for unknown component to include name(s) of components (@Bojan Djurkovic)
 
 ## 4.31.0 - 2024-07-18
 

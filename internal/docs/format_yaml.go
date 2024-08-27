@@ -525,7 +525,11 @@ func LintYAML(ctx LintContext, cType Type, node *yaml.Node) []Lint {
 		}
 		var err error
 		if name, _, err = getInferenceCandidateFromList(ctx.conf.DocsProvider, cType, keys); err != nil {
-			lints = append(lints, NewLintWarning(node.Line, LintComponentMissing, "unable to infer component type"))
+			errMsg := fmt.Sprintf("unable to infer component type: %v", keys)
+			if len(keys) == 1 {
+				errMsg = "unable to infer component type: " + keys[0]
+			}
+			lints = append(lints, NewLintWarning(node.Line, LintComponentMissing, errMsg))
 			return lints
 		}
 	}

@@ -1013,6 +1013,17 @@ testlintfooinput:
 				docs.NewLintError(3, docs.LintCustom, errors.New("this is a custom lint")),
 			},
 		},
+		{
+			name:      "unknown component",
+			inputType: docs.TypeInput,
+			inputConf: `
+testlintfoounknowninput:
+  # comment here
+  foo1: hello world # And what's this?`,
+			res: []docs.Lint{
+				docs.NewLintWarning(2, docs.LintComponentMissing, "unable to infer component type: testlintfoounknowninput"),
+			},
+		},
 	}
 
 	for _, test := range tests {
