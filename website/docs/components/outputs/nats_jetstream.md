@@ -144,7 +144,7 @@ Type: `string`
 
 subject: foo.bar.baz
 
-subject: ${! meta("kafka_topic") }
+subject: ${! metadata("kafka_topic") }
 
 subject: foo.${! json("meta.type") }
 ```

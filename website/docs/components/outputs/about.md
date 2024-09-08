@@ -13,7 +13,7 @@ output:
 
   aws_s3:
     bucket: TODO
-    path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
+    path: '${! metadata("kafka_topic") }/${! json("message.id") }.json'
 
   # Optional list of processing steps
   processors:
@@ -60,7 +60,7 @@ For example, multiplexing against Kafka topics is a common pattern:
 output:
   kafka:
     addresses: [ TODO:6379 ]
-    topic: ${! meta("target_topic") }
+    topic: ${! metadata("target_topic") }
 ```
 
 Refer to the field documentation for a given output to see if it support interpolation.

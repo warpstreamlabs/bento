@@ -23,7 +23,7 @@ func natsJetStreamOutputConfig() *service.ConfigSpec {
 		Field(service.NewInterpolatedStringField("subject").
 			Description("A subject to write to.").
 			Example("foo.bar.baz").
-			Example(`${! meta("kafka_topic") }`).
+			Example(`${! metadata("kafka_topic") }`).
 			Example(`foo.${! json("meta.type") }`)).
 		Field(service.NewInterpolatedStringMapField("headers").
 			Description("Explicit message headers to add to messages.").

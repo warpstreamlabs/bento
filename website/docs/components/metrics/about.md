@@ -166,7 +166,7 @@ metrics:
     meta = deleted()
 
     # Re-add the `label` label with meows replaced with woofs
-    meta label = meta("label").replace("meow", "woof")
+    meta label = metadata("label").replace("meow", "woof")
 
     # Delete all metric series that aren't in our list
     root = if ![
