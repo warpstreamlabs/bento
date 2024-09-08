@@ -299,7 +299,7 @@ func (s *StoppableManager) Stop(ctx context.Context) error {
 		return err
 	}
 	if err := s.mgr.CloseObservability(ctx); err != nil {
-		s.mgr.Logger().Error("Failed to cleanly close observability components: %w", err)
+		s.mgr.Logger().Error("Failed to cleanly close observability components: %s", err)
 	}
 	return nil
 }

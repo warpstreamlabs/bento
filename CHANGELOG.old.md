@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Support OAuth 2.0 with bootstrapped refresh token (@nregati)
 - The `--set` run flag now supports structured values, e.g. `--set input={}`. (@Jeffail)
 - Improve error message for unknown component to include name(s) of components (@Bojan Djurkovic)
+- Fixed a bug where certain logs used the `%w` verb to print errors resulting in incorrect output. (@mihaitodor)
 
 ## 4.31.0 - 2024-07-18
 

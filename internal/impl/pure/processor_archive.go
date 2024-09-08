@@ -268,7 +268,7 @@ func (d *archive) createHeaderFunc(msg service.MessageBatch) func(int, *service.
 		bBytes, _ := body.AsBytes()
 		name, err := msg.TryInterpolatedString(index, d.path)
 		if err != nil {
-			d.log.Errorf("Name interpolation error: %w", err)
+			d.log.Errorf("Name interpolation error: %s", err)
 		}
 		return fakeInfo{
 			name: name,
