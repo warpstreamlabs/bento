@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
@@ -717,7 +718,7 @@ func (p *ParsedConfig) FieldObjectList(path ...string) ([]*ParsedConfig, error) 
 	for i, v := range il {
 		pl[i] = &ParsedConfig{
 			i:   v,
-			mgr: p.mgr,
+			mgr: p.mgr.IntoPath(path...).IntoPath(strconv.Itoa(i)),
 		}
 	}
 	return pl, nil
@@ -737,7 +738,7 @@ func (p *ParsedConfig) FieldObjectMap(path ...string) (map[string]*ParsedConfig,
 	for k, v := range im {
 		pl[k] = &ParsedConfig{
 			i:   v,
-			mgr: p.mgr,
+			mgr: p.mgr.IntoPath(path...).IntoPath(k),
 		}
 	}
 	return pl, nil

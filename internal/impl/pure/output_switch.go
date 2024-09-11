@@ -228,7 +228,7 @@ func switchOutputFromParsed(conf *service.ParsedConfig, mgr bundle.NewManagement
 	}
 
 	for i, cConf := range cases {
-		w, err := conf.Namespace(soFieldCases).FieldOutput([]string{strconv.Itoa(i), soFieldCasesOutput}...)
+		w, err := cConf.FieldOutput(soFieldCasesOutput)
 		if err != nil {
 			return nil, err
 		}
