@@ -1048,5 +1048,5 @@ workflow:
 			{Type: "CONSUME", Content: "hello world", Meta: map[string]interface{}{}},
 			{Type: "PRODUCE", Content: "{\"id\":\"HELLO WORLD\"}", Meta: map[string]interface{}{}},
 		},
-	}, tracer.ProcessorEvents())
+	}, tracer.ProcessorEvents(false))
 }

@@ -1259,7 +1259,7 @@ output:
 	require.NoError(t, strm.Run(tCtx))
 
 	eventKeys := map[string]map[string]struct{}{}
-	for k, v := range tracSum.InputEvents() {
+	for k, v := range tracSum.InputEvents(false) {
 		eMap := map[string]struct{}{}
 		for _, e := range v {
 			eMap[e.Content] = struct{}{}
@@ -1283,7 +1283,7 @@ output:
 	}, eventKeys)
 
 	eventKeys = map[string]map[string]struct{}{}
-	for k, v := range tracSum.OutputEvents() {
+	for k, v := range tracSum.OutputEvents(false) {
 		eMap := map[string]struct{}{}
 		for _, e := range v {
 			eMap[e.Content] = struct{}{}
