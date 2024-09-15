@@ -112,7 +112,7 @@ logger:
 			{Type: service.TracingEventProduce, Content: `{"id":4}`, Meta: tMap{}},
 			{Type: service.TracingEventProduce, Content: `{"id":5}`, Meta: tMap{}},
 		},
-	}, trace.InputEvents())
+	}, trace.InputEvents(false))
 
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"root.pipeline.processors.0": {
@@ -129,7 +129,7 @@ logger:
 			{Type: service.TracingEventConsume, Content: `{"id":5}`, Meta: tMap{}},
 			{Type: service.TracingEventProduce, Content: `{"count":5}`, Meta: tMap{"foo": int64(5)}},
 		},
-	}, trace.ProcessorEvents())
+	}, trace.ProcessorEvents(false))
 
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"root.output": {
@@ -139,7 +139,7 @@ logger:
 			{Type: service.TracingEventConsume, Content: `{"id":4}`, Meta: tMap{}},
 			{Type: service.TracingEventConsume, Content: `{"count":5}`, Meta: tMap{"foo": int64(5)}},
 		},
-	}, trace.OutputEvents())
+	}, trace.OutputEvents(false))
 }
 
 func BenchmarkStreamTracing(b *testing.B) {
