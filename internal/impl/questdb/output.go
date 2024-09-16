@@ -30,8 +30,7 @@ func questdbOutputConfig() *service.ConfigSpec {
 				Example("localhost:9000"),
 			service.NewStringField("username").
 				Description("Username for HTTP basic auth").
-				Optional().
-				Secret(),
+				Optional()
 			service.NewStringField("password").
 				Description("Password for HTTP basic auth").
 				Optional().
