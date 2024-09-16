@@ -30,7 +30,7 @@ func questdbOutputConfig() *service.ConfigSpec {
 				Example("localhost:9000"),
 			service.NewStringField("username").
 				Description("Username for HTTP basic auth").
-				Optional()
+				Optional(),
 			service.NewStringField("password").
 				Description("Password for HTTP basic auth").
 				Optional().
@@ -61,10 +61,7 @@ func questdbOutputConfig() *service.ConfigSpec {
 			service.NewStringField("designated_timestamp_field").
 				Description("Name of the designated timestamp field").
 				Optional(),
-						service.NewStringEnumField("designated_timestamp_unit", "nanos", "micros", "millis", "seconds", "auto").
-				Description("Designated timestamp field units").
-				Default("auto").
-				Optional(),.
+			service.NewStringEnumField("designated_timestamp_unit", "nanos", "micros", "millis", "seconds", "auto").
 				Description("Designated timestamp field units").
 				Default("auto").
 				Optional(),
@@ -323,7 +320,19 @@ func (q *questdbWriter) WriteBatch(ctx context.Context, batch service.MessageBat
 		return err
 	}
 
-	err = batch.WalkWithBatchedErrors(func(i int, m *service.Message) (err error) {
+	defer func() {
+		// Closing the sender also flushes it
+		releaseErr := sender.Close(ctx)
+		if releaseErr != nil {
+			if err != nil {
+				err = fmt.Errorf("%v %w", err, releaseErr)
+			} else {
+				err = releaseErr
+			}
+		}
+	}()
+
+	return batch.WalkWithBatchedErrors(func(i int, m *service.Message) (err error) {
 		// QuestDB's LineSender constructs ILP messages using a buffer, so message
 		// components must be written in the correct order, otherwise the sender will
 		// return an error. This order is:
@@ -481,17 +490,6 @@ func (q *questdbWriter) WriteBatch(ctx context.Context, batch service.MessageBat
 		return err
 	})
 
-	// This will flush the sender, no need to call sender.Flush at the end of the method
-	releaseErr := sender.Close(ctx)
-	if releaseErr != nil {
-		if err != nil {
-			err = fmt.Errorf("%v %w", err, releaseErr)
-		} else {
-			err = releaseErr
-		}
-	}
-
-	return err
 }
 
 func (q *questdbWriter) Close(ctx context.Context) error {
