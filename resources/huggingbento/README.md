@@ -1,7 +1,7 @@
 # HuggingBento
 
-HuggingBento is a distribution of Bento with used used for running Hugging Face transformer pipelines. Built on [Knight's Analytics Hugot](https://github.com/knights-analytics/hugot) library which has two external dependencies:
-- A Open Neural Network Exchange (ONNX) Runtime dynamic library ([See installation](#install-onnx-runtime))
+HuggingBento is a distribution of Bento built for running Hugging Face transformer pipelines. Built on [Knight's Analytics Hugot](https://github.com/knights-analytics/hugot) library which has two external dependencies:
+- An Open Neural Network Exchange (ONNX) Runtime dynamic library ([See installation](#install-onnx-runtime))
 - A Hugging Face tokenizers C binding ([See installation](#install-the-hugging-face-tokenizers-binding))
 
 For the purposes of getting started, we'd suggest instead [running with Docker](#run-with-docker), where the `warpstreamlabs/huggingbento` image has the necessary dependencies baked in.
