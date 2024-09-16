@@ -60,10 +60,12 @@ func questdbOutputConfig() *service.ConfigSpec {
 			service.NewStringField("designated_timestamp_field").
 				Description("Name of the designated timestamp field").
 				Optional(),
-			service.NewStringField("designated_timestamp_unit").
+						service.NewStringEnumField("designated_timestamp_unit", "nanos", "micros", "millis", "seconds", "auto").
 				Description("Designated timestamp field units").
 				Default("auto").
-				LintRule(`root = if ["nanos","micros","millis","seconds","auto"].contains(this) != true { [ "valid options are \"nanos\", \"micros\", \"millis\", \"seconds\", \"auto\"" ] }`).
+				Optional(),.
+				Description("Designated timestamp field units").
+				Default("auto").
 				Optional(),
 			service.NewStringListField("timestamp_string_fields").
 				Description("String fields with textual timestamps").
