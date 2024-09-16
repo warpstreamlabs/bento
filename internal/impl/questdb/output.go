@@ -15,9 +15,11 @@ import (
 func questdbOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Summary("Pushes messages to a QuestDB table").
-		Description("Important: We recommend that the dedupe feature is enabled on the QuestDB server. "+
+		Description(`:::warning Important
+		`+
+			"We recommend that the dedupe feature is enabled on the QuestDB server. "+
 			"Please visit https://questdb.io/docs/ for more information about deploying, configuring, and using QuestDB."+
-			service.OutputPerformanceDocs(true, true)).
+			":::"+service.OutputPerformanceDocs(true, true)).
 		Categories("Services").
 		Fields(
 			service.NewOutputMaxInFlightField(),
