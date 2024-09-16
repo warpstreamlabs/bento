@@ -26,7 +26,7 @@ func hugotFeatureExtractionConfigSpec() *service.ConfigSpec {
 }
 
 func init() {
-	err := service.RegisterBatchProcessor("nlp_extract_features", hugotFeatureExtractionConfigSpec(), newFeatureExtractionipeline)
+	err := service.RegisterBatchProcessor("nlp_extract_features", hugotFeatureExtractionConfigSpec(), newFeatureExtractionPipeline)
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +50,7 @@ func getFeatureExtractionOptions(conf *service.ParsedConfig) ([]pipelines.Pipeli
 
 //------------------------------------------------------------------------------
 
-func newFeatureExtractionipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
+func newFeatureExtractionPipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
 	p, err := newPipelineProcessor(conf, mgr)
 	if err != nil {
 		return nil, err
