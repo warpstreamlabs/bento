@@ -22,9 +22,10 @@ DATE      := $(shell date +"%Y-%m-%dT%H:%M:%SZ")
 
 VER_FLAGS = -X main.Version=$(VERSION) -X main.DateBuilt=$(DATE)
 
-LD_FLAGS   ?= -w -s
-GO_FLAGS   ?=
-DOCS_FLAGS ?=
+LD_FLAGS   	?= -w -s
+CGO_LDFLAGS ?= 
+GO_FLAGS   	?=
+DOCS_FLAGS 	?=
 
 APPS = bento
 all: $(APPS)
@@ -63,6 +64,15 @@ $(PATHINSTSERVERLESS)/%: $(SOURCE_FILES)
 
 $(SERVERLESS): %: $(PATHINSTSERVERLESS)/%
 
+HUGGINGBENTO = huggingbento
+hugging-bento: $(HUGGINGBENTO)
+
+$(PATHINSTBIN)/$(HUGGINGBENTO): $(SOURCE_FILES)
+	@CGO_ENABLED=1 \
+		go build $(GO_FLAGS) -tags "$(TAGS) huggingbento" -ldflags "$(LD_FLAGS) $(VER_FLAGS) -X main.BinaryName=huggingbento -X main.ProductName=huggingbento" -o $@ ./cmd/bento
+
+$(HUGGINGBENTO): %: $(PATHINSTBIN)/%
+
 docker-tags:
 	@echo "latest,$(VER_CUT),$(VER_MAJOR).$(VER_MINOR),$(VER_MAJOR)" > .tags
 
@@ -79,6 +89,10 @@ docker:
 docker-cgo:
 	@docker build -f ./resources/docker/Dockerfile.cgo . -t $(DOCKER_IMAGE):$(VER_CUT)-cgo
 	@docker tag $(DOCKER_IMAGE):$(VER_CUT)-cgo $(DOCKER_IMAGE):latest-cgo
+
+docker-huggingbento:
+	@docker build -f ./resources/huggingbento/Dockerfile . -t ghcr.io/warpstreamlabs/huggingbento:$(VER_CUT)
+	@docker tag ghcr.io/warpstreamlabs/huggingbento:$(VER_CUT) ghcr.io/warpstreamlabs/huggingbento:latest
 
 fmt:
 	@go list -f {{.Dir}} ./... | xargs -I{} gofmt -w -s {}

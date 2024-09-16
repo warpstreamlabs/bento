@@ -1,0 +1,290 @@
+{
+    "WarpStream Labs have a great offering!": {
+        "entities": [
+            {
+                "Entity": "LABEL_3",
+                "Score": 0.9882245,
+                "Scores": null,
+                "Index": 0,
+                "Word": "WarpStream",
+                "TokenID": 0,
+                "Start": 0,
+                "End": 10,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_4",
+                "Score": 0.99202913,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Labs",
+                "TokenID": 0,
+                "Start": 11,
+                "End": 15,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.999846,
+                "Scores": null,
+                "Index": 0,
+                "Word": "have a great offering!",
+                "TokenID": 0,
+                "Start": 16,
+                "End": 38,
+                "IsSubword": false
+            }
+        ]
+    },
+    "An Italian man went to Malta...": {
+        "entities": [
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.99961716,
+                "Scores": null,
+                "Index": 0,
+                "Word": "An",
+                "TokenID": 0,
+                "Start": 0,
+                "End": 2,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_7",
+                "Score": 0.9893719,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Italian",
+                "TokenID": 0,
+                "Start": 3,
+                "End": 10,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.99976796,
+                "Scores": null,
+                "Index": 0,
+                "Word": "man went to",
+                "TokenID": 0,
+                "Start": 11,
+                "End": 22,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_5",
+                "Score": 0.998925,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Malta",
+                "TokenID": 0,
+                "Start": 23,
+                "End": 28,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.99969673,
+                "Scores": null,
+                "Index": 0,
+                "Word": "...",
+                "TokenID": 0,
+                "Start": 28,
+                "End": 31,
+                "IsSubword": false
+            }
+        ]
+    },
+    "NVIDIA corporation was valued higher than Apple!?": {
+        "entities": [
+            {
+                "Entity": "LABEL_3",
+                "Score": 0.9968505,
+                "Scores": null,
+                "Index": 0,
+                "Word": "NVIDIA",
+                "TokenID": 0,
+                "Start": 0,
+                "End": 6,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.97990334,
+                "Scores": null,
+                "Index": 0,
+                "Word": "corporation was valued higher than",
+                "TokenID": 0,
+                "Start": 7,
+                "End": 41,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_3",
+                "Score": 0.98733974,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Apple",
+                "TokenID": 0,
+                "Start": 42,
+                "End": 47,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_4",
+                "Score": 0.465456,
+                "Scores": null,
+                "Index": 0,
+                "Word": "!",
+                "TokenID": 0,
+                "Start": 47,
+                "End": 48,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.99968076,
+                "Scores": null,
+                "Index": 0,
+                "Word": "?",
+                "TokenID": 0,
+                "Start": 48,
+                "End": 49,
+                "IsSubword": false
+            }
+        ]
+    },
+    "My silly hat is from Hatfield.": {
+        "entities": [
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.9996177,
+                "Scores": null,
+                "Index": 0,
+                "Word": "My silly hat is from",
+                "TokenID": 0,
+                "Start": 0,
+                "End": 20,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_5",
+                "Score": 0.9851442,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Hatfield",
+                "TokenID": 0,
+                "Start": 21,
+                "End": 29,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.9997869,
+                "Scores": null,
+                "Index": 0,
+                "Word": ".",
+                "TokenID": 0,
+                "Start": 29,
+                "End": 30,
+                "IsSubword": false
+            }
+        ]
+    },
+    "Japanese Bento boxes taste amazing!": {
+        "entities": [
+            {
+                "Entity": "LABEL_7",
+                "Score": 0.7260668,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Japanese Ben",
+                "TokenID": 0,
+                "Start": 0,
+                "End": 12,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_8",
+                "Score": 0.66532207,
+                "Scores": null,
+                "Index": 0,
+                "Word": "##to",
+                "TokenID": 0,
+                "Start": 12,
+                "End": 14,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.99887407,
+                "Scores": null,
+                "Index": 0,
+                "Word": "boxes taste amazing!",
+                "TokenID": 0,
+                "Start": 15,
+                "End": 35,
+                "IsSubword": false
+            }
+        ]
+    },
+    "My name is Wolfgang and I live in Berlin.": {
+        "entities": [
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.9993014,
+                "Scores": null,
+                "Index": 0,
+                "Word": "My name is",
+                "TokenID": 0,
+                "Start": 0,
+                "End": 10,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_1",
+                "Score": 0.99230945,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Wolfgang",
+                "TokenID": 0,
+                "Start": 11,
+                "End": 19,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.9984816,
+                "Scores": null,
+                "Index": 0,
+                "Word": "and I live in",
+                "TokenID": 0,
+                "Start": 20,
+                "End": 33,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_5",
+                "Score": 0.997545,
+                "Scores": null,
+                "Index": 0,
+                "Word": "Berlin",
+                "TokenID": 0,
+                "Start": 34,
+                "End": 40,
+                "IsSubword": false
+            },
+            {
+                "Entity": "LABEL_0",
+                "Score": 0.9997385,
+                "Scores": null,
+                "Index": 0,
+                "Word": ".",
+                "TokenID": 0,
+                "Start": 40,
+                "End": 41,
+                "IsSubword": false
+            }
+        ]
+    }
+}
