@@ -561,6 +561,13 @@ func (p *ParsedConfig) EngineVersion() string {
 	return p.mgr.EngineVersion()
 }
 
+// Resources returns the resources type that has been granted to the given
+// parsed config view. Plugin implementations should generally only access and
+// preserve the resources reference they are granted in their constructors.
+func (p *ParsedConfig) Resources() *Resources {
+	return newResourcesFromManager(p.mgr)
+}
+
 // Namespace returns a version of the parsed config at a given field namespace.
 // This is useful for extracting multiple fields under the same grouping.
 func (p *ParsedConfig) Namespace(path ...string) *ParsedConfig {
