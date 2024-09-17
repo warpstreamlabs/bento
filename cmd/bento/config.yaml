@@ -1,0 +1,23 @@
+input:
+  stdin: {}
+
+output:
+  cypher:
+    database: neo4j
+    uri: bolt://localhost:7687
+    query: |
+      CREATE (p:Person {name: $name}) RETURN p
+    values: 
+      name: ${! json("name") }
+    batching:
+      count: 0
+      # byte_size: 0
+      # period: ""
+      # check: ""
+
+## Return all nodes and relations: 
+# MATCH (n) OPTIONAL MATCH (n)-[r]->() RETURN n, r
+
+## Delete all nodes and relations
+# MATCH (n) DETACH DELETE n
+
