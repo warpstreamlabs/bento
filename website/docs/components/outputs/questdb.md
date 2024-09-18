@@ -96,7 +96,8 @@ output:
 </Tabs>
 
 :::warning Important
-		We recommend that the dedupe feature is enabled on the QuestDB server. Please visit https://questdb.io/docs/ for more information about deploying, configuring, and using QuestDB.:::
+We recommend that the dedupe feature is enabled on the QuestDB server. Please visit https://questdb.io/docs/ for more information about deploying, configuring, and using QuestDB.
+:::
 
 ## Performance
 
