@@ -18,7 +18,7 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Pushes messages to a QuestDB table
+Pushes messages to a QuestDB table.
 
 
 <Tabs defaultValue="common" values={[
