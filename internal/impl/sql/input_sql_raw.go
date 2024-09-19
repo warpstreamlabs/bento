@@ -175,10 +175,6 @@ func (s *sqlRawInput) Connect(ctx context.Context) (err error) {
 			_ = s.rows.Close()
 			s.rows = nil
 		}
-		if s.db != nil {
-			_ = s.db.Close()
-			s.db = nil
-		}
 		s.dbMut.Unlock()
 
 		s.shutSig.TriggerHasStopped()

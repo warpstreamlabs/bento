@@ -174,8 +174,6 @@ func newSQLRawProcessor(
 
 	go func() {
 		<-s.shutSig.HardStopChan()
-		_ = s.db.Close()
-
 		s.shutSig.TriggerHasStopped()
 	}()
 	return s, nil
