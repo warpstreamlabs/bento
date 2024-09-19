@@ -514,11 +514,10 @@ processors:
       root = this
       root.bar = this.bar.number()
 `)
-
 		streamInBuilder := service.NewStreamBuilder()
 		require.NoError(t, streamInBuilder.SetLoggerYAML(`level: OFF`))
 		require.NoError(t, streamInBuilder.AddOutputYAML(outputConf))
-
+		fmt.Println("hihi")
 		inFn, err := streamInBuilder.AddBatchProducerFunc()
 		require.NoError(t, err)
 
