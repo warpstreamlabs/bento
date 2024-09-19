@@ -478,7 +478,7 @@ func testBatchInputOutputRaw(t *testing.T, driver, dsn, table string) {
 
 		valuesStr := `(?, ?, ?)`
 		colsStr := `"foo", "bar", "baz"`
-		orderByStr := `"bar" ASC`
+		orderByStr := `"bar"`
 		if driver == "postgres" || driver == "clickhouse" {
 			valuesStr = `($1, $2, $3)`
 		} else if driver == "oracle" {
