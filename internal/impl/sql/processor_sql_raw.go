@@ -165,7 +165,7 @@ func newSQLRawProcessor(
 		onlyExec:    onlyExec,
 		argsMapping: argsMapping,
 	}
-	fmt.Println("newSQLRawProcessor", queryStatic)
+
 	var err error
 	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
 		return nil, err
@@ -176,7 +176,6 @@ func newSQLRawProcessor(
 		<-s.shutSig.HardStopChan()
 		s.shutSig.TriggerHasStopped()
 	}()
-
 	return s, nil
 }
 
