@@ -168,6 +168,7 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 
 	go func() {
 		<-s.shutSig.HardStopChan()
+		_ = s.db.Close()
 		s.shutSig.TriggerHasStopped()
 	}()
 

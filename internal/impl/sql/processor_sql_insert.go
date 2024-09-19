@@ -179,6 +179,9 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 
 	go func() {
 		<-s.shutSig.HardStopChan()
+		s.dbMut.Lock()
+		_ = s.db.Close()
+		s.dbMut.Unlock()
 		s.shutSig.TriggerHasStopped()
 	}()
 
