@@ -201,9 +201,8 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 
 	go func() {
 		<-s.shutSig.HardStopChan()
-		s.dbMut.Lock()
 		_ = s.db.Close()
-		s.dbMut.Unlock()
+
 		s.shutSig.TriggerHasStopped()
 	}()
 
