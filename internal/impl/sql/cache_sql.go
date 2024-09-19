@@ -166,6 +166,11 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)
 
+	go func() {
+		<-s.shutSig.HardStopChan()
+		s.shutSig.TriggerHasStopped()
+	}()
+
 	return s, nil
 }
 
