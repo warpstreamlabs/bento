@@ -572,7 +572,6 @@ func testSuite(t *testing.T, driver, dsn string, createTableFn func(string) (str
 		testBatchProcessorBasic,
 		testBatchProcessorParallel,
 		testBatchInputOutputBatch,
-		testBatchProcessorParallel,
 		testBatchInputOutputRaw,
 		testRawProcessorsBasic,
 		testDeprecatedProcessorsBasic,
