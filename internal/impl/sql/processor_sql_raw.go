@@ -165,22 +165,13 @@ func newSQLRawProcessor(
 		onlyExec:    onlyExec,
 		argsMapping: argsMapping,
 	}
-
+	fmt.Println("newSQLRawProcessor", queryStatic)
 	var err error
 	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)
 
-	go func() {
-		<-s.shutSig.HardStopChan()
-
-		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
-
-		s.shutSig.TriggerHasStopped()
-	}()
 	return s, nil
 }
 

@@ -180,6 +180,7 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
+
 	return s, nil
 }
 
@@ -198,15 +199,6 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 
 	s.connSettings.apply(ctx, s.db, s.logger)
 
-	go func() {
-		<-s.shutSig.HardStopChan()
-
-		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
-
-		s.shutSig.TriggerHasStopped()
-	}()
 	return nil
 }
 
@@ -223,7 +215,7 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 	if s.argsMapping != nil {
 		executor = batch.BloblangExecutor(s.argsMapping)
 	}
-
+	
 	if s.useTxStmt {
 		var err error
 		if tx, err = s.db.Begin(); err != nil {

@@ -12,7 +12,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos").
+var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner").
 	Description("A database [driver](#drivers) to use.")
 
 var dsnField = service.NewStringField("dsn").
@@ -31,6 +31,7 @@ The following is a list of supported drivers, their placeholder style, and their
 ` + "| `sqlite` | `file:/path/to/filename.db[?param&=value1&...]` |" + `
 ` + "| `oracle` | `oracle://[username[:password]@][netloc][:port]/service_name?server=server2&server=server3` |" + `
 ` + "| `snowflake` | `username[:password]@account_identifier/dbname/schemaname[?param1=value&...&paramN=valueN]` |" + `
+` + "| `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |" + `
 ` + "| `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |" + `
 ` + "| `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |" + `
 
@@ -117,6 +118,7 @@ func rawQueryField() *service.ConfigField {
 ` + "| `sqlite` | Question mark |" + `
 ` + "| `oracle` | Colon |" + `
 ` + "| `snowflake` | Question mark |" + `
+` + "| `spanner` | Question mark |" + `
 ` + "| `trino` | Question mark |" + `
 ` + "| `gocosmos` | Colon |" + `
 `)
