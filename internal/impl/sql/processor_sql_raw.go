@@ -172,6 +172,11 @@ func newSQLRawProcessor(
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)
 
+	go func() {
+		<-s.shutSig.HardStopChan()
+		s.shutSig.TriggerHasStopped()
+	}()
+
 	return s, nil
 }
 

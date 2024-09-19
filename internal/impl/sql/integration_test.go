@@ -56,20 +56,18 @@ args_mapping: 'root = [ this.id ]'
 
 			insertConfig, err := isql.InsertProcessorConfig().ParseYAML(insertConf, env)
 			require.NoError(t, err)
-			fmt.Println(`insertConfig`,insertConf)
-			fmt.Println(`seelctConfig`,queryConf)
 
 			selectConfig, err := isql.SelectProcessorConfig().ParseYAML(queryConf, env)
 			require.NoError(t, err)
 
 			insertProc, err := isql.NewSQLInsertProcessorFromConfig(insertConfig, service.MockResources())
 			require.NoError(t, err)
-			// t.Cleanup(func() { insertProc.Close(context.Background()) })
-			fmt.Println(`cleaned up insertProc`)
+			t.Cleanup(func() { insertProc.Close(context.Background()) })
+
 			selectProc, err := isql.NewSQLSelectProcessorFromConfig(selectConfig, service.MockResources())
 			require.NoError(t, err)
-			// t.Cleanup(func() { selectProc.Close(context.Background()) })
-			fmt.Println(`cleaned up selectProc`)
+			t.Cleanup(func() { selectProc.Close(context.Background()) })
+
 			fn(t, insertProc, selectProc)
 		})
 	}
@@ -126,11 +124,11 @@ args_mapping: 'root = [ this.id ]'
 
 			insertProc, err := isql.NewSQLRawProcessorFromConfig(insertConfig, service.MockResources())
 			require.NoError(t, err)
-			// t.Cleanup(func() { insertProc.Close(context.Background()) })
+			t.Cleanup(func() { insertProc.Close(context.Background()) })
 
 			selectProc, err := isql.NewSQLRawProcessorFromConfig(selectConfig, service.MockResources())
 			require.NoError(t, err)
-			// t.Cleanup(func() { selectProc.Close(context.Background()) })
+			t.Cleanup(func() { selectProc.Close(context.Background()) })
 
 			fn(t, insertProc, selectProc)
 		})
@@ -190,11 +188,11 @@ result_codec: json_array
 
 			insertProc, err := isql.NewSQLDeprecatedProcessorFromConfig(insertConfig, service.MockResources())
 			require.NoError(t, err)
-			// t.Cleanup(func() { insertProc.Close(context.Background()) })
+			t.Cleanup(func() { insertProc.Close(context.Background()) })
 
 			selectProc, err := isql.NewSQLDeprecatedProcessorFromConfig(selectConfig, service.MockResources())
 			require.NoError(t, err)
-			// t.Cleanup(func() { selectProc.Close(context.Background()) })
+			t.Cleanup(func() { selectProc.Close(context.Background()) })
 
 			fn(t, insertProc, selectProc)
 		})
@@ -517,7 +515,7 @@ processors:
 		streamInBuilder := service.NewStreamBuilder()
 		require.NoError(t, streamInBuilder.SetLoggerYAML(`level: OFF`))
 		require.NoError(t, streamInBuilder.AddOutputYAML(outputConf))
-		fmt.Println("hihi")
+
 		inFn, err := streamInBuilder.AddBatchProducerFunc()
 		require.NoError(t, err)
 
@@ -573,22 +571,19 @@ processors:
 
 func testSuite(t *testing.T, driver, dsn string, createTableFn func(string) (string, error)) {
 
-	for i, fn := range []testFn{
+	for _, fn := range []testFn{
 		testBatchProcessorBasic,
 		testBatchProcessorParallel,
-		// testBatchInputOutputBatch,
+		testBatchInputOutputBatch,
 		testBatchProcessorParallel,
 		testBatchInputOutputRaw,
 		testRawProcessorsBasic,
 		testDeprecatedProcessorsBasic,
 	} {
-		fmt.Println(fn)
 		tableName, err := gonanoid.Generate("abcdefghijklmnopqrstuvwxyz", 40)
-		fmt.Println(`tablename`	,tableName)
 		require.NoError(t, err)
 
 		tableName, err = createTableFn(tableName)
-		fmt.Println(`wtf create table`,err,i)
 		require.NoError(t, err)
 
 		fn(t, driver, dsn, tableName)
@@ -794,25 +789,15 @@ func TestIntegrationSpanner(t *testing.T) {
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		fmt.Println(`spanner cleaning up`)
 		if err = pool.Purge(resource); err != nil {
 			t.Logf("Failed to clean up docker resource: %s", err)
 		}
 		if db != nil {
-			fmt.Println(`closing db`)
 			db.Close()
-			fmt.Println(db.Ping())
-			fmt.Println(`closed db`)
 		}
 	})
 
 	createTable := func(name string) (string, error) {
-		fmt.Println(`create table`,name)
-		fmt.Println(fmt.Sprintf(`create table %s (
-			foo string(50) not null,
-			bar int64 not null,
-			baz string(50) not null,
-				  ) primary key (foo)`, name))
 		_, err := db.Exec(fmt.Sprintf(`create table %s (
   foo string(50) not null,
   bar int64 not null,
@@ -822,9 +807,7 @@ func TestIntegrationSpanner(t *testing.T) {
 	}
 	emulatorHost := fmt.Sprintf("localhost:%s", resource.GetPort("9010/tcp"))
 	os.Setenv("SPANNER_EMULATOR_HOST", emulatorHost)
-	fmt.Println("SPANNER_EMULATOR_HOST:", emulatorHost)
 	
-	// Use a more specific project, instance, and database name for the emulator
 	project := "test-project"
 	instance := "test-instance"
 	database := "test-database"
