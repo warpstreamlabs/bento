@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -14,7 +13,6 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ory/dockertest/v3/docker"
 
 	isql "github.com/warpstreamlabs/bento/internal/impl/sql"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -28,7 +26,6 @@ import (
 type testFn func(t *testing.T, driver, dsn, table string)
 
 func testProcessors(name string, fn func(t *testing.T, insertProc, selectProc service.BatchProcessor)) testFn {
-	print(`testProcessors `, name)
 	return func(t *testing.T, driver, dsn, table string) {
 		colList := `[ "foo", "bar", "baz" ]`
 		if driver == "oracle" {
@@ -764,8 +761,6 @@ func TestIntegrationPostgres(t *testing.T) {
 func TestIntegrationSpanner(t *testing.T) {
 	integration.CheckSkip(t)
 
-	t.Parallel()
-
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
@@ -778,9 +773,6 @@ func TestIntegrationSpanner(t *testing.T) {
 	}, &dockertest.RunOptions{
 			Name: "spannertest",
 			ExposedPorts: []string{"9010/tcp", "9020/tcp"},
-		}, func(config *docker.HostConfig) {
-			// set AutoRemove to true so that stopped container goes away by itself
-			config.AutoRemove = false
 		})
 	if err != nil {
 		fmt.Printf("Could not start resource: %s", err)
@@ -806,7 +798,10 @@ func TestIntegrationSpanner(t *testing.T) {
 		return name, err
 	}
 	emulatorHost := fmt.Sprintf("localhost:%s", resource.GetPort("9010/tcp"))
-	os.Setenv("SPANNER_EMULATOR_HOST", emulatorHost)
+	
+	// This needs to be set so that the Spanner connector will pick up that we are using the emulator.
+	t.Setenv("SPANNER_EMULATOR_HOST", emulatorHost)
+
 	
 	project := "test-project"
 	instance := "test-instance"
