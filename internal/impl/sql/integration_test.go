@@ -18,9 +18,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 
+	_ "github.com/googleapis/go-sql-spanner"
+
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 	_ "github.com/warpstreamlabs/bento/public/components/sql"
-    _ "github.com/googleapis/go-sql-spanner"
 )
 
 type testFn func(t *testing.T, driver, dsn, table string)
@@ -88,7 +89,7 @@ func testRawProcessors(name string, fn func(t *testing.T, insertProc, selectProc
 			insertConf := fmt.Sprintf(`
 driver: %s
 dsn: %s
-query: insert into %s ( ` + colListStr + ` ) values `+valuesStr+`
+query: insert into %s ( `+colListStr+` ) values `+valuesStr+`
 args_mapping: 'root = [ this.foo, this.bar.floor(), this.baz ]'
 exec_only: true
 `, driver, dsn, table)
@@ -374,7 +375,7 @@ func testBatchInputOutputBatch(t *testing.T, driver, dsn, table string) {
 
 	if driver == "oracle" {
 		colList = `[ "\"foo\"", "\"bar\"", "\"baz\"" ]`
-	}else if driver == "spanner" {
+	} else if driver == "spanner" {
 		colList = `[ foo, bar, baz ]`
 		orderBy = `bar`
 	}
@@ -502,7 +503,7 @@ sql_raw:
 sql_raw:
   driver: $driver
   dsn: $dsn
-  query: 'select * from $table ORDER BY `+ orderByStr +` ASC'
+  query: 'select * from $table ORDER BY ` + orderByStr + ` ASC'
 processors:
   # For some reason MySQL driver doesn't resolve to integer by default.
   - bloblang: |
@@ -770,9 +771,9 @@ func TestIntegrationSpanner(t *testing.T) {
 		ContextDir: "./resources",
 		Dockerfile: "Dockerfile_spanner",
 	}, &dockertest.RunOptions{
-			Name: "spannertest",
-			ExposedPorts: []string{"9010/tcp", "9020/tcp"},
-		})
+		Name:         "spannertest",
+		ExposedPorts: []string{"9010/tcp", "9020/tcp"},
+	})
 	if err != nil {
 		fmt.Printf("Could not start resource: %s", err)
 	}
@@ -797,31 +798,30 @@ func TestIntegrationSpanner(t *testing.T) {
 		return name, err
 	}
 	emulatorHost := fmt.Sprintf("localhost:%s", resource.GetPort("9010/tcp"))
-	
+
 	// This needs to be set so that the Spanner connector will pick up that we are using the emulator.
 	t.Setenv("SPANNER_EMULATOR_HOST", emulatorHost)
 
-	
 	project := "test-project"
 	instance := "test-instance"
 	database := "test-database"
-	
+
 	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
-	
+
 	require.NoError(t, pool.Retry(func() error {
 		db, err = sql.Open("spanner", dsn)
 		if err != nil {
-			fmt.Println(`open error`,err)
+			fmt.Println(`open error`, err)
 			return err
 		}
 		if err = db.Ping(); err != nil {
-			fmt.Println(`ping error`,err)
+			fmt.Println(`ping error`, err)
 			db.Close()
 			db = nil
 			return err
 		}
 		if _, err := createTable("footable"); err != nil {
-			fmt.Println(`create table error`,err)
+			fmt.Println(`create table error`, err)
 			return err
 		}
 		return nil
@@ -829,7 +829,6 @@ func TestIntegrationSpanner(t *testing.T) {
 
 	testSuite(t, "spanner", dsn, createTable)
 }
-
 
 func TestIntegrationMySQL(t *testing.T) {
 	integration.CheckSkip(t)

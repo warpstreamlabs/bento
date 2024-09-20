@@ -220,7 +220,7 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 	if s.argsMapping != nil {
 		executor = batch.BloblangExecutor(s.argsMapping)
 	}
-	
+
 	if s.useTxStmt {
 		var err error
 		if tx, err = s.db.Begin(); err != nil {
