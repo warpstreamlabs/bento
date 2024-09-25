@@ -71,7 +71,7 @@ func (m *messageData) AsStructuredMut() (any, error) {
 		if m.structured != nil {
 			m.structured = cloneGeneric(m.structured)
 		}
-		m.readOnlyStructured = true
+		m.readOnlyStructured = false
 	}
 
 	v, err := m.AsStructured()

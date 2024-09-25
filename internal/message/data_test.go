@@ -92,6 +92,15 @@ func TestConcurrentMutationsFromStructured(t *testing.T) {
 
 			vBytes := local.AsBytes()
 			assert.Equal(t, `{"foo":"baz"}`, string(vBytes))
+
+			vThingMore, err := local.AsStructuredMut()
+			require.NoError(t, err)
+
+			_, err = gabs.Wrap(vThingMore).Set("meow", "foo")
+			require.NoError(t, err)
+
+			vBytes = local.AsBytes()
+			assert.Equal(t, `{"foo":"meow"}`, string(vBytes))
 		}()
 	}
 
