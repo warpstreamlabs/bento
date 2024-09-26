@@ -18,7 +18,9 @@ func cypherOutputSpec() *service.ConfigSpec {
 				Example("bolt://localhost:7687"),
 			service.NewBoolField("noAuth").
 				Description("No Authentication currently implemented, defaults to true.").
-				Default(true),
+				Default(false),
+			service.NewObjectField("basic_auth", basicAuthSpec()...).
+				Description("basic auth"),
 			service.NewStringField("query").
 				Description("The cypher query to execute.").
 				Example("CREATE (p:Person {name: $name}) RETURN p"),
@@ -54,6 +56,21 @@ output:
 	return spec
 }
 
+func basicAuthSpec() []*service.ConfigField {
+	return []*service.ConfigField{
+		service.NewStringField("user").
+			Default("").
+			Description("The username for basic auth."),
+		service.NewStringField("password").
+			Default("").
+			Secret().
+			Description("The password for basic auth."),
+		service.NewStringField("realm").
+			Default("").
+			Description("The realm for basic auth."),
+	}
+}
+
 func init() {
 	err := service.RegisterBatchOutput(
 		"cypher", cypherOutputSpec(),
@@ -75,13 +92,20 @@ func init() {
 //----------------------------------------------------------------------------
 
 type CypherOutput struct {
-	database string
-	uri      string
-	noAuth   bool
-	query    string
-	values   map[string]*service.InterpolatedString
-	driver   neo4j.DriverWithContext
-	session  neo4j.SessionWithContext
+	database   string
+	uri        string
+	noAuth     bool
+	basic_auth CypherBasicAuth
+	query      string
+	values     map[string]*service.InterpolatedString
+	driver     neo4j.DriverWithContext
+	session    neo4j.SessionWithContext
+}
+
+type CypherBasicAuth struct {
+	user     string
+	password string
+	realm    string
 }
 
 func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*CypherOutput, error) {
@@ -103,16 +127,30 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	}
 	values, _ := conf.FieldInterpolatedStringMap("values")
 
-	return &CypherOutput{database: database, uri: uri, noAuth: noAuth, query: query, values: values}, nil
+	if !noAuth {
+		basicAuthMap, _ := conf.FieldStringMap("basic_auth")
+		basicAuth := CypherBasicAuth{user: basicAuthMap["user"], password: basicAuthMap["password"], realm: basicAuthMap["realm"]}
+		return &CypherOutput{database: database, uri: uri, noAuth: noAuth, basic_auth: basicAuth, query: query, values: values}, nil
+	}
 
+	return &CypherOutput{database: database, uri: uri, noAuth: noAuth, query: query, values: values}, nil
 }
 
 func (cyp *CypherOutput) Connect(ctx context.Context) error {
 
-	driver, err := neo4j.NewDriverWithContext(cyp.uri, neo4j.NoAuth())
+	var driver neo4j.DriverWithContext
+	var err error
+
+	if cyp.noAuth {
+		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.NoAuth())
+	} else {
+		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.BasicAuth(cyp.basic_auth.user, cyp.basic_auth.password, cyp.basic_auth.realm))
+	}
+
 	if err != nil {
 		return err
 	}
+
 	cyp.driver = driver
 
 	session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})

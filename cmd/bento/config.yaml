@@ -5,6 +5,10 @@ output:
   cypher:
     database: neo4j
     uri: bolt://localhost:7687
+    noAuth: true
+    # basic_auth:
+    #   user: neo4j
+    #   password: password
     query: |
       CREATE (p:Person {name: $name}) RETURN p
     values: 
