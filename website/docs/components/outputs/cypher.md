@@ -35,7 +35,11 @@ output:
   cypher:
     database: neo4j # No default (required)
     uri: bolt://localhost:7687 # No default (required)
-    noAuth: true
+    noAuth: false
+    basic_auth:
+      user: ""
+      password: ""
+      realm: ""
     query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
     values: {}
     max_in_flight: 64
@@ -56,7 +60,11 @@ output:
   cypher:
     database: neo4j # No default (required)
     uri: bolt://localhost:7687 # No default (required)
-    noAuth: true
+    noAuth: false
+    basic_auth:
+      user: ""
+      password: ""
+      realm: ""
     query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
     values: {}
     max_in_flight: 64
@@ -132,7 +140,41 @@ No Authentication currently implemented, defaults to true.
 
 
 Type: `bool`  
-Default: `true`  
+Default: `false`  
+
+### `basic_auth`
+
+basic auth
+
+
+Type: `object`  
+
+### `basic_auth.user`
+
+The username for basic auth.
+
+
+Type: `string`  
+Default: `""`  
+
+### `basic_auth.password`
+
+The password for basic auth.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `basic_auth.realm`
+
+The realm for basic auth.
+
+
+Type: `string`  
+Default: `""`  
 
 ### `query`
 

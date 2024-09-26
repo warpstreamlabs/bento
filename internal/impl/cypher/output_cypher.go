@@ -92,14 +92,14 @@ func init() {
 //----------------------------------------------------------------------------
 
 type CypherOutput struct {
-	database   string
-	uri        string
-	noAuth     bool
-	basic_auth CypherBasicAuth
-	query      string
-	values     map[string]*service.InterpolatedString
-	driver     neo4j.DriverWithContext
-	session    neo4j.SessionWithContext
+	database  string
+	uri       string
+	noAuth    bool
+	basicAuth CypherBasicAuth
+	query     string
+	values    map[string]*service.InterpolatedString
+	driver    neo4j.DriverWithContext
+	session   neo4j.SessionWithContext
 }
 
 type CypherBasicAuth struct {
@@ -130,7 +130,7 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	if !noAuth {
 		basicAuthMap, _ := conf.FieldStringMap("basic_auth")
 		basicAuth := CypherBasicAuth{user: basicAuthMap["user"], password: basicAuthMap["password"], realm: basicAuthMap["realm"]}
-		return &CypherOutput{database: database, uri: uri, noAuth: noAuth, basic_auth: basicAuth, query: query, values: values}, nil
+		return &CypherOutput{database: database, uri: uri, noAuth: noAuth, basicAuth: basicAuth, query: query, values: values}, nil
 	}
 
 	return &CypherOutput{database: database, uri: uri, noAuth: noAuth, query: query, values: values}, nil
@@ -144,7 +144,7 @@ func (cyp *CypherOutput) Connect(ctx context.Context) error {
 	if cyp.noAuth {
 		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.NoAuth())
 	} else {
-		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.BasicAuth(cyp.basic_auth.user, cyp.basic_auth.password, cyp.basic_auth.realm))
+		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.BasicAuth(cyp.basicAuth.user, cyp.basicAuth.password, cyp.basicAuth.realm))
 	}
 
 	if err != nil {
