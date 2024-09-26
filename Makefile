@@ -73,7 +73,7 @@ docker-cgo-tags:
 	@echo "latest-cgo,$(VER_CUT)-cgo,$(VER_MAJOR).$(VER_MINOR)-cgo,$(VER_MAJOR)-cgo" > .tags
 
 docker:
-	@docker buildx build --platform linux/amd64 -f ./resources/docker/Dockerfile . -t $(DOCKER_IMAGE):$(VER_CUT)
+	@docker build -f ./resources/docker/Dockerfile . -t $(DOCKER_IMAGE):$(VER_CUT)
 	@docker tag $(DOCKER_IMAGE):$(VER_CUT) $(DOCKER_IMAGE):latest
 
 docker-cgo:
