@@ -2,6 +2,9 @@ package cypher
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -13,14 +16,14 @@ func cypherOutputSpec() *service.ConfigSpec {
 			service.NewStringField("database").
 				Description("The name of the database to connect to.").
 				Example("neo4j"),
-			service.NewStringField("uri").
-				Description("The URI of the database.").
+			service.NewStringField("url").
+				Description("The URL of the database engine.").
 				Example("bolt://localhost:7687"),
-			service.NewBoolField("noAuth").
-				Description("No Authentication currently implemented, defaults to true.").
+			service.NewBoolField("no_auth").
+				Description("Set to true to connect without authentication.").
 				Default(false),
 			service.NewObjectField("basic_auth", basicAuthSpec()...).
-				Description("basic auth"),
+				Description("Basic Authentication fields"),
 			service.NewStringField("query").
 				Description("The cypher query to execute.").
 				Example("CREATE (p:Person {name: $name}) RETURN p"),
@@ -28,7 +31,7 @@ func cypherOutputSpec() *service.ConfigSpec {
 				Description("A map of strings -> bloblang interpolations that form the values of the references in the query i.e. $name.").
 				Default(map[string]any{}).
 				Example(map[string]any{
-					"name": "Alice",
+					"name": `${! json("name") }`,
 				}),
 			service.NewIntField("max_in_flight").
 				Description("The maximum number of queries to run in parallel.").
@@ -44,7 +47,10 @@ Here we execute a cypher query that takes the value of $name from the interpolat
 output:
   cypher:
     database: neo4j
-    uri: bolt://localhost:7687
+    url: bolt://localhost:7687
+    basic_auth:
+      user: neo4j
+      password: password
     query: |
       CREATE (p:Person {name: $name}) RETURN p
     values: 
@@ -93,7 +99,7 @@ func init() {
 
 type CypherOutput struct {
 	database  string
-	uri       string
+	url       string
 	noAuth    bool
 	basicAuth CypherBasicAuth
 	query     string
@@ -113,11 +119,11 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	if err != nil {
 		return nil, err
 	}
-	uri, err := conf.FieldString("uri")
+	url, err := conf.FieldString("url")
 	if err != nil {
 		return nil, err
 	}
-	noAuth, err := conf.FieldBool("noAuth")
+	noAuth, err := conf.FieldBool("no_auth")
 	if err != nil {
 		return nil, err
 	}
@@ -125,15 +131,43 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	if err != nil {
 		return nil, err
 	}
-	values, _ := conf.FieldInterpolatedStringMap("values")
+	values, err := conf.FieldInterpolatedStringMap("values")
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateQueryAndValues(query, values)
+	if err != nil {
+		return nil, err
+	}
 
 	if !noAuth {
 		basicAuthMap, _ := conf.FieldStringMap("basic_auth")
 		basicAuth := CypherBasicAuth{user: basicAuthMap["user"], password: basicAuthMap["password"], realm: basicAuthMap["realm"]}
-		return &CypherOutput{database: database, uri: uri, noAuth: noAuth, basicAuth: basicAuth, query: query, values: values}, nil
+		return &CypherOutput{database: database, url: url, noAuth: noAuth, basicAuth: basicAuth, query: query, values: values}, nil
 	}
 
-	return &CypherOutput{database: database, uri: uri, noAuth: noAuth, query: query, values: values}, nil
+	return &CypherOutput{database: database, url: url, noAuth: noAuth, query: query, values: values}, nil
+}
+
+func validateQueryAndValues(query string, values map[string]*service.InterpolatedString) error {
+
+	for k := range values {
+		if !strings.Contains(query, "$"+k) {
+			return fmt.Errorf("value key: $%s, not found in query: %s", k, query)
+		}
+	}
+
+	re := regexp.MustCompile(`\$\b[a-zA-Z][a-zA-Z0-9]*\b`)
+	extractedVariables := re.FindAllString(query, -1)
+
+	for _, param := range extractedVariables {
+		if _, ok := values[param[1:]]; !ok {
+			return fmt.Errorf("query parameter: %s, not found in value keys", param)
+		}
+	}
+
+	return nil
 }
 
 func (cyp *CypherOutput) Connect(ctx context.Context) error {
@@ -142,9 +176,9 @@ func (cyp *CypherOutput) Connect(ctx context.Context) error {
 	var err error
 
 	if cyp.noAuth {
-		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.NoAuth())
+		driver, err = neo4j.NewDriverWithContext(cyp.url, neo4j.NoAuth())
 	} else {
-		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.BasicAuth(cyp.basicAuth.user, cyp.basicAuth.password, cyp.basicAuth.realm))
+		driver, err = neo4j.NewDriverWithContext(cyp.url, neo4j.BasicAuth(cyp.basicAuth.user, cyp.basicAuth.password, cyp.basicAuth.realm))
 	}
 
 	if err != nil {
@@ -177,7 +211,7 @@ func (cyp *CypherOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 		)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		values = nil

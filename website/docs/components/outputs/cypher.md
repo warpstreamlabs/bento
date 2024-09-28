@@ -34,8 +34,8 @@ output:
   label: ""
   cypher:
     database: neo4j # No default (required)
-    uri: bolt://localhost:7687 # No default (required)
-    noAuth: false
+    url: bolt://localhost:7687 # No default (required)
+    no_auth: false
     basic_auth:
       user: ""
       password: ""
@@ -59,8 +59,8 @@ output:
   label: ""
   cypher:
     database: neo4j # No default (required)
-    uri: bolt://localhost:7687 # No default (required)
-    noAuth: false
+    url: bolt://localhost:7687 # No default (required)
+    no_auth: false
     basic_auth:
       user: ""
       password: ""
@@ -94,7 +94,10 @@ Here we execute a cypher query that takes the value of $name from the interpolat
 output:
   cypher:
     database: neo4j
-    uri: bolt://localhost:7687
+    url: bolt://localhost:7687
+    basic_auth:
+      user: neo4j
+      password: password
     query: |
       CREATE (p:Person {name: $name}) RETURN p
     values: 
@@ -121,9 +124,9 @@ Type: `string`
 database: neo4j
 ```
 
-### `uri`
+### `url`
 
-The URI of the database.
+The URL of the database engine.
 
 
 Type: `string`  
@@ -131,12 +134,12 @@ Type: `string`
 ```yml
 # Examples
 
-uri: bolt://localhost:7687
+url: bolt://localhost:7687
 ```
 
-### `noAuth`
+### `no_auth`
 
-No Authentication currently implemented, defaults to true.
+Set to true to connect without authentication.
 
 
 Type: `bool`  
@@ -144,7 +147,7 @@ Default: `false`
 
 ### `basic_auth`
 
-basic auth
+Basic Authentication fields
 
 
 Type: `object`  
@@ -202,7 +205,7 @@ Default: `{}`
 # Examples
 
 values:
-  name: Alice
+  name: ${! json("name") }
 ```
 
 ### `max_in_flight`
