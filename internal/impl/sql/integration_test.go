@@ -790,7 +790,6 @@ func TestIntegrationSpanner(t *testing.T) {
 
 	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
 
-	
 	t.Cleanup(func() {
 		if err = pool.Purge(resource); err != nil {
 			t.Logf("Failed to clean up docker resource: %s", err)
@@ -819,7 +818,6 @@ func TestIntegrationSpanner(t *testing.T) {
 		if err = db.Ping(); err != nil {
 			fmt.Println(`ping error`, err)
 			db.Close()
-			db = nil
 			return err
 		}
 		if _, err := createTable("footable"); err != nil {
