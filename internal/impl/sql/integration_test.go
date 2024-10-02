@@ -816,7 +816,7 @@ func TestIntegrationSpanner(t *testing.T) {
 			return err
 		}
 		if err = db.Ping(); err != nil {
-			fmt.Println(`ping error`, err)
+			t.Logf(`ping error: %s`, err)
 			db.Close()
 			return err
 		}
