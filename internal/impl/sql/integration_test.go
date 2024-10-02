@@ -812,7 +812,7 @@ func TestIntegrationSpanner(t *testing.T) {
 		var db *sql.DB
 		db, err = sql.Open("spanner", dsn)
 		if err != nil {
-			fmt.Println(`open error`, err)
+			t.Logf(`open error: %s`, err)
 			return err
 		}
 		if err = db.Ping(); err != nil {
