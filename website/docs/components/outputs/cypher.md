@@ -3,6 +3,7 @@ title: cypher
 slug: cypher
 type: output
 status: experimental
+categories: ["Services"]
 ---
 
 <!--
@@ -17,8 +18,9 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
+Executes a Cypher Query
 
-Introduced in version 1.0.0.
+Introduced in version 1.3.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -34,7 +36,7 @@ output:
   label: ""
   cypher:
     database: neo4j # No default (required)
-    url: bolt://localhost:7687 # No default (required)
+    uri: bolt://localhost:7687 # No default (required)
     no_auth: false
     basic_auth:
       user: ""
@@ -59,7 +61,7 @@ output:
   label: ""
   cypher:
     database: neo4j # No default (required)
-    url: bolt://localhost:7687 # No default (required)
+    uri: bolt://localhost:7687 # No default (required)
     no_auth: false
     basic_auth:
       user: ""
@@ -79,6 +81,22 @@ output:
 </TabItem>
 </Tabs>
 
+## Executes a Cypher Query
+
+The `query` field is expected to be a valid cypher query with 0 or more parameters with the $ syntax:
+```
+    query: CREATE (p:Person {name: $name, age: $age}) RETURN p
+```
+
+The `values` field is expected to be a map where the keys are equal to the parameters in the query,
+and the values are strings (bloblang interpolations are allowed): 
+
+```
+    values: 
+      name: ${! json("name") }
+      age: ${! json("age") }
+```
+
 ## Examples
 
 <Tabs defaultValue="Create Node" values={[
@@ -94,7 +112,7 @@ Here we execute a cypher query that takes the value of $name from the interpolat
 output:
   cypher:
     database: neo4j
-    url: bolt://localhost:7687
+    uri: bolt://localhost:7687
     basic_auth:
       user: neo4j
       password: password
@@ -124,7 +142,7 @@ Type: `string`
 database: neo4j
 ```
 
-### `url`
+### `uri`
 
 The URL of the database engine.
 
@@ -134,7 +152,7 @@ Type: `string`
 ```yml
 # Examples
 
-url: bolt://localhost:7687
+uri: bolt://localhost:7687
 ```
 
 ### `no_auth`

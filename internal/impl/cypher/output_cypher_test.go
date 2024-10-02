@@ -143,7 +143,7 @@ func testCypherOutputNoAuth(t *testing.T, localURL string) {
 	template := fmt.Sprintf(`
 cypher:
   database: neo4j
-  url: %s
+  uri: %s
   no_auth: true
   query: |
     CREATE (p:Person {name: $name}) RETURN p
@@ -171,7 +171,7 @@ func testCypherOutputBasicAuth(t *testing.T, localURL string) {
 	template := fmt.Sprintf(`
 cypher:
   database: neo4j
-  url: %s
+  uri: %s
   basic_auth:
     user: neo4j
     password: sparkling_brazilian_orange_456
@@ -197,92 +197,6 @@ cypher:
 	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
 }
 
-func TestCypherOutputBasicAuth(t *testing.T) {
-	env := []string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"}
-	localURL, err := setupNeo4j(env)
-
-	require.NoError(t, err)
-
-	confStr := fmt.Sprintf(`
-cypher:
-  database: neo4j
-  url: %s
-  basic_auth:
-    user: neo4j
-    password: sparkling_brazilian_orange_456
-  query: |
-    CREATE (p:Person {name: $name}) RETURN p
-  values: 
-    name: ${! json("name") }
-  batching:
-    count: 0
-`, localURL)
-
-	conf, err := testutil.OutputFromYAML(confStr)
-	require.NoError(t, err)
-
-	s, err := mock.NewManager().NewOutput(conf)
-
-	require.NoError(t, err)
-
-	sendChan := make(chan message.Transaction)
-	resChan := make(chan error)
-	if err = s.Consume(sendChan); err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		s.TriggerCloseNow()
-
-		ctx, done := context.WithTimeout(context.Background(), time.Second*10)
-		assert.NoError(t, s.WaitForClose(ctx))
-		done()
-	})
-
-	inputs := []string{
-		`{"name":"Alice"}`, `{"name":"Bob"}`, `{"name":"Carol"}`, `{"name":"Dan"}`,
-	}
-
-	for _, input := range inputs {
-		testMsg := message.QuickBatch([][]byte{[]byte(input)})
-		select {
-		case sendChan <- message.NewTransaction(testMsg, resChan):
-		case <-time.After(time.Second * 60):
-			t.Fatal("Action timed out")
-		}
-
-		select {
-		case res := <-resChan:
-			if res != nil {
-				t.Fatal(res)
-			}
-		case <-time.After(time.Second * 60):
-			t.Fatal("Action timed out")
-		}
-	}
-
-	ctx := context.Background()
-	driver, _ := neo4j.NewDriverWithContext(localURL, neo4j.BasicAuth("neo4j", "sparkling_brazilian_orange_456", ""))
-
-	results, _ := neo4j.ExecuteQuery(ctx, driver,
-		"match (n) return n",
-		map[string]any{},
-		neo4j.EagerResultTransformer,
-		neo4j.ExecuteQueryWithDatabase("neo4j"),
-	)
-
-	var listOfNamesFromDB []string
-	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
-
-	for _, record := range results.Records {
-		dictionary := record.AsMap()
-		x := dictionary["n"].(dbtype.Node)
-		listOfNamesFromDB = append(listOfNamesFromDB, x.Props["name"].(string))
-	}
-
-	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
-}
-
 func TestCypherOutputMissingValue(t *testing.T) {
 	env := []string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"}
 	localURL, err := setupNeo4j(env)
@@ -292,7 +206,7 @@ func TestCypherOutputMissingValue(t *testing.T) {
 	confStr := fmt.Sprintf(`
 cypher:
   database: neo4j
-  url: %s
+  uri: %s
   basic_auth:
     user: neo4j
     password: sparkling_brazilian_orange_456
@@ -322,7 +236,7 @@ func TestCypherOutputMissingParam(t *testing.T) {
 	confStr := fmt.Sprintf(`
 cypher:
   database: neo4j
-  url: %s
+  uri: %s
   basic_auth:
     user: neo4j
     password: sparkling_brazilian_orange_456
