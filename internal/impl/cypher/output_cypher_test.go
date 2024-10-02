@@ -11,9 +11,11 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/warpstreamlabs/bento/internal/component/output"
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func setupNeo4j(env []string) (string, error) {
@@ -38,35 +40,25 @@ func setupNeo4j(env []string) (string, error) {
 	return neo4jDockerAddress, nil
 }
 
-func TestCypherOutputNoAuth(t *testing.T) {
-	env := []string{"NEO4J_AUTH=none"}
-	localURL, err := setupNeo4j(env)
+func createCypherOutputFromYaml(template string) (s output.Streamed, err error) {
 
-	require.NoError(t, err)
+	conf, err := testutil.OutputFromYAML(template)
+	if err != nil {
+		return nil, err
+	}
 
-	confStr := fmt.Sprintf(`
-cypher:
-  database: neo4j
-  url: %s
-  no_auth: true
-  query: |
-    CREATE (p:Person {name: $name}) RETURN p
-  values:
-    name: ${! json("name") }
-  batching:
-    count: 0
-`, localURL)
+	s, err = mock.NewManager().NewOutput(conf)
+	if err != nil {
+		return nil, err
+	}
 
-	conf, err := testutil.OutputFromYAML(confStr)
-	require.NoError(t, err)
+	return s, nil
+}
 
-	s, err := mock.NewManager().NewOutput(conf)
-
-	require.NoError(t, err)
-
+func sendMessages(t *testing.T, s output.Streamed) {
 	sendChan := make(chan message.Transaction)
 	resChan := make(chan error)
-	if err = s.Consume(sendChan); err != nil {
+	if err := s.Consume(sendChan); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,9 +91,18 @@ cypher:
 			t.Fatal("Action timed out")
 		}
 	}
+}
+
+func checkNeo4j(localURL string, basicAuth bool) (listOfNodeNames []string) {
 
 	ctx := context.Background()
-	driver, _ := neo4j.NewDriverWithContext(localURL, neo4j.NoAuth())
+
+	var driver neo4j.DriverWithContext
+	if basicAuth {
+		driver, _ = neo4j.NewDriverWithContext(localURL, neo4j.BasicAuth("neo4j", "sparkling_brazilian_orange_456", ""))
+	} else {
+		driver, _ = neo4j.NewDriverWithContext(localURL, neo4j.NoAuth())
+	}
 
 	results, _ := neo4j.ExecuteQuery(ctx, driver,
 		"match (n) return n",
@@ -111,13 +112,87 @@ cypher:
 	)
 
 	var listOfNamesFromDB []string
-	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
 
 	for _, record := range results.Records {
 		dictionary := record.AsMap()
 		x := dictionary["n"].(dbtype.Node)
 		listOfNamesFromDB = append(listOfNamesFromDB, x.Props["name"].(string))
 	}
+
+	return listOfNamesFromDB
+}
+
+func TestIntegrationCypherOutput(t *testing.T) {
+	integration.CheckSkip(t)
+	t.Parallel()
+
+	t.Run("cypher_output_no_auth", func(t *testing.T) {
+		localURL, err := setupNeo4j([]string{"NEO4J_AUTH=none"})
+		require.NoError(t, err)
+		testCypherOutputNoAuth(t, localURL)
+	})
+
+	t.Run("cypher_output_basic_auth", func(t *testing.T) {
+		localURL, err := setupNeo4j([]string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"})
+		require.NoError(t, err)
+		testCypherOutputBasicAuth(t, localURL)
+	})
+}
+
+func testCypherOutputNoAuth(t *testing.T, localURL string) {
+	template := fmt.Sprintf(`
+cypher:
+  database: neo4j
+  url: %s
+  no_auth: true
+  query: |
+    CREATE (p:Person {name: $name}) RETURN p
+  values:
+    name: ${! json("name") }
+  batching:
+    count: 0
+  `, localURL)
+
+	s, err := createCypherOutputFromYaml(template)
+	require.NoError(t, err)
+
+	// send the messages
+	sendMessages(&testing.T{}, s)
+
+	// check output
+	listOfNamesFromDB := checkNeo4j(localURL, false)
+
+	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
+
+	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
+}
+
+func testCypherOutputBasicAuth(t *testing.T, localURL string) {
+	template := fmt.Sprintf(`
+cypher:
+  database: neo4j
+  url: %s
+  basic_auth:
+    user: neo4j
+    password: sparkling_brazilian_orange_456
+  query: |
+    CREATE (p:Person {name: $name}) RETURN p
+  values: 
+    name: ${! json("name") }
+  batching:
+    count: 0
+  `, localURL)
+
+	s, err := createCypherOutputFromYaml(template)
+	require.NoError(t, err)
+
+	// send the messages
+	sendMessages(&testing.T{}, s)
+
+	// check output
+	listOfNamesFromDB := checkNeo4j(localURL, true)
+
+	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
 
 	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
 }
