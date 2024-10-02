@@ -44,7 +44,7 @@ driver: %s
 dsn: %s
 table: %s
 columns: [ "*" ]
-where: '"foo" = ?'
+where: 'foo = ?'
 args_mapping: 'root = [ this.id ]'
 `, driver, dsn, table)
 
@@ -73,15 +73,21 @@ func testRawProcessors(name string, fn func(t *testing.T, insertProc, selectProc
 	return func(t *testing.T, driver, dsn, table string) {
 		t.Run(name, func(t *testing.T) {
 			valuesStr := `(?, ?, ?)`
+			colListStr := `"foo", "bar", "baz"`
 			if driver == "postgres" || driver == "clickhouse" {
 				valuesStr = `($1, $2, $3)`
 			} else if driver == "oracle" {
 				valuesStr = `(:1, :2, :3)`
 			}
+
+			if driver == "spanner" {
+				colListStr = `foo, bar, baz`
+			}
+
 			insertConf := fmt.Sprintf(`
 driver: %s
 dsn: %s
-query: insert into %s ( "foo", "bar", "baz" ) values `+valuesStr+`
+query: insert into %s ( `+colListStr+` ) values `+valuesStr+`
 args_mapping: 'root = [ this.foo, this.bar.floor(), this.baz ]'
 exec_only: true
 `, driver, dsn, table)
@@ -92,10 +98,15 @@ exec_only: true
 			} else if driver == "oracle" {
 				placeholderStr = ":1"
 			}
+
+			selectColStr := `"foo"`
+			if driver == "spanner" {
+				selectColStr = `foo`
+			}
 			queryConf := fmt.Sprintf(`
 driver: %s
 dsn: %s
-query: select "foo", "bar", "baz" from %s where "foo" = `+placeholderStr+`
+query: select `+colListStr+` from %s where `+selectColStr+` = `+placeholderStr+`
 args_mapping: 'root = [ this.id ]'
 `, driver, dsn, table)
 
@@ -124,15 +135,22 @@ func testRawDeprecatedProcessors(name string, fn func(t *testing.T, insertProc, 
 	return func(t *testing.T, driver, dsn, table string) {
 		t.Run(name, func(t *testing.T) {
 			valuesStr := `(?, ?, ?)`
+			colListStr := `"foo", "bar", "baz"`
+
 			if driver == "postgres" || driver == "clickhouse" {
 				valuesStr = `($1, $2, $3)`
 			} else if driver == "oracle" {
 				valuesStr = `(:1, :2, :3)`
 			}
+
+			if driver == "spanner" {
+				colListStr = `foo, bar, baz`
+			}
+
 			insertConf := fmt.Sprintf(`
 driver: %s
 data_source_name: %s
-query: insert into %s ( "foo", "bar", "baz" ) values `+valuesStr+`
+query: insert into %s ( `+colListStr+` ) values `+valuesStr+`
 args_mapping: 'root = [ this.foo, this.bar.floor(), this.baz ]'
 `, driver, dsn, table)
 
@@ -142,10 +160,16 @@ args_mapping: 'root = [ this.foo, this.bar.floor(), this.baz ]'
 			} else if driver == "oracle" {
 				placeholderStr = ":1"
 			}
+
+			selectColStr := `"foo"`
+			if driver == "spanner" {
+				selectColStr = `foo`
+			}
+
 			queryConf := fmt.Sprintf(`
 driver: %s
 data_source_name: %s
-query: select "foo", "bar", "baz" from %s where "foo" = `+placeholderStr+`
+query: select `+colListStr+` from %s where `+selectColStr+` = `+placeholderStr+`
 args_mapping: 'root = [ this.id ]'
 result_codec: json_array
 `, driver, dsn, table)
@@ -345,15 +369,22 @@ var testDeprecatedProcessorsBasic = testRawDeprecatedProcessors("deprecated", fu
 
 func testBatchInputOutputBatch(t *testing.T, driver, dsn, table string) {
 	colList := `[ "foo", "bar", "baz" ]`
+	orderBy := `"bar"`
+
 	if driver == "oracle" {
 		colList = `[ "\"foo\"", "\"bar\"", "\"baz\"" ]`
+	} else if driver == "spanner" {
+		colList = `[ foo, bar, baz ]`
+		orderBy = `bar`
 	}
+
 	t.Run("batch_input_output", func(t *testing.T) {
 		confReplacer := strings.NewReplacer(
 			"$driver", driver,
 			"$dsn", dsn,
 			"$table", table,
 			"$columnlist", colList,
+			"$orderby", orderBy,
 		)
 
 		outputConf := confReplacer.Replace(`
@@ -371,7 +402,7 @@ sql_select:
   dsn: $dsn
   table: $table
   columns: [ "*" ]
-  suffix: ' ORDER BY "bar" ASC'
+  suffix: ' ORDER BY $orderby ASC'
 processors:
   # For some reason MySQL driver doesn't resolve to integer by default.
   - bloblang: |
@@ -445,17 +476,24 @@ func testBatchInputOutputRaw(t *testing.T, driver, dsn, table string) {
 		)
 
 		valuesStr := `(?, ?, ?)`
+		colsStr := `"foo", "bar", "baz"`
+		orderByStr := `"bar"`
 		if driver == "postgres" || driver == "clickhouse" {
 			valuesStr = `($1, $2, $3)`
 		} else if driver == "oracle" {
 			valuesStr = `(:1, :2, :3)`
 		}
 
+		if driver == "spanner" {
+			colsStr = `foo, bar, baz`
+			orderByStr = `bar`
+		}
+
 		outputConf := confReplacer.Replace(`
 sql_raw:
   driver: $driver
   dsn: $dsn
-  query: insert into $table ("foo", "bar", "baz") values ` + valuesStr + `
+  query: insert into $table (` + colsStr + `) values ` + valuesStr + `
   args_mapping: 'root = [ this.foo, this.bar.floor(), this.baz ]'
 `)
 
@@ -463,14 +501,13 @@ sql_raw:
 sql_raw:
   driver: $driver
   dsn: $dsn
-  query: 'select * from $table ORDER BY "bar" ASC'
+  query: 'select * from $table ORDER BY ` + orderByStr + ` ASC'
 processors:
   # For some reason MySQL driver doesn't resolve to integer by default.
   - bloblang: |
       root = this
       root.bar = this.bar.number()
 `)
-
 		streamInBuilder := service.NewStreamBuilder()
 		require.NoError(t, streamInBuilder.SetLoggerYAML(`level: OFF`))
 		require.NoError(t, streamInBuilder.AddOutputYAML(outputConf))
@@ -529,6 +566,7 @@ processors:
 }
 
 func testSuite(t *testing.T, driver, dsn string, createTableFn func(string) (string, error)) {
+
 	for _, fn := range []testFn{
 		testBatchProcessorBasic,
 		testBatchProcessorParallel,
@@ -716,6 +754,78 @@ func TestIntegrationPostgres(t *testing.T) {
 	}))
 
 	testSuite(t, "postgres", dsn, createTable)
+}
+
+func TestIntegrationSpanner(t *testing.T) {
+	integration.CheckSkip(t)
+
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		t.Skipf("Could not connect to docker: %s", err)
+	}
+	pool.MaxWait = 3 * time.Minute
+
+	resource, err := pool.BuildAndRunWithBuildOptions(&dockertest.BuildOptions{
+		ContextDir: "./resources",
+		Dockerfile: "Dockerfile_spanner",
+	}, &dockertest.RunOptions{
+		Name:         "spannertest",
+		ExposedPorts: []string{"9010/tcp", "9020/tcp"},
+	})
+	if err != nil {
+		t.Logf("Could not start resource: %s", err)
+	}
+	require.NoError(t, err)
+
+	emulatorHost := fmt.Sprintf("localhost:%s", resource.GetPort("9010/tcp"))
+
+	// This needs to be set so that the Spanner connector will pick up that we are using the emulator.
+	t.Setenv("SPANNER_EMULATOR_HOST", emulatorHost)
+
+	project := "test-project"
+	instance := "test-instance"
+	database := "test-database"
+
+	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
+
+	t.Cleanup(func() {
+		if err = pool.Purge(resource); err != nil {
+			t.Logf("Failed to clean up docker resource: %s", err)
+		}
+
+	})
+
+	createTable := func(name string) (string, error) {
+		var db *sql.DB
+		db, err = sql.Open("spanner", dsn)
+		_, err := db.Exec(fmt.Sprintf(`create table %s (
+  foo string(50) not null,
+  bar int64 not null,
+  baz string(50) not null,
+		) primary key (foo)`, name))
+		return name, err
+	}
+
+	require.NoError(t, pool.Retry(func() error {
+		var db *sql.DB
+		db, err = sql.Open("spanner", dsn)
+		if err != nil {
+			t.Logf(`open error: %s`, err)
+			return err
+		}
+		if err = db.Ping(); err != nil {
+			t.Logf(`ping error: %s`, err)
+			db.Close()
+			return err
+		}
+		if _, err := createTable("footable"); err != nil {
+			t.Logf(`create table error: %s`, err)
+			return err
+		}
+		return nil
+	}))
+
+	testSuite(t, "spanner", dsn, createTable)
 }
 
 func TestIntegrationMySQL(t *testing.T) {

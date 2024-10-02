@@ -1,0 +1,10 @@
+FROM google/cloud-sdk:slim
+
+RUN apt-get install -y google-cloud-sdk google-cloud-sdk-spanner-emulator
+
+COPY start_spanner.sh start_spanner.sh
+RUN chmod +x start_spanner.sh
+
+EXPOSE 9010
+
+CMD ./start_spanner.sh
