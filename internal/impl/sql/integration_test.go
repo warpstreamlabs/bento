@@ -819,7 +819,7 @@ func TestIntegrationSpanner(t *testing.T) {
 			return err
 		}
 		if _, err := createTable("footable"); err != nil {
-			fmt.Println(`create table error`, err)
+			t.Logf(`create table error: %s`, err)
 			return err
 		}
 		return nil
