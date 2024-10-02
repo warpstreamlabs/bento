@@ -76,7 +76,6 @@ func cypherOutputSpec() *service.ConfigSpec {
 		)
 
 	spec = spec.Field(service.NewBatchPolicyField(cypherBatching)).
-		Version("1.0.0").
 		Example("Create Node",
 			`
 Here we execute a cypher query that takes the value of $name from the interpolated field in the values map:`,
