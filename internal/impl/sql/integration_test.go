@@ -18,8 +18,6 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 
-	_ "github.com/googleapis/go-sql-spanner"
-
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 	_ "github.com/warpstreamlabs/bento/public/components/sql"
 )
