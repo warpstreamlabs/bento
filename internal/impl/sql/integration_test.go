@@ -775,7 +775,7 @@ func TestIntegrationSpanner(t *testing.T) {
 		ExposedPorts: []string{"9010/tcp", "9020/tcp"},
 	})
 	if err != nil {
-		fmt.Printf("Could not start resource: %s", err)
+		t.Logf("Could not start resource: %s", err)
 	}
 	require.NoError(t, err)
 
