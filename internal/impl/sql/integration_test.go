@@ -765,7 +765,7 @@ func TestIntegrationSpanner(t *testing.T) {
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 10 * time.Second
+	pool.MaxWait = 3 * time.Minute
 
 	resource, err := pool.BuildAndRunWithBuildOptions(&dockertest.BuildOptions{
 		ContextDir: "./resources",
