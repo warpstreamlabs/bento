@@ -389,56 +389,103 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
-	var err error
-	defer func() {
-		if err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
-			h.log.Warn("Websocket request failed: %v\n", err)
-			return
-		}
-	}()
+    var err error
+    defer func() {
+        if err != nil {
+            http.Error(w, "Bad request", http.StatusBadRequest)
+            h.log.Warn("WebSocket request failed: %v", err)
+            return
+        }
+    }()
 
-	upgrader := websocket.Upgrader{}
+    upgrader := websocket.Upgrader{}
 
-	var ws *websocket.Conn
-	if ws, err = upgrader.Upgrade(w, r, nil); err != nil {
-		return
-	}
-	defer ws.Close()
+    // Upgrade the HTTP connection to a WebSocket connection
+    ws, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        h.log.Warn("WebSocket upgrade failed: %v", err)
+        return
+    }
+    defer ws.Close()
 
-	ctx, done := h.shutSig.SoftStopCtx(r.Context())
-	defer done()
+    // Set up ping/pong handlers and deadlines
+    const (
+        writeWait  = 10 * time.Second
+        pongWait   = 60 * time.Second
+        pingPeriod = (pongWait * 9) / 10
+    )
 
-	for !h.shutSig.IsSoftStopSignalled() {
-		var ts message.Transaction
-		var open bool
+    ws.SetReadLimit(512)
+    ws.SetReadDeadline(time.Now().Add(pongWait))
+    ws.SetPongHandler(func(string) error {
+        ws.SetReadDeadline(time.Now().Add(pongWait))
+        return nil
+    })
 
-		select {
-		case ts, open = <-h.transactions:
-			if !open {
-				go h.TriggerCloseNow()
-				return
-			}
-		case <-r.Context().Done():
-			return
-		case <-h.shutSig.SoftStopChan():
-			return
-		}
+    // Start a goroutine to read messages (to process control frames)
+    done := make(chan struct{})
+    go func() {
+        defer close(done)
+        for {
+            _, _, err := ws.ReadMessage()
+            if err != nil {
+                if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+                    h.log.Warn("WebSocket read error: %v", err)
+                }
+                break
+            }
+        }
+    }()
 
-		var werr error
-		for _, msg := range message.GetAllBytes(ts.Payload) {
-			if werr = ws.WriteMessage(websocket.BinaryMessage, msg); werr != nil {
-				break
-			}
-			h.mWSBatchSent.Incr(1)
-			h.mWSSent.Incr(int64(batch.MessageCollapsedCount(ts.Payload)))
-		}
-		if werr != nil {
-			h.mWSError.Incr(1)
-		}
-		_ = ts.Ack(ctx, werr)
-	}
+    // Start ticker to send ping messages to the client periodically
+    ticker := time.NewTicker(pingPeriod)
+    defer ticker.Stop()
+
+    ctx, doneCtx := h.shutSig.SoftStopCtx(r.Context())
+    defer doneCtx()
+
+    for !h.shutSig.IsSoftStopSignalled() {
+        select {
+        case ts, open := <-h.transactions:
+            if !open {
+                // If the transactions channel is closed, trigger server shutdown
+                go h.TriggerCloseNow()
+                return
+            }
+            // Write messages to the client
+            var writeErr error
+            for _, msg := range message.GetAllBytes(ts.Payload) {
+                ws.SetWriteDeadline(time.Now().Add(writeWait))
+                if writeErr = ws.WriteMessage(websocket.BinaryMessage, msg); writeErr != nil {
+                    break
+                }
+                h.mWSBatchSent.Incr(1)
+                h.mWSSent.Incr(int64(batch.MessageCollapsedCount(ts.Payload)))
+            }
+            if writeErr != nil {
+                h.mWSError.Incr(1)
+                _ = ts.Ack(ctx, writeErr)
+                return // Exit the loop on write error
+            }
+            _ = ts.Ack(ctx, nil)
+        case <-ticker.C:
+            // Send a ping message to the client
+            ws.SetWriteDeadline(time.Now().Add(writeWait))
+            if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
+                h.log.Warn("WebSocket ping error: %v", err)
+                return
+            }
+        case <-done:
+            // The read goroutine has exited, indicating the client has disconnected
+            h.log.Debug("WebSocket client disconnected")
+            return
+        case <-ctx.Done():
+            // The context has been canceled (e.g., server is shutting down)
+            return
+        }
+    }
 }
+
 
 func (h *httpServerOutput) Consume(ts <-chan message.Transaction) error {
 	if h.transactions != nil {
