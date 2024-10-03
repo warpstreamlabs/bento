@@ -416,10 +416,12 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
     )
 
     ws.SetReadLimit(512)
-    ws.SetReadDeadline(time.Now().Add(pongWait))
+    if err := ws.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+        h.log.Warn("Failed to set read deadline: %v", err)
+        return
+    }
     ws.SetPongHandler(func(string) error {
-        ws.SetReadDeadline(time.Now().Add(pongWait))
-        return nil
+        return ws.SetReadDeadline(time.Now().Add(pongWait))
     })
 
     // Start a goroutine to read messages (to process control frames)
@@ -455,7 +457,10 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
             // Write messages to the client
             var writeErr error
             for _, msg := range message.GetAllBytes(ts.Payload) {
-                ws.SetWriteDeadline(time.Now().Add(writeWait))
+                if err := ws.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+                    writeErr = err
+                    break
+                }
                 if writeErr = ws.WriteMessage(websocket.BinaryMessage, msg); writeErr != nil {
                     break
                 }
@@ -470,7 +475,10 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
             _ = ts.Ack(ctx, nil)
         case <-ticker.C:
             // Send a ping message to the client
-            ws.SetWriteDeadline(time.Now().Add(writeWait))
+            if err := ws.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+                h.log.Warn("Failed to set write deadline for ping: %v", err)
+                return
+            }
             if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
                 h.log.Warn("WebSocket ping error: %v", err)
                 return
