@@ -231,17 +231,19 @@ func (cyp *CypherOutput) Connect(ctx context.Context) error {
 
 func (cyp *CypherOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
 
-	values := make(map[string]any)
+	values := make([]map[string]any, len(batch))
 
-	for _, msgPart := range batch {
+	for i, msgPart := range batch {
+
+		values[i] = make(map[string]any)
 
 		for k, v := range cyp.values {
-			values[k] = v.String(msgPart)
+			values[i][k] = v.String(msgPart)
 		}
 
 		_, err := neo4j.ExecuteQuery(ctx, cyp.driver,
 			cyp.query,
-			values,
+			values[i],
 			neo4j.EagerResultTransformer,
 			neo4j.ExecuteQueryWithDatabase(cyp.database),
 		)
@@ -249,8 +251,6 @@ func (cyp *CypherOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 		if err != nil {
 			return err
 		}
-
-		values = nil
 	}
 
 	return nil

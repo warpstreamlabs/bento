@@ -93,6 +93,45 @@ func sendMessages(t *testing.T, s output.Streamed) {
 	}
 }
 
+func sendBatches(t *testing.T, s output.Streamed) {
+	sendChan := make(chan message.Transaction)
+	resChan := make(chan error)
+	if err := s.Consume(sendChan); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		s.TriggerCloseNow()
+
+		ctx, done := context.WithTimeout(context.Background(), time.Second*10)
+		assert.NoError(t, s.WaitForClose(ctx))
+		done()
+	})
+
+	inputs := [][]byte{
+		[]byte(`{"name":"Alice"}`), []byte(`{"name":"Bob"}`),
+		[]byte(`{"name":"Carol"}`), []byte(`{"name":"Dan"}`),
+	}
+
+	for i := 0; i < len(inputs); i += 2 {
+		testMsg := message.QuickBatch([][]byte{inputs[i], inputs[i+1]})
+		select {
+		case sendChan <- message.NewTransaction(testMsg, resChan):
+		case <-time.After(time.Second * 60):
+			t.Fatal("Action timed out")
+		}
+
+		select {
+		case res := <-resChan:
+			if res != nil {
+				t.Fatal(res)
+			}
+		case <-time.After(time.Second * 60):
+			t.Fatal("Action timed out")
+		}
+	}
+}
+
 func checkNeo4j(localURL string, basicAuth bool) (listOfNodeNames []string) {
 
 	ctx := context.Background()
@@ -135,6 +174,11 @@ func TestIntegrationCypherOutput(t *testing.T) {
 		localURL := setupNeo4j(t, []string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"})
 		testCypherOutputBasicAuth(t, localURL)
 	})
+
+	t.Run("cypher_output_with_batching", func(t *testing.T) {
+		localURL := setupNeo4j(t, []string{"NEO4J_AUTH=none"})
+		testCypherOutputWithBatching(t, localURL)
+	})
 }
 
 func testCypherOutputNoAuth(t *testing.T, localURL string) {
@@ -160,7 +204,7 @@ cypher:
 	listOfNamesFromDB := checkNeo4j(localURL, false)
 	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
 
-	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
+	assert.Equal(t, listOfNamesToCheck, listOfNamesFromDB)
 }
 
 func testCypherOutputBasicAuth(t *testing.T, localURL string) {
@@ -188,7 +232,33 @@ cypher:
 	listOfNamesFromDB := checkNeo4j(localURL, true)
 	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
 
-	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
+	assert.Equal(t, listOfNamesToCheck, listOfNamesFromDB)
+}
+
+func testCypherOutputWithBatching(t *testing.T, localURL string) {
+	template := fmt.Sprintf(`
+cypher:
+  database: neo4j
+  uri: %s
+  no_auth: true
+  query: |
+    CREATE (p:Person {name: $name}) RETURN p
+  values:
+    name: ${! json("name") }
+  batching:
+    count: 2
+  `, localURL)
+
+	s, err := createCypherOutputFromYaml(template)
+	require.NoError(t, err)
+
+	sendBatches(t, s)
+
+	// check output
+	listOfNamesFromDB := checkNeo4j(localURL, false)
+	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
+
+	assert.Equal(t, listOfNamesToCheck, listOfNamesFromDB)
 }
 
 func TestCypherOutputMissingValue(t *testing.T) {
