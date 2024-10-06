@@ -114,9 +114,9 @@ func checkNeo4j(localURL string, basicAuth bool) (listOfNodeNames []string) {
 	var listOfNamesFromDB []string
 
 	for _, record := range results.Records {
-		dictionary := record.AsMap()
-		x := dictionary["n"].(dbtype.Node)
-		listOfNamesFromDB = append(listOfNamesFromDB, x.Props["name"].(string))
+		record_map := record.AsMap()
+		node := record_map["n"].(dbtype.Node)
+		listOfNamesFromDB = append(listOfNamesFromDB, node.Props["name"].(string))
 	}
 
 	return listOfNamesFromDB
