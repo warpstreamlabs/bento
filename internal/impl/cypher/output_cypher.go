@@ -29,7 +29,7 @@ const (
 var cypherOutputDescription string = `
 ## Executes a Cypher Query
 
-The ` + "`" + `query` + "`" + ` field is expected to be a valid cypher query with 0 or more parameters with the $ syntax:
+The ` + "`" + `query` + "`" + ` field is expected to be a valid cypher query with 0 or more parameters with the ` + "`" + `$` + "`" + ` syntax:
 ` + "```" + `
     query: CREATE (p:Person {name: $name, age: $age}) RETURN p
 ` + "```" + `
