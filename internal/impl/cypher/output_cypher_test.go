@@ -18,11 +18,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
-func setupNeo4j(env []string) (string, error) {
+func setupNeo4j(t *testing.T, env []string) string {
 	pool, err := dockertest.NewPool("")
-	if err != nil {
-		return "", err
-	}
+	require.NoError(t, err)
+
 	pool.MaxWait = time.Second * 60
 
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
@@ -30,14 +29,15 @@ func setupNeo4j(env []string) (string, error) {
 		Tag:        "latest",
 		Env:        env,
 	})
-	if err != nil {
-		return "", err
-	}
+	require.NoError(t, err)
 
 	neo4jDockerAddress := fmt.Sprintf("bolt://localhost:%s", resource.GetPort("7687/tcp"))
-	_ = resource.Expire(900)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(resource))
+	})
 
-	return neo4jDockerAddress, nil
+	return neo4jDockerAddress
 }
 
 func createCypherOutputFromYaml(template string) (s output.Streamed, err error) {
@@ -127,14 +127,12 @@ func TestIntegrationCypherOutput(t *testing.T) {
 	t.Parallel()
 
 	t.Run("cypher_output_no_auth", func(t *testing.T) {
-		localURL, err := setupNeo4j([]string{"NEO4J_AUTH=none"})
-		require.NoError(t, err)
+		localURL := setupNeo4j(t, []string{"NEO4J_AUTH=none"})
 		testCypherOutputNoAuth(t, localURL)
 	})
 
 	t.Run("cypher_output_basic_auth", func(t *testing.T) {
-		localURL, err := setupNeo4j([]string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"})
-		require.NoError(t, err)
+		localURL := setupNeo4j(t, []string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"})
 		testCypherOutputBasicAuth(t, localURL)
 	})
 }
@@ -156,12 +154,10 @@ cypher:
 	s, err := createCypherOutputFromYaml(template)
 	require.NoError(t, err)
 
-	// send the messages
-	sendMessages(&testing.T{}, s)
+	sendMessages(t, s)
 
 	// check output
 	listOfNamesFromDB := checkNeo4j(localURL, false)
-
 	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
 
 	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
@@ -186,12 +182,10 @@ cypher:
 	s, err := createCypherOutputFromYaml(template)
 	require.NoError(t, err)
 
-	// send the messages
-	sendMessages(&testing.T{}, s)
+	sendMessages(t, s)
 
 	// check output
 	listOfNamesFromDB := checkNeo4j(localURL, true)
-
 	listOfNamesToCheck := []string{"Alice", "Bob", "Carol", "Dan"}
 
 	assert.Equal(t, listOfNamesFromDB, listOfNamesToCheck)
@@ -199,9 +193,7 @@ cypher:
 
 func TestCypherOutputMissingValue(t *testing.T) {
 	env := []string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"}
-	localURL, err := setupNeo4j(env)
-
-	require.NoError(t, err)
+	localURL := setupNeo4j(t, env)
 
 	confStr := fmt.Sprintf(`
 cypher:
@@ -229,9 +221,7 @@ cypher:
 
 func TestCypherOutputMissingParam(t *testing.T) {
 	env := []string{"NEO4J_AUTH=neo4j/sparkling_brazilian_orange_456"}
-	localURL, err := setupNeo4j(env)
-
-	require.NoError(t, err)
+	localURL := setupNeo4j(t, env)
 
 	confStr := fmt.Sprintf(`
 cypher:
