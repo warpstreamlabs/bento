@@ -43,8 +43,8 @@ type WalkedComponent struct {
 
 	jpPath string // Memoized
 
-	confYAML *yaml.Node
-	c        docs.WalkedComponent
+	conf any
+	c    docs.WalkedComponent
 }
 
 func walkedComponentFromInternal(c docs.WalkedComponent) *WalkedComponent {
@@ -55,15 +55,30 @@ func walkedComponentFromInternal(c docs.WalkedComponent) *WalkedComponent {
 		Label:         c.Label,
 		LineStart:     c.LineStart,
 		LineEnd:       c.LineEnd,
-		confYAML:      c.Value,
+		conf:          c.Value,
 		c:             c,
 	}
 }
 
-// WalkComponentsYAML attempts to walk the co tree from the currently walked
+// WalkComponentsYAML attempts to walk the config tree from the currently walked
 // component, calling the provided func for all child components.
+//
+// Deprecated: This method is functionally the equivalent to WalkComponents and
+// doesn't require nor exhibit YAML specific behaviour.
 func (w *WalkedComponent) WalkComponentsYAML(fn func(w *WalkedComponent) error) error {
-	return w.c.WalkComponentsYAML(func(c docs.WalkedComponent) error {
+	return w.c.WalkComponents(func(c docs.WalkedComponent) error {
+		tmpErr := fn(walkedComponentFromInternal(c))
+		if errors.Is(tmpErr, ErrSkipComponents) {
+			tmpErr = docs.ErrSkipChildComponents
+		}
+		return tmpErr
+	})
+}
+
+// WalkComponents attempts to walk the config tree from the currently walked
+// component, calling the provided func for all child components.
+func (w *WalkedComponent) WalkComponents(fn func(w *WalkedComponent) error) error {
+	return w.c.WalkComponents(func(c docs.WalkedComponent) error {
 		tmpErr := fn(walkedComponentFromInternal(c))
 		if errors.Is(tmpErr, ErrSkipComponents) {
 			tmpErr = docs.ErrSkipChildComponents
@@ -83,7 +98,15 @@ func (w *WalkedComponent) PathAsJSONPointer() string {
 
 // ConfigYAML returns the configuration of a walked component in YAML form.
 func (w *WalkedComponent) ConfigYAML() string {
-	yamlBytes, err := docs.MarshalYAML(*w.confYAML)
+	var node yaml.Node
+	switch t := w.conf.(type) {
+	case *yaml.Node:
+		node = *t
+	default:
+		_ = node.Encode(t)
+	}
+
+	yamlBytes, err := docs.MarshalYAML(node)
 	if err != nil {
 		return ""
 	}
@@ -93,10 +116,32 @@ func (w *WalkedComponent) ConfigYAML() string {
 // ConfigAny returns the configuration of a walked component in any form.
 func (w *WalkedComponent) ConfigAny() (any, error) {
 	var v any
-	if err := w.confYAML.Decode(&v); err != nil {
-		return nil, err
+	switch t := w.conf.(type) {
+	case *yaml.Node:
+		if err := t.Decode(&v); err != nil {
+			return nil, err
+		}
+	default:
+		v = t
 	}
 	return v, nil
+}
+
+// WalkComponentsAny attempts walk the structure of a parsed config, calling
+// a provided function for each component found within the config.
+func (s *StreamConfigWalker) WalkComponentsAny(v any, fn func(w *WalkedComponent) error) error {
+	conf := docs.WalkComponentConfig{
+		Provider: s.env.internal,
+		Func: func(c docs.WalkedComponent) error {
+			tmpErr := fn(walkedComponentFromInternal(c))
+			if errors.Is(tmpErr, ErrSkipComponents) {
+				tmpErr = docs.ErrSkipChildComponents
+			}
+			return tmpErr
+		},
+	}
+
+	return s.spec.WalkComponentsAny(conf, v)
 }
 
 // WalkComponentsYAML attempts to parse a YAML config and walk its structure,

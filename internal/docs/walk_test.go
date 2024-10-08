@@ -179,7 +179,7 @@ input:
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name+" yaml", func(t *testing.T) {
 			input := &yaml.Node{}
 			require.NoError(t, yaml.Unmarshal([]byte(test.input), input))
 
@@ -195,14 +195,28 @@ input:
 
 			assert.Equal(t, test.output, res)
 		})
+
+		t.Run(test.name+" any", func(t *testing.T) {
+			var input any
+			require.NoError(t, yaml.Unmarshal([]byte(test.input), &input))
+
+			res := map[string][2]string{}
+
+			require.NoError(t, configSpec.WalkComponentsAny(docs.WalkComponentConfig{
+				Provider: mockProv,
+				Func: func(c docs.WalkedComponent) error {
+					res[c.Path] = [2]string{c.Label, c.Name}
+					return nil
+				},
+			}, input))
+
+			assert.Equal(t, test.output, res)
+		})
 	}
 }
 
 func TestWalkYAMLFragmented(t *testing.T) {
-	mockProv := getMockProv(t)
-
-	input := &yaml.Node{}
-	require.NoError(t, yaml.Unmarshal([]byte(`
+	inputBytes := []byte(`
 input:
   label: a
   dynamic:
@@ -237,34 +251,73 @@ input:
           - label: h
             compress:
               algorithm: meow3
-`), input))
+`)
 
-	res := map[string][2]string{}
+	mockProv := getMockProv(t)
 
-	var walkFunc docs.WalkComponentFunc
-	walkFunc = func(c docs.WalkedComponent) error {
-		res[c.Path] = [2]string{c.Label, c.Name}
-		if err := c.WalkComponentsYAML(walkFunc); err != nil {
-			return err
+	t.Run("yaml", func(t *testing.T) {
+		input := &yaml.Node{}
+		require.NoError(t, yaml.Unmarshal(inputBytes, input))
+
+		res := map[string][2]string{}
+
+		var walkFunc docs.WalkComponentFunc
+		walkFunc = func(c docs.WalkedComponent) error {
+			res[c.Path] = [2]string{c.Label, c.Name}
+			if err := c.WalkComponents(walkFunc); err != nil {
+				return err
+			}
+			return docs.ErrSkipChildComponents
 		}
-		return docs.ErrSkipChildComponents
-	}
 
-	require.NoError(t, configSpec.WalkComponentsYAML(docs.WalkComponentConfig{
-		Provider: mockProv,
-		Func:     walkFunc,
-	}, input))
+		require.NoError(t, configSpec.WalkComponentsYAML(docs.WalkComponentConfig{
+			Provider: mockProv,
+			Func:     walkFunc,
+		}, input))
 
-	assert.Equal(t, map[string][2]string{
-		"input":                                    {"a", "dynamic"},
-		"input.dynamic.inputs.foo":                 {"b", "kafka"},
-		"input.dynamic.inputs.foo.processors.0":    {"c", "compress"},
-		"input.dynamic.inputs.bar":                 {"d", "kafka"},
-		"input.processors.0":                       {"e", "switch"},
-		"input.processors.0.switch.0.processors.0": {"f", "compress"},
-		"input.processors.0.switch.1.processors.0": {"g", "compress"},
-		"input.processors.0.switch.1.processors.1": {"h", "compress"},
-	}, res)
+		assert.Equal(t, map[string][2]string{
+			"input":                                    {"a", "dynamic"},
+			"input.dynamic.inputs.foo":                 {"b", "kafka"},
+			"input.dynamic.inputs.foo.processors.0":    {"c", "compress"},
+			"input.dynamic.inputs.bar":                 {"d", "kafka"},
+			"input.processors.0":                       {"e", "switch"},
+			"input.processors.0.switch.0.processors.0": {"f", "compress"},
+			"input.processors.0.switch.1.processors.0": {"g", "compress"},
+			"input.processors.0.switch.1.processors.1": {"h", "compress"},
+		}, res)
+	})
+
+	t.Run("any", func(t *testing.T) {
+		var input any
+		require.NoError(t, yaml.Unmarshal(inputBytes, &input))
+
+		res := map[string][2]string{}
+
+		var walkFunc docs.WalkComponentFunc
+		walkFunc = func(c docs.WalkedComponent) error {
+			res[c.Path] = [2]string{c.Label, c.Name}
+			if err := c.WalkComponents(walkFunc); err != nil {
+				return err
+			}
+			return docs.ErrSkipChildComponents
+		}
+
+		require.NoError(t, configSpec.WalkComponentsAny(docs.WalkComponentConfig{
+			Provider: mockProv,
+			Func:     walkFunc,
+		}, input))
+
+		assert.Equal(t, map[string][2]string{
+			"input":                                    {"a", "dynamic"},
+			"input.dynamic.inputs.foo":                 {"b", "kafka"},
+			"input.dynamic.inputs.foo.processors.0":    {"c", "compress"},
+			"input.dynamic.inputs.bar":                 {"d", "kafka"},
+			"input.processors.0":                       {"e", "switch"},
+			"input.processors.0.switch.0.processors.0": {"f", "compress"},
+			"input.processors.0.switch.1.processors.0": {"g", "compress"},
+			"input.processors.0.switch.1.processors.1": {"h", "compress"},
+		}, res)
+	})
 }
 
 func TestWalkYAMLLines(t *testing.T) {

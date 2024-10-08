@@ -9,33 +9,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ErrSkipChildComponents is used as a return value from WalkComponentsYAML to
-// indicate that the component currently viewed should not have its child fields
-// walked. It is not returned as an error by any function.
-var ErrSkipChildComponents = errors.New("skip children")
-
-// WalkComponentFunc is called for each component type within a YAML config,
-// where the node representing that component is provided along with the type
-// and implementation name.
-type WalkComponentFunc func(c WalkedComponent) error
-
-// WalkComponentConfig controls the behaviour of a walk function.
-type WalkComponentConfig struct {
-	path     string
-	Provider Provider
-	Func     WalkComponentFunc
-}
-
-func (w WalkComponentConfig) intoPath(str string) WalkComponentConfig {
-	tmp := w
-	if tmp.path != "" {
-		tmp.path += "." + str
-	} else {
-		tmp.path = str
-	}
-	return tmp
-}
-
 func getYAMLLastLine(node *yaml.Node) int {
 	if len(node.Content) == 0 {
 		lines := strings.Count(node.Value, "\n")
@@ -44,41 +17,25 @@ func getYAMLLastLine(node *yaml.Node) int {
 	return getYAMLLastLine(node.Content[len(node.Content)-1])
 }
 
-// WalkedComponent is a struct containing information about a component yielded
-// via the WalkComponentsYAML method.
-type WalkedComponent struct {
-	Field FieldSpec
-	Path  string
-	Label string
-	Name  string
-	Value *yaml.Node
-
-	LineStart int
-	LineEnd   int
-
-	spec ComponentSpec
-	conf WalkComponentConfig
-}
-
-// WalkComponentsYAML walks each child field of a given node and for any
+// walkComponentsYAML walks each child field of a given node and for any
 // component types within the config the provided func is called.
-func (w WalkedComponent) WalkComponentsYAML(fn WalkComponentFunc) error {
+func (w WalkedComponent) walkComponentsYAML(v *yaml.Node, fn WalkComponentFunc) error {
 	tmpConf := w.conf
 	tmpConf.Func = fn
 
 	reservedFields := ReservedFieldsByType(w.spec.Type)
-	for i := 0; i < len(w.Value.Content)-1; i += 2 {
-		if w.Value.Content[i].Value == w.Name {
-			if err := w.spec.Config.WalkComponentsYAML(tmpConf.intoPath(w.Name), w.Value.Content[i+1]); err != nil {
+	for i := 0; i < len(v.Content)-1; i += 2 {
+		if v.Content[i].Value == w.Name {
+			if err := w.spec.Config.WalkComponentsYAML(tmpConf.intoPath(w.Name), v.Content[i+1]); err != nil {
 				return err
 			}
 			continue
 		}
-		if w.Value.Content[i].Value == "type" || w.Value.Content[i].Value == "label" {
+		if v.Content[i].Value == "type" || v.Content[i].Value == "label" {
 			continue
 		}
-		if spec, exists := reservedFields[w.Value.Content[i].Value]; exists {
-			if err := spec.WalkComponentsYAML(tmpConf.intoPath(spec.Name), w.Value.Content[i+1]); err != nil {
+		if spec, exists := reservedFields[v.Content[i].Value]; exists {
+			if err := spec.WalkComponentsYAML(tmpConf.intoPath(spec.Name), v.Content[i+1]); err != nil {
 				return err
 			}
 		}
