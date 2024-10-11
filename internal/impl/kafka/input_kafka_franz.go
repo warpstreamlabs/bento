@@ -296,11 +296,10 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	}
 
 	if conf.Contains("preferring_lag") {
-		var preferring_lag int
-		if preferring_lag, err = conf.FieldInt("preferring_lag"); err != nil {
+		if preferringLag, err := conf.FieldInt("preferring_lag"); err != nil {
 			return nil, err
-		} else if preferring_lag > 0 {
-			f.preferringLagFn = kgo.PreferLagAt(int64(preferring_lag))
+		} else if preferringLag > 0 {
+			f.preferringLagFn = kgo.PreferLagAt(int64(preferringLag))
 		}
 	}
 
