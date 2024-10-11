@@ -176,8 +176,8 @@ type franzKafkaReader struct {
 	batchPolicy     service.BatchPolicy
 
 	metadataMaxAge         time.Duration
-	fetchMaxBytes          int
-	fetchMaxPartitionBytes int
+	fetchMaxBytes          int32
+	fetchMaxPartitionBytes int32
 	fetchMaxWait           time.Duration
 	preferringLagFn        kgo.PreferLagFn
 	balancers              []kgo.GroupBalancer
@@ -278,7 +278,7 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	if err != nil {
 		return nil, err
 	}
-	f.fetchMaxBytes = int(fetchMaxBytes)
+	f.fetchMaxBytes = int32(fetchMaxBytes)
 
 	fetchMaxPartitionBytesStr, err := conf.FieldString("fetch_max_partition_bytes")
 	if err != nil {
@@ -289,7 +289,7 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	if err != nil {
 		return nil, err
 	}
-	f.fetchMaxPartitionBytes = int(fetchMaxPartitionBytes)
+	f.fetchMaxPartitionBytes = int32(fetchMaxPartitionBytes)
 
 	if f.fetchMaxWait, err = conf.FieldDuration("fetch_max_wait"); err != nil {
 		return nil, err
@@ -722,8 +722,8 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.Rack(f.rackID),
 
 		kgo.MetadataMaxAge(f.metadataMaxAge),
-		kgo.FetchMaxBytes(int32(f.fetchMaxBytes)),
-		kgo.FetchMaxPartitionBytes(int32(f.fetchMaxPartitionBytes)),
+		kgo.FetchMaxBytes(f.fetchMaxBytes),
+		kgo.FetchMaxPartitionBytes(f.fetchMaxPartitionBytes),
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
