@@ -9,6 +9,7 @@ import (
 	"time"
 
 	qdb "github.com/questdb/go-questdb-client/v3"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
