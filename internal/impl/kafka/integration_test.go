@@ -212,6 +212,181 @@ input:
 	})
 }
 
+func TestIntegrationKafkaWarpstreamDefaults(t *testing.T) {
+	integration.CheckSkip(t)
+	t.Parallel()
+
+	pool, err := dockertest.NewPool("")
+	require.NoError(t, err)
+
+	kafkaPort, err := integration.GetFreePort()
+	require.NoError(t, err)
+
+	kafkaPortStr := strconv.Itoa(kafkaPort)
+
+	options := &dockertest.RunOptions{
+		Repository:   "docker.vectorized.io/vectorized/redpanda",
+		Tag:          "latest",
+		Hostname:     "redpanda",
+		ExposedPorts: []string{"9092"},
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
+		},
+		Cmd: []string{
+			"redpanda", "start", "--smp 1", "--overprovisioned",
+			"--kafka-addr 0.0.0.0:9092",
+			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
+		},
+	}
+
+	pool.MaxWait = time.Minute
+	resource, err := pool.RunWithOptions(options)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(resource))
+	})
+
+	_ = resource.Expire(900)
+	require.NoError(t, pool.Retry(func() error {
+		return createKafkaTopic(context.Background(), "localhost:"+kafkaPortStr, "testingconnection", 1)
+	}))
+
+	template := `
+output:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topic: topic-$ID
+    max_in_flight: $MAX_IN_FLIGHT
+    timeout: "5s"
+    partitioner: "uniform_bytes"
+    max_buffered_records: 10000000
+    max_message_bytes: 16000000
+    metadata_max_age: "60s"
+    metadata:
+      include_patterns: [ .* ]
+    batching:
+      count: $OUTPUT_BATCH_COUNT
+
+input:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topics: [ topic-$ID$VAR1 ]
+    consumer_group: "$VAR4"
+    checkpoint_limit: 100
+    commit_period: "1s"
+    metadata_max_age: "60s"
+    fetch_max_bytes: "100MB"
+    fetch_max_partition_bytes: "50MiB"
+    fetch_max_wait: "5s"
+    preferring_lag: 5
+    group_balancers: [ "round_robin" ]
+    batching:
+      count: $INPUT_BATCH_COUNT
+`
+
+	suite := integration.StreamTests(
+		integration.StreamTestOpenClose(),
+		integration.StreamTestMetadata(),
+		integration.StreamTestSendBatch(10),
+		integration.StreamTestStreamSequential(1000),
+		integration.StreamTestStreamParallel(1000),
+		integration.StreamTestStreamParallelLossy(1000),
+		integration.StreamTestSendBatchCount(10),
+		integration.StreamTestStreamSaturatedUnacked(200),
+	)
+
+	// In some modes include testing input level batching
+	var suiteExt integration.StreamTestList
+	suiteExt = append(suiteExt, suite...)
+	suiteExt = append(suiteExt, integration.StreamTestReceiveBatchCount(10))
+
+	suite.Run(
+		t, template,
+		integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+			vars.General["VAR4"] = "group" + vars.ID
+			require.NoError(t, createKafkaTopic(ctx, "localhost:"+kafkaPortStr, vars.ID, 4))
+		}),
+		integration.StreamTestOptPort(kafkaPortStr),
+		integration.StreamTestOptVarSet("VAR1", ""),
+	)
+
+	t.Run("only one partition", func(t *testing.T) {
+		t.Parallel()
+		suiteExt.Run(
+			t, template,
+			integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+				vars.General["VAR4"] = "group" + vars.ID
+				require.NoError(t, createKafkaTopic(ctx, "localhost:"+kafkaPortStr, vars.ID, 1))
+			}),
+			integration.StreamTestOptPort(kafkaPortStr),
+			integration.StreamTestOptVarSet("VAR1", ""),
+		)
+	})
+
+	t.Run("explicit partitions", func(t *testing.T) {
+		t.Parallel()
+		suite.Run(
+			t, template,
+			integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+				topicName := "topic-" + vars.ID
+				vars.General["VAR1"] = fmt.Sprintf(":0,%v:1,%v:2,%v:3", topicName, topicName, topicName)
+				require.NoError(t, createKafkaTopic(ctx, "localhost:"+kafkaPortStr, vars.ID, 4))
+			}),
+			integration.StreamTestOptPort(kafkaPortStr),
+			integration.StreamTestOptSleepAfterInput(time.Second*3),
+			integration.StreamTestOptVarSet("VAR4", ""),
+		)
+
+		t.Run("range of partitions", func(t *testing.T) {
+			t.Parallel()
+			suite.Run(
+				t, template,
+				integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+					require.NoError(t, createKafkaTopic(ctx, "localhost:"+kafkaPortStr, vars.ID, 4))
+				}),
+				integration.StreamTestOptPort(kafkaPortStr),
+				integration.StreamTestOptSleepAfterInput(time.Second*3),
+				integration.StreamTestOptVarSet("VAR1", ":0-3"),
+				integration.StreamTestOptVarSet("VAR4", ""),
+			)
+		})
+	})
+
+	manualPartitionTemplate := `
+output:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topic: topic-$ID
+    max_in_flight: $MAX_IN_FLIGHT
+    timeout: "5s"
+    partitioner: manual
+    partition: "0"
+    metadata:
+      include_patterns: [ .* ]
+    batching:
+      count: $OUTPUT_BATCH_COUNT
+
+input:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topics: [ topic-$ID$VAR1 ]
+    consumer_group: "$VAR4"
+    checkpoint_limit: 100
+    commit_period: "1s"
+`
+	t.Run("manual_partitioner", func(t *testing.T) {
+		suite.Run(
+			t, manualPartitionTemplate,
+			integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+				vars.General["VAR4"] = "group" + vars.ID
+				require.NoError(t, createKafkaTopic(context.Background(), "localhost:"+kafkaPortStr, vars.ID, 1))
+			}),
+			integration.StreamTestOptPort(kafkaPortStr),
+			integration.StreamTestOptVarSet("VAR1", ""),
+		)
+	})
+}
+
 func createKafkaTopicSasl(address, id string, partitions int32) error {
 	topicName := fmt.Sprintf("topic-%v", id)
 

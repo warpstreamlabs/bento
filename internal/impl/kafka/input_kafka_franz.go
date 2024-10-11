@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
 
@@ -89,6 +91,35 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Description("Determines whether to consume from the oldest available offset, otherwise messages are consumed from the latest offset. The setting is applied when creating a new consumer group or the saved offset no longer exists.").
 			Default(true).
 			Advanced()).
+		Field(service.NewStringListField("group_balancers").
+			Description("Balancers sets the group balancers to use for dividing topic partitions among group members. This option is equivalent to Kafka's `partition.assignment.strategies` option.").
+			Default([]string{"cooperative_sticky"}).
+			Advanced()).
+		Field(service.NewDurationField("metadata_max_age").
+			Description("This sets the maximum age for the client's cached metadata, to allow detection of new topics, partitions, etc.").
+			Default("5m").
+			Advanced()).
+		Field(service.NewStringField("fetch_max_bytes").
+			Description("This sets the maximum amount of bytes a broker will try to send during a fetch. Note that brokers may not obey this limit if it has records larger than this limit. Also note that this client sends a fetch to each broker concurrently, meaning the client will buffer up to `<brokers * max bytes>` worth of memory. Equivalent to Kafka's `fetch.max.bytes` option.").
+			Default("50MiB").
+			Advanced()).
+		Field(service.NewStringField("fetch_max_partition_bytes").
+			Description("Sets the maximum amount of bytes that will be consumed for a single partition in a fetch request. Note that if a single batch is larger than this number, that batch will still be returned so the client can make progress. Equivalent to Kafka's `max.partition.fetch.bytes` option.").
+			Default("1MiB").
+			Advanced()).
+		Field(service.NewDurationField("fetch_max_wait").
+			Description("This sets the maximum amount of time a broker will wait for a fetch response to hit the minimum number of required bytes before returning, overriding the default 5s.").
+			Default("5s").
+			Advanced()).
+		Field(service.NewIntField("preferring_lag").
+			Description(`
+This allows you to re-order partitions before they are fetched, given each partition's current lag.
+
+By default, the client rotates partitions fetched by one after every fetch request. Kafka answers fetch requests in the order that partitions are requested, filling the fetch response until` + "`fetch_max_bytes`" + ` and ` + "`fetch_max_partition_bytes`" + ` are hit. All partitions eventually rotate to the front, ensuring no partition is starved.
+
+With this option, you can return topic order and per-topic partition ordering. These orders will sort to the front (first by topic, then by partition). Any topic or partitions that you do not return are added to the end, preserving their original ordering.`).
+			Optional().
+			Advanced()).
 		Field(service.NewTLSToggledField("tls")).
 		Field(saslField()).
 		Field(service.NewBoolField("multi_header").Description("Decode headers into lists to allow handling of multiple values with the same key").Default(false).Advanced()).
@@ -143,6 +174,13 @@ type franzKafkaReader struct {
 	regexPattern    bool
 	multiHeader     bool
 	batchPolicy     service.BatchPolicy
+
+	metadataMaxAge         time.Duration
+	fetchMaxBytes          int32
+	fetchMaxPartitionBytes int32
+	fetchMaxWait           time.Duration
+	preferringLagFn        kgo.PreferLagFn
+	balancers              []kgo.GroupBalancer
 
 	batchChan atomic.Value
 	res       *service.Resources
@@ -225,6 +263,72 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 
 	if f.commitPeriod, err = conf.FieldDuration("commit_period"); err != nil {
 		return nil, err
+	}
+
+	if f.metadataMaxAge, err = conf.FieldDuration("metadata_max_age"); err != nil {
+		return nil, err
+	}
+
+	fetchMaxBytesStr, err := conf.FieldString("fetch_max_bytes")
+	if err != nil {
+		return nil, err
+	}
+
+	fetchMaxBytes, err := humanize.ParseBytes(fetchMaxBytesStr)
+	if err != nil {
+		return nil, err
+	}
+	f.fetchMaxBytes = int32(fetchMaxBytes)
+
+	fetchMaxPartitionBytesStr, err := conf.FieldString("fetch_max_partition_bytes")
+	if err != nil {
+		return nil, err
+	}
+
+	fetchMaxPartitionBytes, err := humanize.ParseBytes(fetchMaxPartitionBytesStr)
+	if err != nil {
+		return nil, err
+	}
+	f.fetchMaxPartitionBytes = int32(fetchMaxPartitionBytes)
+
+	if f.fetchMaxWait, err = conf.FieldDuration("fetch_max_wait"); err != nil {
+		return nil, err
+	}
+
+	if conf.Contains("preferring_lag") {
+		if preferringLag, err := conf.FieldInt("preferring_lag"); err != nil {
+			return nil, err
+		} else if preferringLag > 0 {
+			f.preferringLagFn = kgo.PreferLagAt(int64(preferringLag))
+		}
+	}
+
+	var balancers []string
+	if balancers, err = conf.FieldStringList("group_balancers"); err != nil {
+		return nil, err
+	}
+
+	if len(balancers) > 0 {
+		seen := make(map[string]struct{})
+		for _, b := range balancers {
+			if _, ok := seen[b]; ok {
+				res.Logger().Warnf("Skipping duplicate group_balancer field %s", b)
+				continue
+			}
+
+			switch b {
+			case "round_robin":
+				f.balancers = append(f.balancers, kgo.RoundRobinBalancer())
+			case "range":
+				f.balancers = append(f.balancers, kgo.RangeBalancer())
+			case "sticky":
+				f.balancers = append(f.balancers, kgo.StickyBalancer())
+			case "cooperative_sticky":
+				f.balancers = append(f.balancers, kgo.CooperativeStickyBalancer())
+			default:
+				return nil, fmt.Errorf("undefined group_balancer option: [%s]", b)
+			}
+		}
 	}
 
 	if f.batchPolicy, err = conf.FieldBatchPolicy("batching"); err != nil {
@@ -616,6 +720,13 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.ConsumerGroup(f.consumerGroup),
 		kgo.ClientID(f.clientID),
 		kgo.Rack(f.rackID),
+
+		kgo.MetadataMaxAge(f.metadataMaxAge),
+		kgo.FetchMaxBytes(f.fetchMaxBytes),
+		kgo.FetchMaxPartitionBytes(f.fetchMaxPartitionBytes),
+		kgo.FetchMaxWait(f.fetchMaxWait),
+		kgo.ConsumePreferringLagFn(f.preferringLagFn),
+		kgo.Balancers(f.balancers...),
 	}
 
 	if f.consumerGroup != "" {

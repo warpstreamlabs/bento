@@ -62,6 +62,10 @@ output:
     topic: "" # No default (required)
     key: "" # No default (optional)
     partitioner: "" # No default (optional)
+    uniform_bytes_options:
+      bytes: 1MB
+      adaptive: false
+      keys: false
     partition: ${! metadata("partition") } # No default (optional)
     client_id: bento
     rack_id: ""
@@ -78,6 +82,8 @@ output:
       check: ""
       processors: [] # No default (optional)
     max_message_bytes: 1MB
+    max_buffered_records: 10000
+    metadata_max_age: 5m
     compression: "" # No default (optional)
     tls:
       enabled: false
@@ -149,7 +155,39 @@ Type: `string`
 | `manual` | Manually select a partition for each message, requires the field `partition` to be specified. |
 | `murmur2_hash` | Kafka's default hash algorithm that uses a 32-bit murmur2 hash of the key to compute which partition the record will be on. |
 | `round_robin` | Round-robin's messages through all available partitions. This algorithm has lower throughput and causes higher CPU load on brokers, but can be useful if you want to ensure an even distribution of records to partitions. |
+| `uniform_bytes` | Partitions based on byte size, with options for adaptive partitioning and key-based hashing in the `uniform_bytes_options` component. |
 
+
+### `uniform_bytes_options`
+
+Sets partitioner options when `partitioner` is of type `uniform_bytes`. These values will otherwise be ignored. Note, that future versions will likely see this approach reworked.
+
+
+Type: `object`  
+
+### `uniform_bytes_options.bytes`
+
+The number of bytes the partitioner will return the same partition for.
+
+
+Type: `string`  
+Default: `"1MB"`  
+
+### `uniform_bytes_options.adaptive`
+
+Sets a slight imbalance so that the partitioner can produce more to brokers that are less loaded.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `uniform_bytes_options.keys`
+
+If `true`, uses standard hashing based on record key for records with non-nil keys.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `partition`
 
@@ -363,6 +401,22 @@ max_message_bytes: 100MB
 
 max_message_bytes: 50mib
 ```
+
+### `max_buffered_records`
+
+Sets the max amount of records the client will buffer, blocking produces until records are finished if this limit is reached. This overrides the `franz-kafka` default of 10,000.
+
+
+Type: `int`  
+Default: `10000`  
+
+### `metadata_max_age`
+
+This sets the maximum age for the client's cached metadata, to allow detection of new topics, partitions, etc.
+
+
+Type: `string`  
+Default: `"5m"`  
 
 ### `compression`
 

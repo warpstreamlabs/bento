@@ -37,13 +37,25 @@ This output often out-performs the traditional ` + "`kafka`" + ` output as well 
 		Field(service.NewInterpolatedStringField("key").
 			Description("An optional key to populate for each message.").Optional()).
 		Field(service.NewStringAnnotatedEnumField("partitioner", map[string]string{
-			"murmur2_hash": "Kafka's default hash algorithm that uses a 32-bit murmur2 hash of the key to compute which partition the record will be on.",
-			"round_robin":  "Round-robin's messages through all available partitions. This algorithm has lower throughput and causes higher CPU load on brokers, but can be useful if you want to ensure an even distribution of records to partitions.",
-			"least_backup": "Chooses the least backed up partition (the partition with the fewest amount of buffered records). Partitions are selected per batch.",
-			"manual":       "Manually select a partition for each message, requires the field `partition` to be specified.",
+			"murmur2_hash":  "Kafka's default hash algorithm that uses a 32-bit murmur2 hash of the key to compute which partition the record will be on.",
+			"round_robin":   "Round-robin's messages through all available partitions. This algorithm has lower throughput and causes higher CPU load on brokers, but can be useful if you want to ensure an even distribution of records to partitions.",
+			"least_backup":  "Chooses the least backed up partition (the partition with the fewest amount of buffered records). Partitions are selected per batch.",
+			"uniform_bytes": "Partitions based on byte size, with options for adaptive partitioning and key-based hashing in the `uniform_bytes_options` component.",
+			"manual":        "Manually select a partition for each message, requires the field `partition` to be specified.",
 		}).
 			Description("Override the default murmur2 hashing partitioner.").
 			Advanced().Optional()).
+		Field(service.NewObjectField("uniform_bytes_options",
+			service.NewStringField("bytes").
+				Description("The number of bytes the partitioner will return the same partition for.").
+				Default("1MB"),
+			service.NewBoolField("adaptive").
+				Description("Sets a slight imbalance so that the partitioner can produce more to brokers that are less loaded.").
+				Default(false),
+			service.NewBoolField("keys").
+				Description("If `true`, uses standard hashing based on record key for records with non-nil keys.").
+				Default(false),
+		).Description("Sets partitioner options when `partitioner` is of type `uniform_bytes`. These values will otherwise be ignored. Note, that future versions will likely see this approach reworked.").Advanced().Optional()).
 		Field(service.NewInterpolatedStringField("partition").
 			Description("An optional explicit partition to set for each message. This field is only relevant when the `partitioner` is set to `manual`. The provided interpolation string must be a valid integer.").
 			Example(`${! metadata("partition") }`).
@@ -77,6 +89,14 @@ This output often out-performs the traditional ` + "`kafka`" + ` output as well 
 			Default("1MB").
 			Example("100MB").
 			Example("50mib")).
+		Field(service.NewIntField("max_buffered_records").
+			Description("Sets the max amount of records the client will buffer, blocking produces until records are finished if this limit is reached. This overrides the `franz-kafka` default of 10,000.").
+			Default(10_000).
+			Advanced()).
+		Field(service.NewDurationField("metadata_max_age").
+			Description("This sets the maximum age for the client's cached metadata, to allow detection of new topics, partitions, etc.").
+			Default("5m").
+			Advanced()).
 		Field(service.NewStringEnumField("compression", "lz4", "snappy", "gzip", "none", "zstd").
 			Description("Optionally set an explicit compression type. The default preference is to use snappy when the broker supports it, and fall back to none if not.").
 			Optional().
@@ -118,20 +138,23 @@ func init() {
 //------------------------------------------------------------------------------
 
 type franzKafkaWriter struct {
-	seedBrokers      []string
-	topicStr         string
-	topic            *service.InterpolatedString
-	key              *service.InterpolatedString
-	partition        *service.InterpolatedString
-	clientID         string
-	rackID           string
-	idempotentWrite  bool
-	tlsConf          *tls.Config
-	saslConfs        []sasl.Mechanism
-	metaFilter       *service.MetadataFilter
-	partitioner      kgo.Partitioner
-	timeout          time.Duration
-	produceMaxBytes  int32
+	seedBrokers        []string
+	topicStr           string
+	topic              *service.InterpolatedString
+	key                *service.InterpolatedString
+	partition          *service.InterpolatedString
+	clientID           string
+	rackID             string
+	idempotentWrite    bool
+	tlsConf            *tls.Config
+	saslConfs          []sasl.Mechanism
+	metaFilter         *service.MetadataFilter
+	partitioner        kgo.Partitioner
+	timeout            time.Duration
+	metadataMaxAge     time.Duration
+	produceMaxBytes    int32
+	maxBufferedRecords int
+
 	compressionPrefs []kgo.CompressionCodec
 
 	client *kgo.Client
@@ -175,6 +198,10 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 		return nil, err
 	}
 
+	if f.metadataMaxAge, err = conf.FieldDuration("metadata_max_age"); err != nil {
+		return nil, err
+	}
+
 	maxBytesStr, err := conf.FieldString("max_message_bytes")
 	if err != nil {
 		return nil, err
@@ -187,6 +214,12 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 		return nil, fmt.Errorf("invalid max_message_bytes, must not exceed %v", math.MaxInt32)
 	}
 	f.produceMaxBytes = int32(maxBytes)
+
+	var maxBufferedRecords int
+	if maxBufferedRecords, err = conf.FieldInt("max_buffered_records"); err != nil {
+		return nil, err
+	}
+	f.maxBufferedRecords = maxBufferedRecords
 
 	if conf.Contains("compression") {
 		cStr, err := conf.FieldString("compression")
@@ -227,6 +260,28 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 			f.partitioner = kgo.LeastBackupPartitioner()
 		case "manual":
 			f.partitioner = kgo.ManualPartitioner()
+		case "uniform_bytes":
+			bytesArg, err := conf.FieldString("uniform_bytes_options", "bytes")
+			if err != nil {
+				return nil, err
+			}
+
+			ubBytes, err := humanize.ParseBytes(bytesArg)
+			if err != nil {
+				return nil, err
+			}
+
+			adaptive, err := conf.FieldBool("uniform_bytes_options", "adaptive")
+			if err != nil {
+				return nil, err
+			}
+
+			keys, err := conf.FieldBool("uniform_bytes_options", "keys")
+			if err != nil {
+				return nil, err
+			}
+
+			f.partitioner = kgo.UniformBytesPartitioner(int(ubBytes), adaptive, keys, nil)
 		default:
 			return nil, fmt.Errorf("unknown partitioner: %v", partStr)
 		}
@@ -280,6 +335,8 @@ func (f *franzKafkaWriter) Connect(ctx context.Context) error {
 		kgo.ClientID(f.clientID),
 		kgo.Rack(f.rackID),
 		kgo.WithLogger(&kgoLogger{f.log}),
+		kgo.MaxBufferedRecords(f.maxBufferedRecords),
+		kgo.MetadataMaxAge(f.metadataMaxAge),
 	}
 	if f.tlsConf != nil {
 		clientOpts = append(clientOpts, kgo.DialTLSConfig(f.tlsConf))
