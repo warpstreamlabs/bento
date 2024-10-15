@@ -76,6 +76,7 @@ pipeline:
 ### `project`
 
 GCP project where the query job will execute.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -83,6 +84,7 @@ Type: `string`
 ### `table`
 
 Fully-qualified BigQuery table name to query.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
