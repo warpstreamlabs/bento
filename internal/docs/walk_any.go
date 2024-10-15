@@ -148,12 +148,12 @@ func (f FieldSpec) WalkComponentsAny(conf WalkComponentConfig, value any) error 
 		case Kind2DArray:
 			valueArray, ok := value.([]any)
 			if !ok {
-				return fmt.Errorf("expected array, found %T", value)
+				return fmt.Errorf("path %v field %v expected array, found %T", conf.path, f.Name, value)
 			}
 			for i, ia := range valueArray {
 				innerArray, ok := ia.([]any)
 				if !ok {
-					return fmt.Errorf("expected array, found %T", ia)
+					return fmt.Errorf("path %v field %v expected array, found %T", conf.path, f.Name, ia)
 				}
 				for j, v := range innerArray {
 					if err := walkComponentAny(conf.intoPath(fmt.Sprintf("%v.%v", i, j)), coreType, f, v); err != nil {
@@ -164,7 +164,7 @@ func (f FieldSpec) WalkComponentsAny(conf WalkComponentConfig, value any) error 
 		case KindArray:
 			valueArray, ok := value.([]any)
 			if !ok {
-				return fmt.Errorf("expected array, found %T", value)
+				return fmt.Errorf("path %v field %v expected array, found %T", conf.path, f.Name, value)
 			}
 			for i, v := range valueArray {
 				if err := walkComponentAny(conf.intoPath(strconv.Itoa(i)), coreType, f, v); err != nil {
@@ -174,7 +174,7 @@ func (f FieldSpec) WalkComponentsAny(conf WalkComponentConfig, value any) error 
 		case KindMap:
 			valueMap, ok := value.(map[string]any)
 			if !ok {
-				return fmt.Errorf("expected object, found %T", value)
+				return fmt.Errorf("path %v field %v expected object, found %T", conf.path, f.Name, value)
 			}
 			for k, v := range valueMap {
 				if err := walkComponentAny(conf.intoPath(k), coreType, f, v); err != nil {
@@ -191,12 +191,12 @@ func (f FieldSpec) WalkComponentsAny(conf WalkComponentConfig, value any) error 
 		case Kind2DArray:
 			valueArray, ok := value.([]any)
 			if !ok {
-				return fmt.Errorf("expected array, found %T", value)
+				return fmt.Errorf("path %v field %v expected array, found %T", conf.path, f.Name, value)
 			}
 			for i, ia := range valueArray {
 				innerArray, ok := ia.([]any)
 				if !ok {
-					return fmt.Errorf("expected array, found %T", ia)
+					return fmt.Errorf("path %v field %v expected array, found %T", conf.path, f.Name, ia)
 				}
 				for j, v := range innerArray {
 					if err := f.Children.WalkComponentsAny(conf.intoPath(fmt.Sprintf("%v.%v", i, j)), v); err != nil {
@@ -207,7 +207,7 @@ func (f FieldSpec) WalkComponentsAny(conf WalkComponentConfig, value any) error 
 		case KindArray:
 			valueArray, ok := value.([]any)
 			if !ok {
-				return fmt.Errorf("expected array, found %T", value)
+				return fmt.Errorf("path %v field %v expected array, found %T", conf.path, f.Name, value)
 			}
 			for i, v := range valueArray {
 				if err := f.Children.WalkComponentsAny(conf.intoPath(strconv.Itoa(i)), v); err != nil {
@@ -217,7 +217,7 @@ func (f FieldSpec) WalkComponentsAny(conf WalkComponentConfig, value any) error 
 		case KindMap:
 			valueMap, ok := value.(map[string]any)
 			if !ok {
-				return fmt.Errorf("expected object, found %T", value)
+				return fmt.Errorf("path %v field %v expected object, found %T", conf.path, f.Name, value)
 			}
 			for k, v := range valueMap {
 				if err := f.Children.WalkComponentsAny(conf.intoPath(k), v); err != nil {
