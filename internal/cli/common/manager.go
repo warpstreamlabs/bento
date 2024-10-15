@@ -284,11 +284,10 @@ func (s *StoppableManager) Stop(ctx context.Context) error {
 	}
 
 	go func() {
-		_ = s.api.Shutdown(ctx)
+		_ = s.api.Shutdown(context.Background())
 		select {
 		case <-s.apiClosedChan:
 			return
-		case <-ctx.Done():
 		case <-gracefulCutOff:
 		}
 		s.mgr.Logger().Warn("Service failed to close HTTP server gracefully in time")
