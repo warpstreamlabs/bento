@@ -37,7 +37,7 @@ output:
   gcp_bigquery:
     project: ""
     dataset: "" # No default (required)
-    table: "" # No default (required)
+    table: example_table # No default (required)
     format: NEWLINE_DELIMITED_JSON
     max_in_flight: 64
     job_labels: {}
@@ -61,7 +61,7 @@ output:
   gcp_bigquery:
     project: ""
     dataset: "" # No default (required)
-    table: "" # No default (required)
+    table: example_table # No default (required)
     format: NEWLINE_DELIMITED_JSON
     max_in_flight: 64
     write_disposition: WRITE_APPEND
@@ -134,6 +134,7 @@ This output benefits from sending messages as a batch for improved performance. 
 ### `project`
 
 The project ID of the dataset to insert data to. If not set, it will be inferred from the credentials or read from the GOOGLE_CLOUD_PROJECT environment variable.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -142,6 +143,7 @@ Default: `""`
 ### `dataset`
 
 The BigQuery Dataset ID.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -149,9 +151,18 @@ Type: `string`
 ### `table`
 
 The table to insert messages to.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
+
+```yml
+# Examples
+
+table: example_table
+
+table: table_${!random_int(5)}
+```
 
 ### `format`
 

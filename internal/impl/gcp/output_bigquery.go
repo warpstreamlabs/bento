@@ -153,9 +153,12 @@ The same is true for the CSV format.
 ### CSV
 
 For the CSV format when the field ` + "`csv.header`" + ` is specified a header row will be inserted as the first line of each message batch. If this field is not provided then the first message of each message batch must include a header line.` + service.OutputPerformanceDocs(true, true)).
-		Field(service.NewStringField("project").Description("The project ID of the dataset to insert data to. If not set, it will be inferred from the credentials or read from the GOOGLE_CLOUD_PROJECT environment variable.").Default("")).
-		Field(service.NewStringField("dataset").Description("The BigQuery Dataset ID.")).
-		Field(service.NewStringField("table").Description("The table to insert messages to.")).
+		Field(service.NewInterpolatedStringField("project").Description("The project ID of the dataset to insert data to. If not set, it will be inferred from the credentials or read from the GOOGLE_CLOUD_PROJECT environment variable.").Default("")).
+		Field(service.NewInterpolatedStringField("dataset").Description("The BigQuery Dataset ID.")).
+		Field(service.NewInterpolatedStringField("table").
+			Description("The table to insert messages to.").
+			Example("example_table").
+			Example(`table_${!random_int(5)}`)).
 		Field(service.NewStringEnumField("format", string(bigquery.JSON), string(bigquery.CSV)).
 			Description("The format of each incoming message.").
 			Default(string(bigquery.JSON))).

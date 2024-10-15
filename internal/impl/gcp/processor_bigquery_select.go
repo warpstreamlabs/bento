@@ -76,8 +76,8 @@ func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 		Version("1.0.0").
 		Categories("Integration").
 		Summary("Executes a `SELECT` query against BigQuery and replaces messages with the rows returned.").
-		Field(service.NewStringField("project").Description("GCP project where the query job will execute.")).
-		Field(service.NewStringField("table").Description("Fully-qualified BigQuery table name to query.").Example("bigquery-public-data.samples.shakespeare")).
+		Field(service.NewInterpolatedStringField("project").Description("GCP project where the query job will execute.")).
+		Field(service.NewInterpolatedStringField("table").Description("Fully-qualified BigQuery table name to query.").Example("bigquery-public-data.samples.shakespeare")).
 		Field(service.NewStringListField("columns").Description("A list of columns to query.")).
 		Field(service.NewStringField("where").
 			Description("An optional where clause to add. Placeholder arguments are populated with the `args_mapping` field. Placeholders should always be question marks (`?`).").
