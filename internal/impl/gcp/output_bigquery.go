@@ -276,6 +276,9 @@ func newGCPBigQueryOutput(
 		return g, nil
 	}
 
+	// _, isStatic := g.conf.TableID.Static()
+	// if
+
 	var err error
 	if g.fieldDelimiterBytes, err = convertToIso(g.fieldDelimiterBytes); err != nil {
 		return nil, fmt.Errorf("error parsing csv.field_delimiter field: %w", err)
@@ -330,9 +333,10 @@ func (g *gcpBigQueryOutput) Connect(ctx context.Context) (err error) {
 
 		if isStatic {
 			table := dataset.Table(tableID)
+			g.conf.tableString = tableID
 			if _, err = table.Metadata(ctx); err != nil {
 				if hasStatusCode(err, http.StatusNotFound) {
-					err = fmt.Errorf("table does not exist: %v", g.conf.TableID)
+					err = fmt.Errorf("table does not exist: %v", g.conf.tableString)
 				} else {
 					err = fmt.Errorf("error checking table existence: %w", err)
 				}
