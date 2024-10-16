@@ -60,8 +60,8 @@ type gcpBigQueryOutputConfig struct {
 	JobLabels           map[string]string
 
 	// CSV options
-	CSVOptions   gcpBigQueryCSVConfig
-	table_string string
+	CSVOptions  gcpBigQueryCSVConfig
+	tableString string
 }
 
 func gcpBigQueryOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBigQueryOutputConfig, err error) {
@@ -363,7 +363,7 @@ func (g *gcpBigQueryOutput) WriteBatch(ctx context.Context, batch service.Messag
 	// assume that the first message in the batch has the table for all messages in the batch.
 	msg := batch[0]
 	var err error
-	g.conf.table_string, err = g.conf.TableID.TryString(msg)
+	g.conf.tableString, err = g.conf.TableID.TryString(msg)
 	if err != nil {
 		return fmt.Errorf("table key interpolation error: %w", err)
 	}
@@ -400,7 +400,7 @@ func (g *gcpBigQueryOutput) WriteBatch(ctx context.Context, batch service.Messag
 }
 
 func (g *gcpBigQueryOutput) createTableLoader(data *[]byte) *bigquery.Loader {
-	table := g.client.DatasetInProject(g.client.Project(), g.conf.DatasetID).Table(g.conf.table_string)
+	table := g.client.DatasetInProject(g.client.Project(), g.conf.DatasetID).Table(g.conf.tableString)
 
 	source := bigquery.NewReaderSource(bytes.NewReader(*data))
 	source.SourceFormat = bigquery.DataFormat(g.conf.Format)
