@@ -1,0 +1,14 @@
+input:
+  stdin: {}
+
+output:
+  sql_insert:
+    driver: postgres
+    dsn: postgresql://admin:password@host:5439/dev
+    table: test
+    columns: [ age, name]
+    args_mapping: |
+      root = [
+        this.age,
+        this.name,
+      ]
