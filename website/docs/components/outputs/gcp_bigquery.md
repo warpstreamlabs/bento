@@ -148,7 +148,11 @@ Type: `string`
 
 ### `table`
 
+:::caution Interpolation of Message Batches
+It is assumed that the first message in the batch will resolve the bloblang query and that string will be used for all messages in the batch.
+:::
 The table to insert messages to.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  

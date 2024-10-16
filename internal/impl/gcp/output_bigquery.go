@@ -50,7 +50,7 @@ func gcpBigQueryCSVConfigFromParsed(conf *service.ParsedConfig) (csvconf gcpBigQ
 type gcpBigQueryOutputConfig struct {
 	ProjectID           string
 	DatasetID           string
-	TableID             string
+	TableID             *service.InterpolatedString
 	Format              string
 	WriteDisposition    string
 	CreateDisposition   string
@@ -60,7 +60,8 @@ type gcpBigQueryOutputConfig struct {
 	JobLabels           map[string]string
 
 	// CSV options
-	CSVOptions gcpBigQueryCSVConfig
+	CSVOptions  gcpBigQueryCSVConfig
+	tableString string
 }
 
 func gcpBigQueryOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBigQueryOutputConfig, err error) {
@@ -73,7 +74,7 @@ func gcpBigQueryOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBig
 	if gconf.DatasetID, err = conf.FieldString("dataset"); err != nil {
 		return
 	}
-	if gconf.TableID, err = conf.FieldString("table"); err != nil {
+	if gconf.TableID, err = conf.FieldInterpolatedString("table"); err != nil {
 		return
 	}
 	if gconf.Format, err = conf.FieldString("format"); err != nil {
@@ -155,7 +156,10 @@ The same is true for the CSV format.
 For the CSV format when the field ` + "`csv.header`" + ` is specified a header row will be inserted as the first line of each message batch. If this field is not provided then the first message of each message batch must include a header line.` + service.OutputPerformanceDocs(true, true)).
 		Field(service.NewStringField("project").Description("The project ID of the dataset to insert data to. If not set, it will be inferred from the credentials or read from the GOOGLE_CLOUD_PROJECT environment variable.").Default("")).
 		Field(service.NewStringField("dataset").Description("The BigQuery Dataset ID.")).
-		Field(service.NewStringField("table").Description("The table to insert messages to.")).
+		Field(service.NewInterpolatedStringField("table").Description(`:::caution Interpolation of Message Batches
+It is assumed that the first message in the batch will resolve the bloblang query and that string will be used for all messages in the batch.
+:::
+The table to insert messages to.`)).
 		Field(service.NewStringEnumField("format", string(bigquery.JSON), string(bigquery.CSV)).
 			Description("The format of each incoming message.").
 			Default(string(bigquery.JSON))).
@@ -272,6 +276,9 @@ func newGCPBigQueryOutput(
 		return g, nil
 	}
 
+	// _, isStatic := g.conf.TableID.Static()
+	// if
+
 	var err error
 	if g.fieldDelimiterBytes, err = convertToIso(g.fieldDelimiterBytes); err != nil {
 		return nil, fmt.Errorf("error parsing csv.field_delimiter field: %w", err)
@@ -322,14 +329,19 @@ func (g *gcpBigQueryOutput) Connect(ctx context.Context) (err error) {
 	}
 
 	if g.conf.CreateDisposition == string(bigquery.CreateNever) {
-		table := dataset.Table(g.conf.TableID)
-		if _, err = table.Metadata(ctx); err != nil {
-			if hasStatusCode(err, http.StatusNotFound) {
-				err = fmt.Errorf("table does not exist: %v", g.conf.TableID)
-			} else {
-				err = fmt.Errorf("error checking table existence: %w", err)
+		tableID, isStatic := g.conf.TableID.Static()
+
+		if isStatic {
+			table := dataset.Table(tableID)
+			g.conf.tableString = tableID
+			if _, err = table.Metadata(ctx); err != nil {
+				if hasStatusCode(err, http.StatusNotFound) {
+					err = fmt.Errorf("table does not exist: %v", g.conf.tableString)
+				} else {
+					err = fmt.Errorf("error checking table existence: %w", err)
+				}
+				return
 			}
-			return
 		}
 	}
 
@@ -350,6 +362,14 @@ func (g *gcpBigQueryOutput) WriteBatch(ctx context.Context, batch service.Messag
 	g.connMut.RUnlock()
 	if client == nil {
 		return service.ErrNotConnected
+	}
+
+	// assume that the first message in the batch has the table for all messages in the batch.
+	msg := batch[0]
+	var err error
+	g.conf.tableString, err = g.conf.TableID.TryString(msg)
+	if err != nil {
+		return fmt.Errorf("table key interpolation error: %w", err)
 	}
 
 	var data bytes.Buffer
@@ -384,7 +404,7 @@ func (g *gcpBigQueryOutput) WriteBatch(ctx context.Context, batch service.Messag
 }
 
 func (g *gcpBigQueryOutput) createTableLoader(data *[]byte) *bigquery.Loader {
-	table := g.client.DatasetInProject(g.client.Project(), g.conf.DatasetID).Table(g.conf.TableID)
+	table := g.client.DatasetInProject(g.client.Project(), g.conf.DatasetID).Table(g.conf.tableString)
 
 	source := bigquery.NewReaderSource(bytes.NewReader(*data))
 	source.SourceFormat = bigquery.DataFormat(g.conf.Format)
