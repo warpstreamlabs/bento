@@ -7,6 +7,8 @@ import (
 
 	// Import all plugins defined within the repo.
 	_ "github.com/warpstreamlabs/bento/public/components/all"
+
+	_ "github.com/warpstreamlabs/bento/cmd/bento/plugin"
 )
 
 var (
