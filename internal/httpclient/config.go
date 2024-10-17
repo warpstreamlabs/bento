@@ -21,6 +21,7 @@ const (
 	hcFieldRetryPeriod         = "retry_period"
 	hcFieldMaxRetryBackoff     = "max_retry_backoff"
 	hcFieldRetries             = "retries"
+	hcFieldFollowRedirects     = "follow_redirects"
 	hcFieldBackoffOn           = "backoff_on"
 	hcFieldDropOn              = "drop_on"
 	hcFieldSuccessfulOn        = "successful_on"
@@ -86,6 +87,10 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("The maximum number of retry attempts to make.").
 			Advanced().
 			Default(3),
+		service.NewBoolField(hcFieldFollowRedirects).
+			Description("Whether or not to transparently follow redirects, i.e. responses with 300-399 status codes. If disabled, the response message will contain the body, status, and headers from the redirect response and the processor will not make a request to the URL set in the Location header of the response.").
+			Advanced().
+			Default(true),
 		service.NewIntListField(hcFieldBackoffOn).
 			Description("A list of status codes whereby the request should be considered to have failed and retries should be attempted, but the period between them should be increased gradually.").
 			Advanced().
@@ -142,6 +147,9 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.NumRetries, err = pConf.FieldInt(hcFieldRetries); err != nil {
 		return
 	}
+	if conf.FollowRedirects, err = pConf.FieldBool(hcFieldFollowRedirects); err != nil {
+		return
+	}
 	if conf.BackoffOn, err = pConf.FieldIntList(hcFieldBackoffOn); err != nil {
 		return
 	}
@@ -181,6 +189,7 @@ type OldConfig struct {
 	Retry               time.Duration
 	MaxBackoff          time.Duration
 	NumRetries          int
+	FollowRedirects     bool
 	BackoffOn           []int
 	DropOn              []int
 	SuccessfulOn        []int

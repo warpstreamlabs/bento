@@ -796,6 +796,38 @@ tls:
 	assert.Equal(t, "HELLO WORLD", string(mBytes))
 }
 
+func TestHTTPClientNoFollowRedirects(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://example.com", http.StatusMovedPermanently)
+	}))
+	defer ts.Close()
+
+	conf := clientConfig(t, `
+url: %v
+follow_redirects: false
+extract_headers:
+  include_patterns:
+  - '^location$'
+`, ts.URL)
+
+	h, err := NewClientFromOldConfig(conf, service.MockResources())
+	require.NoError(t, err)
+
+	resBatch, err := h.Send(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("hello world")),
+	})
+	require.NoError(t, err)
+	require.Len(t, resBatch, 1)
+
+	status, ok := resBatch[0].MetaGet("http_status_code")
+	require.True(t, ok)
+	require.Equal(t, "301", status)
+
+	location, ok := resBatch[0].MetaGet("location")
+	require.True(t, ok)
+	require.Equal(t, "https://example.com", location)
+}
+
 func TestHTTPClientTransport(t *testing.T) {
 	type trnsprtCfg struct {
 		forceAttemptHTTP2     bool

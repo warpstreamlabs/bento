@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - Fields instantiated via `FieldObjectList` and `FieldObjectMap` should now yield correct observability paths. (@Jeffail)
 - Go API: Method `Resources` added to the `ParsedConfig` type. (@Jeffail)
 - Go API: Method `WalkComponentsAny` added to the stream config walker. (@Jeffail)
+- Field `follow_redirects` added to the `http` processor. (@ooesili)
 
 
 ## 4.31.0 - 2024-07-18
