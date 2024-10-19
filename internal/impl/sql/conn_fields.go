@@ -310,7 +310,7 @@ func buildAwsDsn(dsn string, secretName string) (awsSecretDsn string, err error)
 			log.Fatal(err.Error())
 		}
 
-		var secretString string = *result.SecretString
+		var secretString = *result.SecretString
 		var secrets map[string]interface{}
 		if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
 			log.Fatal("Failed to unmarshal secrets:", err)
