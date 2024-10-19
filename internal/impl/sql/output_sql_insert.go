@@ -192,7 +192,7 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn, s.connSettings.secretName); err != nil {
 		return err
 	}
 

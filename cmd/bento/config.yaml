@@ -4,7 +4,8 @@ input:
 output:
   sql_insert:
     driver: postgres
-    dsn: postgresql://admin:password@host:5439/dev
+    secret_name: redshift!redshift-cluster-1-admin
+    dsn: postgresql://from_secret:from_secret@redshift-cluster-1.cehkxk9zmbt1.eu-west-2.redshift.amazonaws.com:5439/dev
     table: test
     columns: [ age, name]
     args_mapping: |

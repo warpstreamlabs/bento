@@ -3,12 +3,19 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -46,7 +53,8 @@ The ` + "[`gocosmos`](https://pkg.go.dev/github.com/microsoft/gocosmos)" + ` dri
 	Example("oracle://foouser:foopass@localhost:1521/service_name")
 
 func connFields() []*service.ConfigField {
-	return []*service.ConfigField{
+
+	connFields := []*service.ConfigField{
 		service.NewStringListField("init_files").
 			Description(`
 An optional list of file paths containing SQL statements to execute immediately upon the first connection to the target database. This is a useful way to initialise tables before processing data. Glob patterns are supported, including super globs (double star).
@@ -102,7 +110,16 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Description("An optional maximum number of open connections to the database. If conn_max_idle is greater than 0 and the new conn_max_open is less than conn_max_idle, then conn_max_idle will be reduced to match the new conn_max_open limit. If `value <= 0`, then there is no limit on the number of open connections. The default is 0 (unlimited).").
 			Optional().
 			Advanced(),
+		service.NewStringField("secret_name").
+			Description("An optional field that can be used to get the user + password from AWS Secrets Manager").
+			Optional().
+			Advanced(),
 	}
+
+	connFields = append(connFields, config.SessionFields()...)
+
+	return connFields
+
 }
 
 func rawQueryField() *service.ConfigField {
@@ -134,6 +151,7 @@ type connSettings struct {
 	initFileStatements [][2]string // (path,statement)
 	initStatement      string
 	initVerifyConn     bool
+	secretName         string
 }
 
 func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logger) {
@@ -222,6 +240,12 @@ func connSettingsFromParsed(
 		}
 	}
 
+	if conf.Contains("secret_name") {
+		if c.secretName, err = conf.FieldString("secret_name"); err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -257,7 +281,65 @@ func reworkDSN(driver, dsn string) (string, error) {
 	return dsn, nil
 }
 
-func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, shouldPing bool) (*sql.DB, error) {
+func buildAwsDsn(dsn string, secretName string) (awsSecretDsn string, err error) {
+	if secretName != "" {
+
+		parsedDSN, err := url.Parse(dsn)
+		if err != nil {
+			log.Fatal("Failed to parse DSN:", err)
+		}
+
+		username := parsedDSN.User.Username()
+		password, _ := parsedDSN.User.Password()
+		host := parsedDSN.Hostname()
+		port := parsedDSN.Port()
+		dbName := parsedDSN.Path[1:]
+
+		cfg, err := aws_config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		svc := secretsmanager.NewFromConfig(cfg)
+
+		input := &secretsmanager.GetSecretValueInput{
+			SecretId: aws.String(secretName),
+		}
+		result, err := svc.GetSecretValue(context.TODO(), input)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+
+		var secretString string = *result.SecretString
+		var secrets map[string]interface{}
+		if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
+			log.Fatal("Failed to unmarshal secrets:", err)
+		}
+
+		if val, ok := secrets["username"].(string); ok && val != "" {
+			username = val
+		}
+		if val, ok := secrets["password"].(string); ok && val != "" {
+			password = val
+		}
+		if val, ok := secrets["host"].(string); ok && val != "" {
+			host = val
+		}
+		if val, ok := secrets["port"].(float64); ok {
+			port = strconv.FormatFloat(val, 'f', 0, 64)
+		}
+		if val, ok := secrets["dbName"].(string); ok && val != "" {
+			dbName = val
+		}
+
+		return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", url.QueryEscape(username), url.QueryEscape(password), host, port, dbName), nil
+
+	}
+
+	return dsn, nil
+}
+
+func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, shouldPing bool, secretName string) (*sql.DB, error) {
 	updatedDSN, err := reworkDSN(driver, dsn)
 	if err != nil {
 		return nil, err
@@ -265,6 +347,15 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 
 	if updatedDSN != dsn {
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
+	}
+
+	updatedDSN, err = buildAwsDsn(dsn, secretName)
+	if err != nil {
+		return nil, err
+	}
+
+	if updatedDSN != dsn {
+		logger.Infof("Updated dsn with info from AWS Secret '%v'", secretName)
 	}
 
 	db, err := sql.Open(driver, updatedDSN)

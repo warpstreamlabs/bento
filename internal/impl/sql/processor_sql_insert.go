@@ -171,7 +171,7 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings.initVerifyConn, connSettings.secretName); err != nil {
 		return nil, err
 	}
 

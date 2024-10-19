@@ -132,7 +132,7 @@ func (s *sqlRawInput) Connect(ctx context.Context) (err error) {
 	}
 
 	var db *sql.DB
-	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
+	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn, s.connSettings.secretName); err != nil {
 		return err
 	}
 	defer func() {
