@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -280,12 +280,26 @@ func reworkDSN(driver, dsn string) (string, error) {
 	return dsn, nil
 }
 
-func buildAwsDsn(dsn string, secretName string, awsSess aws.Config) (awsSecretDsn string, err error) {
-	if secretName != "" {
+func getSecretFromAWSSecretManager(secretName string, awsConf aws.Config) (secretString string, err error) {
+	svc := secretsmanager.NewFromConfig(awsConf)
+
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretName),
+	}
+	result, err := svc.GetSecretValue(context.TODO(), input)
+	if err != nil {
+		return "", err
+	}
+
+	return *result.SecretString, nil
+}
+
+func buildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Config, getSecretFunc func(secretName string, awsConf aws.Config) (awsSecret string, err error)) (awsSecretDsn string, err error) {
+	if secretName != "" && driver == "postgres" {
 
 		parsedDSN, err := url.Parse(dsn)
 		if err != nil {
-			log.Fatal("Failed to parse DSN:", err)
+			return "", err
 		}
 
 		username := parsedDSN.User.Username()
@@ -294,20 +308,14 @@ func buildAwsDsn(dsn string, secretName string, awsSess aws.Config) (awsSecretDs
 		port := parsedDSN.Port()
 		dbName := parsedDSN.Path[1:]
 
-		svc := secretsmanager.NewFromConfig(awsSess)
-
-		input := &secretsmanager.GetSecretValueInput{
-			SecretId: aws.String(secretName),
-		}
-		result, err := svc.GetSecretValue(context.TODO(), input)
+		secretString, err := getSecretFunc(secretName, awsConf)
 		if err != nil {
-			log.Fatal(err.Error())
+			return "", err
 		}
 
-		var secretString = *result.SecretString
 		var secrets map[string]interface{}
 		if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
-			log.Fatal("Failed to unmarshal secrets:", err)
+			return "", err
 		}
 
 		if val, ok := secrets["username"].(string); ok && val != "" {
@@ -328,12 +336,14 @@ func buildAwsDsn(dsn string, secretName string, awsSess aws.Config) (awsSecretDs
 
 		return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", url.QueryEscape(username), url.QueryEscape(password), host, port, dbName), nil
 
+	} else if secretName != "" && driver != "postgres" {
+		return "", errors.New("secret_name with DSN info currently only works for postgres DSNs")
 	}
 
 	return dsn, nil
 }
 
-func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings, awsSess aws.Config) (*sql.DB, error) {
+func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings, awsConf aws.Config) (*sql.DB, error) {
 	updatedDSN, err := reworkDSN(driver, dsn)
 	if err != nil {
 		return nil, err
@@ -343,7 +353,7 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = buildAwsDsn(dsn, connSettings.secretName, awsSess)
+	updatedDSN, err = buildAwsDsn(dsn, driver, connSettings.secretName, awsConf, getSecretFromAWSSecretManager)
 	if err != nil {
 		return nil, err
 	}

@@ -2,12 +2,15 @@ package sql_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -185,6 +188,30 @@ sql_select:
 	}, msgs)
 }
 
-func TestBuildAwsDsn(t *testing.T) {
+func mockGetSecretFromAWS(secretName string, awsConf aws.Config) (secretString string, err error) {
+	var secret map[string]interface{}
+	if secretName == "validFullSecret" {
+		secret = map[string]interface{}{
+			"username": "testUser",
+			"password": "testPassword",
+			"host":     "testHost",
+			"port":     5432,
+			"dbName":   "testDB",
+		}
+	} else if secretName == "userPassSecret" {
+		secret = map[string]interface{}{
+			"username": "testUser",
+			"password": "testPassword",
+		}
+	} else if secretName == "SecretDoesNotExist" {
+		return "", errors.New("secret_name with DSN info currently only works for postgres DSNs")
+	}
+	secretBytes, _ := json.Marshal(secret)
+	return string(secretBytes), nil
+}
 
+func TestBuildAwsDsn(t *testing.T) {
+	awsConf := aws.Config{}
+	secretString, _ := mockGetSecretFromAWS("validFullSecret", awsConf)
+	t.Log(secretString)
 }
