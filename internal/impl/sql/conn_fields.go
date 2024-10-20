@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -294,7 +293,7 @@ func getSecretFromAWSSecretManager(secretName string, awsConf aws.Config) (secre
 	return *result.SecretString, nil
 }
 
-func buildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Config, getSecretFunc func(secretName string, awsConf aws.Config) (awsSecret string, err error)) (awsSecretDsn string, err error) {
+func BuildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Config, getSecretFunc func(secretName string, awsConf aws.Config) (awsSecret string, err error)) (awsSecretDsn string, err error) {
 	if secretName != "" && driver == "postgres" {
 
 		parsedDSN, err := url.Parse(dsn)
@@ -306,7 +305,8 @@ func buildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Confi
 		password, _ := parsedDSN.User.Password()
 		host := parsedDSN.Hostname()
 		port := parsedDSN.Port()
-		dbName := parsedDSN.Path[1:]
+		path := parsedDSN.Path
+		rawQuery := parsedDSN.RawQuery
 
 		secretString, err := getSecretFunc(secretName, awsConf)
 		if err != nil {
@@ -324,17 +324,13 @@ func buildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Confi
 		if val, ok := secrets["password"].(string); ok && val != "" {
 			password = val
 		}
-		if val, ok := secrets["host"].(string); ok && val != "" {
-			host = val
-		}
-		if val, ok := secrets["port"].(float64); ok {
-			port = strconv.FormatFloat(val, 'f', 0, 64)
-		}
-		if val, ok := secrets["dbName"].(string); ok && val != "" {
-			dbName = val
+
+		newDSN := fmt.Sprintf("postgres://%s:%s@%s:%s%s", url.QueryEscape(username), url.QueryEscape(password), host, port, path)
+		if rawQuery != "" {
+			newDSN = fmt.Sprintf("%s?%s", newDSN, rawQuery)
 		}
 
-		return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", url.QueryEscape(username), url.QueryEscape(password), host, port, dbName), nil
+		return newDSN, nil
 
 	} else if secretName != "" && driver != "postgres" {
 		return "", errors.New("secret_name with DSN info currently only works for postgres DSNs")
@@ -353,7 +349,7 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = buildAwsDsn(dsn, driver, connSettings.secretName, awsConf, getSecretFromAWSSecretManager)
+	updatedDSN, err = BuildAwsDsn(dsn, driver, connSettings.secretName, awsConf, getSecretFromAWSSecretManager)
 	if err != nil {
 		return nil, err
 	}
