@@ -106,7 +106,7 @@ type sqlSelectInput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
-	aws_sess     aws.Config
+	awsConf      aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -177,7 +177,7 @@ func newSQLSelectInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 		return nil, err
 	}
 
-	s.aws_sess, err = bento_aws.GetSession(context.Background(), conf)
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (s *sqlSelectInput) Connect(ctx context.Context) (err error) {
 	}
 
 	var db *sql.DB
-	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.aws_sess); err != nil {
+	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
 		return
 	}
 	defer func() {

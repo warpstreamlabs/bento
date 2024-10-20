@@ -102,7 +102,7 @@ type sqlRawProcessor struct {
 
 	argsMapping *bloblang.Executor
 
-	aws_sess aws.Config
+	awsConf aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -151,12 +151,12 @@ func NewSQLRawProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		return nil, err
 	}
 
-	aws_sess, err := bento_aws.GetSession(context.Background(), conf)
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, aws_sess)
+	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, awsConf)
 }
 
 func newSQLRawProcessor(
@@ -167,7 +167,7 @@ func newSQLRawProcessor(
 	onlyExec bool,
 	argsMapping *bloblang.Executor,
 	connSettings *connSettings,
-	aws_sess aws.Config,
+	awsConf aws.Config,
 ) (*sqlRawProcessor, error) {
 	s := &sqlRawProcessor{
 		logger:      logger,
@@ -176,11 +176,11 @@ func newSQLRawProcessor(
 		queryDyn:    queryDyn,
 		onlyExec:    onlyExec,
 		argsMapping: argsMapping,
-		aws_sess:    aws_sess,
+		awsConf:     awsConf,
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings, aws_sess); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings, awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

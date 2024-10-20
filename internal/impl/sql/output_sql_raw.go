@@ -95,7 +95,7 @@ type sqlRawOutput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
-	aws_sess     aws.Config
+	awsConf      aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -138,12 +138,12 @@ func newSQLRawOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 		return nil, err
 	}
 
-	aws_sess, err := bento_aws.GetSession(context.Background(), conf)
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings, aws_sess), nil
+	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings, awsConf), nil
 }
 
 func newSQLRawOutput(
@@ -153,7 +153,7 @@ func newSQLRawOutput(
 	queryDyn *service.InterpolatedString,
 	argsMapping *bloblang.Executor,
 	connSettings *connSettings,
-	aws_sess aws.Config,
+	awsConf aws.Config,
 ) *sqlRawOutput {
 	return &sqlRawOutput{
 		logger:       logger,
@@ -164,7 +164,7 @@ func newSQLRawOutput(
 		queryDyn:     queryDyn,
 		argsMapping:  argsMapping,
 		connSettings: connSettings,
-		aws_sess:     aws_sess,
+		awsConf:      awsConf,
 	}
 }
 
@@ -177,7 +177,7 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.aws_sess); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
 		return err
 	}
 

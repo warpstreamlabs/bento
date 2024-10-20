@@ -82,10 +82,10 @@ func newSQLDeprecatedOutputFromConfig(conf *service.ParsedConfig, mgr *service.R
 		return nil, err
 	}
 
-	aws_sess, err := bento_aws.GetSession(context.Background(), conf)
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, nil, argsMapping, connSettings, aws_sess), nil
+	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, nil, argsMapping, connSettings, awsConf), nil
 }

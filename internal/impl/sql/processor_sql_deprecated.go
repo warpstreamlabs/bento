@@ -96,10 +96,10 @@ func NewSQLDeprecatedProcessorFromConfig(conf *service.ParsedConfig, mgr *servic
 		return nil, err
 	}
 
-	aws_sess, err := bento_aws.GetSession(context.Background(), conf)
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, aws_sess)
+	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, awsConf)
 }

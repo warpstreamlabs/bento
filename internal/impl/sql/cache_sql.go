@@ -100,7 +100,7 @@ type sqlCache struct {
 	upsertBuilder squirrel.InsertBuilder
 	deleteBuilder squirrel.DeleteBuilder
 
-	aws_sess aws.Config
+	awsConf aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -166,12 +166,12 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 		return nil, err
 	}
 
-	s.aws_sess, err = bento_aws.GetSession(context.Background(), conf)
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings, s.aws_sess); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings, s.awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

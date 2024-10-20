@@ -102,7 +102,7 @@ type sqlSelectProcessor struct {
 	where       string
 	argsMapping *bloblang.Executor
 
-	aws_sess aws.Config
+	awsConf aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -175,12 +175,12 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	s.aws_sess, err = bento_aws.GetSession(context.Background(), conf)
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, s.aws_sess); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, s.awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)
