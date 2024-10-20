@@ -12,9 +12,8 @@ import (
 	"sync"
 	"time"
 
-	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -281,7 +280,7 @@ func reworkDSN(driver, dsn string) (string, error) {
 	return dsn, nil
 }
 
-func buildAwsDsn(dsn string, secretName string) (awsSecretDsn string, err error) {
+func buildAwsDsn(dsn string, secretName string, awsSess aws.Config) (awsSecretDsn string, err error) {
 	if secretName != "" {
 
 		parsedDSN, err := url.Parse(dsn)
@@ -295,12 +294,7 @@ func buildAwsDsn(dsn string, secretName string) (awsSecretDsn string, err error)
 		port := parsedDSN.Port()
 		dbName := parsedDSN.Path[1:]
 
-		cfg, err := aws_config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		svc := secretsmanager.NewFromConfig(cfg)
+		svc := secretsmanager.NewFromConfig(awsSess)
 
 		input := &secretsmanager.GetSecretValueInput{
 			SecretId: aws.String(secretName),
@@ -339,7 +333,7 @@ func buildAwsDsn(dsn string, secretName string) (awsSecretDsn string, err error)
 	return dsn, nil
 }
 
-func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, shouldPing bool, secretName string) (*sql.DB, error) {
+func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings, awsSess aws.Config) (*sql.DB, error) {
 	updatedDSN, err := reworkDSN(driver, dsn)
 	if err != nil {
 		return nil, err
@@ -349,13 +343,13 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = buildAwsDsn(dsn, secretName)
+	updatedDSN, err = buildAwsDsn(dsn, connSettings.secretName, awsSess)
 	if err != nil {
 		return nil, err
 	}
 
 	if updatedDSN != dsn {
-		logger.Infof("Updated dsn with info from AWS Secret '%v'", secretName)
+		logger.Infof("Updated dsn with info from AWS Secret '%v'", connSettings.secretName)
 	}
 
 	db, err := sql.Open(driver, updatedDSN)
@@ -363,7 +357,7 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		return nil, err
 	}
 
-	if shouldPing {
+	if connSettings.initVerifyConn {
 		if err := db.PingContext(ctx); err != nil {
 			_ = db.Close()
 			return nil, fmt.Errorf("could not establish connection to database: %w", err)

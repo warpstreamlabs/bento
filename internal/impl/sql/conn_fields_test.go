@@ -184,3 +184,7 @@ sql_select:
 		`{"bar":"third bar","baz":"third baz","foo":"third"}`,
 	}, msgs)
 }
+
+func TestBuildAwsDsn(t *testing.T) {
+
+}

@@ -4,7 +4,7 @@ input:
 output:
   sql_insert:
     driver: postgres
-    secret_name: redshift!redshift-cluster-1-admin
+    secret_name: sqlworkbench!c7f47dc9-c3de-4739-b659-ec84da19304f
     dsn: postgresql://from_secret:from_secret@redshift-cluster-1.cehkxk9zmbt1.eu-west-2.redshift.amazonaws.com:5439/dev
     table: test
     columns: [ age, name]
@@ -13,3 +13,7 @@ output:
         this.age,
         this.name,
       ]
+    region: eu-west-2
+    credentials:
+      id: 
+      

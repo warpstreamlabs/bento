@@ -8,6 +8,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -93,6 +95,7 @@ type sqlRawOutput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
+	aws_sess     aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -134,7 +137,13 @@ func newSQLRawOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings), nil
+
+	aws_sess, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings, aws_sess), nil
 }
 
 func newSQLRawOutput(
@@ -144,6 +153,7 @@ func newSQLRawOutput(
 	queryDyn *service.InterpolatedString,
 	argsMapping *bloblang.Executor,
 	connSettings *connSettings,
+	aws_sess aws.Config,
 ) *sqlRawOutput {
 	return &sqlRawOutput{
 		logger:       logger,
@@ -154,6 +164,7 @@ func newSQLRawOutput(
 		queryDyn:     queryDyn,
 		argsMapping:  argsMapping,
 		connSettings: connSettings,
+		aws_sess:     aws_sess,
 	}
 }
 
@@ -166,7 +177,7 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn, s.connSettings.secretName); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.aws_sess); err != nil {
 		return err
 	}
 
