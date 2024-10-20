@@ -317,7 +317,7 @@ Type: `int`
 
 ### `secret_name`
 
-An optional field that can be used to get the user + password from AWS Secrets Manager
+An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to postgres.
 
 
 Type: `string`  
