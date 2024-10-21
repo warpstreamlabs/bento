@@ -55,6 +55,17 @@ output:
 
 The other fields are can be looked up on the [sql_insert][credentials] page. The above config makes use of [environment variable interpolation][env_var_interpolation]. 
 
+The secret should be stored in the AWS secret manager with the name you specified in the configuration above. The value of the secret should be a JSON documentation with a username/password:
+
+```json
+{
+  "username": "some_username",
+  "password": "some_password"
+}
+```
+
+Below is a sample standalone terraform module that creates a redshift cluster, username/password, and stores the username/password in AWS Secret manager in the right format for Bento to read it.
+
 _______________________
 ## terraform
 ```terraform 
