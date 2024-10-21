@@ -50,7 +50,7 @@ If you are using short term credentials then you will also need to set the field
 credentials:
   id: foo     # aws_access_key_id
   secret: bar # aws_secret_access_key
-  token: baz  # awsConfion_token
+  token: baz  # aws_session_token
 ```
 
 ## Assuming a Role
