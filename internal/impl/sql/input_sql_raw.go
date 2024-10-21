@@ -8,6 +8,9 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
+
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -82,6 +85,7 @@ type sqlRawInput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
+	awsConf      aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -120,6 +124,11 @@ func newSQLRawInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
 	return s, nil
 }
 
@@ -132,7 +141,7 @@ func (s *sqlRawInput) Connect(ctx context.Context) (err error) {
 	}
 
 	var db *sql.DB
-	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
+	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
 		return err
 	}
 	defer func() {

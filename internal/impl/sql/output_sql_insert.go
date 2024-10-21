@@ -10,6 +10,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -103,6 +105,7 @@ type sqlInsertOutput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
+	awsConf      aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -180,6 +183,12 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
+
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
 	return s, nil
 }
 
@@ -192,7 +201,7 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
 		return err
 	}
 

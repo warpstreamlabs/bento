@@ -1,8 +1,12 @@
 package sql
 
 import (
+	"context"
+
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
+
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 )
 
 func sqlDeprecatedOutputConfig() *service.ConfigSpec {
@@ -77,5 +81,11 @@ func newSQLDeprecatedOutputFromConfig(conf *service.ParsedConfig, mgr *service.R
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, nil, argsMapping, connSettings), nil
+
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, nil, argsMapping, connSettings, awsConf), nil
 }

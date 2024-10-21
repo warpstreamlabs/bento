@@ -1,6 +1,9 @@
 package sql
 
 import (
+	"context"
+
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -92,5 +95,11 @@ func NewSQLDeprecatedProcessorFromConfig(conf *service.ParsedConfig, mgr *servic
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings)
+
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, awsConf)
 }
