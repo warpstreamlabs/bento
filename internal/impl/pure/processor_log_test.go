@@ -235,6 +235,7 @@ log:
 
 	assert.Equal(t, []string{"hello world"}, logMock.infos)
 	assert.Equal(t, []any{
+		"custom_source", true,
 		"age", int64(12),
 		"is_cool", true,
 		"static", "static value",

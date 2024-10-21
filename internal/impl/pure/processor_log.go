@@ -117,7 +117,7 @@ func newLogProcessor(messageStr, levelStr, fieldsMappingStr string, depFields ma
 		return nil, fmt.Errorf("failed to parse message expression: %v", err)
 	}
 	l := &logProcessor{
-		logger:  mgr.Logger(),
+		logger:  mgr.Logger().With("processor", "log"),
 		level:   levelStr,
 		fields:  map[string]*field.Expression{},
 		message: message,
