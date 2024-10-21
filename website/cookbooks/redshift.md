@@ -31,7 +31,7 @@ You will need to create an AWS Access Key that can retrieve the aforementioned s
 output:
   sql_insert:
     driver: postgres 
-    dsn: postgresql://from_secret:from_secret@"$REDSHIFT_ENDPOINT"/dev
+    dsn: postgresql://username_from_secret:password_from_secret@"$REDSHIFT_ENDPOINT"/dev
     table: test
     columns: [age, name]
     args_mapping: |
@@ -49,11 +49,11 @@ output:
 ```
 
  - `driver`: Redshift is compatible with PostgreSQL, so we set the driver field to `postgres`
- - `dsn`: We configure this to connect to Redshift, but the username + password we have them set to `from_secret`, Bento will fetch the secret and update the DSN to use them.
+ - `dsn`: We configure this to connect to Redshift, but the username + password we have them set to `username_from_secret` & `password_from_secret`, Bento will fetch the secret and update the DSN to use them. Bento will expect that the secret will have the keys 'username' & 'password'. Below is a standalone terraform module that will create a redshift cluster and store the username + password in a secret. Note: The username + password will be overwritten after we have the value from Secret Manager, but we still need to provide a DSN with a valid "shape" so it can be parsed correctly. 
  - `secret_name`: Here we give the secret_name of the secret Bento will use to update the DSN. 
- - `region` + `credentials`: This is one way to give the Bento Config access to the Secret in AWS.
+ - `credentials`: This is one way to give the Bento Config access to the Secret in AWS. There are other ways explained [here][credentials].
 
-The other fields are can be looked up on the [sql_insert][credentials] page.
+The other fields are can be looked up on the [sql_insert][credentials] page. The above config makes use of [environment variable interpolation][env_var_interpolation]. 
 
 _______________________
 ## terraform
@@ -216,3 +216,4 @@ output "redshift_master_password_secret_name" {
 [terraform]: /docs/cookbooks/redshift#terraform
 [credentials]: /docs/guides/cloud/aws
 [sql_insert]: /docs/components/outputs/sql_insert
+[env_var_interpolation]: /docs/configuration/interpolation

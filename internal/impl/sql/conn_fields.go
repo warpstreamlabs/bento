@@ -298,7 +298,7 @@ func BuildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Confi
 
 		parsedDSN, err := url.Parse(dsn)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error parsing DSN URL: %w", err)
 		}
 
 		username := parsedDSN.User.Username()
@@ -310,7 +310,7 @@ func BuildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Confi
 
 		secretString, err := getSecretFunc(secretName, awsConf)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error retrieving secret: %w", err)
 		}
 
 		var secrets map[string]interface{}
