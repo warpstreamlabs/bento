@@ -246,7 +246,7 @@ func TestBuildAwsDsn(t *testing.T) {
 			secretName:    "SecretDoesNotExist",
 			expectedDSN:   "postgres://testUser:testPassword@host:5432/dbname?param1=value1&param2=value2",
 			expectedError: true,
-			errorValue:    "ResourceNotFoundException: Secrets Manager can't find the specified secret.",
+			errorValue:    "error retrieving secret: ResourceNotFoundException: Secrets Manager can't find the specified secret.",
 		},
 		{
 			name:          "DriverNotPostgresTest",
