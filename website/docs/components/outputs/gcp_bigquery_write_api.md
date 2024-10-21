@@ -68,6 +68,11 @@ output:
 </Tabs>
 
 You can use the Storage Write API to stream records into BigQuery in real time or to batch process an arbitrarily large number of records and commit them in a single atomic operation.
+:::caution BigQuery API Limitation
+The [AppendRows](https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1#appendrowsrequest) request is limited to 10 MB.
+
+If you experience issues with this limitation, tweak the component's batch policy using the `batching` field. You can read more at [Message Batching](https://warpstreamlabs.github.io/bento/docs/configuration/batching/#performance).
+:::
 
 
 ## Fields

@@ -33,6 +33,11 @@ func gcpBigQueryWriteAPIConfig() *service.ConfigSpec {
 		Summary(`Sends messages as new rows to a Google Cloud BigQuery table using the BigQuery Storage Write API.`).
 		Description(`
 You can use the Storage Write API to stream records into BigQuery in real time or to batch process an arbitrarily large number of records and commit them in a single atomic operation.
+:::caution BigQuery API Limitation
+The [AppendRows](https://cloud.google.com/bigquery/docs/reference/storage/rpc/google.cloud.bigquery.storage.v1#appendrowsrequest) request is limited to 10 MB.
+
+If you experience issues with this limitation, tweak the component's batch policy using the ` + "`batching`" + ` field. You can read more at [Message Batching](https://warpstreamlabs.github.io/bento/docs/configuration/batching/#performance).
+:::
 `).
 		Field(service.NewStringField("project").Description("The project ID of the dataset to insert data to. If not set, it will be inferred from the credentials or read from the GOOGLE_CLOUD_PROJECT environment variable.").Default("")).
 		Field(service.NewStringField("dataset").Description("The BigQuery Dataset ID.")).
@@ -54,7 +59,7 @@ The table to insert messages to.`)).
 Only ` + "`DEFAULT`" + ` stream types are currently enabled. Future versions will see support extended to ` + "`COMMITTED`, `BUFFERED`, and `PENDING`." + `
 :::
 sets the type of stream this write client is managing.`).Default(string(managedwriter.DefaultStream)).Advanced()).
-		Field(service.NewBatchPolicyField("batching").Advanced()).
+		Field(service.NewBatchPolicyField("batching").Advanced().LintRule(`root = if this.byte_size >= 1000000 { "the amount of bytes in a batch cannot exceed 10 MB" }`)).
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of message batches to have in flight at a given time. Increase this to improve throughput.").
 			Default(64).Advanced())
@@ -101,9 +106,6 @@ func bigQueryStorageWriterConfigFromParsed(pConf *service.ParsedConfig) (conf bi
 
 	switch streamType {
 	case string(managedwriter.DefaultStream):
-		conf.streamType = managedwriter.DefaultStream
-		// TODO Future versions of Bento will extend support for different stream types.
-	case string(managedwriter.CommittedStream), string(managedwriter.BufferedStream), string(managedwriter.PendingStream):
 		conf.streamType = managedwriter.DefaultStream
 	default:
 		err = fmt.Errorf("unknown stream type: %s", streamType)
@@ -162,7 +164,7 @@ type bigQueryStorageWriter struct {
 	client        *bigquery.Client
 	storageClient *managedwriter.Client
 
-	streamCacheLock sync.RWMutex
+	streamCacheLock sync.Mutex
 	streams         map[string]*streamWithDescriptor
 }
 
@@ -290,11 +292,11 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
 	defStreamName := destTable + "/streams/_default"
 
-	bq.streamCacheLock.RLock()
+	bq.streamCacheLock.Lock()
+	defer bq.streamCacheLock.Unlock()
 	if stream, ok := bq.streams[destTable]; ok {
 		return stream, nil
 	}
-	bq.streamCacheLock.RUnlock()
 
 	resp, err := bq.storageClient.GetWriteStream(ctx, &storagepb.GetWriteStreamRequest{
 		Name: defStreamName,
@@ -333,9 +335,7 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 		messageDescriptor: messageDescriptor,
 	}
 
-	bq.streamCacheLock.Lock()
 	bq.streams[destTable] = managedStreamPair
-	bq.streamCacheLock.Unlock()
 
 	return managedStreamPair, nil
 }
