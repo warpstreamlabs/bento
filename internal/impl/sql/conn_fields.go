@@ -315,7 +315,7 @@ func BuildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Confi
 
 		var secrets map[string]interface{}
 		if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
-			return "", err
+			return "", fmt.Errorf("error unmarshalling secret: %w", err)
 		}
 
 		if val, ok := secrets["username"].(string); ok && val != "" {
