@@ -276,9 +276,6 @@ func newGCPBigQueryOutput(
 		return g, nil
 	}
 
-	// _, isStatic := g.conf.TableID.Static()
-	// if
-
 	var err error
 	if g.fieldDelimiterBytes, err = convertToIso(g.fieldDelimiterBytes); err != nil {
 		return nil, fmt.Errorf("error parsing csv.field_delimiter field: %w", err)

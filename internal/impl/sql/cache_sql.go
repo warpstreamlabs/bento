@@ -12,6 +12,9 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/warpstreamlabs/bento/public/service"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 )
 
 const (
@@ -97,6 +100,8 @@ type sqlCache struct {
 	upsertBuilder squirrel.InsertBuilder
 	deleteBuilder squirrel.DeleteBuilder
 
+	awsConf aws.Config
+
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
 }
@@ -161,7 +166,12 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings.initVerifyConn); err != nil {
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings, s.awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

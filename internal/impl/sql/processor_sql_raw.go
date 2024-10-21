@@ -8,6 +8,9 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
+
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -99,6 +102,8 @@ type sqlRawProcessor struct {
 
 	argsMapping *bloblang.Executor
 
+	awsConf aws.Config
+
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
 }
@@ -145,7 +150,13 @@ func NewSQLRawProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings)
+
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, awsConf)
 }
 
 func newSQLRawProcessor(
@@ -156,6 +167,7 @@ func newSQLRawProcessor(
 	onlyExec bool,
 	argsMapping *bloblang.Executor,
 	connSettings *connSettings,
+	awsConf aws.Config,
 ) (*sqlRawProcessor, error) {
 	s := &sqlRawProcessor{
 		logger:      logger,
@@ -164,10 +176,11 @@ func newSQLRawProcessor(
 		queryDyn:    queryDyn,
 		onlyExec:    onlyExec,
 		argsMapping: argsMapping,
+		awsConf:     awsConf,
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings, awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

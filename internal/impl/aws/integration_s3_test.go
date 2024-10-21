@@ -1,3 +1,4 @@
+//nolint:staticcheck // Ignore SA1019
 package aws
 
 import (
