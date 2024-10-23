@@ -280,6 +280,11 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 
 	// Wait for the result to indicate ready, then validate.
 	if _, err := result.GetResult(ctx); err != nil {
+		fullResponse, _ := result.FullResponse(ctx)
+		if fullResponse != nil && len(fullResponse.RowErrors) > 0 {
+			err = fmt.Errorf("original error: %w, sample row error: (code=%v): %v", err, fullResponse.RowErrors[0].Code, fullResponse.RowErrors[0].Message)
+		}
+
 		return fmt.Errorf("result error for last send: %w", err)
 	}
 
