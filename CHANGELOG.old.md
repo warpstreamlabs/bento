@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Go API: Method `Resources` added to the `ParsedConfig` type. (@Jeffail)
 - Go API: Method `WalkComponentsAny` added to the stream config walker. (@Jeffail)
 - Field `follow_redirects` added to the `http` processor. (@ooesili)
+- CLI `--set` flags can now mutate array values indexed from the end via negative integers. E.g. `--set 'foo.-1=meow'` would set the last index of the array `foo` to the value of `meow`. (@Jeffail)
 
 
 ## 4.31.0 - 2024-07-18

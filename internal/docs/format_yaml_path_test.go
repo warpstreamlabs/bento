@@ -221,6 +221,23 @@ input:
 `,
 		},
 		{
+			name: "set array from end",
+			input: `
+input:
+  kafka:
+    addresses: [ "foo", "bar" ]
+    topics: [ "baz" ]
+`,
+			path:  "/input/kafka/addresses/-1",
+			value: `"baz"`,
+			output: `
+input:
+  kafka:
+    addresses: [ "foo", "baz" ]
+    topics: [ "baz" ]
+`,
+		},
+		{
 			name: "set array NaN",
 			input: `
 input:
