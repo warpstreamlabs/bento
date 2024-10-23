@@ -34,6 +34,14 @@ func (m *messageData) AsBytes() []byte {
 	return m.rawBytes
 }
 
+func (m *messageData) HasBytes() bool {
+	return m.rawBytes != nil
+}
+
+func (m *messageData) HasStructured() bool {
+	return m.structured != nil
+}
+
 func (m *messageData) SetStructured(jObj any) {
 	m.rawBytes = nil
 	if jObj == nil {

@@ -236,6 +236,17 @@ func (m *Message) SetBytes(b []byte) {
 	m.part.SetBytes(b)
 }
 
+// HasBytes returns true if the raw message bytes are readily available and cached.
+func (m *Message) HasBytes() bool {
+	return m.part.HasBytes()
+}
+
+// HasStructured returns true if the structured message data is readily available
+// and cached.
+func (m *Message) HasStructured() bool {
+	return m.part.HasStructured()
+}
+
 // SetStructured sets the underlying contents of the message as a structured
 // type. This structured value should be a scalar Go type, or either a
 // map[string]interface{} or []interface{} containing the same types all the way

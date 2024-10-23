@@ -82,6 +82,16 @@ func (p *Part) AsBytes() []byte {
 	return p.data.AsBytes()
 }
 
+// HasBytes returns true if the raw message bytes are readily available and cached.
+func (p *Part) HasBytes() bool {
+	return p.data.HasBytes()
+}
+
+// HasStructured returns true if the structured message data is readily available and cached.
+func (p *Part) HasStructured() bool {
+	return p.data.HasStructured()
+}
+
 // AsStructuredMut returns the structured format of the message if already set,
 // or attempts to parse the raw bytes as a JSON document if not. The returned
 // structure is mutable and therefore safe to mutate directly.
