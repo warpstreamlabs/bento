@@ -77,6 +77,9 @@ func getIndexFromSequence(name string, allowAppend bool, node *yaml.Node) (*yaml
 		if index < 0 {
 			index = len(node.Content) + index
 		}
+		if index < 0 {
+			return nil, fmt.Errorf("%v: target index less than zero", name)
+		}
 
 		if len(node.Content) <= index {
 			return nil, fmt.Errorf("%v: target index greater than array length", name)
