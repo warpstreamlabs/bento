@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"runtime/pprof"
 	"sync/atomic"
@@ -188,7 +189,7 @@ func (t *Type) start() (err error) {
 func (t *Type) StopGracefully(ctx context.Context) (err error) {
 	t.inputLayer.TriggerStopConsuming()
 	if err = t.inputLayer.WaitForClose(ctx); err != nil {
-		return
+		return fmt.Errorf("waiting on input layer failed: %w", err)
 	}
 
 	// If we have a buffer then wait right here. We want to try and allow the
@@ -196,19 +197,19 @@ func (t *Type) StopGracefully(ctx context.Context) (err error) {
 	if t.bufferLayer != nil {
 		t.bufferLayer.TriggerStopConsuming()
 		if err = t.bufferLayer.WaitForClose(ctx); err != nil {
-			return
+			return fmt.Errorf("waiting on buffer layer failed: %w", err)
 		}
 	}
 
 	// After this point we can start closing the remaining components.
 	if t.pipelineLayer != nil {
 		if err = t.pipelineLayer.WaitForClose(ctx); err != nil {
-			return
+			return fmt.Errorf("waiting on pipeline layer failed: %w", err)
 		}
 	}
 
 	if err = t.outputLayer.WaitForClose(ctx); err != nil {
-		return
+		return fmt.Errorf("waiting on output layer failed: %w", err)
 	}
 	return nil
 }
