@@ -83,6 +83,15 @@ output:
                 type: DOUBLE
               - name: content
                 type: BYTE_ARRAY
+              - name: attributes
+                type: MAP
+                fields:
+                  - { name: key, type: UTF8 }
+                  - { name: value, type: INT64 }
+              - name: tags
+                type: LIST
+                fields:
+                  - { name: element, type: UTF8 }				
             default_compression: zstd
 ```
 
