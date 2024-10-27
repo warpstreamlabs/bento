@@ -1,6 +1,7 @@
 package parquet
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -120,7 +121,7 @@ func generateFieldType(field *service.ParsedConfig) (reflect.Type, error) {
 		return wrapType(structType, field)
 	}
 
-	return nil, fmt.Errorf("field has neither type nor fields")
+	return nil, errors.New("field has neither type nor fields")
 }
 
 func generateListType(field *service.ParsedConfig) (reflect.Type, error) {

@@ -1,6 +1,7 @@
 package parquet
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -193,7 +194,7 @@ func setField(field reflect.Value, value any) error {
 		field.Set(sliceValue)
 	case reflect.Map:
 		if fieldType.Key().Kind() != reflect.String {
-			return fmt.Errorf("only string keys are supported for maps")
+			return errors.New("only string keys are supported for maps")
 		}
 
 		valueMap, ok := value.(map[string]any)
