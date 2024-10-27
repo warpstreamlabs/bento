@@ -116,7 +116,7 @@ Type: `string`
 
 ### `schema[].type`
 
-The type of the column, only applicable for leaf columns with no child fields. Some logical types can be specified here such as UTF8.
+The type of the column, only applicable for leaf columns with no child fields. MAP supports only string keys, but can support values of all types. Nesting of map values and list elements is untested. Some logical types can be specified here such as UTF8.
 
 
 Type: `string`  
