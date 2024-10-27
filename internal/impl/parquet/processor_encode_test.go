@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"reflect"
 	"testing"
@@ -214,8 +213,6 @@ func testParquetEncodeDecodeRoundTripMapList(t *testing.T, encodeProc *parquetEn
 
 			decodedBytes, err := decodedBatch[0].AsBytes()
 			require.NoError(t, err)
-
-			fmt.Printf("decodedBytes:%s\n", string(decodedBytes))
 
 			assert.JSONEq(t, test.output, string(decodedBytes))
 		})
