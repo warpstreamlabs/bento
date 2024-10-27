@@ -111,7 +111,23 @@ The type of the column, only applicable for leaf columns with no child fields. S
 
 
 Type: `string`  
-Options: `BOOLEAN`, `INT32`, `INT64`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`.
+Options: `BOOLEAN`, `INT32`, `INT64`, `DECIMAL64`, `DECIMAL32`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`, `MAP`, `LIST`.
+
+### `schema[].decimal_precision`
+
+Precision to use for DECIMAL32/DECIMAL64 type
+
+
+Type: `int`  
+Default: `0`  
+
+### `schema[].decimal_scale`
+
+Scale to use for DECIMAL32/DECIMAL64 type
+
+
+Type: `int`  
+Default: `0`  
 
 ### `schema[].repeated`
 
