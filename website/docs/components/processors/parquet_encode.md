@@ -83,6 +83,15 @@ output:
                 type: DOUBLE
               - name: content
                 type: BYTE_ARRAY
+              - name: attributes
+                type: MAP
+                fields:
+                  - { name: key, type: UTF8 }
+                  - { name: value, type: INT64 }
+              - name: tags
+                type: LIST
+                fields:
+                  - { name: element, type: UTF8 }				
             default_compression: zstd
 ```
 
@@ -107,11 +116,27 @@ Type: `string`
 
 ### `schema[].type`
 
-The type of the column, only applicable for leaf columns with no child fields. Some logical types can be specified here such as UTF8.
+The type of the column, only applicable for leaf columns with no child fields. MAP supports only string keys, but can support values of all types. Nesting of map values and list elements is untested. Some logical types can be specified here such as UTF8.
 
 
 Type: `string`  
-Options: `BOOLEAN`, `INT32`, `INT64`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`.
+Options: `BOOLEAN`, `INT32`, `INT64`, `DECIMAL64`, `DECIMAL32`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`, `MAP`, `LIST`.
+
+### `schema[].decimal_precision`
+
+Precision to use for DECIMAL32/DECIMAL64 type
+
+
+Type: `int`  
+Default: `0`  
+
+### `schema[].decimal_scale`
+
+Scale to use for DECIMAL32/DECIMAL64 type
+
+
+Type: `int`  
+Default: `0`  
 
 ### `schema[].repeated`
 

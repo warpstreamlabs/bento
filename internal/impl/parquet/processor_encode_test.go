@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/parquet-go/parquet-go"
@@ -27,12 +28,27 @@ schema:
 
 	tctx := context.Background()
 	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
-		service.NewMessage([]byte(`{"id":12,"name":"foo"}`)),
+		service.NewMessage([]byte(`{"id":1e99,"name":"foo"}`)),
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot create parquet value of type FLOAT from go value of type int64")
-}
+	assert.Contains(t, err.Error(), "cannot represent 1e+99 as float32")
 
+	encodeConf, err = parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: id, type: INT32 }
+  - { name: name, type: UTF8 }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err = newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":1e10,"name":"foo"}`)),
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot represent 1e+10 as int32")
+}
 func TestParquetEncodeDecodeRoundTrip(t *testing.T) {
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:
@@ -290,7 +306,14 @@ func TestParquetEncodeProcessor(t *testing.T) {
 			expectedDataBytes, err := json.Marshal(test.input)
 			require.NoError(t, err)
 
-			reader, err := newParquetEncodeProcessor(nil, testPMSchema(), &parquet.Uncompressed)
+			schema := parquet.SchemaOf(&PMType{})
+
+			reader, err := newParquetEncodeProcessor(
+				nil,
+				schema,
+				&parquet.Uncompressed,
+				reflect.TypeOf(PMType{}),
+			)
 			require.NoError(t, err)
 
 			readerResBatches, err := reader.ProcessBatch(context.Background(), service.MessageBatch{
@@ -334,7 +357,14 @@ func TestParquetEncodeProcessor(t *testing.T) {
 			inBatch = append(inBatch, service.NewMessage(dataBytes))
 		}
 
-		reader, err := newParquetEncodeProcessor(nil, testPMSchema(), &parquet.Uncompressed)
+		schema := parquet.SchemaOf(&PMType{})
+
+		reader, err := newParquetEncodeProcessor(
+			nil,
+			schema,
+			&parquet.Uncompressed,
+			reflect.TypeOf(PMType{}),
+		)
 		require.NoError(t, err)
 
 		readerResBatches, err := reader.ProcessBatch(context.Background(), inBatch)
@@ -368,4 +398,63 @@ func TestParquetEncodeProcessor(t *testing.T) {
 
 		assert.JSONEq(t, string(expectedBytes), string(actualBytes))
 	})
+}
+
+func TestEncodingFromConfig(t *testing.T) {
+	tests := []struct {
+		config   string
+		expected parquet.Node
+	}{
+		{
+			config: `
+schema:
+  - name: map
+    type: MAP
+    fields:
+      - { name: key, type: UTF8 }
+      - { name: value, type: FLOAT }
+`,
+			expected: parquet.Group{
+				"map": parquet.Map(
+					parquet.String(),
+					parquet.Leaf(parquet.FloatType),
+				),
+			},
+		},
+		{
+			config: `
+schema:
+  - name: map
+    type: MAP
+    fields:
+      - { name: key, type: UTF8 }
+      - name: value
+        type: MAP
+        fields:
+          - { name: key, type: INT64 }
+          - { name: value, type: BYTE_ARRAY }
+
+`,
+			expected: parquet.Group{
+				"map": parquet.Map(
+					parquet.String(),
+					parquet.Map(
+						parquet.Int(64),
+						parquet.Leaf(parquet.ByteArrayType),
+					),
+				),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(tt.config, nil)
+		require.NoError(t, err)
+
+		encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+		require.NoError(t, err)
+
+		schema := parquet.NewSchema("", tt.expected)
+		require.Equal(t, schema.String(), encodeProc.schema.String())
+	}
 }
