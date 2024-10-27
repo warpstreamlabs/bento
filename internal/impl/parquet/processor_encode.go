@@ -197,15 +197,11 @@ func (s *parquetEncodeProcessor) ProcessBatch(ctx context.Context, batch service
 			return nil, fmt.Errorf("unable to encode message type %T as parquet row", ms)
 		}
 
-		fmt.Println("ms 1", scrubbed)
-
 		v := reflect.New(s.messageType)
 
 		if err := MapToStruct(scrubbed, v.Interface()); err != nil {
 			return nil, fmt.Errorf("conversion to struct failed, err: %w", err)
 		}
-
-		fmt.Println("ms 2", v.Interface())
 
 		rows[i] = v.Interface()
 	}
