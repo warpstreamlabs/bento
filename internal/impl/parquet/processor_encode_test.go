@@ -3,7 +3,6 @@ package parquet
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -244,7 +243,6 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "e": 6,
   "f": 7,
   "g": "logical string represent",
-  "mymap": {"a":"b","c":"d"},
   "nested_stuff": {
     "a_stuff": "a value",
     "b_stuff": "b value"
@@ -260,7 +258,6 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "e": 6,
   "f": 7,
   "g": "logical string represent",
-  "mymap": {"e":"f","g":"h"},
   "nested_stuff": {
     "a_stuff": "a value",
     "b_stuff": "b value"
@@ -287,7 +284,6 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "e": null,
   "f": 7,
   "g": "logical string represent",
-  "mymap": {"i":"j","k":"l"},
   "nested_stuff": null
 }`,
 		},
@@ -567,69 +563,4 @@ schema:
 		schema := parquet.NewSchema("", tt.expected)
 		require.Equal(t, schema.String(), encodeProc.schema.String())
 	}
-}
-
-// ConvertMapToParquetFormat converts a map[string]any to the parquet list format
-// where slices are represented as []map[string]any with "element" keys
-// and strings in nested maps are base64 encoded
-func ConvertMapToParquetFormat(input map[string]any) map[string]any {
-	return convertMapLevel(input, true)
-}
-
-// convertMapLevel handles map conversion with awareness of nesting level
-func convertMapLevel(input map[string]any, isTopLevel bool) map[string]any {
-	result := make(map[string]any)
-	for key, value := range input {
-		result[key] = convertValue(value, isTopLevel)
-	}
-	return result
-}
-
-// convertValue handles the conversion of individual values
-func convertValue(value any, isTopLevel bool) any {
-	if value == nil {
-		return nil
-	}
-
-	// Handle maps
-	if m, ok := value.(map[string]any); ok {
-		return convertMapLevel(m, false)
-	}
-
-	// Handle []any specifically
-	if slice, ok := value.([]any); ok {
-		result := make([]any, len(slice))
-		for i, elem := range slice {
-			if m, ok := elem.(map[string]any); ok {
-				result[i] = convertMapLevel(m, false)
-			} else {
-				converted := convertValue(elem, false)
-				result[i] = map[string]any{"element": converted}
-			}
-		}
-		return result
-	}
-
-	// Handle strings
-	if str, ok := value.(string); ok {
-		if !isTopLevel {
-			return base64.StdEncoding.EncodeToString([]byte(str))
-		}
-		return str
-	}
-
-	// Handle other slice types using reflection
-	v := reflect.ValueOf(value)
-	if v.Kind() == reflect.Slice {
-		length := v.Len()
-		result := make([]any, length)
-		for i := 0; i < length; i++ {
-			elem := v.Index(i).Interface()
-			converted := convertValue(elem, false)
-			result[i] = map[string]any{"element": converted}
-		}
-		return result
-	}
-
-	return value
 }
