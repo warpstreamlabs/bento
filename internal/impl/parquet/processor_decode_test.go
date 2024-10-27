@@ -34,6 +34,24 @@ func testPMSchema() *parquet.Schema {
 	})
 }
 
+type PMType struct {
+	ID  int64
+	Foo struct {
+		First  *int64
+		Second *int64
+		Third  *int64
+	}
+	A   int64
+	Bar struct {
+		Meows      []int64
+		NestedFoos []struct {
+			First  *int64
+			Second *int64
+			Third  *int64
+		}
+	}
+}
+
 func TestParquetDecodeProcessor(t *testing.T) {
 	type obj map[string]any
 	type arr []any

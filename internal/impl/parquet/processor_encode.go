@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/parquet-go/parquet-go"
 	"github.com/parquet-go/parquet-go/compress"
@@ -73,8 +74,10 @@ func init() {
 func parquetSchemaConfig() *service.ConfigField {
 	return service.NewObjectListField("schema",
 		service.NewStringField("name").Description("The name of the column."),
-		service.NewStringEnumField("type", "BOOLEAN", "INT32", "INT64", "FLOAT", "DOUBLE", "BYTE_ARRAY", "UTF8").
+		service.NewStringEnumField("type", "BOOLEAN", "INT32", "INT64", "DECIMAL64", "DECIMAL32", "FLOAT", "DOUBLE", "BYTE_ARRAY", "UTF8", "MAP", "LIST").
 			Description("The type of the column, only applicable for leaf columns with no child fields. Some logical types can be specified here such as UTF8.").Optional(),
+		service.NewIntField("decimal_precision").Description("Precision to use for DECIMAL32/DECIMAL64 type").Default(0),
+		service.NewIntField("decimal_scale").Description("Scale to use for DECIMAL32/DECIMAL64 type").Default(0),
 		service.NewBoolField("repeated").Description("Whether the field is repeated.").Default(false),
 		service.NewBoolField("optional").Description("Whether the field is optional.").Default(false),
 		service.NewAnyListField("fields").Description("A list of child fields.").Optional().Example([]any{
@@ -90,102 +93,12 @@ func parquetSchemaConfig() *service.ConfigField {
 	).Description("Parquet schema.")
 }
 
-type encodingFn func(n parquet.Node) parquet.Node
-
-var defaultEncodingFn encodingFn = func(n parquet.Node) parquet.Node {
-	return n
-}
-
-var plainEncodingFn encodingFn = func(n parquet.Node) parquet.Node {
-	return parquet.Encoded(n, &parquet.Plain)
-}
-
-func parquetGroupFromConfig(columnConfs []*service.ParsedConfig, encodingFn encodingFn) (parquet.Group, error) {
-	groupNode := parquet.Group{}
-
-	for _, colConf := range columnConfs {
-		var n parquet.Node
-
-		name, err := colConf.FieldString("name")
-		if err != nil {
-			return nil, err
-		}
-
-		if childColumns, _ := colConf.FieldAnyList("fields"); len(childColumns) > 0 {
-			if n, err = parquetGroupFromConfig(childColumns, encodingFn); err != nil {
-				return nil, err
-			}
-		} else {
-			typeStr, err := colConf.FieldString("type")
-			if err != nil {
-				return nil, err
-			}
-			switch typeStr {
-			case "BOOLEAN":
-				n = parquet.Leaf(parquet.BooleanType)
-			case "INT32":
-				n = parquet.Int(32)
-			case "INT64":
-				n = parquet.Int(64)
-			case "FLOAT":
-				n = parquet.Leaf(parquet.FloatType)
-			case "DOUBLE":
-				n = parquet.Leaf(parquet.DoubleType)
-			case "BYTE_ARRAY":
-				n = parquet.Leaf(parquet.ByteArrayType)
-			case "UTF8":
-				n = parquet.String()
-			default:
-				return nil, fmt.Errorf("field %v type of '%v' not recognised", name, typeStr)
-			}
-			n = encodingFn(n)
-		}
-
-		repeated, _ := colConf.FieldBool("repeated")
-		if repeated {
-			n = parquet.Repeated(n)
-		}
-
-		optional, _ := colConf.FieldBool("optional")
-		if optional {
-			if repeated {
-				return nil, fmt.Errorf("column %v cannot be both repeated and optional", name)
-			}
-			n = parquet.Optional(n)
-		}
-
-		groupNode[name] = n
-	}
-
-	return groupNode, nil
-}
-
 //------------------------------------------------------------------------------
 
-func newParquetEncodeProcessorFromConfig(conf *service.ParsedConfig, logger *service.Logger) (*parquetEncodeProcessor, error) {
-	schemaConfs, err := conf.FieldObjectList("schema")
-	if err != nil {
-		return nil, err
-	}
-
-	customEncoding, err := conf.FieldString("default_encoding")
-	if err != nil {
-		return nil, err
-	}
-	var encoding encodingFn
-	switch customEncoding {
-	case "PLAIN":
-		encoding = plainEncodingFn
-	default:
-		encoding = defaultEncodingFn
-	}
-
-	node, err := parquetGroupFromConfig(schemaConfs, encoding)
-	if err != nil {
-		return nil, err
-	}
-
-	schema := parquet.NewSchema("", node)
+func newParquetEncodeProcessorFromConfig(
+	conf *service.ParsedConfig,
+	logger *service.Logger,
+) (*parquetEncodeProcessor, error) {
 	compressStr, err := conf.FieldString("default_compression")
 	if err != nil {
 		return nil, err
@@ -208,20 +121,36 @@ func newParquetEncodeProcessorFromConfig(conf *service.ParsedConfig, logger *ser
 	default:
 		return nil, fmt.Errorf("default_compression type %v not recognised", compressStr)
 	}
-	return newParquetEncodeProcessor(logger, schema, compressDefault)
+
+	schemaType, err := GenerateStructType(conf)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to generate struct type from parquet schema: %w", err)
+	}
+
+	schema := parquet.SchemaOf(reflect.New(schemaType).Interface())
+
+	return newParquetEncodeProcessor(logger, schema, compressDefault, schemaType)
 }
 
 type parquetEncodeProcessor struct {
 	logger          *service.Logger
 	schema          *parquet.Schema
 	compressionType compress.Codec
+	messageType     reflect.Type
 }
 
-func newParquetEncodeProcessor(logger *service.Logger, schema *parquet.Schema, compressionType compress.Codec) (*parquetEncodeProcessor, error) {
+func newParquetEncodeProcessor(
+	logger *service.Logger,
+	schema *parquet.Schema,
+	compressionType compress.Codec,
+	messageType reflect.Type,
+) (*parquetEncodeProcessor, error) {
 	s := &parquetEncodeProcessor{
 		logger:          logger,
 		schema:          schema,
 		compressionType: compressionType,
+		messageType:     messageType,
 	}
 	return s, nil
 }
@@ -263,10 +192,22 @@ func (s *parquetEncodeProcessor) ProcessBatch(ctx context.Context, batch service
 			return nil, err
 		}
 
-		var isObj bool
-		if rows[i], isObj = scrubJSONNumbers(ms).(map[string]any); !isObj {
+		scrubbed, isObj := scrubJSONNumbers(ms).(map[string]any)
+		if !isObj {
 			return nil, fmt.Errorf("unable to encode message type %T as parquet row", ms)
 		}
+
+		fmt.Println("ms 1", scrubbed)
+
+		v := reflect.New(s.messageType)
+
+		if err := MapToStruct(scrubbed, v.Interface()); err != nil {
+			return nil, fmt.Errorf("conversion to struct failed, err: %w", err)
+		}
+
+		fmt.Println("ms 2", v.Interface())
+
+		rows[i] = v.Interface()
 	}
 
 	if err := writeWithoutPanic(pWtr, rows); err != nil {
