@@ -131,15 +131,26 @@ func newParquetEncodeProcessorFromConfig(
 		return nil, fmt.Errorf("default_compression type %v not recognised", compressStr)
 	}
 
-	schemaType, err := GenerateStructType(conf)
+	schemaType, err := GenerateStructType(conf, schemaOpts{
+		optionalsAsStructTags: true,
+		optionalAsPtrs:        false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf(
-			"failed to generate struct type from parquet schema: %w", err)
+			"failed to generate struct type from parquet schema(schema): %w", err)
+	}
+	messageType, err := GenerateStructType(conf, schemaOpts{
+		optionalsAsStructTags: false,
+		optionalAsPtrs:        true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to generate struct type from parquet schema(message): %w", err)
 	}
 
 	schema := parquet.SchemaOf(reflect.New(schemaType).Interface())
 
-	return newParquetEncodeProcessor(logger, schema, compressDefault, schemaType)
+	return newParquetEncodeProcessor(logger, schema, compressDefault, messageType)
 }
 
 type parquetEncodeProcessor struct {

@@ -9,16 +9,27 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func GenerateStructType(config *service.ParsedConfig) (reflect.Type, error) {
+type schemaOpts struct {
+	optionalsAsStructTags bool
+	optionalAsPtrs        bool
+}
+
+func GenerateStructType(
+	config *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
 	fields, err := config.FieldAnyList("schema")
 	if err != nil {
 		return nil, fmt.Errorf("getting schema fields: %w", err)
 	}
 
-	return generateStructTypeFromFields(fields)
+	return generateStructTypeFromFields(fields, schemaOpts)
 }
 
-func generateStructTypeFromFields(fields []*service.ParsedConfig) (reflect.Type, error) {
+func generateStructTypeFromFields(
+	fields []*service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
 	var structFields []reflect.StructField
 
 	for _, field := range fields {
@@ -57,7 +68,19 @@ func generateStructTypeFromFields(fields []*service.ParsedConfig) (reflect.Type,
 			}
 		}
 
-		fieldType, err := generateFieldType(field)
+		if schemaOpts.optionalsAsStructTags {
+			if field.Contains("optional") {
+				optional, err := field.FieldBool("optional")
+				if err != nil {
+					return nil, fmt.Errorf("getting optional flag: %w", err)
+				}
+				if optional {
+					components = append(components, "optional")
+				}
+			}
+		}
+
+		fieldType, err := generateFieldType(field, schemaOpts)
 		if err != nil {
 			return nil, fmt.Errorf("generating type for field %q: %w", name, err)
 		}
@@ -77,7 +100,10 @@ func generateStructTypeFromFields(fields []*service.ParsedConfig) (reflect.Type,
 	return reflect.StructOf(structFields), nil
 }
 
-func generateFieldType(field *service.ParsedConfig) (reflect.Type, error) {
+func generateFieldType(
+	field *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
 	if field.Contains("type") {
 		typeStr, err := field.FieldString("type")
 		if err != nil {
@@ -87,12 +113,12 @@ func generateFieldType(field *service.ParsedConfig) (reflect.Type, error) {
 		var outputType reflect.Type
 		switch typeStr {
 		case "MAP":
-			outputType, err = generateMapType(field)
+			outputType, err = generateMapType(field, schemaOpts)
 			if err != nil {
 				return nil, err
 			}
 		case "LIST":
-			outputType, err = generateListType(field)
+			outputType, err = generateListType(field, schemaOpts)
 			if err != nil {
 				return nil, err
 			}
@@ -103,7 +129,7 @@ func generateFieldType(field *service.ParsedConfig) (reflect.Type, error) {
 			}
 		}
 
-		return wrapType(outputType, field)
+		return wrapType(outputType, field, schemaOpts)
 	}
 
 	// Handle nested struct
@@ -113,18 +139,21 @@ func generateFieldType(field *service.ParsedConfig) (reflect.Type, error) {
 			return nil, fmt.Errorf("getting subfields: %w", err)
 		}
 
-		structType, err := generateStructTypeFromFields(subfields)
+		structType, err := generateStructTypeFromFields(subfields, schemaOpts)
 		if err != nil {
 			return nil, fmt.Errorf("generating nested struct: %w", err)
 		}
 
-		return wrapType(structType, field)
+		return wrapType(structType, field, schemaOpts)
 	}
 
 	return nil, errors.New("field has neither type nor fields")
 }
 
-func generateListType(field *service.ParsedConfig) (reflect.Type, error) {
+func generateListType(
+	field *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
 	fields, err := field.FieldAnyList("fields")
 	if err != nil {
 		return nil, fmt.Errorf("getting map fields: %w", err)
@@ -134,7 +163,7 @@ func generateListType(field *service.ParsedConfig) (reflect.Type, error) {
 		return nil, fmt.Errorf("list type must have exactly one field (element), got %d", len(fields))
 	}
 
-	elementType, err := generateFieldType(fields[0])
+	elementType, err := generateFieldType(fields[0], schemaOpts)
 	if err != nil {
 		return nil, fmt.Errorf("generating map key type: %w", err)
 	}
@@ -142,7 +171,10 @@ func generateListType(field *service.ParsedConfig) (reflect.Type, error) {
 	return reflect.SliceOf(elementType), nil
 }
 
-func generateMapType(field *service.ParsedConfig) (reflect.Type, error) {
+func generateMapType(
+	field *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
 	fields, err := field.FieldAnyList("fields")
 	if err != nil {
 		return nil, fmt.Errorf("getting map fields: %w", err)
@@ -152,12 +184,12 @@ func generateMapType(field *service.ParsedConfig) (reflect.Type, error) {
 		return nil, fmt.Errorf("map type must have exactly two fields (key and value), got %d", len(fields))
 	}
 
-	keyType, err := generateFieldType(fields[0])
+	keyType, err := generateFieldType(fields[0], schemaOpts)
 	if err != nil {
 		return nil, fmt.Errorf("generating map key type: %w", err)
 	}
 
-	valueType, err := generateFieldType(fields[1])
+	valueType, err := generateFieldType(fields[1], schemaOpts)
 	if err != nil {
 		return nil, fmt.Errorf("generating map value type: %w", err)
 	}
@@ -190,7 +222,11 @@ func getReflectType(typeStr string) (reflect.Type, error) {
 	}
 }
 
-func wrapType(baseType reflect.Type, field *service.ParsedConfig) (reflect.Type, error) {
+func wrapType(
+	baseType reflect.Type,
+	field *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
 	if field.Contains("repeated") {
 		repeated, err := field.FieldBool("repeated")
 		if err != nil {
@@ -201,13 +237,15 @@ func wrapType(baseType reflect.Type, field *service.ParsedConfig) (reflect.Type,
 		}
 	}
 
-	if field.Contains("optional") {
-		optional, err := field.FieldBool("optional")
-		if err != nil {
-			return nil, fmt.Errorf("getting optional flag: %w", err)
-		}
-		if optional {
-			return reflect.PtrTo(baseType), nil
+	if schemaOpts.optionalAsPtrs {
+		if field.Contains("optional") {
+			optional, err := field.FieldBool("optional")
+			if err != nil {
+				return nil, fmt.Errorf("getting optional flag: %w", err)
+			}
+			if optional {
+				return reflect.PtrTo(baseType), nil
+			}
 		}
 	}
 
