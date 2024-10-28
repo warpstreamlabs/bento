@@ -102,6 +102,10 @@ func setField(field reflect.Value, value any) error {
 		case int64:
 			field.SetInt(v)
 		case float64:
+			if v >= math.MinInt64 || v <= math.MaxInt64 {
+				field.SetInt(int64(v))
+				return nil
+			}
 			field.SetInt(int64(v))
 		default:
 			return fmt.Errorf("cannot convert %T to int64", value)
