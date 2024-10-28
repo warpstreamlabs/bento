@@ -131,15 +131,36 @@ func newParquetEncodeProcessorFromConfig(
 		return nil, fmt.Errorf("default_compression type %v not recognised", compressStr)
 	}
 
-	schemaType, err := GenerateStructType(conf)
+	// For the schema, we don't want any of the actual values encoded as pointers. That works
+	// for 99% of things, but it doesn't work for decimal types, so we use the optional struct
+	// tags approach which works for 100% of things. This is fine because even thought the
+	// optional struct tags approach cant represent null values, is this just defining the schema
+	// so we don't care if the struct value is a concrete type or a pointer to a concrete type.
+	schemaType, err := GenerateStructType(conf, schemaOpts{
+		optionalsAsStructTags: true,
+		optionalAsPtrs:        false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf(
-			"failed to generate struct type from parquet schema: %w", err)
+			"failed to generate struct type from parquet schema(schema): %w", err)
+	}
+
+	// For the actual *struct values* that we're going to pass to the parquet encoder, we use
+	// the pointer approach. This is fine because this struct won't be passed to parquet.SchemaOf()
+	// so it won't trigger the panic in that function. Ensuring the struct used to represent
+	// parquet rows uses pointers for optionals ensures that we can properly represent NULL values.
+	messageType, err := GenerateStructType(conf, schemaOpts{
+		optionalsAsStructTags: false,
+		optionalAsPtrs:        true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to generate struct type from parquet schema(message): %w", err)
 	}
 
 	schema := parquet.SchemaOf(reflect.New(schemaType).Interface())
 
-	return newParquetEncodeProcessor(logger, schema, compressDefault, schemaType)
+	return newParquetEncodeProcessor(logger, schema, compressDefault, messageType)
 }
 
 type parquetEncodeProcessor struct {

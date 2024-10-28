@@ -3,6 +3,7 @@ package parquet
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 )
 
@@ -84,10 +85,11 @@ func setField(field reflect.Value, value any) error {
 			}
 			return fmt.Errorf("cannot represent %v as int32", value)
 		case float64:
-			if float64(int32(v)) == v {
+			if v >= math.MinInt32 || v <= math.MaxInt32 {
 				field.SetInt(int64(v))
 				return nil
 			}
+
 			return fmt.Errorf("cannot represent %v as int32", value)
 		default:
 			return fmt.Errorf("cannot convert %T to int64", value)
@@ -100,6 +102,10 @@ func setField(field reflect.Value, value any) error {
 		case int64:
 			field.SetInt(v)
 		case float64:
+			if v >= math.MinInt64 || v <= math.MaxInt64 {
+				field.SetInt(int64(v))
+				return nil
+			}
 			field.SetInt(int64(v))
 		default:
 			return fmt.Errorf("cannot convert %T to int64", value)
@@ -112,40 +118,25 @@ func setField(field reflect.Value, value any) error {
 		case float64:
 			field.SetFloat(v)
 		case int:
-			if int(float64(v)) == v {
-				field.SetFloat(float64(v))
-				return nil
-			}
-			return fmt.Errorf("cannot represent %v as float64", value)
+			field.SetFloat(float64(v))
+			return nil
 		case int64:
-			if int64(float64(v)) == v {
-				field.SetFloat(float64(v))
-				return nil
-			}
-			return fmt.Errorf("cannot represent %v as float64", value)
+			field.SetFloat(float64(v))
+			return nil
 		default:
 			return fmt.Errorf("cannot convert %T to float64", value)
 		}
 	case reflect.Float32:
 		switch v := value.(type) {
 		case float64:
-			if float64(float32(v)) == v {
-				field.SetFloat(v)
-				return nil
-			}
-			return fmt.Errorf("cannot represent %v as float32", value)
+			field.SetFloat(v)
+			return nil
 		case int:
-			if int(float32(v)) == v {
-				field.SetFloat(float64(v))
-				return nil
-			}
-			return fmt.Errorf("cannot represent %v as float32", value)
+			field.SetFloat(float64(v))
+			return nil
 		case int64:
-			if int64(float32(v)) == v {
-				field.SetFloat(float64(v))
-				return nil
-			}
-			return fmt.Errorf("cannot represent %v as float32", value)
+			field.SetFloat(float64(v))
+			return nil
 		default:
 			return fmt.Errorf("cannot convert %T to float64", value)
 		}

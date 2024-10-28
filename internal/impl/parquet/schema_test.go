@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenerateStructType(t *testing.T) {
+func TestGenerateStructTypeAsPtrs(t *testing.T) {
 	tests := []struct {
 		name       string
 		yaml       string
@@ -207,7 +207,7 @@ schema:
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := parquetEncodeProcessorConfig().ParseYAML(tt.yaml, nil)
 			require.NoError(t, err)
-			got, err := GenerateStructType(config)
+			got, err := GenerateStructType(config, schemaOpts{optionalAsPtrs: true})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateStructType() error = %v, wantErr %v", err, tt.wantErr)
 				return

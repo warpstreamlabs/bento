@@ -15,7 +15,9 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func TestParquetEncodePanic(t *testing.T) {
+// Before we changed this, the library used to mix and match behavior where sometimes it would quietly
+// downscale the value, and other times it would not. Now we always just do a straight cast.
+func TestParquetEncodeDoesNotPanic(t *testing.T) {
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:
   - { name: id, type: FLOAT }
@@ -30,8 +32,7 @@ schema:
 	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
 		service.NewMessage([]byte(`{"id":1e99,"name":"foo"}`)),
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot represent 1e+99 as float32")
+	require.NoError(t, err)
 
 	encodeConf, err = parquetEncodeProcessorConfig().ParseYAML(`
 schema:
@@ -46,9 +47,9 @@ schema:
 	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
 		service.NewMessage([]byte(`{"id":1e10,"name":"foo"}`)),
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot represent 1e+10 as int32")
+	require.NoError(t, err)
 }
+
 func TestParquetEncodeDecodeRoundTrip(t *testing.T) {
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:
@@ -65,6 +66,14 @@ schema:
     fields:
       - { name: a_stuff, type: BYTE_ARRAY }
       - { name: b_stuff, type: BYTE_ARRAY }
+  - { name: h, type: DECIMAL32, decimal_precision: 3, optional: True}
+  - name: ob
+    fields:
+      - name: ob_name
+        type: UTF8
+      - name: bidValue
+        type: FLOAT
+    optional: true
 `, nil)
 	require.NoError(t, err)
 
@@ -131,6 +140,14 @@ schema:
     fields:
       - { name: a_stuff, type: BYTE_ARRAY }
       - { name: b_stuff, type: BYTE_ARRAY }
+  - { name: h, type: DECIMAL32, decimal_precision: 3, optional: True}
+  - name: ob
+    fields:
+      - name: ob_name
+        type: UTF8
+      - name: bidValue
+        type: FLOAT
+    optional: true
 `, nil)
 	require.NoError(t, err)
 
@@ -244,7 +261,9 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
     "a_stuff": "a value",
     "b_stuff": "b value"
   },
-  "canary":"not in schema"
+  "canary":"not in schema",
+  "h": 1.0,
+  "ob":{"ob_name":"test","bidValue":0.15}
 }`,
 			output: `{
   "id": 3,
@@ -258,7 +277,9 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "nested_stuff": {
     "a_stuff": "a value",
     "b_stuff": "b value"
-  }
+  },
+  "h": 1.0,
+  "ob":{"ob_name":"test","bidValue":0.15}
 }`,
 		},
 		{
@@ -281,7 +302,9 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "e": null,
   "f": 7,
   "g": "logical string represent",
-  "nested_stuff": null
+  "nested_stuff": null,
+  "h": null,
+  "ob": null
 }`,
 		},
 	} {
@@ -560,4 +583,37 @@ schema:
 		schema := parquet.NewSchema("", tt.expected)
 		require.Equal(t, schema.String(), encodeProc.schema.String())
 	}
+}
+
+func TestEncodeDecimalOptional(t *testing.T) {
+	tests := []struct {
+		config   string
+		expected parquet.Node
+	}{
+		{
+			config: `
+    schema:
+      - name: floor_value
+        optional: true
+        type: DECIMAL32
+        decimal_scale: 4
+        decimal_precision: 8
+`,
+			expected: parquet.Group{
+				"floor_value": parquet.Optional(parquet.Decimal(4, 8, parquet.Int32Type)),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(tt.config, nil)
+		require.NoError(t, err)
+
+		encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+		require.NoError(t, err)
+
+		schema := parquet.NewSchema("", tt.expected)
+		require.Equal(t, schema.String(), encodeProc.schema.String())
+	}
+
 }
