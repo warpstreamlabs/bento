@@ -8,13 +8,24 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
+
+type testErr struct {
+}
+
+func (t testErr) Error() string {
+	return "custom error"
+}
+func (t testErr) Foo() string {
+	return "bar"
+}
 
 func TestStrictLogger(t *testing.T) {
 	loggerConfig := NewConfig()
 	loggerConfig.AddTimeStamp = false
-	loggerConfig.StrictLogging = true
+	loggerConfig.LogAllErrors = true
 	loggerConfig.Format = "logfmt"
 	loggerConfig.LogLevel = "ERROR"
 	loggerConfig.StaticFields = map[string]string{
@@ -25,13 +36,15 @@ func TestStrictLogger(t *testing.T) {
 	var buf bytes.Buffer
 
 	failureError := errors.New("fail")
+	customErr := &testErr{}
 
 	expected := `level=error msg="Error message root module: fail" @service=bento_service @strict=true @system=foo
 level=error msg="Warning message root module: fail" @service=bento_service @strict=true @system=foo
 level=error msg="Info message root module: fail" @service=bento_service @strict=true @system=foo
 level=error msg="Debug message root module: fail" @service=bento_service @strict=true @system=foo
 level=error msg="Trace message root module: fail" @service=bento_service @strict=true @system=foo
-` + fmt.Sprintf(`level=error msg="Warning message root module with error pointer: %v" @service=bento_service @strict=true @system=foo`+"\n", &failureError)
+` + fmt.Sprintf(`level=error msg="Warning message root module with error pointer: %v" @service=bento_service @strict=true @system=foo`+"\n", &failureError) +
+		`level=error msg="Trace message root module with custom error: custom error" @service=bento_service @strict=true @system=foo` + "\n"
 
 	tests := []struct {
 		name     string
@@ -59,7 +72,7 @@ level=error msg="Trace message root module: fail" @service=bento_service @strict
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			logger := WrapStrict(tt.loggerFn())
+			logger := WrapErrPromoter(tt.loggerFn())
 
 			logger.Trace("Error message root module: %s", failureError)
 			logger.Warn("Warning message root module: %s", failureError)
@@ -69,6 +82,9 @@ level=error msg="Trace message root module: fail" @service=bento_service @strict
 
 			// Ensure a pointer to an error is also promoted
 			logger.Warn("Warning message root module with error pointer: %v", &failureError)
+
+			// Ensure a custom error type is promoted
+			logger.Trace("Trace message root module with custom error: %s", customErr)
 
 			logger.Warn("Warning message root module")
 			logger.Warn("Info message root module")

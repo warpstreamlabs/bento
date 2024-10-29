@@ -14,7 +14,7 @@ const (
 	fieldFilePath         = "path"
 	fieldFileRotate       = "rotate"
 	fieldFileRotateMaxAge = "rotate_max_age_days"
-	fieldStrictLogging    = "strict"
+	fieldLogAllErrors     = "log_all_errors"
 )
 
 // Config holds configuration options for a logger object.
@@ -22,7 +22,7 @@ type Config struct {
 	LogLevel      string            `yaml:"level"`
 	Format        string            `yaml:"format"`
 	AddTimeStamp  bool              `yaml:"add_timestamp"`
-	StrictLogging bool              `yaml:"strict"`
+	LogAllErrors  bool              `yaml:"log_all_errors"`
 	LevelName     string            `yaml:"level_name"`
 	MessageName   string            `yaml:"message_name"`
 	TimestampName string            `yaml:"timestamp_name"`
@@ -43,7 +43,7 @@ func NewConfig() Config {
 		LogLevel:      "INFO",
 		Format:        "logfmt",
 		AddTimeStamp:  false,
-		StrictLogging: false,
+		LogAllErrors:  false,
 		LevelName:     "level",
 		TimestampName: "time",
 		MessageName:   "msg",
@@ -84,7 +84,7 @@ func FromParsed(pConf *docs.ParsedConfig) (conf Config, err error) {
 	if conf.AddTimeStamp, err = pConf.FieldBool(fieldAddTimeStamp); err != nil {
 		return
 	}
-	if conf.StrictLogging, err = pConf.FieldBool(fieldStrictLogging); err != nil {
+	if conf.LogAllErrors, err = pConf.FieldBool(fieldLogAllErrors); err != nil {
 		return
 	}
 	if conf.LevelName, err = pConf.FieldString(fieldLevelName); err != nil {

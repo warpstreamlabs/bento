@@ -138,7 +138,7 @@ The maximum number of days to retain old log files based on the timestamp encode
 Type: `int`  
 Default: `0`  
 
-### `strict`
+### `log_all_errors`
 
 When set, the logger will promote any log containing an `error` type to the `ERROR` level.
 

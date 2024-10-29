@@ -1,18 +1,18 @@
 package log
 
-type strictLogger struct {
+type errPromotionLogger struct {
 	logger Modular
 }
 
-func WrapStrict(l Modular) Modular {
-	wrappedLogger := &strictLogger{
+func WrapErrPromoter(l Modular) Modular {
+	wrappedLogger := &errPromotionLogger{
 		logger: l,
 	}
 
 	return wrappedLogger.With("@strict", true)
 }
 
-func (s *strictLogger) promoteOnError(promotedFrom, format string, v ...any) bool {
+func (s *errPromotionLogger) promoteOnError(promotedFrom, format string, v ...any) bool {
 	for _, arg := range v {
 		if arg == nil {
 			continue
@@ -32,45 +32,45 @@ func (s *strictLogger) promoteOnError(promotedFrom, format string, v ...any) boo
 
 //------------------------------------------------------------------------------
 
-func (s *strictLogger) WithFields(fields map[string]string) Modular {
-	return &strictLogger{
+func (s *errPromotionLogger) WithFields(fields map[string]string) Modular {
+	return &errPromotionLogger{
 		logger: s.logger.WithFields(fields),
 	}
 }
 
-func (s *strictLogger) With(keyValues ...any) Modular {
-	return &strictLogger{
+func (s *errPromotionLogger) With(keyValues ...any) Modular {
+	return &errPromotionLogger{
 		logger: s.logger.With(keyValues...),
 	}
 }
 
-func (s *strictLogger) Fatal(format string, v ...any) {
+func (s *errPromotionLogger) Fatal(format string, v ...any) {
 	s.logger.Fatal(format, v...)
 }
 
-func (s *strictLogger) Error(format string, v ...any) {
+func (s *errPromotionLogger) Error(format string, v ...any) {
 	s.logger.Error(format, v...)
 }
 
-func (s *strictLogger) Warn(format string, v ...any) {
+func (s *errPromotionLogger) Warn(format string, v ...any) {
 	if hasErr := s.promoteOnError("WARN", format, v...); !hasErr {
 		s.logger.Warn(format, v...)
 	}
 }
 
-func (s *strictLogger) Info(format string, v ...any) {
+func (s *errPromotionLogger) Info(format string, v ...any) {
 	if hasErr := s.promoteOnError("INFO", format, v...); !hasErr {
 		s.logger.Info(format, v...)
 	}
 }
 
-func (s *strictLogger) Debug(format string, v ...any) {
+func (s *errPromotionLogger) Debug(format string, v ...any) {
 	if hasErr := s.promoteOnError("DEBUG", format, v...); !hasErr {
 		s.logger.Debug(format, v...)
 	}
 }
 
-func (s *strictLogger) Trace(format string, v ...any) {
+func (s *errPromotionLogger) Trace(format string, v ...any) {
 	if hasErr := s.promoteOnError("TRACE", format, v...); !hasErr {
 		s.logger.Trace(format, v...)
 	}
