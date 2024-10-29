@@ -95,6 +95,34 @@ However, it is possible to instead create documents in [standard/raw JSON format
 This processor decodes protobuf messages to JSON documents, you can read more about JSON mapping of protobuf messages here: https://developers.google.com/protocol-buffers/docs/proto3#json
 
 
+## Examples
+
+<Tabs defaultValue="Decode kafka_key metadata" values={[
+{ label: 'Decode kafka_key metadata', value: 'Decode kafka_key metadata', },
+]}>
+
+<TabItem value="Decode kafka_key metadata">
+
+An example of decoding the kafka_key using a [branch](/docs/components/processors/branch) processor
+
+```yaml
+pipeline:
+  processors:
+    - schema_registry_decode:
+        url: ${SCHEMA_REGISTRY_URL}
+    - branch:
+        request_map: |
+          root = metadata("kafka_key")
+        processors:
+          - schema_registry_decode:
+              url: ${SCHEMA_REGISTRY_URL}
+        result_map: |
+          meta kafka_key = this.string()
+```
+
+</TabItem>
+</Tabs>
+
 ## Fields
 
 ### `avro_raw_json`
