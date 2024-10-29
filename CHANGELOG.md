@@ -3,6 +3,20 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.0 - 2024-10-29
+
+### Added
+
+- Exposed option to enable event flusing for processor events & input events @sananguliyev
+- Added `QuestDB` output component @sklarsa
+- Added `spanner` driver to SQL components @rvilim
+- Added more config fields to `kafka_franz` input component @gregfurman
+- Altered `gcp_bigquery` config field `table` to allow interpolation @jem-davies
+- Added `gcp_bigquery_write_api` output component @gregfurman
+- Added AWS config fields to SQL Components to enable storing user/password in AWS Secret Manager @jem-davies
+- Added `DECIMAL32`, `DECIMAL32`, `MAP`, `LIST` types to `parquet_encode` processor @ryanworl
+- Improved parquet handling of optional decimals and float <> float conversions @richardartoul
+
 ## 1.2.0 - 2024-08-21
 
 ### Added
