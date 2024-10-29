@@ -140,9 +140,10 @@ Default: `0`
 
 ### `log_all_errors`
 
-When set, the logger will promote any log containing an `error` type to the `ERROR` level.
+Experimental: When set, the logger will promote any log containing an `error` type to the `ERROR` level.
 
 
 Type: `bool`  
 Default: `false`  
+Requires version 1.3.0 or newer  
 

@@ -28,8 +28,8 @@ func CreateLogger(c *cli.Context, opts *CLIOpts, conf config.Type, streamsMode b
 		return
 	}
 
-	if conf.Logger.StrictLogging {
-		logger = log.WrapStrict(logger)
+	if conf.Logger.LogAllErrors {
+		logger = log.WrapErrPromoter(logger)
 	}
 
 	return

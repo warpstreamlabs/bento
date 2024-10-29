@@ -9,7 +9,7 @@ func WrapErrPromoter(l Modular) Modular {
 		logger: l,
 	}
 
-	return wrappedLogger.With("@strict", true)
+	return wrappedLogger.With("@log_all_errors", true)
 }
 
 func (s *errPromotionLogger) promoteOnError(promotedFrom, format string, v ...any) bool {

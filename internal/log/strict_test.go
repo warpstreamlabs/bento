@@ -38,13 +38,13 @@ func TestStrictLogger(t *testing.T) {
 	failureError := errors.New("fail")
 	customErr := &testErr{}
 
-	expected := `level=error msg="Error message root module: fail" @service=bento_service @strict=true @system=foo
-level=error msg="Warning message root module: fail" @service=bento_service @strict=true @system=foo
-level=error msg="Info message root module: fail" @service=bento_service @strict=true @system=foo
-level=error msg="Debug message root module: fail" @service=bento_service @strict=true @system=foo
-level=error msg="Trace message root module: fail" @service=bento_service @strict=true @system=foo
-` + fmt.Sprintf(`level=error msg="Warning message root module with error pointer: %v" @service=bento_service @strict=true @system=foo`+"\n", &failureError) +
-		`level=error msg="Trace message root module with custom error: custom error" @service=bento_service @strict=true @system=foo` + "\n"
+	expected := `level=error msg="Error message root module: fail" @log_all_errors=true @service=bento_service @system=foo
+level=error msg="Warning message root module: fail" @log_all_errors=true @service=bento_service @system=foo
+level=error msg="Info message root module: fail" @log_all_errors=true @service=bento_service @system=foo
+level=error msg="Debug message root module: fail" @log_all_errors=true @service=bento_service @system=foo
+level=error msg="Trace message root module: fail" @log_all_errors=true @service=bento_service @system=foo
+` + fmt.Sprintf(`level=error msg="Warning message root module with error pointer: %v" @log_all_errors=true @service=bento_service @system=foo`+"\n", &failureError) +
+		`level=error msg="Trace message root module with custom error: custom error" @log_all_errors=true @service=bento_service @system=foo` + "\n"
 
 	tests := []struct {
 		name     string
