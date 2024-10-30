@@ -31,7 +31,7 @@ func ProcessorConfig() *service.ConfigSpec {
 		Version("1.0.0").
 		Categories("Integration").
 		Summary("Performs operations against Couchbase for each message, allowing you to store or retrieve data within message payloads.").
-		Description("When inserting, replacing or upserting documents, each must have the `content` property set.\n\n### Concurrent Document Mutations\nTo prevent read/write conflicts, Couchbase returns a [_Compare And Swap_ (CAS)](https://docs.couchbase.com/go-sdk/current/howtos/concurrent-document-mutations.html) value with each accessed document. Bento stores these as key/value pairs in metadata with the `couchbase_cas` field. Note: CAS checks are disabled by default. You can configure this by changing the value of `cas_enabled: true`. Future versions will see this enabled by default.").
+		Description("When inserting, replacing or upserting documents, each must have the `content` property set.\n\n### Concurrent Document Mutations\nTo prevent read/write conflicts, Couchbase returns a [_Compare And Swap_ (CAS)](https://docs.couchbase.com/go-sdk/current/howtos/concurrent-document-mutations.html) value with each accessed document. Bento stores these as key/value pairs in metadata with the `couchbase_cas` field. Note: CAS checks are enabled by default. You can configure this by changing the value of `cas_enabled: false`.").
 		Field(service.NewInterpolatedStringField("id").Description("Document id.").Example(`${! json("id") }`)).
 		Field(service.NewBloblangField("content").Description("Document content.").Optional()).
 		Field(service.NewStringAnnotatedEnumField("operation", map[string]string{
@@ -41,7 +41,7 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationReplace): "replace the contents of a document.",
 			string(client.OperationUpsert):  "creates a new document if it does not exist, if it does exist then it updates it.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
-		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(false)). // TODO: Enable by default in next release
+		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(true)). // TODO: Consider removal in next release?
 		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert") && !this.exists("content")) { [ "content must be set for insert, replace and upsert operations." ] }`)
 }
 
