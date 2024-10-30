@@ -20,6 +20,7 @@ const (
 	dedupFieldCache          = "cache"
 	dedupFieldKey            = "key"
 	dedupFieldDropOnCacheErr = "drop_on_err"
+	dedupFieldStrategy       = "strategy"
 )
 
 func dedupeProcSpec() *service.ConfigSpec {
@@ -66,6 +67,12 @@ cache_resources:
 			service.NewBoolField(dedupFieldDropOnCacheErr).
 				Description("Whether messages should be dropped when the cache returns a general error such as a network issue.").
 				Default(true),
+			service.NewStringAnnotatedEnumField(dedupFieldStrategy, map[string]string{
+				"FIFO": "Keeps the first value seen for each key.",
+				"LIFO": "Keeps the last value seen for each key.",
+			}).
+				Description("Controls how to handle duplicate values.").
+				Default("FIFO").Advanced(),
 		)
 }
 
@@ -88,8 +95,21 @@ func init() {
 				return nil, err
 			}
 
+			dedupeStrategy, err := conf.FieldString(dedupFieldStrategy)
+			if err != nil {
+				return nil, err
+			}
+
+			var isFifo bool
+			switch dedupeStrategy {
+			case "FIFO":
+				isFifo = true
+			case "LIFO":
+				isFifo = false
+			}
+
 			mgr := interop.UnwrapManagement(res)
-			p, err := newDedupe(cache, keyStr, dropOnErr, mgr)
+			p, err := newDedupe(cache, keyStr, dropOnErr, isFifo, mgr)
 			if err != nil {
 				return nil, err
 			}
@@ -100,6 +120,8 @@ func init() {
 	}
 }
 
+// type cacheOperation func(cache cache.V1, ctx context.Context, key string, value []byte, ttl *time.Duration) error
+
 type dedupeProc struct {
 	log log.Modular
 
@@ -107,9 +129,11 @@ type dedupeProc struct {
 	key       *field.Expression
 	mgr       bundle.NewManagement
 	cacheName string
+	isFifo    bool
+	// cacheOp   cacheOperation
 }
 
-func newDedupe(cache, keyStr string, dropOnErr bool, mgr bundle.NewManagement) (*dedupeProc, error) {
+func newDedupe(cacheStr, keyStr string, dropOnErr, isFifo bool, mgr bundle.NewManagement) (*dedupeProc, error) {
 	if keyStr == "" {
 		return nil, errors.New("dedupe key must not be empty")
 	}
@@ -118,22 +142,28 @@ func newDedupe(cache, keyStr string, dropOnErr bool, mgr bundle.NewManagement) (
 		return nil, fmt.Errorf("failed to parse key expression: %v", err)
 	}
 
-	if !mgr.ProbeCache(cache) {
-		return nil, fmt.Errorf("cache resource '%v' was not found", cache)
+	if !mgr.ProbeCache(cacheStr) {
+		return nil, fmt.Errorf("cache resource '%v' was not found", cacheStr)
 	}
 
 	return &dedupeProc{
 		log:       mgr.Logger(),
 		dropOnErr: dropOnErr,
+		isFifo:    isFifo,
 		key:       key,
 		mgr:       mgr,
-		cacheName: cache,
+		cacheName: cacheStr,
 	}, nil
 }
 
 func (d *dedupeProc) ProcessBatch(ctx *processor.BatchProcContext, batch message.Batch) ([]message.Batch, error) {
 	newBatch := message.QuickBatch(nil)
 	_ = batch.Iter(func(i int, p *message.Part) error {
+		if !d.isFifo {
+			// reverse order if LIFO
+			i = len(batch) - i - 1
+			p = batch[i]
+		}
 		key, err := d.key.String(i, batch)
 		if err != nil {
 			err = fmt.Errorf("key interpolation error: %w", err)
@@ -161,7 +191,13 @@ func (d *dedupeProc) ProcessBatch(ctx *processor.BatchProcContext, batch message
 			ctx.OnError(err, i, p)
 		}
 
-		newBatch = append(newBatch, p)
+		if d.isFifo {
+			// append if FIFO
+			newBatch = append(newBatch, p)
+		} else {
+			// prepend if LIFO since we are reversing the order
+			newBatch = append([]*message.Part{p}, newBatch...)
+		}
 		return nil
 	})
 

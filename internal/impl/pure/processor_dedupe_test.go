@@ -57,6 +57,34 @@ dedupe:
 	assert.Equal(t, 2, msgOut[0].Len())
 }
 
+func TestDedupeLIFO(t *testing.T) {
+	doc1 := []byte(`{"key": "foo", "value": "bar1"}`)
+	doc2 := []byte(`{"key": "foo", "value": "bar2"}`)
+	doc3 := []byte(`{"key": "foo", "value": "bar3"}`)
+
+	mgr := mock.NewManager()
+	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
+
+	conf, err := testutil.ProcessorFromYAML(`
+dedupe:
+  cache: foocache
+  key: ${!json("key")}
+  strategy: LIFO
+`)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(conf)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	msgIn := message.QuickBatch([][]byte{doc1, doc2, doc3, doc4})
+	msgOut, err := proc.ProcessBatch(ctx, msgIn)
+	require.NoError(t, err)
+	require.Len(t, msgOut, 1)
+	require.Len(t, msgOut[0], 1)
+	require.Equal(t, string(doc3), string(msgOut[0].Get(0).AsBytes()))
+}
+
 func TestDedupeBadCache(t *testing.T) {
 	conf, err := testutil.ProcessorFromYAML(`
 dedupe:
