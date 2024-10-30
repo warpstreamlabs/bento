@@ -41,7 +41,7 @@ couchbase:
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
   operation: get
-  cas_enabled: false
+  cas_enabled: true
 ```
 
 </TabItem>
@@ -61,7 +61,7 @@ couchbase:
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
   operation: get
-  cas_enabled: false
+  cas_enabled: true
 ```
 
 </TabItem>
@@ -70,7 +70,7 @@ couchbase:
 When inserting, replacing or upserting documents, each must have the `content` property set.
 
 ### Concurrent Document Mutations
-To prevent read/write conflicts, Couchbase returns a [_Compare And Swap_ (CAS)](https://docs.couchbase.com/go-sdk/current/howtos/concurrent-document-mutations.html) value with each accessed document. Bento stores these as key/value pairs in metadata with the `couchbase_cas` field. Note: CAS checks are disabled by default. You can configure this by changing the value of `cas_enabled: true`. Future versions will see this enabled by default.
+To prevent read/write conflicts, Couchbase returns a [_Compare And Swap_ (CAS)](https://docs.couchbase.com/go-sdk/current/howtos/concurrent-document-mutations.html) value with each accessed document. Bento stores these as key/value pairs in metadata with the `couchbase_cas` field. Note: CAS checks are enabled by default. You can configure this by changing the value of `cas_enabled: false`.
 
 ## Fields
 
@@ -188,6 +188,6 @@ Enable CAS validation.
 
 
 Type: `bool`  
-Default: `false`  
+Default: `true`  
 
 
