@@ -74,6 +74,65 @@ func setField(field reflect.Value, value any) error {
 		// For interface{} fields, we can directly set the value
 		field.Set(reflect.ValueOf(value))
 		return nil
+	case reflect.Int8:
+		switch v := value.(type) {
+		case int8:
+			field.SetInt(int64(v))
+			return nil
+		case int16:
+			if int16(int8(v)) == v {
+				field.SetInt(int64(v))
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int8", value)
+		case int32:
+			if int32(int8(v)) == v {
+				field.SetInt(int64(v))
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int8", value)
+		case int64:
+			if int64(int8(v)) == v {
+				field.SetInt(v)
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int8", value)
+		case float64:
+			if v >= math.MinInt8 || v <= math.MaxInt8 {
+				field.SetInt(int64(v))
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int8", value)
+		}
+	case reflect.Int16:
+		switch v := value.(type) {
+		case int8:
+			field.SetInt(int64(v))
+			return nil
+		case int16:
+			field.SetInt(int64(v))
+			return nil
+		case int32:
+			if int32(int16(v)) == v {
+				field.SetInt(int64(v))
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int16", value)
+		case int64:
+			if int64(int16(v)) == v {
+				field.SetInt(v)
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int16", value)
+		case float64:
+			if v >= math.MinInt16 || v <= math.MaxInt16 {
+				field.SetInt(int64(v))
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int16", value)
+		default:
+			return fmt.Errorf("cannot convert %T to int16", value)
+		}
 	case reflect.Int32:
 		switch v := value.(type) {
 		case int:

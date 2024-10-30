@@ -203,6 +203,10 @@ func getReflectType(typeStr string) (reflect.Type, error) {
 		return reflect.TypeOf(""), nil
 	case "BYTE_ARRAY":
 		return reflect.TypeOf([]byte(nil)), nil
+	case "INT8":
+		return reflect.TypeOf(int8(0)), nil
+	case "INT16":
+		return reflect.TypeOf(int16(0)), nil
 	case "INT32":
 		return reflect.TypeOf(int32(0)), nil
 	case "INT64":

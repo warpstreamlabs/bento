@@ -20,16 +20,18 @@ type NestedStruct struct {
 }
 
 type ComplexStruct struct {
-	ID        string             `json:"id"`
-	Nested    NestedStruct       `json:"nested"`
-	Numbers   []int64            `json:"numbers"`
-	Floats    []float64          `json:"floats"`
-	Mixed     []any              `json:"mixed"`
-	Structs   []SimpleStruct     `json:"structs"`
-	StringMap map[string]string  `json:"stringMap"`
-	IntMap    map[string]int64   `json:"intMap"`
-	FloatMap  map[string]float64 `json:"floatMap"`
-	BoolMap   map[string]bool    `json:"boolMap"`
+	ID           string             `json:"id"`
+	Nested       NestedStruct       `json:"nested"`
+	Numbers      []int64            `json:"numbers"`
+	Floats       []float64          `json:"floats"`
+	Mixed        []any              `json:"mixed"`
+	Structs      []SimpleStruct     `json:"structs"`
+	StringMap    map[string]string  `json:"stringMap"`
+	IntMap       map[string]int64   `json:"intMap"`
+	FloatMap     map[string]float64 `json:"floatMap"`
+	BoolMap      map[string]bool    `json:"boolMap"`
+	TinyNumbers  []int8             `json:"tinyNumbers"`
+	SmallNumbers []int16            `json:"smallNumbers"`
 }
 
 func TestMapToStruct(t *testing.T) {
@@ -127,6 +129,8 @@ func TestMapToStruct(t *testing.T) {
 					"true":  true,
 					"false": false,
 				},
+				"tinyNumbers":  []any{int8(-128), int8(-1), int8(0), int8(1), int8(127)},
+				"smallNumbers": []any{int16(-32768), int16(-1), int16(0), int16(1), int16(32767)},
 			},
 			dest: &ComplexStruct{},
 			want: &ComplexStruct{
@@ -174,6 +178,8 @@ func TestMapToStruct(t *testing.T) {
 					"true":  true,
 					"false": false,
 				},
+				TinyNumbers:  []int8{-128, -1, 0, 1, 127},
+				SmallNumbers: []int16{-32768, -1, 0, 1, 32767},
 			},
 		},
 		{

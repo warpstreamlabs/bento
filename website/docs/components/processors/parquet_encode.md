@@ -120,7 +120,7 @@ The type of the column, only applicable for leaf columns with no child fields. M
 
 
 Type: `string`  
-Options: `BOOLEAN`, `INT32`, `INT64`, `DECIMAL64`, `DECIMAL32`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`, `MAP`, `LIST`.
+Options: `BOOLEAN`, `INT8`, `INT16`, `INT32`, `INT64`, `DECIMAL64`, `DECIMAL32`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`, `MAP`, `LIST`.
 
 ### `schema[].decimal_precision`
 
