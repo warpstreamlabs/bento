@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Exposed option to enable event flusing for processor events & input events @sananguliyev
+- Exposed option to enable event flushing for processor events & input events @sananguliyev
 - Added `QuestDB` output component @sklarsa
 - Added `spanner` driver to SQL components @rvilim
 - Added more config fields to `kafka_franz` input component @gregfurman
