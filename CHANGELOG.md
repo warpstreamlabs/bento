@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - Added AWS config fields to SQL Components to enable storing user/password in AWS Secret Manager @jem-davies
 - Added `DECIMAL32`, `DECIMAL32`, `MAP`, `LIST` types to `parquet_encode` processor @ryanworl
 - Improved parquet handling of optional decimals and float <> float conversions @richardartoul
+- Altered default value for field `cas_enabled` to true in `couchbase` processor @sapk
 
 ## 1.2.0 - 2024-08-21
 
