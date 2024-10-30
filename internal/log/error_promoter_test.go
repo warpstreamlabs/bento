@@ -22,7 +22,7 @@ func (t testErr) Foo() string {
 	return "bar"
 }
 
-func TestStrictLogger(t *testing.T) {
+func TestErrorPromotionLogger(t *testing.T) {
 	loggerConfig := NewConfig()
 	loggerConfig.AddTimeStamp = false
 	loggerConfig.LogAllErrors = true
