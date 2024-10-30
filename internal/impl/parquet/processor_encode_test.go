@@ -18,6 +18,9 @@ import (
 // Before we changed this, the library used to mix and match behavior where sometimes it would quietly
 // downscale the value, and other times it would not. Now we always just do a straight cast.
 func TestParquetEncodeDoesNotPanic(t *testing.T) {
+	// We assume that converting integers to floats and vice versa
+	// that its "obvious" that there is some lossiness and that is
+	// acceptable.
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:
   - { name: id, type: FLOAT }
@@ -34,6 +37,8 @@ schema:
 	})
 	require.NoError(t, err)
 
+	// But underflowing/overflowing integers is not acceptable and we return
+	// an error.
 	encodeConf, err = parquetEncodeProcessorConfig().ParseYAML(`
 schema:
   - { name: id, type: INT32 }
@@ -47,7 +52,7 @@ schema:
 	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
 		service.NewMessage([]byte(`{"id":1e10,"name":"foo"}`)),
 	})
-	require.NoError(t, err)
+	require.Error(t, err)
 }
 
 func TestParquetEncodeDecodeRoundTrip(t *testing.T) {

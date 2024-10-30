@@ -23,6 +23,8 @@ func TestGenerateStructTypeAsPtrs(t *testing.T) {
 schema:
   - { name: str, type: UTF8 }
   - { name: num, type: INT64 }
+  - { name: smallNum, type: INT16 }
+  - { name: tinyNum, type: INT8 }
   - { name: flt, type: FLOAT }
   - { name: bool, type: BOOLEAN }
   - { name: dec32, type: DECIMAL32, decimal_precision: 3}
@@ -32,12 +34,14 @@ schema:
 				fieldType reflect.Type
 				tag       string
 			}{
-				"Str":   {reflect.TypeOf(""), `parquet:"str" json:"str"`},
-				"Num":   {reflect.TypeOf(int64(0)), `parquet:"num" json:"num"`},
-				"Flt":   {reflect.TypeOf(float32(0)), `parquet:"flt" json:"flt"`},
-				"Bool":  {reflect.TypeOf(false), `parquet:"bool" json:"bool"`},
-				"Dec32": {reflect.TypeOf(int32(0)), `parquet:"dec32,decimal(0:3)" json:"dec32"`},
-				"Dec64": {reflect.TypeOf(int64(0)), `parquet:"dec64,decimal(4:10)" json:"dec64"`},
+				"Str":      {reflect.TypeOf(""), `parquet:"str" json:"str"`},
+				"Num":      {reflect.TypeOf(int64(0)), `parquet:"num" json:"num"`},
+				"SmallNum": {reflect.TypeOf(int16(0)), `parquet:"smallNum" json:"smallNum"`},
+				"TinyNum":  {reflect.TypeOf(int8(0)), `parquet:"tinyNum" json:"tinyNum"`},
+				"Flt":      {reflect.TypeOf(float32(0)), `parquet:"flt" json:"flt"`},
+				"Bool":     {reflect.TypeOf(false), `parquet:"bool" json:"bool"`},
+				"Dec32":    {reflect.TypeOf(int32(0)), `parquet:"dec32,decimal(0:3)" json:"dec32"`},
+				"Dec64":    {reflect.TypeOf(int64(0)), `parquet:"dec64,decimal(4:10)" json:"dec64"`},
 			},
 		},
 		{
@@ -155,6 +159,7 @@ schema:
   - { name: id, type: INT64 }
   - { name: as, type: FLOAT, repeated: true }
   - { name: g, type: INT64, optional: true }
+  - { name: h, type: INT16, optional: true }
   - name: withchild
     optional: true
     fields:
@@ -180,6 +185,10 @@ schema:
 				"G": {
 					fieldType: reflect.PointerTo(reflect.TypeOf(int64(0))),
 					tag:       `parquet:"g" json:"g"`,
+				},
+				"H": {
+					fieldType: reflect.PointerTo(reflect.TypeOf(int16(0))),
+					tag:       `parquet:"h" json:"h"`,
 				},
 				"Withchild": {
 					fieldType: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
