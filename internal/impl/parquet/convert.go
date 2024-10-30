@@ -98,11 +98,13 @@ func setField(field reflect.Value, value any) error {
 			}
 			return fmt.Errorf("cannot represent %v as int8", value)
 		case float64:
-			if v >= math.MinInt8 || v <= math.MaxInt8 {
+			if v >= math.MinInt8 && v <= math.MaxInt8 {
 				field.SetInt(int64(v))
 				return nil
 			}
 			return fmt.Errorf("cannot represent %v as int8", value)
+		default:
+			return fmt.Errorf("cannot convert %T to int8", value)
 		}
 	case reflect.Int16:
 		switch v := value.(type) {
@@ -125,7 +127,7 @@ func setField(field reflect.Value, value any) error {
 			}
 			return fmt.Errorf("cannot represent %v as int16", value)
 		case float64:
-			if v >= math.MinInt16 || v <= math.MaxInt16 {
+			if v >= math.MinInt16 && v <= math.MaxInt16 {
 				field.SetInt(int64(v))
 				return nil
 			}
