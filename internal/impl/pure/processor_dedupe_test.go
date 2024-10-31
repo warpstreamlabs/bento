@@ -58,10 +58,6 @@ dedupe:
 }
 
 func TestDedupeLIFO(t *testing.T) {
-	doc1 := []byte(`{"key": "foo", "value": "bar1"}`)
-	doc2 := []byte(`{"key": "foo", "value": "bar2"}`)
-	doc3 := []byte(`{"key": "foo", "value": "bar3"}`)
-
 	mgr := mock.NewManager()
 	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
 
@@ -77,12 +73,25 @@ dedupe:
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	msgIn := message.QuickBatch([][]byte{doc1, doc2, doc3, doc4})
+
+	msgIn := message.QuickBatch([][]byte{
+		[]byte(`{"key":"1","value":"foo 1"}`),
+		[]byte(`{"key":"2","value":"foo 2"}`),
+		[]byte(`{"key":"1","value":"updated foo"}`),
+	})
+
+	expectedOut := [][]byte{
+		[]byte(`{"key":"2","value":"foo 2"}`),
+		[]byte(`{"key":"1","value":"updated foo"}`),
+	}
+
 	msgOut, err := proc.ProcessBatch(ctx, msgIn)
 	require.NoError(t, err)
 	require.Len(t, msgOut, 1)
-	require.Len(t, msgOut[0], 1)
-	require.Equal(t, string(doc3), string(msgOut[0].Get(0).AsBytes()))
+	require.Len(t, msgOut[0], 2)
+
+	require.Equal(t, expectedOut[0], msgOut[0].Get(0).AsBytes())
+	require.Equal(t, expectedOut[1], msgOut[0].Get(1).AsBytes())
 }
 
 func TestDedupeBadCache(t *testing.T) {
