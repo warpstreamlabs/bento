@@ -33,7 +33,7 @@ func StreamBenchSend(batchSize, parallelism int) StreamBenchDefinition {
 			set := map[string][]string{}
 			for j := 0; j < sends; j++ {
 				for i := 0; i < batchSize; i++ {
-					payload := fmt.Sprintf("hello world %v", j*sends+i)
+					payload := fmt.Sprintf("hello world %v", j*batchSize+i)
 					set[payload] = nil
 				}
 			}
@@ -68,7 +68,7 @@ func StreamBenchSend(batchSize, parallelism int) StreamBenchDefinition {
 			for j := 0; j < sends; j++ {
 				payloads := []string{}
 				for i := 0; i < batchSize; i++ {
-					payload := fmt.Sprintf("hello world %v", j*sends+i)
+					payload := fmt.Sprintf("hello world %v", j*batchSize+i)
 					payloads = append(payloads, payload)
 				}
 				batchChan <- payloads
@@ -172,7 +172,7 @@ func StreamBenchWrite(batchSize int) StreamBenchDefinition {
 			batch := make([]string, batchSize)
 			for j := 0; j < sends; j++ {
 				for i := 0; i < batchSize; i++ {
-					batch[i] = fmt.Sprintf(`{"content":"hello world","id":%v}`, j*sends+i)
+					batch[i] = fmt.Sprintf(`{"content":"hello world","id":%v}`, j*batchSize+i)
 				}
 				assert.NoError(b, sendBatch(env.ctx, b, tranChan, batch))
 			}

@@ -574,18 +574,20 @@ func messagesInSet(t testing.TB, pop, allowDupes bool, b message.Batch, set map[
 	t.Helper()
 
 	for _, p := range b {
-		metadata, exists := set[string(p.AsBytes())]
+		contents := string(p.AsBytes())
+
+		metadata, exists := set[contents]
 		if allowDupes && !exists {
 			return
 		}
-		require.True(t, exists, "in set: %v, set: %v", string(p.AsBytes()), set)
+		require.True(t, exists, "in set: %v, set: %v", contents, set)
 
 		for i := 0; i < len(metadata); i += 2 {
 			assert.Equal(t, metadata[i+1], p.MetaGetStr(metadata[i]))
 		}
 
 		if pop {
-			delete(set, string(p.AsBytes()))
+			delete(set, contents)
 		}
 	}
 }
