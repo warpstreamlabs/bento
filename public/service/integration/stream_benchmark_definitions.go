@@ -179,3 +179,39 @@ func StreamBenchWrite(batchSize int) StreamBenchDefinition {
 		},
 	)
 }
+
+// StreamBenchReadSaturated benchmarks the speed at which messages are consumed
+// over the templated input, by first saturating the output with messages.
+func StreamBenchReadSaturated() StreamBenchDefinition {
+	return namedBench(
+		"read saturated messages",
+		func(b *testing.B, env *streamTestEnvironment) {
+			tranChan := make(chan message.Transaction)
+			input, output := initConnectors(b, tranChan, env)
+			b.Cleanup(func() {
+				closeConnectors(b, env, input, output)
+			})
+
+			// Batch size is just to speed up the test itself
+			batchSize := 20
+			sends := b.N / batchSize
+
+			set := map[string][]string{}
+			for j := 0; j < sends; j++ {
+				batch := make([]string, batchSize)
+				for i := 0; i < batchSize; i++ {
+					payload := fmt.Sprintf("hello world %v", j*batchSize+i)
+					set[payload] = nil
+					batch[i] = payload
+				}
+				assert.NoError(b, sendBatch(env.ctx, b, tranChan, batch))
+			}
+
+			b.ResetTimer()
+
+			for len(set) > 0 {
+				messagesInSet(b, true, true, receiveBatch(env.ctx, b, input.TransactionChan(), nil), set)
+			}
+		},
+	)
+}
