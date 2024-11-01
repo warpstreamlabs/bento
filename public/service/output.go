@@ -118,7 +118,7 @@ func (a *airGapBatchWriter) WriteBatch(ctx context.Context, msg message.Batch) e
 }
 
 func (a *airGapBatchWriter) Close(ctx context.Context) error {
-	return a.w.Close(context.Background())
+	return a.w.Close(ctx)
 }
 
 //------------------------------------------------------------------------------
