@@ -37,6 +37,7 @@ input:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
 ```
 
@@ -53,6 +54,7 @@ input:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
       processors: [] # No default (optional)
 ```
@@ -94,6 +96,11 @@ policy:
   check: this.contains("END BATCH")
   count: 0
   period: 1m
+
+policy:
+  count: 10
+  jitter: 500ms
+  period: 10s
 ```
 
 ### `policy.count`
@@ -128,6 +135,24 @@ period: 1s
 period: 1m
 
 period: 500ms
+```
+
+### `policy.jitter`
+
+A factor, proportional to `period`, that adds random delay between batch intervals to prevent synchronized flushes. For example, 0.1 adds up to 10% random delay.
+
+
+Type: `float`  
+Default: `0`  
+
+```yml
+# Examples
+
+jitter: "0.01"
+
+jitter: "0.1"
+
+jitter: "1"
 ```
 
 ### `policy.check`
