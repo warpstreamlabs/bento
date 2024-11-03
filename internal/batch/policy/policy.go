@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/exp/rand"
+
 	"github.com/warpstreamlabs/bento/internal/batch/policy/batchconfig"
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bundle"
@@ -14,7 +16,6 @@ import (
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
-	"golang.org/x/exp/rand"
 )
 
 // Batcher implements a batching policy by buffering messages until, based on a
@@ -63,7 +64,7 @@ func New(conf batchconfig.Config, mgr bundle.NewManagement) (*Batcher, error) {
 	}
 
 	if conf.Jitter < 0 {
-		return nil, fmt.Errorf("jitter factor cannot be negative")
+		return nil, errors.New("jitter factor cannot be negative")
 	}
 
 	var procs []iprocessor.V1
