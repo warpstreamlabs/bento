@@ -24,6 +24,11 @@ Allows you to configure a [batching policy](/docs/configuration/batching).`,
 				"period": "1m",
 				"check":  `this.contains("END BATCH")`,
 			},
+			map[string]any{
+				"count":  10,
+				"period": "10s",
+				"jitter": "500ms",
+			},
 		},
 		Children: docs.FieldSpecs{
 			docs.FieldInt(
@@ -39,6 +44,10 @@ Allows you to configure a [batching policy](/docs/configuration/batching).`,
 				"A period in which an incomplete batch should be flushed regardless of its size.",
 				"1s", "1m", "500ms",
 			).HasDefault(""),
+			docs.FieldFloat("jitter",
+				"A factor, proportional to `period`, that adds random delay between batch intervals to prevent synchronized flushes. For example, 0.1 adds up to 10% random delay.",
+				"0.01", "0.1", "1",
+			).HasDefault(0).LinterBlobl(`root = if this < 0 { "Cannot set a negative jitter factor" }`),
 			docs.FieldBloblang(
 				"check",
 				"A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether a message should end a batch.",

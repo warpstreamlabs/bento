@@ -10,6 +10,7 @@ type Config struct {
 	Count      int                `json:"count" yaml:"count"`
 	Check      string             `json:"check" yaml:"check"`
 	Period     string             `json:"period" yaml:"period"`
+	Jitter     float64            `json:"jitter" yaml:"jitter"`
 	Processors []processor.Config `json:"processors" yaml:"processors"`
 }
 
@@ -18,6 +19,7 @@ func NewConfig() Config {
 	return Config{
 		ByteSize:   0,
 		Count:      0,
+		Jitter:     0,
 		Check:      "",
 		Period:     "",
 		Processors: []processor.Config{},
