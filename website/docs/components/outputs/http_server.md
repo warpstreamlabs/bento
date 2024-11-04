@@ -58,6 +58,9 @@ output:
     cors:
       enabled: false
       allowed_origins: []
+    write_wait: 10s
+    pong_wait: 60s
+    ping_period: 54s
 ```
 
 </TabItem>
@@ -171,5 +174,29 @@ An explicit list of origins that are allowed for CORS requests.
 
 Type: `array`  
 Default: `[]`  
+
+### `write_wait`
+
+The time allowed to write a message to the websocket.
+
+
+Type: `string`  
+Default: `"10s"`  
+
+### `pong_wait`
+
+The time allowed to read the next pong message from the client.
+
+
+Type: `string`  
+Default: `"60s"`  
+
+### `ping_period`
+
+Send pings to client with this period. Must be less than pong wait.
+
+
+Type: `string`  
+Default: `"54s"`  
 
 

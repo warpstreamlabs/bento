@@ -478,7 +478,8 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 			// Write messages to the client
 			var writeErr error
 			for _, msg := range message.GetAllBytes(ts.Payload) {
-				ws.SetWriteDeadline(time.Now().Add(h.conf.WriteWait))
+				//nolint:errcheck // this function does not actually return an error
+				_ = ws.SetWriteDeadline(time.Now().Add(h.conf.WriteWait))
 				if writeErr = ws.WriteMessage(websocket.BinaryMessage, msg); writeErr != nil {
 					break
 				}
@@ -493,6 +494,7 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 			_ = ts.Ack(ctx, nil)
 		case <-ticker.C:
 			// Send a ping message to the client
+			// nolint:errcheck // this function does not actually return an error
 			ws.SetWriteDeadline(time.Now().Add(h.conf.WriteWait))
 			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
 				h.log.Warn("WebSocket ping error: %v", err)
