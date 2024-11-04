@@ -41,7 +41,7 @@ This processor enacts on individual messages only, in order to perform a dedupli
 
 Performing deduplication on a stream using a distributed cache voids any at-least-once guarantees that it previously had. This is because the cache will preserve message signatures even if the message fails to leave the Bento pipeline, which would cause message loss in the event of an outage at the output sink followed by a restart of the Bento instance (or a server crash, etc).
 
-This problem can be mitigated by using an in-memory cache and distributing messages to horizontally scaled Bento pipelines partitioned by the deduplication key. However, in situations where at-least-once delivery guarantees are important it is worth avoiding deduplication in favour of implement idempotent behaviour at the edge of your stream pipelines.`).
+This problem can be mitigated by using an in-memory cache and distributing messages to horizontally scaled Bento pipelines partitioned by the deduplication key. However, in situations where at-least-once delivery guarantees are important it is worth avoiding deduplication in favour of implementing idempotent behaviour at the edge of your stream pipelines.`).
 		Example(
 			"Deduplicate based on Kafka key",
 			"The following configuration demonstrates a pipeline that deduplicates messages based on the Kafka key.",
