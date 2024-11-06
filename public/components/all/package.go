@@ -17,6 +17,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/confluent"
 	_ "github.com/warpstreamlabs/bento/public/components/couchbase"
 	_ "github.com/warpstreamlabs/bento/public/components/crypto"
+	_ "github.com/warpstreamlabs/bento/public/components/cypher"
 	_ "github.com/warpstreamlabs/bento/public/components/dgraph"
 	_ "github.com/warpstreamlabs/bento/public/components/discord"
 	_ "github.com/warpstreamlabs/bento/public/components/elasticsearch"
