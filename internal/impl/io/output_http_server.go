@@ -478,7 +478,6 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 			// Write messages to the client
 			var writeErr error
 			for _, msg := range message.GetAllBytes(ts.Payload) {
-				//nolint:errcheck // this function does not actually return an error
 				_ = ws.SetWriteDeadline(time.Now().Add(h.conf.WriteWait))
 				if writeErr = ws.WriteMessage(websocket.BinaryMessage, msg); writeErr != nil {
 					break
