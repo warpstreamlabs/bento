@@ -493,7 +493,7 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 			_ = ts.Ack(ctx, nil)
 		case <-ticker.C:
 			// Send a ping message to the client
-			// nolint:errcheck // this function does not actually return an error
+			//nolint:errcheck // this function does not actually return an error
 			ws.SetWriteDeadline(time.Now().Add(h.conf.WriteWait))
 			if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
 				h.log.Warn("WebSocket ping error: %v", err)
