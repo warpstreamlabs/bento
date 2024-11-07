@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Executes a SQL query against [Azure CosmosDB](https://learn.microsoft.com/en-us/azure/cosmos-db/introduction) and creates a batch of messages from each page of items.
 
-Introduced in version v4.25.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[
