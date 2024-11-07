@@ -17,14 +17,38 @@ import TabItem from '@theme/TabItem';
 
 Deduplicates messages by storing a key value in a cache using the `add` operator. If the key already exists within the cache it is dropped.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 label: ""
 dedupe:
   cache: "" # No default (required)
   key: ${! meta("kafka_key") } # No default (required)
   drop_on_err: true
 ```
+
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+label: ""
+dedupe:
+  cache: "" # No default (required)
+  key: ${! meta("kafka_key") } # No default (required)
+  drop_on_err: true
+  strategy: FIFO
+```
+
+</TabItem>
+</Tabs>
 
 Caches must be configured as resources, for more information check out the [cache documentation here](/docs/components/caches/about).
 
@@ -38,7 +62,7 @@ This processor enacts on individual messages only, in order to perform a dedupli
 
 Performing deduplication on a stream using a distributed cache voids any at-least-once guarantees that it previously had. This is because the cache will preserve message signatures even if the message fails to leave the Bento pipeline, which would cause message loss in the event of an outage at the output sink followed by a restart of the Bento instance (or a server crash, etc).
 
-This problem can be mitigated by using an in-memory cache and distributing messages to horizontally scaled Bento pipelines partitioned by the deduplication key. However, in situations where at-least-once delivery guarantees are important it is worth avoiding deduplication in favour of implement idempotent behaviour at the edge of your stream pipelines.
+This problem can be mitigated by using an in-memory cache and distributing messages to horizontally scaled Bento pipelines partitioned by the deduplication key. However, in situations where at-least-once delivery guarantees are important it is worth avoiding deduplication in favour of implementing idempotent behaviour at the edge of your stream pipelines.
 
 ## Fields
 
@@ -72,6 +96,20 @@ Whether messages should be dropped when the cache returns a general error such a
 
 Type: `bool`  
 Default: `true`  
+
+### `strategy`
+
+Controls how to handle duplicate values.
+
+
+Type: `string`  
+Default: `"FIFO"`  
+
+| Option | Summary |
+|---|---|
+| `FIFO` | Keeps the first value seen for each key. |
+| `LIFO` | Keeps the last value seen for each key. |
+
 
 ## Examples
 

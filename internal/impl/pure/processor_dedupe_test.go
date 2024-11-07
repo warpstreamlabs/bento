@@ -57,6 +57,43 @@ dedupe:
 	assert.Equal(t, 2, msgOut[0].Len())
 }
 
+func TestDedupeLIFO(t *testing.T) {
+	mgr := mock.NewManager()
+	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
+
+	conf, err := testutil.ProcessorFromYAML(`
+dedupe:
+  cache: foocache
+  key: ${!json("key")}
+  strategy: LIFO
+`)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(conf)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	msgIn := message.QuickBatch([][]byte{
+		[]byte(`{"key":"1","value":"foo 1"}`),
+		[]byte(`{"key":"2","value":"foo 2"}`),
+		[]byte(`{"key":"1","value":"updated foo"}`),
+	})
+
+	expectedOut := [][]byte{
+		[]byte(`{"key":"2","value":"foo 2"}`),
+		[]byte(`{"key":"1","value":"updated foo"}`),
+	}
+
+	msgOut, err := proc.ProcessBatch(ctx, msgIn)
+	require.NoError(t, err)
+	require.Len(t, msgOut, 1)
+	require.Len(t, msgOut[0], 2)
+
+	require.Equal(t, expectedOut[0], msgOut[0].Get(0).AsBytes())
+	require.Equal(t, expectedOut[1], msgOut[0].Get(1).AsBytes())
+}
+
 func TestDedupeBadCache(t *testing.T) {
 	conf, err := testutil.ProcessorFromYAML(`
 dedupe:

@@ -1,0 +1,38 @@
+pipeline:
+  processors:
+    - dedupe:
+        cache: local
+        key: ${! json("user_uuid") }:${! json("month") }
+        strategy: LIFO
+
+cache_resources:
+  - label: local
+    memory:
+      default_ttl: 1m
+
+tests:
+  - name: de-duplicate LIFO across batches 
+    input_batches:
+      -
+        - content: '{"json":"data-1","month":"2024-01-01","user_uuid":"id-1"}'
+        - content: '{"json":"data-1","month":"2024-01-01","user_uuid":"id-2"}'
+        - content: '{"json":"data-1","month":"2024-01-01","user_uuid":"id-3"}'
+        - content: '{"json":"data-1","month":"2024-01-01","user_uuid":"id-4"}'
+        - content: '{"json":"updated-data-1","month":"2024-01-01","user_uuid":"id-1"}'
+      -
+        - content: '{"json":"data-2","month":"2024-02-01","user_uuid":"id-1"}'
+        - content: '{"json":"data-2","month":"2024-02-01","user_uuid":"id-2"}'
+        - content: '{"json":"data-2","month":"2024-02-01","user_uuid":"id-3"}'
+        - content: '{"json":"data-2","month":"2024-02-01","user_uuid":"id-4"}'
+        - content: '{"json":"updated-data-2","month":"2024-02-01","user_uuid":"id-1"}'
+    output_batches:
+      -
+        - json_equals: {"user_uuid": "id-2", "month": "2024-01-01", "json": "data-1"}
+        - json_equals: {"user_uuid": "id-3", "month": "2024-01-01", "json": "data-1"}
+        - json_equals: {"user_uuid": "id-4", "month": "2024-01-01", "json": "data-1"}
+        - json_equals: {"user_uuid": "id-1", "month": "2024-01-01", "json": "updated-data-1"}
+      -
+        - json_equals: {"user_uuid": "id-2", "month": "2024-02-01", "json": "data-2"}
+        - json_equals: {"user_uuid": "id-3", "month": "2024-02-01", "json": "data-2"}
+        - json_equals: {"user_uuid": "id-4", "month": "2024-02-01", "json": "data-2"}
+        - json_equals: {"user_uuid": "id-1", "month": "2024-02-01", "json": "updated-data-2"}
