@@ -17,6 +17,8 @@ builds:
       -s -w
       -X github.com/warpstreamlabs/bento/internal/cli.Version={{.Version}}
       -X github.com/warpstreamlabs/bento/internal/cli.DateBuilt={{.Date}}
+      -X main.Version={{.Version}}
+      -X main.DateBuilt={{.Date}}
   - id: bento-lambda
     main: cmd/serverless/bento-lambda/main.go
     binary: bento-lambda
