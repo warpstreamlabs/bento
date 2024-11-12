@@ -145,5 +145,5 @@ Experimental: When set, the logger will promote any log containing an `error` ty
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.3.0 or newer  
+Requires version 1.4.0 or newer  
 
