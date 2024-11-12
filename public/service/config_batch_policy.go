@@ -20,7 +20,7 @@ type BatchPolicy struct {
 	Count    int
 	Check    string
 	Period   string
-
+	Jitter   float64
 	// Only available when using NewBatchPolicyField.
 	procs []processor.Config
 }
@@ -31,6 +31,7 @@ func (b BatchPolicy) toInternal() batchconfig.Config {
 	batchConf.Count = b.Count
 	batchConf.Check = b.Check
 	batchConf.Period = b.Period
+	batchConf.Jitter = b.Jitter
 	batchConf.Processors = b.procs
 	return batchConf
 }
@@ -154,6 +155,9 @@ func (p *ParsedConfig) FieldBatchPolicy(path ...string) (conf BatchPolicy, err e
 		return
 	}
 	if conf.Period, err = p.FieldString(append(path, "period")...); err != nil {
+		return
+	}
+	if conf.Jitter, err = p.FieldFloat(append(path, "jitter")...); err != nil {
 		return
 	}
 	conf.procs, err = p.fieldProcessorListConfigs(append(path, "processors")...)

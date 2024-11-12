@@ -38,6 +38,7 @@ output:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
     address: localhost:9000 # No default (required)
     username: "" # No default (optional)
@@ -66,6 +67,7 @@ output:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
       processors: [] # No default (optional)
     tls:
@@ -138,6 +140,11 @@ batching:
   check: this.contains("END BATCH")
   count: 0
   period: 1m
+
+batching:
+  count: 10
+  jitter: 500ms
+  period: 10s
 ```
 
 ### `batching.count`
@@ -172,6 +179,24 @@ period: 1s
 period: 1m
 
 period: 500ms
+```
+
+### `batching.jitter`
+
+A factor, proportional to `period`, that adds random delay between batch intervals to prevent synchronized flushes. For example, 0.1 adds up to 10% random delay.
+
+
+Type: `float`  
+Default: `0`  
+
+```yml
+# Examples
+
+jitter: "0.01"
+
+jitter: "0.1"
+
+jitter: "1"
 ```
 
 ### `batching.check`

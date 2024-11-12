@@ -2,6 +2,7 @@ package policy_test
 
 import (
 	"context"
+	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -124,6 +125,50 @@ func TestPolicyPeriod(t *testing.T) {
 
 	if v := pol.UntilNext(); v >= (time.Millisecond*300) || v < (time.Millisecond*100) {
 		t.Errorf("Wrong period: %v", v)
+	}
+}
+
+func TestPolicyPeriodJitter(t *testing.T) {
+	conf := batchconfig.NewConfig()
+	conf.Period = "100ms"
+	conf.Jitter = 0.5
+
+	pol, err := policy.New(conf, mock.NewManager())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tCtx, done := context.WithTimeout(context.Background(), time.Second*30)
+	t.Cleanup(func() {
+		require.NoError(t, pol.Close(tCtx))
+		done()
+	})
+
+	// Set RNG seed to ensure deterministic test runs
+	//nolint:staticcheck
+	rand.Seed(1)
+	for i := 0; i < 10; i++ {
+
+		if pol.Add(message.NewPart(nil)) {
+			t.Error("Unexpected batch ready")
+		}
+
+		if v := pol.UntilNext(); v >= (time.Millisecond*150) || v < (time.Millisecond*100) {
+			t.Errorf("Wrong period: %v", v)
+		}
+
+		<-time.After(time.Millisecond * 150)
+		if v := pol.UntilNext(); v >= (time.Millisecond * 100) {
+			t.Errorf("Wrong period: %v", v)
+		}
+
+		if v := pol.Flush(tCtx); v == nil {
+			t.Error("Nil msgs from flush")
+		}
+
+		if v := pol.UntilNext(); v >= (time.Millisecond*150) || v < (time.Millisecond*100) {
+			t.Errorf("Wrong period: %v", v)
+		}
 	}
 }
 
