@@ -27,5 +27,10 @@ func CreateLogger(c *cli.Context, opts *CLIOpts, conf config.Type, streamsMode b
 	if logger, err = opts.OnLoggerInit(logger); err != nil {
 		return
 	}
+
+	if conf.Logger.LogAllErrors {
+		logger = log.WrapErrPromoter(logger)
+	}
+
 	return
 }
