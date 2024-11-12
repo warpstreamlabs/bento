@@ -280,7 +280,7 @@ batching:
 
 batching:
   count: 10
-  jitter: 500ms
+  jitter: 0.1
   period: 10s
 ```
 
@@ -320,7 +320,7 @@ period: 500ms
 
 ### `batching.jitter`
 
-A factor, proportional to `period`, that adds random delay between batch intervals to prevent synchronized flushes. For example, 0.1 adds up to 10% random delay.
+A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
 
 
 Type: `float`  
@@ -329,11 +329,11 @@ Default: `0`
 ```yml
 # Examples
 
-jitter: "0.01"
+jitter: 0.01
 
-jitter: "0.1"
+jitter: 0.1
 
-jitter: "1"
+jitter: 1
 ```
 
 ### `batching.check`
