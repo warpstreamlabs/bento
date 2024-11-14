@@ -382,13 +382,24 @@ func (e *Output) buildBulkableRequest(p *pendingBulkIndex, onError func(err erro
 		biri opensearchapi.BulkRespItem,
 		err error,
 	) {
-		if err == nil {
-			if biri.Error.Type == "" {
-				biri.Error.Type = fmt.Sprintf("status %v", biri.Status)
-			}
-			err = fmt.Errorf("%v: %v", biri.Error.Type, biri.Error.Reason)
+		if err != nil {
+			onError(err)
+			return
 		}
-		onError(err)
+
+		errType := fmt.Sprintf("status %v", biri.Status)
+		errReason := "unknown error"
+
+		if biri.Error != nil {
+			if biri.Error.Type != "" {
+				errType = biri.Error.Type
+			}
+			if biri.Error.Reason != "" {
+				errReason = biri.Error.Reason
+			}
+		}
+
+		onError(fmt.Errorf("%v: %v", errType, errReason))
 	}
 	return
 }
