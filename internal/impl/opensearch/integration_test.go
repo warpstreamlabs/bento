@@ -476,8 +476,7 @@ action: delete
 	}, nil)
 	require.NoError(t, err)
 	if get.IsError() {
-		var respCode int
-		respCode = get.StatusCode
+		respCode := get.StatusCode
 		if respCode == http.StatusNotFound {
 			// Document was not found, as expected
 		} else {
