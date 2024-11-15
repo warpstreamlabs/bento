@@ -57,7 +57,7 @@ input:
 </TabItem>
 </Tabs>
 
-Messages are consumed according to a specified codec. The command is executed once and if it terminates the input also closes down gracefully. Alternatively, the field `restart_on_close` can be set to `true` in order to have Bento re-execute the command each time it stops.
+Messages are consumed according to a specified codec. The command is executed once and if it terminates the input also closes down gracefully. Alternatively, the field `restart_on_exit` can be set to `true` in order to have Bento re-execute the command each time it stops.
 
 The field `max_buffer` defines the maximum message size able to be read from the subprocess. This value should be set significantly above the real expected maximum message size.
 
