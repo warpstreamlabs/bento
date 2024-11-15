@@ -707,6 +707,46 @@ func numberCoerceMethod(target Function, args *ParsedParams) (Function, error) {
 
 var _ = registerMethod(
 	NewMethodSpec(
+		"timestamp", "",
+	).InCategory(
+		MethodCategoryCoercion,
+		"Attempt to parse a value into a timestamp. An optional argument can be provided, in which case if the value cannot be parsed into a timestamp the argument will be returned instead.",
+		NewExampleSpec("",
+			`root.foo = this.ts.timestamp()
+root.bar = this.none.timestamp(1234567890.timestamp())`,
+		),
+	).Param(ParamTimestamp("default", "An optional value to yield if the target cannot be parsed as a timestamp.").Optional()),
+	timestampCoerceMethod,
+)
+
+func timestampCoerceMethod(target Function, args *ParsedParams) (Function, error) {
+	defaultTS, err := args.FieldOptionalTimestamp("default")
+	if err != nil {
+		return nil, err
+	}
+	return ClosureFunction("method timestamp", func(ctx FunctionContext) (any, error) {
+		v, err := target.Exec(ctx)
+		if err != nil {
+			if defaultTS != nil {
+				return *defaultTS, nil
+			}
+			return nil, err
+		}
+		f, err := value.IGetTimestamp(v)
+		if err != nil {
+			if defaultTS != nil {
+				return *defaultTS, nil
+			}
+			return nil, ErrFrom(err, target)
+		}
+		return f, nil
+	}, target.QueryTargets), nil
+}
+
+//------------------------------------------------------------------------------
+
+var _ = registerMethod(
+	NewMethodSpec(
 		"or", "If the result of the target query fails or resolves to `null`, returns the argument instead. This is an explicit method alternative to the coalesce pipe operator `|`.",
 		NewExampleSpec("", `root.doc.id = this.thing.id.or(uuid_v4())`),
 	).Param(ParamQuery("fallback", "A value to yield, or query to execute, if the target query fails or resolves to `null`.", true)),

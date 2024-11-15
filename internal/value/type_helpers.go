@@ -262,7 +262,7 @@ func IGetBytes(v any) ([]byte, error) {
 }
 
 // IGetTimestamp takes a boxed value and attempts to coerce it into a timestamp,
-// either by interpretting a numerical value as a unix timestamp, or by parsing
+// either by interpreting a numerical value as a unix timestamp, or by parsing
 // a string value as RFC3339Nano.
 func IGetTimestamp(v any) (time.Time, error) {
 	if tVal, ok := v.(time.Time); ok {

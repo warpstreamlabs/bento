@@ -18,13 +18,14 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Logs basic throughput statistics of message that pass through this processor.
+Logs basic throughput statistics of messages that pass through this processor.
 
 ```yml
 # Config fields, showing default values
 label: ""
 benchmark:
   interval: 5s
+  count_bytes: true
 ```
 
 Logs messages per second and bytes per second of messages that are processed at a regular interval. A summary of the amount of messages processed over the entire lifetime of the processor will also be printed when the processor shuts down.
@@ -33,10 +34,18 @@ Logs messages per second and bytes per second of messages that are processed at 
 
 ### `interval`
 
-How often to emit rolling statistics.
+How often to emit rolling statistics. If set to 0, only a summary will be logged when the processor shuts down.
 
 
 Type: `string`  
 Default: `"5s"`  
+
+### `count_bytes`
+
+Whether or not to measure the number of bytes per second of throughput. Counting the number of bytes requires serializing structured data, which can cause an unnecessary performance hit if serialization is not required elsewhere in the pipeline.
+
+
+Type: `bool`  
+Default: `true`  
 
 
