@@ -451,7 +451,7 @@ action: ${! @elastic_action }
 			resEqualsJSON(t, get, string(testMsg[i]))
 		}
 	}
-	
+
 	// Test deleting a non-existing document
 	m2 := outputFromConf(t, `
 index: test_conn_index
@@ -476,8 +476,7 @@ action: delete
 	}, nil)
 	require.NoError(t, err)
 	if get.IsError() {
-		respCode := get.StatusCode
-		if respCode == http.StatusNotFound {
+		if respCode := get.StatusCode; respCode == http.StatusNotFound {
 			// Document was not found, as expected
 		} else {
 			t.Errorf("Unexpected error deleting non-existing document: %d", respCode)
