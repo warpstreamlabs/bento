@@ -451,6 +451,39 @@ action: ${! @elastic_action }
 			resEqualsJSON(t, get, string(testMsg[i]))
 		}
 	}
+
+	// Test deleting a non-existing document
+	m2 := outputFromConf(t, `
+index: test_conn_index
+id: 'non-existing-id'
+urls: %v
+action: delete
+`, urls)
+
+	require.NoError(t, m2.Connect(ctx))
+	defer func() {
+		require.NoError(t, m2.Close(ctx))
+	}()
+
+	require.Error(t, m2.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte{}),
+	}))
+
+	// Verify the document was not found
+	get, err := client.Do(ctx, osapi.DocumentGetReq{
+		Index:      "test_conn_index",
+		DocumentID: "non-existing-id",
+	}, nil)
+	require.NoError(t, err)
+	if get.IsError() {
+		if respCode := get.StatusCode; respCode == http.StatusNotFound {
+			// Document was not found, as expected
+		} else {
+			t.Errorf("Unexpected error deleting non-existing document: %d", respCode)
+		}
+	} else {
+		t.Errorf("Expected error deleting non-existing document")
+	}
 }
 
 func testOpenSearchBatchIDCollision(urls []string, client *os.Client, t *testing.T) {
