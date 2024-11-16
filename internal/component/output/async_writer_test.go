@@ -89,6 +89,57 @@ func TestAsyncWriterCantConnect(t *testing.T) {
 	require.NoError(t, w.WaitForClose(ctx))
 }
 
+func TestAsyncWriterStictMode(t *testing.T) {
+	t.Parallel()
+
+	writerImpl := newAsyncMockWriter()
+
+	w, err := NewAsyncWriter("foo", 1, writerImpl, component.NoopObservabilityWithStrictMode())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	msgChan := make(chan message.Transaction)
+	resChan := make(chan error)
+
+	if err = w.Consume(msgChan); err != nil {
+		t.Error(err)
+	}
+
+	m := message.QuickBatch([][]byte{
+		[]byte(`foo`),
+	})
+
+	_ = m.Iter(func(i int, part *message.Part) error {
+		part.ErrorSet(errors.New("err1"))
+		return nil
+	})
+
+	go func() {
+		select {
+		case msgChan <- message.NewTransaction(m, resChan):
+		case <-time.After(time.Second):
+			t.Error("Timed out")
+		}
+	}()
+
+	select {
+	case writerImpl.connChan <- nil:
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+
+	select {
+	case res, open := <-resChan:
+		require.True(t, open)
+		require.Equal(t, res, errors.New("err1"))
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+
+}
+
 //------------------------------------------------------------------------------
 
 func TestAsyncWriterCantSendClosed(t *testing.T) {

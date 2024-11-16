@@ -3,6 +3,7 @@ package output
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,7 +87,7 @@ func (w *AsyncWriter) latencyMeasuringWrite(ctx context.Context, msg message.Bat
 }
 
 // loop is an internal loop that brokers incoming messages to output pipe.
-func (w *AsyncWriter) loop() {
+func (w *AsyncWriter) loop(strictMode bool) {
 	// Metrics paths
 	var (
 		mSent       = w.stats.GetCounter("output_sent")
@@ -203,6 +204,23 @@ func (w *AsyncWriter) loop() {
 				return
 			}
 
+			if strictMode {
+				// check if there is an error in the payload, if there is then ack with the error.
+				hasErrors := false
+				err := ts.Payload.Iter(func(i int, part *message.Part) error {
+					if err := part.ErrorGet(); err != nil {
+						hasErrors = true
+						return err
+					}
+					return nil
+				})
+				if hasErrors {
+					w.log.Error("Failed to send message to %v: message batch contains errors\n", w.typeStr)
+					_ = ts.Ack(closeLeisureCtx, err)
+					continue
+				}
+			}
+
 			w.log.Trace("Attempting to write %v messages to '%v'.\n", ts.Payload.Len(), w.typeStr)
 			_, spans := tracing.WithChildSpans(w.tracer, traceName, ts.Payload)
 
@@ -249,13 +267,31 @@ func (w *AsyncWriter) loop() {
 	wg.Wait()
 }
 
+func (w *AsyncWriter) getStrictMode() bool {
+	v := reflect.ValueOf(w.mgr)
+
+	if v.Kind() == reflect.Pointer && !v.IsNil() {
+		v = v.Elem()
+	}
+
+	if v.Kind() == reflect.Struct {
+		field := v.FieldByName("StrictMode")
+		if field.IsValid() && field.Kind() == reflect.Bool {
+			return field.Bool()
+		}
+	}
+
+	return false
+}
+
 // Consume assigns a messages channel for the output to read.
 func (w *AsyncWriter) Consume(ts <-chan message.Transaction) error {
 	if w.transactions != nil {
 		return component.ErrAlreadyStarted
 	}
 	w.transactions = ts
-	go w.loop()
+	strictMode := w.getStrictMode()
+	go w.loop(strictMode)
 	return nil
 }
 

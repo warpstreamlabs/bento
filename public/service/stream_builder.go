@@ -69,6 +69,7 @@ type StreamBuilder struct {
 	env             *Environment
 	lintingDisabled bool
 	envVarLookupFn  func(string) (string, bool)
+	strictMode      bool
 }
 
 // NewStreamBuilder creates a new StreamBuilder.
@@ -89,6 +90,7 @@ func NewStreamBuilder() *StreamBuilder {
 		configSpec:     tmpSpec,
 		env:            globalEnvironment,
 		envVarLookupFn: os.LookupEnv,
+		strictMode:     false,
 	}
 }
 
@@ -143,6 +145,10 @@ func (s *StreamBuilder) SetEnvVarLookupFunc(fn func(string) (string, bool)) {
 // will match the number of logical CPUs on the machine.
 func (s *StreamBuilder) SetThreads(n int) {
 	s.threads = n
+}
+
+func (s *StreamBuilder) SetStrictMode(mode bool) {
+	s.strictMode = mode
 }
 
 // PrintLogger is a simple Print based interface implemented by custom loggers.
@@ -914,6 +920,7 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 		manager.OptSetEnvironment(env),
 		manager.OptSetBloblangEnvironment(s.env.getBloblangParserEnv()),
 		manager.OptSetFS(s.env.fs),
+		manager.OptSetStrictMode(s.strictMode),
 	)
 	if err != nil {
 		return nil, err

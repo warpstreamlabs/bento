@@ -83,6 +83,7 @@ tracer:
 
 shutdown_timeout: 20s
 shutdown_delay: ""
+strict_mode: false
 ```
 
 </TabItem>
@@ -296,6 +297,21 @@ The `shutdown_timeout` option sets a hard deadline for Bento process to graceful
 
 This option takes effect after the `shutdown_delay` duration has passed if that is enabled.
 
+## Strict mode
+
+:::caution EXPERIMENTAL
+This configuration field is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+
+Introduced in v1.4.0.
+
+The default behavior of Bento is to attempt to send messages that have errored to the configured sink. The `strict_mode` option can be set to `true` to override this default behavior of Bento, and instead will reject any message batches with messages that have errors in them. Ultimately this will propagate a Nack to the input layer, which then depending on the component configured will either be handled or the message will be reprocessed from scratch. 
+
+More stable alternatives to `strict_mode` could be considered:
+
+- [Error Handling][error_handling]
+- [`reject_errored`][reject_errored]
+
 [processors]: /docs/components/processors/about
 [processors.mapping]: /docs/components/processors/mapping
 [config-interp]: /docs/configuration/interpolation
@@ -304,3 +320,5 @@ This option takes effect after the `shutdown_delay` duration has passed if that 
 [config.resources]: /docs/configuration/resources
 [json-references]: https://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03
 [components]: /docs/components/about
+[reject_errored]: /docs/components/outputs/reject_errored/
+[error_handling]: /docs/configuration/error_handling

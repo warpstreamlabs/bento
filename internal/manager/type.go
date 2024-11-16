@@ -95,6 +95,8 @@ type Type struct {
 
 	// Generic key/value store for plugin implementations.
 	genericValues *sync.Map
+
+	StrictMode bool
 }
 
 // OptFunc is an opt setting for a manager type.
@@ -171,6 +173,12 @@ func OptSetStreamsMode(b bool) OptFunc {
 		if b {
 			t.stats = t.stats.WithLabels("stream", "")
 		}
+	}
+}
+
+func OptSetStrictMode(b bool) OptFunc {
+	return func(t *Type) {
+		t.StrictMode = b
 	}
 }
 

@@ -19,6 +19,7 @@ const (
 	fieldTracer             = "tracer"
 	fieldSystemCloseDelay   = "shutdown_delay"
 	fieldSystemCloseTimeout = "shutdown_timeout"
+	fieldStrictMode         = "strict_mode"
 	fieldTests              = "tests"
 )
 
@@ -33,6 +34,7 @@ type Type struct {
 	SystemCloseDelay       string         `yaml:"shutdown_delay"`
 	SystemCloseTimeout     string         `yaml:"shutdown_timeout"`
 	Tests                  []any          `yaml:"tests"`
+	StrictMode             bool           `yaml:"strict_mode"`
 
 	rawSource any
 }
@@ -59,6 +61,7 @@ func observabilityFields() docs.FieldSpecs {
 		}),
 		docs.FieldString(fieldSystemCloseDelay, "A period of time to wait for metrics and traces to be pulled or pushed from the process.").HasDefault("0s"),
 		docs.FieldString(fieldSystemCloseTimeout, "The maximum period of time to wait for a clean shutdown. If this time is exceeded Bento will forcefully close.").HasDefault("20s"),
+		docs.FieldBool(fieldStrictMode, "").HasDefault(false),
 	}
 }
 
@@ -132,6 +135,11 @@ func noStreamFromParsed(prov docs.Provider, pConf *docs.ParsedConfig, conf *Type
 	}
 	if pConf.Contains(fieldSystemCloseDelay) {
 		if conf.SystemCloseDelay, err = pConf.FieldString(fieldSystemCloseDelay); err != nil {
+			return
+		}
+	}
+	if pConf.Contains(fieldStrictMode) {
+		if conf.StrictMode, err = pConf.FieldBool(fieldStrictMode); err != nil {
 			return
 		}
 	}

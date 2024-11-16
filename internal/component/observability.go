@@ -46,3 +46,35 @@ func (m mockObs) Label() string {
 func NoopObservability() Observability {
 	return mockObs{}
 }
+
+type mockObsStrictMode struct{ StrictMode bool }
+
+func (m mockObsStrictMode) Metrics() metrics.Type {
+	return metrics.Noop()
+}
+
+func Noop() log.Modular {
+	return &log.Logger{}
+}
+
+func (m mockObsStrictMode) Logger() log.Modular {
+	return log.Noop()
+}
+
+func (m mockObsStrictMode) Tracer() trace.TracerProvider {
+	return noop.NewTracerProvider()
+}
+
+func (m mockObsStrictMode) Path() []string {
+	return nil
+}
+
+func (m mockObsStrictMode) Label() string {
+	return ""
+}
+
+// NoopObservability returns an implementation of Observability that does
+// nothing.
+func NoopObservabilityWithStrictMode() Observability {
+	return mockObsStrictMode{StrictMode: true}
+}

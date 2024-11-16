@@ -102,6 +102,7 @@ func CreateManager(
 		manager.OptSetMetrics(stats),
 		manager.OptSetTracer(trac),
 		manager.OptSetStreamsMode(streamsMode),
+		manager.OptSetStrictMode(conf.StrictMode),
 	}, mgrOpts...)
 
 	// Create resource manager.
