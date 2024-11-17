@@ -177,7 +177,7 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings); err != nil {
 		return err
 	}
 
