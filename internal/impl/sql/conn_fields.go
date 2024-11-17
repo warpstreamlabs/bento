@@ -3,16 +3,12 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -108,13 +104,23 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Description("An optional maximum number of open connections to the database. If conn_max_idle is greater than 0 and the new conn_max_open is less than conn_max_idle, then conn_max_idle will be reduced to match the new conn_max_open limit. If `value <= 0`, then there is no limit on the number of open connections. The default is 0 (unlimited).").
 			Optional().
 			Advanced(),
-		service.NewStringField("secret_name").
-			Description("An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to postgres.").
-			Optional().
-			Advanced(),
+		service.NewBoolField("aws_enabled").
+			Description("Enables connectivity to AWS for credential retrieval.").
+			Default(false),
+		service.NewObjectField(SqlFieldAWS,
+			append([]*service.ConfigField{
+				service.NewBoolField("iam_enabled").
+					Description("An optional field used to generate an IAM authentication token to connect to an Amazon Relational Database (RDS) DB instance. This will overwrite the Password in the DSN with the generated token only if the drivers are `mysql` or `postgres`.").
+					Optional().
+					Advanced(),
+				service.NewStringField("secret_name").
+					Description("An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to `postgres`.").
+					Optional().
+					Advanced()},
+				config.SessionFields()...)...,
+		).Description("Customises connectivity to AWS.").
+			Optional(),
 	}
-
-	connFields = append(connFields, config.SessionFields()...)
 
 	return connFields
 
@@ -149,7 +155,6 @@ type connSettings struct {
 	initFileStatements [][2]string // (path,statement)
 	initStatement      string
 	initVerifyConn     bool
-	secretName         string
 }
 
 func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logger) {
@@ -238,8 +243,8 @@ func connSettingsFromParsed(
 		}
 	}
 
-	if conf.Contains("secret_name") {
-		if c.secretName, err = conf.FieldString("secret_name"); err != nil {
+	if ok, _ := conf.FieldBool("aws_enabled"); ok && conf.Contains("aws") {
+		if BuildAwsDsn, err = AWSGetCredentialsGeneratorFn(conf); err != nil {
 			return
 		}
 	}
@@ -279,67 +284,7 @@ func reworkDSN(driver, dsn string) (string, error) {
 	return dsn, nil
 }
 
-func getSecretFromAWSSecretManager(secretName string, awsConf aws.Config) (secretString string, err error) {
-	svc := secretsmanager.NewFromConfig(awsConf)
-
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretName),
-	}
-	result, err := svc.GetSecretValue(context.TODO(), input)
-	if err != nil {
-		return "", err
-	}
-
-	return *result.SecretString, nil
-}
-
-func BuildAwsDsn(dsn string, driver string, secretName string, awsConf aws.Config, getSecretFunc func(secretName string, awsConf aws.Config) (awsSecret string, err error)) (awsSecretDsn string, err error) {
-	if secretName != "" && driver == "postgres" {
-
-		parsedDSN, err := url.Parse(dsn)
-		if err != nil {
-			return "", fmt.Errorf("error parsing DSN URL: %w", err)
-		}
-
-		username := parsedDSN.User.Username()
-		password, _ := parsedDSN.User.Password()
-		host := parsedDSN.Hostname()
-		port := parsedDSN.Port()
-		path := parsedDSN.Path
-		rawQuery := parsedDSN.RawQuery
-
-		secretString, err := getSecretFunc(secretName, awsConf)
-		if err != nil {
-			return "", fmt.Errorf("error retrieving secret: %w", err)
-		}
-
-		var secrets map[string]interface{}
-		if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
-			return "", fmt.Errorf("error unmarshalling secret: %w", err)
-		}
-
-		if val, ok := secrets["username"].(string); ok && val != "" {
-			username = val
-		}
-		if val, ok := secrets["password"].(string); ok && val != "" {
-			password = val
-		}
-
-		newDSN := fmt.Sprintf("postgres://%s:%s@%s:%s%s", url.QueryEscape(username), url.QueryEscape(password), host, port, path)
-		if rawQuery != "" {
-			newDSN = fmt.Sprintf("%s?%s", newDSN, rawQuery)
-		}
-
-		return newDSN, nil
-
-	} else if secretName != "" && driver != "postgres" {
-		return "", errors.New("secret_name with DSN info currently only works for postgres DSNs")
-	}
-
-	return dsn, nil
-}
-
-func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings, awsConf aws.Config) (*sql.DB, error) {
+func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings) (*sql.DB, error) {
 	updatedDSN, err := reworkDSN(driver, dsn)
 	if err != nil {
 		return nil, err
@@ -349,13 +294,13 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = BuildAwsDsn(dsn, driver, connSettings.secretName, awsConf, getSecretFromAWSSecretManager)
+	updatedDSN, err = BuildAwsDsn(dsn, driver)
 	if err != nil {
 		return nil, err
 	}
 
 	if updatedDSN != dsn {
-		logger.Infof("Updated dsn with info from AWS Secret '%v'", connSettings.secretName)
+		logger.Info("Updated dsn with info from AWS")
 	}
 
 	db, err := sql.Open(driver, updatedDSN)

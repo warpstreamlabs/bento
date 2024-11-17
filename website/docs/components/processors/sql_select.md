@@ -37,6 +37,8 @@ sql_select:
   columns: [] # No default (required)
   where: meow = ? and woof = ? # No default (optional)
   args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (optional)
+  aws_enabled: false
+  aws: {}
 ```
 
 </TabItem>
@@ -67,17 +69,20 @@ sql_select:
   conn_max_life_time: "" # No default (optional)
   conn_max_idle: 2
   conn_max_open: 0 # No default (optional)
-  secret_name: "" # No default (optional)
-  region: ""
-  endpoint: ""
-  credentials:
-    profile: ""
-    id: ""
-    secret: ""
-    token: ""
-    from_ec2_role: false
-    role: ""
-    role_external_id: ""
+  aws_enabled: false
+  aws:
+    iam_enabled: false # No default (optional)
+    secret_name: "" # No default (optional)
+    region: ""
+    endpoint: ""
+    credentials:
+      profile: ""
+      id: ""
+      secret: ""
+      token: ""
+      from_ec2_role: false
+      role: ""
+      role_external_id: ""
 ```
 
 </TabItem>
@@ -330,14 +335,36 @@ An optional maximum number of open connections to the database. If conn_max_idle
 
 Type: `int`  
 
-### `secret_name`
+### `aws_enabled`
 
-An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to postgres.
+Enables connectivity to AWS for credential retrieval.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `aws`
+
+Customises connectivity to AWS.
+
+
+Type: `object`  
+
+### `aws.iam_enabled`
+
+An optional field used to generate an IAM authentication token to connect to an Amazon Relational Database (RDS) DB instance. This will overwrite the Password in the DSN with the generated token only if the drivers are `mysql` or `postgres`.
+
+
+Type: `bool`  
+
+### `aws.secret_name`
+
+An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to `postgres`.
 
 
 Type: `string`  
 
-### `region`
+### `aws.region`
 
 The AWS region to target.
 
@@ -345,7 +372,7 @@ The AWS region to target.
 Type: `string`  
 Default: `""`  
 
-### `endpoint`
+### `aws.endpoint`
 
 Allows you to specify a custom endpoint for the AWS API.
 
@@ -353,14 +380,14 @@ Allows you to specify a custom endpoint for the AWS API.
 Type: `string`  
 Default: `""`  
 
-### `credentials`
+### `aws.credentials`
 
 Optional manual configuration of AWS credentials to use. More information can be found [in this document](/docs/guides/cloud/aws).
 
 
 Type: `object`  
 
-### `credentials.profile`
+### `aws.credentials.profile`
 
 A profile from `~/.aws/credentials` to use.
 
@@ -368,7 +395,7 @@ A profile from `~/.aws/credentials` to use.
 Type: `string`  
 Default: `""`  
 
-### `credentials.id`
+### `aws.credentials.id`
 
 The ID of credentials to use.
 
@@ -376,7 +403,7 @@ The ID of credentials to use.
 Type: `string`  
 Default: `""`  
 
-### `credentials.secret`
+### `aws.credentials.secret`
 
 The secret for the credentials being used.
 :::warning Secret
@@ -387,7 +414,7 @@ This field contains sensitive information that usually shouldn't be added to a c
 Type: `string`  
 Default: `""`  
 
-### `credentials.token`
+### `aws.credentials.token`
 
 The token for the credentials being used, required when using short term credentials.
 
@@ -395,7 +422,7 @@ The token for the credentials being used, required when using short term credent
 Type: `string`  
 Default: `""`  
 
-### `credentials.from_ec2_role`
+### `aws.credentials.from_ec2_role`
 
 Use the credentials of a host EC2 machine configured to assume [an IAM role associated with the instance](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html).
 
@@ -404,7 +431,7 @@ Type: `bool`
 Default: `false`  
 Requires version 1.0.0 or newer  
 
-### `credentials.role`
+### `aws.credentials.role`
 
 A role ARN to assume.
 
@@ -412,7 +439,7 @@ A role ARN to assume.
 Type: `string`  
 Default: `""`  
 
-### `credentials.role_external_id`
+### `aws.credentials.role_external_id`
 
 An external ID to provide when assuming a role.
 
