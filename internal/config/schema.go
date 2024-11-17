@@ -61,7 +61,7 @@ func observabilityFields() docs.FieldSpecs {
 		}),
 		docs.FieldString(fieldSystemCloseDelay, "A period of time to wait for metrics and traces to be pulled or pushed from the process.").HasDefault("0s"),
 		docs.FieldString(fieldSystemCloseTimeout, "The maximum period of time to wait for a clean shutdown. If this time is exceeded Bento will forcefully close.").HasDefault("20s"),
-		docs.FieldBool(fieldStrictMode, "").HasDefault(false),
+		docs.FieldBool(fieldStrictMode, "Set strict_mode to true to override the default behavior of sending messages batches that have errored messages to the configured sink, and instead propagate a nack back to the source.").HasDefault(false).Advanced().AtVersion("1.4.0"),
 	}
 }
 

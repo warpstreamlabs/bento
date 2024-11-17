@@ -176,6 +176,7 @@ func OptSetStreamsMode(b bool) OptFunc {
 	}
 }
 
+// OptSetStrictMode sets the StrictMode
 func OptSetStrictMode(b bool) OptFunc {
 	return func(t *Type) {
 		t.StrictMode = b
