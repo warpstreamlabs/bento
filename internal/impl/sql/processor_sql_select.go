@@ -180,7 +180,7 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, s.awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)
