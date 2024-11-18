@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	os "github.com/opensearch-project/opensearch-go/v3"
-	osapi "github.com/opensearch-project/opensearch-go/v3/opensearchapi"
+	os "github.com/opensearch-project/opensearch-go/v4"
+	osapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
