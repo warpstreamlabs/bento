@@ -68,8 +68,8 @@ type StreamBuilder struct {
 	configSpec      docs.FieldSpecs
 	env             *Environment
 	lintingDisabled bool
-	envVarLookupFn  func(string) (string, bool)
 	strictMode      bool
+	envVarLookupFn  func(string) (string, bool)
 }
 
 // NewStreamBuilder creates a new StreamBuilder.
@@ -90,7 +90,6 @@ func NewStreamBuilder() *StreamBuilder {
 		configSpec:     tmpSpec,
 		env:            globalEnvironment,
 		envVarLookupFn: os.LookupEnv,
-		strictMode:     false,
 	}
 }
 

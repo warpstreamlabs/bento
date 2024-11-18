@@ -305,12 +305,12 @@ This configuration field is experimental and therefore breaking changes could be
 
 Introduced in v1.4.0.
 
-The default behavior of Bento is to attempt to send messages that have errored to the configured sink. The `strict_mode` option can be set to `true` to override this default behavior of Bento, and instead will reject any message batches with messages that have errors in them. Ultimately this will propagate a Nack to the input layer, which then depending on the component configured will either be handled or the message will be reprocessed from scratch. 
+The default behavior of Bento is: attempt to send message batches that contain messages with errors to the configured sink. When `strict_mode` is set to `true`, Bento will instead reject all batches containing messages with errors, propagating a `nack` to the input layer. The input component's `nack` behavior will then determine how these rejected messages are handled, if the input doesn't support `nack'ing` a message, they will be re-processed from scratch.
 
 More stable alternatives to `strict_mode` could be considered:
 
 - [Error Handling][error_handling]
-- [`reject_errored`][reject_errored]
+- [reject_errored][reject_errored]
 
 [processors]: /docs/components/processors/about
 [processors.mapping]: /docs/components/processors/mapping
