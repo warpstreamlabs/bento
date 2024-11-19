@@ -314,6 +314,10 @@ func (t *Type) EngineVersion() string {
 	return t.engineVersion
 }
 
+func (t *Type) GetStrictMode() bool {
+	return t.StrictMode
+}
+
 //------------------------------------------------------------------------------
 
 // ForStream returns a variant of this manager to be used by a particular stream

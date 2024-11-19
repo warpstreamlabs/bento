@@ -17,6 +17,7 @@ type Observability interface {
 	Tracer() trace.TracerProvider
 	Path() []string
 	Label() string
+	GetStrictMode() bool
 }
 
 type mockObs struct{}
@@ -39,6 +40,10 @@ func (m mockObs) Path() []string {
 
 func (m mockObs) Label() string {
 	return ""
+}
+
+func (m mockObs) GetStrictMode() bool {
+	return false
 }
 
 // NoopObservability returns an implementation of Observability that does
@@ -73,8 +78,12 @@ func (m mockObsStrictMode) Label() string {
 	return ""
 }
 
+func (m mockObsStrictMode) GetStrictMode() bool {
+	return true
+}
+
 // NoopObservability returns an implementation of Observability that does
 // nothing.
 func NoopObservabilityWithStrictMode() Observability {
-	return mockObsStrictMode{StrictMode: true}
+	return mockObsStrictMode{}
 }

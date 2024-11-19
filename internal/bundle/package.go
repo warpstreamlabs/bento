@@ -97,6 +97,8 @@ type NewManagement interface {
 	GetGeneric(key any) (any, bool)
 	GetOrSetGeneric(key, value any) (actual any, loaded bool)
 	SetGeneric(key, value any)
+
+	GetStrictMode() bool
 }
 
 type componentErr struct {

@@ -3,7 +3,6 @@ package output
 import (
 	"context"
 	"errors"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -268,20 +267,7 @@ func (w *AsyncWriter) loop(strictMode bool) {
 }
 
 func (w *AsyncWriter) getStrictMode() bool {
-	v := reflect.ValueOf(w.mgr)
-
-	if v.Kind() == reflect.Pointer && !v.IsNil() {
-		v = v.Elem()
-	}
-
-	if v.Kind() == reflect.Struct {
-		field := v.FieldByName("StrictMode")
-		if field.IsValid() && field.Kind() == reflect.Bool {
-			return field.Bool()
-		}
-	}
-
-	return false
+	return w.mgr.GetStrictMode()
 }
 
 // Consume assigns a messages channel for the output to read.

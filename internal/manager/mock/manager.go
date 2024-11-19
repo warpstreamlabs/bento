@@ -47,6 +47,8 @@ type Manager struct {
 	M        metrics.Type
 	L        log.Modular
 	T        trace.TracerProvider
+
+	StrictMode bool
 }
 
 // NewManager provides a new mock manager.
@@ -390,4 +392,9 @@ func (m *Manager) GetOrSetGeneric(key, value any) (actual any, loaded bool) {
 // SetGeneric attempts to set a generic resource to a given value by key.
 func (m *Manager) SetGeneric(key, value any) {
 	m.genericValues.Store(key, value)
+}
+
+// SetGeneric attempts to set a generic resource to a given value by key.
+func (m *Manager) GetStrictMode() bool {
+	return m.StrictMode
 }
