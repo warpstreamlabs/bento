@@ -266,18 +266,13 @@ func (w *AsyncWriter) loop(strictMode bool) {
 	wg.Wait()
 }
 
-func (w *AsyncWriter) getStrictMode() bool {
-	return w.mgr.GetStrictMode()
-}
-
 // Consume assigns a messages channel for the output to read.
 func (w *AsyncWriter) Consume(ts <-chan message.Transaction) error {
 	if w.transactions != nil {
 		return component.ErrAlreadyStarted
 	}
 	w.transactions = ts
-	strictMode := w.getStrictMode()
-	go w.loop(strictMode)
+	go w.loop(w.mgr.GetStrictMode())
 	return nil
 }
 
