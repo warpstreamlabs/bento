@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/cenkalti/backoff/v4"
+
+	sqsextendedclient "github.com/co-go/sqs-extended-client-go"
 
 	"github.com/Jeffail/shutdown"
 
@@ -24,6 +27,7 @@ const (
 	sqsiFieldDeleteMessage       = "delete_message"
 	sqsiFieldResetVisibility     = "reset_visibility"
 	sqsiFieldMaxNumberOfMessages = "max_number_of_messages"
+	sqsiFieldLargeMessageBucket  = "large_message_bucket"
 
 	sqsiAttributeNameVisibilityTimeout = "VisibilityTimeout"
 )
@@ -34,6 +38,7 @@ type sqsiConfig struct {
 	DeleteMessage       bool
 	ResetVisibility     bool
 	MaxNumberOfMessages int
+	LargeMessageBucket  string
 }
 
 func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err error) {
@@ -50,6 +55,9 @@ func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err err
 		return
 	}
 	if conf.MaxNumberOfMessages, err = pConf.FieldInt(sqsiFieldMaxNumberOfMessages); err != nil {
+		return
+	}
+	if conf.LargeMessageBucket, err = pConf.FieldString(sqsiFieldLargeMessageBucket); err != nil {
 		return
 	}
 	return
@@ -96,6 +104,15 @@ You can access these metadata fields using
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
 				Description("The maximum number of messages to return on one poll. Valid values: 1 to 10.").
 				Default(10).
+				Advanced(),
+			service.NewStringField(sqsiFieldLargeMessageBucket).
+				Description(`
+An optional field to specify a bucket used by the [AWS Extended Client for Large Messages](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-managing-large-messages.html).
+
+The AWS Extended Client for Large Messages provides functionality to process messages in SQS that exceed the limit of 256KB. It does this by uploading data to S3, and creating a message that references the S3 Object. By setting this field the SQS client used by Bento will be compatiable with the  AWS Extended Client for Large Messages pattern. 
+`).
+				Optional().
+				Version("1.4.0").
 				Advanced(),
 			service.NewIntField("wait_time_seconds").
 				Description("Whether to set the wait time. Enabling this activates long-polling. Valid values: 0 to 20.").
@@ -163,8 +180,15 @@ func newAWSSQSReader(conf sqsiConfig, aconf aws.Config, log *service.Logger) (*a
 // Connect attempts to establish a connection to the target SQS
 // queue.
 func (a *awsSQSReader) Connect(ctx context.Context) error {
-	if a.sqs == nil {
+	if a.sqs == nil && a.conf.LargeMessageBucket == "" {
 		a.sqs = sqs.NewFromConfig(a.aconf)
+	}
+	if a.sqs == nil && a.conf.LargeMessageBucket != "" {
+		a.sqs, _ = sqsextendedclient.New(
+			sqs.NewFromConfig(a.aconf),
+			s3.NewFromConfig(a.aconf),
+			sqsextendedclient.WithS3BucketName(a.conf.LargeMessageBucket),
+		)
 	}
 
 	ift := &sqsInFlightTracker{
