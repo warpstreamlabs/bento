@@ -35,14 +35,14 @@ func CheckSkip(t testing.TB) {
 		runStr = flag.Lookup("test.bench").Value.String()
 	}
 	if runStr == "" || regexp.MustCompile(strings.Split(runStr, "/")[0]).FindString(t.Name()) == "" {
-		t.Skip("Skipping as execution was not requested explicitly using go test -run ^Test.*Integration.*$")
+		t.Skip("Skipping as execution was not requested explicitly using go test -run '^Test.*Integration.*$'")
 	}
 }
 
 // CheckSkipExact skips a test unless the -run flag specifically targets it.
 func CheckSkipExact(t testing.TB) {
 	if m := flag.Lookup("test.run").Value.String(); m == "" || m != t.Name() {
-		t.Skipf("Skipping as execution was not requested explicitly using go test -run %v", t.Name())
+		t.Skipf("Skipping as execution was not requested explicitly using go test -run '%v'", t.Name())
 	}
 }
 
