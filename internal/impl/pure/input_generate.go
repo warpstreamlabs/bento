@@ -98,7 +98,7 @@ func init() {
 			b = input.NewAsyncPreserver(b)
 		}
 
-		i, err := input.NewAsyncReader("generate", input.NewAsyncPreserver(b), nm)
+		i, err := input.NewAsyncReader("generate", b, nm)
 		if err != nil {
 			return nil, err
 		}

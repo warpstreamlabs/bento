@@ -22,6 +22,7 @@ func TestConfigParseYAML(t *testing.T) {
 			name: "basic config",
 			input: `
 threads: 123
+strict_mode: true
 processors:
   - label: a
     mapping: 'root = "a"'
