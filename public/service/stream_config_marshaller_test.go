@@ -46,6 +46,7 @@ buffer:
   none: {}
 pipeline:
   threads: -1
+  strict_mode: false
   processors: []
 output:
   cat: {} # No default (required)
@@ -90,6 +91,7 @@ buffer:
   none: {}
 pipeline:
   threads: -1
+  strict_mode: false
   processors: []
 output:
   cat:
@@ -141,6 +143,7 @@ buffer:
   none: {}
 pipeline:
   threads: -1
+  strict_mode: false
   processors: []
 output:
   cat: null # No default (required)

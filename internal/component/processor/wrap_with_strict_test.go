@@ -48,3 +48,42 @@ func TestProcessorWrapWithStrict(t *testing.T) {
 	assert.Equal(t, 1, msgs[0].Len())
 	assert.Equal(t, `{"hello":"world"}`, string(msgs[0].Get(0).AsBytes()))
 }
+
+func TestProcessorWrapWithStrictMultiMessage(t *testing.T) {
+	tCtx := context.Background()
+
+	// Wrap the processor with the strict interface
+	strictProc := WrapWithStrictErrorHandling(mockProc{})
+
+	msg := message.QuickBatch([][]byte{
+		[]byte("not a structured doc"),
+		[]byte(`{"foo":"oof"}`),
+		[]byte(`{"bar":"rab"}`),
+	})
+	msgs, res := strictProc.ProcessBatch(tCtx, msg)
+	require.Empty(t, msgs)
+	require.Error(t, res)
+	assert.Error(t, res, "invalid character 'o' in literal null (expecting 'u')")
+
+	// Ensure the ordering of the message does not influence the error message
+	msg = message.QuickBatch([][]byte{
+		[]byte(`{"foo":"oof"}`),
+		[]byte("not a structured doc"),
+		[]byte(`{"bar":"rab"}`),
+	})
+	msgs, res = strictProc.ProcessBatch(tCtx, msg)
+	require.Empty(t, msgs)
+	require.Error(t, res)
+	assert.Error(t, res, "invalid character 'o' in literal null (expecting 'u')")
+
+	// Multiple errored messages
+	msg = message.QuickBatch([][]byte{
+		[]byte(`{"foo":"oof"}`),
+		[]byte("not a structured doc"),
+		[]byte(`another unstructred doc`),
+	})
+	msgs, res = strictProc.ProcessBatch(tCtx, msg)
+	require.Empty(t, msgs)
+	require.Error(t, res)
+	assert.Error(t, res, "invalid character 'o' in literal null (expecting 'u')")
+}

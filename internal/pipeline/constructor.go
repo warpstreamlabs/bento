@@ -14,7 +14,7 @@ import (
 
 var (
 	threadsField    = docs.FieldInt("threads", "The number of threads to execute processing pipelines across.").HasDefault(-1)
-	strictModeField = docs.FieldBool("strict_mode", "Promotes message-level errors to processing failures.").HasDefault(false)
+	strictModeField = docs.FieldBool("strict_mode", "When enabled, batches containing errored messages are nacked and/or reprocessed depending on your input.").HasDefault(false)
 )
 
 func ConfigSpec() docs.FieldSpec {
@@ -37,11 +37,12 @@ func ConfigSpec() docs.FieldSpec {
 // threads, or use a memory buffer.
 //
 // A pipeline can also be configured for strict error handling, where any message-level
-// error will fail the entire batch process.
+// error will fail the entire batch. These failed batches are nacked and/or reprocessed
+// depending  on your input.
 type Config struct {
 	Threads    int                `json:"threads" yaml:"threads"`
 	Processors []processor.Config `json:"processors" yaml:"processors"`
-	StrictMode bool               `json:"strict_mode" yaml:"strict_mode"`
+	StrictMode bool               `json:"strict_mode,omitempty" yaml:"strict_mode,omitempty"`
 }
 
 // NewConfig returns a configuration struct fully populated with default values.

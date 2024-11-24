@@ -22,6 +22,26 @@ func TestConfigParseYAML(t *testing.T) {
 			name: "basic config",
 			input: `
 threads: 123
+processors:
+  - label: a
+    mapping: 'root = "a"'
+  - label: b
+    mapping: 'root = "b"'
+`,
+			validateFn: func(t testing.TB, v pipeline.Config) {
+				assert.Equal(t, 123, v.Threads)
+				assert.Equal(t, false, v.StrictMode)
+				require.Len(t, v.Processors, 2)
+				assert.Equal(t, "a", v.Processors[0].Label)
+				assert.Equal(t, "mapping", v.Processors[0].Type)
+				assert.Equal(t, "b", v.Processors[1].Label)
+				assert.Equal(t, "mapping", v.Processors[1].Type)
+			},
+		},
+		{
+			name: "basic config with strict mode enabled",
+			input: `
+threads: 123
 strict_mode: true
 processors:
   - label: a
@@ -31,6 +51,7 @@ processors:
 `,
 			validateFn: func(t testing.TB, v pipeline.Config) {
 				assert.Equal(t, 123, v.Threads)
+				assert.Equal(t, true, v.StrictMode)
 				require.Len(t, v.Processors, 2)
 				assert.Equal(t, "a", v.Processors[0].Label)
 				assert.Equal(t, "mapping", v.Processors[0].Type)
