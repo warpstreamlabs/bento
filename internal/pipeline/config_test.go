@@ -51,7 +51,7 @@ processors:
 `,
 			validateFn: func(t testing.TB, v pipeline.Config) {
 				assert.Equal(t, 123, v.Threads)
-				assert.False(t, v.StrictMode)
+				assert.True(t, v.StrictMode)
 				require.Len(t, v.Processors, 2)
 				assert.Equal(t, "a", v.Processors[0].Label)
 				assert.Equal(t, "mapping", v.Processors[0].Type)
