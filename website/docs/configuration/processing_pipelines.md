@@ -26,4 +26,23 @@ output:
 
 If the field `threads` is set to `-1` (the default) it will automatically match the number of logical CPUs available. By default almost all Bento sources will utilise as many processing threads as have been configured, which makes horizontal scaling easy.
 
+You can also configure your pipeline to run in `strict_mode`, where messages that fail a processing step are rejected and prevented from proceeding to subsequent processors:
+
+```yaml
+input:
+  resource: foo
+
+pipeline:
+  strict_mode: true
+  processors:
+    - mapping: |
+        root = if this.value > 0.5 { throw("error") }
+    # If an error is attached to a message, this step is not reached
+    - mapping: |
+        root.message = this
+
+output:
+  resource: bar
+```
+
 [processors]: /docs/components/processors/about

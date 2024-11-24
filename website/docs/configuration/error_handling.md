@@ -147,7 +147,44 @@ output:
           resource: baz
 ```
 
+## Strict Mode
+
+A pipeline can be set to run in [`strict_mode`][processors.strict_mode], where a failed processing step will immediately reject the batch without proceeding to subsequent processors. When enabled, this behavior prevents any further processing steps from being reached.
+
+```yaml
+pipeline:
+  strict_mode: true
+  processors:
+    # Set all messages in a batch to errored 
+    - mapping: |
+        root = throw("You shall not pass.")
+
+    # These processors will not be reached while errors persist
+    - resource: foo
+    - resource: bar
+    - resource: baz
+```
+
+By default, failed messages will be continuously reprocessed with all errors being logged. However, setting `auto_replay_nacks: false` will cause strict mode to drop failed messages instead.
+
+Additionally, error handling mechanisms like `catch` and `try` are ineffective since the pipeline is stopped at the failed processor; before messages can reach error handling components:
+
+```yaml
+pipeline:
+  strict_mode: true
+  processors:
+    # Set all messages in a batch to errored
+    - mapping: |
+        root = throw("You shall not pass.")
+
+    # This won't be reached as the above processor will keep retrying
+    - catch:
+      - resource: foo
+      - resource: bar
+```
+
 [processors]: /docs/components/processors/about
+[processors.strict_mode]: /docs/components/processors/about#strict-mode
 [processor.mapping]: /docs/components/processors/mapping
 [processor.switch]: /docs/components/processors/switch
 [processor.retry]: /docs/components/processors/retry
