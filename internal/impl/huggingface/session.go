@@ -1,4 +1,4 @@
-//go:build huggingbento
+//go:build GO
 
 package huggingface
 
@@ -29,12 +29,12 @@ func (o *ortSession) Destroy() {
 	o.mut.Unlock()
 }
 
-func (o *ortSession) NewSession(onnxLibraryPath string) (*hugot.Session, error) {
+func (o *ortSession) NewSession() (*hugot.Session, error) {
 	o.mut.Lock()
 	defer o.mut.Unlock()
 
 	if o.session == nil || !ort.IsInitialized() {
-		session, err := hugot.NewSession(hugot.WithOnnxLibraryPath(onnxLibraryPath))
+		session, err := hugot.NewGoSession()
 		if err != nil {
 			return nil, err
 		}

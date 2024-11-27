@@ -1,4 +1,4 @@
-//go:build huggingbento
+//go:build GO
 
 package huggingface
 
@@ -20,7 +20,6 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 	"github.com/warpstreamlabs/bento/public/service"
-	ort "github.com/yalue/onnxruntime_go"
 )
 
 //go:embed testdata/expected_token_classification.json
@@ -36,20 +35,10 @@ var (
 
 func setup(t *testing.T) {
 	var (
-		ok  bool
 		err error
 	)
 
-	onnxLibPath, ok = os.LookupEnv("ONNXRUNTIME_SHARED_LIB_PATH")
-	if !ok {
-		t.Error("Required environment variable 'ONNXRUNTIME_SHARED_LIB_PATH' was not set.")
-	}
-
-	assert.Eventually(t, func() bool {
-		return !ort.IsInitialized()
-	}, time.Second*10, time.Millisecond*100)
-
-	onnxRuntimeSession, err = globalSession.NewSession(onnxLibPath)
+	onnxRuntimeSession, err = globalSession.NewSession()
 	require.NoError(t, err)
 	require.NotNil(t, onnxRuntimeSession)
 }

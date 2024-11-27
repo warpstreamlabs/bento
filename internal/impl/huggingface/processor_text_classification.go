@@ -1,9 +1,8 @@
-//go:build huggingbento
+//go:build GO
 
 package huggingface
 
 import (
-	"github.com/daulet/tokenizers"
 	"github.com/knights-analytics/hugot"
 	"github.com/knights-analytics/hugot/pipelines"
 
@@ -121,10 +120,10 @@ func newTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Reso
 		return nil, err
 	}
 
-	pipeline.TokenizerOptions = []tokenizers.EncodeOption{
-		tokenizers.WithReturnAttentionMask(),
-		tokenizers.WithReturnTypeIDs(),
-	}
+	// pipeline.Tokenizer.GoTokenizer = []tokenizer.EncodeOption{
+	// 	tokenizers.WithReturnAttentionMask(),
+	// 	tokenizers.WithReturnTypeIDs(),
+	// }
 
 	p.pipeline = pipeline
 

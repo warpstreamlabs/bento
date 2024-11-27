@@ -1,4 +1,4 @@
-//go:build huggingbento
+//go:build GO
 
 package huggingface
 
@@ -101,16 +101,12 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 	p := &pipelineProcessor{log: mgr.Logger()}
 
 	var modelRepo, modelPath, pipelineName string
-	var onnxLibraryPath, onnxFileName string
+	var onnxFileName string
 	var shouldDownload bool
 
 	var err error
 
-	if onnxLibraryPath, err = conf.FieldString("onnx_library_path"); err != nil {
-		return nil, err
-	}
-
-	if p.session, err = globalSession.NewSession(onnxLibraryPath); err != nil {
+	if p.session, err = globalSession.NewSession(); err != nil {
 		return nil, err
 	}
 

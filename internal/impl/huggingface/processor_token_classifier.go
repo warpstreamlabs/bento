@@ -1,4 +1,4 @@
-//go:build huggingbento
+//go:build GO
 
 package huggingface
 
