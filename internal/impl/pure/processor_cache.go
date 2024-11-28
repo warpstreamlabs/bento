@@ -55,8 +55,13 @@ can be detected with [processor error handling](/docs/configuration/error_handli
 
 ### `+"`delete`"+`
 
-Delete a key and its contents from the cache.  If the key does not exist the
-action is a no-op and will not fail with an error.`).
+Delete a key and its contents from the cache. If the key does not exist the
+action is a no-op and will not fail with an error.
+
+### `+"`exists`"+`
+
+Check if a given key exists in the cache and replace the original message payload
+with `+"`true`"+` or `+"`false`"+`.`).
 		Example("Deduplication", `
 Deduplication can be done using the add operator with a key extracted from the message payload, since it fails when a key already exists we can remove the duplicates using a [`+"`mapping` processor"+`](/docs/components/processors/mapping):`,
 			`
@@ -122,7 +127,7 @@ cache_resources:
 		Fields(
 			service.NewStringField(cachePFieldResource).
 				Description("The [`cache` resource](/docs/components/caches/about) to target with this processor."),
-			service.NewStringEnumField(cachePFieldOperator, "set", "add", "get", "delete").
+			service.NewStringEnumField(cachePFieldOperator, "set", "add", "get", "delete", "exists").
 				Description("The [operation](#operators) to perform with the cache."),
 			service.NewInterpolatedStringField(cachePFieldKey).
 				Description("A key to use with the cache."),
@@ -232,33 +237,44 @@ func newCache(conf cacheProcConfig, mgr bundle.NewManagement) (*cacheProc, error
 
 //------------------------------------------------------------------------------
 
-type cacheOperator func(ctx context.Context, cache cache.V1, key string, value []byte, ttl *time.Duration) ([]byte, bool, error)
+type operatorResultApplier func(part *message.Part)
+type cacheOperator func(ctx context.Context, cache cache.V1, key string, value []byte, ttl *time.Duration) (operatorResultApplier, error)
 
 func newCacheSetOperator() cacheOperator {
-	return func(ctx context.Context, cache cache.V1, key string, value []byte, ttl *time.Duration) ([]byte, bool, error) {
+	return func(ctx context.Context, cache cache.V1, key string, value []byte, ttl *time.Duration) (operatorResultApplier, error) {
 		err := cache.Set(ctx, key, value, ttl)
-		return nil, false, err
+		return nil, err
 	}
 }
 
 func newCacheAddOperator() cacheOperator {
-	return func(ctx context.Context, cache cache.V1, key string, value []byte, ttl *time.Duration) ([]byte, bool, error) {
+	return func(ctx context.Context, cache cache.V1, key string, value []byte, ttl *time.Duration) (operatorResultApplier, error) {
 		err := cache.Add(ctx, key, value, ttl)
-		return nil, false, err
+		return nil, err
 	}
 }
 
 func newCacheGetOperator() cacheOperator {
-	return func(ctx context.Context, cache cache.V1, key string, _ []byte, _ *time.Duration) ([]byte, bool, error) {
+	return func(ctx context.Context, cache cache.V1, key string, _ []byte, _ *time.Duration) (operatorResultApplier, error) {
 		result, err := cache.Get(ctx, key)
-		return result, true, err
+		return func(part *message.Part) { part.SetBytes(result) }, err
 	}
 }
 
 func newCacheDeleteOperator() cacheOperator {
-	return func(ctx context.Context, cache cache.V1, key string, _ []byte, ttl *time.Duration) ([]byte, bool, error) {
+	return func(ctx context.Context, cache cache.V1, key string, _ []byte, ttl *time.Duration) (operatorResultApplier, error) {
 		err := cache.Delete(ctx, key)
-		return nil, false, err
+		return nil, err
+	}
+}
+
+func newCacheExistsOperator() cacheOperator {
+	return func(ctx context.Context, cache cache.V1, key string, _ []byte, _ *time.Duration) (operatorResultApplier, error) {
+		if _, err := cache.Get(ctx, key); err != nil {
+			return func(part *message.Part) { part.SetStructured(false) }, nil
+		}
+
+		return func(part *message.Part) { part.SetStructured(true) }, nil
 	}
 }
 
@@ -272,6 +288,8 @@ func cacheOperatorFromString(operator string) (cacheOperator, error) {
 		return newCacheGetOperator(), nil
 	case "delete":
 		return newCacheDeleteOperator(), nil
+	case "exists":
+		return newCacheExistsOperator(), nil
 	}
 	return nil, fmt.Errorf("operator not recognised: %v", operator)
 }
@@ -312,10 +330,9 @@ func (c *cacheProc) ProcessBatch(ctx *processor.BatchProcContext, msg message.Ba
 			ttl = &td
 		}
 
-		var result []byte
-		var useResult bool
+		var resultApplierFn operatorResultApplier
 		if cerr := c.mgr.AccessCache(context.Background(), c.cacheName, func(cache cache.V1) {
-			result, useResult, err = c.operator(context.Background(), cache, key, value, ttl)
+			resultApplierFn, err = c.operator(context.Background(), cache, key, value, ttl)
 		}); cerr != nil {
 			err = cerr
 		}
@@ -329,8 +346,8 @@ func (c *cacheProc) ProcessBatch(ctx *processor.BatchProcContext, msg message.Ba
 			return nil
 		}
 
-		if useResult {
-			part.SetBytes(result)
+		if resultApplierFn != nil {
+			resultApplierFn(part)
 		}
 		return nil
 	})

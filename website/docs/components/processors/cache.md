@@ -158,7 +158,7 @@ The [operation](#operators) to perform with the cache.
 
 
 Type: `string`  
-Options: `set`, `add`, `get`, `delete`.
+Options: `set`, `add`, `get`, `delete`, `exists`.
 
 ### `key`
 
@@ -216,6 +216,11 @@ can be detected with [processor error handling](/docs/configuration/error_handli
 
 ### `delete`
 
-Delete a key and its contents from the cache.  If the key does not exist the
+Delete a key and its contents from the cache. If the key does not exist the
 action is a no-op and will not fail with an error.
+
+### `exists`
+
+Check if a given key exists in the cache and replace the original message payload
+with `true` or `false`.
 

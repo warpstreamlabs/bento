@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - Go API: Methods `HasStructured` and `HasBytes` added to the message type. (@rockwotj)
 - New Bloblang method `timestamp`. (@mihaitodor)
 - New `benchmark` processor. (@ooesili)
+- New `exists` operator added to the `cache` processor. (@mihaitodor)
 
 
 ## 4.31.0 - 2024-07-18
