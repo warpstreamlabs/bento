@@ -32,7 +32,7 @@ module.exports = {
     },
     image: 'img/og_img.png',
     metadata: [
-      {name: 'keywords', content: 'benthos, stream processor, data engineering, ETL, ELT, event processor, go, golang'},
+      {name: 'keywords', content: 'bento, stream processor, data engineering, ETL, ELT, event processor, go, golang'},
       {name: 'twitter:card', content: 'summary'},
     ],
     navbar: {
@@ -91,9 +91,9 @@ module.exports = {
       isCloseable: true,
     },
     algolia: {
-      appId: 'WBY9Z65YR4',
-      apiKey: 'a6c476911e6ecef76049a55d9798a51b',
-      indexName: 'benthos',
+      appId: 'LBT8FSOYRM',
+      apiKey: 'f04107cd5a957d0508560517357bb54e',
+      indexName: 'warpstreamlabsio',
       contextualSearch: true
     }
   },
