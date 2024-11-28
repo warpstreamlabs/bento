@@ -14,7 +14,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/cli/blobl"
 	"github.com/warpstreamlabs/bento/internal/cli/common"
-	"github.com/warpstreamlabs/bento/internal/cli/studio"
 	clitemplate "github.com/warpstreamlabs/bento/internal/cli/template"
 	"github.com/warpstreamlabs/bento/internal/cli/test"
 	"github.com/warpstreamlabs/bento/internal/docs"
@@ -344,7 +343,6 @@ For more information check out the docs at:
 			test.CliCommand(opts),
 			clitemplate.CliCommand(opts),
 			blobl.CliCommand(opts),
-			studio.CliCommand(opts),
 		},
 	}
 
