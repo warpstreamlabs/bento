@@ -445,7 +445,7 @@ func (q *questdbWriter) WriteBatch(ctx context.Context, batch service.MessageBat
 					sender.Int64Column(k, intVal)
 				}
 			case float64:
-				// float64 is only needed if BENTHOS_USE_NUMBER=false
+				// float64 is only needed if BENTO_USE_NUMBER=false
 				if !hasTable {
 					sender.Table(q.table)
 					hasTable = true

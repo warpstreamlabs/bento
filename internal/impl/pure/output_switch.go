@@ -114,7 +114,7 @@ If a message can be routed to >1 outputs it is usually best to set this to true 
 					Description("A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether a message should be routed to the case output. If left empty the case always passes.").
 					Examples(
 						`this.type == "foo"`,
-						`this.contents.urls.contains("https://benthos.dev/")`,
+						`this.contents.urls.contains("https://bento.dev/")`,
 					).
 					Default(""),
 				service.NewOutputField(soFieldCasesOutput).
@@ -127,7 +127,7 @@ If a message can be routed to >1 outputs it is usually best to set this to true 
 				Description("A list of switch cases, outlining outputs that can be routed to.").
 				Example([]any{
 					map[string]any{
-						"check": `this.urls.contains("http://benthos.dev")`,
+						"check": `this.urls.contains("https://warpstreamlabs.github.io/bento")`,
 						"output": map[string]any{
 							"cache": map[string]any{
 								"target": "foo",
