@@ -1,4 +1,4 @@
-package processor
+package strict
 
 import (
 	"context"
@@ -33,7 +33,7 @@ func TestProcessorWrapWithStrict(t *testing.T) {
 	tCtx := context.Background()
 
 	// Wrap the processor with the strict interface
-	strictProc := WrapWithStrictErrorHandling(mockProc{})
+	strictProc := wrapWithStrict(mockProc{})
 
 	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
 	msgs, res := strictProc.ProcessBatch(tCtx, msg)
@@ -53,7 +53,7 @@ func TestProcessorWrapWithStrictMultiMessage(t *testing.T) {
 	tCtx := context.Background()
 
 	// Wrap the processor with the strict interface
-	strictProc := WrapWithStrictErrorHandling(mockProc{})
+	strictProc := wrapWithStrict(mockProc{})
 
 	msg := message.QuickBatch([][]byte{
 		[]byte("not a structured doc"),

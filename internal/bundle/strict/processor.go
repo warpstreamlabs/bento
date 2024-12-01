@@ -1,25 +1,35 @@
-package processor
+package strict
 
 import (
 	"context"
 
 	"github.com/warpstreamlabs/bento/internal/batch"
+	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
-// WrapWithStrictErrorHandling returns a processor that fails batch processing
-// if any message in the batch contains an error.
-func WrapWithStrictErrorHandling(proc V1) V1 {
-	return &strictProcessor{proc}
+func wrapWithStrict(p iprocessor.V1) iprocessor.V1 {
+	t := &strictProcessor{
+		wrapped: p,
+		enabled: true,
+	}
+	return t
 }
+
+//------------------------------------------------------------------------------
 
 // strictProcessor fails batch processing if any message contains an error.
 type strictProcessor struct {
-	V1
+	wrapped iprocessor.V1
+	enabled bool
 }
 
-func (p *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]message.Batch, error) {
-	batches, err := p.V1.ProcessBatch(ctx, b)
+func (s *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]message.Batch, error) {
+	if !s.enabled {
+		return s.wrapped.ProcessBatch(ctx, b)
+	}
+
+	batches, err := s.wrapped.ProcessBatch(ctx, b)
 	if err != nil {
 		return nil, err
 	}
@@ -45,4 +55,12 @@ func (p *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]
 	}
 
 	return batches, nil
+}
+
+func (s *strictProcessor) Close(ctx context.Context) error {
+	return s.wrapped.Close(ctx)
+}
+
+func (s *strictProcessor) UnwrapProc() iprocessor.V1 {
+	return s.wrapped
 }

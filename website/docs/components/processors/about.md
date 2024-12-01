@@ -51,16 +51,18 @@ This configuration field is experimental and therefore breaking changes could be
 
 Introduced in `v1.4.0`.
 
-When `strict_mode` is enabled, Bento treats any message-level error as a batch-wide failure, immediately rejecting any batch containing errored messages and propagating a `nack` (negative acknowledgment) to the input layer. The handling of rejected messages then depends on the input component's `nack` behavior - by default, triggering the reprocessing failed messages from scratch.
+When `error_handling` is set, Bento treats any message-level error as a batch-wide failure, immediately rejecting any batch containing errored messages and propagating a `nack` (negative acknowledgment) to the input layer. The handling of rejected messages then depends on the input component's `nack` behavior - by default, triggering the reprocessing failed messages from scratch.
 
 ```yaml
 pipeline:
-  strict_mode: true
   processors:
     - mapping: |
         root = throw("error")
     - mapping: |
-        root.message = this
+        root.message = "I'm never reached"
+
+error_handling:
+  strategy: reject
 ```
 
 This behavior also bypasses Bento's traditional error handling mechanisms like `catch` and `try` (described in [Error Handling][error_handling]) since the entire transaction is rejected before messages can reach error handling components.

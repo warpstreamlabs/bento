@@ -12,17 +12,13 @@ import (
 	"github.com/warpstreamlabs/bento/internal/value"
 )
 
-var (
-	threadsField    = docs.FieldInt("threads", "The number of threads to execute processing pipelines across.").HasDefault(-1)
-	strictModeField = docs.FieldBool("strict_mode", "When enabled, batches containing errored messages are nacked and/or reprocessed depending on your input.").HasDefault(false)
-)
+var threadsField = docs.FieldInt("threads", "The number of threads to execute processing pipelines across.").HasDefault(-1)
 
 func ConfigSpec() docs.FieldSpec {
 	return docs.FieldObject(
 		"pipeline", "Describes optional processing pipelines used for mutating messages.",
 	).WithChildren(
 		threadsField,
-		strictModeField,
 		docs.FieldProcessor("processors", "A list of processors to apply to messages.").Array().HasDefault([]any{}),
 	)
 }
@@ -35,14 +31,9 @@ func ConfigSpec() docs.FieldSpec {
 // In order to fully utilise each processing thread you must either have a
 // number of parallel inputs that matches or surpasses the number of pipeline
 // threads, or use a memory buffer.
-//
-// A pipeline can also be configured for strict error handling, where any message-level
-// error will fail the entire batch. These failed batches are nacked and/or reprocessed
-// depending  on your input.
 type Config struct {
 	Threads    int                `json:"threads" yaml:"threads"`
 	Processors []processor.Config `json:"processors" yaml:"processors"`
-	StrictMode bool               `json:"strict_mode,omitempty" yaml:"strict_mode,omitempty"`
 }
 
 // NewConfig returns a configuration struct fully populated with default values.
@@ -50,7 +41,6 @@ func NewConfig() Config {
 	return Config{
 		Threads:    -1,
 		Processors: []processor.Config{},
-		StrictMode: false,
 	}
 }
 
@@ -60,15 +50,12 @@ func NewConfig() Config {
 func New(conf Config, mgr bundle.NewManagement) (processor.Pipeline, error) {
 	processors := make([]processor.V1, len(conf.Processors))
 	for j, procConf := range conf.Processors {
+		var err error
 		pMgr := mgr.IntoPath("processors", strconv.Itoa(j))
-		proc, err := pMgr.NewProcessor(procConf)
+		processors[j], err = pMgr.NewProcessor(procConf)
 		if err != nil {
 			return nil, err
 		}
-		if conf.StrictMode {
-			proc = processor.WrapWithStrictErrorHandling(proc)
-		}
-		processors[j] = proc
 	}
 	if conf.Threads == 1 {
 		return NewProcessor(processors...), nil
@@ -91,14 +78,6 @@ func FromAny(prov docs.Provider, value any) (conf Config, err error) {
 
 func fromMap(prov docs.Provider, val map[string]any) (conf Config, err error) {
 	conf = NewConfig()
-
-	if strictModeV, exists := val["strict_mode"]; exists {
-		var strictModeBool bool
-		if strictModeBool, err = value.IGetBool(strictModeV); err != nil {
-			return
-		}
-		conf.StrictMode = strictModeBool
-	}
 
 	if threadsV, exists := val["threads"]; exists {
 		var threads64 int64
@@ -124,10 +103,6 @@ func fromYAML(prov docs.Provider, val *yaml.Node) (conf Config, err error) {
 	conf = NewConfig()
 	for i := 0; i < len(val.Content)-1; i += 2 {
 		switch val.Content[i].Value {
-		case "strict_mode":
-			if err = val.Content[i+1].Decode(&conf.StrictMode); err != nil {
-				return
-			}
 		case "threads":
 			if err = val.Content[i+1].Decode(&conf.Threads); err != nil {
 				return

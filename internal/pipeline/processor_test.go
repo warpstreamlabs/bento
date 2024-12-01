@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/batch"
-	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/pipeline"
 )
@@ -352,79 +351,6 @@ func TestProcessorMultiMsgsBatchError(t *testing.T) {
 	if !mockProc.hasWaitedForClose {
 		t.Error("Expected mockproc to have waited for close")
 	}
-}
-
-type mockStrictProcessor struct {
-	mockSplitProcessor
-}
-
-func (m *mockStrictProcessor) ProcessBatch(ctx context.Context, msg message.Batch) ([]message.Batch, error) {
-	for _, p := range msg {
-		_, err := p.AsStructured()
-		if err != nil {
-			p.ErrorSet(errors.New("oh no"))
-		}
-
-	}
-	return []message.Batch{msg}, nil
-}
-
-func TestProcessorStrictMultiMsgsBatchError(t *testing.T) {
-	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
-	defer done()
-
-	mockProc := &mockStrictProcessor{}
-	proc := pipeline.NewProcessor(processor.WrapWithStrictErrorHandling(mockProc))
-
-	tChan, resChan := make(chan message.Transaction), make(chan error)
-
-	require.NoError(t, proc.Consume(tChan))
-
-	sortGroup, inputBatch := message.NewSortGroup(message.Batch{
-		message.NewPart([]byte(`{"foo":"oof"}`)),
-		message.NewPart([]byte("bar")),
-		message.NewPart([]byte(`{"baz":"zab"}`)),
-	})
-
-	// Send message
-	select {
-	case tChan <- message.NewTransaction(inputBatch, resChan):
-	case <-time.After(time.Second):
-		t.Error("Timed out")
-	}
-
-	// Receive overall ack
-	select {
-	case err, open := <-resChan:
-		require.True(t, open)
-		require.EqualError(t, err, "oh no")
-
-		var batchErr *batch.Error
-		require.ErrorAs(t, err, &batchErr)
-
-		indexErrs := map[int]string{}
-		batchErr.WalkPartsBySource(sortGroup, inputBatch, func(i int, p *message.Part, err error) bool {
-			if err != nil {
-				indexErrs[i] = err.Error()
-			}
-			return true
-		})
-		assert.Equal(t, map[int]string{
-			1: "oh no",
-		}, indexErrs)
-	case <-time.After(time.Second):
-		t.Error("Timed out")
-	}
-
-	proc.TriggerCloseNow()
-	require.NoError(t, proc.WaitForClose(ctx))
-	if !mockProc.hasClosedAsync {
-		t.Error("Expected mockproc to have closed asynchronously")
-	}
-	if !mockProc.hasWaitedForClose {
-		t.Error("Expected mockproc to have waited for close")
-	}
-
 }
 
 type mockPhantomProcessor struct {

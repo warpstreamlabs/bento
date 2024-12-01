@@ -16,6 +16,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/api"
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/bundle/strict"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/docs"
@@ -103,6 +104,11 @@ func CreateManager(
 		manager.OptSetTracer(trac),
 		manager.OptSetStreamsMode(streamsMode),
 	}, mgrOpts...)
+
+	// Initialise processors with global error handling strategy
+	if conf.ErrorHandling.Strategy == "reject" {
+		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(strict.StrictBundle(bundle.GlobalEnvironment)))
+	}
 
 	// Create resource manager.
 	var mgr *manager.Type
