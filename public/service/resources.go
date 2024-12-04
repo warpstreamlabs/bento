@@ -239,7 +239,12 @@ func (r *Resources) HasOutput(name string) bool {
 // can block if CRUD operations are being actively performed on the resource.
 func (r *Resources) AccessRateLimit(ctx context.Context, name string, fn func(r RateLimit)) error {
 	return r.mgr.AccessRateLimit(ctx, name, func(r ratelimit.V1) {
-		fn(newReverseAirGapRateLimit(r))
+		// Try to upgrade to MessageAwareRateLimiter if possible
+		if mar, ok := r.(MessageAwareRateLimit); ok {
+			fn(newReverseAirGapMessageAwareRateLimit(mar))
+		} else {
+			fn(newReverseAirGapRateLimit(r))
+		}
 	})
 }
 

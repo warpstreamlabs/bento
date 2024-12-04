@@ -498,6 +498,11 @@ func (e *Environment) RegisterRateLimit(name string, spec *ConfigSpec, ctor Rate
 		if err != nil {
 			return nil, err
 		}
+		// Check if the implementation is message-aware
+		if msgAware, ok := r.(MessageAwareRateLimit); ok {
+			return newAirGapMessageAwareRateLimit(msgAware, nm.Metrics()), nil
+		}
+
 		return newAirGapRateLimit(r, nm.Metrics()), nil
 	}, componentSpec)
 }
