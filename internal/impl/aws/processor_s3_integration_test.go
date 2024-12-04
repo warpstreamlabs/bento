@@ -74,11 +74,12 @@ aws_s3:
 	resBatch := resBatches[0]
 
 	expectedMsg := message.QuickBatch([][]byte{[]byte("hello world")})
-
+	var expectedContentLength int64 = 11
 	for _, part := range expectedMsg {
 		part.MetaSetMut("s3_key", "example.txt")
 		part.MetaSetMut("s3_bucket", "test-bucket")
 		part.MetaSetMut("s3_content_type", "application/octet-stream")
+		part.MetaSetMut("s3_content_length", expectedContentLength)
 	}
 
 	for _, part := range resBatch {

@@ -49,6 +49,7 @@ This input adds the following metadata fields to each message:
 - s3_last_modified (RFC3339)
 - s3_content_type
 - s3_content_encoding
+- s3_content_length
 - s3_version_id
 - All user defined metadata
 `+"```"+`
@@ -171,15 +172,17 @@ func (p *s3Processor) ProcessBatch(ctx context.Context, batch service.MessageBat
 
 	var resBatches []service.MessageBatch
 
-	for i := range batch {
+	for i, msg := range batch {
 
 		bucket, err := bucketExecutor.TryString(i)
 		if err != nil {
-			return nil, fmt.Errorf("s3 bucket interpolation error: %w", err)
+			msg.SetError(fmt.Errorf("s3 bucket interpolation error: %w", err))
+			continue
 		}
 		key, err := keyExecutor.TryString(i)
 		if err != nil {
-			return nil, fmt.Errorf("s3 key interpolation error: %w", err)
+			msg.SetError(fmt.Errorf("s3 key interpolation error: %w", err))
+			continue
 		}
 
 		obj, err := client.GetObject(ctx, &s3.GetObjectInput{
@@ -187,7 +190,8 @@ func (p *s3Processor) ProcessBatch(ctx context.Context, batch service.MessageBat
 			Key:    aws.String(key),
 		})
 		if err != nil {
-			return nil, err
+			msg.SetError(err)
+			continue
 		}
 
 		details := service.NewScannerSourceDetails()
@@ -195,7 +199,8 @@ func (p *s3Processor) ProcessBatch(ctx context.Context, batch service.MessageBat
 
 		scanner, err := p.Scanner.Create(obj.Body, nil, details)
 		if err != nil {
-			return nil, err
+			msg.SetError(fmt.Errorf("error creating scanner: %w", err))
+			continue
 		}
 
 		for {
@@ -232,6 +237,9 @@ func (p *s3Processor) getMetadata(bucket string, key string, obj *s3.GetObjectOu
 		}
 		if obj.ContentEncoding != nil {
 			part.MetaSetMut("s3_content_encoding", *obj.ContentEncoding)
+		}
+		if obj.ContentLength != nil {
+			part.MetaSetMut("s3_content_length", *obj.ContentLength)
 		}
 		if obj.VersionId != nil && *obj.VersionId != "null" {
 			part.MetaSetMut("s3_version_id", *obj.VersionId)
