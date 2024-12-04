@@ -2,7 +2,6 @@ package errorhandling
 
 import (
 	"github.com/warpstreamlabs/bento/internal/docs"
-	// "github.com/warpstreamlabs/bento/internal/retries"
 )
 
 const (
