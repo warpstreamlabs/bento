@@ -93,6 +93,15 @@ func (r *localRatelimit) Access(ctx context.Context) (time.Duration, error) {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 
+	// Rate limiting count is enabled
+	if r.size > 0 {
+		r.bucket--
+	}
+
+	if r.bucket < 0 {
+		r.exceededLimit = true
+	}
+
 	if !r.exceededLimit {
 		return 0, nil
 	}
@@ -109,7 +118,7 @@ func (r *localRatelimit) Access(ctx context.Context) (time.Duration, error) {
 
 // Add increments the observation or message-bytes counter. Returns true if this
 // triggers the conditions of the rate-limiter.
-func (r *localRatelimit) Add(ctx context.Context, part *message.Part) bool {
+func (r *localRatelimit) Add(ctx context.Context, parts ...*message.Part) bool {
 	r.mut.Lock()
 	defer r.mut.Unlock()
 
@@ -121,17 +130,16 @@ func (r *localRatelimit) Add(ctx context.Context, part *message.Part) bool {
 		return true
 	}
 
-	// Rate limiting count is enabled
-	if r.size > 0 {
-		r.bucket--
-	}
-
 	// Rate limiting bytes is enabled
-	if r.byteSize > 0 && part != nil {
-		r.byteBucket -= len(part.AsBytes())
+	if r.byteSize > 0 && len(parts) != 0 {
+		for i := 0; i < len(parts) && r.byteBucket >= 0; i++ {
+			if parts[i] != nil {
+				r.byteBucket -= len(parts[i].AsBytes())
+			}
+		}
 	}
 
-	if r.bucket < 0 || r.byteBucket < 0 {
+	if r.byteBucket < 0 {
 		r.exceededLimit = true
 	}
 

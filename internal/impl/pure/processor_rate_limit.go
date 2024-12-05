@@ -74,7 +74,7 @@ func (r *rateLimitProc) Process(ctx context.Context, msg *message.Part) ([]*mess
 		var waitFor time.Duration
 		var err error
 		if rerr := r.mgr.AccessRateLimit(ctx, r.rlName, func(rl ratelimit.V1) {
-			v2, ok := rl.(ratelimit.MessageAwareRateLimiter)
+			v2, ok := rl.(ratelimit.MessageAwareRateLimit)
 			if ok {
 				v2.Add(ctx, msg)
 			}

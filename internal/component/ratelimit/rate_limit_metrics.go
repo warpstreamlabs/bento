@@ -46,7 +46,7 @@ func (r *metricsRateLimit) Close(ctx context.Context) error {
 //------------------------------------------------------------------------------
 
 type metricsMessageAwareRateLimit struct {
-	r MessageAwareRateLimiter
+	r MessageAwareRateLimit
 
 	mChecked metrics.StatCounter
 	mLimited metrics.StatCounter
@@ -55,7 +55,7 @@ type metricsMessageAwareRateLimit struct {
 
 // MetricsForRateLimit wraps a ratelimit.V2 with a struct that implements
 // types.RateLimit.
-func MetricsForMessageAwareRateLimit(r MessageAwareRateLimiter, stats metrics.Type) MessageAwareRateLimiter {
+func MetricsForMessageAwareRateLimit(r MessageAwareRateLimit, stats metrics.Type) MessageAwareRateLimit {
 	return &metricsMessageAwareRateLimit{
 		r: r,
 
@@ -65,8 +65,8 @@ func MetricsForMessageAwareRateLimit(r MessageAwareRateLimiter, stats metrics.Ty
 	}
 }
 
-func (r *metricsMessageAwareRateLimit) Add(ctx context.Context, msg *message.Part) bool {
-	return r.r.Add(ctx, msg)
+func (r *metricsMessageAwareRateLimit) Add(ctx context.Context, parts ...*message.Part) bool {
+	return r.r.Add(ctx, parts...)
 }
 
 func (r *metricsMessageAwareRateLimit) Access(ctx context.Context) (time.Duration, error) {

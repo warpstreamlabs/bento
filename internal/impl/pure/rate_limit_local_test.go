@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
@@ -58,7 +59,6 @@ interval: 1s
 		assert.LessOrEqual(t, period, time.Duration(0))
 	}
 
-	assert.True(t, rl.Add(ctx, nil), "Expected rate limit to be reached")
 	if period, _ := rl.Access(ctx); period == 0 {
 		t.Error("Expected limit on final request")
 	} else if period > time.Second {
@@ -119,7 +119,6 @@ interval: 10ms
 		}
 	}
 
-	assert.True(t, rl.Add(ctx, nil))
 	if period, _ := rl.Access(ctx); period == 0 {
 		t.Error("Expected limit on final request")
 	} else if period > time.Second {
@@ -136,7 +135,6 @@ interval: 10ms
 		}
 	}
 
-	assert.True(t, rl.Add(ctx, nil))
 	if period, _ := rl.Access(ctx); period == 0 {
 		t.Error("Expected limit on final request")
 	} else if period > time.Second {
@@ -241,7 +239,6 @@ interval: 10ms
 	assert.Equal(t, 25, rl.byteBucket)
 
 	// rate limit on 16th request since count is reached
-	assert.True(t, rl.Add(ctx, msgWith5Bytes))
 	if period, _ := rl.Access(ctx); period == 0 {
 		t.Error("Expected limit on final request")
 	} else if period > time.Second {

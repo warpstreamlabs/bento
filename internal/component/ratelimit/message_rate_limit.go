@@ -8,10 +8,10 @@ import (
 )
 
 // MessageAwareRateLimiter extends RateLimiter with message-specific rate limiting
-type MessageAwareRateLimiter interface {
+type MessageAwareRateLimit interface {
 	// Add a new message part to the rate limiter. Returns true if this part triggers
 	// the conditions of the rate-limiter.
-	Add(ctx context.Context, msg *message.Part) bool
+	Add(ctx context.Context, parts ...*message.Part) bool
 
 	// Access the rate limited resource. Returns a duration or an error if the
 	// rate limit check fails. The returned duration is either zero (meaning the
