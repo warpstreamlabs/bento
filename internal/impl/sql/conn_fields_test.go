@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	baws "github.com/warpstreamlabs/bento/internal/impl/sql/aws"
 
 	"github.com/warpstreamlabs/bento/public/service"
