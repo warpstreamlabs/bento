@@ -11,6 +11,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"

@@ -14,6 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 )
 

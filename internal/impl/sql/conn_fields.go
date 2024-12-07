@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS some_table (
 		service.NewBoolField("aws_enabled").
 			Description("Enables connectivity to AWS for credential retrieval.").
 			Default(false),
-		service.NewObjectField(SqlFieldAWS,
+		service.NewObjectField(SQLFieldAWS,
 			append([]*service.ConfigField{
 				service.NewBoolField("iam_enabled").
 					Description("An optional field used to generate an IAM authentication token to connect to an Amazon Relational Database (RDS) DB instance. This will overwrite the Password in the DSN with the generated token only if the drivers are `mysql` or `postgres`.").
