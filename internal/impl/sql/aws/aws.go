@@ -22,11 +22,11 @@ func init() {
 	}
 
 	sql.AWSGetCredentialsGeneratorFn = func(conf *service.ParsedConfig) (func(dsn, driver string) (password string, err error), error) {
-		if !conf.Contains(sql.SqlFieldAWS) {
+		if !conf.Contains(sql.SQLFieldAWS) {
 			return noop, nil
 		}
 
-		aConf := conf.Namespace(sql.SqlFieldAWS)
+		aConf := conf.Namespace(sql.SQLFieldAWS)
 		if aConf == nil {
 			return noop, errors.New("field 'aws' is not present in parsed config")
 		}
