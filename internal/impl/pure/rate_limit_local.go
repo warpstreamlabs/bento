@@ -18,7 +18,7 @@ func localRatelimitConfig() *service.ConfigSpec {
 			Description("The maximum number of requests to allow for a given period of time. If `0` disables count based rate-limiting.").
 			Default(1000).LintRule(`root = if this < 0 { [ "count cannot be less than zero" ] }`)).
 		Field(service.NewIntField("byte_size").
-			Description("The maximum number of bytes to allow for a given period of time. If `0` disables size based rate-limiting.").
+			Description("The maximum number of bytes to allow for a given period of time. If `0` disables byte_size based rate-limiting.").
 			Default(0).LintRule(`root = if this < 0 { [ "byte_size cannot be less than zero" ] }`)).
 		Field(service.NewDurationField("interval").
 			Description("The time window to limit requests by.").
@@ -131,16 +131,17 @@ func (r *localRatelimit) Add(ctx context.Context, parts ...*message.Part) bool {
 	}
 
 	// Rate limiting bytes is enabled
-	if r.byteSize > 0 && len(parts) != 0 {
-		for i := 0; i < len(parts) && r.byteBucket >= 0; i++ {
-			if parts[i] != nil {
-				r.byteBucket -= len(parts[i].AsBytes())
+	if r.byteSize > 0 {
+		for i := 0; i < len(parts); i++ {
+			if parts[i] == nil {
+				continue
+			}
+
+			if r.byteBucket -= len(parts[i].AsBytes()); r.byteBucket < 0 {
+				r.exceededLimit = true
+				break
 			}
 		}
-	}
-
-	if r.byteBucket < 0 {
-		r.exceededLimit = true
 	}
 
 	return r.exceededLimit

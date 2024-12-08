@@ -37,7 +37,7 @@ Default: `1000`
 
 ### `byte_size`
 
-The maximum number of bytes to allow for a given period of time. If `0` disables size based rate-limiting.
+The maximum number of bytes to allow for a given period of time. If `0` disables byte_size based rate-limiting.
 
 
 Type: `int`  
