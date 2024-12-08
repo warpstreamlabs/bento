@@ -21,6 +21,7 @@ The local rate limit is a simple X every Y type rate limit that can be shared ac
 label: ""
 local:
   count: 1000
+  byte_size: 0
   interval: 1s
 ```
 
@@ -28,11 +29,19 @@ local:
 
 ### `count`
 
-The maximum number of requests to allow for a given period of time.
+The maximum number of requests to allow for a given period of time. If `0` disables count based rate-limiting.
 
 
 Type: `int`  
 Default: `1000`  
+
+### `byte_size`
+
+The maximum number of bytes to allow for a given period of time. If `0` disables byte_size based rate-limiting.
+
+
+Type: `int`  
+Default: `0`  
 
 ### `interval`
 
