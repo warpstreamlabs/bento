@@ -18,8 +18,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
@@ -260,11 +262,13 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 		if err != nil {
 			return err
 		}
+
 		// First, json->proto message
 		err = protojson.Unmarshal(msgBytes, protoMessage)
 		if err != nil {
-			return fmt.Errorf("failed to Unmarshal json message for item %d: %w", i, err)
+			return fmt.Errorf("failed to Unmarshal json message for item %d: err: %w, sampleEvent: %s", i, err, string(msgBytes))
 		}
+
 		// Then, proto message -> bytes.
 		protoBytes, err := proto.Marshal(protoMessage)
 		if err != nil {
@@ -341,6 +345,9 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 	}
 
 	bq.streams[destTable] = managedStreamPair
+
+	messageDescriptorString := prototext.Format(protodesc.ToFileDescriptorProto(messageDescriptor.ParentFile()))
+	bq.log.Infof("loaded new bigquery schema for table: %s, schema: %s", destTable, messageDescriptorString)
 
 	return managedStreamPair, nil
 }
