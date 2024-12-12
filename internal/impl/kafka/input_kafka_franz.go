@@ -126,6 +126,10 @@ With this option, you can return topic order and per-topic partition ordering. T
 		Field(service.NewBatchPolicyField("batching").
 			Description("Allows you to configure a [batching policy](/docs/configuration/batching) that applies to individual topic partitions in order to batch messages together before flushing them for processing. Batching can be beneficial for performance as well as useful for windowed processing, and doing so this way preserves the ordering of topic partitions.").
 			Advanced()).
+		Field(service.NewStringField("rate_limit").
+			Description("An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invocations by.").
+			Default("").
+			Advanced()).
 		LintRule(`
 let has_topic_partitions = this.topics.any(t -> t.contains(":"))
 root = if $has_topic_partitions {
@@ -183,6 +187,7 @@ type franzKafkaReader struct {
 	balancers              []kgo.GroupBalancer
 
 	batchChan atomic.Value
+	rateLimit string
 	res       *service.Resources
 	log       *service.Logger
 	shutSig   *shutdown.Signaller
@@ -195,6 +200,38 @@ func (f *franzKafkaReader) getBatchChan() chan batchWithAckFn {
 
 func (f *franzKafkaReader) storeBatchChan(c chan batchWithAckFn) {
 	f.batchChan.Store(c)
+}
+
+func (f *franzKafkaReader) waitForAccess(ctx context.Context, batch service.MessageBatch) bool {
+	if f.rateLimit == "" {
+		return true
+	}
+
+	if len(batch) == 0 {
+		return true
+	}
+
+	for {
+		var period time.Duration
+		var err error
+		if rerr := f.res.AccessRateLimit(ctx, f.rateLimit, func(rl service.RateLimit) {
+			if mar, ok := rl.(service.MessageAwareRateLimit); ok {
+				mar.Add(ctx, batch...)
+			}
+			period, err = rl.Access(ctx)
+		}); rerr != nil {
+			err = rerr
+		}
+		if err != nil {
+			f.log.Errorf("Rate limit error: %v\n", err)
+			period = time.Second
+		}
+		if period > 0 {
+			<-time.After(period)
+		} else {
+			return true
+		}
+	}
 }
 
 func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Resources) (*franzKafkaReader, error) {
@@ -332,6 +369,10 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	}
 
 	if f.batchPolicy, err = conf.FieldBatchPolicy("batching"); err != nil {
+		return nil, err
+	}
+
+	if f.rateLimit, err = conf.FieldString("rate_limit"); err != nil {
 		return nil, err
 	}
 
@@ -524,8 +565,7 @@ func (p *partitionTracker) sendBatch(ctx context.Context, b service.MessageBatch
 	return nil
 }
 
-func (p *partitionTracker) add(ctx context.Context, m *msgWithRecord, limit int) (pauseFetch bool) {
-	var sendBatch service.MessageBatch
+func (p *partitionTracker) add(ctx context.Context, m *msgWithRecord, limit int) (sendBatch service.MessageBatch, pauseFetch bool) {
 	if p.batcher != nil {
 		// Wrap this in a closure to make locking/unlocking easier.
 		func() {
@@ -614,7 +654,7 @@ func (c *checkpointTracker) close() {
 	}
 }
 
-func (c *checkpointTracker) addRecord(ctx context.Context, m *msgWithRecord, limit int) (pauseFetch bool) {
+func (c *checkpointTracker) addRecord(ctx context.Context, m *msgWithRecord, limit int) (sendBatch service.MessageBatch, pauseFetch bool) {
 	c.mut.Lock()
 	defer c.mut.Unlock()
 
@@ -819,8 +859,10 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 			iter := fetches.RecordIter()
 			for !iter.Done() {
 				record := iter.Next()
-				if checkpoints.addRecord(closeCtx, f.recordToMessage(record), f.checkpointLimit) {
+				if batch, pause := checkpoints.addRecord(closeCtx, f.recordToMessage(record), f.checkpointLimit); pause {
 					pauseTopicPartitions[record.Topic] = append(pauseTopicPartitions[record.Topic], record.Partition)
+				} else {
+					f.waitForAccess(ctx, batch)
 				}
 			}
 

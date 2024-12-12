@@ -83,6 +83,7 @@ input:
       jitter: 0
       check: ""
       processors: [] # No default (optional)
+    rate_limit: ""
 ```
 
 </TabItem>
@@ -703,5 +704,13 @@ processors:
   - archive:
       format: json_array
 ```
+
+### `rate_limit`
+
+An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invocations by.
+
+
+Type: `string`  
+Default: `""`  
 
 
