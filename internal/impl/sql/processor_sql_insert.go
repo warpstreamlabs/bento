@@ -10,8 +10,6 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
-
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -173,12 +171,7 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	awsConf, err := bento_aws.GetSession(context.Background(), conf)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings); err != nil {
 		return nil, err
 	}
 
