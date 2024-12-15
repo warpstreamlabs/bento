@@ -286,3 +286,7 @@ func sleepWithCancellation(ctx context.Context, d time.Duration) error {
 		return ctx.Err()
 	}
 }
+
+func (r *AsyncReader) UnwrapAsyncReader() Async {
+	return r.reader
+}
