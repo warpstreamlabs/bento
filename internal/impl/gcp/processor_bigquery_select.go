@@ -106,7 +106,9 @@ func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 			Optional()).
 		Field(service.NewBloblangField("columns_mapping").
 			Description("An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of column names to query.").
-			Optional()).
+			Optional().
+			Version("1.5.0").
+			Advanced()).
 		Field(service.NewStringField("where").
 			Description("An optional where clause to add. Placeholder arguments are populated with the `args_mapping` field. Placeholders should always be question marks (`?`).").
 			Example("type = ? and created_at > ?").

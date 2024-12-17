@@ -37,7 +37,6 @@ gcp_bigquery_select:
   project: "" # No default (required)
   table: bigquery-public-data.samples.shakespeare # No default (required)
   columns: [] # No default (optional)
-  columns_mapping: "" # No default (optional)
   where: type = ? and created_at > ? # No default (optional)
   job_labels: {}
   args_mapping: root = [ "article", now().ts_format("2006-01-02") ] # No default (optional)
@@ -158,6 +157,7 @@ An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluat
 
 
 Type: `string`  
+Requires version 1.5.0 or newer  
 
 ### `where`
 
