@@ -22,13 +22,22 @@ Executes a `SELECT` query against BigQuery and replaces messages with the rows r
 
 Introduced in version 1.0.0.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 label: ""
 gcp_bigquery_select:
   project: "" # No default (required)
   table: bigquery-public-data.samples.shakespeare # No default (required)
-  columns: [] # No default (required)
+  columns: [] # No default (optional)
+  columns_mapping: "" # No default (optional)
   where: type = ? and created_at > ? # No default (optional)
   job_labels: {}
   args_mapping: root = [ "article", now().ts_format("2006-01-02") ] # No default (optional)
@@ -36,10 +45,33 @@ gcp_bigquery_select:
   suffix: "" # No default (optional)
 ```
 
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+label: ""
+gcp_bigquery_select:
+  project: "" # No default (required)
+  table: bigquery-public-data.samples.shakespeare # No default (required)
+  columns: [] # No default (optional)
+  columns_mapping: "" # No default (optional)
+  where: type = ? and created_at > ? # No default (optional)
+  job_labels: {}
+  args_mapping: root = [ "article", now().ts_format("2006-01-02") ] # No default (optional)
+  prefix: "" # No default (optional)
+  suffix: "" # No default (optional)
+  unsafe_dynamic_query: false
+```
+
+</TabItem>
+</Tabs>
+
 ## Examples
 
 <Tabs defaultValue="Word count" values={[
 { label: 'Word count', value: 'Word count', },
+{ label: 'Unsafe Dynamic Query', value: 'Unsafe Dynamic Query', },
 ]}>
 
 <TabItem value="Word count">
@@ -69,6 +101,25 @@ pipeline:
 ```
 
 </TabItem>
+<TabItem value="Unsafe Dynamic Query">
+
+
+An example to show the use of the unsafe_dynamic_query field:
+
+```yaml
+# {"table": "test.people", "where": "city IN (?,?,?)", "columns": ["name", "age", "city"], "args": ["London", "Paris", "Dublin"]}
+pipeline:
+  processors:
+    - gcp_bigquery_select:
+        project: ${GGP_PROJECT}
+        table: ${! this.table } # test.people
+        columns_mapping: root = this.columns #["name", "age", "city"]
+        where:  ${! "city IN ("+this.args.join(",").re_replace_all("\\b\\w+\\b","?")+")" } # city IN (?,?,?)
+        args_mapping: root = this.args # ["London", "Paris", "Dublin"]
+        unsafe_dynamic_query: true
+```
+
+</TabItem>
 </Tabs>
 
 ## Fields
@@ -83,6 +134,7 @@ Type: `string`
 ### `table`
 
 Fully-qualified BigQuery table name to query.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -99,6 +151,13 @@ A list of columns to query.
 
 
 Type: `array`  
+
+### `columns_mapping`
+
+An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of column names to query.
+
+
+Type: `string`  
 
 ### `where`
 
@@ -149,5 +208,14 @@ An optional suffix to append to the select query.
 
 
 Type: `string`  
+
+### `unsafe_dynamic_query`
+
+Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the columns & where fields. Great care should be made to ensure your queries are defended against injection attacks.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.5.0 or newer  
 
 
