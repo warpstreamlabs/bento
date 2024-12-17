@@ -8,6 +8,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"go.uber.org/multierr"
 
+	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -64,11 +65,14 @@ func (client *wrappedBQClient) Close() error {
 }
 
 type bqQueryParts struct {
-	table   string
-	columns []string
-	where   string
-	prefix  string
-	suffix  string
+	table          string
+	tableDyn       *service.InterpolatedString
+	columns        []string
+	columnsMapping *bloblang.Executor
+	where          string
+	whereDyn       *service.InterpolatedString
+	prefix         string
+	suffix         string
 }
 
 type bqQueryBuilderOptions struct {
