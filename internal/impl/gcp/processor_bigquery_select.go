@@ -227,7 +227,7 @@ func (proc *bigQuerySelectProcessor) ProcessBatch(ctx context.Context, batch ser
 	}
 
 	var columnsMappingExecutor *service.MessageBatchBloblangExecutor
-	if argsMapping != nil {
+	if columnsMapping != nil {
 		columnsMappingExecutor = batch.BloblangExecutor(columnsMapping)
 	}
 
