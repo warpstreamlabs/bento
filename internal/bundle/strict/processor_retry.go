@@ -63,7 +63,8 @@ func (r *retryProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]m
 		r.reset()
 	}
 
-	b.Iter(func(i int, p *message.Part) error {
+	// Clear all previous errors prior to checking
+	_ = b.Iter(func(i int, p *message.Part) error {
 		p.ErrorSet(nil)
 		return nil
 	})
