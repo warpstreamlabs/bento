@@ -49,6 +49,12 @@ func saslField() *service.ConfigField {
 		service.NewObjectField("aws", config.SessionFields()...).
 			Description("Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.").
 			Optional(),
+		service.NewStringField(saramaFieldSASLTokenCache).
+			Description("Instead of using a static `access_token` allows you to query a [`cache`](/docs/components/caches/about) resource to fetch OAUTHBEARER tokens from").
+			Default(""),
+		service.NewStringField(saramaFieldSASLTokenKey).
+			Description("Required when using a `token_cache`, the key to query the cache with for tokens.").
+			Default(""),
 	).
 		Description("Specify one or more methods of SASL authentication. SASL is tried in order; if the broker supports the first mechanism, all connections will use that mechanism. If the first mechanism fails, the client will pick the first supported mechanism. If the broker does not support any client mechanisms, connections will fail.").
 		Advanced().Optional().
@@ -63,7 +69,7 @@ func saslField() *service.ConfigField {
 		)
 }
 
-func saslMechanismsFromConfig(c *service.ParsedConfig) ([]sasl.Mechanism, error) {
+func saslMechanismsFromConfig(c *service.ParsedConfig, mgr *service.Resources) ([]sasl.Mechanism, error) {
 	if !c.Contains("sasl") {
 		return nil, nil
 	}
@@ -85,7 +91,7 @@ func saslMechanismsFromConfig(c *service.ParsedConfig) ([]sasl.Mechanism, error)
 				mechanism, err = plainSaslFromConfig(mConf)
 				mechanisms = append(mechanisms, mechanism)
 			case "OAUTHBEARER":
-				mechanism, err = oauthSaslFromConfig(mConf)
+				mechanism, err = oauthSaslFromConfig(mConf, mgr)
 				mechanisms = append(mechanisms, mechanism)
 			case "SCRAM-SHA-256":
 				mechanism, err = scram256SaslFromConfig(mConf)
@@ -128,16 +134,36 @@ func plainSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
 	}), nil
 }
 
-func oauthSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
-	token, err := c.FieldString("token")
-	if err != nil {
-		return nil, err
-	}
+func oauthSaslFromConfig(c *service.ParsedConfig, mgr *service.Resources) (sasl.Mechanism, error) {
 	var extensions map[string]string
+	var err error
 	if c.Contains("extensions") {
 		if extensions, err = c.FieldStringMap("extensions"); err != nil {
 			return nil, err
 		}
+	}
+
+	if c.Contains("token_cache") {
+		tokenCache, err := c.FieldString("token_cache")
+		if err != nil {
+			return nil, err
+		}
+		tokenKey, err := c.FieldString("token_key")
+		if err != nil {
+			return nil, err
+		}
+		tp, err := newCacheAccessTokenProvider(mgr, tokenCache, tokenKey, extensions)
+		if err != nil {
+			return nil, err
+		}
+		return oauth.Oauth(func(c context.Context) (oauth.Auth, error) {
+			return tp.FranzToken()
+		}), nil
+	}
+
+	token, err := c.FieldString("token")
+	if err != nil {
+		return nil, err
 	}
 	return oauth.Oauth(func(c context.Context) (oauth.Auth, error) {
 		return oauth.Auth{
@@ -277,7 +303,7 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 		var err error
 
 		if tokenCache != "" {
-			if tp, err = newCacheAccessTokenProvider(mgr, tokenCache, tokenKey); err != nil {
+			if tp, err = newCacheAccessTokenProvider(mgr, tokenCache, tokenKey, nil); err != nil {
 				return err
 			}
 		} else {
@@ -317,20 +343,36 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 
 // cacheAccessTokenProvider fetches SASL OAUTHBEARER access tokens from a cache.
 type cacheAccessTokenProvider struct {
-	mgr       *service.Resources
-	cacheName string
-	key       string
+	mgr        *service.Resources
+	cacheName  string
+	key        string
+	extensions map[string]string
 }
 
-func newCacheAccessTokenProvider(mgr *service.Resources, cache, key string) (*cacheAccessTokenProvider, error) {
+func newCacheAccessTokenProvider(mgr *service.Resources, cache, key string, extensions map[string]string) (*cacheAccessTokenProvider, error) {
 	if !mgr.HasCache(cache) {
 		return nil, fmt.Errorf("cache resource '%v' was not found", cache)
 	}
 	return &cacheAccessTokenProvider{
-		mgr:       mgr,
-		cacheName: cache,
-		key:       key,
+		mgr:        mgr,
+		cacheName:  cache,
+		key:        key,
+		extensions: extensions,
 	}, nil
+}
+
+func (c *cacheAccessTokenProvider) FranzToken() (oauth.Auth, error) {
+	var tok []byte
+	var terr error
+	if err := c.mgr.AccessCache(context.Background(), c.cacheName, func(cache service.Cache) {
+		tok, terr = cache.Get(context.Background(), c.key)
+	}); err != nil {
+		return oauth.Auth{}, fmt.Errorf("failed to obtain cache resource '%v': %v", c.cacheName, err)
+	}
+	if terr != nil {
+		return oauth.Auth{}, terr
+	}
+	return oauth.Auth{Token: string(tok), Extensions: c.extensions}, nil
 }
 
 func (c *cacheAccessTokenProvider) Token() (*sarama.AccessToken, error) {

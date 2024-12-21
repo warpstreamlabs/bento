@@ -127,7 +127,7 @@ func init() {
 			if batchPolicy, err = conf.FieldBatchPolicy("batching"); err != nil {
 				return
 			}
-			output, err = newFranzKafkaWriterFromConfig(conf, mgr.Logger())
+			output, err = newFranzKafkaWriterFromConfig(conf, mgr)
 			return
 		})
 	if err != nil {
@@ -159,12 +159,14 @@ type franzKafkaWriter struct {
 
 	client *kgo.Client
 
+	res *service.Resources
 	log *service.Logger
 }
 
-func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logger) (*franzKafkaWriter, error) {
+func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, res *service.Resources) (*franzKafkaWriter, error) {
 	f := franzKafkaWriter{
-		log: log,
+		res: res,
+		log: res.Logger(),
 	}
 
 	brokerList, err := conf.FieldStringList("seed_brokers")
@@ -312,7 +314,7 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 	if tlsEnabled {
 		f.tlsConf = tlsConf
 	}
-	if f.saslConfs, err = saslMechanismsFromConfig(conf); err != nil {
+	if f.saslConfs, err = saslMechanismsFromConfig(conf, f.res); err != nil {
 		return nil, err
 	}
 

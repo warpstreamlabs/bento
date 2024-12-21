@@ -386,7 +386,7 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	if f.multiHeader, err = conf.FieldBool("multi_header"); err != nil {
 		return nil, err
 	}
-	if f.saslConfs, err = saslMechanismsFromConfig(conf); err != nil {
+	if f.saslConfs, err = saslMechanismsFromConfig(conf, f.res); err != nil {
 		return nil, err
 	}
 
