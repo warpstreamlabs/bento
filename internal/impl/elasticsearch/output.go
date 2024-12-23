@@ -98,28 +98,27 @@ func esoConfigFromParsed(pConf *service.ParsedConfig) (conf esoConfig, err error
 		return
 	}
 
+	httpClient := &http.Client{
+		Timeout: timeout,
+	}
+
 	var tlsConf *tls.Config
 	var tlsEnabled bool
 	if tlsConf, tlsEnabled, err = pConf.FieldTLSToggled(esoFieldTLS); err != nil {
 		return
 	} else if tlsEnabled {
-		conf.clientOpts = append(conf.clientOpts, elastic.SetHttpClient(&http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConf,
-			},
-			Timeout: timeout,
-		}))
-	} else {
-		conf.clientOpts = append(conf.clientOpts, elastic.SetHttpClient(&http.Client{
-			Timeout: timeout,
-		}))
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsConf,
+		}
 	}
 
-	var awsOpts []elastic.ClientOptionFunc
-	if awsOpts, err = AWSOptFn(pConf.Namespace(esoFieldAWS)); err != nil {
-		return
+	if pConf.Contains(esoFieldAWS) {
+		var awsOpts []elastic.ClientOptionFunc
+		if awsOpts, err = AWSOptFn(pConf.Namespace(esoFieldAWS), httpClient); err != nil {
+			return
+		}
+		conf.clientOpts = append(conf.clientOpts, awsOpts...)
 	}
-	conf.clientOpts = append(conf.clientOpts, awsOpts...)
 
 	var gzipCompression bool
 	if gzipCompression, err = pConf.FieldBool(esoFieldGzipCompression); err != nil {
@@ -156,7 +155,7 @@ func esoConfigFromParsed(pConf *service.ParsedConfig) (conf esoConfig, err error
 
 //------------------------------------------------------------------------------
 
-func notImportedAWSOptFn(conf *service.ParsedConfig) ([]elastic.ClientOptionFunc, error) {
+func notImportedAWSOptFn(conf *service.ParsedConfig, _ *http.Client) ([]elastic.ClientOptionFunc, error) {
 	if enabled, _ := conf.FieldBool(ESOFieldAWSEnabled); !enabled {
 		return nil, nil
 	}
