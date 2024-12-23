@@ -24,7 +24,7 @@ import (
 
 func TestIntegrationS3Processor(t *testing.T) {
 	integration.CheckSkip(t)
-	servicePort := getLocalStack(t)
+	servicePort := GetLocalStack(t, nil)
 	bucketName := "test-bucket"
 	objectKey := "example.txt"
 	objectData := "hello world"

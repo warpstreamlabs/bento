@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
-	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,41 +19,14 @@ import (
 )
 
 func TestKinesisIntegration(t *testing.T) {
-	t.Skip("The docker image we're using here is old and deprecated")
 	integration.CheckSkip(t)
 
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	pool.MaxWait = time.Second * 30
-
-	// start mysql container with binlog enabled
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "vsouza/kinesis-local",
-		Cmd: []string{
-			"--createStreamMs=5",
-		},
-	})
-	if err != nil {
-		t.Fatalf("Could not start resource: %v", err)
-	}
-	defer func() {
-		if err := pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %v", err)
-		}
-	}()
-
-	port, err := strconv.ParseInt(resource.GetPort("4567/tcp"), 10, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	endpoint := fmt.Sprintf("http://localhost:%d", port)
+	port := GetLocalStack(t, nil)
+	endpoint := fmt.Sprintf("http://localhost:%s", port)
 
 	pConf, err := koOutputSpec().ParseYAML(fmt.Sprintf(`
 stream: foo
@@ -79,12 +49,10 @@ credentials:
 
 	// bootstrap kinesis
 	client := kinesis.NewFromConfig(conf)
-	if err := pool.Retry(func() error {
-		_, err := client.CreateStream(context.TODO(), &kinesis.CreateStreamInput{
-			ShardCount: aws.Int32(1),
-			StreamName: aws.String("foo"),
-		})
-		return err
+
+	if _, err := client.CreateStream(context.TODO(), &kinesis.CreateStreamInput{
+		ShardCount: aws.Int32(1),
+		StreamName: aws.String("foo"),
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
