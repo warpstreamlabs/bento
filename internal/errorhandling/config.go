@@ -20,7 +20,7 @@ type Config struct {
 // NewConfig returns a config struct with the default values for each field.
 func NewConfig() Config {
 	return Config{
-		Strategy:        "none",
+		Strategy:        "",
 		ErrorSampleRate: 0,
 		MaxRetries:      0,
 	}

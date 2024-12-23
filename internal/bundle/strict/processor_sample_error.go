@@ -2,6 +2,7 @@ package strict
 
 import (
 	"context"
+	"encoding/json"
 
 	"math/rand/v2"
 
@@ -58,12 +59,24 @@ func (s *errSamplingProcessor) ProcessBatch(ctx context.Context, b message.Batch
 			}
 
 			if shouldSampleError(s.errSampleRate) {
-				sobj, err := p.AsStructured()
-				if err != nil {
-					s.log.Error("failed to extract sample event: %w", err)
-				} else {
-					s.log.Error("sample payload from failed message: %v", sobj)
+				fields := map[string]string{
+					"error":       mErr.Error(),
+					"raw_payload": string(p.AsBytes()),
 				}
+
+				sobj, parseErr := p.AsStructured()
+				if parseErr != nil {
+					fields["parse_payload_error"] = parseErr.Error()
+				} else {
+					// Convert to string representation
+					if jsonBytes, err := json.Marshal(sobj); err == nil {
+						fields["structured_payload"] = string(jsonBytes)
+					} else {
+						fields["structured_payload_error"] = "failed to marshal structured payload"
+					}
+				}
+
+				s.log.WithFields(fields).Error("sample error payload")
 			}
 			return nil
 		})
