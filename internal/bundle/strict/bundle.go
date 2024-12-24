@@ -29,8 +29,8 @@ func NewErrorHandlingBundleFromConfig(ctx context.Context, cfg errorhandling.Con
 
 }
 
-// WithStrictBundle modifies a provided bundle environment so that all procesors
-// will fail an entire batch if any any message-level error is encountered. These
+// WithStrictBundle modifies a provided bundle environment so that all processors
+// will fail an entire batch if any message-level error is encountered. These
 // failed batches are nacked and/or reprocessed depending on your input.
 func StrictBundle(b *bundle.Environment) *bundle.Environment {
 	env := b.Clone()
