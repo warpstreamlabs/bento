@@ -52,7 +52,10 @@ func TestProcessorWrapWithRetry(t *testing.T) {
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
 	require.Error(t, err, "Expected error on third attempt")
 	require.Empty(t, msgs)
-	end := time.Now()
+
+	elapsedTime := time.Since(start)
+	expectedMinimum := 200 * time.Millisecond // [200ms, 600ms]
+	require.GreaterOrEqualf(t, elapsedTime, expectedMinimum, "Total wait duration should be at least %v, got %v", expectedMinimum, elapsedTime)
 
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
 	require.NoError(t, err, "Expected no error as maxiumum retries exceeded")
@@ -60,11 +63,6 @@ func TestProcessorWrapWithRetry(t *testing.T) {
 
 	require.Equal(t, 4, mock.retries,
 		"Expected exactly %d attempts", 4)
-
-	expectedTotal := 1 * time.Second
-	require.WithinDurationf(t, end, start, expectedTotal,
-		"Total duration should be at least %v, got %v",
-		expectedTotal, end)
 }
 
 func TestProcessorWrapWithRetryMultiMessage(t *testing.T) {
@@ -101,7 +99,9 @@ func TestProcessorWrapWithRetryMultiMessage(t *testing.T) {
 	require.Error(t, err, "Expected error on fifth attempt")
 	require.Empty(t, msgs)
 
-	end := time.Now()
+	elapsedTime := time.Since(start)
+	expectedMinimum := 800 * time.Millisecond // [800ms, 2400ms]
+	require.GreaterOrEqualf(t, elapsedTime, expectedMinimum, "Total wait duration should be at least %v, got %v", expectedMinimum, elapsedTime)
 
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
 	require.NoError(t, err, "Expected no error as maxiumum retries exceeded")
@@ -109,10 +109,4 @@ func TestProcessorWrapWithRetryMultiMessage(t *testing.T) {
 
 	require.Equal(t, 6, mock.retries,
 		"Expected exactly %d attempts", 6)
-
-	expectedTotal := 4 * time.Second
-	require.WithinDurationf(t, end, start, expectedTotal,
-		"Total duration should be at least %v, got %v",
-		expectedTotal, end)
-
 }

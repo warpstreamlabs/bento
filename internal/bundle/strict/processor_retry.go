@@ -16,7 +16,7 @@ func wrapWithRetry(p iprocessor.V1, mgr bundle.NewManagement, maxRetries int) ip
 	backoffCtor := func() backoff.BackOff {
 		boff := backoff.NewExponentialBackOff()
 		boff.InitialInterval = time.Millisecond * 100
-		boff.MaxInterval = time.Second * 3
+		boff.MaxInterval = time.Second * 60
 		boff.MaxElapsedTime = 0
 		return boff
 	}
@@ -116,7 +116,7 @@ errorChecks:
 	).Trace("Error occurred, sleeping for next backoff period.")
 
 	select {
-	case <-time.After(r.backoffDuration):
+	case <-time.After(nextSleep):
 		return nil, err
 	case <-ctx.Done():
 		return nil, ctx.Err()
