@@ -94,11 +94,11 @@ func TestProcessorWrapWithRetryMultiMessage(t *testing.T) {
 	require.Empty(t, msgs)
 
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
-	require.Error(t, err, "Expected error on third attempt")
+	require.Error(t, err, "Expected error on fourth attempt")
 	require.Empty(t, msgs)
 
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
-	require.Error(t, err, "Expected error on third attempt")
+	require.Error(t, err, "Expected error on fifth attempt")
 	require.Empty(t, msgs)
 
 	end := time.Now()
