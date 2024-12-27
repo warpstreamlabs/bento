@@ -1922,6 +1922,7 @@ github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.8.3/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/tailscale/peercred v0.0.0-20240214030740-b535050b2aa4/go.mod h1:phI29ccmHQBc+wvroosENp1IF9195449VDnFDhJ4rJU=
 github.com/testcontainers/testcontainers-go v0.28.0 h1:1HLm9qm+J5VikzFDYhOd+Zw12NtOl+8drH2E8nTY1r8=
 github.com/testcontainers/testcontainers-go v0.28.0/go.mod h1:COlDpUXbwW3owtpMkEB1zo9gwb1CoKVKlyrVPejF4AU=
 github.com/tetratelabs/wazero v1.6.0 h1:z0H1iikCdP8t+q341xqepY4EWvHEw8Es7tlqiVzlP3g=
@@ -2929,7 +2930,6 @@ honnef.co/go/tools v0.0.1-2019.2.3/go.mod h1:a3bituU0lyd329TUQxRnasdCoJDkEUEAqEt
 honnef.co/go/tools v0.0.1-2020.1.3/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 honnef.co/go/tools v0.1.3/go.mod h1:NgwopIslSNH47DimFoV78dnkksY2EFtX0ajyb3K/las=
-inet.af/peercred v0.0.0-20210906144145-0893ea02156a/go.mod h1:FjawnflS/udxX+SvpsMgZfdqx2aykOlkISeAsADi5IU=
 k8s.io/api v0.23.3/go.mod h1:w258XdGyvCmnBj/vGzQMj6kzdufJZVUwEM1U2fRJwSQ=
 k8s.io/apimachinery v0.23.3/go.mod h1:BEuFMMBaIbcOqVIJqNZJXGFTP4W6AycEpb5+m/97hrM=
 k8s.io/client-go v0.23.3/go.mod h1:47oMd+YvAOqZM7pcQ6neJtBiFH7alOyfunYN48VsmwE=
