@@ -106,7 +106,7 @@ func CreateManager(
 	}, mgrOpts...)
 
 	// Initialise processors with global error handling strategy
-	if conf.ErrorHandling.Strategy != "none" || conf.ErrorHandling.ErrorSampleRate > 0 {
+	if conf.ErrorHandling.Strategy != "" || conf.ErrorHandling.ErrorSampleRate > 0 {
 		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(
 			strict.NewErrorHandlingBundleFromConfig(c.Context, conf.ErrorHandling, bundle.GlobalEnvironment),
 		))
