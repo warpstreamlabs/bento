@@ -59,7 +59,7 @@ func TestProcessorWrapWithRetry(t *testing.T) {
 
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
 	require.NoError(t, err, "Expected no error as maxiumum retries exceeded")
-	require.Len(t, msgs, 1)
+	require.Empty(t, msgs)
 
 	require.Equal(t, 4, mock.retries,
 		"Expected exactly %d attempts", 4)
@@ -105,7 +105,12 @@ func TestProcessorWrapWithRetryMultiMessage(t *testing.T) {
 
 	msgs, err = retryProc.ProcessBatch(tCtx, msg)
 	require.NoError(t, err, "Expected no error as maxiumum retries exceeded")
+
 	require.Len(t, msgs, 1)
+	require.Len(t, msgs[0], 2)
+
+	require.Equal(t, msgs[0][0].AsBytes(), []byte(`{"foo":"oof"}`))
+	require.Equal(t, msgs[0][1].AsBytes(), []byte(`{"bar":"rab"}`))
 
 	require.Equal(t, 6, mock.retries,
 		"Expected exactly %d attempts", 6)

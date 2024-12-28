@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/log"
@@ -97,7 +98,25 @@ errorChecks:
 	if r.maxRetries > 0 && r.currentRetries > r.maxRetries {
 		r.reset()
 		r.log.With("error", err).Debug("Error occurred and maximum number of retries was reached.")
-		return resBatches, nil
+
+		// drop messages with errors
+		filteredBatches := make([]message.Batch, 0, len(resBatches))
+		for _, batch := range resBatches {
+			validMessages := make([]*message.Part, 0, len(batch))
+
+			for _, msg := range batch {
+				if msg.ErrorGet() == nil {
+					validMessages = append(validMessages, msg)
+				}
+			}
+
+			// only add batch if non-empty
+			if len(validMessages) > 0 {
+				filteredBatches = append(filteredBatches, validMessages)
+			}
+		}
+
+		return filteredBatches, nil
 	}
 
 	nextSleep := r.backoff.NextBackOff()

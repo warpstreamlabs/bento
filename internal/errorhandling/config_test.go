@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 
 	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
