@@ -36,20 +36,6 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 		return
 	}
 
-	// check config fields are being used appropriately:
-	if !inConf.Contains("columns_mapping") && conf.unsafeDyn {
-		err = errors.New("invalid gcp_bigquery_select config: unsafe_dynamic_query set to true but no columns_mapping provided")
-		return
-	}
-	if inConf.Contains("columns_mapping") && inConf.Contains("columns") {
-		err = errors.New("invalid gcp_bigquery_select config: cannot set both columns_mapping and columns field")
-		return
-	}
-	if inConf.Contains("columns") && conf.unsafeDyn {
-		err = errors.New("invalide gcp_bigquery_select config: unsafe_dynamic_query set to true but columns field provided")
-		return
-	}
-
 	if inConf.Contains("args_mapping") {
 		if conf.argsMapping, err = inConf.FieldBloblang("args_mapping"); err != nil {
 			return
@@ -103,6 +89,20 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 		if err != nil {
 			return
 		}
+	}
+
+	// check config fields are being used appropriately
+	if !inConf.Contains("columns_mapping") && conf.unsafeDyn {
+		err = errors.New("invalid gcp_bigquery_select config: unsafe_dynamic_query set to true but no columns_mapping provided")
+		return
+	}
+	if conf.queryParts.columnsMapping != nil && len(conf.queryParts.columns) != 0 {
+		err = errors.New("invalid gcp_bigquery_select config: cannot set both columns_mapping and columns field")
+		return
+	}
+	if len(conf.queryParts.columns) != 0 && conf.unsafeDyn {
+		err = errors.New("invalide gcp_bigquery_select config: unsafe_dynamic_query set to true but columns field provided")
+		return
 	}
 
 	return
@@ -249,36 +249,11 @@ func (proc *bigQuerySelectProcessor) ProcessBatch(ctx context.Context, batch ser
 		outBatch = append(outBatch, msg)
 
 		if proc.config.unsafeDyn {
-			var err error
-			proc.config.queryParts.table, err = proc.config.queryParts.tableDyn.TryString(msg)
-			if err != nil {
-				msg.SetError(fmt.Errorf("failed to resolve table mapping: %w", err))
-				continue
-			}
-			proc.config.queryParts.where, err = proc.config.queryParts.whereDyn.TryString(msg)
-			if err != nil {
-				msg.SetError(fmt.Errorf("failed to resolve where mapping: %w", err))
-				continue
-			}
-
-			resMsg, err := columnsMappingExecutor.Query(i)
-			if err != nil {
-				msg.SetError(fmt.Errorf("failed to resolve columns mapping: %w", err))
-				continue
-			}
-
-			icols, err := resMsg.AsStructured()
-			if err != nil {
-				msg.SetError(fmt.Errorf("mapping returned non-structured result: %w", err))
-				continue
-			}
-			cols, ok := icols.([]any)
-			if !ok {
-				msg.SetError(fmt.Errorf("col mapping returned non-array result: %T", icols))
-				continue
-			}
-
-			proc.config.queryParts.columns, err = toStringSlice(cols)
+			err := proc.resolveUnsafeDynamicFields(
+				msg,
+				columnsMappingExecutor,
+				i,
+			)
 			if err != nil {
 				msg.SetError(err)
 				continue
@@ -369,6 +344,42 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (proc *bigQuerySelectProcessor) resolveUnsafeDynamicFields(
+	msg *service.Message,
+	columnsMappingExecutor *service.MessageBatchBloblangExecutor,
+	i int,
+) (err error) {
+	proc.config.queryParts.table, err = proc.config.queryParts.tableDyn.TryString(msg)
+	if err != nil {
+		return fmt.Errorf("failed to resolve table mapping: %w", err)
+	}
+	proc.config.queryParts.where, err = proc.config.queryParts.whereDyn.TryString(msg)
+	if err != nil {
+		return fmt.Errorf("failed to resolve where mapping: %w", err)
+	}
+
+	resMsg, err := columnsMappingExecutor.Query(i)
+	if err != nil {
+		return fmt.Errorf("failed to resolve columns mapping: %w", err)
+	}
+
+	icols, err := resMsg.AsStructured()
+	if err != nil {
+		return fmt.Errorf("mapping returned non-structured result: %w", err)
+	}
+	cols, ok := icols.([]any)
+	if !ok {
+		return fmt.Errorf("col mapping returned non-array result: %T", icols)
+	}
+
+	proc.config.queryParts.columns, err = toStringSlice(cols)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func toStringSlice(in []any) (out []string, err error) {
