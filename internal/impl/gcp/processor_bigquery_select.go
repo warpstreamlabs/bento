@@ -141,7 +141,7 @@ func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 			Description("An optional suffix to append to the select query.").
 			Optional()).
 		Field(service.NewBoolField("unsafe_dynamic_query").
-			Description("Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the columns & where fields. Great care should be made to ensure your queries are defended against injection attacks.").
+			Description("Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the columns_mapping, table & where fields. When `unsafe_dynamic_query` is set to true, you should provide a bloblang mapping via the `columns_mapping` config field, and not `columns`. Great care should be made to ensure your queries are defended against injection attacks.").
 			Advanced().
 			Default(false).
 			Version("1.5.0").

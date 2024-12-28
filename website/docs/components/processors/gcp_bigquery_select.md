@@ -211,7 +211,7 @@ Type: `string`
 
 ### `unsafe_dynamic_query`
 
-Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the columns & where fields. Great care should be made to ensure your queries are defended against injection attacks.
+Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the columns_mapping, table & where fields. When `unsafe_dynamic_query` is set to true, you should provide a bloblang mapping via the `columns_mapping` config field, and not `columns`. Great care should be made to ensure your queries are defended against injection attacks.
 
 
 Type: `bool`  
