@@ -164,7 +164,7 @@ An example to show the use of the unsafe_dynamic_query field:`,
 pipeline:
   processors:
     - gcp_bigquery_select:
-        project: ${GGP_PROJECT}
+        project: ${GCP_PROJECT}
         table: ${! this.table } # test.people
         columns_mapping: root = this.columns #["name", "age", "city"]
         where:  ${! "city IN ("+this.args.join(",").re_replace_all("\\b\\w+\\b","?")+")" } # city IN (?,?,?)
