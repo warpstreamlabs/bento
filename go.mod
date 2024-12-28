@@ -379,3 +379,7 @@ require (
 )
 
 go 1.22.0
+
+// This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
+// Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842
+replace inet.af/peercred => github.com/tailscale/peercred v0.0.0-20240214030740-b535050b2aa4
