@@ -266,7 +266,7 @@ func (proc *bigQuerySelectProcessor) ProcessBatch(ctx context.Context, batch ser
 
 			proc.config.queryParts.columns, err = toStringSlice(cols)
 			if err != nil {
-				msg.SetError(fmt.Errorf("%w", err))
+				msg.SetError(err)
 				continue
 			}
 		}
