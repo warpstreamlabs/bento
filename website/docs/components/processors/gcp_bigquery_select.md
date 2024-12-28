@@ -106,11 +106,11 @@ pipeline:
 An example to show the use of the unsafe_dynamic_query field:
 
 ```yaml
-# {"table": "test.people", "where": "city IN (?,?,?)", "columns": ["name", "age", "city"], "args": ["London", "Paris", "Dublin"]}
+# {"table": "test.people", "columns": ["name", "age", "city"], "args": ["London", "Paris", "Dublin"]}
 pipeline:
   processors:
     - gcp_bigquery_select:
-        project: ${GGP_PROJECT}
+        project: ${GCP_PROJECT}
         table: ${! this.table } # test.people
         columns_mapping: root = this.columns #["name", "age", "city"]
         where:  ${! "city IN ("+this.args.join(",").re_replace_all("\\b\\w+\\b","?")+")" } # city IN (?,?,?)

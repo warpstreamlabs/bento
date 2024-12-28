@@ -36,6 +36,20 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 		return
 	}
 
+	// check config fields are being used appropriately:
+	if !inConf.Contains("columns_mapping") && conf.unsafeDyn {
+		err = errors.New("invalid gcp_bigquery_select config: unsafe_dynamic_query set to true but no columns_mapping provided")
+		return
+	}
+	if inConf.Contains("columns_mapping") && inConf.Contains("columns") {
+		err = errors.New("invalid gcp_bigquery_select config: cannot set both columns_mapping and columns field")
+		return
+	}
+	if inConf.Contains("columns") && conf.unsafeDyn {
+		err = errors.New("invalide gcp_bigquery_select config: unsafe_dynamic_query set to true but columns field provided")
+		return
+	}
+
 	if inConf.Contains("args_mapping") {
 		if conf.argsMapping, err = inConf.FieldBloblang("args_mapping"); err != nil {
 			return
