@@ -160,7 +160,7 @@ pipeline:
 			`
 An example to show the use of the unsafe_dynamic_query field:`,
 			`
-# {"table": "test.people", "where": "city IN (?,?,?)", "columns": ["name", "age", "city"], "args": ["London", "Paris", "Dublin"]}
+# {"table": "test.people", "columns": ["name", "age", "city"], "args": ["London", "Paris", "Dublin"]}
 pipeline:
   processors:
     - gcp_bigquery_select:
