@@ -20,6 +20,7 @@ type bigQuerySelectProcessorConfig struct {
 	queryParts  *bqQueryParts
 	jobLabels   map[string]string
 	argsMapping *bloblang.Executor
+	unsafeDyn   bool
 }
 
 func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf bigQuerySelectProcessorConfig, err error) {
@@ -27,6 +28,11 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 	conf.queryParts = &queryParts
 
 	if conf.project, err = inConf.FieldString("project"); err != nil {
+		return
+	}
+
+	conf.unsafeDyn, err = inConf.FieldBool("unsafe_dynamic_query")
+	if err != nil {
 		return
 	}
 
@@ -40,16 +46,33 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 		return
 	}
 
-	if queryParts.table, err = inConf.FieldString("table"); err != nil {
-		return
+	if conf.unsafeDyn {
+		if queryParts.tableDyn, err = inConf.FieldInterpolatedString("table"); err != nil {
+			return
+		}
+		if inConf.Contains("where") {
+			if queryParts.whereDyn, err = inConf.FieldInterpolatedString("where"); err != nil {
+				return
+			}
+		}
+		if inConf.Contains("columns_mapping") {
+			if conf.queryParts.columnsMapping, err = inConf.FieldBloblang("columns_mapping"); err != nil {
+				return
+			}
+		}
+	} else {
+		if queryParts.table, err = inConf.FieldString("table"); err != nil {
+			return
+		}
+		if inConf.Contains("where") {
+			if queryParts.where, err = inConf.FieldString("where"); err != nil {
+				return
+			}
+		}
 	}
 
-	if queryParts.columns, err = inConf.FieldStringList("columns"); err != nil {
-		return
-	}
-
-	if inConf.Contains("where") {
-		if queryParts.where, err = inConf.FieldString("where"); err != nil {
+	if inConf.Contains("columns") {
+		if queryParts.columns, err = inConf.FieldStringList("columns"); err != nil {
 			return
 		}
 	}
@@ -68,6 +91,20 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 		}
 	}
 
+	// check config fields are being used appropriately
+	if conf.queryParts.columnsMapping == nil && conf.unsafeDyn {
+		err = errors.New("invalid gcp_bigquery_select config: unsafe_dynamic_query set to true but no columns_mapping provided")
+		return
+	}
+	if inConf.Contains("columns_mapping") && !conf.unsafeDyn {
+		err = errors.New("invalid gcp_bigquery_select config: unsafe_dynamic_query set to false but columns_mapping provided")
+		return
+	}
+	if conf.queryParts.columnsMapping != nil && len(conf.queryParts.columns) != 0 {
+		err = errors.New("invalid gcp_bigquery_select config: cannot set both columns_mapping and columns field")
+		return
+	}
+
 	return
 }
 
@@ -77,8 +114,15 @@ func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 		Categories("Integration").
 		Summary("Executes a `SELECT` query against BigQuery and replaces messages with the rows returned.").
 		Field(service.NewStringField("project").Description("GCP project where the query job will execute.")).
-		Field(service.NewStringField("table").Description("Fully-qualified BigQuery table name to query.").Example("bigquery-public-data.samples.shakespeare")).
-		Field(service.NewStringListField("columns").Description("A list of columns to query.")).
+		Field(service.NewInterpolatedStringField("table").Description("Fully-qualified BigQuery table name to query.").Example("bigquery-public-data.samples.shakespeare")).
+		Field(service.NewStringListField("columns").
+			Description("A list of columns to query.").
+			Optional()).
+		Field(service.NewBloblangField("columns_mapping").
+			Description("An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of column names to query.").
+			Optional().
+			Version("1.5.0").
+			Advanced()).
 		Field(service.NewStringField("where").
 			Description("An optional where clause to add. Placeholder arguments are populated with the `args_mapping` field. Placeholders should always be question marks (`?`).").
 			Example("type = ? and created_at > ?").
@@ -95,6 +139,12 @@ func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 			Optional()).
 		Field(service.NewStringField("suffix").
 			Description("An optional suffix to append to the select query.").
+			Optional()).
+		Field(service.NewBoolField("unsafe_dynamic_query").
+			Description("Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the columns_mapping, table & where fields. When `unsafe_dynamic_query` is set to true, you should provide a bloblang mapping via the `columns_mapping` config field, and not `columns`. Great care should be made to ensure your queries are defended against injection attacks.").
+			Advanced().
+			Default(false).
+			Version("1.5.0").
 			Optional()).
 		Example("Word count",
 			`
@@ -118,6 +168,22 @@ pipeline:
               args_mapping: root = [ this.term ]
         result_map: |
           root.count = this.get("0.total_count")
+`,
+		).
+		Example("Unsafe Dynamic Query",
+			`
+An example to show the use of the unsafe_dynamic_query field:`,
+			`
+# {"table": "test.people", "columns": ["name", "age", "city"], "args": ["London", "Paris", "Dublin"]}
+pipeline:
+  processors:
+    - gcp_bigquery_select:
+        project: ${GCP_PROJECT}
+        table: ${! this.table } # test.people
+        columns_mapping: root = this.columns #["name", "age", "city"]
+        where:  ${! "city IN ("+this.args.join(",").re_replace_all("\\b\\w+\\b","?")+")" } # city IN (?,?,?)
+        args_mapping: root = this.args # ["London", "Paris", "Dublin"]
+        unsafe_dynamic_query: true
 `,
 		)
 }
@@ -165,20 +231,38 @@ func newBigQuerySelectProcessor(inConf *service.ParsedConfig, options *bigQueryP
 
 func (proc *bigQuerySelectProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 	argsMapping := proc.config.argsMapping
+	columnsMapping := proc.config.queryParts.columnsMapping
 
 	outBatch := make(service.MessageBatch, 0, len(batch))
 
-	var executor *service.MessageBatchBloblangExecutor
+	var argsMappingExecutor *service.MessageBatchBloblangExecutor
 	if argsMapping != nil {
-		executor = batch.BloblangExecutor(argsMapping)
+		argsMappingExecutor = batch.BloblangExecutor(argsMapping)
+	}
+
+	var columnsMappingExecutor *service.MessageBatchBloblangExecutor
+	if columnsMapping != nil {
+		columnsMappingExecutor = batch.BloblangExecutor(columnsMapping)
 	}
 
 	for i, msg := range batch {
 		outBatch = append(outBatch, msg)
 
+		if proc.config.unsafeDyn {
+			err := proc.resolveUnsafeDynamicFields(
+				msg,
+				columnsMappingExecutor,
+				i,
+			)
+			if err != nil {
+				msg.SetError(err)
+				continue
+			}
+		}
+
 		var args []any
 		if argsMapping != nil {
-			resMsg, err := executor.Query(i)
+			resMsg, err := argsMappingExecutor.Query(i)
 			if err != nil {
 				msg.SetError(fmt.Errorf("failed to resolve args mapping: %w", err))
 				continue
@@ -186,13 +270,13 @@ func (proc *bigQuerySelectProcessor) ProcessBatch(ctx context.Context, batch ser
 
 			iargs, err := resMsg.AsStructured()
 			if err != nil {
-				msg.SetError(fmt.Errorf("mapping returned non-structured result: %w", err))
+				msg.SetError(fmt.Errorf("args mapping returned non-structured result: %w", err))
 				continue
 			}
 
 			var ok bool
 			if args, ok = iargs.([]any); !ok {
-				msg.SetError(fmt.Errorf("mapping returned non-array result: %T", iargs))
+				msg.SetError(fmt.Errorf("args mapping returned non-array result: %T", iargs))
 				continue
 			}
 		}
@@ -260,4 +344,51 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (proc *bigQuerySelectProcessor) resolveUnsafeDynamicFields(
+	msg *service.Message,
+	columnsMappingExecutor *service.MessageBatchBloblangExecutor,
+	i int,
+) (err error) {
+	proc.config.queryParts.table, err = proc.config.queryParts.tableDyn.TryString(msg)
+	if err != nil {
+		return fmt.Errorf("failed to resolve table mapping: %w", err)
+	}
+	proc.config.queryParts.where, err = proc.config.queryParts.whereDyn.TryString(msg)
+	if err != nil {
+		return fmt.Errorf("failed to resolve where mapping: %w", err)
+	}
+
+	resMsg, err := columnsMappingExecutor.Query(i)
+	if err != nil {
+		return fmt.Errorf("failed to resolve columns mapping: %w", err)
+	}
+
+	icols, err := resMsg.AsStructured()
+	if err != nil {
+		return fmt.Errorf("mapping returned non-structured result: %w", err)
+	}
+	cols, ok := icols.([]any)
+	if !ok {
+		return fmt.Errorf("col mapping returned non-array result: %T", icols)
+	}
+
+	proc.config.queryParts.columns, err = toStringSlice(cols)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func toStringSlice(in []any) (out []string, err error) {
+	if in == nil {
+		return nil, errors.New("column mapping returned nil")
+	}
+	out = make([]string, len(in))
+	for i, v := range in {
+		out[i] = fmt.Sprint(v)
+	}
+	return out, nil
 }
