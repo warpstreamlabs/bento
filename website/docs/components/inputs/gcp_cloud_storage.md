@@ -90,7 +90,8 @@ Type: `string`
 
 ### `prefix`
 
-An optional path prefix, if set only objects with the prefix are consumed.
+An optional path prefix, if set only objects with the prefix are consumed - supports interpolation.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
