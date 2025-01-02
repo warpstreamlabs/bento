@@ -75,7 +75,7 @@ By default Bento will use a shared credentials file when connecting to GCP servi
 			service.NewStringField(csiFieldBucket).
 				Description("The name of the bucket from which to download objects."),
 			service.NewInterpolatedStringField(csiFieldPrefix).
-				Description("An optional path prefix, if set only objects with the prefix are consumed - supports interpolation.").
+				Description("An optional path prefix, if set only objects with the prefix are consumed.").
 				Default(""),
 		).
 		Fields(codec.DeprecatedCodecFields("to_the_end")...).

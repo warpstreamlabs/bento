@@ -10,11 +10,9 @@ import (
 
 const yamlConfig = `
     bucket: bkt
-    prefix: ${!a * 2}
+    prefix: ${!2 * 2}
     scanner:
       to_the_end: { }`
-
-const msgBody = `{"a":1,"b":"asd"}`
 
 func gcpReaderConfig(t *testing.T, yamlStr string) csiConfig {
 	t.Helper()
@@ -31,11 +29,9 @@ func gcpReaderConfig(t *testing.T, yamlStr string) csiConfig {
 func Test_csiConfigFromParsed(t *testing.T) {
 	cfg := gcpReaderConfig(t, yamlConfig)
 
-	msg := service.NewMessage([]byte(msgBody))
-
-	pre, err := cfg.Prefix.TryString(msg)
+	pre, err := cfg.Prefix.TryString(service.NewMessage([]byte{}))
 
 	require.NoError(t, err)
 
-	require.Equal(t, "2", pre)
+	require.Equal(t, "4", pre)
 }
