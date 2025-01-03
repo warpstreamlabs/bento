@@ -51,6 +51,7 @@ aws_s3:
   bucket: "" # No default (required)
   key: "" # No default (required)
   force_path_style_urls: false
+  delete_objects: false
   region: ""
   endpoint: ""
   credentials:
@@ -154,6 +155,15 @@ Forces the client API to use path style URLs for downloading keys, which is ofte
 
 Type: `bool`  
 Default: `false`  
+
+### `delete_objects`
+
+Whether to delete downloaded objects from the bucket once they are processed.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.5.0 or newer  
 
 ### `region`
 
