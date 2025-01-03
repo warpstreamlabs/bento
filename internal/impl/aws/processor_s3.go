@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -17,6 +18,7 @@ const (
 	s3pFieldBucket             = "bucket"
 	s3pFieldKey                = "key"
 	s3pFieldForcePathStyleURLs = "force_path_style_urls"
+	s3pFieldDeleteObjects      = "delete_objects"
 )
 
 func s3pSpec() *service.ConfigSpec {
@@ -83,6 +85,11 @@ input:
 		service.NewBoolField(s3pFieldForcePathStyleURLs).
 			Description("Forces the client API to use path style URLs for downloading keys, which is often required when connecting to custom endpoints.").
 			Default(false),
+		service.NewBoolField(s3iFieldDeleteObjects).
+			Description("Whether to delete downloaded objects from the bucket once they are processed.").
+			Version("1.5.0").
+			Default(false).
+			Advanced(),
 	).
 		Fields(config.SessionFields()...).
 		Fields(service.NewScannerField("scanner").
@@ -112,12 +119,24 @@ func s3pConstructor(conf *service.ParsedConfig, mgr *service.Resources) (service
 		return nil, err
 	}
 
+	deleteObjects, err := conf.FieldBool(s3iFieldDeleteObjects)
+	if err != nil {
+		return nil, err
+	}
+
 	scanner, err := conf.FieldScanner("scanner")
 	if err != nil {
 		return nil, err
 	}
 
-	return NewS3Processor(awsConf, bucket, key, forcePathStyleURLs, scanner)
+	return &s3Processor{
+		aconf:              awsConf,
+		Bucket:             bucket,
+		Key:                key,
+		ForcePathStyleURLs: forcePathStyleURLs,
+		DeleteObjects:      deleteObjects,
+		Scanner:            scanner,
+	}, nil
 }
 
 func init() {
@@ -134,24 +153,9 @@ type s3Processor struct {
 	Key    *service.InterpolatedString
 
 	ForcePathStyleURLs bool
+	DeleteObjects      bool
 
 	Scanner *service.OwnedScannerCreator
-}
-
-func NewS3Processor(
-	aconf aws.Config,
-	bucket *service.InterpolatedString,
-	key *service.InterpolatedString,
-	forcePathStyleURLs bool,
-	scanner *service.OwnedScannerCreator,
-) (*s3Processor, error) {
-	return &s3Processor{
-		aconf:              aconf,
-		Bucket:             bucket,
-		Key:                key,
-		ForcePathStyleURLs: forcePathStyleURLs,
-		Scanner:            scanner,
-	}, nil
 }
 
 func (p *s3Processor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
@@ -192,6 +196,22 @@ func (p *s3Processor) ProcessBatch(ctx context.Context, batch service.MessageBat
 		if err != nil {
 			msg.SetError(err)
 			continue
+		}
+
+		if p.DeleteObjects {
+			defer func() {
+				if err != nil {
+					return
+				}
+
+				_, err = client.DeleteObject(ctx, &s3.DeleteObjectInput{
+					Bucket: &bucket,
+					Key:    &key,
+				})
+				if err != nil {
+					msg.SetError(err)
+				}
+			}()
 		}
 
 		details := service.NewScannerSourceDetails()
