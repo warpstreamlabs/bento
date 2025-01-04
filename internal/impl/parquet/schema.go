@@ -12,6 +12,7 @@ import (
 type schemaOpts struct {
 	optionalsAsStructTags bool
 	optionalAsPtrs        bool
+	defaultEncoding       string
 }
 
 func GenerateStructType(
@@ -47,6 +48,12 @@ func generateStructTypeFromFields(
 			typeStr, err := field.FieldString("type")
 			if err != nil {
 				return nil, fmt.Errorf("failed to read field type, err: %w", err)
+			}
+
+			// Change the default encoding from DELTA_LENGTH_BYTE_ARRAY to PLAIN for string fields
+			// See https://github.com/parquet-go/parquet-go/issues/50#issuecomment-1667639181
+			if schemaOpts.defaultEncoding == "plain" && isDeltaLengthByteArrayEncodable(typeStr) {
+				components = append(components, schemaOpts.defaultEncoding)
 			}
 
 			if typeStr == "LIST" {
@@ -254,4 +261,12 @@ func wrapType(
 	}
 
 	return baseType, nil
+}
+
+func isDeltaLengthByteArrayEncodable(typeStr string) bool {
+	switch typeStr {
+	case "BYTE_ARRAY", "UTF8":
+		return true
+	}
+	return false
 }
