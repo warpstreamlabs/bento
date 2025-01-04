@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.4.1 - 2025-01-04
+
+### Changed
+
+- updated various dependencies to address CVEs @jbeemster
+
 ## 1.4.0 - 2024-12-08
 
 ### Added
