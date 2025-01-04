@@ -24,7 +24,7 @@ const (
 
 type csiConfig struct {
 	Bucket        string
-	Prefix        string
+	Prefix        *service.InterpolatedString
 	DeleteObjects bool
 	Codec         codec.DeprecatedFallbackCodec
 }
@@ -33,7 +33,7 @@ func csiConfigFromParsed(pConf *service.ParsedConfig) (conf csiConfig, err error
 	if conf.Bucket, err = pConf.FieldString(csiFieldBucket); err != nil {
 		return
 	}
-	if conf.Prefix, err = pConf.FieldString(csiFieldPrefix); err != nil {
+	if conf.Prefix, err = pConf.FieldInterpolatedString(csiFieldPrefix); err != nil {
 		return
 	}
 	if conf.Codec, err = codec.DeprecatedCodecFromParsed(pConf); err != nil {
@@ -74,7 +74,7 @@ By default Bento will use a shared credentials file when connecting to GCP servi
 		Fields(
 			service.NewStringField(csiFieldBucket).
 				Description("The name of the bucket from which to download objects."),
-			service.NewStringField(csiFieldPrefix).
+			service.NewInterpolatedStringField(csiFieldPrefix).
 				Description("An optional path prefix, if set only objects with the prefix are consumed.").
 				Default(""),
 		).
@@ -124,7 +124,7 @@ func newGCPCloudStorageObjectTarget(key string, ackFn service.AckFunc) *gcpCloud
 	return &gcpCloudStorageObjectTarget{key: key, ackFn: ackFn}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 func deleteGCPCloudStorageObjectAckFn(
 	bucket *storage.BucketHandle,
@@ -146,7 +146,7 @@ func deleteGCPCloudStorageObjectAckFn(
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 type gcpCloudStoragePendingObject struct {
 	target    *gcpCloudStorageObjectTarget
@@ -173,7 +173,13 @@ func newGCPCloudStorageTargetReader(
 		conf:   conf,
 	}
 
-	it := bucket.Objects(ctx, &storage.Query{Prefix: conf.Prefix})
+	interpolatedPrefix, err := conf.Prefix.TryString(service.NewMessage([]byte{}))
+	if err != nil {
+		return nil, fmt.Errorf("error reading interpolated prefix: %w", err)
+	}
+
+	it := bucket.Objects(ctx, &storage.Query{Prefix: interpolatedPrefix})
+
 	for count := 0; count < maxGCPCloudStorageListObjectsResults; count++ {
 		obj, err := it.Next()
 		if errors.Is(err, iterator.Done) {
@@ -221,7 +227,7 @@ func (r gcpCloudStorageTargetReader) Close(context.Context) error {
 	return nil
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // gcpCloudStorage is a bento reader.Type implementation that reads messages
 // from a Google Cloud Storage bucket.
