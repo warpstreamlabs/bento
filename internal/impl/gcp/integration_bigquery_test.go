@@ -131,7 +131,8 @@ func testBigQueryOutput(t *testing.T, ctx context.Context, bigqueryDockerAddress
 
 	output.clientURL = gcpBQClientURL(bigqueryDockerAddress)
 
-	output.Connect(ctx)
+	err = output.Connect(ctx)
+	require.NoError(t, err)
 
 	msg := service.NewMessage([]byte(`{"name":"Claire", "age": 45}`))
 
@@ -192,7 +193,7 @@ func testBigQueryInput(t *testing.T, ctx context.Context, bigqueryDockerAddress 
 	})
 	require.NoError(t, err)
 
-	input.Connect(ctx)
+	err = input.Connect(ctx)
 	require.NoError(t, err)
 
 	expectedMessages := []string{
@@ -205,7 +206,8 @@ func testBigQueryInput(t *testing.T, ctx context.Context, bigqueryDockerAddress 
 		msg, ackFunc, err := input.Read(ctx)
 		require.NoError(t, err)
 
-		ackFunc(ctx, err)
+		err = ackFunc(ctx, err)
+		require.NoError(t, err)
 
 		msgBytes, err := msg.AsBytes()
 		require.NoError(t, err)
