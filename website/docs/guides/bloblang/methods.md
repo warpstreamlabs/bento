@@ -442,6 +442,27 @@ root.quoted = this.thing.quote()
 # Out: {"quoted":"\"foo\\nbar\""}
 ```
 
+### `repeat`
+
+Repeats the input string `count` times and returns the concatenated result.
+
+Introduced in version 1.5.0.
+
+
+#### Parameters
+
+**`count`** &lt;integer&gt; Number of copies. If less than zero, it is treated as zero: resulting in an empty output.  
+
+#### Examples
+
+
+```coffee
+root.fruit = this.fruit + "na".repeat(2)
+
+# In:  {"fruit":"ba"}
+# Out: {"fruit":"banana"}
+```
+
 ### `replace_all`
 
 Replaces all occurrences of the first argument in a target string with the second argument.
