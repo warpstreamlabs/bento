@@ -189,5 +189,6 @@ Enable CAS validation.
 
 Type: `bool`  
 Default: `true`  
+Requires version 1.3.0 or newer  
 
 

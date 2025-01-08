@@ -72,6 +72,7 @@ cache_resources:
 				"LIFO": "Keeps the last value seen for each key.",
 			}).
 				Description("Controls how to handle duplicate values.").
+				Version("1.4.0").
 				Default("FIFO").Advanced(),
 		)
 }

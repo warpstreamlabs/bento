@@ -237,6 +237,7 @@ Balancers sets the group balancers to use for dividing topic partitions among gr
 
 Type: `array`  
 Default: `["cooperative_sticky"]`  
+Requires version 1.3.0 or newer  
 
 ### `metadata_max_age`
 
@@ -245,6 +246,7 @@ This sets the maximum age for the client's cached metadata, to allow detection o
 
 Type: `string`  
 Default: `"5m"`  
+Requires version 1.3.0 or newer  
 
 ### `fetch_max_bytes`
 
@@ -253,6 +255,7 @@ This sets the maximum amount of bytes a broker will try to send during a fetch. 
 
 Type: `string`  
 Default: `"50MiB"`  
+Requires version 1.3.0 or newer  
 
 ### `fetch_max_partition_bytes`
 
@@ -261,6 +264,7 @@ Sets the maximum amount of bytes that will be consumed for a single partition in
 
 Type: `string`  
 Default: `"1MiB"`  
+Requires version 1.3.0 or newer  
 
 ### `fetch_max_wait`
 
@@ -269,6 +273,7 @@ This sets the maximum amount of time a broker will wait for a fetch response to 
 
 Type: `string`  
 Default: `"5s"`  
+Requires version 1.3.0 or newer  
 
 ### `preferring_lag`
 
@@ -280,6 +285,7 @@ With this option, you can return topic order and per-topic partition ordering. T
 
 
 Type: `int`  
+Requires version 1.3.0 or newer  
 
 ### `tls`
 

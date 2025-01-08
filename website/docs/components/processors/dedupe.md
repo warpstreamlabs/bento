@@ -104,6 +104,7 @@ Controls how to handle duplicate values.
 
 Type: `string`  
 Default: `"FIFO"`  
+Requires version 1.4.0 or newer  
 
 | Option | Summary |
 |---|---|

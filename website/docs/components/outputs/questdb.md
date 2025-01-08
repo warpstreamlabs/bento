@@ -20,6 +20,8 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Pushes messages to a QuestDB table.
 
+Introduced in version 1.3.0.
+
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
