@@ -30,7 +30,7 @@ Deduplicates messages by storing a key value in a cache using the `add` operator
 label: ""
 dedupe:
   cache: "" # No default (required)
-  key: ${! meta("kafka_key") } # No default (required)
+  key: ${! metadata("kafka_key") } # No default (required)
   drop_on_err: true
 ```
 
@@ -42,7 +42,7 @@ dedupe:
 label: ""
 dedupe:
   cache: "" # No default (required)
-  key: ${! meta("kafka_key") } # No default (required)
+  key: ${! metadata("kafka_key") } # No default (required)
   drop_on_err: true
   strategy: FIFO
 ```
@@ -84,7 +84,7 @@ Type: `string`
 ```yml
 # Examples
 
-key: ${! meta("kafka_key") }
+key: ${! metadata("kafka_key") }
 
 key: ${! content().hash("xxhash64") }
 ```
@@ -126,7 +126,7 @@ pipeline:
   processors:
     - dedupe:
         cache: keycache
-        key: ${! meta("kafka_key") }
+        key: ${! metadata("kafka_key") }
 
 cache_resources:
   - label: keycache
