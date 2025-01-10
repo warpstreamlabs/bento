@@ -2106,3 +2106,36 @@ root.description = this.description.trim_suffix("_foobar")`,
 		}, nil
 	},
 )
+
+var _ = registerSimpleMethod(
+	NewMethodSpec(
+		"repeat", "",
+	).InCategory(
+		MethodCategoryStrings,
+		"Repeats the input string `count` times and returns the concatenated result.",
+		NewExampleSpec("",
+			`root.fruit = this.fruit + "na".repeat(2)`,
+			`{"fruit":"ba"}`,
+			`{"fruit":"banana"}`,
+		),
+	).Param(ParamInt64("count", "Number of copies. If less than zero, it is treated as zero: resulting in an empty output.")).
+		AtVersion("1.5.0"),
+	func(args *ParsedParams) (simpleMethod, error) {
+		count, err := args.FieldInt64("count")
+		if err != nil {
+			return nil, err
+		}
+		if count < 0 {
+			count = 0
+		}
+		return func(v any, ctx FunctionContext) (any, error) {
+			switch t := v.(type) {
+			case string:
+				return strings.Repeat(t, int(count)), nil
+			case []byte:
+				return bytes.Repeat(t, int(count)), nil
+			}
+			return nil, value.NewTypeError(v, value.TString)
+		}, nil
+	},
+)

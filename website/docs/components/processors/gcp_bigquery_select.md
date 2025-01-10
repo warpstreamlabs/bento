@@ -113,7 +113,7 @@ pipeline:
         project: ${GCP_PROJECT}
         table: ${! this.table } # test.people
         columns_mapping: root = this.columns #["name", "age", "city"]
-        where:  ${! "city IN ("+this.args.join(",").re_replace_all("\\b\\w+\\b","?")+")" } # city IN (?,?,?)
+        where:  ${! "city IN ("+"?,".repeat(this.args.length()-1)+"?)" } # city IN (?,?,?)
         args_mapping: root = this.args # ["London", "Paris", "Dublin"]
         unsafe_dynamic_query: true
 ```
