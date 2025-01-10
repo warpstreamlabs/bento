@@ -332,7 +332,7 @@ Default: `"200"`
 
 status: ${! json("status") }
 
-status: ${! meta("status") }
+status: ${! metadata("status").string() }
 ```
 
 ### `sync_response.headers`

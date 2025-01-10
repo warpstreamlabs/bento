@@ -44,12 +44,12 @@ pipeline:
     - branch:
         processors:
           - cached:
-              key: '${! meta("kafka_topic") }-${! meta("kafka_partition") }'
+              key: '${! metadata("kafka_topic") }-${! metadata("kafka_partition").string() }'
               cache: foo_cache
               processors:
                 - mapping: 'root = ""'
                 - http:
-                    url: http://example.com/enrichment/${! meta("kafka_topic") }/${! meta("kafka_partition") }
+                    url: http://example.com/enrichment/${! metadata("kafka_topic") }/${! metadata("kafka_partition").string() }
                     verb: GET
         result_map: 'root.enrichment = this'
 

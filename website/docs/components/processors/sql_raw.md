@@ -100,7 +100,7 @@ pipeline:
         driver: mysql
         dsn: foouser:foopassword@tcp(localhost:3306)/foodb
         query: "INSERT INTO footable (foo, bar, baz) VALUES (?, ?, ?);"
-        args_mapping: '[ document.foo, document.bar, meta("kafka_topic") ]'
+        args_mapping: '[ document.foo, document.bar, metadata("kafka_topic") ]'
         exec_only: true
 ```
 
@@ -225,7 +225,7 @@ Type: `string`
 
 args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ]
 
-args_mapping: root = [ meta("user.id") ]
+args_mapping: root = [ metadata("user.id").string() ]
 ```
 
 ### `exec_only`

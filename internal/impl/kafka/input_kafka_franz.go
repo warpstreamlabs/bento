@@ -93,22 +93,27 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Advanced()).
 		Field(service.NewStringListField("group_balancers").
 			Description("Balancers sets the group balancers to use for dividing topic partitions among group members. This option is equivalent to Kafka's `partition.assignment.strategies` option.").
+			Version("1.3.0").
 			Default([]string{"cooperative_sticky"}).
 			Advanced()).
 		Field(service.NewDurationField("metadata_max_age").
 			Description("This sets the maximum age for the client's cached metadata, to allow detection of new topics, partitions, etc.").
+			Version("1.3.0").
 			Default("5m").
 			Advanced()).
 		Field(service.NewStringField("fetch_max_bytes").
 			Description("This sets the maximum amount of bytes a broker will try to send during a fetch. Note that brokers may not obey this limit if it has records larger than this limit. Also note that this client sends a fetch to each broker concurrently, meaning the client will buffer up to `<brokers * max bytes>` worth of memory. Equivalent to Kafka's `fetch.max.bytes` option.").
+			Version("1.3.0").
 			Default("50MiB").
 			Advanced()).
 		Field(service.NewStringField("fetch_max_partition_bytes").
 			Description("Sets the maximum amount of bytes that will be consumed for a single partition in a fetch request. Note that if a single batch is larger than this number, that batch will still be returned so the client can make progress. Equivalent to Kafka's `max.partition.fetch.bytes` option.").
+			Version("1.3.0").
 			Default("1MiB").
 			Advanced()).
 		Field(service.NewDurationField("fetch_max_wait").
 			Description("This sets the maximum amount of time a broker will wait for a fetch response to hit the minimum number of required bytes before returning, overriding the default 5s.").
+			Version("1.3.0").
 			Default("5s").
 			Advanced()).
 		Field(service.NewIntField("preferring_lag").
@@ -118,6 +123,7 @@ This allows you to re-order partitions before they are fetched, given each parti
 By default, the client rotates partitions fetched by one after every fetch request. Kafka answers fetch requests in the order that partitions are requested, filling the fetch response until` + "`fetch_max_bytes`" + ` and ` + "`fetch_max_partition_bytes`" + ` are hit. All partitions eventually rotate to the front, ensuring no partition is starved.
 
 With this option, you can return topic order and per-topic partition ordering. These orders will sort to the front (first by topic, then by partition). Any topic or partitions that you do not return are added to the end, preserving their original ordering.`).
+			Version("1.3.0").
 			Optional().
 			Advanced()).
 		Field(service.NewTLSToggledField("tls")).

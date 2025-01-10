@@ -50,7 +50,7 @@ pipeline:
   processors:
     - dedupe:
         cache: keycache
-        key: ${! meta("kafka_key") }
+        key: ${! metadata("kafka_key") }
 
 cache_resources:
   - label: keycache
@@ -63,7 +63,7 @@ cache_resources:
 				Description("The [`cache` resource](/docs/components/caches/about) to target with this processor."),
 			service.NewInterpolatedStringField(dedupFieldKey).
 				Description("An interpolated string yielding the key to deduplicate by for each message.").
-				Examples(`${! meta("kafka_key") }`, `${! content().hash("xxhash64") }`),
+				Examples(`${! metadata("kafka_key") }`, `${! content().hash("xxhash64") }`),
 			service.NewBoolField(dedupFieldDropOnCacheErr).
 				Description("Whether messages should be dropped when the cache returns a general error such as a network issue.").
 				Default(true),
@@ -72,6 +72,7 @@ cache_resources:
 				"LIFO": "Keeps the last value seen for each key.",
 			}).
 				Description("Controls how to handle duplicate values.").
+				Version("1.4.0").
 				Default("FIFO").Advanced(),
 		)
 }

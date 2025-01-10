@@ -19,7 +19,7 @@ urls: [ url1, url2 ]
 subject: testsubject
 headers:
   Content-Type: application/json
-  Timestamp: ${!meta("Timestamp")}
+  Timestamp: ${!metadata("Timestamp").string() }
 auth:
   nkey_file: test auth n key file
   user_credentials_file: test auth user creds file
