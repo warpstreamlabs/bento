@@ -48,6 +48,38 @@ bloblang: root = this
 	assert.Equal(t, `{"hello":"world"}`, string(msgs[0].Get(0).AsBytes()))
 }
 
+func TestStrictBundleProcessorWithRetry(t *testing.T) {
+	senv := strict.RetryBundle(context.Background(), bundle.GlobalEnvironment, 3)
+	tCtx := context.Background()
+
+	pConf, err := testutil.ProcessorFromYAML(`
+bloblang: root = this
+`)
+	require.NoError(t, err)
+
+	mgr, err := manager.New(
+		manager.ResourceConfig{},
+		manager.OptSetEnvironment(senv),
+	)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(pConf)
+	require.NoError(t, err)
+
+	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
+	msgs, res := proc.ProcessBatch(tCtx, msg)
+	require.Empty(t, msgs)
+	require.Error(t, res)
+	assert.ErrorContains(t, res, "invalid character 'o' in literal null (expecting 'u')")
+
+	msg = message.QuickBatch([][]byte{[]byte(`{"hello":"world"}`)})
+	msgs, res = proc.ProcessBatch(tCtx, msg)
+	require.NoError(t, res)
+	require.Len(t, msgs, 1)
+	assert.Equal(t, 1, msgs[0].Len())
+	assert.Equal(t, `{"hello":"world"}`, string(msgs[0].Get(0).AsBytes()))
+}
+
 func TestStrictBundleProcessorMultiMessage(t *testing.T) {
 	senv := strict.StrictBundle(bundle.GlobalEnvironment)
 	tCtx := context.Background()
