@@ -26,3 +26,19 @@ func newMessageFromKVEntry(entry jetstream.KeyValueEntry) *service.Message {
 
 	return msg
 }
+
+func newMessageWithMetaFromKVEntry(entry jetstream.KeyValueEntry, src *service.Message) *service.Message {
+	msg := service.NewMessage(entry.Value())
+	//nolint:errcheck
+	src.MetaWalkMut(func(key string, value any) error {
+		msg.MetaSetMut(key, value)
+		return nil
+	})
+	msg.MetaSetMut(metaKVKey, entry.Key())
+	msg.MetaSetMut(metaKVBucket, entry.Bucket())
+	msg.MetaSetMut(metaKVRevision, entry.Revision())
+	msg.MetaSetMut(metaKVDelta, entry.Delta())
+	msg.MetaSetMut(metaKVOperation, entry.Operation().String())
+	msg.MetaSetMut(metaKVCreated, entry.Created())
+	return msg
+}
