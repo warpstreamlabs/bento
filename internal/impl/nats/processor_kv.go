@@ -217,7 +217,7 @@ func (p *kvProcessor) Process(ctx context.Context, msg *service.Message) (servic
 		if err != nil {
 			return nil, err
 		}
-		return service.MessageBatch{newMessageFromKVEntry(entry)}, nil
+		return service.MessageBatch{newMessageWithMetaFromKVEntry(entry, msg)}, nil
 
 	case kvpOperationGetRevision:
 		revision, err := p.parseRevision(msg)
@@ -228,7 +228,7 @@ func (p *kvProcessor) Process(ctx context.Context, msg *service.Message) (servic
 		if err != nil {
 			return nil, err
 		}
-		return service.MessageBatch{newMessageFromKVEntry(entry)}, nil
+		return service.MessageBatch{newMessageWithMetaFromKVEntry(entry, msg)}, nil
 
 	case kvpOperationCreate:
 		revision, err := kv.Create(ctx, key, bytes)
