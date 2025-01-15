@@ -24,6 +24,7 @@ func getMetaKeys(t *testing.T, m *service.Message) []string {
 	if m == nil {
 		return keys
 	}
+	//nolint:errcheck
 	m.MetaWalkMut(func(k string, v any) error {
 		keys = append(keys, k)
 		return nil
