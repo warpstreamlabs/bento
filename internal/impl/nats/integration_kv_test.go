@@ -18,6 +18,19 @@ import (
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
+func getMetaKeys(t *testing.T, m *service.Message) []string {
+	t.Helper()
+	keys := []string{}
+	if m == nil {
+		return keys
+	}
+	m.MetaWalkMut(func(k string, v any) error {
+		keys = append(keys, k)
+		return nil
+	})
+	return keys
+}
+
 func TestIntegrationNatsKV(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
@@ -151,6 +164,7 @@ cache_resources:
 			require.NoError(t, err)
 
 			m := service.NewMessage([]byte("hello"))
+			m.MetaSetMut("inherited", "world")
 			return p.Process(context.Background(), m)
 		}
 
@@ -172,6 +186,10 @@ cache_resources:
 			bytes, err := m.AsBytes()
 			require.NoError(t, err)
 			assert.Equal(t, []byte("lawblog"), bytes)
+			keys := getMetaKeys(t, m)
+			assert.Contains(t, keys, "nats_kv_bucket")
+			assert.Contains(t, keys, "nats_kv_key")
+			assert.Contains(t, keys, "inherited")
 		})
 
 		t.Run("get_revision operation", func(t *testing.T) {
@@ -193,6 +211,10 @@ cache_resources:
 			bytes, err := m.AsBytes()
 			require.NoError(t, err)
 			assert.Equal(t, []byte("lawblog"), bytes)
+			keys := getMetaKeys(t, m)
+			assert.Contains(t, keys, "nats_kv_bucket")
+			assert.Contains(t, keys, "nats_kv_key")
+			assert.Contains(t, keys, "inherited")
 		})
 
 		t.Run("create operation (success)", func(t *testing.T) {
@@ -210,6 +232,10 @@ cache_resources:
 			bytes, err := m.AsBytes()
 			require.NoError(t, err)
 			assert.Equal(t, []byte("hello"), bytes)
+			keys := getMetaKeys(t, m)
+			assert.Contains(t, keys, "nats_kv_bucket")
+			assert.Contains(t, keys, "nats_kv_key")
+			assert.Contains(t, keys, "inherited")
 		})
 
 		t.Run("create operation (error)", func(t *testing.T) {
