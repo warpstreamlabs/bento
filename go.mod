@@ -62,6 +62,7 @@ require (
 	github.com/getsentry/sentry-go v0.27.0
 	github.com/go-faker/faker/v4 v4.3.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/gocql/gocql v1.6.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -157,6 +158,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.28.0
 )
+
+require github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 
 require (
 	cel.dev/expr v0.16.2 // indirect
