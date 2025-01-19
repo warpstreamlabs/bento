@@ -296,6 +296,62 @@ The `shutdown_timeout` option sets a hard deadline for Bento process to graceful
 
 This option takes effect after the `shutdown_delay` duration has passed if that is enabled.
 
+## Error Handling
+
+:::caution EXPERIMENTAL
+This configuration field is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+
+
+Introduced in `v1.4.0`.
+
+You can override Bento's default error handling using the `error_handling.strategy` field, changing the behaviour across all processor components.
+
+The default configuration looks like:
+```yaml
+error_handling:
+  strategy: "" # disabled
+  error_sample_rate: 0.0 # no error sampling
+  max_retries: 0  # infinite retries (if enabled)
+```
+
+### Strategy
+
+If any message within a batch contains an error, the `error_handling.strategy` determines how we will deal with the entire batch. The currently supported strategies are as follows:
+
+| Strategy | Description |
+|----------|-------------|
+| `reject` | Immediately fails entire batch when any message has an error. Propagates negative acknowledgment (nack) to the input. |
+| `backoff` | Retries batches containing failed messages using exponential backoff. Starting at `100ms`, the delay doubles after each retry up to a maximum of `60s` between attempts. When `max_retries` is `0` (default), retries continue indefinitely. Otherwise, messages are dropped from the batch after the maximum retries are exhausted. |
+
+
+### Example
+
+The `reject` strategy treats any message-level error as a batch-wide failure, immediately rejecting any batch containing errored messages and propagating a `nack` (negative acknowledgment) to the input layer. For inputs that support propagating nacks upstream such as AMQP or NATS the message will be nacked. However, for inputs that are sequential such as files or Kafka the messages will simply be reprocessed from scratch.
+
+
+```yaml
+pipeline:
+  processors:
+    - mapping: |
+        root = throw("error")
+    - mapping: |
+        root.message = "I'm never reached"
+
+error_handling:
+  strategy: reject
+```
+
+This behavior also bypasses Bento's traditional error handling mechanisms like `catch` and `try` (described in [Error Handling][error_handling]) since the entire transaction is rejected before messages can reach error handling components.
+
+More stable alternatives to `error_handling` could be considered:
+
+- [Error Handling][error_handling]
+- [reject_errored][outputs.reject_errored]
+
+Future version will likely see `error_handling` strategies being replaced with custom `retry` resources, similar to `rate_limit` or `cache`.
+
+[error_handling]: /docs/configuration/error_handling
 [processors]: /docs/components/processors/about
 [processors.mapping]: /docs/components/processors/mapping
 [config-interp]: /docs/configuration/interpolation
@@ -304,3 +360,4 @@ This option takes effect after the `shutdown_delay` duration has passed if that 
 [config.resources]: /docs/configuration/resources
 [json-references]: https://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03
 [components]: /docs/components/about
+[outputs.reject_errored]: /docs/components/outputs/reject_errored/
