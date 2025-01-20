@@ -54,7 +54,7 @@ If you want to dive fully into Bento then don't waste your time in this dump, ch
 
 For guidance on how to configure more advanced stream processing concepts such as stream joins, enrichment workflows, etc, check out the [cookbooks section.][cookbooks]
 
-For guidance on building your own custom plugins in Go check out [the public APIs.][godoc-url], and for inspiration there's a set of [examples][] and an [example go module] for help on setting up your own distribution. 
+For guidance on building your own custom plugins in Go check out the section [Plugins](./README.md#plugins).
 
 ## Install
 
