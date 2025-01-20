@@ -4,7 +4,7 @@ This module serves as an example on how to implement components as plugins using
 
 ```
 ├── README.md
-├── config.yaml             - an example Bento config file using the plugin component from ./input/faker.go
+├── config.yaml             - an example Bento config file using the plugin component from ./plugins/faker.go
 ├── go.mod                  - Go module definition for this module
 ├── go.sum                  - Go checksum file
 ├── plugins                   - Go package 'plugins'
@@ -15,7 +15,7 @@ This module serves as an example on how to implement components as plugins using
 
 ### Tests
 
-The [faker_test.go](./input/faker_test.go) contains an example unit test for the `faker` plugin component. You can run all tests with:
+The [faker_test.go](./plugins/faker_test.go) contains an example unit test for the `faker` plugin component. You can run all tests with:
 
 ```bash
 go test ./...
@@ -41,7 +41,7 @@ go build
 ./plugin_example_module -c config.yaml
 ```
 
-See [config.yaml](./config.yaml) for an example of a bento config using the [faker.go](./input/faker.go) plugin.
+See [config.yaml](./config.yaml) for an example of a bento config using the [faker.go](./plugins/faker.go) plugin.
 
 ### More plugin examples
 
