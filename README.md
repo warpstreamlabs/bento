@@ -54,7 +54,7 @@ If you want to dive fully into Bento then don't waste your time in this dump, ch
 
 For guidance on how to configure more advanced stream processing concepts such as stream joins, enrichment workflows, etc, check out the [cookbooks section.][cookbooks]
 
-For guidance on building your own custom plugins in Go check out [the public APIs.][godoc-url]
+For guidance on building your own custom plugins in Go check out the section [Plugins](./README.md#plugins).
 
 ## Install
 
@@ -129,7 +129,7 @@ And then run it with `make lint`.
 
 ## Plugins
 
-It's pretty easy to write your own custom plugins for Bento in Go, for information check out [the API docs][godoc-url].
+It's pretty easy to write your own custom plugins for Bento in Go, for information check out [the API docs][godoc-url] and for inspiration there's a set of [plugin examples][plugin-examples] demonstrating a variety of plugin implementations. For help on how to set up your own distribution of Bento then checkout the [plugin example module][plugin-example-module].
 
 ## Extra Plugins
 
@@ -182,7 +182,8 @@ Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come a
 [serverless]: https://warpstreamlabs.github.io/bento/docs/guides/serverless/about
 [cookbooks]: https://warpstreamlabs.github.io/bento/cookbooks
 [releases]: https://github.com/warpstreamlabs/bento/releases
-[plugin-repo]: https://github.com/warpstreamlabs/bento-plugin-example
+[plugin-examples]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service#pkg-examples
+[plugin-example-module]: https://github.com/warpstreamlabs/bento/tree/main/resources/plugin_example
 [getting-started]: https://warpstreamlabs.github.io/bento/docs/guides/getting_started
 
 [godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/public
