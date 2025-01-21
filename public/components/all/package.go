@@ -54,5 +54,5 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/statsd"
 	_ "github.com/warpstreamlabs/bento/public/components/twitter"
 	_ "github.com/warpstreamlabs/bento/public/components/wasm"
-	_ "github.com/warpstreamlabs/bento/public/components/zmq4n"
+	_ "github.com/warpstreamlabs/bento/public/components/zeromq"
 )

@@ -1,4 +1,4 @@
-package zmq4n
+package zeromq
 
 import (
 	"context"
@@ -6,19 +6,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-zeromq/zmq4"
-
+	gzmq4 "github.com/go-zeromq/zmq4"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func zmqOutputConfig() *service.ConfigSpec {
+func zmqOutputNConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Network").
 		Summary("Writes messages to a ZeroMQ socket.").
 		Description(`
 
-This is a native Go implementation of ZeroMQ using the go-zeromq/zmq4 library.
+This is a native Go implementation of ZeroMQ using the go-zeromq/zmq4 library. ZMTP protocol is not supported.
 There is a specific docker tag postfix ` + "`-cgo`" + ` for C builds containing the original zmq4 component.`).
 		Field(service.NewStringListField("urls").
 			Description("A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.").
@@ -39,8 +38,8 @@ There is a specific docker tag postfix ` + "`-cgo`" + ` for C builds containing 
 }
 
 func init() {
-	_ = service.RegisterBatchOutput("zmq4n", zmqOutputConfig(), func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchOutput, service.BatchPolicy, int, error) {
-		w, err := zmqOutputFromConfig(conf, mgr)
+	_ = service.RegisterBatchOutput("zmq4n", zmqOutputNConfig(), func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchOutput, service.BatchPolicy, int, error) {
+		w, err := zmqOutputNFromConfig(conf, mgr)
 		if err != nil {
 			return nil, service.BatchPolicy{}, 1, err
 		}
@@ -50,8 +49,8 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-// zmqOutput is an output type that writes zmqOutput messages.
-type zmqOutput struct {
+// zmqOutputN is an output type that writes zmqOutputN messages.
+type zmqOutputN struct {
 	log *service.Logger
 
 	urls        []string
@@ -60,11 +59,11 @@ type zmqOutput struct {
 	bind        bool
 	pollTimeout time.Duration
 
-	socket zmq4.Socket
+	socket gzmq4.Socket
 }
 
-func zmqOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zmqOutput, error) {
-	z := zmqOutput{
+func zmqOutputNFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zmqOutputN, error) {
+	z := zmqOutputN{
 		log: mgr.Logger(),
 	}
 
@@ -87,7 +86,7 @@ func zmqOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*z
 	if z.socketType, err = conf.FieldString("socket_type"); err != nil {
 		return nil, err
 	}
-	if _, err = getZMQOutputType(z.socketType); err != nil {
+	if _, err = getZMQOutputNType(z.socketType); err != nil {
 		return nil, err
 	}
 
@@ -104,36 +103,34 @@ func zmqOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*z
 
 //------------------------------------------------------------------------------
 
-func getZMQOutputType(t string) (zmq4.SocketType, error) {
+func getZMQOutputNType(t string) (gzmq4.SocketType, error) {
 	switch t {
 	case "PUB":
-		return zmq4.Pub, nil
+		return gzmq4.Pub, nil
 	case "PUSH":
-		return zmq4.Push, nil
+		return gzmq4.Push, nil
 	}
-	return zmq4.Push, errors.New("invalid ZMQ socket type")
+	return gzmq4.Push, errors.New("invalid ZMQ socket type")
 }
 
 //------------------------------------------------------------------------------
 
-func (z *zmqOutput) Connect(_ context.Context) (err error) {
+func (z *zmqOutputN) Connect(ctx context.Context) (err error) {
 	if z.socket != nil {
 		return nil
 	}
 
-	t, err := getZMQOutputType(z.socketType)
+	t, err := getZMQOutputNType(z.socketType)
 	if err != nil {
 		return err
 	}
 
-	ctx := context.Background()
-
-	var socket zmq4.Socket
+	var socket gzmq4.Socket
 	switch t {
-	case zmq4.Pub:
-		socket = zmq4.NewPub(ctx, zmq4.WithTimeout(z.pollTimeout))
-	case zmq4.Push:
-		socket = zmq4.NewPush(ctx, zmq4.WithTimeout(z.pollTimeout))
+	case gzmq4.Pub:
+		socket = gzmq4.NewPub(ctx, gzmq4.WithTimeout(z.pollTimeout))
+	case gzmq4.Push:
+		socket = gzmq4.NewPush(ctx, gzmq4.WithTimeout(z.pollTimeout))
 	}
 
 	defer func() {
@@ -142,7 +139,7 @@ func (z *zmqOutput) Connect(_ context.Context) (err error) {
 		}
 	}()
 
-	if err = socket.SetOption(zmq4.OptionHWM, z.hwm); err != nil {
+	if err = socket.SetOption(gzmq4.OptionHWM, z.hwm); err != nil {
 		return err
 	}
 
@@ -162,7 +159,7 @@ func (z *zmqOutput) Connect(_ context.Context) (err error) {
 	return nil
 }
 
-func (z *zmqOutput) WriteBatch(_ context.Context, batch service.MessageBatch) error {
+func (z *zmqOutputN) WriteBatch(_ context.Context, batch service.MessageBatch) error {
 	if z.socket == nil {
 		return service.ErrNotConnected
 	}
@@ -176,13 +173,13 @@ func (z *zmqOutput) WriteBatch(_ context.Context, batch service.MessageBatch) er
 		}
 		parts = append(parts, b)
 	}
-	msg := zmq4.NewMsgFrom(parts...)
+	msg := gzmq4.NewMsgFrom(parts...)
 	err := z.socket.Send(msg)
 
 	return err
 }
 
-func (z *zmqOutput) Close(ctx context.Context) error {
+func (z *zmqOutputN) Close(ctx context.Context) error {
 	if z.socket != nil {
 		z.socket.Close()
 		z.socket = nil

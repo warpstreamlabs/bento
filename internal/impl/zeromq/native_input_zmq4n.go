@@ -1,4 +1,4 @@
-package zmq4n
+package zeromq
 
 import (
 	"context"
@@ -7,19 +7,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-zeromq/zmq4"
+	gzmq4 "github.com/go-zeromq/zmq4"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func zmqInputConfig() *service.ConfigSpec {
+func zmqInputNConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Network").
 		Summary("Consumes messages from a ZeroMQ socket.").
 		Description(`
 
-This is a native Go implementation of ZeroMQ using the go-zeromq/zmq4 library.
+This is a native Go implementation of ZeroMQ using the go-zeromq/zmq4 library. ZMTP protocol is not supported.
 There is a specific docker tag postfix ` + "`-cgo`" + ` for C builds containing the original zmq4 component.`).
 		Field(service.NewStringListField("urls").
 			Description("A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.").
@@ -43,8 +43,8 @@ There is a specific docker tag postfix ` + "`-cgo`" + ` for C builds containing 
 }
 
 func init() {
-	_ = service.RegisterBatchInput("zmq4n", zmqInputConfig(), func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchInput, error) {
-		r, err := zmqInputFromConfig(conf, mgr)
+	_ = service.RegisterBatchInput("zmq4n", zmqInputNConfig(), func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchInput, error) {
+		r, err := zmqInputNFromConfig(conf, mgr)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-type zmqInput struct {
+type zmqInputN struct {
 	log *service.Logger
 
 	urls        []string
@@ -64,11 +64,11 @@ type zmqInput struct {
 	subFilters  []string
 	pollTimeout time.Duration
 
-	socket zmq4.Socket
+	socket gzmq4.Socket
 }
 
-func zmqInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zmqInput, error) {
-	z := zmqInput{
+func zmqInputNFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zmqInputN, error) {
+	z := zmqInputN{
 		log: mgr.Logger(),
 	}
 
@@ -91,7 +91,7 @@ func zmqInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zm
 	if z.socketType, err = conf.FieldString("socket_type"); err != nil {
 		return nil, err
 	}
-	if _, err := getZMQInputType(z.socketType); err != nil {
+	if _, err := getZMQInputNType(z.socketType); err != nil {
 		return nil, err
 	}
 
@@ -116,35 +116,33 @@ func zmqInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zm
 
 //------------------------------------------------------------------------------
 
-func getZMQInputType(t string) (zmq4.SocketType, error) {
+func getZMQInputNType(t string) (gzmq4.SocketType, error) {
 
 	switch t {
 	case "SUB":
-		return zmq4.Sub, nil
+		return gzmq4.Sub, nil
 	case "PULL":
-		return zmq4.Pull, nil
+		return gzmq4.Pull, nil
 	}
-	return zmq4.Pull, errors.New("invalid ZMQ socket type")
+	return gzmq4.Pull, errors.New("invalid ZMQ socket type")
 }
 
-func (z *zmqInput) Connect(ignored context.Context) (err error) {
+func (z *zmqInputN) Connect(ctx context.Context) (err error) {
 	if z.socket != nil {
 		return nil
 	}
 
-	t, err := getZMQInputType(z.socketType)
+	t, err := getZMQInputNType(z.socketType)
 	if err != nil {
 		return err
 	}
 
-	ctx := context.Background()
-
-	var socket zmq4.Socket
+	var socket gzmq4.Socket
 	switch t {
-	case zmq4.Sub:
-		socket = zmq4.NewSub(ctx, zmq4.WithTimeout(z.pollTimeout))
-	case zmq4.Pull:
-		socket = zmq4.NewPull(ctx, zmq4.WithTimeout(z.pollTimeout))
+	case gzmq4.Sub:
+		socket = gzmq4.NewSub(ctx, gzmq4.WithTimeout(z.pollTimeout))
+	case gzmq4.Pull:
+		socket = gzmq4.NewPull(ctx, gzmq4.WithTimeout(z.pollTimeout))
 
 	}
 
@@ -154,7 +152,7 @@ func (z *zmqInput) Connect(ignored context.Context) (err error) {
 		}
 	}()
 	if z.hwm > 0 {
-		if err = socket.SetOption(zmq4.OptionHWM, z.hwm); err != nil {
+		if err = socket.SetOption(gzmq4.OptionHWM, z.hwm); err != nil {
 			fmt.Printf("Input set hwm to %v error %v\n", z.hwm, err)
 			return err
 
@@ -174,7 +172,7 @@ func (z *zmqInput) Connect(ignored context.Context) (err error) {
 	}
 
 	for _, filter := range z.subFilters {
-		if err := socket.SetOption(zmq4.OptionSubscribe, filter); err != nil {
+		if err := socket.SetOption(gzmq4.OptionSubscribe, filter); err != nil {
 			return err
 		}
 	}
@@ -183,7 +181,7 @@ func (z *zmqInput) Connect(ignored context.Context) (err error) {
 	return nil
 }
 
-func (z *zmqInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
+func (z *zmqInputN) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 	if z.socket == nil {
 		return nil, nil, service.ErrNotConnected
 	}
@@ -196,7 +194,7 @@ func (z *zmqInput) ReadBatch(ctx context.Context) (service.MessageBatch, service
 	var batch service.MessageBatch
 
 	switch msg.Type {
-	case zmq4.UsrMsg:
+	case gzmq4.UsrMsg:
 		for _, d := range msg.Frames {
 			batch = append(batch, service.NewMessage(d))
 		}
@@ -209,8 +207,8 @@ func (z *zmqInput) ReadBatch(ctx context.Context) (service.MessageBatch, service
 	}, nil
 }
 
-// CloseAsync shuts down the zmqInput input and stops processing requests.
-func (z *zmqInput) Close(ctx context.Context) error {
+// Close shuts down the zmqInput input and stops processing requests.
+func (z *zmqInputN) Close(ctx context.Context) error {
 	if z.socket != nil {
 		z.socket.Close()
 		z.socket = nil

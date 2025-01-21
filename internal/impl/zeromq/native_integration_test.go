@@ -1,4 +1,4 @@
-package zmq4n
+package zeromq
 
 import (
 	"testing"
