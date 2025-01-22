@@ -129,7 +129,7 @@ func getZMQInputNType(t string) (gzmq4.SocketType, error) {
 
 func (z *zmqInputN) Connect(ctx context.Context) (err error) {
 	if z.socket != nil {
-		return nil
+		return errors.New("already connected")
 	}
 
 	t, err := getZMQInputNType(z.socketType)
