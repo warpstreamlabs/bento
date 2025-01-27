@@ -47,6 +47,9 @@ func (s *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]
 				batchErr = batch.NewError(msg, mErr)
 			}
 			batchErr.Failed(i, mErr)
+
+			// Clear the message-level error
+			p.ErrorSet(nil)
 			return nil
 		})
 		if batchErr != nil {
