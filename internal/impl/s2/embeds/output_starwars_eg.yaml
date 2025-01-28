@@ -1,0 +1,14 @@
+input:
+  label: towel_blinkenlights_nl
+  socket:
+    network: tcp
+    address: towel.blinkenlights.nl:23
+    scanner:
+      lines: {}
+
+output:
+  label: s2_starwars
+  s2:
+    basin: my-favorite-basin
+    stream: starwars
+    auth_token: "${S2_AUTH_TOKEN}"
