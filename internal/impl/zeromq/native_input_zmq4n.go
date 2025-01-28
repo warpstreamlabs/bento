@@ -9,6 +9,7 @@ import (
 
 	gzmq4 "github.com/go-zeromq/zmq4"
 
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -129,7 +130,7 @@ func getZMQInputNType(t string) (gzmq4.SocketType, error) {
 
 func (z *zmqInputN) Connect(ctx context.Context) (err error) {
 	if z.socket != nil {
-		return errors.New("already connected")
+		return component.ErrAlreadyStarted
 	}
 
 	t, err := getZMQInputNType(z.socketType)
