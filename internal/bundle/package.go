@@ -29,6 +29,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/pipeline"
 )
 
 var (
@@ -64,6 +65,7 @@ type NewManagement interface {
 	NewOutput(conf output.Config, pipelines ...processor.PipelineConstructorFunc) (output.Streamed, error)
 	NewRateLimit(conf ratelimit.Config) (ratelimit.V1, error)
 	NewScanner(conf scanner.Config) (scanner.Creator, error)
+	NewPipeline(conf pipeline.Config) (processor.Pipeline, error)
 
 	ProbeCache(name string) bool
 	AccessCache(ctx context.Context, name string, fn func(cache.V1)) error
