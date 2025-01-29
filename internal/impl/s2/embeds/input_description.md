@@ -14,6 +14,7 @@ To know more about setting up a cache resource, see
 This input adds the following metadata fields to each message in addition to the
 record headers:
 
+- `s2_basin`: The S2 basin where the origin stream lives.
 - `s2_stream`: The origin S2 stream.
 - `s2_seq_num`: Sequence number of the record in the origin stream formatted as a string.
 

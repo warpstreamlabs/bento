@@ -185,7 +185,7 @@ func (b *bentoSeqNumCache) Set(ctx context.Context, stream string, seqNum uint64
 }
 
 type Input struct {
-	inner  *s2bentobox.Input
+	inner  *s2bentobox.MultiStreamInput
 	config *s2bentobox.InputConfig
 	logger *service.Logger
 }
@@ -193,7 +193,7 @@ type Input struct {
 func (i *Input) Connect(ctx context.Context) error {
 	i.logger.Debug("Connecting S2 input")
 
-	inner, err := s2bentobox.ConnectInput(ctx, i.config)
+	inner, err := s2bentobox.ConnectMultiStreamInput(ctx, i.config)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (i *Input) Connect(ctx context.Context) error {
 func (i *Input) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 	i.logger.Debug("Reading batch from S2")
 
-	batch, stream, err := i.inner.ReadBatch(ctx)
+	batch, aFn, stream, err := i.inner.ReadBatch(ctx)
 	if err != nil {
 		if errors.Is(err, s2bentobox.ErrInputClosed) {
 			return nil, nil, service.ErrNotConnected
@@ -233,11 +233,12 @@ func (i *Input) ReadBatch(ctx context.Context) (service.MessageBatch, service.Ac
 
 		msg.MetaSet("s2_seq_num", strconv.FormatUint(record.SeqNum, 10))
 		msg.MetaSet("s2_stream", stream)
+		msg.MetaSet("s2_basin", i.config.Basin)
 
 		messages = append(messages, msg)
 	}
 
-	return messages, i.inner.AckFunc(stream, batch), nil
+	return messages, aFn, nil
 }
 
 func (i *Input) Close(ctx context.Context) error {

@@ -1866,6 +1866,8 @@ github.com/s2-streamstore/optr v1.0.0 h1:OqJpOO2uYsG+iXW9mNTlsCePDvxTS8mh9EtGcny
 github.com/s2-streamstore/optr v1.0.0/go.mod h1:x/wSUCzWgpnvWWQG4dZ4JBFW2Kw0pE0yhLGb+0xiN8g=
 github.com/s2-streamstore/s2-sdk-go v0.3.0 h1:BxsYdsW+w8BLzjBn84rn+IlH+T6UdQ3vBO+AGIt0SEA=
 github.com/s2-streamstore/s2-sdk-go v0.3.0/go.mod h1:qfyTLgT32aijTNQeN478iobzZ7EeWg3K8v2gxc3xVa0=
+github.com/s2-streamstore/s2-sdk-go v0.4.0 h1:ySyLfs7XELm4NdT+RSonOK9ZxLpjKHXKanlwd79mr6U=
+github.com/s2-streamstore/s2-sdk-go v0.4.0/go.mod h1:qfyTLgT32aijTNQeN478iobzZ7EeWg3K8v2gxc3xVa0=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/segmentio/asm v1.2.0 h1:9BQrFxC+YOHJlTlHGkTrFWf59nbL3XnCoFLTwDCI7ys=
 github.com/segmentio/asm v1.2.0/go.mod h1:BqMnlJP91P8d+4ibuonYZw9mfnzI9HfxselHZr5aAcs=
