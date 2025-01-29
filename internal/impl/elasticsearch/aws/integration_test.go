@@ -107,8 +107,8 @@ aws:
 			return errors.New("es cluster not created yet")
 		}
 
-		baseUrl := fmt.Sprintf("http://localhost:%s/es/us-east-1/bento-test", port)
-		healthResp, esErr := http.Get(fmt.Sprintf("%s/_cluster/health", baseUrl))
+		baseURL := fmt.Sprintf("http://localhost:%s/es/us-east-1/bento-test", port)
+		healthResp, esErr := http.Get(fmt.Sprintf("%s/_cluster/health", baseURL))
 
 		if esErr != nil {
 			return esErr
@@ -119,7 +119,7 @@ aws:
 		}
 
 		opts := []elastic.ClientOptionFunc{
-			elastic.SetURL(baseUrl),
+			elastic.SetURL(baseURL),
 			elastic.SetSniff(false),
 			elastic.SetHealthcheck(false),
 			elastic.SetHttpClient(signer),

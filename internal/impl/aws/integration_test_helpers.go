@@ -31,8 +31,8 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 	env = append(env, envVars...)
 
 	// If an auth token is provided, use the pro-image
-	if auth_token, isPro := os.LookupEnv("LOCALSTACK_AUTH_TOKEN"); isPro && auth_token != "" {
-		env = append(env, fmt.Sprintf("LOCALSTACK_AUTH_TOKEN=%s", auth_token))
+	if authToken, isPro := os.LookupEnv("LOCALSTACK_AUTH_TOKEN"); isPro && authToken != "" {
+		env = append(env, "LOCALSTACK_AUTH_TOKEN="+authToken)
 		lsImageName = lsImageName + "-pro"
 	}
 	env = append(env, "LS_LOG=debug")
@@ -68,6 +68,8 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusOK {
 			return errors.New("cannot connect to LocalStack")
 		}
