@@ -99,10 +99,13 @@ func parseBatchPolicy(conf *service.ParsedConfig) (service.BatchPolicy, error) {
 
 	// Set required defaults
 
+	// Setting the batch byte size max a bit conservatively since Bento does not
+	// take metadata size into account. Moreover, the S2 metered size of a record
+	// will be > bento message size.
+	const maxBatchBytes = 256 * 1024
+
 	if policy.ByteSize <= 0 {
-		// TODO: We might need to decrease the size since bento message size != s2
-		// record metered size.
-		policy.ByteSize = int(s2.MaxBatchBytes)
+		policy.ByteSize = maxBatchBytes
 	}
 
 	if policy.Count <= 0 {
@@ -117,7 +120,7 @@ func parseBatchPolicy(conf *service.ParsedConfig) (service.BatchPolicy, error) {
 
 	// Validate limits
 
-	if policy.ByteSize > int(s2.MaxBatchBytes) {
+	if policy.ByteSize > maxBatchBytes {
 		return policy, fmt.Errorf("%w: must not exceed %d", errInvalidBatchingByteSize, s2.MaxBatchBytes)
 	}
 
