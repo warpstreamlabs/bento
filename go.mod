@@ -58,7 +58,6 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/dustin/go-humanize v1.0.1
 	github.com/eclipse/paho.mqtt.golang v1.4.3
-	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/fatih/color v1.16.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/generikvault/gvalstrings v0.0.0-20180926130504-471f38f0112a
