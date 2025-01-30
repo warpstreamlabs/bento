@@ -1864,8 +1864,8 @@ github.com/ruudk/golang-pdf417 v0.0.0-20181029194003-1af4ab5afa58/go.mod h1:6lfF
 github.com/ruudk/golang-pdf417 v0.0.0-20201230142125-a7e3863a1245/go.mod h1:pQAZKsJ8yyVxGRWYNEm9oFB8ieLgKFnamEyDmSA0BRk=
 github.com/s2-streamstore/optr v1.0.0 h1:OqJpOO2uYsG+iXW9mNTlsCePDvxTS8mh9EtGcnyq8w8=
 github.com/s2-streamstore/optr v1.0.0/go.mod h1:x/wSUCzWgpnvWWQG4dZ4JBFW2Kw0pE0yhLGb+0xiN8g=
-github.com/s2-streamstore/s2-sdk-go v0.4.0 h1:ySyLfs7XELm4NdT+RSonOK9ZxLpjKHXKanlwd79mr6U=
-github.com/s2-streamstore/s2-sdk-go v0.4.0/go.mod h1:qfyTLgT32aijTNQeN478iobzZ7EeWg3K8v2gxc3xVa0=
+github.com/s2-streamstore/s2-sdk-go v0.4.1 h1:KQpu6in3D5E93CXcE0XV0WTn+fBla06n23Y4K1/ZHno=
+github.com/s2-streamstore/s2-sdk-go v0.4.1/go.mod h1:qfyTLgT32aijTNQeN478iobzZ7EeWg3K8v2gxc3xVa0=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/segmentio/asm v1.2.0 h1:9BQrFxC+YOHJlTlHGkTrFWf59nbL3XnCoFLTwDCI7ys=
 github.com/segmentio/asm v1.2.0/go.mod h1:BqMnlJP91P8d+4ibuonYZw9mfnzI9HfxselHZr5aAcs=

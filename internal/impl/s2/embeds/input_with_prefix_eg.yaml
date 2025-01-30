@@ -7,7 +7,7 @@ input:
   label: s2_input
   s2:
     basin: my-favorite-basin
-    streams: my-favorite-prefix-
+    streams: my-favorite-prefix/
     auth_token: "${S2_AUTH_TOKEN}"
     cache: s2_seq_num
 
