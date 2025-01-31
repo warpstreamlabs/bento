@@ -12,13 +12,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var (
-	//go:embed embeds/output_description.md
-	outputDescription string
-
-	//go:embed embeds/output_starwars_eg.yaml
-	outputStarwars string
-)
+// Setting the batch byte size max a bit conservatively since Bento does not
+// take metadata size into account. Moreover, the S2 metered size of a record
+// will be > bento message size.
+const maxBatchBytes = 256 * 1024
 
 var (
 	errInvalidBatchingByteSize = errors.New("invalid batch policy byte size")
@@ -60,34 +57,78 @@ const (
 	fencingTokenField = "fencing_token"
 )
 
-var (
-	batchingFieldSpec = service.NewBatchPolicyField(batchingField)
-
-	streamFieldSpec = service.NewStringField(streamField).
-			Description("Stream name")
-
-	outputMaxInFlightSpec = service.NewOutputMaxInFlightField()
-
-	fencingTokenFieldSpec = service.NewStringField(fencingTokenField).
+func newOutputConfigSpec() *service.ConfigSpec {
+	return service.NewConfigSpec().
+		Fields(
+			service.NewStringField(basinField).Description("Basin name"),
+			service.NewStringField(authTokenField).
+				Description("Authentication token for S2 account").
+				Secret(),
+			service.NewStringField(streamField).Description("Stream name"),
+			service.NewStringField(fencingTokenField).
 				Optional().
 				Description("Enforce a fencing token (base64 encoded)").
-				Example("aGVsbG8gczI=")
-)
-
-func newOutputConfigSpec() *service.ConfigSpec {
-	return newConfigSpec().
-		Fields(
-			batchingFieldSpec,
-			streamFieldSpec,
-			outputMaxInFlightSpec,
-			fencingTokenFieldSpec,
+				Example("aGVsbG8gczI="),
+			service.NewBatchPolicyField(batchingField).
+				Advanced().
+				LintRule(
+					fmt.Sprintf(`
+root = if this.count > %d {
+	"the number of messages in a batch cannot exceed 1000"
+}
+root = if this.byte_size > %d {
+	"the amount of bytes in a batch cannot exceed 256KiB"
+}
+				`,
+						s2.MaxBatchRecords,
+						maxBatchBytes,
+					),
+				),
+			service.NewOutputMaxInFlightField().Advanced(),
 		).
 		Summary("Sends messages to an S2 stream.").
-		Description(outputDescription).
+		Description(`
+Generate an authentication token by logging onto the web console at
+[s2.dev](https://s2.dev/dashboard).
+
+### Metadata
+
+The metadata attributes are set as S2 record headers. Currently, only string
+attribute values are supported.
+
+### Batching
+
+The plugin expects batched inputs. Messages are batched automatically by Bento.
+
+By default, Bento disables batching based on `+"`count`"+`, `+"`byte_size`"+`, and `+"`period`"+`
+parameters, but the plugin enables batching setting both `+"`count`"+` and `+"`byte_size`"+` to
+the maximum values supported by S2. It also sets a flush period of `+"`5ms`"+` as a reasonable default.
+
+**Note:** An S2 record batch can be a maximum of 1MiB but the plugin limits the
+size of a message to 256KiB since the Bento size limit doesn't take metadata into
+account. Moreover, the metered size of the same Bento message will be greater
+than the byte size of a Bento message.
+`,
+		).
 		Example(
 			"ASCII Starwars",
 			"Consume a network stream into an S2 stream",
-			outputStarwars,
+			`
+input:
+  label: towel_blinkenlights_nl
+  socket:
+    network: tcp
+    address: towel.blinkenlights.nl:23
+    scanner:
+      lines: {}
+
+output:
+  label: s2_starwars
+  s2:
+    basin: my-favorite-basin
+    stream: starwars
+    auth_token: "${S2_AUTH_TOKEN}"
+`,
 		)
 }
 
@@ -98,11 +139,6 @@ func parseBatchPolicy(conf *service.ParsedConfig) (service.BatchPolicy, error) {
 	}
 
 	// Set required defaults
-
-	// Setting the batch byte size max a bit conservatively since Bento does not
-	// take metadata size into account. Moreover, the S2 metered size of a record
-	// will be > bento message size.
-	const maxBatchBytes = 256 * 1024
 
 	if policy.ByteSize <= 0 {
 		policy.ByteSize = maxBatchBytes
@@ -192,10 +228,7 @@ func (o *Output) Connect(ctx context.Context) error {
 func (o *Output) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
 	o.logger.Debug("Writing batch to S2")
 
-	recordBatch, err := s2.NewAppendRecordBatch()
-	if err != nil {
-		panic("empty record batch shouldn't error")
-	}
+	records := make([]s2.AppendRecord, 0, len(batch))
 
 	if err := batch.WalkWithBatchedErrors(func(_ int, m *service.Message) error {
 		body, err := m.AsBytes()
@@ -215,16 +248,19 @@ func (o *Output) WriteBatch(ctx context.Context, batch service.MessageBatch) err
 			return err
 		}
 
-		if !recordBatch.Append(s2.AppendRecord{
+		records = append(records, s2.AppendRecord{
 			Headers: headers,
 			Body:    body,
-		}) {
-			return s2bentobox.ErrAppendRecordBatchFull
-		}
+		})
 
 		return nil
 	}); err != nil {
 		return err
+	}
+
+	recordBatch, leftOver := s2.NewAppendRecordBatch(records...)
+	if len(leftOver) > 0 {
+		return s2bentobox.ErrAppendRecordBatchFull
 	}
 
 	if err := o.inner.WriteBatch(ctx, recordBatch); err != nil {
