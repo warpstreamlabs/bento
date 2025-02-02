@@ -16,6 +16,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/api"
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/bundle/errorsampling"
 	"github.com/warpstreamlabs/bento/internal/bundle/strict"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
 	"github.com/warpstreamlabs/bento/internal/config"
@@ -106,6 +107,10 @@ func CreateManager(
 	}, mgrOpts...)
 
 	// Initialise processors with global error handling strategy
+	if conf.ErrorHandling.Log.Enabled {
+		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(errorsampling.ErrorSamplingBundle(conf.ErrorHandling, bundle.GlobalEnvironment)))
+	}
+
 	if conf.ErrorHandling.Strategy == "reject" {
 		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(strict.StrictBundle(bundle.GlobalEnvironment)))
 	}
