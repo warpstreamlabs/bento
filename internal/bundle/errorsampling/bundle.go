@@ -8,7 +8,7 @@ import (
 )
 
 // ErrorSamplingBundle modifies a provided bundle environment to automatically log messages-level errors at the ERROR level.
-// This can be used to selectively sample from a batch of messages.
+// This can be used to selectively sample from a batch of failed messages without logging all errors.
 func ErrorSamplingBundle(eConf errorhandling.Config, b *bundle.Environment) *bundle.Environment {
 	errLogEnv := b.Clone()
 
