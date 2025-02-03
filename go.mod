@@ -160,8 +160,8 @@ require (
 
 require (
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
-	github.com/s2-streamstore/optr v1.0.0 // indirect
-	github.com/s2-streamstore/s2-sdk-go v0.4.1
+	github.com/s2-streamstore/optr v1.1.0 // indirect
+	github.com/s2-streamstore/s2-sdk-go v0.5.0
 	github.com/tidwall/btree v1.7.0 // indirect
 )
 
@@ -385,7 +385,7 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-go 1.23.4
+go 1.22.0
 
 // This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
 // Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842
