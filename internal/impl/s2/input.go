@@ -42,6 +42,8 @@ const (
 
 func newInputConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
+		Beta().
+		Categories("Services").
 		Fields(
 			service.NewStringField(basinField).Description("Basin name"),
 			service.NewStringField(authTokenField).
