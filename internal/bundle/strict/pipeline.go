@@ -131,6 +131,12 @@ func (p *feedbackPipeline) newMergeChannels(ctx context.Context) <-chan message.
 	return out
 }
 
+// loop continually ingests messages from a merged channel that combines
+// the original input channel (from the input layer) and a retry channel.
+//
+// All transactions are wrapped in a custom ackFn where:
+// - on nack/reject: a transaction is fed back into the retry channel
+// - otherwise: transaction proceeds through the pipeline as normal
 func (p *feedbackPipeline) loop() {
 	closeNowCtx, cnDone := p.shutSig.HardStopCtx(context.Background())
 	defer cnDone()
