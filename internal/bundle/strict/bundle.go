@@ -28,8 +28,6 @@ func StrictBundle(b *bundle.Environment) *bundle.Environment {
 		}, spec)
 	}
 
-	// TODO: Overwrite inputs for retry with backoff
-
 	return strictEnv
 }
 
@@ -48,9 +46,9 @@ func NewRetryFeedbackPipelineCtor() func(conf pipeline.Config, mgr bundle.NewMan
 }
 
 // RetryBundle wraps input.processors and output.processors pipeline constructors with FeedbackProcessors for re-routing failed transactions
-// back into pipeline for retrying.
+// back into a pipeline for retrying.
 func RetryBundle(b *bundle.Environment) *bundle.Environment {
-	retryEnv := b.Clone()
+	retryEnv := StrictBundle(b)
 
 	for _, spec := range b.InputDocs() {
 		_ = retryEnv.InputAdd(func(conf input.Config, nm bundle.NewManagement) (input.Streamed, error) {
