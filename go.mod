@@ -164,7 +164,7 @@ require github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 require (
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/s2-streamstore/optr v1.1.0 // indirect
-	github.com/s2-streamstore/s2-sdk-go v0.5.0
+	github.com/s2-streamstore/s2-sdk-go v0.5.1
 	github.com/tidwall/btree v1.7.0 // indirect
 )
 
