@@ -56,7 +56,7 @@ error_handling:
 `)
 	require.NoError(t, err)
 	require.Equal(t, "reject", cfg.ErrorHandling.Strategy)
-	require.Equal(t, 0.0, cfg.ErrorHandling.Log.SamplingRatio)
+	require.Equal(t, 1.0, cfg.ErrorHandling.Log.SamplingRatio)
 	require.False(t, cfg.ErrorHandling.Log.AddPayload)
 
 	cfg, err = testutil.ConfigFromYAML(`
@@ -67,7 +67,7 @@ error_handling:
 `)
 	require.NoError(t, err)
 	require.Equal(t, "reject", cfg.ErrorHandling.Strategy)
-	require.Equal(t, 0.0, cfg.ErrorHandling.Log.SamplingRatio)
+	require.Equal(t, 1.0, cfg.ErrorHandling.Log.SamplingRatio)
 	require.True(t, cfg.ErrorHandling.Log.AddPayload)
 }
 
