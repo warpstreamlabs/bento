@@ -3,6 +3,31 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.0 - 2025-02-07
+
+### Changed
+
+- log message format in `gcp_bigquery_write_api` @richardartoul
+- enabled bloblang interpolation in `gcp_cloud_storage` input @paulosimao-ardanlabs
+- add metadata values to `nats_kv` processor @kmpm
+
+### Added
+
+- `rate_limit` field in `kafka_franz` input @gregfurman
+- `unsafe_dynamic_query` added to `gcp_bigquery_select` processor @jem-davies
+- `delete_objects` added to `aws_s3` processor @gregfurman
+- bloblang string method `repeat` @jem-davies
+- plugin example module `./resources/plugin-example` @jem-davies
+- zeromq input & output components @kmpm
+- tls config field for `cypher` output @jem-davies
+- `s2` input & output components @vrongmeal
+- 'sampling bundle' for logging @gregfurman
+
+### Fixed 
+
+- replace directive for github.com/AthenZ/athenz depenency @gregfurman
+- change default encoding from DELTA_LENGTH_BYTE_ARRAY to PLAIN for string fields for parquet encodings @gregfurman
+
 ## 1.4.1 - 2025-01-04
 
 ### Changed
