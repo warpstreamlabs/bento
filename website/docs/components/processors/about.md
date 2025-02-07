@@ -42,6 +42,16 @@ logger:
   level: DEBUG
 ```
 
+Alternatively, you can instruct Bento to sample and log a proportion of failed messages at the `ERROR` level using the top-level `error_handling.log` configuration:
+
+```yaml
+error_handling:
+  log:
+    enabled: true
+    sampling_ratio: 0.5
+    add_payload: true # add payload of failed message
+```
+
 ### Error Handling
 
 :::caution EXPERIMENTAL
