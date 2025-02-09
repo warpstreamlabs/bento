@@ -2,6 +2,7 @@ package strict
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,6 +48,38 @@ func TestProcessorWrapWithStrict(t *testing.T) {
 	require.Len(t, msgs, 1)
 	assert.Equal(t, 1, msgs[0].Len())
 	assert.Equal(t, `{"hello":"world"}`, string(msgs[0].Get(0).AsBytes()))
+}
+
+func TestProcessorStrictDisableToggle(t *testing.T) {
+	tCtx := context.Background()
+
+	isEnabled := &atomic.Bool{}
+	isEnabled.Store(true)
+
+	// Wrap the processor with the strict interface
+	strictProc := wrapWithStrict(mockProc{}, setAtomicStrictFlag(isEnabled))
+
+	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
+	msgs, res := strictProc.ProcessBatch(tCtx, msg)
+	require.Empty(t, msgs)
+	require.Error(t, res)
+	assert.EqualError(t, res, "invalid character 'o' in literal null (expecting 'u')")
+
+	// Disable strict mode
+	isEnabled.Store(false)
+	msg = message.QuickBatch([][]byte{[]byte("not a structured doc")})
+	msgs, res = strictProc.ProcessBatch(tCtx, msg)
+	require.Len(t, msgs, 1)
+	require.NoError(t, res)
+	assert.Equal(t, "not a structured doc", string(msgs[0].Get(0).AsBytes()))
+
+	// Re-enable strict mode
+	isEnabled.Store(true)
+	msg = message.QuickBatch([][]byte{[]byte("not a structured doc")})
+	msgs, res = strictProc.ProcessBatch(tCtx, msg)
+	require.Empty(t, msgs)
+	require.Error(t, res)
+	assert.EqualError(t, res, "invalid character 'o' in literal null (expecting 'u')")
 }
 
 func TestProcessorWrapWithStrictMultiMessage(t *testing.T) {
