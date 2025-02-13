@@ -230,7 +230,8 @@ switch:
 
 	var buf bytes.Buffer
 	w.Close()
-	io.Copy(&buf, r)
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
 	r.Close()
 
 	assert.Equal(t, "praise be to the omnissiah\n", buf.String())
