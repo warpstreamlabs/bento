@@ -46,6 +46,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/pusher"
 	_ "github.com/warpstreamlabs/bento/public/components/questdb"
 	_ "github.com/warpstreamlabs/bento/public/components/redis"
+	_ "github.com/warpstreamlabs/bento/public/components/s2"
 	_ "github.com/warpstreamlabs/bento/public/components/sentry"
 	_ "github.com/warpstreamlabs/bento/public/components/sftp"
 	_ "github.com/warpstreamlabs/bento/public/components/snowflake"
@@ -54,4 +55,5 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/statsd"
 	_ "github.com/warpstreamlabs/bento/public/components/twitter"
 	_ "github.com/warpstreamlabs/bento/public/components/wasm"
+	_ "github.com/warpstreamlabs/bento/public/components/zeromq"
 )

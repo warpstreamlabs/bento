@@ -50,7 +50,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Default(map[string]any{}).
 			Example(map[string]any{
 				"Content-Type": "application/json",
-				"Timestamp":    `${!meta("Timestamp")}`,
+				"Timestamp":    `${!metadata("Timestamp").string()}`,
 			})).
 		Field(service.NewMetadataFilterField("metadata").
 			Description("Determine which (if any) metadata values should be added to messages as headers.").

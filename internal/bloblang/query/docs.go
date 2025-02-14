@@ -139,6 +139,10 @@ func (s FunctionSpec) Param(def ParamDefinition) FunctionSpec {
 
 // NewDeprecatedFunctionSpec creates a new function spec that is deprecated.
 func NewDeprecatedFunctionSpec(name, description string, examples ...ExampleSpec) FunctionSpec {
+	description = `:::caution DEPRECATED
+::: 
+` + description
+
 	return FunctionSpec{
 		Status:      StatusDeprecated,
 		Category:    FunctionCategoryDeprecated,

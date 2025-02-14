@@ -164,7 +164,7 @@ Requires version 1.0.0 or newer
 
 headers:
   Content-Type: application/json
-  Timestamp: ${!meta("Timestamp")}
+  Timestamp: ${!metadata("Timestamp").string()}
 ```
 
 ### `metadata`

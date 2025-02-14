@@ -241,11 +241,11 @@ input:
       period: 3s
       processors:
         - mapping: |
-            meta kafka_start_offset = meta("kafka_offset").from(0)
-            meta kafka_end_offset = meta("kafka_offset").from(-1)
+            meta kafka_start_offset = metadata("kafka_offset").from(0).string()
+            meta kafka_end_offset = metadata("kafka_offset").from(-1).string()
             meta batch_timestamp = if batch_index() == 0 { now() }
         - mapping: |
-            meta batch_timestamp = if batch_index() != 0 { meta("batch_timestamp").from(0) }
+            meta batch_timestamp = if batch_index() != 0 { metadata("batch_timestamp").from(0).string() }
 
 output:
   snowflake_put:
@@ -258,7 +258,7 @@ output:
     schema: PUBLIC
     stage: "@%BENTO_TBL"
     path: bento/BENTO_TBL/${! @kafka_partition }
-    file_name: ${! @kafka_start_offset }_${! @kafka_end_offset }_${! meta("batch_timestamp") }
+    file_name: ${! @kafka_start_offset }_${! @kafka_end_offset }_${! metadata("batch_timestamp").string() }
     upload_parallel_threads: 4
     compression: NONE
     snowpipe: BENTO_PIPE

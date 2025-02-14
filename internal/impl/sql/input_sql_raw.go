@@ -29,7 +29,7 @@ func sqlRawInputConfig() *service.ConfigSpec {
 		Field(service.NewBloblangField("args_mapping").
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of columns specified.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`).
+			Example(`root = [ metadata("user.id").string() ]`).
 			Optional()).
 		Field(service.NewAutoRetryNacksToggleField())
 	for _, f := range connFields() {
@@ -125,9 +125,11 @@ func newSQLRawInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
-	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
-	if err != nil {
-		return nil, err
+	if s.driver == "postgres" && s.connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil

@@ -29,7 +29,7 @@ format: does not exist
 func TestArchiveTar(t *testing.T) {
 	conf, err := archiveProcConfig().ParseYAML(`
 format: tar
-path: 'foo-${!meta("path")}'
+path: 'foo-${!metadata("path")}'
 `, nil)
 	require.NoError(t, err)
 

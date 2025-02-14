@@ -55,6 +55,36 @@ schema:
 	require.Error(t, err)
 }
 
+func TestParquetEncodeDefaultEncodingPlain(t *testing.T) {
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: float, type: FLOAT }
+  - { name: utf8, type: UTF8 }
+  - { name: byte_array, type: BYTE_ARRAY }
+default_encoding: PLAIN
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	for _, field := range encodeProc.schema.Fields() {
+		if field.Name() != "float" {
+			require.IsType(t, &parquet.Plain, field.Encoding())
+		}
+
+		if field.Name() == "float" {
+			require.Nil(t, field.Encoding())
+		}
+	}
+
+	tctx := context.Background()
+	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"float":1e99,"utf8":"foo","byte_array":"bar"}`)),
+	})
+	require.NoError(t, err)
+}
+
 func TestParquetEncodeDecodeRoundTrip(t *testing.T) {
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:

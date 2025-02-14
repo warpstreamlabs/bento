@@ -2,8 +2,5 @@
 
 package all
 
-import (
-	// Import extra packages, these are packages only imported with the tag
-	// x_bento_extra, which is normally reserved for -cgo suffixed builds
-	_ "github.com/warpstreamlabs/bento/internal/impl/zeromq"
-)
+// Import extra packages, these are packages only imported with the tag
+// x_bento_extra, which is normally reserved for -cgo suffixed builds

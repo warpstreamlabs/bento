@@ -91,7 +91,7 @@ The field `string_columns` is a map of column names to string values, where the 
 string_columns:
   id: ${!json("id")}
   title: ${!json("body.title")}
-  topic: ${!meta("kafka_topic")}
+  topic: ${!metadata("kafka_topic")}
   full_content: ${!content()}
 ```
 

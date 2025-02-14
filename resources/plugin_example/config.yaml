@@ -1,0 +1,8 @@
+input: 
+  faker: 
+    username: true
+    age: true
+    batch_size: 10
+
+output:
+  stdout: {}

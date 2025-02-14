@@ -22,7 +22,7 @@ kafka_franz:
   seed_brokers: [ foo:1234 ]
   topic: foo
   partitioner: manual
-  partition: '${! meta("foo") }'
+  partition: '${! metadata("foo").string() }'
 `,
 		},
 		{
@@ -49,7 +49,7 @@ kafka_franz:
 kafka_franz:
   seed_brokers: [ foo:1234 ]
   topic: foo
-  partition: '${! meta("foo") }'
+  partition: '${! metadata("foo") }'
 `,
 			errContains: "a partition cannot be specified unless the partitioner is set to manual",
 		},

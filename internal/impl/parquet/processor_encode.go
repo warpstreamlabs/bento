@@ -131,6 +131,25 @@ func newParquetEncodeProcessorFromConfig(
 		return nil, fmt.Errorf("default_compression type %v not recognised", compressStr)
 	}
 
+	encodingStr, err := conf.FieldString("default_encoding")
+	if err != nil {
+		return nil, err
+	}
+
+	// Note: these values are derived from the supported parquet-go schema struct tags i.e
+	// plain - enables the plain encoding (no-op default)
+	// delta - enables delta encoding on the parquet column (default for string types)
+	// dict  - enables dictionary encoding on the parquet column (not currently unsupported)
+	var defaultEncodingTag string
+	switch encodingStr {
+	case parquet.Plain.String():
+		defaultEncodingTag = "plain"
+	case parquet.DeltaLengthByteArray.String():
+		defaultEncodingTag = "delta"
+	default:
+		return nil, fmt.Errorf("default_encoding type %v not recognised", encodingStr)
+	}
+
 	// For the schema, we don't want any of the actual values encoded as pointers. That works
 	// for 99% of things, but it doesn't work for decimal types, so we use the optional struct
 	// tags approach which works for 100% of things. This is fine because even thought the
@@ -139,6 +158,7 @@ func newParquetEncodeProcessorFromConfig(
 	schemaType, err := GenerateStructType(conf, schemaOpts{
 		optionalsAsStructTags: true,
 		optionalAsPtrs:        false,
+		defaultEncoding:       defaultEncodingTag,
 	})
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -152,6 +172,7 @@ func newParquetEncodeProcessorFromConfig(
 	messageType, err := GenerateStructType(conf, schemaOpts{
 		optionalsAsStructTags: false,
 		optionalAsPtrs:        true,
+		defaultEncoding:       defaultEncodingTag,
 	})
 	if err != nil {
 		return nil, fmt.Errorf(

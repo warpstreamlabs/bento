@@ -7,6 +7,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/tracer"
 	"github.com/warpstreamlabs/bento/internal/config/test"
 	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/errorhandling"
+
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/stream"
@@ -17,6 +19,7 @@ const (
 	fieldLogger             = "logger"
 	fieldMetrics            = "metrics"
 	fieldTracer             = "tracer"
+	fieldErrorHandling      = "error_handling"
 	fieldSystemCloseDelay   = "shutdown_delay"
 	fieldSystemCloseTimeout = "shutdown_timeout"
 	fieldTests              = "tests"
@@ -27,12 +30,13 @@ type Type struct {
 	HTTP                   api.Config `yaml:"http"`
 	stream.Config          `yaml:",inline"`
 	manager.ResourceConfig `yaml:",inline"`
-	Logger                 log.Config     `yaml:"logger"`
-	Metrics                metrics.Config `yaml:"metrics"`
-	Tracer                 tracer.Config  `yaml:"tracer"`
-	SystemCloseDelay       string         `yaml:"shutdown_delay"`
-	SystemCloseTimeout     string         `yaml:"shutdown_timeout"`
-	Tests                  []any          `yaml:"tests"`
+	Logger                 log.Config           `yaml:"logger"`
+	Metrics                metrics.Config       `yaml:"metrics"`
+	Tracer                 tracer.Config        `yaml:"tracer"`
+	ErrorHandling          errorhandling.Config `yaml:"error_handling"`
+	SystemCloseDelay       string               `yaml:"shutdown_delay"`
+	SystemCloseTimeout     string               `yaml:"shutdown_timeout"`
+	Tests                  []any                `yaml:"tests"`
 
 	rawSource any
 }
@@ -62,12 +66,19 @@ func observabilityFields() docs.FieldSpecs {
 	}
 }
 
+func errorHandlingFields() docs.FieldSpecs {
+	return docs.FieldSpecs{
+		docs.FieldObject(fieldErrorHandling, "Environment-wide settings for handling errored messages.").WithChildren(errorhandling.Spec()...),
+	}
+}
+
 // Spec returns a docs.FieldSpec for an entire Bento configuration.
 func Spec() docs.FieldSpecs {
 	fields := docs.FieldSpecs{httpField}
 	fields = append(fields, stream.Spec()...)
 	fields = append(fields, manager.Spec()...)
 	fields = append(fields, observabilityFields()...)
+	fields = append(fields, errorHandlingFields()...)
 	fields = append(fields, test.ConfigSpec().Advanced())
 	return fields
 }
@@ -140,6 +151,15 @@ func noStreamFromParsed(prov docs.Provider, pConf *docs.ParsedConfig, conf *Type
 			return
 		}
 	}
+
+	if pConf.Contains(fieldErrorHandling) {
+		if conf.ErrorHandling, err = errorhandling.FromParsed(pConf.Namespace(fieldErrorHandling)); err != nil {
+			return
+		}
+	} else {
+		conf.ErrorHandling = errorhandling.NewConfig()
+	}
+
 	if pConf.Contains(fieldTests) {
 		var tmpTests []*docs.ParsedConfig
 		if tmpTests, err = pConf.FieldAnyList(fieldTests); err != nil {

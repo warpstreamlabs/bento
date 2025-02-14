@@ -151,6 +151,7 @@ cache_resources:
 			require.NoError(t, err)
 
 			m := service.NewMessage([]byte("hello"))
+			m.MetaSetMut("inherited", "world")
 			return p.Process(context.Background(), m)
 		}
 
@@ -172,6 +173,12 @@ cache_resources:
 			bytes, err := m.AsBytes()
 			require.NoError(t, err)
 			assert.Equal(t, []byte("lawblog"), bytes)
+			if v, ok := m.MetaGetMut("inherited"); ok {
+				assert.Equal(t, "world", v)
+			} else {
+				t.Error("inherited metadata not found")
+			}
+
 		})
 
 		t.Run("get_revision operation", func(t *testing.T) {
@@ -193,6 +200,12 @@ cache_resources:
 			bytes, err := m.AsBytes()
 			require.NoError(t, err)
 			assert.Equal(t, []byte("lawblog"), bytes)
+			if v, ok := m.MetaGetMut("inherited"); ok {
+				assert.Equal(t, "world", v)
+			} else {
+				t.Error("inherited metadata not found")
+			}
+
 		})
 
 		t.Run("create operation (success)", func(t *testing.T) {
@@ -210,6 +223,12 @@ cache_resources:
 			bytes, err := m.AsBytes()
 			require.NoError(t, err)
 			assert.Equal(t, []byte("hello"), bytes)
+			if v, ok := m.MetaGetMut("inherited"); ok {
+				assert.Equal(t, "world", v)
+			} else {
+				t.Error("inherited metadata not found")
+			}
+
 		})
 
 		t.Run("create operation (error)", func(t *testing.T) {

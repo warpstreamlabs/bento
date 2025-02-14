@@ -34,7 +34,7 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 		Field(service.NewBloblangField("args_mapping").
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of columns specified.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`)).
+			Example(`root = [ metadata("user.id").string() ]`)).
 		Field(service.NewStringField("prefix").
 			Description("An optional prefix to prepend to the insert query (before INSERT).").
 			Optional().
@@ -68,7 +68,7 @@ output:
       root = [
         this.user.id,
         this.user.name,
-        meta("kafka_topic"),
+        metadata("kafka_topic"),
       ]
 `,
 		)
@@ -185,9 +185,11 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		return nil, err
 	}
 
-	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
-	if err != nil {
-		return nil, err
+	if s.driver == "postgres" && s.connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil

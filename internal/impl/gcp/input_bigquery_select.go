@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 
 	"github.com/Jeffail/shutdown"
 
@@ -139,18 +140,23 @@ type bigQuerySelectInput struct {
 	// The indirection provided by the `bigqueryIterator` interface allows test
 	// code to conveniently create mock iterators
 	iterator bigqueryIterator
+
+	// Allows passing additional to the underlying BigQuery client.
+	// Useful when writing tests.
+	clientOptions []option.ClientOption
 }
 
-func newBigQuerySelectInput(inConf *service.ParsedConfig, logger *service.Logger) (*bigQuerySelectInput, error) {
+func newBigQuerySelectInput(inConf *service.ParsedConfig, logger *service.Logger, clientOptions []option.ClientOption) (*bigQuerySelectInput, error) {
 	conf, err := bigQuerySelectInputConfigFromParsed(inConf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
 	return &bigQuerySelectInput{
-		logger:      logger,
-		config:      &conf,
-		shutdownSig: shutdown.NewSignaller(),
+		logger:        logger,
+		config:        &conf,
+		shutdownSig:   shutdown.NewSignaller(),
+		clientOptions: clientOptions,
 	}, nil
 }
 
@@ -158,7 +164,7 @@ func (inp *bigQuerySelectInput) Connect(ctx context.Context) error {
 	jobctx, _ := inp.shutdownSig.SoftStopCtx(context.Background())
 
 	if inp.client == nil {
-		client, err := bigquery.NewClient(jobctx, inp.config.project)
+		client, err := bigquery.NewClient(jobctx, inp.config.project, inp.clientOptions...)
 		if err != nil {
 			return fmt.Errorf("failed to create bigquery client: %w", err)
 		}
@@ -239,7 +245,7 @@ func init() {
 	err := service.RegisterInput(
 		"gcp_bigquery_select", newBigQuerySelectInputConfig(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
-			i, err := newBigQuerySelectInput(conf, mgr.Logger())
+			i, err := newBigQuerySelectInput(conf, mgr.Logger(), nil)
 			if err != nil {
 				return nil, err
 			}

@@ -2,11 +2,13 @@ package cypher
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -24,6 +26,8 @@ const (
 	cypherUser     = "user"
 	cypherPassword = "password"
 	cypherRealm    = "realm"
+
+	cypherTLS = "tls"
 )
 
 var cypherOutputDescription string = `
@@ -73,6 +77,7 @@ func cypherOutputSpec() *service.ConfigSpec {
 			service.NewIntField(cypherMaxInFlight).
 				Description("The maximum number of queries to run in parallel.").
 				Default(64),
+			service.NewTLSToggledField(cypherTLS),
 		)
 
 	spec = spec.Field(service.NewBatchPolicyField(cypherBatching)).
@@ -138,6 +143,7 @@ type CypherOutput struct {
 	uri       string
 	noAuth    bool
 	basicAuth CypherBasicAuth
+	tlsConfig *tls.Config
 	query     string
 	values    map[string]*service.InterpolatedString
 	driver    neo4j.DriverWithContext
@@ -177,9 +183,36 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 		return nil, err
 	}
 
+	var tlsEnabled bool
+	var tlsConfig *tls.Config
+	if tlsConfig, tlsEnabled, err = conf.FieldTLSToggled(cypherTLS); err != nil {
+		return nil, err
+	}
+
 	if !noAuth {
-		basicAuthMap, _ := conf.FieldStringMap(cypherBasicAuth)
-		basicAuth := CypherBasicAuth{user: basicAuthMap[cypherUser], password: basicAuthMap[cypherPassword], realm: basicAuthMap[cypherRealm]}
+
+		basicAuthMap, err := conf.FieldStringMap(cypherBasicAuth)
+		if err != nil {
+			return nil, err
+		}
+
+		basicAuth := CypherBasicAuth{
+			user:     basicAuthMap[cypherUser],
+			password: basicAuthMap[cypherPassword],
+			realm:    basicAuthMap[cypherRealm],
+		}
+
+		if tlsEnabled {
+			return &CypherOutput{
+				database:  database,
+				uri:       uri,
+				noAuth:    noAuth,
+				basicAuth: basicAuth,
+				tlsConfig: tlsConfig,
+				query:     query,
+				values:    values}, nil
+		}
+
 		return &CypherOutput{database: database, uri: uri, noAuth: noAuth, basicAuth: basicAuth, query: query, values: values}, nil
 	}
 
@@ -211,10 +244,17 @@ func (cyp *CypherOutput) Connect(ctx context.Context) error {
 	var driver neo4j.DriverWithContext
 	var err error
 
+	var connConfigurers []func(*config.Config)
+	if cyp.tlsConfig != nil {
+		connConfigurers = append(connConfigurers, func(config *config.Config) {
+			config.TlsConfig = cyp.tlsConfig
+		})
+	}
+
 	if cyp.noAuth {
 		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.NoAuth())
 	} else {
-		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.BasicAuth(cyp.basicAuth.user, cyp.basicAuth.password, cyp.basicAuth.realm))
+		driver, err = neo4j.NewDriverWithContext(cyp.uri, neo4j.BasicAuth(cyp.basicAuth.user, cyp.basicAuth.password, cyp.basicAuth.realm), connConfigurers...)
 	}
 
 	if err != nil {
@@ -241,7 +281,9 @@ func (cyp *CypherOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 			values[i][k] = v.String(msgPart)
 		}
 
-		_, err := neo4j.ExecuteQuery(ctx, cyp.driver,
+		_, err := neo4j.ExecuteQuery(
+			ctx,
+			cyp.driver,
 			cyp.query,
 			values[i],
 			neo4j.EagerResultTransformer,

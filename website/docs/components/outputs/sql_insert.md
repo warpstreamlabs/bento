@@ -125,7 +125,7 @@ output:
       root = [
         this.user.id,
         this.user.name,
-        meta("kafka_topic"),
+        metadata("kafka_topic"),
       ]
 ```
 
@@ -225,7 +225,7 @@ Type: `string`
 
 args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ]
 
-args_mapping: root = [ meta("user.id") ]
+args_mapping: root = [ metadata("user.id").string() ]
 ```
 
 ### `prefix`

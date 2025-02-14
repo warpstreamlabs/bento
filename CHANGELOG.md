@@ -2,7 +2,64 @@ Changelog
 =========
 
 All notable changes to this project will be documented in this file.
- 
+
+## 1.5.0 - 2025-02-07
+
+### Changed
+
+- log message format in `gcp_bigquery_write_api` @richardartoul
+- enabled bloblang interpolation in `gcp_cloud_storage` input @paulosimao-ardanlabs
+- add metadata values to `nats_kv` processor @kmpm
+
+### Added
+
+- `rate_limit` field in `kafka_franz` input @gregfurman
+- `unsafe_dynamic_query` added to `gcp_bigquery_select` processor @jem-davies
+- `delete_objects` added to `aws_s3` processor @gregfurman
+- bloblang string method `repeat` @jem-davies
+- plugin example module `./resources/plugin-example` @jem-davies
+- zeromq input & output components @kmpm
+- tls config field for `cypher` output @jem-davies
+- `s2` input & output components @vrongmeal
+- 'sampling bundle' for logging @gregfurman
+
+### Fixed 
+
+- replace directive for github.com/AthenZ/athenz depenency @gregfurman
+- change default encoding from DELTA_LENGTH_BYTE_ARRAY to PLAIN for string fields for parquet encodings @gregfurman
+
+## 1.4.1 - 2025-01-04
+
+### Changed
+
+- updated various dependencies to address CVEs @jbeemster
+
+## 1.4.0 - 2024-12-08
+
+### Added
+
+- Rate limiting functionality to rate-limit based on bytes @gregfurman
+- `error_handling.strategy` config field to override Bento's default error handling @gregfurman
+- Experimental `aws_s3` processor  @jem-davies
+- Experimental `log_all_errors` field to `logger` config that promotes any log containing an error type to the ERROR level @gregfurman
+- `batch_policy.jitter` field to add a random delay to batch flush intervals @gregfurman
+- `strategy` field to `dedupe` processor @gregfurman
+- Experimental `cypher` output component @jem-davies
+
+### Changed
+
+- updated opensearch-go to v4 @arnitolog
+- updated the go.mod file to specify Go version 1.22
+
+### Fixed
+
+- Doc site search indexing @gregfurman
+- Removed unused benthos studio package @gregfurman
+- Error handling issue with `opensearch` output @arnitolog
+- incorrect reference to `restart_on_close` in `subprocess` processor docs @dacalabrese
+- "zombie" http output websocket connections @buger
+- correctly set Bento binary information at build-time in CI @jem-davies
+
 ## 1.3.0 - 2024-11-04
 
 ### Added

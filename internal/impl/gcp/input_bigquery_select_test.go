@@ -32,7 +32,7 @@ func TestGCPBigQuerySelectInput(t *testing.T) {
 	parsed, err := spec.ParseYAML(testBQInputYAML, nil)
 	require.NoError(t, err)
 
-	inp, err := newBigQuerySelectInput(parsed, nil)
+	inp, err := newBigQuerySelectInput(parsed, nil, nil)
 	require.NoError(t, err)
 
 	mockClient := &mockBQClient{}
@@ -86,7 +86,7 @@ func TestGCPBigQuerySelectInput_NotConnected(t *testing.T) {
 	parsed, err := spec.ParseYAML(testBQInputYAML, nil)
 	require.NoError(t, err)
 
-	inp, err := newBigQuerySelectInput(parsed, nil)
+	inp, err := newBigQuerySelectInput(parsed, nil, nil)
 	require.NoError(t, err)
 
 	msg, ack, err := inp.Read(context.Background())
@@ -101,7 +101,7 @@ func TestGCPBigQuerySelectInput_IteratorError(t *testing.T) {
 	parsed, err := spec.ParseYAML(testBQInputYAML, nil)
 	require.NoError(t, err)
 
-	inp, err := newBigQuerySelectInput(parsed, nil)
+	inp, err := newBigQuerySelectInput(parsed, nil, nil)
 	require.NoError(t, err)
 
 	mockClient := &mockBQClient{}
@@ -130,7 +130,7 @@ func TestGCPBigQuerySelectInput_Connect(t *testing.T) {
 	parsed, err := spec.ParseYAML(testBQInputYAML, nil)
 	require.NoError(t, err)
 
-	inp, err := newBigQuerySelectInput(parsed, nil)
+	inp, err := newBigQuerySelectInput(parsed, nil, nil)
 	require.NoError(t, err)
 
 	mockClient := &mockBQClient{}
@@ -152,7 +152,7 @@ func TestGCPBigQuerySelectInput_ConnectError(t *testing.T) {
 	parsed, err := spec.ParseYAML(testBQInputYAML, nil)
 	require.NoError(t, err)
 
-	inp, err := newBigQuerySelectInput(parsed, nil)
+	inp, err := newBigQuerySelectInput(parsed, nil, nil)
 	require.NoError(t, err)
 
 	testErr := errors.New("test error")
