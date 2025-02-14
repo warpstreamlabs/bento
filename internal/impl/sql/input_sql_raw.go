@@ -124,9 +124,11 @@ func newSQLRawInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
-	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
-	if err != nil {
-		return nil, err
+	if s.driver == "postgres" && s.connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil

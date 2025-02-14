@@ -177,9 +177,11 @@ func newSQLSelectInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 		return nil, err
 	}
 
-	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
-	if err != nil {
-		return nil, err
+	if s.driver == "postgres" && s.connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return s, nil
 }
