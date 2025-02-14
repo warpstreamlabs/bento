@@ -3,6 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.1 - 2025-02-14
+
+### Fixed 
+
+- check for shutdown before using fallback output component @jem-davies
+- only load aws cred if using postgres + secretName in sql components @jem-davies
+
 ## 1.5.0 - 2025-02-07
 
 ### Changed
