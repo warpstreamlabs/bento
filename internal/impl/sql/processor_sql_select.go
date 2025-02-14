@@ -176,11 +176,9 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	if driverStr == "postgres" && connSettings.secretName != "" {
-		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
-		if err != nil {
-			return nil, err
-		}
+	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
 	}
 
 	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings); err != nil {
