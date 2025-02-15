@@ -2,17 +2,13 @@ package strict
 
 import "slices"
 
-var incompatibleProcessors []string
-
-func init() {
-	incompatibleProcessors = []string{
-		"try",
-		"catch",
-		"switch",
-	}
+var incompatibleProcessors = []string{
+	"try",
+	"catch",
+	"switch",
+	"retry",
 }
 
 func isProcessorIncompatible(name string) bool {
 	return slices.Contains(incompatibleProcessors, name)
-
 }
