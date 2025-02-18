@@ -57,7 +57,11 @@ func TestProcessorStrictDisableToggle(t *testing.T) {
 	isEnabled.Store(true)
 
 	// Wrap the processor with the strict interface
-	strictProc := wrapWithStrict(mockProc{}, setAtomicStrictFlag(isEnabled))
+	strictProc := wrapWithStrict(mockProc{}, func(sp *strictProcessor) {
+		sp.isStrictEnabled = func() bool {
+			return isEnabled.Load()
+		}
+	})
 
 	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
 	msgs, res := strictProc.ProcessBatch(tCtx, msg)

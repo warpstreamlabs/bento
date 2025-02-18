@@ -2,11 +2,9 @@ package pipeline
 
 import (
 	"fmt"
-	"strconv"
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/value"
@@ -45,23 +43,6 @@ func NewConfig() Config {
 }
 
 //------------------------------------------------------------------------------
-
-// New creates an input type based on an input configuration.
-func New(conf Config, mgr bundle.NewManagement) (processor.Pipeline, error) {
-	processors := make([]processor.V1, len(conf.Processors))
-	for j, procConf := range conf.Processors {
-		var err error
-		pMgr := mgr.IntoPath("processors", strconv.Itoa(j))
-		processors[j], err = pMgr.NewProcessor(procConf)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if conf.Threads == 1 {
-		return NewProcessor(processors...), nil
-	}
-	return NewPool(conf.Threads, mgr.Logger(), processors...)
-}
 
 func FromAny(prov docs.Provider, value any) (conf Config, err error) {
 	switch t := value.(type) {
