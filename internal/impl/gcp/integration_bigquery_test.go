@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"runtime"
 	"testing"
 	"time"
 
@@ -58,14 +59,19 @@ func TestIntegrationBigQuery(t *testing.T) {
 		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+	runOpts := dockertest.RunOptions{
 		Name:         "gcp_bigquery_emulator",
 		Repository:   "ghcr.io/goccy/bigquery-emulator",
 		Tag:          "latest",
 		ExposedPorts: []string{"9050/tcp", "9060/tcp"},
-		Platform:     "linux/amd64",
 		Cmd:          []string{"--project", "test-project"},
-	})
+	}
+
+	if runtime.GOOS == "darwin" {
+		runOpts.Platform = "linux/amd64"
+	}
+
+	resource, err := pool.RunWithOptions(&runOpts)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, pool.Purge(resource))
