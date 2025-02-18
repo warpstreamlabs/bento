@@ -6,10 +6,9 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/olivere/elastic/v7"
+	es_aws "github.com/olivere/elastic/v7/aws/v4"
 
-	"github.com/sha1sum/aws_signing_client"
 	baws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/internal/impl/elasticsearch"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -42,13 +41,7 @@ func init() {
 			creds.SessionToken,
 		)
 
-		signer := v4.NewSigner(staticCreds)
-
-		awsClient, err := aws_signing_client.New(signer, client, "es", region)
-		if err != nil {
-			return nil, err
-		}
-
+		awsClient := es_aws.NewV4SigningClientWithHTTPClient(staticCreds, region, client)
 		return []elastic.ClientOptionFunc{elastic.SetHttpClient(awsClient)}, nil
 	}
 }
