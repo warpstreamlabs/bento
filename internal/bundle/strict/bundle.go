@@ -1,8 +1,6 @@
 package strict
 
 import (
-	"sync/atomic"
-
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	iprocessors "github.com/warpstreamlabs/bento/internal/component/input/processors"
@@ -13,24 +11,40 @@ import (
 	"github.com/warpstreamlabs/bento/internal/pipeline/constructor"
 )
 
+const (
+	strictModeEnabledKey = "strict_mode_enabled"
+)
+
+// isStrictModeEnabled returns whether the environment has been flagged as being strict
+// with the key-value pair `"strict_mode_enabled": true`.
+func isStrictModeEnabled(mgr bundle.NewManagement) bool {
+	ienabled, exists := mgr.GetGeneric(strictModeEnabledKey)
+	if !exists {
+		return false
+	}
+	enabled, ok := ienabled.(bool)
+	if !ok {
+		return false
+	}
+	return enabled
+}
+
+//------------------------------------------------------------------------------
+
 // StrictBundle modifies a provided bundle environment so that all procesors
 // will fail an entire batch if any any message-level error is encountered. These
 // failed batches are nacked and/or reprocessed depending on your input.
 func StrictBundle(b *bundle.Environment) *bundle.Environment {
 	strictEnv := b.Clone()
 
-	// Allows us to globally toggle strict mode for all processors in a thread-safe way.
-	// TODO: Create a custom environment/NewManagement that can manage state better.
-	var isStrictEnabled = &atomic.Bool{}
-	isStrictEnabled.Store(true)
-
 	for _, spec := range b.ProcessorDocs() {
 		_ = strictEnv.ProcessorAdd(func(conf processor.Config, nm bundle.NewManagement) (processor.V1, error) {
 			if isProcessorIncompatible(conf.Type) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible processor(s) of type '%s'", conf.Type)
-				if isStrictEnabled.Load() {
-					isStrictEnabled.Store(false)
-				}
+				nm.SetGeneric(strictModeEnabledKey, false)
+			} else {
+				// For compatible processors, set true if not already set
+				nm.GetOrSetGeneric(strictModeEnabledKey, true)
 			}
 
 			proc, err := b.ProcessorInit(conf, nm)
@@ -38,8 +52,7 @@ func StrictBundle(b *bundle.Environment) *bundle.Environment {
 				return nil, err
 			}
 
-			// Pass global flag to all processors
-			strictProc := wrapWithStrict(proc, setAtomicStrictFlag(isStrictEnabled))
+			strictProc := wrapWithStrict(proc, setEnabledFromManager(nm))
 			return strictProc, nil
 		}, spec)
 	}
@@ -48,9 +61,9 @@ func StrictBundle(b *bundle.Environment) *bundle.Environment {
 		_ = strictEnv.OutputAdd(func(conf output.Config, nm bundle.NewManagement, pcf ...processor.PipelineConstructorFunc) (output.Streamed, error) {
 			if isOutputIncompatible(conf.Type) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible output(s) of type '%s'", conf.Type)
-				if isStrictEnabled.Load() {
-					isStrictEnabled.Store(false)
-				}
+				nm.SetGeneric(strictModeEnabledKey, false)
+			} else {
+				nm.GetOrSetGeneric(strictModeEnabledKey, true)
 			}
 
 			pcf = oprocessors.AppendFromConfig(conf, nm, pcf...)
@@ -79,6 +92,11 @@ func NewRetryFeedbackPipelineCtor() func(conf pipeline.Config, mgr bundle.NewMan
 		if err != nil {
 			return nil, err
 		}
+
+		if !isStrictModeEnabled(mgr) {
+			return pipe, nil
+		}
+
 		return newFeedbackProcessor(pipe, mgr), nil
 	}
 }
@@ -93,14 +111,16 @@ func RetryBundle(b *bundle.Environment) *bundle.Environment {
 			pcf := iprocessors.AppendFromConfig(conf, nm)
 			conf.Processors = nil
 
-			// Wrap constructed pipeline with feedback processor
-			for i, ctor := range pcf {
-				pcf[i] = func() (processor.Pipeline, error) {
-					pipe, err := ctor()
-					if err != nil {
-						return nil, err
+			if isStrictModeEnabled(nm) {
+				// Wrap constructed pipeline with feedback processor
+				for i, ctor := range pcf {
+					pcf[i] = func() (processor.Pipeline, error) {
+						pipe, err := ctor()
+						if err != nil {
+							return nil, err
+						}
+						return newFeedbackProcessor(pipe, nm), nil
 					}
-					return newFeedbackProcessor(pipe, nm), nil
 				}
 			}
 
@@ -124,13 +144,15 @@ func RetryBundle(b *bundle.Environment) *bundle.Environment {
 			pcf = oprocessors.AppendFromConfig(conf, nm, pcf...)
 			conf.Processors = nil
 
-			for i, ctor := range pcf {
-				pcf[i] = func() (processor.Pipeline, error) {
-					pipe, err := ctor()
-					if err != nil {
-						return nil, err
+			if !isStrictModeEnabled(nm) {
+				for i, ctor := range pcf {
+					pcf[i] = func() (processor.Pipeline, error) {
+						pipe, err := ctor()
+						if err != nil {
+							return nil, err
+						}
+						return newFeedbackProcessor(pipe, nm), nil
 					}
-					return newFeedbackProcessor(pipe, nm), nil
 				}
 			}
 
@@ -150,3 +172,8 @@ func RetryBundle(b *bundle.Environment) *bundle.Environment {
 
 	return retryEnv
 }
+
+// func xxx() {
+// 	manager.OptSetEnvironment(RetryBundle())
+// 	manager.OptSetPipelineCtor(NewRetryFeedbackPipelineCtor())
+// }

@@ -211,6 +211,7 @@ func (p *feedbackPipeline) Consume(msgs <-chan message.Transaction) error {
 	go p.loop()
 	return p.pipe.Consume(p.transactionsOut)
 }
+
 func (p *feedbackPipeline) TransactionChan() <-chan message.Transaction {
 	return p.pipe.TransactionChan()
 }
