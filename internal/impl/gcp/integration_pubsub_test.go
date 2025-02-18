@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 
@@ -18,10 +17,6 @@ import (
 
 func TestIntegrationGCPPubSub(t *testing.T) {
 	integration.CheckSkip(t)
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping test on macos")
-	}
-
 	t.Parallel()
 
 	pool, err := dockertest.NewPool("")
@@ -30,12 +25,11 @@ func TestIntegrationGCPPubSub(t *testing.T) {
 	pool.MaxWait = time.Second * 30
 
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "singularities/pubsub-emulator",
-		Tag:          "latest",
+		Repository:   "gcr.io/google.com/cloudsdktool/google-cloud-cli",
+		Tag:          "emulators",
 		ExposedPorts: []string{"8432/tcp"},
-		Env: []string{
-			"PUBSUB_LISTEN_ADDRESS=0.0.0.0:8432",
-			"PUBSUB_PROJECT_ID=bento-test-project",
+		Cmd: []string{
+			"gcloud", "beta", "emulators", "pubsub", "start", "--project=bento-test-project", "--host-port=0.0.0.0:8432",
 		},
 	})
 	require.NoError(t, err)
