@@ -75,7 +75,7 @@ error_handling:
   strategy: reject
 ```
 
-Note, that `try`, `catch`, `retry`, and `switch` processors (described in [Error Handling][error_handling]) are currently incompatible with a global error handling strategy since the entire transaction is rejected before messages can reach error handling components.
+Note, that `try`, `catch`, `retry`, and `switch` processors as well as `reject_errored` and `switch` outputs (described in [Error Handling][error_handling]) are currently incompatible with a global error handling strategy since the entire transaction is rejected before messages can reach error handling components.
 
 To avoid behaviour conflicts, any global error configuration will be disabled when _any_ of the above processors are present in your Bento configuration.
 

@@ -1,8 +1,12 @@
 package strict_test
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +16,9 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service"
 
+	_ "github.com/warpstreamlabs/bento/internal/impl/io"
 	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
@@ -164,4 +170,69 @@ bloblang: root = this
 	require.Empty(t, msgs)
 	require.Error(t, res)
 	assert.ErrorContains(t, res, "invalid character 'o' in literal null (expecting 'u')")
+}
+
+func TestStrictBundleOutput(t *testing.T) {
+	streamBuilder := service.NewStreamBuilder()
+	err := streamBuilder.SetLoggerYAML(`level: off`)
+	require.NoError(t, err)
+
+	// error all messages
+	err = streamBuilder.AddProcessorYAML(`mapping: root = throw("error")`)
+	require.NoError(t, err)
+
+	// include a DLQ where errored messages go to stdout
+	err = streamBuilder.AddOutputYAML(`
+switch: 
+  cases:
+    - check: !errored()
+      continue: true
+      output:
+        file:
+          path: ./tmp/data.txt
+          codec: lines
+    - check: errored()
+      continue: false
+      output:
+        stdout: {}
+`)
+	require.NoError(t, err)
+
+	sendFn, err := streamBuilder.AddProducerFunc()
+	require.NoError(t, err)
+
+	stream, err := streamBuilder.BuildStrict()
+	require.NoError(t, err)
+
+	// redirect stdout
+	originalStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = originalStdout
+	}()
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		perr := sendFn(context.Background(), service.NewMessage([]byte("praise be to the omnissiah")))
+		require.NoError(t, perr)
+
+		perr = stream.StopWithin(time.Second)
+		require.NoError(t, perr)
+	}()
+
+	err = stream.Run(context.Background())
+	require.NoError(t, err)
+
+	<-done
+
+	var buf bytes.Buffer
+	w.Close()
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+	r.Close()
+
+	assert.Equal(t, "praise be to the omnissiah\n", buf.String())
 }

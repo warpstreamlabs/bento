@@ -4,6 +4,8 @@ import (
 	"sync/atomic"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/component/output"
+	"github.com/warpstreamlabs/bento/internal/component/output/processors"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 )
 
@@ -35,6 +37,28 @@ func StrictBundle(b *bundle.Environment) *bundle.Environment {
 			// Pass global flag to all processors
 			strictProc := wrapWithStrict(proc, setAtomicStrictFlag(isStrictEnabled))
 			return strictProc, nil
+		}, spec)
+	}
+
+	for _, spec := range b.OutputDocs() {
+		_ = strictEnv.OutputAdd(func(conf output.Config, nm bundle.NewManagement, pcf ...processor.PipelineConstructorFunc) (output.Streamed, error) {
+			if isOutputIncompatible(conf.Type) {
+				nm.Logger().Warn("Disabling strict mode due to incompatible output(s) of type '%s'", conf.Type)
+				if isStrictEnabled.Load() {
+					isStrictEnabled.Store(false)
+				}
+			}
+
+			pcf = processors.AppendFromConfig(conf, nm, pcf...)
+			conf.Processors = nil
+
+			o, err := b.OutputInit(conf, nm)
+			if err != nil {
+				return nil, err
+			}
+
+			return output.WrapWithPipelines(o, pcf...)
+
 		}, spec)
 	}
 
