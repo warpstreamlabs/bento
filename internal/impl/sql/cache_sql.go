@@ -166,9 +166,11 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 		return nil, err
 	}
 
-	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
-	if err != nil {
-		return nil, err
+	if s.driver == "postgres" && connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings, s.awsConf); err != nil {

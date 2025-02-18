@@ -2,18 +2,35 @@ package strict
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/warpstreamlabs/bento/internal/batch"
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
-func wrapWithStrict(p iprocessor.V1) iprocessor.V1 {
-	t := &strictProcessor{
+func wrapWithStrict(p iprocessor.V1, opts ...func(*strictProcessor)) *strictProcessor {
+	enabled := atomic.Bool{}
+	enabled.Store(true)
+
+	s := &strictProcessor{
 		wrapped: p,
-		enabled: true,
+		enabled: &enabled,
 	}
-	return t
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
+// setAtomicStrictFlag sets the enabled flag of the strict processor to an atomic boolean
+// that can be globally set for all configured strict processors.
+func setAtomicStrictFlag(enabled *atomic.Bool) func(*strictProcessor) {
+	return func(sp *strictProcessor) {
+		sp.enabled = enabled
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -21,11 +38,11 @@ func wrapWithStrict(p iprocessor.V1) iprocessor.V1 {
 // strictProcessor fails batch processing if any message contains an error.
 type strictProcessor struct {
 	wrapped iprocessor.V1
-	enabled bool
+	enabled *atomic.Bool
 }
 
 func (s *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]message.Batch, error) {
-	if !s.enabled {
+	if !s.enabled.Load() {
 		return s.wrapped.ProcessBatch(ctx, b)
 	}
 
