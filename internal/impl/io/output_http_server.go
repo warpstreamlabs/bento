@@ -77,10 +77,8 @@ func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error
 	if conf.WSPath, err = pConf.FieldString(hsoFieldWSPath); err != nil {
 		return
 	}
-	if pConf.Contains(hsoFieldWSMessageType) {
-		if conf.WSMessageType, err = pConf.FieldString(hsoFieldWSMessageType); err != nil {
-			return
-		}
+	if conf.WSMessageType, err = pConf.FieldString(hsoFieldWSMessageType); err != nil {
+		return
 	}
 	{
 		var verbsList []string
@@ -151,8 +149,9 @@ Please note, messages are considered delivered as soon as the data is written to
 			service.NewStringField(hsoFieldWSPath).
 				Description("The path from which websocket connections can be established.").
 				Default("/get/ws"),
-			service.NewStringField(hsoFieldWSMessageType).
+			service.NewStringEnumField(hsoFieldWSMessageType, "binary", "text").
 				Description("Type of websocket message").
+				Version("1.6.0").
 				Default("binary"),
 			service.NewStringListField(hsoFieldAllowedVerbs).
 				Description("An array of verbs that are allowed for the `path` and `stream_path` HTTP endpoint.").
