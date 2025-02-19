@@ -35,6 +35,7 @@ const (
 	hsoFieldPath               = "path"
 	hsoFieldStreamPath         = "stream_path"
 	hsoFieldWSPath             = "ws_path"
+	hsoFieldWSMessageType      = "ws_message_type"
 	hsoFieldAllowedVerbs       = "allowed_verbs"
 	hsoFieldTimeout            = "timeout"
 	hsoFieldCertFile           = "cert_file"
@@ -48,18 +49,19 @@ const (
 )
 
 type hsoConfig struct {
-	Address      string
-	Path         string
-	StreamPath   string
-	WSPath       string
-	AllowedVerbs map[string]struct{}
-	Timeout      time.Duration
-	CertFile     string
-	KeyFile      string
-	CORS         httpserver.CORSConfig
-	WriteWait    time.Duration
-	PongWait     time.Duration
-	PingPeriod   time.Duration
+	Address       string
+	Path          string
+	StreamPath    string
+	WSPath        string
+	WSMessageType string
+	AllowedVerbs  map[string]struct{}
+	Timeout       time.Duration
+	CertFile      string
+	KeyFile       string
+	CORS          httpserver.CORSConfig
+	WriteWait     time.Duration
+	PongWait      time.Duration
+	PingPeriod    time.Duration
 }
 
 func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error) {
@@ -74,6 +76,11 @@ func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error
 	}
 	if conf.WSPath, err = pConf.FieldString(hsoFieldWSPath); err != nil {
 		return
+	}
+	if pConf.Contains(hsoFieldWSMessageType) {
+		if conf.WSMessageType, err = pConf.FieldString(hsoFieldWSMessageType); err != nil {
+			return
+		}
 	}
 	{
 		var verbsList []string
@@ -144,6 +151,9 @@ Please note, messages are considered delivered as soon as the data is written to
 			service.NewStringField(hsoFieldWSPath).
 				Description("The path from which websocket connections can be established.").
 				Default("/get/ws"),
+			service.NewStringField(hsoFieldWSMessageType).
+				Description("Type of websocket message").
+				Default("binary"),
 			service.NewStringListField(hsoFieldAllowedVerbs).
 				Description("An array of verbs that are allowed for the `path` and `stream_path` HTTP endpoint.").
 				Default([]any{"GET"}),
@@ -475,11 +485,18 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 				go h.TriggerCloseNow()
 				return
 			}
+			var msgType int
+			switch h.conf.WSMessageType {
+			case "text":
+				msgType = websocket.TextMessage
+			default:
+				msgType = websocket.BinaryMessage
+			}
 			// Write messages to the client
 			var writeErr error
 			for _, msg := range message.GetAllBytes(ts.Payload) {
 				_ = ws.SetWriteDeadline(time.Now().Add(h.conf.WriteWait))
-				if writeErr = ws.WriteMessage(websocket.BinaryMessage, msg); writeErr != nil {
+				if writeErr = ws.WriteMessage(msgType, msg); writeErr != nil {
 					break
 				}
 				h.mWSBatchSent.Incr(1)
