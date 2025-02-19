@@ -128,6 +128,8 @@ Type of websocket message
 
 Type: `string`  
 Default: `"binary"`  
+Requires version 1.6.0 or newer  
+Options: `binary`, `text`.
 
 ### `allowed_verbs`
 
