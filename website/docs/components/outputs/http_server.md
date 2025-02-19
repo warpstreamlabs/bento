@@ -34,6 +34,7 @@ output:
     path: /get
     stream_path: /get/stream
     ws_path: /get/ws
+    ws_message_type: binary
     allowed_verbs:
       - GET
 ```
@@ -50,6 +51,7 @@ output:
     path: /get
     stream_path: /get/stream
     ws_path: /get/ws
+    ws_message_type: binary
     allowed_verbs:
       - GET
     timeout: 5s
@@ -118,6 +120,14 @@ The path from which websocket connections can be established.
 
 Type: `string`  
 Default: `"/get/ws"`  
+
+### `ws_message_type`
+
+Type of websocket message
+
+
+Type: `string`  
+Default: `"binary"`  
 
 ### `allowed_verbs`
 
