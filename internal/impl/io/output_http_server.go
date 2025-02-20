@@ -484,12 +484,9 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 				go h.TriggerCloseNow()
 				return
 			}
-			var msgType int
-			switch h.conf.WSMessageType {
-			case "text":
+			msgType := websocket.BinaryMessage
+			if h.conf.WSMessageType == "text" {
 				msgType = websocket.TextMessage
-			default:
-				msgType = websocket.BinaryMessage
 			}
 			// Write messages to the client
 			var writeErr error
