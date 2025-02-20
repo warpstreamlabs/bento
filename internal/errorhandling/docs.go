@@ -4,7 +4,7 @@ import "github.com/warpstreamlabs/bento/internal/docs"
 
 func Spec() docs.FieldSpecs {
 	return docs.FieldSpecs{
-		docs.FieldString(fieldStrategy, "The error handling strategy.").HasOptions("none", "reject").HasDefault("none"),
+		docs.FieldString(fieldStrategy, "The error handling strategy.").HasOptions("none", "reject", "retry").HasDefault("none"),
 		docs.FieldObject(fieldLog, "Configuration for global logging message-level errors.").WithChildren(
 			docs.FieldBool(fieldLogEnabled, "Whether to enable message-level error logging.").HasDefault(false),
 			docs.FieldBool(fieldLogAddPayload, "Whether to add a failed message payload to an error log.").HasDefault(false),

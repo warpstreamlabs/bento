@@ -27,6 +27,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/pipeline"
+	"github.com/warpstreamlabs/bento/internal/pipeline/constructor"
 )
 
 // ErrResourceNotFound represents an error where a named resource could not be
@@ -90,6 +92,7 @@ type Type struct {
 	stats  *metrics.Namespaced
 	tracer trace.TracerProvider
 
+	pipeCtor func(conf pipeline.Config, mgr bundle.NewManagement) (processor.Pipeline, error)
 	pipes    map[string]<-chan message.Transaction
 	pipeLock *sync.RWMutex
 
@@ -182,6 +185,12 @@ func OptSetFS(fs ifs.FS) OptFunc {
 	}
 }
 
+func OptSetPipelineCtor(ctor func(pipeline.Config, bundle.NewManagement) (processor.Pipeline, error)) OptFunc {
+	return func(t *Type) {
+		t.pipeCtor = ctor
+	}
+}
+
 // New returns an instance of manager.Type, which can be shared amongst
 // components and logical threads of a Bento service.
 func New(conf ResourceConfig, opts ...OptFunc) (*Type, error) {
@@ -207,6 +216,7 @@ func New(conf ResourceConfig, opts ...OptFunc) (*Type, error) {
 
 		pipes:    map[string]<-chan message.Transaction{},
 		pipeLock: &sync.RWMutex{},
+		pipeCtor: constructor.New,
 
 		genericValues: &sync.Map{},
 	}
@@ -489,6 +499,11 @@ func (t *Type) NewBuffer(conf buffer.Config) (buffer.Streamed, error) {
 }
 
 //------------------------------------------------------------------------------
+
+// NewPipeline attempts to create a new pipeline component from a config.
+func (t *Type) NewPipeline(conf pipeline.Config) (processor.Pipeline, error) {
+	return t.pipeCtor(conf, t)
+}
 
 // ProbeCache returns true if a cache resource exists under the provided name.
 func (t *Type) ProbeCache(name string) bool {

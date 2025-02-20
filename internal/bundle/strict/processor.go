@@ -2,20 +2,17 @@ package strict
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/warpstreamlabs/bento/internal/batch"
+	"github.com/warpstreamlabs/bento/internal/bundle"
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
 func wrapWithStrict(p iprocessor.V1, opts ...func(*strictProcessor)) *strictProcessor {
-	enabled := atomic.Bool{}
-	enabled.Store(true)
-
 	s := &strictProcessor{
-		wrapped: p,
-		enabled: &enabled,
+		wrapped:         p,
+		isStrictEnabled: func() bool { return true },
 	}
 
 	for _, opt := range opts {
@@ -25,11 +22,21 @@ func wrapWithStrict(p iprocessor.V1, opts ...func(*strictProcessor)) *strictProc
 	return s
 }
 
-// setAtomicStrictFlag sets the enabled flag of the strict processor to an atomic boolean
-// that can be globally set for all configured strict processors.
-func setAtomicStrictFlag(enabled *atomic.Bool) func(*strictProcessor) {
+func setEnabledFromManager(mgr bundle.NewManagement) func(*strictProcessor) {
+	getEnabled := func() bool {
+		ienabled, exists := mgr.GetGeneric(strictModeEnabledKey)
+		if !exists {
+			return false
+		}
+		enabled, ok := ienabled.(bool)
+		if !ok {
+			return false
+		}
+		return enabled
+	}
+
 	return func(sp *strictProcessor) {
-		sp.enabled = enabled
+		sp.isStrictEnabled = getEnabled
 	}
 }
 
@@ -37,13 +44,14 @@ func setAtomicStrictFlag(enabled *atomic.Bool) func(*strictProcessor) {
 
 // strictProcessor fails batch processing if any message contains an error.
 type strictProcessor struct {
-	wrapped iprocessor.V1
-	enabled *atomic.Bool
+	wrapped         iprocessor.V1
+	isStrictEnabled func() bool
 }
 
 func (s *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]message.Batch, error) {
-	if !s.enabled.Load() {
+	if !s.isStrictEnabled() {
 		return s.wrapped.ProcessBatch(ctx, b)
+
 	}
 
 	batches, err := s.wrapped.ProcessBatch(ctx, b)
@@ -64,6 +72,9 @@ func (s *strictProcessor) ProcessBatch(ctx context.Context, b message.Batch) ([]
 				batchErr = batch.NewError(msg, mErr)
 			}
 			batchErr.Failed(i, mErr)
+
+			// Clear the message-level error
+			p.ErrorSet(nil)
 			return nil
 		})
 		if batchErr != nil {

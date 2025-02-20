@@ -19,7 +19,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
-	"github.com/warpstreamlabs/bento/internal/pipeline"
 	"github.com/warpstreamlabs/bento/internal/transaction"
 )
 
@@ -143,7 +142,7 @@ func NewHandler(conf config.Type) (*Handler, error) {
 	transactionChan := make(chan message.Transaction, 1)
 
 	pMgr := manager.IntoPath("pipeline")
-	if pipelineLayer, err = pipeline.New(conf.Pipeline, pMgr); err != nil {
+	if pipelineLayer, err = pMgr.NewPipeline(conf.Pipeline); err != nil {
 		return nil, fmt.Errorf("failed to create resource pipeline: %w", err)
 	}
 

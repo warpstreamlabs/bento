@@ -22,6 +22,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/pipeline"
+	"github.com/warpstreamlabs/bento/internal/pipeline/constructor"
 )
 
 // Manager provides a mock bento manager that components can use to test
@@ -105,6 +107,11 @@ func (m *Manager) NewInput(conf input.Config) (input.Streamed, error) {
 // StoreInput always errors on invalid type.
 func (m *Manager) StoreInput(ctx context.Context, name string, conf input.Config) error {
 	return component.ErrInvalidType("input", conf.Type)
+}
+
+// NewPipeline executes a pipeline constructor function
+func (m *Manager) NewPipeline(conf pipeline.Config) (processor.Pipeline, error) {
+	return constructor.New(conf, m)
 }
 
 // NewProcessor always errors on invalid type.
