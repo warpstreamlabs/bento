@@ -2,15 +2,19 @@ package aws_test
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
+	"net/http"
 	"testing"
-	"time"
 
 	"github.com/olivere/elastic/v7"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	es "github.com/aws/aws-sdk-go-v2/service/elasticsearchservice"
+	baws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/internal/impl/elasticsearch"
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -38,54 +42,89 @@ var elasticIndex = `{
 }`
 
 func TestIntegrationElasticsearchAWS(t *testing.T) {
-	t.Skip("Struggling to get localstack es to work, maybe one day")
-
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	// Setup a LocalStack instance and create an ElasticSearch domain + cluster.
+	// Also, the AWS signer client should skip TLS verification since LS doesn't
+	// support this for ElasticSearch.
+	// TODO: This approach needs a re-think since it's very verbose
 
-	pool.MaxWait = time.Second * 30
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "localstack/localstack-full",
-		ExposedPorts: []string{"4566/tcp"},
-		Env:          []string{"SERVICES=es"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-
-	servicePort := resource.GetPort("4566/tcp")
-
-	awsConf, err := service.NewConfigSpec().Field(elasticsearch.AWSField()).ParseYAML(fmt.Sprintf(`
+	signer := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+	awsConf, err := service.NewConfigSpec().Field(elasticsearch.AWSField()).ParseYAML(`
 aws:
   enabled: true
-  endpoint: "http://localhost:%v"
-  region: eu-west-1
+  region: us-east-1
   credentials:
     id: xxxxx
     secret: xxxxx
-    token: xxxxx
-`, servicePort), nil)
+    token: xxxxx`, nil)
 	require.NoError(t, err)
 
-	awsOpts, err := elasticsearch.AWSOptFn(awsConf)
+	awsOpts, err := elasticsearch.AWSOptFn(awsConf, signer)
 	require.NoError(t, err)
+
+	var awsEsClient *es.Client
+	setupESCluster := func(port string) error {
+		cfg := aws.Config{
+			Region: "us-east-1",
+			Credentials: credentials.NewStaticCredentialsProvider(
+				"xxxxx", "xxxxx", "xxxxx",
+			),
+		}
+
+		awsEsClient = es.NewFromConfig(cfg, func(o *es.Options) {
+			o.BaseEndpoint = aws.String(fmt.Sprintf("http://localhost:%s", port))
+		})
+
+		input := &es.CreateElasticsearchDomainInput{
+			DomainName: aws.String("bento-test"),
+		}
+
+		if _, esErr := awsEsClient.CreateElasticsearchDomain(context.TODO(), input); esErr != nil {
+			return esErr
+		}
+
+		return nil
+	}
 
 	var client *elastic.Client
-	if err = pool.Retry(func() error {
+	setupClient := func(port string) error {
+		resp, esErr := awsEsClient.DescribeElasticsearchDomain(context.TODO(), &es.DescribeElasticsearchDomainInput{
+			DomainName: aws.String("bento-test"),
+		})
+		if esErr != nil {
+			return esErr
+		}
+
+		if *resp.DomainStatus.Processing {
+			return errors.New("es cluster not created yet")
+		}
+
+		baseURL := fmt.Sprintf("http://localhost:%s/es/us-east-1/bento-test", port)
+		healthResp, esErr := http.Get(fmt.Sprintf("%s/_cluster/health", baseURL))
+
+		if esErr != nil {
+			return esErr
+		}
+		if healthResp.StatusCode != 200 {
+			return errors.New("es cluster health check failed")
+
+		}
+
 		opts := []elastic.ClientOptionFunc{
-			elastic.SetURL(fmt.Sprintf("http://localhost:%v", servicePort)),
+			elastic.SetURL(baseURL),
 			elastic.SetSniff(false),
 			elastic.SetHealthcheck(false),
+			elastic.SetHttpClient(signer),
 		}
 		opts = append(opts, awsOpts...)
-
 		var cerr error
 		if client, cerr = elastic.NewClient(opts...); cerr == nil {
 			_, cerr = client.
@@ -94,18 +133,17 @@ aws:
 				Body(elasticIndex).
 				Do(context.Background())
 		}
+
 		return cerr
-	}); err != nil {
-		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
 
-	_ = resource.Expire(900)
-
+	envs := []string{"OPENSEARCH_ENDPOINT_STRATEGY=path"}
+	servicePort := baws.GetLocalStack(t, envs, setupESCluster, setupClient)
 	template := `
 output:
   elasticsearch:
     urls:
-      - http://localhost:$PORT
+      - http://localhost:$PORT/es/us-east-1/bento-test
     index: $ID
     id: ${!json("id")}
     sniff: false
@@ -113,11 +151,14 @@ output:
     aws:
       enabled: true
       endpoint: http://localhost:$PORT
-      region: eu-west-1
+      region: us-east-1
       credentials:
         id: xxxxx
         secret: xxxxx
         token: xxxxx
+    tls:
+        enabled: true
+        skip_cert_verify: true
 `
 	queryGetFn := func(ctx context.Context, testID, messageID string) (string, []string, error) {
 		res, err := client.Get().
