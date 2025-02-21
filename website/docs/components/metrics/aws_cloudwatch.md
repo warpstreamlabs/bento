@@ -79,6 +79,15 @@ metrics:
     namespace: Foo
 ```
 
+### Dimensions 
+
+Bento [Metric Labels][metric.labels] become AWS Cloudwatch 'Dimensions'. To create or modify AWS Cloudwatch Dimensions see [Metric Mapping][metric.mapping] regarding 'Labels'.
+
+[metric.labels]: /docs/components/metrics/about#metric-labels
+[metric.mapping]: /docs/components/metrics/about#metric-mapping
+
+
+
 ## Fields
 
 ### `namespace`
