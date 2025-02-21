@@ -43,6 +43,7 @@ const (
 func newInputConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
+		Version("1.5.0").
 		Categories("Services").
 		Fields(
 			service.NewStringField(basinField).Description("Basin name"),
