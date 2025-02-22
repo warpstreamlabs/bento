@@ -126,11 +126,17 @@ func newSQLRawInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 		return nil, err
 	}
 
-	s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := conf.FieldBool("aws_enabled")
 	if err != nil {
 		return nil, err
 	}
 
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
+		if err != nil {
+			return nil, err
+		}
+	}
 	return s, nil
 }
 

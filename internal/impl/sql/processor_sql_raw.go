@@ -151,9 +151,16 @@ func NewSQLRawProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		return nil, err
 	}
 
-	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := conf.FieldBool("aws_enabled")
 	if err != nil {
 		return nil, err
+	}
+	var awsConf aws.Config
+	if awsEnabled {
+		awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	proc, err := newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings)

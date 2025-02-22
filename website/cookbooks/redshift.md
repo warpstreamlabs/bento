@@ -41,6 +41,7 @@ output:
       ]
     init_statement: |
       CREATE TABLE test (name varchar(255), age int);
+    aws_enabled: true
     aws:
       secret_name: "$REDSHIFT_SECRET_NAME"
       region: eu-west-1
