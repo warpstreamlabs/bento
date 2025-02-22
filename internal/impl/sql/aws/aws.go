@@ -55,7 +55,7 @@ func init() {
 			}
 		}
 
-		if conf.Contains("secret_name") {
+		if aConf.Contains("secret_name") {
 			secret, err := aConf.FieldString("secret_name")
 			if err != nil {
 				return nil, err
