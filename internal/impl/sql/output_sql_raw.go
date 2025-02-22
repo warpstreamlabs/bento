@@ -139,9 +139,16 @@ func newSQLRawOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 		return nil, err
 	}
 
-	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := conf.FieldBool("aws_enabled")
 	if err != nil {
 		return nil, err
+	}
+	var awsConf aws.Config
+	if awsEnabled {
+		awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings, awsConf), nil
