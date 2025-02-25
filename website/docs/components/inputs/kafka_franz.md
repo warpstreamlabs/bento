@@ -200,7 +200,11 @@ Default: `""`
 
 ### `checkpoint_limit`
 
-Determines how many messages of the same partition can be processed in parallel before applying back pressure. When a message of a given offset is delivered to the output the offset is only allowed to be committed when all messages of prior offsets have also been delivered, this ensures at-least-once delivery guarantees. However, this mechanism also increases the likelihood of duplicates in the event of crashes or server faults, reducing the checkpoint limit will mitigate this.
+:::caution 
+			Setting this `checkpoint_limit: 1`_will not_ enforce 'strict ordered' processing of records. Use the [kafka input processor](/docs/components/inputs/kafka/) for 'strict ordered' processing.
+:::
+			
+			Determines how many messages of the same partition can be processed in parallel before applying back pressure. When a message of a given offset is delivered to the output the offset is only allowed to be committed when all messages of prior offsets have also been delivered, this ensures at-least-once delivery guarantees. However, this mechanism also increases the likelihood of duplicates in the event of crashes or server faults, reducing the checkpoint limit will mitigate this.
 
 
 Type: `int`  

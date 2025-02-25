@@ -137,6 +137,7 @@ input:
 ### `bucket`
 
 The bucket to perform the GetObject operation on.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -144,6 +145,7 @@ Type: `string`
 ### `key`
 
 The key of the object you wish to retrive.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -158,7 +160,7 @@ Default: `false`
 
 ### `delete_objects`
 
-Whether to delete downloaded objects from the bucket once they are processed.
+Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.
 
 
 Type: `bool`  

@@ -78,15 +78,15 @@ input:
                 bucket: ${! this.1.s3BucketName }
                 key: ${! this.1.s3Key }
 `).Fields(
-		service.NewStringField(s3pFieldBucket).
+		service.NewInterpolatedStringField(s3pFieldBucket).
 			Description("The bucket to perform the GetObject operation on."),
-		service.NewStringField(s3pFieldKey).
+		service.NewInterpolatedStringField(s3pFieldKey).
 			Description("The key of the object you wish to retrive."),
 		service.NewBoolField(s3pFieldForcePathStyleURLs).
 			Description("Forces the client API to use path style URLs for downloading keys, which is often required when connecting to custom endpoints.").
 			Default(false),
 		service.NewBoolField(s3iFieldDeleteObjects).
-			Description("Whether to delete downloaded objects from the bucket once they are processed.").
+			Description("Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.").
 			Version("1.5.0").
 			Default(false).
 			Advanced(),
