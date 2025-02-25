@@ -172,8 +172,3 @@ func RetryBundle(b *bundle.Environment) *bundle.Environment {
 
 	return retryEnv
 }
-
-// func xxx() {
-// 	manager.OptSetEnvironment(RetryBundle())
-// 	manager.OptSetPipelineCtor(NewRetryFeedbackPipelineCtor())
-// }
