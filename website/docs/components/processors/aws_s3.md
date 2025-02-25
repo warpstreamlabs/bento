@@ -160,7 +160,7 @@ Default: `false`
 
 ### `delete_objects`
 
-Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted as soon as this processor has consumed the object, but the message hasn't left the Bento stream.
+Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.
 
 
 Type: `bool`  
