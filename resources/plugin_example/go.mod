@@ -1,6 +1,6 @@
 module plugin_example
 
-go 1.22.0
+go 1.23.0
 
 require (
 	github.com/pioz/faker v1.7.3
