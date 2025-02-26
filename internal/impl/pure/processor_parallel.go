@@ -68,16 +68,16 @@ func (p *parallelProc) ProcessBatch(ctx *processor.BatchProcContext, msg message
 		return nil
 	})
 
-	max := p.cap
-	if max == 0 || msg.Len() < max {
-		max = msg.Len()
+	maximum := p.cap
+	if maximum == 0 || msg.Len() < maximum {
+		maximum = msg.Len()
 	}
 
 	reqChan := make(chan int)
 	wg := sync.WaitGroup{}
-	wg.Add(max)
+	wg.Add(maximum)
 
-	for i := 0; i < max; i++ {
+	for i := 0; i < maximum; i++ {
 		go func() {
 			defer wg.Done()
 
