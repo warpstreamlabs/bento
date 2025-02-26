@@ -67,22 +67,10 @@ func newInputConfigSpec() *service.ConfigSpec {
 				Advanced().
 				Default("100ms").
 				Description("Interval to backoff for before reconnecting to a stream"),
-			service.NewStringField(startSeqNumField).
-				Advanced().
+			service.NewStringEnumField(startSeqNumField, startSeqNumEarliest, startSeqNumLatest).
 				Description("Start consuming the stream from either the earliest or the latest sequence number").
 				Default(startSeqNumEarliest).
-				LintRule(
-					fmt.Sprintf(`
-root = if ["%s", "%s"].all(v -> v != this) {
-	"Invalid value for start_seq_num: must be one of '%s' or '%s'"
-}
-				`,
-						startSeqNumEarliest,
-						startSeqNumLatest,
-						startSeqNumEarliest,
-						startSeqNumLatest,
-					),
-				),
+				Advanced(),
 		).
 		Summary("Consumes records from S2 streams").
 		Description(`
