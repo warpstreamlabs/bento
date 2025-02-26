@@ -388,7 +388,7 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-go 1.22.0
+go 1.23.0
 
 // This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
 // Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842

@@ -22,7 +22,7 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.22.x
+        go-version: 1.23.x
         check-latest: true
 
     - name: Deps
@@ -47,13 +47,13 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.22.x
+        go-version: 1.23.x
         check-latest: true
 
     - name: Lint
       uses: golangci/golangci-lint-action@v6
       with:
-        version: v1.57.1
+        version: v1.64.5
         args: --timeout 30m cmd/... internal/... public/...
 
   build-docsite:

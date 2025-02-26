@@ -255,7 +255,7 @@ func wrapType(
 				return nil, fmt.Errorf("getting optional flag: %w", err)
 			}
 			if optional {
-				return reflect.PtrTo(baseType), nil
+				return reflect.PointerTo(baseType), nil
 			}
 		}
 	}
