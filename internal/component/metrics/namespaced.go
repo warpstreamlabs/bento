@@ -78,7 +78,7 @@ func (n *Namespaced) HandlerFunc() http.HandlerFunc {
 
 func (n *Namespaced) getPathAndLabels(path string) (newPath string, labelKeys, labelValues []string) {
 	newPath = path
-	if n.labels != nil && len(n.labels) > 0 {
+	if len(n.labels) > 0 {
 		labelKeys = make([]string, 0, len(n.labels))
 		for k := range n.labels {
 			labelKeys = append(labelKeys, k)

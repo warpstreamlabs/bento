@@ -706,21 +706,21 @@ func randomIntFunction(args *ParsedParams) (Function, error) {
 	if err != nil {
 		return nil, err
 	}
-	min, err := args.FieldInt64("min")
+	minimum, err := args.FieldInt64("min")
 	if err != nil {
 		return nil, err
 	}
-	max, err := args.FieldInt64("max")
+	maximum, err := args.FieldInt64("max")
 	if err != nil {
 		return nil, err
 	}
-	if min < 0 {
-		return nil, fmt.Errorf("min (%d) must be a positive number", min)
+	if minimum < 0 {
+		return nil, fmt.Errorf("min (%d) must be a positive number", minimum)
 	}
-	if max < min {
-		return nil, fmt.Errorf("min (%d) must be smaller or equal than max (%d)", min, max)
+	if maximum < minimum {
+		return nil, fmt.Errorf("min (%d) must be smaller or equal than max (%d)", minimum, maximum)
 	}
-	if max == math.MaxInt64 {
+	if maximum == math.MaxInt64 {
 		return nil, fmt.Errorf("max must be smaller than the max allowed for an int64 (%d)", uint64(math.MaxInt64))
 	}
 	var randMut sync.Mutex
@@ -744,7 +744,7 @@ func randomIntFunction(args *ParsedParams) (Function, error) {
 			r = rand.New(rand.NewSource(seed))
 		}
 		// Int63n generates a random number within a half-open interval [0,n)
-		v := r.Int63n(max-min+1) + min
+		v := r.Int63n(maximum-minimum+1) + minimum
 		return v, nil
 	}, nil), nil
 }

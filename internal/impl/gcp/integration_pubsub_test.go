@@ -37,7 +37,7 @@ func TestIntegrationGCPPubSub(t *testing.T) {
 		assert.NoError(t, pool.Purge(resource))
 	})
 
-	require.NoError(t, os.Setenv("PUBSUB_EMULATOR_HOST", fmt.Sprintf("localhost:%v", resource.GetPort("8432/tcp"))))
+	t.Setenv("PUBSUB_EMULATOR_HOST", fmt.Sprintf("localhost:%v", resource.GetPort("8432/tcp")))
 	require.NotEqual(t, "localhost:", os.Getenv("PUBSUB_EMULATOR_HOST"))
 
 	_ = resource.Expire(900)

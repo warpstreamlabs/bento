@@ -99,7 +99,7 @@ root.woof_id = null.apply("foos")
 				return nil, err
 			}
 
-			var min, max int64
+			var minimum, maximum int64
 			var i *int64
 
 			var mut sync.Mutex
@@ -110,20 +110,20 @@ root.woof_id = null.apply("foos")
 
 				if i == nil {
 					var err error
-					if min, err = ctx.ExecToInt64(minFunc); err != nil {
+					if minimum, err = ctx.ExecToInt64(minFunc); err != nil {
 						return nil, fmt.Errorf("failed to resolve min argument: %w", err)
 					}
-					if min < 0 {
-						return nil, fmt.Errorf("min argument must be >0, got %v", min)
+					if minimum < 0 {
+						return nil, fmt.Errorf("min argument must be >0, got %v", minimum)
 					}
-					if max, err = ctx.ExecToInt64(maxFunc); err != nil {
+					if maximum, err = ctx.ExecToInt64(maxFunc); err != nil {
 						return nil, fmt.Errorf("failed to resolve max argument: %w", err)
 					}
-					if max < 0 || max <= min {
-						return nil, fmt.Errorf("max argument must be >0 and >min, got %v", max)
+					if maximum < 0 || maximum <= minimum {
+						return nil, fmt.Errorf("max argument must be >0 and >min, got %v", maximum)
 					}
 
-					iV := min - 1
+					iV := minimum - 1
 					i = &iV
 				}
 
@@ -137,7 +137,7 @@ root.woof_id = null.apply("foos")
 					}
 					switch setV.(type) {
 					case bloblang.ExecResultDelete:
-						*i = min - 1
+						*i = minimum - 1
 					case bloblang.ExecResultNothing:
 					default:
 						iv, err := value.IGetInt(setV)
@@ -151,8 +151,8 @@ root.woof_id = null.apply("foos")
 
 				*i++
 				v := *i
-				if v >= max {
-					*i = min - 1
+				if v >= maximum {
+					*i = minimum - 1
 				}
 				return v, nil
 			}, nil

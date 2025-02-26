@@ -14,7 +14,7 @@ import (
 
 func TestEnvFunctionCaching(t *testing.T) {
 	key := "BENTO_TEST_BLOBLANG_FUNCTION"
-	require.NoError(t, os.Setenv(key, "foobar"))
+	t.Setenv(key, "foobar")
 	t.Cleanup(func() {
 		os.Unsetenv(key)
 	})
@@ -33,7 +33,7 @@ func TestEnvFunctionCaching(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "foobar", res)
 
-	require.NoError(t, os.Setenv(key, "barbaz"))
+	t.Setenv(key, "barbaz")
 
 	res, err = eCached.Exec(query.FunctionContext{})
 	require.NoError(t, err)
