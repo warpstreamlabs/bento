@@ -71,6 +71,9 @@ Type: `string`
 ### `bot_token`
 
 A bot token used for authentication.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
 
 
 Type: `string`  
