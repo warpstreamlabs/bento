@@ -38,6 +38,11 @@ const (
 	streamsField               = "streams"
 	cacheField                 = "cache"
 	updateStreamsIntervalField = "update_streams_interval"
+	backoffDurationField       = "backoff_duration"
+	startSeqNumField           = "start_seq_num"
+
+	startSeqNumEarliest = "earliest"
+	startSeqNumLatest   = "latest"
 )
 
 func newInputConfigSpec() *service.ConfigSpec {
@@ -59,6 +64,14 @@ func newInputConfigSpec() *service.ConfigSpec {
 				Advanced().
 				Default("1m").
 				Description("Interval after which the streams list should update dynamically"),
+			service.NewDurationField(backoffDurationField).
+				Advanced().
+				Default("100ms").
+				Description("Interval to backoff for before reconnecting to a stream"),
+			service.NewStringEnumField(startSeqNumField, startSeqNumEarliest, startSeqNumLatest).
+				Description("Start consuming the stream from either the earliest or the latest sequence number").
+				Default(startSeqNumEarliest).
+				Advanced(),
 		).
 		Summary("Consumes records from S2 streams").
 		Description(`
@@ -161,6 +174,29 @@ func newInputConfig(conf *service.ParsedConfig, r *service.Resources) (*s2bentob
 		return nil, err
 	}
 
+	backoffDuration, err := conf.FieldDuration(backoffDurationField)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := conf.FieldString(startSeqNumField)
+	if err != nil {
+		return nil, err
+	}
+
+	var startSeqNum s2bentobox.InputStartSeqNum
+	switch s {
+	case startSeqNumEarliest:
+		startSeqNum = s2bentobox.InputStartSeqNumEarliest
+	case startSeqNumLatest:
+		startSeqNum = s2bentobox.InputStartSeqNumLatest
+	default:
+		return nil, fmt.Errorf(
+			"invalid value for start_seq_num: must be one of '%s' or `%s`",
+			startSeqNumEarliest, startSeqNumLatest,
+		)
+	}
+
 	return &s2bentobox.InputConfig{
 		Config:                config,
 		Streams:               inputStreams,
@@ -168,6 +204,8 @@ func newInputConfig(conf *service.ParsedConfig, r *service.Resources) (*s2bentob
 		Logger:                &bentoLogger{r.Logger()},
 		Cache:                 cache,
 		UpdateStreamsInterval: updateStreamsInterval,
+		BackoffDuration:       backoffDuration,
+		StartSeqNum:           startSeqNum,
 	}, nil
 }
 
