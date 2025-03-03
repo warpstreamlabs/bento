@@ -23,7 +23,8 @@ If the format of a message is a JSON object matching the [Discord API message ty
 			service.NewStringField("channel_id").
 				Description("A discord channel ID to write messages to."),
 			service.NewStringField("bot_token").
-				Description("A bot token used for authentication."),
+				Description("A bot token used for authentication.").
+				Secret(),
 
 			// Deprecated
 			service.NewStringField("rate_limit").

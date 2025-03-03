@@ -25,7 +25,8 @@ func inputConfig() *service.ConfigSpec {
 			service.NewStringField("channel_id").
 				Description("A discord channel ID to consume messages from."),
 			service.NewStringField("bot_token").
-				Description("A bot token used for authentication."),
+				Description("A bot token used for authentication.").
+				Secret(),
 			service.NewStringField("cache").
 				Description("A cache resource to use for performing unread message backfills, the ID of the last message received will be stored in this cache and used for subsequent requests."),
 			service.NewStringField("cache_key").
