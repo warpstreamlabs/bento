@@ -103,7 +103,10 @@ func receiveMessages(s input.Streamed) (names []string, err error) {
 
 		names = append(names, node.N.Props.Name)
 
-		msg.Ack(context.Background(), nil)
+		err := msg.Ack(context.Background(), nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return names, nil
 }

@@ -153,7 +153,7 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 	go func() {
 		defer close(cyp.recordsChan)
 
-		cyp.session.ExecuteRead(ctx,
+		if _, err := cyp.session.ExecuteRead(ctx,
 			func(tx neo4j.ManagedTransaction) (any, error) {
 				result, err := tx.Run(ctx, cyp.query, nil)
 				if err != nil {
@@ -171,7 +171,9 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 					}
 				}
 				return nil, err
-			})
+			}); err != nil {
+			cyp.logger.With("err", err).Error("unexpected error while executing cypher query")
+		}
 	}()
 
 	return nil
