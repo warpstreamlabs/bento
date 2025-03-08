@@ -146,7 +146,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.32.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.35.0
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/net v0.34.0
 	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.11.0
@@ -159,7 +158,10 @@ require (
 	modernc.org/sqlite v1.28.0
 )
 
-require github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
+require (
+	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
+)
 
 require (
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect

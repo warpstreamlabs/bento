@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"strconv"
 	"time"
-
-	"golang.org/x/exp/rand"
 
 	"github.com/warpstreamlabs/bento/internal/batch/policy/batchconfig"
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
@@ -200,7 +199,7 @@ func (p *Batcher) UntilNext() time.Duration {
 
 	var jitter time.Duration
 	if p.jitter > 0 {
-		jitter = time.Duration(rand.Int63n(int64(p.jitter * float64(p.period))))
+		jitter = time.Duration(rand.Int64N(int64(p.jitter * float64(p.period))))
 	}
 
 	tUntil := time.Until(p.lastBatch.Add(p.period + jitter))
