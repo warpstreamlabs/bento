@@ -14,6 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 )
 
@@ -166,14 +167,19 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 		return nil, err
 	}
 
-	if s.driver == "postgres" && connSettings.secretName != "" {
-		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := conf.FieldBool("aws_enabled")
+	if err != nil {
+		return nil, err
+	}
+
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings, s.awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

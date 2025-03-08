@@ -12,7 +12,6 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
-
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -94,6 +93,7 @@ type sqlInsertProcessor struct {
 
 	useTxStmt   bool
 	argsMapping *bloblang.Executor
+	awsConf     aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -174,15 +174,18 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	var awsConf aws.Config
-	if driverStr == "postgres" && connSettings.secretName != "" {
-		awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := conf.FieldBool("aws_enabled")
+	if err != nil {
+		return nil, err
+	}
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings); err != nil {
 		return nil, err
 	}
 
