@@ -112,10 +112,20 @@ func CreateManager(
 	}
 
 	if conf.ErrorHandling.Strategy == "reject" {
-		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(strict.StrictBundle(bundle.GlobalEnvironment)))
+		mgrOpts = append(mgrOpts, func(t *manager.Type) {
+			env := strict.StrictBundle(t.Environment())
+			manager.OptSetEnvironment(env)(t)
+		})
 	} else if conf.ErrorHandling.Strategy == "retry" {
-		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(strict.RetryBundle(bundle.GlobalEnvironment)))
 		mgrOpts = append(mgrOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
+		mgrOpts = append(mgrOpts, func(t *manager.Type) {
+			env := strict.RetryBundle(t.Environment())
+			manager.OptSetEnvironment(env)(t)
+		})
+		mgrOpts = append(mgrOpts, func(t *manager.Type) {
+			blobEnv := strict.StrictBloblangEnvironment(t)
+			manager.OptSetBloblangEnvironment(blobEnv)(t)
+		})
 	}
 
 	// Create resource manager.
