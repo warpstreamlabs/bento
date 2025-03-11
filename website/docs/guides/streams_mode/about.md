@@ -54,7 +54,7 @@ This can cause problems if your streams are short lived and uniquely named as th
 ```yaml
 # Only register metrics for the stream `foo`. Others will be ignored.
 metrics:
-  mapping: if meta("stream") != "foo" { deleted() }
+  mapping: if metadata("stream") != "foo" { deleted() }
   prometheus: {}
 ```
 

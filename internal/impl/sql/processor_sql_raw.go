@@ -8,6 +8,9 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
+
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -32,7 +35,7 @@ If the query fails to execute then the message will remain unchanged and the err
 		Field(service.NewBloblangField("args_mapping").
 			Description("An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of placeholder arguments in the field `query`.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`).
+			Example(`root = [ metadata("user.id").string() ]`).
 			Optional()).
 		Field(service.NewBoolField("exec_only").
 			Description("Whether the query result should be discarded. When set to `true` the message contents will remain unchanged, which is useful in cases where you are executing inserts, updates, etc.").
@@ -53,7 +56,7 @@ pipeline:
         driver: mysql
         dsn: foouser:foopassword@tcp(localhost:3306)/foodb
         query: "INSERT INTO footable (foo, bar, baz) VALUES (?, ?, ?);"
-        args_mapping: '[ document.foo, document.bar, meta("kafka_topic") ]'
+        args_mapping: '[ document.foo, document.bar, metadata("kafka_topic") ]'
         exec_only: true
 `,
 		).
@@ -98,6 +101,8 @@ type sqlRawProcessor struct {
 	onlyExec    bool
 
 	argsMapping *bloblang.Executor
+
+	awsConf aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -145,7 +150,13 @@ func NewSQLRawProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings)
+
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, awsConf)
 }
 
 func newSQLRawProcessor(
@@ -156,6 +167,7 @@ func newSQLRawProcessor(
 	onlyExec bool,
 	argsMapping *bloblang.Executor,
 	connSettings *connSettings,
+	awsConf aws.Config,
 ) (*sqlRawProcessor, error) {
 	s := &sqlRawProcessor{
 		logger:      logger,
@@ -164,10 +176,11 @@ func newSQLRawProcessor(
 		queryDyn:    queryDyn,
 		onlyExec:    onlyExec,
 		argsMapping: argsMapping,
+		awsConf:     awsConf,
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), logger, driverStr, dsnStr, connSettings, awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

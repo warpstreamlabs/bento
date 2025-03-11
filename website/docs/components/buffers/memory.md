@@ -35,6 +35,7 @@ buffer:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
 ```
 
@@ -51,6 +52,7 @@ buffer:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
       processors: [] # No default (optional)
 ```
@@ -127,6 +129,24 @@ period: 1s
 period: 1m
 
 period: 500ms
+```
+
+### `batch_policy.jitter`
+
+A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
+
+
+Type: `float`  
+Default: `0`  
+
+```yml
+# Examples
+
+jitter: 0.01
+
+jitter: 0.1
+
+jitter: 1
 ```
 
 ### `batch_policy.check`

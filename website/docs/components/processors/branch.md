@@ -129,7 +129,7 @@ pipeline:
         request_map: 'root = ""'
         processors:
           - http:
-              url: https://hub.docker.com/v2/repositories/jeffail/benthos
+              url: https://hub.docker.com/v2/repositories/library/alpine
               verb: GET
               headers:
                 Content-Type: application/json

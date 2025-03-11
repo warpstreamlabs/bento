@@ -28,7 +28,7 @@ func ProcessorSpec() *service.ConfigSpec {
 		Description("").
 		Fields(clientFields()...).
 		Fields(
-			service.NewStringField(mpFieldCollection).
+			service.NewInterpolatedStringField(mpFieldCollection).
 				Description("The name of the target collection."),
 			processorOperationDocs(OperationInsertOne),
 			writeConcernDocs(),

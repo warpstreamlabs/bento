@@ -73,7 +73,7 @@ A database [driver](#drivers) to use.
 
 
 Type: `string`  
-Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`.
+Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`.
 
 ### `data_source_name`
 
@@ -95,6 +95,7 @@ The query to execute. The style of placeholder to use depends on the driver, som
 | `sqlite` | Question mark |
 | `oracle` | Colon |
 | `snowflake` | Question mark |
+| `spanner` | Question mark |
 | `trino` | Question mark |
 | `gocosmos` | Colon |
 
@@ -127,7 +128,7 @@ Type: `string`
 
 args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ]
 
-args_mapping: root = [ meta("user.id") ]
+args_mapping: root = [ metadata("user.id").string() ]
 ```
 
 ### `result_codec`

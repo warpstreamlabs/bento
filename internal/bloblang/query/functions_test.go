@@ -456,16 +456,16 @@ func TestRandomIntDynamicParallel(t *testing.T) {
 func TestRandomIntWithinRange(t *testing.T) {
 	tsFn, err := InitFunctionHelper("timestamp_unix_nano")
 	require.NoError(t, err)
-	var min, max int64 = 10, 20
-	e, err := InitFunctionHelper("random_int", tsFn, min, max)
+	var minimum, maximum int64 = 10, 20
+	e, err := InitFunctionHelper("random_int", tsFn, minimum, maximum)
 	require.NoError(t, err)
 
 	for i := 0; i < 1000; i++ {
 		res, err := e.Exec(FunctionContext{})
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
-		assert.GreaterOrEqual(t, res.(int64), min)
-		assert.LessOrEqual(t, res.(int64), max)
+		assert.GreaterOrEqual(t, res.(int64), minimum)
+		assert.LessOrEqual(t, res.(int64), maximum)
 	}
 
 	// Create a new random_int function with one single possible value

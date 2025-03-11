@@ -14,6 +14,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/api"
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/bundle/strict"
 	"github.com/warpstreamlabs/bento/internal/bundle/tracing"
 	"github.com/warpstreamlabs/bento/internal/cli"
 	"github.com/warpstreamlabs/bento/internal/component/buffer"
@@ -26,6 +27,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/tracer"
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/errorhandling"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/message"
@@ -56,6 +58,7 @@ type StreamBuilder struct {
 	metrics    metrics.Config
 	tracer     tracer.Config
 	logger     log.Config
+	errHandler errorhandling.Config
 
 	producerChan chan message.Transaction
 	producerID   string
@@ -86,6 +89,7 @@ func NewStreamBuilder() *StreamBuilder {
 		metrics:        metrics.NewConfig(),
 		tracer:         tracer.NewConfig(),
 		logger:         log.NewConfig(),
+		errHandler:     errorhandling.NewConfig(),
 		configSpec:     tmpSpec,
 		env:            globalEnvironment,
 		envVarLookupFn: os.LookupEnv,
@@ -839,6 +843,19 @@ func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
 	tenv, summary := tracing.TracedBundle(s.env.internal)
 	strm, err := s.buildWithEnv(tenv)
 	return strm, &TracingSummary{summary}, err
+}
+
+// BuildStrict creates a Bento stream pipeline according to the components
+// specified by this stream builder, where each processor components is wrapped
+// to cause any message-level error to fail an entire batch. These failed batches
+// are nacked and/or reprocessed depending on your input.
+//
+// Experimental: The behaviour of this method could change outside of major
+// version releases.
+func (s *StreamBuilder) BuildStrict() (*Stream, error) {
+	senv := strict.StrictBundle(s.env.internal)
+	strm, err := s.buildWithEnv(senv)
+	return strm, err
 }
 
 func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {

@@ -10,6 +10,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -39,7 +41,7 @@ If the query fails to execute then the message will remain unchanged and the err
 		Field(service.NewBloblangField("args_mapping").
 			Description("An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of placeholder arguments in the field `where`.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`).
+			Example(`root = [ metadata("user.id").string() ]`).
 			Optional()).
 		Field(service.NewStringField("prefix").
 			Description("An optional prefix to prepend to the query (before SELECT).").
@@ -99,6 +101,8 @@ type sqlSelectProcessor struct {
 
 	where       string
 	argsMapping *bloblang.Executor
+
+	awsConf aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -171,7 +175,14 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
+	if driverStr == "postgres" && connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, s.awsConf); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)

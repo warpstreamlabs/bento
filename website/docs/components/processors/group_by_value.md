@@ -54,7 +54,7 @@ If we were consuming Kafka messages and needed to group them by their key, archi
 pipeline:
   processors:
     - group_by_value:
-        value: ${! meta("kafka_key") }
+        value: ${! metadata("kafka_key") }
     - archive:
         format: tar
     - compress:
@@ -62,6 +62,6 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: docs/${! meta("kafka_key") }/${! count("files") }-${! timestamp_unix_nano() }.tar.gz
+    path: docs/${! metadata("kafka_key") }/${! count("files") }-${! timestamp_unix_nano() }.tar.gz
 ```
 

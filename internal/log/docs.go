@@ -28,6 +28,7 @@ func Spec() docs.FieldSpecs {
 			docs.FieldBool(fieldFileRotate, "Whether to rotate log files automatically.").HasDefault(false),
 			docs.FieldInt(fieldFileRotateMaxAge, "The maximum number of days to retain old log files based on the timestamp encoded in their filename, after which they are deleted. Setting to zero disables this mechanism.").HasDefault(0),
 		),
+		docs.FieldBool(fieldLogAllErrors, "Experimental: When set, the logger will promote any log containing an `error` type to the `ERROR` level.").HasDefault(false).Advanced().AtVersion("1.4.0"),
 	}
 }
 

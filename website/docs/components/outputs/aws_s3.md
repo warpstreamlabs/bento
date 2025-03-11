@@ -43,6 +43,7 @@ output:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
 ```
 
@@ -75,6 +76,7 @@ output:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
       processors: [] # No default (optional)
     region: ""
@@ -109,7 +111,7 @@ output:
     path: ${!count("files")}-${!timestamp_unix_nano()}.tar.gz
     tags:
       Key1: Value1
-      Timestamp: ${!meta("Timestamp")}
+      Timestamp: ${!metadata("Timestamp").string()}
 ```
 
 ### Credentials
@@ -178,7 +180,7 @@ Default: `"${!count(\"files\")}-${!timestamp_unix_nano()}.txt"`
 
 path: ${!count("files")}-${!timestamp_unix_nano()}.txt
 
-path: ${!meta("kafka_key")}.json
+path: ${!metadata("kafka_key")}.json
 
 path: ${!json("doc.namespace")}/${!json("doc.id")}.json
 ```
@@ -197,7 +199,7 @@ Default: `{}`
 
 tags:
   Key1: Value1
-  Timestamp: ${!meta("Timestamp")}
+  Timestamp: ${!metadata("Timestamp")}
 ```
 
 ### `content_type`
@@ -343,6 +345,11 @@ batching:
   check: this.contains("END BATCH")
   count: 0
   period: 1m
+
+batching:
+  count: 10
+  jitter: 0.1
+  period: 10s
 ```
 
 ### `batching.count`
@@ -377,6 +384,24 @@ period: 1s
 period: 1m
 
 period: 500ms
+```
+
+### `batching.jitter`
+
+A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
+
+
+Type: `float`  
+Default: `0`  
+
+```yml
+# Examples
+
+jitter: 0.01
+
+jitter: 0.1
+
+jitter: 1
 ```
 
 ### `batching.check`

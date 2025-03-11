@@ -25,7 +25,9 @@ Processors have an optional field `label` that can uniquely identify them in obs
 
 ## Error Handling
 
-Some processors have conditions whereby they might fail. Rather than throw these messages into the abyss Bento still attempts to send these messages onwards, and has mechanisms for filtering, recovering or dead-letter queuing messages that have failed which can be read about [here][error_handling].
+Some processors have conditions whereby they might fail. Rather than throw these messages into the abyss Bento still attempts to send these messages onwards, and has mechanisms for filtering, recovering or dead-letter queuing messages that have failed which can be read about [here][error_handling]. 
+
+The introduction of [`error_handling`](#error-handling) overrides this behaviour. Instead, Bento will reject all batches containing errored messages; propogating a `nack` to the `input` layer.
 
 ### Error Logs
 
@@ -39,6 +41,50 @@ The reason for this behaviour is to prevent noisy logging in cases where logical
 logger:
   level: DEBUG
 ```
+
+Alternatively, you can instruct Bento to sample and log a proportion of failed messages at the `ERROR` level using the top-level `error_handling.log` configuration:
+
+```yaml
+error_handling:
+  log:
+    enabled: true
+    sampling_ratio: 0.5
+    add_payload: true # add payload of failed message
+```
+
+### Error Handling
+
+:::caution EXPERIMENTAL
+This configuration field is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+
+
+Introduced in `v1.4.0`.
+
+You can override Bento's default error handling using the `error_handling.strategy` field, changing the behaviour across all processor components. For example, a `reject` strategy treats any message-level error as a batch-wide failure, immediately rejecting any batch containing errored messages and propagating a `nack` (negative acknowledgment) to the input layer. The handling of rejected messages then depends on the input component's `nack` behavior - by default, triggering the reprocessing failed messages from scratch.
+
+```yaml
+pipeline:
+  processors:
+    - mapping: |
+        root = throw("error")
+    - mapping: |
+        root.message = "I'm never reached"
+
+error_handling:
+  strategy: reject
+```
+
+Note, that `try`, `catch`, `retry`, and `switch` processors as well as `reject_errored` and `switch` outputs (described in [Error Handling][error_handling]) are currently incompatible with a global error handling strategy since the entire transaction is rejected before messages can reach error handling components.
+
+To avoid behaviour conflicts, any global error configuration will be disabled when _any_ of the above processors are present in your Bento configuration.
+
+More stable alternatives to `error_handling` could be considered:
+
+- [Error Handling][error_handling]
+- [reject_errored][outputs.reject_errored]
+
+Future version will likely see more `error_handling` strategies that allow for pipeline-wide handling.
 
 ## Using Processors as Outputs
 
@@ -91,3 +137,4 @@ You can read more about batching [in this document][batching].
 [processor.dedupe]: /docs/components/processors/dedupe
 [processor.for_each]: /docs/components/processors/for_each
 [metrics.about]: /docs/components/metrics/about
+[outputs.reject_errored]: /docs/components/outputs/reject_errored/

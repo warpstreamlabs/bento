@@ -60,6 +60,13 @@ input:
     auto_replay_nacks: true
     commit_period: 5s
     start_from_oldest: true
+    group_balancers:
+      - cooperative_sticky
+    metadata_max_age: 5m
+    fetch_max_bytes: 50MiB
+    fetch_max_partition_bytes: 1MiB
+    fetch_max_wait: 5s
+    preferring_lag: 0 # No default (optional)
     tls:
       enabled: false
       skip_cert_verify: false
@@ -73,8 +80,10 @@ input:
       count: 0
       byte_size: 0
       period: ""
+      jitter: 0
       check: ""
       processors: [] # No default (optional)
+    rate_limit: ""
 ```
 
 </TabItem>
@@ -191,7 +200,11 @@ Default: `""`
 
 ### `checkpoint_limit`
 
-Determines how many messages of the same partition can be processed in parallel before applying back pressure. When a message of a given offset is delivered to the output the offset is only allowed to be committed when all messages of prior offsets have also been delivered, this ensures at-least-once delivery guarantees. However, this mechanism also increases the likelihood of duplicates in the event of crashes or server faults, reducing the checkpoint limit will mitigate this.
+:::caution 
+			Setting this `checkpoint_limit: 1`_will not_ enforce 'strict ordered' processing of records. Use the [kafka input processor](/docs/components/inputs/kafka/) for 'strict ordered' processing.
+:::
+			
+			Determines how many messages of the same partition can be processed in parallel before applying back pressure. When a message of a given offset is delivered to the output the offset is only allowed to be committed when all messages of prior offsets have also been delivered, this ensures at-least-once delivery guarantees. However, this mechanism also increases the likelihood of duplicates in the event of crashes or server faults, reducing the checkpoint limit will mitigate this.
 
 
 Type: `int`  
@@ -220,6 +233,63 @@ Determines whether to consume from the oldest available offset, otherwise messag
 
 Type: `bool`  
 Default: `true`  
+
+### `group_balancers`
+
+Balancers sets the group balancers to use for dividing topic partitions among group members. This option is equivalent to Kafka's `partition.assignment.strategies` option.
+
+
+Type: `array`  
+Default: `["cooperative_sticky"]`  
+Requires version 1.3.0 or newer  
+
+### `metadata_max_age`
+
+This sets the maximum age for the client's cached metadata, to allow detection of new topics, partitions, etc.
+
+
+Type: `string`  
+Default: `"5m"`  
+Requires version 1.3.0 or newer  
+
+### `fetch_max_bytes`
+
+This sets the maximum amount of bytes a broker will try to send during a fetch. Note that brokers may not obey this limit if it has records larger than this limit. Also note that this client sends a fetch to each broker concurrently, meaning the client will buffer up to `<brokers * max bytes>` worth of memory. Equivalent to Kafka's `fetch.max.bytes` option.
+
+
+Type: `string`  
+Default: `"50MiB"`  
+Requires version 1.3.0 or newer  
+
+### `fetch_max_partition_bytes`
+
+Sets the maximum amount of bytes that will be consumed for a single partition in a fetch request. Note that if a single batch is larger than this number, that batch will still be returned so the client can make progress. Equivalent to Kafka's `max.partition.fetch.bytes` option.
+
+
+Type: `string`  
+Default: `"1MiB"`  
+Requires version 1.3.0 or newer  
+
+### `fetch_max_wait`
+
+This sets the maximum amount of time a broker will wait for a fetch response to hit the minimum number of required bytes before returning, overriding the default 5s.
+
+
+Type: `string`  
+Default: `"5s"`  
+Requires version 1.3.0 or newer  
+
+### `preferring_lag`
+
+This allows you to re-order partitions before they are fetched, given each partition's current lag.
+
+By default, the client rotates partitions fetched by one after every fetch request. Kafka answers fetch requests in the order that partitions are requested, filling the fetch response until`fetch_max_bytes` and `fetch_max_partition_bytes` are hit. All partitions eventually rotate to the front, ensuring no partition is starved.
+
+With this option, you can return topic order and per-topic partition ordering. These orders will sort to the front (first by topic, then by partition). Any topic or partitions that you do not return are added to the end, preserving their original ordering.
+
+
+Type: `int`  
+Requires version 1.3.0 or newer  
 
 ### `tls`
 
@@ -549,6 +619,11 @@ batching:
   check: this.contains("END BATCH")
   count: 0
   period: 1m
+
+batching:
+  count: 10
+  jitter: 0.1
+  period: 10s
 ```
 
 ### `batching.count`
@@ -583,6 +658,24 @@ period: 1s
 period: 1m
 
 period: 500ms
+```
+
+### `batching.jitter`
+
+A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
+
+
+Type: `float`  
+Default: `0`  
+
+```yml
+# Examples
+
+jitter: 0.01
+
+jitter: 0.1
+
+jitter: 1
 ```
 
 ### `batching.check`
@@ -621,5 +714,13 @@ processors:
   - archive:
       format: json_array
 ```
+
+### `rate_limit`
+
+An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invocations by.
+
+
+Type: `string`  
+Default: `""`  
 
 

@@ -25,7 +25,7 @@ func cosmosDBInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		// Beta().
 		Categories("Azure").
-		Version("v4.25.0").
+		Version("1.0.0").
 		Summary(`Executes a SQL query against [Azure CosmosDB](https://learn.microsoft.com/en-us/azure/cosmos-db/introduction) and creates a batch of messages from each page of items.`).
 		Description(`
 ## Cross-partition Queries

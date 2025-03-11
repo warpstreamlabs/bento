@@ -14,6 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/pipeline"
+	"github.com/warpstreamlabs/bento/internal/pipeline/constructor"
 
 	_ "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
@@ -198,7 +199,7 @@ func TestPoolMultiThreads(t *testing.T) {
 	conf.Threads = 2
 	conf.Processors = append(conf.Processors, processor.NewConfig())
 
-	proc, err := pipeline.New(conf, mock.NewManager())
+	proc, err := constructor.New(conf, mock.NewManager())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +266,7 @@ func TestPoolMultiNaturalClose(t *testing.T) {
 	conf.Threads = 2
 	conf.Processors = append(conf.Processors, processor.NewConfig())
 
-	proc, err := pipeline.New(conf, mock.NewManager())
+	proc, err := constructor.New(conf, mock.NewManager())
 	if err != nil {
 		t.Fatal(err)
 	}

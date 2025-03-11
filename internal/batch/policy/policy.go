@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/exp/rand"
+
 	"github.com/warpstreamlabs/bento/internal/batch/policy/batchconfig"
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bundle"
@@ -24,6 +26,7 @@ type Batcher struct {
 	byteSize  int
 	count     int
 	period    time.Duration
+	jitter    float64
 	check     *mapping.Executor
 	procs     []iprocessor.V1
 	sizeTally int
@@ -59,6 +62,11 @@ func New(conf batchconfig.Config, mgr bundle.NewManagement) (*Batcher, error) {
 			return nil, fmt.Errorf("failed to parse duration string: %v", err)
 		}
 	}
+
+	if conf.Jitter < 0 {
+		return nil, errors.New("jitter factor cannot be negative")
+	}
+
 	var procs []iprocessor.V1
 	for i, pconf := range conf.Processors {
 		pMgr := mgr.IntoPath("processors", strconv.Itoa(i))
@@ -76,6 +84,7 @@ func New(conf batchconfig.Config, mgr bundle.NewManagement) (*Batcher, error) {
 		byteSize: conf.ByteSize,
 		count:    conf.Count,
 		period:   period,
+		jitter:   conf.Jitter,
 		check:    check,
 		procs:    procs,
 
@@ -188,7 +197,13 @@ func (p *Batcher) UntilNext() time.Duration {
 	if p.period <= 0 {
 		return -1
 	}
-	tUntil := time.Until(p.lastBatch.Add(p.period))
+
+	var jitter time.Duration
+	if p.jitter > 0 {
+		jitter = time.Duration(rand.Int63n(int64(p.jitter * float64(p.period))))
+	}
+
+	tUntil := time.Until(p.lastBatch.Add(p.period + jitter))
 	if tUntil <= 0 {
 		tUntil = 1
 	}

@@ -8,6 +8,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -29,7 +31,7 @@ func sqlRawOutputConfig() *service.ConfigSpec {
 		Field(service.NewBloblangField("args_mapping").
 			Description("An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of placeholder arguments in the field `query`.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`).
+			Example(`root = [ metadata("user.id").string() ]`).
 			Optional()).
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of inserts to run in parallel.").
@@ -54,7 +56,7 @@ output:
       root = [
         this.user.id,
         this.user.name,
-        meta("kafka_topic"),
+        metadata("kafka_topic").string(),
       ]
 `,
 		)
@@ -93,6 +95,7 @@ type sqlRawOutput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
+	awsConf      aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -134,7 +137,13 @@ func newSQLRawOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings), nil
+
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, argsMapping, connSettings, awsConf), nil
 }
 
 func newSQLRawOutput(
@@ -144,6 +153,7 @@ func newSQLRawOutput(
 	queryDyn *service.InterpolatedString,
 	argsMapping *bloblang.Executor,
 	connSettings *connSettings,
+	awsConf aws.Config,
 ) *sqlRawOutput {
 	return &sqlRawOutput{
 		logger:       logger,
@@ -154,6 +164,7 @@ func newSQLRawOutput(
 		queryDyn:     queryDyn,
 		argsMapping:  argsMapping,
 		connSettings: connSettings,
+		awsConf:      awsConf,
 	}
 }
 
@@ -166,7 +177,7 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
 		return err
 	}
 

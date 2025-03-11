@@ -1195,7 +1195,7 @@ func TestHTTPSyncResponseHeadersStatus(t *testing.T) {
 http_server:
   path: /testpost
   sync_response:
-    status: '${! meta("status").or("200") }'
+    status: '${! metadata("status").or("200").string() }'
     headers:
       Content-Type: application/json
       foo: '${!json("field1")}'

@@ -33,7 +33,7 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
+    path: '${! metadata("kafka_topic") }/${! json("message.id") }.json'
 ```
 
 </TabItem>
@@ -62,7 +62,7 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
+    path: '${! metadata("kafka_topic") }/${! json("message.id") }.json'
 
 input_resources: []
 cache_resources: []

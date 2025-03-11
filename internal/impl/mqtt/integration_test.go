@@ -49,15 +49,12 @@ output:
     qos: 1
     topic: topic-$ID
     client_id: client-output-$ID
-    dynamic_client_id_suffix: "$VAR1"
-    max_in_flight: $MAX_IN_FLIGHT
 
 input:
   mqtt:
     urls: [ tcp://localhost:$PORT ]
     topics: [ topic-$ID ]
     client_id: client-input-$ID
-    dynamic_client_id_suffix: "$VAR1"
     clean_session: false
 `
 	suite := integration.StreamTests(
@@ -73,8 +70,25 @@ input:
 		integration.StreamTestOptSleepAfterOutput(100*time.Millisecond),
 		integration.StreamTestOptPort(resource.GetPort("1883/tcp")),
 	)
+
 	t.Run("with max in flight", func(t *testing.T) {
 		t.Parallel()
+		template := `
+output:
+  mqtt:
+    urls: [ tcp://localhost:$PORT ]
+    qos: 1
+    topic: topic-$ID
+    client_id: client-output-$ID
+    max_in_flight: $MAX_IN_FLIGHT
+
+input:
+  mqtt:
+    urls: [ tcp://localhost:$PORT ]
+    topics: [ topic-$ID ]
+    client_id: client-input-$ID
+    clean_session: false
+`
 		suite.Run(
 			t, template,
 			integration.StreamTestOptSleepAfterInput(100*time.Millisecond),
@@ -85,6 +99,25 @@ input:
 	})
 	t.Run("with generated suffix", func(t *testing.T) {
 		t.Parallel()
+
+		template := `
+output:
+  mqtt:
+    urls: [ tcp://localhost:$PORT ]
+    qos: 1
+    topic: topic-$ID
+    client_id: client-output-$ID
+    dynamic_client_id_suffix: "$VAR1"
+    max_in_flight: $MAX_IN_FLIGHT
+
+input:
+  mqtt:
+    urls: [ tcp://localhost:$PORT ]
+    topics: [ topic-$ID ]
+    dynamic_client_id_suffix: "$VAR1"
+    client_id: client-input-$ID
+    clean_session: false
+`
 		suite.Run(
 			t, template,
 			integration.StreamTestOptSleepAfterInput(100*time.Millisecond),

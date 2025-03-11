@@ -31,7 +31,7 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: '${! meta("kafka_topic") }/${! json("message.id") }.json'
+    path: '${! metadata("kafka_topic") }/${! json("message.id") }.json'
 ```
 
 These are the main components within Bento and they provide the majority of useful behaviour.

@@ -1,6 +1,9 @@
 package sql
 
 import (
+	"context"
+
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -28,7 +31,7 @@ For basic inserts or select queries use either the ` + "[`sql_insert`](/docs/com
 		Field(service.NewBloblangField("args_mapping").
 			Description("An optional [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of placeholder arguments in the field `query`.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`).
+			Example(`root = [ metadata("user.id").string() ]`).
 			Optional()).
 		Field(service.NewStringField("result_codec").
 			Description("Result codec.").
@@ -92,5 +95,11 @@ func NewSQLDeprecatedProcessorFromConfig(conf *service.ParsedConfig, mgr *servic
 	if err != nil {
 		return nil, err
 	}
-	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings)
+
+	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSQLRawProcessor(mgr.Logger(), driverStr, dsnStr, queryStatic, queryDyn, onlyExec, argsMapping, connSettings, awsConf)
 }

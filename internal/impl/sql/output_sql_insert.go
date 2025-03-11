@@ -10,6 +10,8 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -31,7 +33,7 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 		Field(service.NewBloblangField("args_mapping").
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of columns specified.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`)).
+			Example(`root = [ metadata("user.id").string() ]`)).
 		Field(service.NewStringField("prefix").
 			Description("An optional prefix to prepend to the insert query (before INSERT).").
 			Optional().
@@ -65,7 +67,7 @@ output:
       root = [
         this.user.id,
         this.user.name,
-        meta("kafka_topic"),
+        metadata("kafka_topic"),
       ]
 `,
 		)
@@ -103,6 +105,7 @@ type sqlInsertOutput struct {
 	argsMapping *bloblang.Executor
 
 	connSettings *connSettings
+	awsConf      aws.Config
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
@@ -180,6 +183,14 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
+
+	if s.driver == "postgres" && s.connSettings.secretName != "" {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return s, nil
 }
 
@@ -192,7 +203,7 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings.initVerifyConn); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
 		return err
 	}
 

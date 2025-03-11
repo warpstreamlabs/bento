@@ -10,3 +10,4 @@ release_notes.md
 .vscode
 .op
 .opp
+go.work*

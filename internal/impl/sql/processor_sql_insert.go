@@ -7,8 +7,11 @@ import (
 	"sync"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/Jeffail/shutdown"
+
+	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -33,7 +36,7 @@ If the insert fails to execute then the message will still remain unchanged and 
 		Field(service.NewBloblangField("args_mapping").
 			Description("A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an array of values matching in size to the number of columns specified.").
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
-			Example(`root = [ meta("user.id") ]`)).
+			Example(`root = [ metadata("user.id").string() ]`)).
 		Field(service.NewStringField("prefix").
 			Description("An optional prefix to prepend to the insert query (before INSERT).").
 			Optional().
@@ -64,7 +67,7 @@ pipeline:
           root = [
             this.user.id,
             this.user.name,
-            meta("kafka_topic"),
+            metadata("kafka_topic"),
           ]
 `,
 		)
@@ -171,7 +174,15 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings.initVerifyConn); err != nil {
+	var awsConf aws.Config
+	if driverStr == "postgres" && connSettings.secretName != "" {
+		awsConf, err = bento_aws.GetSession(context.Background(), conf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, awsConf); err != nil {
 		return nil, err
 	}
 

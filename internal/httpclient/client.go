@@ -165,7 +165,7 @@ func (h *Client) incrCode(code int) {
 	h.codesMut.Unlock()
 }
 
-func (h *Client) waitForAccess(ctx context.Context) bool {
+func (h *Client) waitForAccess(ctx context.Context, sendMsg service.MessageBatch) bool {
 	if h.rateLimit == "" {
 		return true
 	}
@@ -173,6 +173,9 @@ func (h *Client) waitForAccess(ctx context.Context) bool {
 		var period time.Duration
 		var err error
 		if rerr := h.mgr.AccessRateLimit(ctx, h.rateLimit, func(rl service.RateLimit) {
+			if mar, ok := rl.(service.MessageAwareRateLimit); ok {
+				mar.Add(ctx, sendMsg...)
+			}
 			period, err = rl.Access(ctx)
 		}); rerr != nil {
 			err = rerr
@@ -335,7 +338,7 @@ func (h *Client) SendToResponse(ctx context.Context, sendMsg service.MessageBatc
 		}
 	}()
 
-	if !h.waitForAccess(ctx) {
+	if !h.waitForAccess(ctx, sendMsg) {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
@@ -382,7 +385,7 @@ func (h *Client) SendToResponse(ctx context.Context, sendMsg service.MessageBatc
 				return nil, errTimedOut
 			}
 		}
-		if !h.waitForAccess(ctx) {
+		if !h.waitForAccess(ctx, sendMsg) {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}

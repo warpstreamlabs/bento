@@ -679,6 +679,8 @@ root.uuid = fake("uuid_hyphenated")
 
 ### `count`
 
+:::caution DEPRECATED
+::: 
 The `count` function is a counter starting at 1 which increments after each time it is called. Count takes an argument which is an identifier for the counter, allowing you to specify multiple unique counters in your configuration.
 
 #### Parameters
@@ -701,6 +703,8 @@ root.id = count("bloblang_function_example")
 
 ### `meta`
 
+:::caution DEPRECATED
+::: 
 Returns the value of a metadata key from the input message as a string, or `null` if the key does not exist. Since values are extracted from the read-only input message they do NOT reflect changes made from within the map. In order to query metadata mutations made within a mapping use the [`root_meta` function](#root_meta). This function supports extracting metadata from other messages of a batch with the `from` method.
 
 #### Parameters
@@ -722,6 +726,8 @@ root.all_metadata = meta()
 
 ### `root_meta`
 
+:::caution DEPRECATED
+::: 
 Returns the value of a metadata key from the new message being created as a string, or `null` if the key does not exist. Changes made to metadata during a mapping will be reflected by this function.
 
 #### Parameters

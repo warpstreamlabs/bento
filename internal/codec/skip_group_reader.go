@@ -49,15 +49,15 @@ groupLoop:
 	}
 }
 
-func readUpToMax(r io.Reader, max int) (buf []byte, err error) {
-	if max == 0 {
+func readUpToMax(r io.Reader, maximum int) (buf []byte, err error) {
+	if maximum == 0 {
 		return
 	}
 
-	buf = make([]byte, max)
+	buf = make([]byte, maximum)
 
 	var readLen int
-	for err == nil && readLen < max {
+	for err == nil && readLen < maximum {
 		var n int
 		n, err = r.Read(buf[readLen:])
 		readLen += n

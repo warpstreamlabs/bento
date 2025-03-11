@@ -23,18 +23,6 @@ bento create nats/protobuf/aws_sqs > ./config.yaml
 # Run
 bento -c ./config.yaml`
   },
-//   {
-//     label: 'Homebrew',
-//     language: 'bash',
-//     children: `# Install
-// brew install benthos
-
-// # Make a config
-// bento create nats/protobuf/aws_sqs > ./config.yaml
-
-// # Run
-// bento -c ./config.yaml`
-//   },
   {
     label: 'Docker',
     language: 'bash',
@@ -47,20 +35,6 @@ docker run --rm ghcr.io/warpstreamlabs/bento create nats/protobuf/aws_sqs > ./co
 # Run
 docker run --rm -v $(pwd)/config.yaml:/bento.yaml ghcr.io/warpstreamlabs/bento`
   },
-//   {
-//     label: 'Asdf',
-//     language: 'bash',
-//     children: `# Install
-// asdf plugin add benthos
-// asdf install benthos latest
-// asdf global benthos latest
-
-// # Make a config
-// bento create nats/protobuf/aws_sqs > ./config.yaml
-
-// # Run
-// bento -c ./config.yaml`
-//   },
 ]
 
 const snippets = [
@@ -170,7 +144,7 @@ pipeline:
 output:
   aws_s3:
     bucket: TODO
-    path: '\${! meta("partition") }/\${! timestamp_unix_nano() }.tar.gz'
+    path: '\${! metadata("partition") }/\${! timestamp_unix_nano() }.tar.gz'
     batching:
       count: 100
       period: 10s
@@ -203,7 +177,7 @@ const features = [
     description: (
       <>
         <p>
-          Bento is able to glue a wide range of <a href="/bento/docs/components/inputs/about">sources</a> and <a href="/bento/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/bento/docs/components/processors/sql">databases</a>, <a href="/bento/docs/components/processors/cache">caches</a>, <a href="/bento/docs/components/processors/http">HTTP APIs</a>, <a href="/bento/docs/components/processors/aws_lambda">lambdas</a> and <a href="/bento/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
+          Bento is able to glue a wide range of <a href="/bento/docs/components/inputs/about">sources</a> and <a href="/bento/docs/components/outputs/about">sinks</a> together and hook into a variety of <a href="/bento/docs/components/processors/sql_raw">databases</a>, <a href="/bento/docs/components/processors/cache">caches</a>, <a href="/bento/docs/components/processors/http">HTTP APIs</a>, <a href="/bento/docs/components/processors/aws_lambda">lambdas</a> and <a href="/bento/docs/components/processors/about">more</a>, enabling you to seamlessly drop it into your existing infrastructure.
         </p>
         <p>
           Working with disparate APIs and services can be a daunting task, doubly so in a streaming data context. With Bento it's possible to break these tasks down and automatically parallelize them as <a href="/bento/cookbooks/enrichments">a streaming workflow</a>.

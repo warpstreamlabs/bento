@@ -52,7 +52,7 @@ Using [string interpolation][bloblang.interpolation], we can then extract the or
 output:
   kafka_franz:
     seed_brokers: [ TODO ]
-    topic: 'output-${! meta("kafka_topic") }'
+    topic: 'output-${! metadata("kafka_topic") }'
 ```
 
 Recall from earlier that we also wanted to preserve our partition mapping when writing to new topics. Again, we can use metadata to retrieve the original partition of each message in the source topic. We'll use the `kafka_partition` metadata field in conjunction with setting `partitioner` to `manual` -- overriding any other fancy partitioning algorithm in favour of preserving our initial mapping. Combining again with [string interpolation][bloblang.interpolation], we get the following:
@@ -61,8 +61,8 @@ Recall from earlier that we also wanted to preserve our partition mapping when w
 output:
   kafka_franz:
     seed_brokers: [ TODO ]
-    topic: 'output-${! meta("kafka_topic") }'
-    partition: ${! meta("kafka_partition") }
+    topic: 'output-${! metadata("kafka_topic") }'
+    partition: ${! metadata("kafka_partition") }
     partitioner: manual
 ```
 
@@ -77,8 +77,8 @@ For completeness, we can also route all consumed events back to their original s
 output:
   kafka_franz:
     seed_brokers: [ TODO ]
-    topic: ${! meta("kafka_topic") }
-    partition: ${! meta("kafka_partition") }
+    topic: ${! metadata("kafka_topic") }
+    partition: ${! metadata("kafka_partition") }
     partitioner: manual
 ```
 

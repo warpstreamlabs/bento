@@ -152,7 +152,7 @@ Type: `array`
 # Examples
 
 cases:
-  - check: this.urls.contains("http://benthos.dev")
+  - check: this.urls.contains("https://warpstreamlabs.github.io/bento")
     continue: true
     output:
       cache:
@@ -177,7 +177,7 @@ Default: `""`
 
 check: this.type == "foo"
 
-check: this.contents.urls.contains("https://benthos.dev/")
+check: this.contents.urls.contains("https://bento.dev/")
 ```
 
 ### `cases[].output`

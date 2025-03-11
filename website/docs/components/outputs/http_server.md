@@ -34,6 +34,7 @@ output:
     path: /get
     stream_path: /get/stream
     ws_path: /get/ws
+    ws_message_type: binary
     allowed_verbs:
       - GET
 ```
@@ -50,6 +51,7 @@ output:
     path: /get
     stream_path: /get/stream
     ws_path: /get/ws
+    ws_message_type: binary
     allowed_verbs:
       - GET
     timeout: 5s
@@ -58,6 +60,9 @@ output:
     cors:
       enabled: false
       allowed_origins: []
+    write_wait: 10s
+    pong_wait: 60s
+    ping_period: 54s
 ```
 
 </TabItem>
@@ -116,6 +121,16 @@ The path from which websocket connections can be established.
 Type: `string`  
 Default: `"/get/ws"`  
 
+### `ws_message_type`
+
+Type of websocket message
+
+
+Type: `string`  
+Default: `"binary"`  
+Requires version 1.6.0 or newer  
+Options: `binary`, `text`.
+
 ### `allowed_verbs`
 
 An array of verbs that are allowed for the `path` and `stream_path` HTTP endpoint.
@@ -171,5 +186,29 @@ An explicit list of origins that are allowed for CORS requests.
 
 Type: `array`  
 Default: `[]`  
+
+### `write_wait`
+
+The time allowed to write a message to the websocket.
+
+
+Type: `string`  
+Default: `"10s"`  
+
+### `pong_wait`
+
+The time allowed to read the next pong message from the client.
+
+
+Type: `string`  
+Default: `"60s"`  
+
+### `ping_period`
+
+Send pings to client with this period. Must be less than pong wait.
+
+
+Type: `string`  
+Default: `"54s"`  
 
 

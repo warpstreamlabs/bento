@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/parquet-go/parquet-go"
@@ -14,7 +15,12 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func TestParquetEncodePanic(t *testing.T) {
+// Before we changed this, the library used to mix and match behavior where sometimes it would quietly
+// downscale the value, and other times it would not. Now we always just do a straight cast.
+func TestParquetEncodeDoesNotPanic(t *testing.T) {
+	// We assume that converting integers to floats and vice versa
+	// that its "obvious" that there is some lossiness and that is
+	// acceptable.
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:
   - { name: id, type: FLOAT }
@@ -27,10 +33,56 @@ schema:
 
 	tctx := context.Background()
 	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
-		service.NewMessage([]byte(`{"id":12,"name":"foo"}`)),
+		service.NewMessage([]byte(`{"id":1e99,"name":"foo"}`)),
+	})
+	require.NoError(t, err)
+
+	// But underflowing/overflowing integers is not acceptable and we return
+	// an error.
+	encodeConf, err = parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: id, type: INT32 }
+  - { name: name, type: UTF8 }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err = newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":1e10,"name":"foo"}`)),
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot create parquet value of type FLOAT from go value of type int64")
+}
+
+func TestParquetEncodeDefaultEncodingPlain(t *testing.T) {
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: float, type: FLOAT }
+  - { name: utf8, type: UTF8 }
+  - { name: byte_array, type: BYTE_ARRAY }
+default_encoding: PLAIN
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	for _, field := range encodeProc.schema.Fields() {
+		if field.Name() != "float" {
+			require.IsType(t, &parquet.Plain, field.Encoding())
+		}
+
+		if field.Name() == "float" {
+			require.Nil(t, field.Encoding())
+		}
+	}
+
+	tctx := context.Background()
+	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"float":1e99,"utf8":"foo","byte_array":"bar"}`)),
+	})
+	require.NoError(t, err)
 }
 
 func TestParquetEncodeDecodeRoundTrip(t *testing.T) {
@@ -49,6 +101,14 @@ schema:
     fields:
       - { name: a_stuff, type: BYTE_ARRAY }
       - { name: b_stuff, type: BYTE_ARRAY }
+  - { name: h, type: DECIMAL32, decimal_precision: 3, optional: True}
+  - name: ob
+    fields:
+      - name: ob_name
+        type: UTF8
+      - name: bidValue
+        type: FLOAT
+    optional: true
 `, nil)
 	require.NoError(t, err)
 
@@ -64,6 +124,38 @@ byte_array_as_string: true
 	require.NoError(t, err)
 
 	testParquetEncodeDecodeRoundTrip(t, encodeProc, decodeProc)
+}
+
+func TestParquetEncodeDecodeRoundTripMapList(t *testing.T) {
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+default_encoding: PLAIN
+schema:
+  - { name: id, type: INT64 }
+  - name: mymap
+    type: MAP
+    optional: true
+    fields:
+      - { name: key, type: UTF8 }
+      - { name: value, type: UTF8 }
+  - name: mylist
+    type: LIST
+    fields:
+      - { name: element, type: INT64 }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+byte_array_as_string: true
+`, nil)
+	require.NoError(t, err)
+
+	decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+	require.NoError(t, err)
+
+	testParquetEncodeDecodeRoundTripMapList(t, encodeProc, decodeProc)
 }
 
 func TestParquetEncodeDecodeRoundTripPlainEncoding(t *testing.T) {
@@ -83,6 +175,14 @@ schema:
     fields:
       - { name: a_stuff, type: BYTE_ARRAY }
       - { name: b_stuff, type: BYTE_ARRAY }
+  - { name: h, type: DECIMAL32, decimal_precision: 3, optional: True}
+  - name: ob
+    fields:
+      - name: ob_name
+        type: UTF8
+      - name: bidValue
+        type: FLOAT
+    optional: true
 `, nil)
 	require.NoError(t, err)
 
@@ -98,6 +198,77 @@ byte_array_as_string: true
 	require.NoError(t, err)
 
 	testParquetEncodeDecodeRoundTrip(t, encodeProc, decodeProc)
+}
+
+func testParquetEncodeDecodeRoundTripMapList(t *testing.T, encodeProc *parquetEncodeProcessor, decodeProc *parquetDecodeProcessor) {
+	tctx := context.Background()
+
+	for _, test := range []struct {
+		name      string
+		input     string
+		encodeErr string
+		output    string
+		decodeErr string
+	}{
+		{
+			name: "basic values",
+			input: `{
+  "id": 3,
+  "mymap": {"a":"b","c":"d"},
+  "mylist": [1,2,3]
+}`,
+			output: `{
+  "id": 3,
+  "mymap": {"a":"Yg==","c":"ZA=="},
+  "mylist": {"list":[{"element":1},{"element":2},{"element":3}]}
+}`,
+		},
+		{
+			name: "miss all optionals",
+			input: `{
+  "id": 3
+}`,
+			output: `{
+  "id": 3,
+  "mymap":null,
+  "mylist":{"list":[]}
+}`,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			inBatch := service.MessageBatch{
+				service.NewMessage([]byte(test.input)),
+			}
+
+			encodedBatches, err := encodeProc.ProcessBatch(tctx, inBatch)
+			if test.encodeErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.encodeErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, encodedBatches, 1)
+			require.Len(t, encodedBatches[0], 1)
+
+			encodedBytes, err := encodedBatches[0][0].AsBytes()
+			require.NoError(t, err)
+
+			decodedBatch, err := decodeProc.Process(tctx, service.NewMessage(encodedBytes))
+			if test.encodeErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.encodeErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, decodedBatch, 1)
+
+			decodedBytes, err := decodedBatch[0].AsBytes()
+			require.NoError(t, err)
+
+			assert.JSONEq(t, test.output, string(decodedBytes))
+		})
+	}
 }
 
 func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodeProcessor, decodeProc *parquetDecodeProcessor) {
@@ -125,7 +296,9 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
     "a_stuff": "a value",
     "b_stuff": "b value"
   },
-  "canary":"not in schema"
+  "canary":"not in schema",
+  "h": 1.0,
+  "ob":{"ob_name":"test","bidValue":0.15}
 }`,
 			output: `{
   "id": 3,
@@ -139,7 +312,9 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "nested_stuff": {
     "a_stuff": "a value",
     "b_stuff": "b value"
-  }
+  },
+  "h": 1.0,
+  "ob":{"ob_name":"test","bidValue":0.15}
 }`,
 		},
 		{
@@ -162,7 +337,9 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "e": null,
   "f": 7,
   "g": "logical string represent",
-  "nested_stuff": null
+  "nested_stuff": null,
+  "h": null,
+  "ob": null
 }`,
 		},
 	} {
@@ -290,7 +467,14 @@ func TestParquetEncodeProcessor(t *testing.T) {
 			expectedDataBytes, err := json.Marshal(test.input)
 			require.NoError(t, err)
 
-			reader, err := newParquetEncodeProcessor(nil, testPMSchema(), &parquet.Uncompressed)
+			schema := parquet.SchemaOf(&PMType{})
+
+			reader, err := newParquetEncodeProcessor(
+				nil,
+				schema,
+				&parquet.Uncompressed,
+				reflect.TypeOf(PMType{}),
+			)
 			require.NoError(t, err)
 
 			readerResBatches, err := reader.ProcessBatch(context.Background(), service.MessageBatch{
@@ -334,7 +518,14 @@ func TestParquetEncodeProcessor(t *testing.T) {
 			inBatch = append(inBatch, service.NewMessage(dataBytes))
 		}
 
-		reader, err := newParquetEncodeProcessor(nil, testPMSchema(), &parquet.Uncompressed)
+		schema := parquet.SchemaOf(&PMType{})
+
+		reader, err := newParquetEncodeProcessor(
+			nil,
+			schema,
+			&parquet.Uncompressed,
+			reflect.TypeOf(PMType{}),
+		)
 		require.NoError(t, err)
 
 		readerResBatches, err := reader.ProcessBatch(context.Background(), inBatch)
@@ -368,4 +559,96 @@ func TestParquetEncodeProcessor(t *testing.T) {
 
 		assert.JSONEq(t, string(expectedBytes), string(actualBytes))
 	})
+}
+
+func TestEncodingFromConfig(t *testing.T) {
+	tests := []struct {
+		config   string
+		expected parquet.Node
+	}{
+		{
+			config: `
+schema:
+  - name: map
+    type: MAP
+    fields:
+      - { name: key, type: UTF8 }
+      - { name: value, type: FLOAT }
+`,
+			expected: parquet.Group{
+				"map": parquet.Map(
+					parquet.String(),
+					parquet.Leaf(parquet.FloatType),
+				),
+			},
+		},
+		{
+			config: `
+schema:
+  - name: map
+    type: MAP
+    fields:
+      - { name: key, type: UTF8 }
+      - name: value
+        type: MAP
+        fields:
+          - { name: key, type: INT64 }
+          - { name: value, type: BYTE_ARRAY }
+
+`,
+			expected: parquet.Group{
+				"map": parquet.Map(
+					parquet.String(),
+					parquet.Map(
+						parquet.Int(64),
+						parquet.Leaf(parquet.ByteArrayType),
+					),
+				),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(tt.config, nil)
+		require.NoError(t, err)
+
+		encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+		require.NoError(t, err)
+
+		schema := parquet.NewSchema("", tt.expected)
+		require.Equal(t, schema.String(), encodeProc.schema.String())
+	}
+}
+
+func TestEncodeDecimalOptional(t *testing.T) {
+	tests := []struct {
+		config   string
+		expected parquet.Node
+	}{
+		{
+			config: `
+    schema:
+      - name: floor_value
+        optional: true
+        type: DECIMAL32
+        decimal_scale: 4
+        decimal_precision: 8
+`,
+			expected: parquet.Group{
+				"floor_value": parquet.Optional(parquet.Decimal(4, 8, parquet.Int32Type)),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(tt.config, nil)
+		require.NoError(t, err)
+
+		encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+		require.NoError(t, err)
+
+		schema := parquet.NewSchema("", tt.expected)
+		require.Equal(t, schema.String(), encodeProc.schema.String())
+	}
+
 }

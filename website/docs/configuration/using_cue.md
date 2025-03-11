@@ -14,7 +14,7 @@ Before you get started, ensure that you have installed CUE by [following this gu
 
 ## Create
 
-Create a directory for the CUE module that will contain our benthos configuration:
+Create a directory for the CUE module that will contain our bento configuration:
 
 ```shell
 mkdir hello-cue
@@ -23,7 +23,7 @@ cue mod init example.com/hello-cue
 touch config.cue
 ```
 
-> CUE modules must start with a hostname. This will typically be the URL of your repository. For example: `cue mod init github.com/benthosdev/hello-cue`.
+> CUE modules must start with a hostname. This will typically be the URL of your repository. For example: `cue mod init github.com/bentodev/hello-cue`.
 
 The `bento list` command will generate a CUE package containing the types we'll need to build our configuration. Let's write this package into our project:
 
@@ -36,7 +36,7 @@ At this point, you should now have the following directory structure:
 
 ```
 hello-cue/
-    benthos/
+    bento/
         schema.cue
     cue.mod/
         pkg/
@@ -48,7 +48,7 @@ hello-cue/
 We are now ready to write our Bento config in CUE. Let's start by editing our `config.cue` to include the following snippet:
 
 ```cue
-import "example.com/hello-cue/benthos"
+import "example.com/hello-cue/bento"
 
 bento.#Config & {
   input: {
@@ -112,7 +112,7 @@ When you are satisfied with the results, terminate the Bento process and let's m
 The `config.cue` above looks eerily like JSON. This is because CUE is a superset of JSON and shares its syntax. However, we can shorten our configuration to reduce identation and curly brackets. Let's rewrite `config.cue` to look like this:
 
 ```cue
-import "example.com/hello-cue/benthos"
+import "example.com/hello-cue/bento"
 
 bento.#Config & {
   input: generate: mapping: """
@@ -158,7 +158,7 @@ There are quite a few lines of YAML here and we seem to be going sideways as we 
 Let's create a new file in our `hello-cue` directory called `bento/helpers.cue`:
 
 ```shell
-touch benthos/helpers.cue
+touch bento/helpers.cue
 ```
 
 In this file, add the following snippet:
@@ -220,7 +220,7 @@ package bento
 Now, let's get back to `config.cue` and edit a few bits while leveraging this helper:
 
 ```cue
-import "example.com/hello-cue/benthos"
+import "example.com/hello-cue/bento"
 
 bento.#Config & {
   input: generate: {
@@ -283,7 +283,7 @@ The final directory structure of your hello-cue project should look like this:
 
 ```
 hello-cue/
-    benthos/
+    bento/
         schema.cue
         helpers.cue
     cue.mod/

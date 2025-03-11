@@ -2068,6 +2068,23 @@ func TestMethods(t *testing.T) {
 			},
 			output: []byte("raboof"),
 		},
+		"check repeat": {
+			input: methods(
+				literalFn("All work and no play makes Jack a dull boy."),
+				method("repeat", 3),
+			),
+			output: "All work and no play makes Jack a dull boy.All work and no play makes Jack a dull boy.All work and no play makes Jack a dull boy.",
+		},
+		"check repeat bytes": {
+			input: methods(
+				function(`content`),
+				method("repeat", 3),
+			),
+			messages: []easyMsg{
+				{content: `All work and no play makes Jack a dull boy.`},
+			},
+			output: []byte("All work and no play makes Jack a dull boy.All work and no play makes Jack a dull boy.All work and no play makes Jack a dull boy."),
+		},
 	}
 
 	for name, test := range tests {

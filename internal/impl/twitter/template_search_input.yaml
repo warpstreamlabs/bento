@@ -171,7 +171,7 @@ metrics_mapping: |
 tests:
   - name: Basic fields
     config:
-      query: benthos.dev
+      query: warpstreamlabs
       cache: foocache
       rate_limit: foolimit
       api_key: fookey
@@ -195,7 +195,7 @@ tests:
             } else {
               "&since_id="+content().string()
             }
-            meta tweet_search_url = "https://api.twitter.com/2/tweets/search/recent?max_results=100&query=benthos.dev" + $pagination_params
+            meta tweet_search_url = "https://api.twitter.com/2/tweets/search/recent?max_results=100&query=warpstreamlabs" + $pagination_params
             root = ""
 
         - http:

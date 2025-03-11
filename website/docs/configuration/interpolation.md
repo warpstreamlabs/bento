@@ -49,8 +49,8 @@ A common usecase for interpolated functions is dynamic routing at the output lev
 output:
   kafka:
     addresses: [ TODO ]
-    topic: ${! meta("output_topic") }
-    key: ${! meta("key") }
+    topic: ${! metadata("output_topic") }
+    key: ${! metadata("key") }
 ```
 
 ### Coalesce and Mapping

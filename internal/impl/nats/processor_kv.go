@@ -217,7 +217,10 @@ func (p *kvProcessor) Process(ctx context.Context, msg *service.Message) (servic
 		if err != nil {
 			return nil, err
 		}
-		return service.MessageBatch{newMessageFromKVEntry(entry)}, nil
+		m := msg.Copy()
+		p.addMetadataFromEntry(m, entry)
+		m.SetBytes(entry.Value())
+		return service.MessageBatch{m}, nil
 
 	case kvpOperationGetRevision:
 		revision, err := p.parseRevision(msg)
@@ -228,7 +231,10 @@ func (p *kvProcessor) Process(ctx context.Context, msg *service.Message) (servic
 		if err != nil {
 			return nil, err
 		}
-		return service.MessageBatch{newMessageFromKVEntry(entry)}, nil
+		m := msg.Copy()
+		p.addMetadataFromEntry(m, entry)
+		m.SetBytes(entry.Value())
+		return service.MessageBatch{m}, nil
 
 	case kvpOperationCreate:
 		revision, err := kv.Create(ctx, key, bytes)
@@ -357,6 +363,15 @@ func (p *kvProcessor) addMetadata(msg *service.Message, key string, revision uin
 	msg.MetaSetMut(metaKVBucket, p.bucket)
 	msg.MetaSetMut(metaKVRevision, revision)
 	msg.MetaSetMut(metaKVOperation, operation.String())
+}
+
+func (p *kvProcessor) addMetadataFromEntry(msg *service.Message, entry jetstream.KeyValueEntry) {
+	msg.MetaSetMut(metaKVKey, entry.Key())
+	msg.MetaSetMut(metaKVBucket, p.bucket)
+	msg.MetaSetMut(metaKVRevision, entry.Revision())
+	msg.MetaSetMut(metaKVDelta, entry.Delta())
+	msg.MetaSetMut(metaKVOperation, entry.Operation().String())
+	msg.MetaSetMut(metaKVCreated, entry.Created())
 }
 
 func (p *kvProcessor) Connect(ctx context.Context) (err error) {

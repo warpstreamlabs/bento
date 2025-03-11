@@ -80,9 +80,9 @@ func (s *TracingSummary) TotalOutput() uint64 {
 // execution of a stream pipeline.
 //
 // Experimental: This method may change outside of major version releases.
-func (s *TracingSummary) InputEvents() map[string][]TracingEvent {
+func (s *TracingSummary) InputEvents(flush bool) map[string][]TracingEvent {
 	m := map[string][]TracingEvent{}
-	for k, v := range s.summary.InputEvents(false) {
+	for k, v := range s.summary.InputEvents(flush) {
 		events := make([]TracingEvent, len(v))
 		for i, e := range v {
 			events[i] = TracingEvent{
@@ -100,9 +100,9 @@ func (s *TracingSummary) InputEvents() map[string][]TracingEvent {
 // execution of a stream pipeline.
 //
 // Experimental: This method may change outside of major version releases.
-func (s *TracingSummary) ProcessorEvents() map[string][]TracingEvent {
+func (s *TracingSummary) ProcessorEvents(flush bool) map[string][]TracingEvent {
 	m := map[string][]TracingEvent{}
-	for k, v := range s.summary.ProcessorEvents(false) {
+	for k, v := range s.summary.ProcessorEvents(flush) {
 		events := make([]TracingEvent, len(v))
 		for i, e := range v {
 			events[i] = TracingEvent{
@@ -120,9 +120,9 @@ func (s *TracingSummary) ProcessorEvents() map[string][]TracingEvent {
 // execution of a stream pipeline.
 //
 // Experimental: This method may change outside of major version releases.
-func (s *TracingSummary) OutputEvents() map[string][]TracingEvent {
+func (s *TracingSummary) OutputEvents(flush bool) map[string][]TracingEvent {
 	m := map[string][]TracingEvent{}
-	for k, v := range s.summary.OutputEvents(false) {
+	for k, v := range s.summary.OutputEvents(flush) {
 		events := make([]TracingEvent, len(v))
 		for i, e := range v {
 			events[i] = TracingEvent{
