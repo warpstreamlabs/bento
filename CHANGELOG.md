@@ -3,6 +3,11 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.2 - 2025-03-12
+
+- upgrade to go 1.23 @gitphill
+- various dependency updates for CVEs @gitphill
+
 ## 1.5.1 - 2025-02-14
 
 ### Fixed 
