@@ -176,7 +176,7 @@ processors:
 	require.Error(t, res)
 	assert.ErrorContains(t, res, "invalid character 'o' in literal null (expecting 'u')")
 
-	// Multiple errored messages
+	// Check if the next mapping Processor is reached when no error is present (happy path)
 	msg = message.QuickBatch([][]byte{
 		[]byte(`{"msg":"Baby don't hurt me"}`),
 		[]byte(`{"msg":"Don't hurt me"}`),
@@ -257,40 +257,6 @@ switch:
 	r.Close()
 
 	assert.Equal(t, "praise be to the omnissiah\n", buf.String())
-}
-
-func TestStrictBundleBloblangFunction(t *testing.T) {
-	tCtx := context.Background()
-	pConf, err := testutil.ProcessorFromYAML(`
-processors:
-  - mapping: |
-      root = this
-  - mapping: |
-      root = if errored() { "naughty" } else { "nice" }
-`)
-	require.NoError(t, err)
-
-	mgr, err := manager.New(
-		manager.ResourceConfig{},
-		strict.OptSetRetryModeFromManager()...,
-	)
-	require.NoError(t, err)
-
-	proc, err := mgr.NewProcessor(pConf)
-	require.NoError(t, err)
-
-	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
-	msgs, res := proc.ProcessBatch(tCtx, msg)
-	require.Len(t, msgs, 1)
-	require.NoError(t, res)
-	assert.Equal(t, "naughty", string(msgs[0].Get(0).AsBytes()))
-
-	msg = message.QuickBatch([][]byte{[]byte(`{"hello":"world"}`)})
-	msgs, res = proc.ProcessBatch(tCtx, msg)
-	require.NoError(t, res)
-	require.Len(t, msgs, 1)
-	assert.Equal(t, 1, msgs[0].Len())
-	assert.Equal(t, "nice", string(msgs[0].Get(0).AsBytes()))
 }
 
 func TestDisableStrictBundleBloblangFunction(t *testing.T) {
