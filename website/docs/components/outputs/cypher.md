@@ -169,7 +169,7 @@ values:
 
 ### `max_in_flight`
 
-The maximum number of queries to run in parallel.
+The maximum number of messages to have in flight at a given time. Increase this to improve throughput.
 
 
 Type: `int`  

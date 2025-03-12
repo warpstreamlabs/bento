@@ -75,7 +75,7 @@ input:
 </TabItem>
 </Tabs>
 
-Once the records from the query are exhausted this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a sequence to execute).
+Once the records from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a sequence to execute).
 
 ## Fields
 
