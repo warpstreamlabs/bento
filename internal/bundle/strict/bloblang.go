@@ -11,7 +11,7 @@ func StrictBloblangEnvironment(nm bundle.NewManagement) *bloblang.Environment {
 	newEnv := bloblang.NewEnvironment()
 
 	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
-		newEnv.RegisterFunction(spec, func(args *query.ParsedParams) (query.Function, error) {
+		_ = newEnv.RegisterFunction(spec, func(args *query.ParsedParams) (query.Function, error) {
 			if isBloblangFunctionIncompatible(name) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible Bloblang function(s) of type '%s'", name)
 				nm.SetGeneric(strictModeEnabledKey, false)
@@ -25,7 +25,7 @@ func StrictBloblangEnvironment(nm bundle.NewManagement) *bloblang.Environment {
 	})
 
 	env.WalkMethods(func(name string, spec query.MethodSpec) {
-		newEnv.RegisterMethod(spec, func(target query.Function, args *query.ParsedParams) (query.Function, error) {
+		_ = newEnv.RegisterMethod(spec, func(target query.Function, args *query.ParsedParams) (query.Function, error) {
 			if isBloblangMethodIncompatible(name) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible Bloblang method(s) of type '%s'", name)
 				nm.SetGeneric(strictModeEnabledKey, false)
