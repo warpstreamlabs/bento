@@ -1,14 +1,21 @@
+//nolint:staticcheck // Ignore SA1019
 package sql_test
 
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
@@ -1255,4 +1262,134 @@ args_mapping: 'root = [ this.foo ]'
 	actBytes, err := m.AsBytes()
 	require.NoError(t, err)
 	assert.JSONEq(t, `[{"foo": "blobfish", "bar": "ARE REALLY COOL", "baz": 41}]`, string(actBytes))
+}
+
+func TestIntegrationRedshiftSecret(t *testing.T) {
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		t.Skipf("Could not connect to docker: %s", err)
+	}
+	pool.MaxWait = 3 * time.Minute
+
+	// we need a localstack pro image
+	if os.Getenv("LOCALSTACK_AUTH_TOKEN") == "" {
+		t.Skip("LOCALSTACK_AUTH_TOKEN is not set")
+	}
+
+	mainTfPath, err := filepath.Abs("./resources/redshiftsecret/main.tf")
+	require.NoError(t, err)
+
+	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "localstack/localstack-pro",
+		Env: []string{
+			"LOCALSTACK_AUTH_TOKEN=" + os.Getenv("LOCALSTACK_AUTH_TOKEN"),
+			"EXTENSION_AUTO_INSTALL=localstack-extension-terraform-init",
+		},
+		Mounts: []string{
+			mainTfPath + ":/etc/localstack/init/ready.d/main.tf",
+			"/var/run/docker.sock:/var/run/docker.sock",
+		},
+		ExposedPorts: []string{"4566/tcp", "4510-4559/tcp"},
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		if err = pool.Purge(resource); err != nil {
+			t.Logf("Failed to clean up docker resource: %s", err)
+		}
+	})
+
+	_ = resource.Expire(900)
+
+	// grab some ports and wait for the tf to boot up redshift etc.
+	localstackPort := resource.GetPort("4566/tcp")
+	redshiftPort := resource.GetPort("4510/tcp")
+
+	redshiftEndpointAddress, err := waitForRedshiftAndGetAddress(localstackPort, redshiftPort, "my-redshift-cluster")
+	require.NoError(t, err)
+
+	// run a config that will fetch the secrets and create 10 rows in the redshift db
+	builder := service.NewStreamBuilder()
+
+	err = builder.SetYAML(fmt.Sprintf(`input:
+  generate:
+    mapping: |
+        root = {"age":random_int(min: 0, max: 100), "name":fake("name")}
+    interval: 1ms
+    count: 10
+
+output:
+  sql_insert:
+    driver: postgres 
+    dsn: postgresql://username_from_secret:password_from_secret@%v/dev?sslmode=disable
+    table: test
+    columns: [age, name]
+    args_mapping: |
+      root = [
+        this.age,
+        this.name,
+      ]
+    init_statement: "CREATE TABLE test (name varchar(255), age int);"
+    aws_enabled: true
+    aws:
+      secret_name: "redshift-password"
+      region: us-east-1
+      endpoint: http://localhost:%v
+      credentials:
+        id: test
+        secret: test`, redshiftEndpointAddress, localstackPort))
+
+	stream, err := builder.Build()
+	require.NoError(t, err)
+
+	err = stream.Run(context.Background())
+	require.NoError(t, err)
+
+	// check there is 10 rows in the db
+	connStr := fmt.Sprintf("postgres://admin:Password123@localhost:%v/dev?sslmode=disable", redshiftPort)
+	db, err := sql.Open("postgres", connStr)
+	require.NoError(t, err)
+	defer db.Close()
+
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM test;").Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 10, count)
+}
+
+func waitForRedshiftAndGetAddress(localstackPort string, redshiftPort string, clusterID string) (redshiftEndpointAddress string, err error) {
+	cfg := aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("test", "test", ""),
+		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(
+			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+				return aws.Endpoint{URL: fmt.Sprintf("http://localhost:%v", localstackPort)}, nil
+			},
+		),
+	}
+
+	client := redshift.NewFromConfig(cfg)
+	maxAttempts := 120
+	for range maxAttempts {
+		time.Sleep(time.Second)
+		resp, err := client.DescribeClusters(context.Background(), &redshift.DescribeClustersInput{
+			ClusterIdentifier: &clusterID,
+		})
+		if err != nil {
+			continue
+		}
+		if len(resp.Clusters) == 0 {
+			continue
+		}
+		if *resp.Clusters[0].ClusterStatus == "available" {
+			time.Sleep(time.Second * 5) // redshift reports available somewhat prematurely
+			for _, cluster := range resp.Clusters {
+				if *cluster.ClusterIdentifier == "my-redshift-cluster" {
+					redshiftEndpointAddress = fmt.Sprintf("%v:%v", *cluster.Endpoint.Address, redshiftPort)
+				}
+			}
+			return redshiftEndpointAddress, nil
+		}
+	}
+	return "", errors.New("polling localstack for ready Redshift failed")
 }

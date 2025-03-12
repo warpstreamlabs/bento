@@ -9,6 +9,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
@@ -124,13 +125,18 @@ func newSQLRawInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 	if s.connSettings, err = connSettingsFromParsed(conf, mgr); err != nil {
 		return nil, err
 	}
-	if s.driver == "postgres" && s.connSettings.secretName != "" {
-		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+
+	awsEnabled, err := conf.FieldBool("aws_enabled")
+	if err != nil {
+		return nil, err
+	}
+
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return s, nil
 }
 
@@ -143,7 +149,7 @@ func (s *sqlRawInput) Connect(ctx context.Context) (err error) {
 	}
 
 	var db *sql.DB
-	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
+	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings); err != nil {
 		return err
 	}
 	defer func() {
