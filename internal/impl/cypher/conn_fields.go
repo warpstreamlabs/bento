@@ -3,14 +3,13 @@ package cypher
 import "github.com/warpstreamlabs/bento/public/service"
 
 const (
-	cypherDatabase    = "database"
-	cypherURI         = "uri"
-	cypherNoAuth      = "no_auth"
-	cypherBasicAuth   = "basic_auth"
-	cypherQuery       = "query"
-	cypherValues      = "values"
-	cypherMaxInFlight = "max_in_flight"
-	cypherBatching    = "batching"
+	cypherDatabase  = "database"
+	cypherURI       = "uri"
+	cypherNoAuth    = "no_auth"
+	cypherBasicAuth = "basic_auth"
+	cypherQuery     = "query"
+	cypherValues    = "values"
+	cypherBatching  = "batching"
 
 	// Basic Auth
 	cypherUser     = "user"

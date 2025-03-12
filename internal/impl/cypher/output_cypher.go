@@ -45,13 +45,9 @@ func cypherOutputSpec() *service.ConfigSpec {
 				Example(map[string]any{
 					"name": `${! json("name") }`,
 				}),
-			service.NewIntField(cypherMaxInFlight).
-				Description("The maximum number of queries to run in parallel.").
-				Default(64),
-		)
-	for _, f := range connFields() {
-		spec = spec.Field(f)
-	}
+			service.NewOutputMaxInFlightField(),
+		).
+		Fields(connFields()...)
 
 	spec = spec.Field(service.NewBatchPolicyField(cypherBatching)).
 		Example("Create Node",
@@ -83,7 +79,7 @@ func init() {
 			if batchPolicy, err = conf.FieldBatchPolicy("batching"); err != nil {
 				return
 			}
-			if maxInFlight, err = conf.FieldInt("max_in_flight"); err != nil {
+			if maxInFlight, err = conf.FieldMaxInFlight(); err != nil {
 				return
 			}
 			out, err = NewCypherOutputFromConfig(conf, mgr)

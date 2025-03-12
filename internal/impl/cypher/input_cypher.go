@@ -7,10 +7,11 @@ import (
 	"github.com/Jeffail/shutdown"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
+	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var cypherInputDescription string = `Once the records from the query are exhausted this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a sequence to execute).`
+var cypherInputDescription string = `Once the records from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a sequence to execute).`
 
 func cypherInputSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
@@ -22,11 +23,8 @@ func cypherInputSpec() *service.ConfigSpec {
 			service.NewStringField(cypherQuery).
 				Description("The cypher query to execute.").
 				Example("MATCH (n) RETURN n"),
-		)
-
-	for _, f := range connFields() {
-		spec = spec.Field(f)
-	}
+		).
+		Fields(connFields()...)
 
 	spec = spec.Field(service.NewAutoRetryNacksToggleField())
 
@@ -58,7 +56,6 @@ type CypherInput struct {
 	tlsConfig *tls.Config
 	query     string
 	driver    neo4j.DriverWithContext
-	session   neo4j.SessionWithContext
 
 	recordsChan chan *neo4j.Record
 
@@ -127,6 +124,10 @@ func NewCypherInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 
 func (cyp *CypherInput) Connect(ctx context.Context) error {
 
+	if cyp.driver != nil {
+		return component.ErrAlreadyStarted
+	}
+
 	var driver neo4j.DriverWithContext
 	var err error
 
@@ -148,12 +149,15 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 	}
 
 	cyp.driver = driver
-	cyp.session = driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
 
 	go func() {
-		defer close(cyp.recordsChan)
+		session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+		defer func() {
+			close(cyp.recordsChan)
+			session.Close(ctx)
+		}()
 
-		if _, err := cyp.session.ExecuteRead(ctx,
+		if _, err := session.ExecuteRead(ctx,
 			func(tx neo4j.ManagedTransaction) (any, error) {
 				result, err := tx.Run(ctx, cyp.query, nil)
 				if err != nil {
@@ -180,7 +184,7 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 }
 
 func (cyp *CypherInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
-	if cyp.session == nil && cyp.driver == nil {
+	if cyp.driver == nil {
 		return nil, nil, service.ErrNotConnected
 	}
 
