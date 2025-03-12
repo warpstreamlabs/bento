@@ -854,11 +854,11 @@ func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
 // version releases.
 func (s *StreamBuilder) BuildStrict() (*Stream, error) {
 	senv := strict.StrictBundle(s.env.internal)
-	strm, err := s.buildWithEnv(senv)
+	strm, err := s.buildWithEnv(senv, strict.OptSetStrictModeFromManager()...)
 	return strm, err
 }
 
-func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
+func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, opts ...manager.OptFunc) (*Stream, error) {
 	conf := s.buildConfig()
 
 	logger := s.customLogger
@@ -874,6 +874,16 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 		engVer = cli.Version
 	}
 
+	defaultOpts := []manager.OptFunc{
+		manager.OptSetEngineVersion(engVer),
+		manager.OptSetLogger(logger),
+		manager.OptSetEnvironment(env),
+		manager.OptSetBloblangEnvironment(s.env.getBloblangParserEnv()),
+		manager.OptSetFS(s.env.fs),
+	}
+
+	managerOpts := append(defaultOpts, opts...)
+
 	// This temporary manager is a very lazy way of instantiating a manager that
 	// restricts the bloblang and component environments to custom plugins.
 	// Ideally we would break out the constructor for our general purpose
@@ -881,10 +891,7 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 	// resource constructors until after this metrics exporter is initialised.
 	tmpMgr, err := manager.New(
 		manager.NewResourceConfig(),
-		manager.OptSetEngineVersion(engVer),
-		manager.OptSetLogger(logger),
-		manager.OptSetEnvironment(env),
-		manager.OptSetBloblangEnvironment(s.env.getBloblangParserEnv()),
+		defaultOpts...,
 	)
 	if err != nil {
 		return nil, err
@@ -921,16 +928,15 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment) (*Stream, error) {
 		apiMut.RegisterEndpoint("/metrics", "Exposes service-wide metrics in the format configured.", hler)
 	}
 
-	mgr, err := manager.New(
-		conf.ResourceConfig,
+	managerOpts = append(managerOpts,
 		manager.OptSetAPIReg(apiMut),
-		manager.OptSetEngineVersion(s.engineVersion),
-		manager.OptSetLogger(logger),
 		manager.OptSetMetrics(stats),
 		manager.OptSetTracer(tracer),
-		manager.OptSetEnvironment(env),
-		manager.OptSetBloblangEnvironment(s.env.getBloblangParserEnv()),
-		manager.OptSetFS(s.env.fs),
+	)
+
+	mgr, err := manager.New(
+		conf.ResourceConfig,
+		managerOpts...,
 	)
 	if err != nil {
 		return nil, err
