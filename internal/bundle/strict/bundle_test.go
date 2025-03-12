@@ -3,6 +3,7 @@ package strict_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -203,20 +204,20 @@ func TestStrictBundleOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	// include a DLQ where errored messages go to stdout
-	err = streamBuilder.AddOutputYAML(`
+	err = streamBuilder.AddOutputYAML(fmt.Sprintf(`
 switch: 
   cases:
     - check: !errored()
       continue: true
       output:
         file:
-          path: ./tmp/data.txt
+          path: %s/data.txt
           codec: lines
     - check: errored()
       continue: false
       output:
         stdout: {}
-`)
+`, t.TempDir()))
 	require.NoError(t, err)
 
 	sendFn, err := streamBuilder.AddProducerFunc()
