@@ -152,24 +152,29 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 
 	go func() {
 		session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+		cypCtx, done := cyp.shutSig.HardStopCtx(context.Background())
+
 		defer func() {
+			done()
 			close(cyp.recordsChan)
 			session.Close(ctx)
 		}()
 
-		if _, err := session.ExecuteRead(ctx,
+		if _, err := session.ExecuteRead(cypCtx,
 			func(tx neo4j.ManagedTransaction) (any, error) {
-				result, err := tx.Run(ctx, cyp.query, nil)
+				result, err := tx.Run(cypCtx, cyp.query, nil)
 				if err != nil {
 					cyp.logger.With("err", err).Error("unexpected error while executing cypher query")
 					return nil, err
 				}
 
-				for result.Next(ctx) {
+				for result.Next(cypCtx) {
 					select {
-					case <-ctx.Done():
-						return nil, ctx.Err()
+					case <-cypCtx.Done():
+						cyp.shutSig.TriggerHasStopped()
+						return nil, cypCtx.Err()
 					case <-cyp.shutSig.HardStopChan():
+						cyp.shutSig.TriggerHasStopped()
 						return nil, service.ErrEndOfInput
 					case cyp.recordsChan <- result.Record():
 					}
