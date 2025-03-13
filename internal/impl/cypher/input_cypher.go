@@ -171,10 +171,10 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 				for result.Next(cypCtx) {
 					select {
 					case <-cypCtx.Done():
-						cyp.shutSig.TriggerHasStopped()
+						//cyp.shutSig.TriggerHasStopped()
 						return nil, cypCtx.Err()
 					case <-cyp.shutSig.HardStopChan():
-						cyp.shutSig.TriggerHasStopped()
+						//cyp.shutSig.TriggerHasStopped()
 						return nil, service.ErrEndOfInput
 					case cyp.recordsChan <- result.Record():
 					}
