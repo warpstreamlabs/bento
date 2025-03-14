@@ -210,6 +210,13 @@ func (cyp *CypherOutput) Connect(ctx context.Context) error {
 		return err
 	}
 
+	if err := driver.VerifyConnectivity(ctx); err != nil {
+		return err
+	}
+	if err := driver.VerifyAuthentication(ctx, nil); err != nil {
+		return err
+	}
+
 	cyp.driver = driver
 
 	session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})

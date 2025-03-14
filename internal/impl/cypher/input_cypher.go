@@ -148,6 +148,13 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 		return err
 	}
 
+	if err := driver.VerifyConnectivity(ctx); err != nil {
+		return err
+	}
+	if err := driver.VerifyAuthentication(ctx, nil); err != nil {
+		return err
+	}
+
 	cyp.driver = driver
 
 	go func() {
@@ -171,10 +178,8 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 				for result.Next(cypCtx) {
 					select {
 					case <-cypCtx.Done():
-						//cyp.shutSig.TriggerHasStopped()
 						return nil, cypCtx.Err()
 					case <-cyp.shutSig.HardStopChan():
-						//cyp.shutSig.TriggerHasStopped()
 						return nil, service.ErrEndOfInput
 					case cyp.recordsChan <- result.Record():
 					}
