@@ -27,7 +27,6 @@ require (
 	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/apache/pulsar-client-go v0.12.1
 	github.com/aws/aws-lambda-go v1.46.0
-	github.com/aws/aws-sdk-go v1.55.5
 	github.com/aws/aws-sdk-go-v2 v1.32.6
 	github.com/aws/aws-sdk-go-v2/config v1.27.43
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.41
@@ -135,7 +134,6 @@ require (
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78
-	github.com/zeebo/assert v1.3.0
 	go.etcd.io/etcd/api/v3 v3.5.16
 	go.etcd.io/etcd/client/v3 v3.5.16
 	go.mongodb.org/mongo-driver v1.13.4

@@ -11,9 +11,9 @@ import (
 
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warpstreamlabs/bento/public/service/integration"
-	"github.com/zeebo/assert"
 )
 
 // TODO: Add config + options pattern or use an already existing library like https://github.com/elgohr/go-localstack

@@ -29,6 +29,9 @@ func TestIntegrationS3Processor(t *testing.T) {
 	objectKey := "example.txt"
 	objectData := "hello world"
 
+	err := createBucket(context.TODO(), servicePort, bucketName)
+	require.NoError(t, err)
+
 	client, err := uploadFile(servicePort, bucketName, objectKey, objectData)
 	require.NoError(t, err)
 
