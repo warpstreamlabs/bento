@@ -112,10 +112,10 @@ func CreateManager(
 	}
 
 	if conf.ErrorHandling.Strategy == "reject" {
-		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(strict.StrictBundle(bundle.GlobalEnvironment)))
+		mgrOpts = append(mgrOpts, strict.OptSetStrictModeFromManager()...)
 	} else if conf.ErrorHandling.Strategy == "retry" {
-		mgrOpts = append(mgrOpts, manager.OptSetEnvironment(strict.RetryBundle(bundle.GlobalEnvironment)))
 		mgrOpts = append(mgrOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
+		mgrOpts = append(mgrOpts, strict.OptSetRetryModeFromManager()...)
 	}
 
 	// Create resource manager.

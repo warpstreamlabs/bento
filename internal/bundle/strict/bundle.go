@@ -7,6 +7,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/output"
 	oprocessors "github.com/warpstreamlabs/bento/internal/component/output/processors"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/pipeline"
 	"github.com/warpstreamlabs/bento/internal/pipeline/constructor"
 )
@@ -27,6 +28,42 @@ func isStrictModeEnabled(mgr bundle.NewManagement) bool {
 		return false
 	}
 	return enabled
+}
+
+//------------------------------------------------------------------------------
+
+// OptSetRetryModeFromManager returns a set of options that re-configure a manager to automatically
+// retry failed/errored messages. It applies retryable configurations to all plugins within the bundle.Environment,
+// affecting both components and resources, in addition to functions and methods of the bloblang.Environment.
+// This ensures the manager operates in a mode suitable for retrying errored messages.
+func OptSetRetryModeFromManager() []manager.OptFunc {
+	return []manager.OptFunc{
+		func(t *manager.Type) {
+			blobEnv := StrictBloblangEnvironment(t)
+			manager.OptSetBloblangEnvironment(blobEnv)(t)
+		},
+		func(t *manager.Type) {
+			env := RetryBundle(t.Environment())
+			manager.OptSetEnvironment(env)(t)
+		},
+	}
+}
+
+// OptSetStrictModeFromManager returns a set of options that re-configure a manager to automatically
+// reject failed/errored messages. It applies strict rejection configurations to all plugins within the bundle.Environment,
+// affecting both components and resources, in addition to functions and methods of the bloblang.Environment.
+// This ensures the manager operates in a mode suitable for rejecting all errored messages.
+func OptSetStrictModeFromManager() []manager.OptFunc {
+	return []manager.OptFunc{
+		func(t *manager.Type) {
+			blobEnv := StrictBloblangEnvironment(t)
+			manager.OptSetBloblangEnvironment(blobEnv)(t)
+		},
+		func(t *manager.Type) {
+			env := StrictBundle(t.Environment())
+			manager.OptSetEnvironment(env)(t)
+		},
+	}
 }
 
 //------------------------------------------------------------------------------
