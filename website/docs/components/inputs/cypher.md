@@ -1,7 +1,7 @@
 ---
 title: cypher
 slug: cypher
-type: output
+type: input
 status: experimental
 categories: ["Services"]
 ---
@@ -18,9 +18,9 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Executes a Cypher Query
+Executes a cypher query and creates a message for each record received.
 
-Introduced in version 1.4.0.
+Introduced in version 1.6.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -32,12 +32,10 @@ Introduced in version 1.4.0.
 
 ```yml
 # Common config fields, showing default values
-output:
+input:
   label: ""
   cypher:
-    query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
-    values: {}
-    max_in_flight: 64
+    query: MATCH (n) RETURN n # No default (required)
     database: neo4j # No default (required)
     uri: bolt://localhost:7687 # No default (required)
     no_auth: false
@@ -45,12 +43,7 @@ output:
       user: ""
       password: ""
       realm: ""
-    batching:
-      count: 0
-      byte_size: 0
-      period: ""
-      jitter: 0
-      check: ""
+    auto_replay_nacks: true
 ```
 
 </TabItem>
@@ -58,12 +51,10 @@ output:
 
 ```yml
 # All config fields, showing default values
-output:
+input:
   label: ""
   cypher:
-    query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
-    values: {}
-    max_in_flight: 64
+    query: MATCH (n) RETURN n # No default (required)
     database: neo4j # No default (required)
     uri: bolt://localhost:7687 # No default (required)
     no_auth: false
@@ -78,63 +69,13 @@ output:
       root_cas: ""
       root_cas_file: ""
       client_certs: []
-    batching:
-      count: 0
-      byte_size: 0
-      period: ""
-      jitter: 0
-      check: ""
-      processors: [] # No default (optional)
+    auto_replay_nacks: true
 ```
 
 </TabItem>
 </Tabs>
 
-## Executes a Cypher Query
-
-The `query` field is expected to be a valid cypher query with 0 or more parameters with the `$` syntax:
-```
-    query: CREATE (p:Person {name: $name, age: $age}) RETURN p
-```
-
-The `values` field is expected to be a map where the keys are equal to the parameters in the query,
-and the values are strings (bloblang interpolations are allowed): 
-
-```
-    values: 
-      name: ${! json("name") }
-      age: ${! json("age") }
-```
-
-## Examples
-
-<Tabs defaultValue="Create Node" values={[
-{ label: 'Create Node', value: 'Create Node', },
-]}>
-
-<TabItem value="Create Node">
-
-
-Here we execute a cypher query that takes the value of $name from the interpolated field in the values map:
-
-```yaml
-output:
-  cypher:
-    database: neo4j
-    uri: bolt://localhost:7687
-    basic_auth:
-      user: neo4j
-      password: password
-    query: |
-      CREATE (p:Person {name: $name}) RETURN p
-    values: 
-      name: ${! json("name") }
-    batching:
-      count: 0
-```
-
-</TabItem>
-</Tabs>
+Once the records from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a sequence to execute).
 
 ## Fields
 
@@ -148,32 +89,8 @@ Type: `string`
 ```yml
 # Examples
 
-query: 'CREATE (p:Person {name: $name}) RETURN p'
+query: MATCH (n) RETURN n
 ```
-
-### `values`
-
-A map of strings -> bloblang interpolations that form the values of the references in the query i.e. $name.
-This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
-
-
-Type: `object`  
-Default: `{}`  
-
-```yml
-# Examples
-
-values:
-  name: ${! json("name") }
-```
-
-### `max_in_flight`
-
-The maximum number of messages to have in flight at a given time. Increase this to improve throughput.
-
-
-Type: `int`  
-Default: `64`  
 
 ### `database`
 
@@ -383,123 +300,12 @@ password: foo
 password: ${KEY_PASSWORD}
 ```
 
-### `batching`
+### `auto_replay_nacks`
 
-Allows you to configure a [batching policy](/docs/configuration/batching).
-
-
-Type: `object`  
-
-```yml
-# Examples
-
-batching:
-  byte_size: 5000
-  count: 0
-  period: 1s
-
-batching:
-  count: 10
-  period: 1s
-
-batching:
-  check: this.contains("END BATCH")
-  count: 0
-  period: 1m
-
-batching:
-  count: 10
-  jitter: 0.1
-  period: 10s
-```
-
-### `batching.count`
-
-A number of messages at which the batch should be flushed. If `0` disables count based batching.
+Whether messages that are rejected (nacked) at the output level should be automatically replayed indefinitely, eventually resulting in back pressure if the cause of the rejections is persistent. If set to `false` these messages will instead be deleted. Disabling auto replays can greatly improve memory efficiency of high throughput streams as the original shape of the data can be discarded immediately upon consumption and mutation.
 
 
-Type: `int`  
-Default: `0`  
-
-### `batching.byte_size`
-
-An amount of bytes at which the batch should be flushed. If `0` disables size based batching.
-
-
-Type: `int`  
-Default: `0`  
-
-### `batching.period`
-
-A period in which an incomplete batch should be flushed regardless of its size.
-
-
-Type: `string`  
-Default: `""`  
-
-```yml
-# Examples
-
-period: 1s
-
-period: 1m
-
-period: 500ms
-```
-
-### `batching.jitter`
-
-A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
-
-
-Type: `float`  
-Default: `0`  
-
-```yml
-# Examples
-
-jitter: 0.01
-
-jitter: 0.1
-
-jitter: 1
-```
-
-### `batching.check`
-
-A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether a message should end a batch.
-
-
-Type: `string`  
-Default: `""`  
-
-```yml
-# Examples
-
-check: this.type == "end_of_transaction"
-```
-
-### `batching.processors`
-
-A list of [processors](/docs/components/processors/about) to apply to a batch as it is flushed. This allows you to aggregate and archive the batch however you see fit. Please note that all resulting messages are flushed as a single batch, therefore splitting the batch into smaller batches using these processors is a no-op.
-
-
-Type: `array`  
-
-```yml
-# Examples
-
-processors:
-  - archive:
-      format: concatenate
-
-processors:
-  - archive:
-      format: lines
-
-processors:
-  - archive:
-      format: json_array
-```
+Type: `bool`  
+Default: `true`  
 
 
