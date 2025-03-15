@@ -177,6 +177,8 @@ func (cyp *CypherInput) Connect(ctx context.Context) error {
 
 				for result.Next(cypCtx) {
 					select {
+					case <-ctx.Done():
+						return nil, ctx.Err()
 					case <-cypCtx.Done():
 						return nil, cypCtx.Err()
 					case <-cyp.shutSig.HardStopChan():
@@ -198,14 +200,16 @@ func (cyp *CypherInput) Read(ctx context.Context) (*service.Message, service.Ack
 		return nil, nil, service.ErrNotConnected
 	}
 
-	record, ok := <-cyp.recordsChan
-
-	if !ok {
+	msg := service.NewMessage(nil)
+	select {
+	case record, open := <-cyp.recordsChan:
+		if !open {
+			return nil, nil, service.ErrEndOfInput
+		}
+		msg.SetStructuredMut(record.AsMap())
+	case <-ctx.Done():
 		return nil, nil, service.ErrEndOfInput
 	}
-
-	msg := service.NewMessage(nil)
-	msg.SetStructuredMut(record.AsMap())
 
 	return msg, func(ctx context.Context, err error) error {
 		return nil
@@ -213,5 +217,6 @@ func (cyp *CypherInput) Read(ctx context.Context) (*service.Message, service.Ack
 }
 
 func (cyp *CypherInput) Close(ctx context.Context) (err error) {
+	cyp.shutSig.TriggerHardStop()
 	return nil
 }
