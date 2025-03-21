@@ -23,6 +23,8 @@ csv:
   parse_header_row: true
   lazy_quotes: false
   continue_on_error: false
+  expected_headers: [] # No default (optional)
+  expected_number_of_fields: 0 # No default (optional)
 ```
 
 ### Metadata
@@ -65,5 +67,28 @@ If a row fails to parse due to any error emit an empty message marked with the e
 
 Type: `bool`  
 Default: `false`  
+
+### `expected_headers`
+
+An optional list of expected headers in the header row, that will be checked against the file contents.
+
+
+Type: `array`  
+
+```yml
+# Examples
+
+expected_headers:
+  - first_name
+  - last_name
+  - age
+```
+
+### `expected_number_of_fields`
+
+The numer of expected fields in the csv file.
+
+
+Type: `int`  
 
 
