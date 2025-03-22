@@ -38,8 +38,6 @@ output:
     columns: [] # No default (required)
     args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (required)
     max_in_flight: 64
-    aws_enabled: false
-    aws: {}
     batching:
       count: 0
       byte_size: 0

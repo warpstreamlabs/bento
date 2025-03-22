@@ -36,8 +36,6 @@ sql_raw:
   query: INSERT INTO footable (foo, bar, baz) VALUES (?, ?, ?); # No default (required)
   args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (optional)
   exec_only: false
-  aws_enabled: false
-  aws: {}
 ```
 
 </TabItem>
