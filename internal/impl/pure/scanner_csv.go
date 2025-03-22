@@ -49,7 +49,7 @@ This scanner adds the following metadata to each message:
 				Example([]string{"first_name", "last_name", "age"}).
 				Optional(),
 			service.NewIntField(scsvFieldExpectedNumberOfFields).
-				Description("The numer of expected fields in the csv file.").
+				Description("The number of expected fields in the csv file.").
 				LintRule(`root = if this < 1 { [ "`+scsvFieldExpectedNumberOfFields+` must be at least 1" ] }`).
 				Optional(),
 		)
