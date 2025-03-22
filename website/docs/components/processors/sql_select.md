@@ -37,8 +37,6 @@ sql_select:
   columns: [] # No default (required)
   where: meow = ? and woof = ? # No default (optional)
   args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (optional)
-  aws_enabled: false
-  aws: {}
 ```
 
 </TabItem>

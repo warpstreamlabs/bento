@@ -40,8 +40,6 @@ input:
     query: SELECT * FROM footable WHERE user_id = $1; # No default (required)
     args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (optional)
     auto_replay_nacks: true
-    aws_enabled: false
-    aws: {}
 ```
 
 </TabItem>

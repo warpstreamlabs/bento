@@ -106,7 +106,8 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Advanced(),
 		service.NewBoolField("aws_enabled").
 			Description("Enables connectivity to AWS for credential retrieval.").
-			Default(false),
+			Default(false).
+			Advanced(),
 		service.NewObjectField(SQLFieldAWS,
 			append([]*service.ConfigField{
 				service.NewBoolField("iam_enabled").
@@ -119,7 +120,8 @@ CREATE TABLE IF NOT EXISTS some_table (
 					Advanced()},
 				config.SessionFields()...)...,
 		).Description("Customises connectivity to AWS.").
-			Optional(),
+			Optional().
+			Advanced(),
 	}
 
 	return connFields
