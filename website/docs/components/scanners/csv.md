@@ -86,7 +86,7 @@ expected_headers:
 
 ### `expected_number_of_fields`
 
-The numer of expected fields in the csv file.
+The number of expected fields in the csv file.
 
 
 Type: `int`  
