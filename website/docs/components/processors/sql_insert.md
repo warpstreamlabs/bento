@@ -36,8 +36,6 @@ sql_insert:
   table: foo # No default (required)
   columns: [] # No default (required)
   args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (required)
-  aws_enabled: false
-  aws: {}
 ```
 
 </TabItem>

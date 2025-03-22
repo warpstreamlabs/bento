@@ -42,8 +42,6 @@ input:
     where: type = ? and created_at > ? # No default (optional)
     args_mapping: root = [ "article", now().ts_format("2006-01-02") ] # No default (optional)
     auto_replay_nacks: true
-    aws_enabled: false
-    aws: {}
 ```
 
 </TabItem>

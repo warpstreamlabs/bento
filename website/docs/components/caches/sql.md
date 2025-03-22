@@ -40,8 +40,6 @@ sql:
   key_column: foo # No default (required)
   value_column: bar # No default (required)
   set_suffix: ON DUPLICATE KEY UPDATE bar=VALUES(bar) # No default (optional)
-  aws_enabled: false
-  aws: {}
 ```
 
 </TabItem>
