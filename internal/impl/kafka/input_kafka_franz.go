@@ -251,6 +251,30 @@ func (f *franzKafkaReader) waitForAccess(ctx context.Context, batch service.Mess
 	}
 }
 
+func getOffsetReset(conf *service.ParsedConfig) (string, error) {
+	// Allow the newer auto_offset_reset to take presedence.
+	if conf.Contains("auto_offset_reset") {
+		autoOffsetReset, err := conf.FieldString("auto_offset_reset")
+		if err != nil {
+			return "", err
+		}
+		return autoOffsetReset, nil
+	}
+
+	if conf.Contains("start_from_oldest") {
+		startFromOldest, err := conf.FieldBool("start_from_oldest")
+		if err != nil {
+			return "", err
+		}
+		if startFromOldest {
+			return "earliest", nil
+		}
+		return "latest", nil
+	}
+
+	return "earliest", nil
+}
+
 func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Resources) (*franzKafkaReader, error) {
 	f := franzKafkaReader{
 		res:     res,
@@ -266,23 +290,8 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
 	}
 
-	if conf.Contains("start_from_oldest") {
-		startFromOldest, err := conf.FieldBool("start_from_oldest")
-		if err != nil {
-			return nil, err
-		}
-
-		f.autoOffsetReset = "latest"
-		if startFromOldest {
-			f.autoOffsetReset = "earliest"
-		}
-	}
-
-	// Allow the newer auto_offset_reset to take presedence.
-	if conf.Contains("auto_offset_reset") {
-		if f.autoOffsetReset, err = conf.FieldString("auto_offset_reset"); err != nil {
-			return nil, err
-		}
+	if f.autoOffsetReset, err = getOffsetReset(conf); err != nil {
+		return nil, err
 	}
 
 	topicList, err := conf.FieldStringList("topics")
