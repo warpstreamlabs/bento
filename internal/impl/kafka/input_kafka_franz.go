@@ -95,6 +95,11 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Description("Determines whether to consume from the oldest available offset, otherwise messages are consumed from the latest offset. The setting is applied when creating a new consumer group or the saved offset no longer exists.").
 			Default(true).
 			Advanced()).
+		Field(service.NewStringEnumField("auto_offset_reset", "earliest", "latest", "none").
+			Description("Determines which offset to automatically consume from, matching Kafka's `auto.offset.reset` property. When specified, this takes precedence over `start_from_oldest`.").
+			Version("1.6.0").
+			Optional().
+			Advanced()).
 		Field(service.NewStringListField("group_balancers").
 			Description("Balancers sets the group balancers to use for dividing topic partitions among group members. This option is equivalent to Kafka's `partition.assignment.strategies` option.").
 			Version("1.3.0").
@@ -183,7 +188,7 @@ type franzKafkaReader struct {
 	tlsConf         *tls.Config
 	saslConfs       []sasl.Mechanism
 	checkpointLimit int
-	startFromOldest bool
+	autoOffsetReset string
 	commitPeriod    time.Duration
 	regexPattern    bool
 	multiHeader     bool
@@ -244,6 +249,27 @@ func (f *franzKafkaReader) waitForAccess(ctx context.Context, batch service.Mess
 	}
 }
 
+func getOffsetReset(conf *service.ParsedConfig) (string, error) {
+	// Allow the newer auto_offset_reset to take presedence.
+	if conf.Contains("auto_offset_reset") {
+		autoOffsetReset, err := conf.FieldString("auto_offset_reset")
+		if err != nil {
+			return "", err
+		}
+		return autoOffsetReset, nil
+	}
+
+	startFromOldest, err := conf.FieldBool("start_from_oldest")
+	if err != nil {
+		return "", err
+	}
+
+	if startFromOldest {
+		return "earliest", nil
+	}
+	return "latest", nil
+}
+
 func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Resources) (*franzKafkaReader, error) {
 	f := franzKafkaReader{
 		res:     res,
@@ -259,7 +285,7 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
 	}
 
-	if f.startFromOldest, err = conf.FieldBool("start_from_oldest"); err != nil {
+	if f.autoOffsetReset, err = getOffsetReset(conf); err != nil {
 		return nil, err
 	}
 
@@ -269,8 +295,11 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	}
 
 	var defaultOffset int64 = -1
-	if f.startFromOldest {
-		defaultOffset = -2
+	switch f.autoOffsetReset {
+	case "none", "latest":
+		defaultOffset = -1 // start from newest offset
+	case "earliest":
+		defaultOffset = -2 // start from oldest available offset
 	}
 
 	var topicPartitions map[string]map[int32]int64
@@ -741,10 +770,13 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 	}
 
 	var initialOffset kgo.Offset
-	if f.startFromOldest {
+	switch f.autoOffsetReset {
+	case "earliest":
 		initialOffset = kgo.NewOffset().AtStart()
-	} else {
+	case "latest":
 		initialOffset = kgo.NewOffset().AtEnd()
+	case "none":
+		initialOffset = kgo.NewOffset().AtCommitted()
 	}
 
 	batchChan := make(chan batchWithAckFn)
