@@ -94,12 +94,10 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 		Field(service.NewBoolField("start_from_oldest").
 			Description("Determines whether to consume from the oldest available offset, otherwise messages are consumed from the latest offset. The setting is applied when creating a new consumer group or the saved offset no longer exists.").
 			Default(true).
-			Optional().
 			Advanced()).
 		Field(service.NewStringEnumField("auto_offset_reset", "earliest", "latest", "none").
 			Description("Determines which offset to automatically consume from, matching Kafka's `auto.offset.reset` property. When specified, this takes precedence over `start_from_oldest`.").
 			Version("1.6.0").
-			Default("earliest").
 			Optional().
 			Advanced()).
 		Field(service.NewStringListField("group_balancers").
@@ -261,18 +259,15 @@ func getOffsetReset(conf *service.ParsedConfig) (string, error) {
 		return autoOffsetReset, nil
 	}
 
-	if conf.Contains("start_from_oldest") {
-		startFromOldest, err := conf.FieldBool("start_from_oldest")
-		if err != nil {
-			return "", err
-		}
-		if startFromOldest {
-			return "earliest", nil
-		}
-		return "latest", nil
+	startFromOldest, err := conf.FieldBool("start_from_oldest")
+	if err != nil {
+		return "", err
 	}
 
-	return "earliest", nil
+	if startFromOldest {
+		return "earliest", nil
+	}
+	return "latest", nil
 }
 
 func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Resources) (*franzKafkaReader, error) {
