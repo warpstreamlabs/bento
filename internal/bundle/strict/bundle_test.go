@@ -272,7 +272,7 @@ processors:
 
 	mgr, err := manager.New(
 		manager.ResourceConfig{},
-		strict.OptSetRetryModeFromManager()...,
+		strict.OptSetStrictModeFromManager()...,
 	)
 	require.NoError(t, err)
 
@@ -306,7 +306,7 @@ processors:
 
 	mgr, err := manager.New(
 		manager.ResourceConfig{},
-		strict.OptSetRetryModeFromManager()...,
+		strict.OptSetStrictModeFromManager()...,
 	)
 	require.NoError(t, err)
 
