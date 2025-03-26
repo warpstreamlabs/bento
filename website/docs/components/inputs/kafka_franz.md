@@ -60,7 +60,7 @@ input:
     auto_replay_nacks: true
     commit_period: 5s
     start_from_oldest: true
-    auto_offset_reset: earliest
+    auto_offset_reset: "" # No default (optional)
     group_balancers:
       - cooperative_sticky
     metadata_max_age: 5m
@@ -241,7 +241,6 @@ Determines which offset to automatically consume from, matching Kafka's `auto.of
 
 
 Type: `string`  
-Default: `"earliest"`  
 Requires version 1.6.0 or newer  
 Options: `earliest`, `latest`, `none`.
 
