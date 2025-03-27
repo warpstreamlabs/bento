@@ -5,15 +5,18 @@ import (
 	"encoding/csv"
 	"errors"
 	"io"
+	"slices"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (
-	scsvFieldCustomDelimiter = "custom_delimiter"
-	scsvFieldParseHeaderRow  = "parse_header_row"
-	scsvFieldLazyQuotes      = "lazy_quotes"
-	scsvFieldContinueOnError = "continue_on_error"
+	scsvFieldCustomDelimiter        = "custom_delimiter"
+	scsvFieldParseHeaderRow         = "parse_header_row"
+	scsvFieldLazyQuotes             = "lazy_quotes"
+	scsvFieldContinueOnError        = "continue_on_error"
+	scsvFieldExpectedHeaders        = "expected_headers"
+	scsvFieldExpectedNumberOfFields = "expected_number_of_fields"
 )
 
 func csvScannerSpec() *service.ConfigSpec {
@@ -41,6 +44,14 @@ This scanner adds the following metadata to each message:
 			service.NewBoolField(scsvFieldContinueOnError).
 				Description("If a row fails to parse due to any error emit an empty message marked with the error and then continue consuming subsequent rows when possible. This can sometimes be useful in situations where input data contains individual rows which are malformed. However, when a row encounters a parsing error it is impossible to guarantee that following rows are valid, as this indicates that the input data is unreliable and could potentially emit misaligned rows.").
 				Default(false),
+			service.NewStringListField(scsvFieldExpectedHeaders).
+				Description("An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.").
+				Example([]string{"first_name", "last_name", "age"}).
+				Optional(),
+			service.NewIntField(scsvFieldExpectedNumberOfFields).
+				Description("The number of expected fields in the csv file.").
+				LintRule(`root = if this < 1 { [ "`+scsvFieldExpectedNumberOfFields+` must be at least 1" ] }`).
+				Optional(),
 		)
 }
 
@@ -70,14 +81,26 @@ func csvScannerFromParsed(conf *service.ParsedConfig) (l *csvScannerCreator, err
 	if l.continueOnError, err = conf.FieldBool(scsvFieldContinueOnError); err != nil {
 		return
 	}
+	if conf.Contains(scsvFieldExpectedHeaders) {
+		if l.expectedHeaders, err = conf.FieldStringList(scsvFieldExpectedHeaders); err != nil {
+			return
+		}
+	}
+	if conf.Contains(scsvFieldExpectedNumberOfFields) {
+		if l.expectedNumberOfFields, err = conf.FieldInt(scsvFieldExpectedNumberOfFields); err != nil {
+			return
+		}
+	}
 	return
 }
 
 type csvScannerCreator struct {
-	customDelim     string
-	parseHeaderRow  bool
-	lazyQuotes      bool
-	continueOnError bool
+	customDelim            string
+	parseHeaderRow         bool
+	lazyQuotes             bool
+	continueOnError        bool
+	expectedHeaders        []string
+	expectedNumberOfFields int
 }
 
 func (c *csvScannerCreator) Create(rdr io.ReadCloser, aFn service.AckFunc, details *service.ScannerSourceDetails) (service.BatchScanner, error) {
@@ -86,6 +109,7 @@ func (c *csvScannerCreator) Create(rdr io.ReadCloser, aFn service.AckFunc, detai
 	if c.customDelim != "" {
 		cRdr.Comma = []rune(c.customDelim)[0]
 	}
+	cRdr.FieldsPerRecord = c.expectedNumberOfFields
 
 	var headers []string
 	if c.parseHeaderRow {
@@ -93,8 +117,10 @@ func (c *csvScannerCreator) Create(rdr io.ReadCloser, aFn service.AckFunc, detai
 		if err != nil {
 			return nil, err
 		}
-		headers = make([]string, len(tmpHeaders))
-		_ = copy(headers, tmpHeaders)
+		if len(c.expectedHeaders) > 0 && slices.Compare(c.expectedHeaders, tmpHeaders) != 0 {
+			return nil, errors.New("expected_headers don't match file contents")
+		}
+		headers = append([]string{}, tmpHeaders...)
 	}
 
 	return service.AutoAggregateBatchScannerAcks(&csvScanner{
