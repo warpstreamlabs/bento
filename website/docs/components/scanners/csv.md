@@ -74,6 +74,7 @@ An optional list of expected headers in the header row. If provided, the scanner
 
 
 Type: `array`  
+Requires version 1.6.0 or newer  
 
 ```yml
 # Examples
@@ -90,5 +91,6 @@ The number of expected fields in the csv file.
 
 
 Type: `int`  
+Requires version 1.6.0 or newer  
 
 

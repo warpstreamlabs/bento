@@ -47,9 +47,11 @@ This scanner adds the following metadata to each message:
 			service.NewStringListField(scsvFieldExpectedHeaders).
 				Description("An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.").
 				Example([]string{"first_name", "last_name", "age"}).
+				Version("1.6.0").
 				Optional(),
 			service.NewIntField(scsvFieldExpectedNumberOfFields).
 				Description("The number of expected fields in the csv file.").
+				Version("1.6.0").
 				LintRule(`root = if this < 1 { [ "`+scsvFieldExpectedNumberOfFields+` must be at least 1" ] }`).
 				Optional(),
 		)
