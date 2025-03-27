@@ -70,7 +70,7 @@ Default: `false`
 
 ### `expected_headers`
 
-An optional list of expected headers in the header row, that will be checked against the file contents.
+An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.
 
 
 Type: `array`  
