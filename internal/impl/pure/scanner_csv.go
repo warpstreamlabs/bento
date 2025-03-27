@@ -45,7 +45,7 @@ This scanner adds the following metadata to each message:
 				Description("If a row fails to parse due to any error emit an empty message marked with the error and then continue consuming subsequent rows when possible. This can sometimes be useful in situations where input data contains individual rows which are malformed. However, when a row encounters a parsing error it is impossible to guarantee that following rows are valid, as this indicates that the input data is unreliable and could potentially emit misaligned rows.").
 				Default(false),
 			service.NewStringListField(scsvFieldExpectedHeaders).
-				Description("An optional list of expected headers in the header row, that will be checked against the file contents.").
+				Description("An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.").
 				Example([]string{"first_name", "last_name", "age"}).
 				Optional(),
 			service.NewIntField(scsvFieldExpectedNumberOfFields).
