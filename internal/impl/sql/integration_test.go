@@ -1440,7 +1440,8 @@ func TestIntegrationRdsIamAuth(t *testing.T) {
 
 	_ = resource.Expire(900)
 
-	waitForRds(localstackPort, rdsPort)
+	err = waitForRds(localstackPort, rdsPort)
+	require.NoError(t, err)
 
 	// create user in DB
 	connStr := fmt.Sprintf("postgres://masterusername:password123@localhost.localstack.cloud:%v/testdb?sslmode=disable", rdsPort)
