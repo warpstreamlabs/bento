@@ -386,6 +386,12 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Set headers for SSE
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	ctx, done := h.shutSig.SoftStopCtx(r.Context())
 	defer done()
 
@@ -403,22 +409,19 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		var data []byte
-		if ts.Payload.Len() == 1 {
-			data = ts.Payload.Get(0).AsBytes()
-		} else {
-			data = append(bytes.Join(message.GetAllBytes(ts.Payload), []byte("\n")), byte('\n'))
+		// Send each message as an SSE event
+		for i := 0; i < ts.Payload.Len(); i++ {
+			data := ts.Payload.Get(i).AsBytes()
+			_, err := fmt.Fprintf(w, "data: %s\n\n", data)
+			if err != nil {
+				h.mStreamError.Incr(1)
+				_ = ts.Ack(ctx, err)
+				return
+			}
 		}
 
-		_, err := w.Write(data)
-		_ = ts.Ack(ctx, err)
-		if err != nil {
-			h.mStreamError.Incr(1)
-			return
-		}
-
-		_, _ = w.Write([]byte("\n"))
 		flusher.Flush()
+		_ = ts.Ack(ctx, nil)
 		h.mStreamSent.Incr(int64(batch.MessageCollapsedCount(ts.Payload)))
 		h.mStreamBatchSent.Incr(1)
 	}
@@ -434,7 +437,11 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	upgrader := websocket.Upgrader{}
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
 
 	// Upgrade the HTTP connection to a WebSocket connection
 	ws, err := upgrader.Upgrade(w, r, nil)
