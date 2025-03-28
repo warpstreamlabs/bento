@@ -1396,10 +1396,6 @@ func waitForRedshiftAndGetAddress(localstackPort string, redshiftPort string, cl
 }
 
 func TestIntegrationRdsIamAuth(t *testing.T) {
-	// SKIP TEST - LOCALSTACK ISSUE
-	// https://github.com/localstack/localstack/issues/11507
-	t.Skip("issue with localstack and IAM Auth with RDS")
-
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
