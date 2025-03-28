@@ -492,7 +492,22 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			return true
+			if !h.conf.CORS.Enabled {
+				return true
+			}
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			if len(h.conf.CORS.AllowedOrigins) == 0 {
+				return false
+			}
+			for _, allowed := range h.conf.CORS.AllowedOrigins {
+				if allowed == "*" || allowed == origin {
+					return true
+				}
+			}
+			return false
 		},
 	}
 
