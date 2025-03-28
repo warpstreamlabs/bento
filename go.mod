@@ -66,7 +66,7 @@ require (
 	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/gocql/gocql v1.6.0
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/googleapis/go-sql-spanner v1.7.4
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
