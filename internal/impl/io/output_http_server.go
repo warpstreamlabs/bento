@@ -46,12 +46,21 @@ const (
 	hsoFieldWriteWait          = "write_wait"
 	hsoFieldPongWait           = "pong_wait"
 	hsoFieldPingPeriod         = "ping_period"
+	hsoFieldStreamMode         = "stream_mode"
+)
+
+type StreamMode string
+
+const (
+	StreamModeRaw StreamMode = "raw"
+	StreamModeSSE StreamMode = "sse"
 )
 
 type hsoConfig struct {
 	Address       string
 	Path          string
 	StreamPath    string
+	StreamMode    StreamMode
 	WSPath        string
 	WSMessageType string
 	AllowedVerbs  map[string]struct{}
@@ -73,6 +82,11 @@ func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error
 	}
 	if conf.StreamPath, err = pConf.FieldString(hsoFieldStreamPath); err != nil {
 		return
+	}
+	if sMode, err := pConf.FieldString(hsoFieldStreamMode); err != nil {
+		return conf, err
+	} else {
+		conf.StreamMode = StreamMode(sMode)
 	}
 	if conf.WSPath, err = pConf.FieldString(hsoFieldWSPath); err != nil {
 		return
@@ -146,6 +160,9 @@ Please note, messages are considered delivered as soon as the data is written to
 			service.NewStringField(hsoFieldStreamPath).
 				Description("The path from which a continuous stream of messages can be consumed.").
 				Default("/get/stream"),
+			service.NewStringEnumField(hsoFieldStreamMode, "raw", "sse").
+				Description("The mode of the stream endpoint.").
+				Default("raw"),
 			service.NewStringField(hsoFieldWSPath).
 				Description("The path from which websocket connections can be established.").
 				Default("/get/ws"),
@@ -386,11 +403,29 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Set headers for SSE
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if h.conf.StreamMode == StreamModeSSE {
+		// Set headers for SSE
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		if h.conf.CORS.Enabled {
+			if len(h.conf.CORS.AllowedOrigins) > 0 {
+				// Use configured origins
+				origin := r.Header.Get("Origin")
+				for _, allowed := range h.conf.CORS.AllowedOrigins {
+					if allowed == "*" {
+						w.Header().Set("Access-Control-Allow-Origin", "*")
+						break
+					}
+					if origin == allowed {
+						w.Header().Set("Access-Control-Allow-Origin", origin)
+						break
+					}
+				}
+			}
+		}
+	}
 
 	ctx, done := h.shutSig.SoftStopCtx(r.Context())
 	defer done()
@@ -409,19 +444,37 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		// Send each message as an SSE event
-		for i := 0; i < ts.Payload.Len(); i++ {
-			data := ts.Payload.Get(i).AsBytes()
-			_, err := fmt.Fprintf(w, "data: %s\n\n", data)
+		if h.conf.StreamMode == StreamModeSSE {
+			// Send each message as an SSE event
+			for i := 0; i < ts.Payload.Len(); i++ {
+				data := ts.Payload.Get(i).AsBytes()
+				_, err := fmt.Fprintf(w, "data: %s\n\n", data)
+				if err != nil {
+					h.mStreamError.Incr(1)
+					_ = ts.Ack(ctx, err)
+					return
+				}
+			}
+
+			flusher.Flush()
+			_ = ts.Ack(ctx, nil)
+		} else {
+			var data []byte
+			if ts.Payload.Len() == 1 {
+				data = ts.Payload.Get(0).AsBytes()
+			} else {
+				data = append(bytes.Join(message.GetAllBytes(ts.Payload), []byte("\n")), byte('\n'))
+			}
+
+			_, err := w.Write(data)
+			_ = ts.Ack(ctx, err)
 			if err != nil {
 				h.mStreamError.Incr(1)
-				_ = ts.Ack(ctx, err)
 				return
 			}
+			_, _ = w.Write([]byte("\n"))
+			flusher.Flush()
 		}
-
-		flusher.Flush()
-		_ = ts.Ack(ctx, nil)
 		h.mStreamSent.Incr(int64(batch.MessageCollapsedCount(ts.Payload)))
 		h.mStreamBatchSent.Incr(1)
 	}
