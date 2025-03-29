@@ -19,21 +19,25 @@ import (
 
 const (
 	// SQS Input Fields
-	sqsiFieldURL                 = "url"
-	sqsiFieldWaitTimeSeconds     = "wait_time_seconds"
-	sqsiFieldDeleteMessage       = "delete_message"
-	sqsiFieldResetVisibility     = "reset_visibility"
-	sqsiFieldMaxNumberOfMessages = "max_number_of_messages"
+	sqsiFieldURL                  = "url"
+	sqsiFieldWaitTimeSeconds      = "wait_time_seconds"
+	sqsiFieldDeleteMessage        = "delete_message"
+	sqsiFieldResetVisibility      = "reset_visibility"
+	sqsiFieldUpdateVisibility     = "update_visibility"
+	sqsiFieldMaxNumberOfMessages  = "max_number_of_messages"
+	sqsiFieldCustomRequestHeaders = "custom_request_headers"
 
 	sqsiAttributeNameVisibilityTimeout = "VisibilityTimeout"
 )
 
 type sqsiConfig struct {
-	URL                 string
-	WaitTimeSeconds     int
-	DeleteMessage       bool
-	ResetVisibility     bool
-	MaxNumberOfMessages int
+	URL                  string
+	WaitTimeSeconds      int
+	DeleteMessage        bool
+	ResetVisibility      bool
+	UpdateVisibility     bool
+	MaxNumberOfMessages  int
+	CustomRequestHeaders map[string]string
 }
 
 func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err error) {
@@ -49,7 +53,13 @@ func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err err
 	if conf.ResetVisibility, err = pConf.FieldBool(sqsiFieldResetVisibility); err != nil {
 		return
 	}
+	if conf.UpdateVisibility, err = pConf.FieldBool(sqsiFieldUpdateVisibility); err != nil {
+		return
+	}
 	if conf.MaxNumberOfMessages, err = pConf.FieldInt(sqsiFieldMaxNumberOfMessages); err != nil {
+		return
+	}
+	if conf.CustomRequestHeaders, err = pConf.FieldStringMap(sqsiFieldCustomRequestHeaders); err != nil {
 		return
 	}
 	return
@@ -93,6 +103,11 @@ You can access these metadata fields using
 				Version("1.0.0").
 				Default(true).
 				Advanced(),
+			service.NewBoolField(sqsiFieldUpdateVisibility).
+				Description("Whether to periodically refresh the visibility timeout of in-flight messages to prevent more-than-once delivery while still processing.").
+				Version("1.6.0").
+				Default(true).
+				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
 				Description("The maximum number of messages to return on one poll. Valid values: 1 to 10.").
 				Default(10).
@@ -100,6 +115,11 @@ You can access these metadata fields using
 			service.NewIntField("wait_time_seconds").
 				Description("Whether to set the wait time. Enabling this activates long-polling. Valid values: 0 to 20.").
 				Default(0).
+				Advanced(),
+			service.NewStringMapField(sqsiFieldCustomRequestHeaders).
+				Description("A map used to send custom HTTP headers alongside each SQS operation to AWS.").
+				Version("1.6.0").
+				Default(map[string]string{}).
 				Advanced(),
 		).
 		Fields(config.SessionFields()...)
@@ -165,6 +185,10 @@ func newAWSSQSReader(conf sqsiConfig, aconf aws.Config, log *service.Logger) (*a
 func (a *awsSQSReader) Connect(ctx context.Context) error {
 	if a.sqs == nil {
 		a.sqs = sqs.NewFromConfig(a.aconf)
+	}
+
+	if customHeaders := a.conf.CustomRequestHeaders; len(customHeaders) > 0 {
+		a.sqs = newCustomHeaderSQSClient(a.sqs, customHeaders)
 	}
 
 	ift := &sqsInFlightTracker{
@@ -442,6 +466,10 @@ func (a *awsSQSReader) resetMessages(ctx context.Context, msgs ...sqsMessageHand
 }
 
 func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int, msgs ...sqsMessageHandle) error {
+	if !a.conf.UpdateVisibility {
+		return nil
+	}
+
 	for len(msgs) > 0 {
 		input := sqs.ChangeMessageVisibilityBatchInput{
 			QueueUrl: aws.String(a.conf.URL),
@@ -478,6 +506,11 @@ func addSQSMetadata(p *service.Message, sqsMsg types.Message) {
 	if rCountStr, exists := sqsMsg.Attributes["ApproximateReceiveCount"]; exists {
 		p.MetaSetMut("sqs_approximate_receive_count", rCountStr)
 	}
+
+	for k, v := range sqsMsg.Attributes {
+		p.MetaSetMut(k, v)
+	}
+
 	for k, v := range sqsMsg.MessageAttributes {
 		if v.StringValue != nil {
 			p.MetaSetMut(k, *v.StringValue)

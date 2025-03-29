@@ -44,8 +44,10 @@ input:
     url: "" # No default (required)
     delete_message: true
     reset_visibility: true
+    update_visibility: true
     max_number_of_messages: 10
     wait_time_seconds: 0
+    custom_request_headers: {}
     region: ""
     endpoint: ""
     credentials:
@@ -108,6 +110,15 @@ Type: `bool`
 Default: `true`  
 Requires version 1.0.0 or newer  
 
+### `update_visibility`
+
+Whether to periodically refresh the visibility timeout of in-flight messages to prevent more-than-once delivery while still processing.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.6.0 or newer  
+
 ### `max_number_of_messages`
 
 The maximum number of messages to return on one poll. Valid values: 1 to 10.
@@ -123,6 +134,15 @@ Whether to set the wait time. Enabling this activates long-polling. Valid values
 
 Type: `int`  
 Default: `0`  
+
+### `custom_request_headers`
+
+A map used to send custom HTTP headers alongside each SQS operation to AWS.
+
+
+Type: `object`  
+Default: `{}`  
+Requires version 1.6.0 or newer  
 
 ### `region`
 
