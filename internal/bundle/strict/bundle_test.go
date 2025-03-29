@@ -3,6 +3,7 @@ package strict_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -126,7 +127,11 @@ func TestStrictBundleProcessorMultiMessage(t *testing.T) {
 	tCtx := context.Background()
 
 	pConf, err := testutil.ProcessorFromYAML(`
-bloblang: root = this
+processors:
+  - mapping: |
+      root = this
+  - mapping: |
+      root = "What is love?"
 `)
 	require.NoError(t, err)
 
@@ -170,8 +175,25 @@ bloblang: root = this
 	require.Empty(t, msgs)
 	require.Error(t, res)
 	assert.ErrorContains(t, res, "invalid character 'o' in literal null (expecting 'u')")
+
+	// Check if the next mapping Processor is reached when no error is present (happy path)
+	msg = message.QuickBatch([][]byte{
+		[]byte(`{"msg":"Baby don't hurt me"}`),
+		[]byte(`{"msg":"Don't hurt me"}`),
+		[]byte(`{"msg":"No more"}`),
+	})
+	msgs, res = proc.ProcessBatch(tCtx, msg)
+	require.NotEmpty(t, msgs)
+	require.NoError(t, res)
+
+	assert.Equal(t, 3, msgs[0].Len())
+	assert.Equal(t, "What is love?", string(msgs[0].Get(0).AsBytes()))
+	assert.Equal(t, "What is love?", string(msgs[0].Get(1).AsBytes()))
+	assert.Equal(t, "What is love?", string(msgs[0].Get(2).AsBytes()))
+
 }
 
+// FIXME: The output should be in memory, not a file.
 func TestStrictBundleOutput(t *testing.T) {
 	streamBuilder := service.NewStreamBuilder()
 	err := streamBuilder.SetLoggerYAML(`level: off`)
@@ -182,20 +204,20 @@ func TestStrictBundleOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	// include a DLQ where errored messages go to stdout
-	err = streamBuilder.AddOutputYAML(`
+	err = streamBuilder.AddOutputYAML(fmt.Sprintf(`
 switch: 
   cases:
     - check: !errored()
       continue: true
       output:
         file:
-          path: ./tmp/data.txt
+          path: %s/data.txt
           codec: lines
     - check: errored()
       continue: false
       output:
         stdout: {}
-`)
+`, t.TempDir()))
 	require.NoError(t, err)
 
 	sendFn, err := streamBuilder.AddProducerFunc()
@@ -235,4 +257,72 @@ switch:
 	r.Close()
 
 	assert.Equal(t, "praise be to the omnissiah\n", buf.String())
+}
+
+func TestDisableStrictBundleBloblangFunction(t *testing.T) {
+	tCtx := context.Background()
+	pConf, err := testutil.ProcessorFromYAML(`
+processors:
+  - mapping: |
+      root = this
+  - mapping: |
+      root = if errored() { "naughty" } else { "nice" }
+`)
+	require.NoError(t, err)
+
+	mgr, err := manager.New(
+		manager.ResourceConfig{},
+		strict.OptSetStrictModeFromManager()...,
+	)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(pConf)
+	require.NoError(t, err)
+
+	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
+	msgs, res := proc.ProcessBatch(tCtx, msg)
+	require.Len(t, msgs, 1)
+	require.NoError(t, res)
+	assert.Equal(t, "naughty", string(msgs[0].Get(0).AsBytes()))
+
+	msg = message.QuickBatch([][]byte{[]byte(`{"hello":"world"}`)})
+	msgs, res = proc.ProcessBatch(tCtx, msg)
+	require.NoError(t, res)
+	require.Len(t, msgs, 1)
+	assert.Equal(t, 1, msgs[0].Len())
+	assert.Equal(t, "nice", string(msgs[0].Get(0).AsBytes()))
+}
+
+func TestDisableStrictBundleBloblangMethods(t *testing.T) {
+	tCtx := context.Background()
+	pConf, err := testutil.ProcessorFromYAML(`
+processors:
+  - mapping: |
+      root = this.catch(err -> {"error": err})
+  - mapping: |
+      root = if this.exists("error") { "naughty" } else { "nice" }
+`)
+	require.NoError(t, err)
+
+	mgr, err := manager.New(
+		manager.ResourceConfig{},
+		strict.OptSetStrictModeFromManager()...,
+	)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(pConf)
+	require.NoError(t, err)
+
+	msg := message.QuickBatch([][]byte{[]byte("not a structured doc")})
+	msgs, res := proc.ProcessBatch(tCtx, msg)
+	require.Len(t, msgs, 1)
+	require.NoError(t, res)
+	assert.Equal(t, "naughty", string(msgs[0].Get(0).AsBytes()))
+
+	msg = message.QuickBatch([][]byte{[]byte(`{"hello":"world"}`)})
+	msgs, res = proc.ProcessBatch(tCtx, msg)
+	require.NoError(t, res)
+	require.Len(t, msgs, 1)
+	assert.Equal(t, 1, msgs[0].Len())
+	assert.Equal(t, "nice", string(msgs[0].Get(0).AsBytes()))
 }
