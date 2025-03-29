@@ -137,11 +137,12 @@ Default: `0`
 
 ### `custom_request_headers`
 
-An map used to send custom HTTP headers alongside each SQS operation to AWS.
+A map used to send custom HTTP headers alongside each SQS operation to AWS.
 
 
 Type: `object`  
 Default: `{}`  
+Requires version 1.6.0 or newer  
 
 ### `region`
 
