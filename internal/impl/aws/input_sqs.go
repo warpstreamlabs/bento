@@ -117,7 +117,8 @@ You can access these metadata fields using
 				Default(0).
 				Advanced(),
 			service.NewStringMapField(sqsiFieldCustomRequestHeaders).
-				Description("An map used to send custom HTTP headers alongside each SQS operation to AWS.").
+				Description("A map used to send custom HTTP headers alongside each SQS operation to AWS.").
+				Version("1.6.0").
 				Default(map[string]string{}).
 				Advanced(),
 		).
