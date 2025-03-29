@@ -3,9 +3,12 @@ module github.com/warpstreamlabs/bento
 replace github.com/99designs/keyring => github.com/Jeffail/keyring v1.2.3
 
 require (
+	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.18.1-20240117202343-bf8f65e8876c.1
+	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.2-20240117202343-bf8f65e8876c.1
 	cloud.google.com/go/bigquery v1.64.0
 	cloud.google.com/go/pubsub v1.45.1
 	cloud.google.com/go/storage v1.43.0
+	connectrpc.com/connect v1.18.1
 	cuelang.org/go v0.7.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.6.0
@@ -45,6 +48,7 @@ require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/benhoyt/goawk v1.25.0
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
+	github.com/bufbuild/prototransform v0.4.0
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/cenkalti/backoff/v4 v4.2.1
