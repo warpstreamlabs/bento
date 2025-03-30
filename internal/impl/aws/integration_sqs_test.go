@@ -225,9 +225,28 @@ aws_sqs:
 	require.True(t, ok, "Expected MetadataInfo metadata to exist")
 	require.Equal(t, "{\"region\":\"west\",\"priority\":\"high\",\"tags\":[\"urgent\",\"review\"]}", data)
 
-	data, ok = msg.MetaGetMut("AWSTraceHeader")
+	data, ok = msg.MetaGetMut("sqs_aws_trace_header")
 	require.True(t, ok, "Expected AWSTraceHeader to exist")
 	require.Equal(t, "Root=1-5f79c0ab-e42f32e8d29c38571712f1de", data, "Incorrect AWSTraceHeader value")
+
+	// We need to ensure that the default message attributes are read in and correctly mapped to
+	// metadata.
+	sqsAttributes := []string{
+		"sqs_approximate_receive_count",
+		"sqs_approximate_first_receive_timestamp",
+		"sqs_sender_id",
+		"sqs_sent_timestamp",
+		"sqs_aws_trace_header",
+		// Since this is not a FIFO queue, we do not expect:
+		// "sqs_sequence_number",
+		// "sqs_message_deduplication_id",
+		// "sqs_sequence_number",
+	}
+
+	for _, attrName := range sqsAttributes {
+		_, ok := msg.MetaGetMut(attrName)
+		require.True(t, ok, "Expected %s attribute to exist", attrName)
+	}
 
 	msgBody, err := msg.AsBytes()
 	require.NoError(t, err)

@@ -3,8 +3,11 @@ package aws
 import (
 	"context"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -503,17 +506,19 @@ func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int
 func addSQSMetadata(p *service.Message, sqsMsg types.Message) {
 	p.MetaSetMut("sqs_message_id", *sqsMsg.MessageId)
 	p.MetaSetMut("sqs_receipt_handle", *sqsMsg.ReceiptHandle)
-	if rCountStr, exists := sqsMsg.Attributes["ApproximateReceiveCount"]; exists {
-		p.MetaSetMut("sqs_approximate_receive_count", rCountStr)
-	}
-
 	for k, v := range sqsMsg.Attributes {
-		p.MetaSetMut(k, v)
+		p.MetaSetMut(awsFieldToMetadataKey(k, "sqs", ""), v)
 	}
 
 	for k, v := range sqsMsg.MessageAttributes {
 		if v.StringValue != nil {
 			p.MetaSetMut(k, *v.StringValue)
+			continue
+		}
+
+		if v.BinaryValue != nil {
+			p.MetaSetMut(k, string(v.BinaryValue))
+			continue
 		}
 	}
 }
@@ -606,4 +611,36 @@ func (a *awsSQSReader) Close(ctx context.Context) error {
 	case <-a.closeSignal.HasStoppedChan():
 	}
 	return nil
+}
+
+func awsFieldToMetadataKey(attribute, prefix, suffix string) string {
+	var result strings.Builder
+	if prefix != "" {
+		result.WriteString(prefix)
+		result.WriteRune('_')
+	}
+
+	var prev rune
+	for i, v := range attribute {
+		if unicode.IsLower(v) {
+			result.WriteRune(v)
+		} else {
+			// There is a scenario where we get multiple capitals in a row i.e AWSTraceHeader
+			// which should be converted to aws_trace_header and not a_w_s_traceheader
+			nextRune, _ := utf8.DecodeRuneInString(attribute[i+utf8.RuneLen(v):])
+			if i > 0 && (unicode.IsLower(prev) ||
+				unicode.IsLower(nextRune)) {
+				result.WriteByte('_')
+			}
+			result.WriteRune(unicode.ToLower(v))
+		}
+		prev = v
+	}
+
+	if suffix != "" {
+		result.WriteRune('_')
+		result.WriteString(suffix)
+	}
+
+	return result.String()
 }
