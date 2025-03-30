@@ -29,7 +29,7 @@ All notable changes to this project will be documented in this file.
 - GCP integration tests @gregfurman
 - GCP PubSub integration tests @jem-davies
 - Kafka integration tests @gregfurman
-- metadata creation in `sqs` input @gregfurman
+- metadata creation in `sqs` input to now include all message attributes @gregfurman
 
 ## 1.5.2 - 2025-03-12
 
