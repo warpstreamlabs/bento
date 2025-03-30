@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 - experimental 'strict' / 'retry' error handling modes will be overridden in presence of incompatible components/bloblang @gregfurman & @jem-davies
 - discord `bot_token` field marked as secret @jem-davies
 - golang.org/x/exp/rand replaced with math/rand/v2 @Juneezee
-- AWS tests refactored to use localstack @gregfurman
+- AWS tests refactored to use LocalStack fixture and pro-token @gregfurman
 - update JWT dependency @gitphill
 
 ### Added 
