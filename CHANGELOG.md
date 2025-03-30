@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 - fields `backoff_duration` and `start_seq_num` to `s2` input @vrongmeal
 - input component `cypher` @jem-davies
 - field `auto_offset_reset` added to `kafka_franz` input @gregfurman
-- `expected_headers` and `expected_number_of_fields` to `csv` scanner @jem-davies
+- fields `expected_headers` and `expected_number_of_fields` to `csv`  scanner @jem-davies
 - fields `update_visibility` and `custom_request_headers` to `sqs` input @gregfurman
 
 ### Fixed
