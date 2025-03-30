@@ -412,6 +412,9 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	var heartbeatTicker *time.Ticker
+	var heartbeatChan <-chan time.Time
+
 	if h.conf.StreamFormat == StreamFormatEventSource {
 		// Set headers for SSE
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -439,20 +442,15 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 	ctx, done := h.shutSig.SoftStopCtx(r.Context())
 	defer done()
 
-	var heartbeatTicker *time.Ticker
 	if h.conf.StreamFormat == StreamFormatEventSource && h.conf.Heartbeat > 0 {
 		heartbeatTicker = time.NewTicker(h.conf.Heartbeat)
+		heartbeatChan = heartbeatTicker.C
 		defer heartbeatTicker.Stop()
 	}
 
 	for !h.shutSig.IsSoftStopSignalled() {
 		var ts message.Transaction
 		var open bool
-		var heartbeatChan <-chan time.Time
-
-		if heartbeatTicker != nil {
-			heartbeatChan = heartbeatTicker.C
-		}
 
 		select {
 		case ts, open = <-h.transactions:
