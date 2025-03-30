@@ -52,6 +52,7 @@ output:
     path: /get
     stream_path: /get/stream
     stream_format: raw_bytes
+    heartbeat: 0s
     ws_path: /get/ws
     ws_message_type: binary
     allowed_verbs:
@@ -123,6 +124,14 @@ The format of the stream endpoint. `raw_bytes` delivers messages directly with n
 Type: `string`  
 Default: `"raw_bytes"`  
 Options: `raw_bytes`, `event_source`.
+
+### `heartbeat`
+
+The time to wait before sending a heartbeat message.
+
+
+Type: `string`  
+Default: `"0s"`  
 
 ### `ws_path`
 

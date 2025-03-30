@@ -47,6 +47,7 @@ const (
 	hsoFieldPongWait           = "pong_wait"
 	hsoFieldPingPeriod         = "ping_period"
 	hsoFieldStreamFormat       = "stream_format"
+	hsoFieldHeartbeat          = "heartbeat"
 )
 
 type StreamFormat string
@@ -61,6 +62,7 @@ type hsoConfig struct {
 	Path          string
 	StreamPath    string
 	StreamFormat  StreamFormat
+	Heartbeat     time.Duration
 	WSPath        string
 	WSMessageType string
 	AllowedVerbs  map[string]struct{}
@@ -87,6 +89,9 @@ func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error
 		return conf, err
 	} else {
 		conf.StreamFormat = StreamFormat(sFormat)
+	}
+	if conf.Heartbeat, err = pConf.FieldDuration(hsoFieldHeartbeat); err != nil {
+		return
 	}
 	if conf.WSPath, err = pConf.FieldString(hsoFieldWSPath); err != nil {
 		return
@@ -163,6 +168,10 @@ Please note, messages are considered delivered as soon as the data is written to
 			service.NewStringEnumField(hsoFieldStreamFormat, string(StreamFormatRawBytes), string(StreamFormatEventSource)).
 				Description("The format of the stream endpoint. `raw_bytes` delivers messages directly with newlines between batches, while `event_source` formats according to Server-Sent Events (SSE) specification with `data:` prefixes, compatible with EventSource API.").
 				Default(string(StreamFormatRawBytes)),
+			service.NewDurationField(hsoFieldHeartbeat).
+				Description("The time to wait before sending a heartbeat message.").
+				Advanced().
+				Default("0s"),
 			service.NewStringField(hsoFieldWSPath).
 				Description("The path from which websocket connections can be established.").
 				Default("/get/ws"),
@@ -430,15 +439,36 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 	ctx, done := h.shutSig.SoftStopCtx(r.Context())
 	defer done()
 
+	var heartbeatTicker *time.Ticker
+	if h.conf.StreamFormat == StreamFormatEventSource && h.conf.Heartbeat > 0 {
+		heartbeatTicker = time.NewTicker(h.conf.Heartbeat)
+		defer heartbeatTicker.Stop()
+	}
+
 	for !h.shutSig.IsSoftStopSignalled() {
 		var ts message.Transaction
 		var open bool
+		var heartbeatChan <-chan time.Time
+
+		if heartbeatTicker != nil {
+			heartbeatChan = heartbeatTicker.C
+		}
 
 		select {
 		case ts, open = <-h.transactions:
 			if !open {
 				go h.TriggerCloseNow()
 				return
+			}
+		case <-heartbeatChan:
+			// Send a heartbeat comment
+			if h.conf.StreamFormat == StreamFormatEventSource {
+				if _, err := fmt.Fprint(w, ": heartbeat\n\n"); err != nil {
+					h.log.Warn("Failed to write heartbeat: %v", err)
+					return
+				}
+				flusher.Flush()
+				continue
 			}
 		case <-r.Context().Done():
 			return

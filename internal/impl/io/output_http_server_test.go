@@ -339,6 +339,217 @@ http_server:
 	require.NoError(t, h.WaitForClose(ctx))
 }
 
+func TestHTTPServerOutputSSEHeartbeat(t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	port := getFreePort(t)
+	conf := parseYAMLOutputConf(t, `
+http_server:
+  address: localhost:%v
+  stream_path: /teststream
+  stream_format: event_source
+  heartbeat: 500ms
+`, port)
+
+	h, err := mock.NewManager().NewOutput(conf)
+	require.NoError(t, err)
+
+	msgChan := make(chan message.Transaction)
+	resChan := make(chan error)
+
+	require.NoError(t, h.Consume(msgChan))
+
+	<-time.After(time.Millisecond * 100)
+
+	// Start a client that will consume the SSE stream
+	clientDone := make(chan struct{})
+	clientErrors := make(chan error, 1)
+	receivedMessages := make(chan string, 10)
+	receivedHeartbeats := make(chan struct{}, 5)
+
+	go func() {
+		defer close(clientDone)
+
+		req, err := http.NewRequest("GET", fmt.Sprintf("http://localhost:%v/teststream", port), nil)
+		if err != nil {
+			clientErrors <- fmt.Errorf("failed to create request: %w", err)
+			return
+		}
+
+		// Set headers for SSE
+		req.Header.Set("Accept", "text/event-stream")
+		req.Header.Set("Cache-Control", "no-cache")
+
+		// Use a client with a timeout
+		client := &http.Client{
+			Timeout: time.Second * 10,
+		}
+
+		// Create a request with a context that can be canceled 
+		reqCtx, cancelReq := context.WithCancel(context.Background())
+		defer cancelReq()
+		req = req.WithContext(reqCtx)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			clientErrors <- fmt.Errorf("failed to execute request: %w", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		// Check response headers
+		if resp.StatusCode != 200 {
+			clientErrors <- fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			return
+		}
+
+		if contentType := resp.Header.Get("Content-Type"); contentType != "text/event-stream" {
+			clientErrors <- fmt.Errorf("unexpected content type: %s", contentType)
+			return
+		}
+
+		// Read the SSE stream
+		buffer := make([]byte, 4096)
+		currentData := ""
+		messageCount := 0
+		heartbeatCount := 0
+		deadline := time.Now().Add(5 * time.Second)
+
+		for time.Now().Before(deadline) && (messageCount < 2 || heartbeatCount < 3) {
+			// Use a read with deadline based on context instead of SetReadDeadline
+			readCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+			readCh := make(chan readResult, 1)
+
+			go func() {
+				n, err := resp.Body.Read(buffer)
+				readCh <- readResult{n: n, err: err}
+			}()
+
+			select {
+			case <-readCtx.Done():
+				cancel()
+				// Don't treat timeout as error if we've collected enough data
+				if messageCount >= 2 && heartbeatCount >= 3 {
+					return
+				}
+				continue
+			case result := <-readCh:
+				cancel()
+				if result.err != nil {
+					// If we've reached our goal, break out of the loop
+					if messageCount >= 2 && heartbeatCount >= 3 {
+						return
+					}
+
+					// Otherwise report the error
+					clientErrors <- fmt.Errorf("failed to read from body: %w", result.err)
+					return
+				}
+				currentData += string(buffer[:result.n])
+			}
+
+			// Process both heartbeat comments and data events
+			for {
+				// Check for heartbeat comment first (": heartbeat")
+				if idx := strings.Index(currentData, ": heartbeat\n\n"); idx >= 0 {
+					// Found a heartbeat comment
+					heartbeatCount++
+					receivedHeartbeats <- struct{}{}
+
+					// Remove the heartbeat comment from the buffer
+					currentData = currentData[idx+len(": heartbeat\n\n"):]
+					continue
+				}
+
+				// Then check for data event
+				idx := extractSSEMessage(currentData)
+				if idx <= 0 {
+					break // No complete message found
+				}
+
+				// Extract and process the message content
+				msgContent := currentData[:idx]
+				currentData = currentData[idx:]
+
+				// Parse out the actual data
+				dataContent := parseSSEData(msgContent)
+				if dataContent != "" {
+					receivedMessages <- dataContent
+					messageCount++
+				}
+			}
+
+			// If we've collected enough data, break early
+			if messageCount >= 2 && heartbeatCount >= 3 {
+				break
+			}
+		}
+
+		if messageCount < 2 || heartbeatCount < 3 {
+			clientErrors <- fmt.Errorf("didn't receive enough messages or heartbeats (messages: %d, heartbeats: %d)",
+				messageCount, heartbeatCount)
+		}
+	}()
+
+	// Send a couple of test messages
+	testMessages := []string{
+		"test message 1",
+		"test message 2",
+	}
+
+	// Wait a bit to allow some heartbeats to be sent before we send any messages
+	time.Sleep(time.Second)
+
+	for _, msg := range testMessages {
+		testMsg := message.QuickBatch([][]byte{[]byte(msg)})
+
+		select {
+		case msgChan <- message.NewTransaction(testMsg, resChan):
+		case <-time.After(time.Second):
+			t.Fatal("Timed out waiting to send message")
+		}
+
+		select {
+		case resErr := <-resChan:
+			require.NoError(t, resErr)
+		case <-time.After(time.Second):
+			t.Fatal("Timed out waiting for response")
+		}
+
+		// Small delay between messages
+		time.Sleep(time.Millisecond * 100)
+	}
+
+	// Wait for client to finish or timeout
+	select {
+	case <-clientDone:
+		// Client finished successfully
+	case err := <-clientErrors:
+		t.Fatalf("Client error: %v", err)
+	case <-time.After(time.Second * 10):
+		t.Fatal("Client timed out")
+	}
+
+	// Verify we received at least 3 heartbeats
+	heartbeatCount := len(receivedHeartbeats)
+	require.GreaterOrEqual(t, heartbeatCount, 3, "Expected at least 3 heartbeats, got %d", heartbeatCount)
+
+	// Verify we received the expected messages
+	close(receivedMessages)
+	var collectedMessages []string
+	for msg := range receivedMessages {
+		collectedMessages = append(collectedMessages, msg)
+	}
+
+	require.Len(t, collectedMessages, 2, "Expected exactly 2 messages")
+	require.Equal(t, testMessages[0], collectedMessages[0])
+	require.Equal(t, testMessages[1], collectedMessages[1])
+
+	h.TriggerCloseNow()
+	require.NoError(t, h.WaitForClose(ctx))
+}
+
 // Helper functions for SSE parsing
 
 // extractSSEMessage finds a complete SSE message and returns its ending index
@@ -365,4 +576,10 @@ func parseSSEData(sseMsg string) string {
 	}
 
 	return result.String()
+}
+
+// Define a helper struct to pass read results through channels
+type readResult struct {
+	n   int
+	err error
 }
