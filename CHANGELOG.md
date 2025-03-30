@@ -3,6 +3,34 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.6.0 - 2025-03-30
+
+### Changed 
+
+- experimental 'strict' / 'retry' error handling modes will be overridden in presence of incompatible components/bloblang @gregfurman & @jem-davies
+- discord `bot_token` field marked as secret @jem-davies
+- `golang.org/x/exp/rand` replaced with `math/rand/v2` @Juneezee
+- AWS tests refactored to use LocalStack fixture and pro-token @gregfurman
+- update JWT dependency @gitphill
+
+### Added 
+
+- field `ws_message_type` in output `http_server` @cheparinV
+- experimental 'retry' error handling mode @gregfurman
+- fields `backoff_duration` and `start_seq_num` to `s2` input @vrongmeal
+- input component `cypher` @jem-davies
+- field `auto_offset_reset` added to `kafka_franz` input, matching Kafka's `auto.offset.reset` config for when a consumer group has no initial committed consumer offset available @gregfurman
+- fields `expected_headers` and `expected_number_of_fields` to `csv`  scanner @jem-davies
+- fields `update_visibility` and `custom_request_headers` to `sqs` input @gregfurman
+
+### Fixed
+
+- MQTT integration tests @gregfurman
+- GCP integration tests @gregfurman
+- GCP PubSub integration tests @jem-davies
+- Kafka integration tests @gregfurman
+- metadata creation in `sqs` input to now include all message attributes @gregfurman
+
 ## 1.5.2 - 2025-03-12
 
 - upgrade to go 1.23 @gitphill
