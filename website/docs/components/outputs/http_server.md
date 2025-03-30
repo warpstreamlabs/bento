@@ -33,6 +33,7 @@ output:
     address: ""
     path: /get
     stream_path: /get/stream
+    stream_format: raw_bytes
     ws_path: /get/ws
     ws_message_type: binary
     allowed_verbs:
@@ -50,6 +51,7 @@ output:
     address: ""
     path: /get
     stream_path: /get/stream
+    stream_format: raw_bytes
     ws_path: /get/ws
     ws_message_type: binary
     allowed_verbs:
@@ -112,6 +114,15 @@ The path from which a continuous stream of messages can be consumed.
 
 Type: `string`  
 Default: `"/get/stream"`  
+
+### `stream_format`
+
+The format of the stream endpoint. `raw_bytes` delivers messages directly with newlines between batches, while `event_source` formats according to Server-Sent Events (SSE) specification with `data:` prefixes, compatible with EventSource API.
+
+
+Type: `string`  
+Default: `"raw_bytes"`  
+Options: `raw_bytes`, `event_source`.
 
 ### `ws_path`
 

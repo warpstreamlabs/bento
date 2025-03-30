@@ -46,21 +46,21 @@ const (
 	hsoFieldWriteWait          = "write_wait"
 	hsoFieldPongWait           = "pong_wait"
 	hsoFieldPingPeriod         = "ping_period"
-	hsoFieldStreamMode         = "stream_mode"
+	hsoFieldStreamFormat       = "stream_format"
 )
 
-type StreamMode string
+type StreamFormat string
 
 const (
-	StreamModeRaw StreamMode = "raw"
-	StreamModeSSE StreamMode = "sse"
+	StreamFormatRawBytes    StreamFormat = "raw_bytes"
+	StreamFormatEventSource StreamFormat = "event_source"
 )
 
 type hsoConfig struct {
 	Address       string
 	Path          string
 	StreamPath    string
-	StreamMode    StreamMode
+	StreamFormat  StreamFormat
 	WSPath        string
 	WSMessageType string
 	AllowedVerbs  map[string]struct{}
@@ -83,10 +83,10 @@ func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error
 	if conf.StreamPath, err = pConf.FieldString(hsoFieldStreamPath); err != nil {
 		return
 	}
-	if sMode, err := pConf.FieldString(hsoFieldStreamMode); err != nil {
+	if sFormat, err := pConf.FieldString(hsoFieldStreamFormat); err != nil {
 		return conf, err
 	} else {
-		conf.StreamMode = StreamMode(sMode)
+		conf.StreamFormat = StreamFormat(sFormat)
 	}
 	if conf.WSPath, err = pConf.FieldString(hsoFieldWSPath); err != nil {
 		return
@@ -160,9 +160,9 @@ Please note, messages are considered delivered as soon as the data is written to
 			service.NewStringField(hsoFieldStreamPath).
 				Description("The path from which a continuous stream of messages can be consumed.").
 				Default("/get/stream"),
-			service.NewStringEnumField(hsoFieldStreamMode, "raw", "sse").
-				Description("The mode of the stream endpoint.").
-				Default("raw"),
+			service.NewStringEnumField(hsoFieldStreamFormat, string(StreamFormatRawBytes), string(StreamFormatEventSource)).
+				Description("The format of the stream endpoint. `raw_bytes` delivers messages directly with newlines between batches, while `event_source` formats according to Server-Sent Events (SSE) specification with `data:` prefixes, compatible with EventSource API.").
+				Default(string(StreamFormatRawBytes)),
 			service.NewStringField(hsoFieldWSPath).
 				Description("The path from which websocket connections can be established.").
 				Default("/get/ws"),
@@ -403,7 +403,7 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if h.conf.StreamMode == StreamModeSSE {
+	if h.conf.StreamFormat == StreamFormatEventSource {
 		// Set headers for SSE
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -444,18 +444,26 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		if h.conf.StreamMode == StreamModeSSE {
-			// Send each message as an SSE event
+		if h.conf.StreamFormat == StreamFormatEventSource {
 			for i := 0; i < ts.Payload.Len(); i++ {
 				data := ts.Payload.Get(i).AsBytes()
-				_, err := fmt.Fprintf(w, "data: %s\n\n", data)
-				if err != nil {
+				// For SSE, each line needs "data: " prefix
+				lines := bytes.Split(data, []byte("\n"))
+				for _, line := range lines {
+					// Write the data: prefix and the content
+					if _, err := fmt.Fprintf(w, "data: %s\n", line); err != nil {
+						h.mStreamError.Incr(1)
+						_ = ts.Ack(ctx, err)
+						return
+					}
+				}
+				// End the event with an extra newline
+				if _, err := fmt.Fprint(w, "\n"); err != nil {
 					h.mStreamError.Incr(1)
 					_ = ts.Ack(ctx, err)
 					return
 				}
 			}
-
 			flusher.Flush()
 			_ = ts.Ack(ctx, nil)
 		} else {
