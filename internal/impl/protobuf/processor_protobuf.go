@@ -27,8 +27,8 @@ const (
 	// BSR Config
 	fieldBsrConfig  = "bsr"
 	fieldBsrModule  = "module"
-	fieldBsrUrl     = "url"
-	fieldBsrApiKey  = "api_key"
+	fieldBSRUrl     = "url"
+	fieldBsrAPIKey  = "api_key"
 	fieldBsrVersion = "version"
 )
 
@@ -70,10 +70,10 @@ Attempts to create a target protobuf message from a generic JSON structure.
 			service.NewStringField(fieldBsrModule).
 				Description("Module to fetch from a Buf Schema Registry e.g. 'buf.build/exampleco/mymodule'.").
 				Default(""),
-			service.NewStringField(fieldBsrUrl).
+			service.NewStringField(fieldBSRUrl).
 				Description("Buf Schema Registry URL, leave blank to extract from module.").
 				Default("").Advanced(),
-			service.NewStringField(fieldBsrApiKey).
+			service.NewStringField(fieldBsrAPIKey).
 				Description("Buf Schema Registry server API key, can be left blank for a public registry.").
 				Secret().
 				Default(""),

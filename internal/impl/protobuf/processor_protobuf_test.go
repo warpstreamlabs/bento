@@ -31,8 +31,6 @@ func TestProtobufFromJSON(t *testing.T) {
 		name           string
 		message        string
 		input          string
-		output         string
-		useProtoNames  bool
 		outputContains []string
 		discardUnknown bool
 	}

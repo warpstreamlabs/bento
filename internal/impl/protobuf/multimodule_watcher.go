@@ -32,14 +32,14 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 	// Initialise one client for each module
 	multiModuleWatcher.bsrClients = make(map[string]*prototransform.SchemaWatcher)
 	for _, bsrModule := range bsrModules {
-		var bsrUrl string
-		bsrUrl, err := bsrModule.FieldString(fieldBsrUrl)
+		var bsrURL string
+		bsrURL, err := bsrModule.FieldString(fieldBSRUrl)
 		if err != nil {
 			return nil, err
 		}
 
-		var bsrApiKey string
-		if bsrApiKey, err = bsrModule.FieldString(fieldBsrApiKey); err != nil {
+		var bsrAPIKey string
+		if bsrAPIKey, err = bsrModule.FieldString(fieldBsrAPIKey); err != nil {
 			return nil, err
 		}
 
@@ -53,7 +53,7 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 			return nil, err
 		}
 
-		watcher, err := newSchemaWatcher(context.Background(), bsrUrl, bsrApiKey, module, version)
+		watcher, err := newSchemaWatcher(context.Background(), bsrURL, bsrAPIKey, module, version)
 		if err != nil {
 			return nil, err
 		}
