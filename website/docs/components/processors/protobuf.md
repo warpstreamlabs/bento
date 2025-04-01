@@ -28,6 +28,7 @@ protobuf:
   discard_unknown: false
   use_proto_names: false
   import_paths: []
+  bsr: []
 ```
 
 The main functionality of this processor is to map to and from JSON documents, you can read more about JSON mapping of protobuf messages here: [https://developers.google.com/protocol-buffers/docs/proto3#json](https://developers.google.com/protocol-buffers/docs/proto3#json)
@@ -47,12 +48,14 @@ Attempts to create a target protobuf message from a generic JSON structure.
 
 ## Examples
 
-<Tabs defaultValue="JSON to Protobuf" values={[
-{ label: 'JSON to Protobuf', value: 'JSON to Protobuf', },
-{ label: 'Protobuf to JSON', value: 'Protobuf to JSON', },
+<Tabs defaultValue="JSON to Protobuf using Schema from Disk" values={[
+{ label: 'JSON to Protobuf using Schema from Disk', value: 'JSON to Protobuf using Schema from Disk', },
+{ label: 'Protobuf to JSON using Schema from Disk', value: 'Protobuf to JSON using Schema from Disk', },
+{ label: 'JSON to Protobuf using Buf Schema Registry', value: 'JSON to Protobuf using Buf Schema Registry', },
+{ label: 'Protobuf to JSON using Buf Schema Registry', value: 'Protobuf to JSON using Buf Schema Registry', },
 ]}>
 
-<TabItem value="JSON to Protobuf">
+<TabItem value="JSON to Protobuf using Schema from Disk">
 
 
 If we have the following protobuf definition within a directory called `testing/schema`:
@@ -97,7 +100,7 @@ pipeline:
 ```
 
 </TabItem>
-<TabItem value="Protobuf to JSON">
+<TabItem value="Protobuf to JSON using Schema from Disk">
 
 
 If we have the following protobuf definition within a directory called `testing/schema`:
@@ -142,6 +145,99 @@ pipeline:
 ```
 
 </TabItem>
+<TabItem value="JSON to Protobuf using Buf Schema Registry">
+
+
+If we have the following protobuf definition within a BSR module hosted at `buf.build/exampleco/mymodule`:
+
+```protobuf
+syntax = "proto3";
+package testing;
+
+import "google/protobuf/timestamp.proto";
+
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  string full_name = 3;
+  int32 age = 4;
+  int32 id = 5; // Unique ID number for this person.
+  string email = 6;
+
+  google.protobuf.Timestamp last_updated = 7;
+}
+```
+
+And a stream of JSON documents of the form:
+
+```json
+{
+	"firstName": "caleb",
+	"lastName": "quaye",
+	"email": "caleb@myspace.com"
+}
+```
+
+We can convert the documents into protobuf messages with the following config:
+
+```yaml
+pipeline:
+  processors:
+    - protobuf:
+        operator: from_json
+        message: testing.Person
+        bsr:
+          - module: buf.build/exampleco/mymodule
+            api_key: xxx
+```
+
+</TabItem>
+<TabItem value="Protobuf to JSON using Buf Schema Registry">
+
+
+If we have the following protobuf definition within a BSR module hosted at `buf.build/exampleco/mymodule`:
+```protobuf
+syntax = "proto3";
+package testing;
+
+import "google/protobuf/timestamp.proto";
+
+message Person {
+  string first_name = 1;
+  string last_name = 2;
+  string full_name = 3;
+  int32 age = 4;
+  int32 id = 5; // Unique ID number for this person.
+  string email = 6;
+
+  google.protobuf.Timestamp last_updated = 7;
+}
+```
+
+And a stream of protobuf messages of the type `Person`, we could convert them into JSON documents of the format:
+
+```json
+{
+	"firstName": "caleb",
+	"lastName": "quaye",
+	"email": "caleb@myspace.com"
+}
+```
+
+With the following config:
+
+```yaml
+pipeline:
+  processors:
+    - protobuf:
+        operator: to_json
+        message: testing.Person
+        bsr:
+          - module: buf.build/exampleco/mymodule
+            api_key: xxxx
+```
+
+</TabItem>
 </Tabs>
 
 ## Fields
@@ -179,10 +275,52 @@ Default: `false`
 
 ### `import_paths`
 
-A list of directories containing .proto files, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported.
+A list of directories containing .proto files, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported. Either this field or `bsr` must be populated.
 
 
 Type: `array`  
 Default: `[]`  
+
+### `bsr`
+
+Buf Schema Registry configuration. Either this field or `import_paths` must be populated. Note that this field is an array, and multiple BSR configurations can be provided.
+
+
+Type: `array`  
+Default: `[]`  
+
+### `bsr[].module`
+
+Module to fetch from a Buf Schema Registry e.g. 'buf.build/exampleco/mymodule'.
+
+
+Type: `string`  
+
+### `bsr[].url`
+
+Buf Schema Registry URL, leave blank to extract from module.
+
+
+Type: `string`  
+Default: `""`  
+
+### `bsr[].api_key`
+
+Buf Schema Registry server API key, can be left blank for a public registry.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `bsr[].version`
+
+Version to retrieve from the Buf Schema Registry, leave blank for latest.
+
+
+Type: `string`  
+Default: `""`  
 
 
