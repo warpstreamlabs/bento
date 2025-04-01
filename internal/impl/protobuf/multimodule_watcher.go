@@ -63,14 +63,14 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 	return multiModuleWatcher, nil
 }
 
-func newSchemaWatcher(ctx context.Context, bsrUrl string, bsrApiKey string, module string, version string) (*prototransform.SchemaWatcher, error) {
+func newSchemaWatcher(ctx context.Context, bsrURL string, bsrApiKey string, module string, version string) (*prototransform.SchemaWatcher, error) {
 	// If no BSR url provided, extract from module
-	if bsrUrl == "" {
+	if bsrURL == "" {
 		segments := strings.Split(module, "/")
 		if len(segments) != 3 {
 			return nil, fmt.Errorf("could not parse module %s, expected three segments e.g. 'buf.build/exampleco/mymodule'", module)
 		}
-		bsrUrl = "https://" + segments[0]
+		bsrURL = "https://" + segments[0]
 	}
 
 	opts := []connectrpc.ClientOption{
@@ -80,7 +80,7 @@ func newSchemaWatcher(ctx context.Context, bsrUrl string, bsrApiKey string, modu
 	if bsrApiKey != "" {
 		opts = append(opts, connectrpc.WithInterceptors(prototransform.NewAuthInterceptor(bsrApiKey)))
 	}
-	client := reflectv1beta1connect.NewFileDescriptorSetServiceClient(http.DefaultClient, bsrUrl, opts...)
+	client := reflectv1beta1connect.NewFileDescriptorSetServiceClient(http.DefaultClient, bsrURL, opts...)
 
 	cfg := &prototransform.SchemaWatcherConfig{
 		SchemaPoller: prototransform.NewSchemaPoller(

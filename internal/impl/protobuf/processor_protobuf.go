@@ -68,8 +68,7 @@ Attempts to create a target protobuf message from a generic JSON structure.
 			Default([]string{}),
 		service.NewObjectListField(fieldBsrConfig,
 			service.NewStringField(fieldBsrModule).
-				Description("Module to fetch from a Buf Schema Registry e.g. 'buf.build/exampleco/mymodule'.").
-				Default(""),
+				Description("Module to fetch from a Buf Schema Registry e.g. 'buf.build/exampleco/mymodule'."),
 			service.NewStringField(fieldBSRUrl).
 				Description("Buf Schema Registry URL, leave blank to extract from module.").
 				Default("").Advanced(),
@@ -80,7 +79,7 @@ Attempts to create a target protobuf message from a generic JSON structure.
 			service.NewStringField(fieldBsrVersion).
 				Description("Version to retrieve from the Buf Schema Registry, leave blank for latest.").
 				Default("").Advanced(),
-		).Description("Buf Schema Registry configuration. Either this field or `import_paths` must be populated.").
+		).Description("Buf Schema Registry configuration. Either this field or `import_paths` must be populated. Note that this field is an array, and multiple BSR configurations can be provided.").
 			Default([]any{}),
 	).LintRule(`
 root = match {
@@ -208,7 +207,6 @@ pipeline:
 `).Example(
 		"Protobuf to JSON using Buf Schema Registry", `
 If we have the following protobuf definition within a BSR module hosted at `+"`buf.build/exampleco/mymodule`"+`:
-å
 `+"```protobuf"+`
 syntax = "proto3";
 package testing;
