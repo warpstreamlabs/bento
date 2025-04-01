@@ -196,7 +196,6 @@ pipeline:
 
 
 If we have the following protobuf definition within a BSR module hosted at `buf.build/exampleco/mymodule`:
-å
 ```protobuf
 syntax = "proto3";
 package testing;
@@ -284,7 +283,7 @@ Default: `[]`
 
 ### `bsr`
 
-Buf Schema Registry configuration. Either this field or `import_paths` must be populated.
+Buf Schema Registry configuration. Either this field or `import_paths` must be populated. Note that this field is an array, and multiple BSR configurations can be provided.
 
 
 Type: `array`  
@@ -296,7 +295,6 @@ Module to fetch from a Buf Schema Registry e.g. 'buf.build/exampleco/mymodule'.
 
 
 Type: `string`  
-Default: `""`  
 
 ### `bsr[].url`
 
