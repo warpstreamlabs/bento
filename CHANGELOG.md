@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 
 - update apache/pulsar-client-go dependency for CVE @gregfurman
 
+## 1.7.0 - TODO: Add date of release here
+
+### Added 
+
+- `bsr` fields to `protobuf` processor - enables loading & using schemas from a remote "Buf Schema Registry" @oliver-anz
+
 ## 1.6.0 - 2025-03-30
 
 ### Changed 
