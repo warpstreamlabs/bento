@@ -46,12 +46,23 @@ const (
 	hsoFieldWriteWait          = "write_wait"
 	hsoFieldPongWait           = "pong_wait"
 	hsoFieldPingPeriod         = "ping_period"
+	hsoFieldStreamFormat       = "stream_format"
+	hsoFieldHeartbeat          = "heartbeat"
+)
+
+type StreamFormat string
+
+const (
+	StreamFormatRawBytes    StreamFormat = "raw_bytes"
+	StreamFormatEventSource StreamFormat = "event_source"
 )
 
 type hsoConfig struct {
 	Address       string
 	Path          string
 	StreamPath    string
+	StreamFormat  StreamFormat
+	Heartbeat     time.Duration
 	WSPath        string
 	WSMessageType string
 	AllowedVerbs  map[string]struct{}
@@ -72,6 +83,14 @@ func hsoConfigFromParsed(pConf *service.ParsedConfig) (conf hsoConfig, err error
 		return
 	}
 	if conf.StreamPath, err = pConf.FieldString(hsoFieldStreamPath); err != nil {
+		return
+	}
+	if sFormat, err := pConf.FieldString(hsoFieldStreamFormat); err != nil {
+		return conf, err
+	} else {
+		conf.StreamFormat = StreamFormat(sFormat)
+	}
+	if conf.Heartbeat, err = pConf.FieldDuration(hsoFieldHeartbeat); err != nil {
 		return
 	}
 	if conf.WSPath, err = pConf.FieldString(hsoFieldWSPath); err != nil {
@@ -146,6 +165,13 @@ Please note, messages are considered delivered as soon as the data is written to
 			service.NewStringField(hsoFieldStreamPath).
 				Description("The path from which a continuous stream of messages can be consumed.").
 				Default("/get/stream"),
+			service.NewStringEnumField(hsoFieldStreamFormat, string(StreamFormatRawBytes), string(StreamFormatEventSource)).
+				Description("The format of the stream endpoint. `raw_bytes` delivers messages directly with newlines between batches, while `event_source` formats according to Server-Sent Events (SSE) specification with `data:` prefixes, compatible with EventSource API.").
+				Default(string(StreamFormatRawBytes)),
+			service.NewDurationField(hsoFieldHeartbeat).
+				Description("The time to wait before sending a heartbeat message.").
+				Advanced().
+				Default("0s"),
 			service.NewStringField(hsoFieldWSPath).
 				Description("The path from which websocket connections can be established.").
 				Default("/get/ws"),
@@ -386,8 +412,41 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	var heartbeatTicker *time.Ticker
+	var heartbeatChan <-chan time.Time
+
+	if h.conf.StreamFormat == StreamFormatEventSource {
+		// Set headers for SSE
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		if h.conf.CORS.Enabled {
+			if len(h.conf.CORS.AllowedOrigins) > 0 {
+				// Use configured origins
+				origin := r.Header.Get("Origin")
+				for _, allowed := range h.conf.CORS.AllowedOrigins {
+					if allowed == "*" {
+						w.Header().Set("Access-Control-Allow-Origin", "*")
+						break
+					}
+					if origin == allowed {
+						w.Header().Set("Access-Control-Allow-Origin", origin)
+						break
+					}
+				}
+			}
+		}
+	}
+
 	ctx, done := h.shutSig.SoftStopCtx(r.Context())
 	defer done()
+
+	if h.conf.StreamFormat == StreamFormatEventSource && h.conf.Heartbeat > 0 {
+		heartbeatTicker = time.NewTicker(h.conf.Heartbeat)
+		heartbeatChan = heartbeatTicker.C
+		defer heartbeatTicker.Stop()
+	}
 
 	for !h.shutSig.IsSoftStopSignalled() {
 		var ts message.Transaction
@@ -399,26 +458,59 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 				go h.TriggerCloseNow()
 				return
 			}
+		case <-heartbeatChan:
+			// Send a heartbeat comment
+			if h.conf.StreamFormat == StreamFormatEventSource {
+				if _, err := fmt.Fprint(w, ": heartbeat\n\n"); err != nil {
+					h.log.Warn("Failed to write heartbeat: %v", err)
+					return
+				}
+				flusher.Flush()
+				continue
+			}
 		case <-r.Context().Done():
 			return
 		}
 
-		var data []byte
-		if ts.Payload.Len() == 1 {
-			data = ts.Payload.Get(0).AsBytes()
+		if h.conf.StreamFormat == StreamFormatEventSource {
+			for i := 0; i < ts.Payload.Len(); i++ {
+				data := ts.Payload.Get(i).AsBytes()
+				// For SSE, each line needs "data: " prefix
+				lines := bytes.Split(data, []byte("\n"))
+				for _, line := range lines {
+					// Write the data: prefix and the content
+					if _, err := fmt.Fprintf(w, "data: %s\n", line); err != nil {
+						h.mStreamError.Incr(1)
+						_ = ts.Ack(ctx, err)
+						return
+					}
+				}
+				// End the event with an extra newline
+				if _, err := fmt.Fprint(w, "\n"); err != nil {
+					h.mStreamError.Incr(1)
+					_ = ts.Ack(ctx, err)
+					return
+				}
+			}
+			flusher.Flush()
+			_ = ts.Ack(ctx, nil)
 		} else {
-			data = append(bytes.Join(message.GetAllBytes(ts.Payload), []byte("\n")), byte('\n'))
-		}
+			var data []byte
+			if ts.Payload.Len() == 1 {
+				data = ts.Payload.Get(0).AsBytes()
+			} else {
+				data = append(bytes.Join(message.GetAllBytes(ts.Payload), []byte("\n")), byte('\n'))
+			}
 
-		_, err := w.Write(data)
-		_ = ts.Ack(ctx, err)
-		if err != nil {
-			h.mStreamError.Incr(1)
-			return
+			_, err := w.Write(data)
+			_ = ts.Ack(ctx, err)
+			if err != nil {
+				h.mStreamError.Incr(1)
+				return
+			}
+			_, _ = w.Write([]byte("\n"))
+			flusher.Flush()
 		}
-
-		_, _ = w.Write([]byte("\n"))
-		flusher.Flush()
 		h.mStreamSent.Incr(int64(batch.MessageCollapsedCount(ts.Payload)))
 		h.mStreamBatchSent.Incr(1)
 	}
@@ -434,7 +526,26 @@ func (h *httpServerOutput) wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	upgrader := websocket.Upgrader{}
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			if !h.conf.CORS.Enabled {
+				return true
+			}
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			if len(h.conf.CORS.AllowedOrigins) == 0 {
+				return false
+			}
+			for _, allowed := range h.conf.CORS.AllowedOrigins {
+				if allowed == "*" || allowed == origin {
+					return true
+				}
+			}
+			return false
+		},
+	}
 
 	// Upgrade the HTTP connection to a WebSocket connection
 	ws, err := upgrader.Upgrade(w, r, nil)
