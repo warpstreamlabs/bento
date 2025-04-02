@@ -41,7 +41,7 @@ Performs conversions to or from a protobuf message. This processor uses reflecti
 `).Description(`
 The main functionality of this processor is to map to and from JSON documents, you can read more about JSON mapping of protobuf messages here: [https://developers.google.com/protocol-buffers/docs/proto3#json](https://developers.google.com/protocol-buffers/docs/proto3#json)
 
-Using reflection for processing protobuf messages in this way is less performant than generating and using native code. Therefore when performance is critical it is recommended that you use Bento plugins instead for processing protobuf messages natively, you can find an example of Bento plugins at [https://github.com/warpstreamlabs/bento-plugin-example](https://github.cowarpstreamlabs/bentoento-plugin-example)
+Using reflection for processing protobuf messages in this way is less performant than generating and using native code. Therefore when performance is critical it is recommended that you use Bento plugins instead for processing protobuf messages natively, you can find advice for creating bento plugins [here](https://github.com/warpstreamlabs/bento?tab=readme-ov-file#plugins).
 
 ## Operators
 
