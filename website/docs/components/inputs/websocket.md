@@ -45,6 +45,7 @@ input:
     url: ws://localhost:4195/get/ws # No default (required)
     proxy_url: "" # No default (optional)
     open_message: "" # No default (optional)
+    open_message_sep: "" # No default (optional)
     open_message_type: binary
     auto_replay_nacks: true
     tls:
