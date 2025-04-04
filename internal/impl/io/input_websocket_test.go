@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -82,7 +83,7 @@ func TestWebsocketOpenMsg(t *testing.T) {
 		"baz",
 	}
 
-	testHandler := func(expMsgType int, w http.ResponseWriter, r *http.Request) {
+	testHandler := func(expOpenMsgs []string, expMsgType int, w http.ResponseWriter, r *http.Request) {
 		upgrader := websocket.Upgrader{}
 
 		var ws *websocket.Conn
@@ -93,15 +94,18 @@ func TestWebsocketOpenMsg(t *testing.T) {
 
 		defer ws.Close()
 
-		msgType, data, err := ws.ReadMessage()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if exp, act := "hello world", string(data); exp != act {
-			t.Errorf("Wrong open message: %v != %v", act, exp)
-		}
-		if msgType != expMsgType {
-			t.Errorf("Wrong open message type: %v != %v", msgType, expMsgType)
+		for expIdx, exp := range expOpenMsgs {
+			msgType, data, err := ws.ReadMessage()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if act := string(data); exp != act {
+				t.Errorf("Wrong open message (i=%v): %v != %v", expIdx, act, exp)
+			}
+			if msgType != expMsgType {
+				t.Errorf("Wrong open message type (i=%v): %v != %v", expIdx, msgType, expMsgType)
+			}
+
 		}
 
 		for _, msg := range expMsgs {
@@ -112,24 +116,33 @@ func TestWebsocketOpenMsg(t *testing.T) {
 	}
 
 	tests := []struct {
-		handler       func(expMsgType int, w http.ResponseWriter, r *http.Request)
+		handler       func(expOpenMsgs []string, expMsgType int, w http.ResponseWriter, r *http.Request)
 		openMsgType   wsOpenMsgType
 		wsOpenMsgType int
+		wsOpenMsgs    []string
 		errStr        string
 	}{
 		{
 			handler:       testHandler,
 			openMsgType:   wsOpenMsgTypeBinary,
+			wsOpenMsgs:    []string{"hello world"},
 			wsOpenMsgType: websocket.BinaryMessage,
 		},
 		{
 			handler:       testHandler,
 			openMsgType:   wsOpenMsgTypeText,
+			wsOpenMsgs:    []string{"hello world"},
+			wsOpenMsgType: websocket.TextMessage,
+		},
+		{
+			handler:       testHandler,
+			openMsgType:   wsOpenMsgTypeText,
+			wsOpenMsgs:    []string{"hello", "world", "goodbye", "world", "..."},
 			wsOpenMsgType: websocket.TextMessage,
 		},
 		{
 			// Use a simplified handler to avoid the blocking call to `ws.ReadMessage()` when no OpenMsg gets sent
-			handler: func(_ int, w http.ResponseWriter, r *http.Request) {
+			handler: func(_ []string, _ int, w http.ResponseWriter, r *http.Request) {
 				upgrader := websocket.Upgrader{}
 
 				var ws *websocket.Conn
@@ -147,7 +160,7 @@ func TestWebsocketOpenMsg(t *testing.T) {
 
 	for id, test := range tests {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { test.handler(test.wsOpenMsgType, w, r) }))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { test.handler(test.wsOpenMsgs, test.wsOpenMsgType, w, r) }))
 			t.Cleanup(server.Close)
 
 			wsURL, err := url.Parse(server.URL)
@@ -157,9 +170,10 @@ func TestWebsocketOpenMsg(t *testing.T) {
 
 			pConf, err := websocketInputSpec().ParseYAML(fmt.Sprintf(`
 url: %v
-open_message: "hello world"
+open_messages:
+  - %v
 open_message_type: %v
-`, wsURL.String(), test.openMsgType), nil)
+`, wsURL.String(), strings.Join(test.wsOpenMsgs, "\n  - "), test.openMsgType), nil)
 			require.NoError(t, err)
 
 			m, err := newWebsocketReaderFromParsed(pConf, mock.NewManager())
