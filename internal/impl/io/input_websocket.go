@@ -147,6 +147,7 @@ func newWebsocketReaderFromParsed(conf *service.ParsedConfig, mgr bundle.NewMana
 		}
 	} else if openMsgStr, _ = conf.FieldString("open_message"); openMsgStr != "" {
 		ws.openMsg = make([][]byte, 1)
+		ws.openMsg[0] = []byte(openMsgStr)
 	}
 	return ws, nil
 }
