@@ -386,7 +386,7 @@ http_server:
 			Timeout: time.Second * 10,
 		}
 
-		// Create a request with a context that can be canceled 
+		// Create a request with a context that can be canceled
 		reqCtx, cancelReq := context.WithCancel(context.Background())
 		defer cancelReq()
 		req = req.WithContext(reqCtx)

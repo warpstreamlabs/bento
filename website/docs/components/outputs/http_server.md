@@ -90,6 +90,63 @@ For example, if you were to deploy two separate `http_server` inputs, one with a
 :::
 
 
+## Examples
+
+<Tabs defaultValue="Server Side Events (SSE)" values={[
+{ label: 'Server Side Events (SSE)', value: 'Server Side Events (SSE)', },
+]}>
+
+<TabItem value="Server Side Events (SSE)">
+
+Here we set up an HTTP server that streams data using the Server-Sent Events protocol.
+The server listens on the path `/teststream`and sends messages in the EventSource format.
+CORS is enabled to allow connections from any origin.
+
+
+### Example HTML Consumer Client
+
+Running the following will listen on the path /teststream` and print out an element for each message consumed from the Bento server via SSE:
+<details>
+
+<summary>JS/HTML Snippet</summary>
+
+<p>
+```html
+<!doctype html>
+<html>
+  <body>
+    <ul id="list"></ul>
+  </body>
+  <script type="text/javascript">
+    const eventSrc = new EventSource("http://0.0.0.0:4195/teststream");
+    const list = document.getElementById("list");
+    eventSrc.onmessage = (event) => {
+      const li = document.createElement("li");
+      li.textContent = `message: ${event.data}`;
+      list.appendChild(li);
+    };
+  </script>
+</html>
+```
+</p>
+
+</details>
+
+
+```yaml
+output:
+  http_server:
+    stream_path: /teststream
+    stream_format: event_source
+    cors:
+      enabled: true
+      allowed_origins:
+        - "*"
+```
+
+</TabItem>
+</Tabs>
+
 ## Fields
 
 ### `address`
