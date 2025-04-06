@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 ### Added 
 
 - `bsr` fields to `protobuf` processor - enables loading & using schemas from a remote "Buf Schema Registry" @oliver-anz
+- `stream_format` and `heartbeat` fields to `http_server` output to emit Server-Side Events (SSE) @asoorm
 
 ## 1.6.0 - 2025-03-30
 
