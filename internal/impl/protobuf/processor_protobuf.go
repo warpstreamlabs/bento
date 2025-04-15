@@ -64,7 +64,7 @@ Attempts to create a target protobuf message from a generic JSON structure.
 			Description("If `true`, the `to_json` operator deserializes fields exactly as named in schema file.").
 			Default(false),
 		service.NewStringListField(fieldImportPaths).
-			Description("A list of directories containing .proto files, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported. Either this field or `bsr` must be populated.").
+			Description("A list of directories containing .proto files or list of file paths, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported. Either this field or `bsr` must be populated.").
 			Default([]string{}),
 		service.NewObjectListField(fieldBsrConfig,
 			service.NewStringField(fieldBsrModule).

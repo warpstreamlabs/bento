@@ -275,7 +275,7 @@ Default: `false`
 
 ### `import_paths`
 
-A list of directories containing .proto files, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported. Either this field or `bsr` must be populated.
+A list of directories containing .proto files or list of file paths, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported. Either this field or `bsr` must be populated.
 
 
 Type: `array`  
