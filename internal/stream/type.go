@@ -251,7 +251,7 @@ func (t *Type) Stop(ctx context.Context) error {
 	if err == nil {
 		return nil
 	}
-	if !(errors.Is(err, context.Canceled) && errors.Is(err, context.DeadlineExceeded)) {
+	if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 		t.manager.Logger().Error("Encountered error whilst attempting to shut down gracefully: %v\n", err)
 	}
 
