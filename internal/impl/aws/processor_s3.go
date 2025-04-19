@@ -34,6 +34,8 @@ This `+"`aws_s3`"+` processor may be preferable to the `+"`aws_s3`"+` input with
 - You are using a similar pattern to the [streaming-objects-on-upload-with-sqs](/docs/components/inputs/aws_s3#streaming-objects-on-upload-with-sqs) but with a different queue technology such as RabbitMQ
 - You need to access some data from S3 as part of the processing stage of your config
 
+In order to keep the original payload instead of replacing it entirely, you can use the [branch](/docs/components/processors/branch) processor.
+
 ## Scanner
 
 Note that this processor is _odd_ because it has a [scanner](/docs/components/scanners/about) field.
