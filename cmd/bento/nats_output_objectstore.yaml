@@ -1,0 +1,13 @@
+### DELETE BEFORE MERGE
+input:
+  generate:
+    mapping: 'root = {"object_name": fake("word"), "data": fake("sentence")}'
+    interval: 1s
+    count: 1
+
+output:
+  nats_object_store:
+    urls: 
+      - localhost:4222 
+    bucket: myobjbucket
+    object_name: ${! this.object_name }
