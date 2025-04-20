@@ -36,7 +36,7 @@ output:
   label: ""
   nats_object_store:
     urls: [] # No default (required)
-    bucket: my_kv_bucket # No default (required)
+    bucket: my_bucket # No default (required)
     object_name: "" # No default (required)
     max_in_flight: 64
 ```
@@ -50,7 +50,7 @@ output:
   label: ""
   nats_object_store:
     urls: [] # No default (required)
-    bucket: my_kv_bucket # No default (required)
+    bucket: my_bucket # No default (required)
     object_name: "" # No default (required)
     max_in_flight: 64
     tls:
@@ -70,7 +70,47 @@ output:
 </TabItem>
 </Tabs>
 
-TODO: WRITE A DESCRIPTION
+The field `object_name` supports
+[interpolation functions](/docs/configuration/interpolation#bloblang-queries), allowing
+you to create a unique object name for each message.
+
+### Connection Name
+
+When monitoring and managing a production NATS system, it is often useful to
+know which connection a message was send/received from. This can be achieved by
+setting the connection name option when creating a NATS connection.
+
+Bento will automatically set the connection name based off the label of the given
+NATS component, so that monitoring tools between NATS and bento can stay in sync.
+### Authentication
+
+There are several components within Bento which utilise NATS services. You will find that each of these components
+support optional advanced authentication parameters for [NKeys](https://docs.nats.io/nats-server/configuration/securing_nats/auth_intro/nkey_auth)
+and [User Credentials](https://docs.nats.io/developing-with-nats/security/creds).
+
+An in depth tutorial can be found [here](https://docs.nats.io/running-a-nats-service/nats_admin/security/jwt).
+
+#### NKey file
+
+The NATS server can use these NKeys in several ways for authentication. The simplest is for the server to be configured
+with a list of known public keys and for the clients to respond to the challenge by signing it with its private NKey
+configured in the `nkey_file` field.
+
+More details [here](https://docs.nats.io/developing-with-nats/security/nkey).
+
+#### User Credentials
+
+NATS server supports decentralized authentication based on JSON Web Tokens (JWT). Clients need an [user JWT](https://docs.nats.io/nats-server/configuration/securing_nats/jwt#json-web-tokens)
+and a corresponding [NKey secret](https://docs.nats.io/developing-with-nats/security/nkey) when connecting to a server
+which is configured to use this authentication scheme.
+
+The `user_credentials_file` field should point to a file containing both the private key and the JWT and can be
+generated with the [nsc tool](https://docs.nats.io/nats-tools/nsc).
+
+Alternatively, the `user_jwt` field can contain a plain text JWT and the `user_nkey_seed`can contain
+the plain text NKey Seed.
+
+More details [here](https://docs.nats.io/developing-with-nats/security/creds).
 
 ## Fields
 
@@ -93,7 +133,7 @@ urls:
 
 ### `bucket`
 
-The name of the KV bucket.
+The name of the object store bucket.
 
 
 Type: `string`  
@@ -101,12 +141,12 @@ Type: `string`
 ```yml
 # Examples
 
-bucket: my_kv_bucket
+bucket: my_bucket
 ```
 
 ### `object_name`
 
-TODO: WRITE A DESCRIPTION
+The object name for each message.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 

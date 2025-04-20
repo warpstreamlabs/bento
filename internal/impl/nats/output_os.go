@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	osoNameField = "object_name"
+	osoBucketField = "bucket"
+	osoNameField   = "object_name"
 )
 
 func natsOSOutputConfig() *service.ConfigSpec {
@@ -19,10 +20,15 @@ func natsOSOutputConfig() *service.ConfigSpec {
 		Categories("Services").
 		Version("1.7.0").
 		Summary("Put messages in a NATS object-store bucket.").
-		Description("TODO: WRITE A DESCRIPTION").
-		Fields(kvDocs([]*service.ConfigField{
+		Description(`
+The field ` + "`object_name`" + ` supports
+[interpolation functions](/docs/configuration/interpolation#bloblang-queries), allowing
+you to create a unique object name for each message.
+
+` + connectionNameDescription() + authDescription()).
+		Fields(Docs("object store", []*service.ConfigField{
 			service.NewInterpolatedStringField(osoNameField).
-				Description("TODO: WRITE A DESCRIPTION"),
+				Description("The object name for each message."),
 			service.NewOutputMaxInFlightField().Default(64),
 		}...)...)
 }
@@ -70,7 +76,7 @@ func newOSOutput(conf *service.ParsedConfig, mgr *service.Resources) (*osOutput,
 		return nil, err
 	}
 
-	if oso.bucket, err = conf.FieldString(kvFieldBucket); err != nil { // TODO kv -> oso refactor
+	if oso.bucket, err = conf.FieldString(osoBucketField); err != nil {
 		return nil, err
 	}
 
