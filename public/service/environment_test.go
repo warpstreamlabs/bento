@@ -14,7 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/component/ratelimit"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -219,4 +221,93 @@ output:
 	assert.Equal(t, `hello
 world
 `, string(outBytes))
+}
+
+// mockPublicMessageAwareRateLimit implements the public interface (service.MessageAwareRateLimit)
+type mockPublicMessageAwareRateLimit struct{}
+
+func (m *mockPublicMessageAwareRateLimit) Add(ctx context.Context, msgs ...*service.Message) bool {
+	panic("implement me")
+}
+
+func (m *mockPublicMessageAwareRateLimit) Access(ctx context.Context) (time.Duration, error) {
+	panic("implement me")
+}
+
+func (m *mockPublicMessageAwareRateLimit) Close(ctx context.Context) error {
+	panic("implement me")
+}
+
+// mockPublicRateLimit implements the public interface (service.RateLimit)
+type mockPublicRateLimit struct{}
+
+func (m *mockPublicRateLimit) Access(ctx context.Context) (time.Duration, error) {
+	panic("implement me")
+}
+
+func (m *mockPublicRateLimit) Close(ctx context.Context) error {
+	panic("implement me")
+}
+
+func TestEnvironment_RegisterRateLimit_MessageAware(t *testing.T) {
+	testEnv := service.NewEnvironment()
+	mockPublicRL := &mockPublicMessageAwareRateLimit{}
+	rlName := "public_message_aware_rate_limit"
+
+	// Register the mock RL constructor
+	err := testEnv.RegisterRateLimit(rlName, service.NewConfigSpec(),
+		func(conf *service.ParsedConfig, res *service.Resources) (service.RateLimit, error) {
+			// This constructor returns our mock public implementation
+			return mockPublicRL, nil
+		})
+	require.NoError(t, err)
+
+	// Create a minimal config and mock manager needed for RateLimitInit
+	conf := ratelimit.Config{Type: rlName}
+	mockMgr := mock.NewManager()
+
+	// Instantiate the rate limit
+	internalRL, err := testEnv.XRateLimitInitForTest(conf, mockMgr)
+	require.NoError(t, err)
+	require.NotNil(t, internalRL)
+
+	// Assert that the returned internal component IS of type MessageAwareRateLimit
+	_, ok := internalRL.(ratelimit.MessageAwareRateLimit)
+	assert.True(t, ok)
+
+	// Assert that the returned internal component is also of type V1 (since the MessageAwareRateLimit is a superset of it)
+	_, ok = internalRL.(ratelimit.V1)
+	assert.True(t, ok)
+
+}
+
+func TestEnvironment_RegisterRateLimit_V1(t *testing.T) {
+	testEnv := service.NewEnvironment()
+	mockPublicRL := &mockPublicRateLimit{}
+	rlName := "public_rate_limit_v1"
+
+	// Register the mock RL constructor
+	err := testEnv.RegisterRateLimit(rlName, service.NewConfigSpec(),
+		func(conf *service.ParsedConfig, res *service.Resources) (service.RateLimit, error) {
+			// This constructor returns our mock public implementation
+			return mockPublicRL, nil
+		})
+	require.NoError(t, err)
+
+	// Create a minimal config and mock manager needed for RateLimitInit
+	conf := ratelimit.Config{Type: rlName}
+	mockMgr := mock.NewManager()
+
+	// Instantiate the rate limit
+	internalRL, err := testEnv.XRateLimitInitForTest(conf, mockMgr)
+	require.NoError(t, err)
+	require.NotNil(t, internalRL)
+
+	// Assert that the returned internal component IS of type V1
+	_, ok := internalRL.(ratelimit.V1)
+	assert.True(t, ok)
+
+	// Assert that the returned internal component is NOT of type MessageAwareRateLimit
+	_, ok = internalRL.(ratelimit.MessageAwareRateLimit)
+	assert.False(t, ok)
 }

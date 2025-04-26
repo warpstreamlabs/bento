@@ -693,3 +693,10 @@ func (e *Environment) RegisterTemplateYAML(yamlStr string) error {
 func XFormatConfigJSON() ([]byte, error) {
 	return json.Marshal(config.Spec())
 }
+
+// XRateLimitInitForTest is a helper specifically for testing the internal rate
+// limit initialization process based on the environment's registered components.
+// DO NOT USE OUTSIDE OF TESTS.
+func (e *Environment) XRateLimitInitForTest(conf ratelimit.Config, mgr bundle.NewManagement) (ratelimit.V1, error) {
+	return e.internal.RateLimitInit(conf, mgr)
+}
