@@ -500,6 +500,14 @@ func (e *Environment) RegisterRateLimit(name string, spec *ConfigSpec, ctor Rate
 		}
 		// TODO: This MessageAwareRateLimit should eventually replace V1
 		// Try to upgrade to message aware rate-limiter if possible.
+
+		// When registering from an internal rate limit (local rate limit, redis rate limit)
+		if rl, ok := r.(ratelimit.MessageAwareRateLimit); ok {
+			agrl := newReverseAirGapMessageAwareRateLimit(rl)
+			return newAirGapMessageAwareRateLimit(agrl, nm.Metrics()), nil
+		}
+
+		// When registering an external rate limit via the plugin
 		if rl, ok := r.(MessageAwareRateLimit); ok {
 			return newAirGapMessageAwareRateLimit(rl, nm.Metrics()), nil
 		}
