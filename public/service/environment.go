@@ -498,11 +498,10 @@ func (e *Environment) RegisterRateLimit(name string, spec *ConfigSpec, ctor Rate
 		if err != nil {
 			return nil, err
 		}
-		// TODO: This MessageAwareRateLimit shoud eventually replace V1
+		// TODO: This MessageAwareRateLimit should eventually replace V1
 		// Try to upgrade to message aware rate-limiter if possible.
-		if rl, ok := r.(ratelimit.MessageAwareRateLimit); ok {
-			agrl := newReverseAirGapMessageAwareRateLimit(rl)
-			return newAirGapMessageAwareRateLimit(agrl, nm.Metrics()), nil
+		if rl, ok := r.(MessageAwareRateLimit); ok {
+			return newAirGapMessageAwareRateLimit(rl, nm.Metrics()), nil
 		}
 
 		return newAirGapRateLimit(r, nm.Metrics()), nil
