@@ -161,7 +161,8 @@ html[data-theme="dark"] {
   --ifm-code-background: #2d2e27;
   --ifm-code-color: #ffffff;
 
-  background-color: #1f201c;
+  background-color: #2d2e27 !important;
+  color: #fff4e9 !important;
 
   --ifm-heading-color: #FFF4E9;
   --ifm-hero-text-color: #FFF4E9;
@@ -267,7 +268,8 @@ html[data-theme='dark'] .DocSearch {
 /* Custom announcement bar styling */
 div[class^="announcementBar"] {
   background-color: #EB8788 !important;
-  padding: 16px 0 !important;
+  /* padding: 16px 0 !important; */
+  height: 36px;
 }
 
 div[class^="announcementBarContent"] {
@@ -287,7 +289,7 @@ div[class^="announcementBarClose"] {
   margin-top: -6px !important;
 }
 
-div[class*="closeButton_node"] {
+div[class*="closeButton_"] {
   margin-top: -6px !important;
 }
 
