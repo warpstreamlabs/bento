@@ -322,6 +322,11 @@ pre, code {
   font-size: 14px; /* Reduced font size for navbar links */
 }
 
+/* Add navbar dark mode box-shadow */
+html[data-theme="dark"] .navbar {
+  box-shadow: 0px 1px #444950;
+}
+
 /* Keep the navbar brand/title at normal size */
 .navbar__title {
   font-size: 18px; /* Keep the original size or adjust as needed */
