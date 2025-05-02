@@ -8,13 +8,13 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --ifm-color-primary: #3578e5;
-  --ifm-color-primary-dark: #1d68e1;
-  --ifm-color-primary-darker: #1b62d4;
-  --ifm-color-primary-darkest: #1751af;
-  --ifm-color-primary-light: #4e89e8;
-  --ifm-color-primary-lighter: #5a91ea;
-  --ifm-color-primary-lightest: #80aaef;
+  --ifm-color-primary: #d32f2f;
+  --ifm-color-primary-dark: #be2a2a;
+  --ifm-color-primary-darker: #b32727;
+  --ifm-color-primary-darkest: #942020;
+  --ifm-color-primary-light: #d84545;
+  --ifm-color-primary-lighter: #db5151;
+  --ifm-color-primary-lightest: #e27676;
 
   --ifm-color-danger: #ff6188;
   --ifm-color-danger-dark: #ff3e6d;
@@ -273,8 +273,38 @@ div[class*="themedComponent--dark"] img {
   border-color: #FFD0CE !important;
 }
 
-/* Add more padding to all code blocks */
-/* Removed extra padding for code blocks */
+/* Dark mode button styling fixes */
+html[data-theme="dark"] .button.button--primary,
+html[data-theme="dark"] .button.button--outline.button--primary {
+  color: #fff !important;
+}
+
+/* Style paragraph links to be dark pink and semibold */
+p a:not(.button) {
+  color: #d32f2f !important; /* Darker red */
+  font-weight: 600;
+}
+
+html[data-theme="dark"] p a:not(.button) {
+  color: #ff5252 !important; /* Brighter red for dark mode */
+}
+
+/* Target code blocks with increased padding */
+pre[class*="codeBlock_"] {
+  padding: 0 !important; /* Reset the pre padding */
+}
+
+/* Target the actual code lines with more specificity */
+div[class*="codeBlockLines_"],
+.codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  padding: 1.5rem !important; /* Apply bigger padding */
+}
+
+/* Additional specificity for Safari and other browsers */
+[data-theme='light'] div[class*="codeBlockLines_"],
+[data-theme='dark'] div[class*="codeBlockLines_"] {
+  padding: 1.5rem !important;
+}
 
 /* Custom Tab Item styling - reduce vertical padding */
 div[class*="tabItem_"] {
@@ -311,4 +341,134 @@ html[data-theme="dark"] .tabbedSection {
   max-height: 250px;
   width: auto;
   margin-right: 20px;
+  margin-top: -30px;
+}
+
+/* Adjust tabbed section column padding */
+.tabbedSection .col--4 {
+  flex: 1 1 0%;
+  padding-right: 3rem;
+}
+.col {
+  padding: 0 2rem !important;
+}
+
+/* Custom Scrollbar Styling for Docusaurus sidebar */
+/* Firefox */
+div[class*="docSidebarContainer_"],
+aside[class*="theme-doc-sidebar-container"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"],
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"] {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit browsers */
+div[class*="docSidebarContainer_"]::-webkit-scrollbar,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar {
+  width: 6px;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-track,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb:hover,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb,
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb:hover,
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Global scrollbar styling to match sidebar */
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+html[data-theme="dark"] {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Sidebar item link styling - reduce font size */
+li[class*="theme-doc-sidebar-item-link"] > a {
+  font-size: 14px;
+}
+
+li[class*="theme-doc-sidebar-item-category"] > div > a {
+  font-size: 14px;
+}
+
+li[class*="theme-doc-sidebar-item-category"] > button {
+  font-size: 14px;
+}
+
+/* Keep category headings at original size for hierarchy */
+li[class*="theme-doc-sidebar-item-category-level-1"] > div > a,
+li[class*="theme-doc-sidebar-item-category-level-1"] > button {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Remove top margin from menu list items except first child */
+.menu__list-item:not(:first-child) {
+  margin-top: 0;
+}
+
+/* Component card styling */
+.componentCard_src-theme-ComponentCard-styles-module {
+  padding: 4px 16px !important;
+}
+
+@media (min-width: 997px) {
+  @supports (scrollbar-gutter: stable) {
+      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
+          padding: 1rem !important;
+      }
+  }
 }
