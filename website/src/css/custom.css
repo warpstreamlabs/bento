@@ -452,13 +452,13 @@ div[class*="buttonGroup_"] {
 html[data-theme='dark'] div[class*="codeBlockLines_"],
 html[data-theme='dark'] pre[class*="prism-code"],
 html[data-theme='dark'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
-  background-color: #2d2e27 !important;
+  background-color: #242521 !important;
   color: #ffffff !important;
 }
 
 /* Additional dark mode code selector to ensure proper styling */
 html[data-theme='dark'] [class*="theme-code-block"] {
-  background-color: #2d2e27 !important;
+  background-color: #242521 !important;
   color: #ffffff !important;
 }
 
@@ -634,6 +634,23 @@ li[class*="theme-doc-sidebar-item-category-level-1"] > button {
   padding: 4px 16px !important;
 }
 
+/* Dark mode ComponentCard styling */
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module {
+  background-color: #333430 !important;
+  border: 1px solid #4a4a4a !important;
+  color: #fff4e9 !important;
+}
+
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover {
+  background-color: #3b3c37 !important;
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module * {
+  color: #fff4e9 !important;
+}
+
 /* Cookbook header alignment and styling */
 .cookbookListHeader .row {
   align-items: center !important;
@@ -735,19 +752,19 @@ input.cookbookSearch {
 
 /* Dark mode tab styling */
 html[data-theme="dark"] [class*="tabs__item"] {
-  background-color: #2d2e27 !important;
+  background-color: #1e1f1c !important;
   box-shadow: 0 3px 0 #405580 !important;
   color: #fff !important;
 }
 
 html[data-theme="dark"] [class*="tabs__item"]:hover {
-  background-color: #3a3b33 !important;
+  background-color: #2a2b27 !important;
   box-shadow: 0 4px 0 #405580 !important;
 }
 
 html[data-theme="dark"] [class*="tabs__item"]:active,
 html[data-theme="dark"] [class*="tabs__item--active"] {
-  background-color: #45464d !important;
+  background-color: #333430 !important;
   box-shadow: 0 1px 0 #405580 !important;
 }
 
@@ -945,6 +962,6 @@ div[class*="buttonGroup_"] {
 
 html[data-theme='dark'] .buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
 html[data-theme='dark'] div[class*="buttonGroup_"] {
-  background-color: #2d2e27 !important;
+  background-color: #242521 !important;
   padding-bottom: 0.5rem !important;
 }
