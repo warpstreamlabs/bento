@@ -79,10 +79,10 @@ module.exports = {
               html: `
                 <div style="display: flex; justify-content: center; align-items: flex-start; height: 100%;">
                   <a href="/bento/">
-                    <picture>
-                      <source srcset="/bento/img/logo_dark.svg" media="(prefers-color-scheme: dark)">
-                      <img src="/bento/img/logo.svg" alt="Bento Logo" width="140" height="auto" style="margin: 0 auto;">
-                    </picture>
+                  <picture>
+                    <source srcset="/bento/img/logo_dark.svg" media="(prefers-color-scheme: dark)">
+                    <img src="/bento/img/logo.svg" alt="Bento Logo" width="140" height="auto" style="margin: 0 auto;">
+                  </picture>
                   </a>
                 </div>
               `,

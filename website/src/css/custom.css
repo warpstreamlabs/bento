@@ -170,8 +170,9 @@ html[data-theme="dark"] {
   --ifm-font-color-base: #FFF4E9;
 }
 
+/* Light mode inline code styling */
 code {
-  background-color: #ffdebd !important;
+  background-color: #FDE5D8 !important;
   color: var(--ifm-code-color) !important;
   border: none !important;
   padding: 3px 7px !important;
@@ -412,8 +413,8 @@ html[data-theme="dark"] p a:not(.button) {
 }
 
 /* Target code blocks with increased padding */
-pre[class*="codeBlock_"] {
-  padding: 0 !important; /* Reset the pre padding */
+.padding--none, div[class*=codeBlockLines_] pre[class*=prism-code], div[class*=theme-code-block]>div>pre, pre[class*=codeBlock_] {
+    padding: 1rem !important;
 }
 
 /* Homepage-only code blocks with max height */
@@ -424,25 +425,25 @@ pre[class*="codeBlock_"] {
   overflow-x: hidden !important;
 }
 
-/* Target the actual code lines with more specificity */
-div[class*="codeBlockLines_"],
-.codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module,
-pre[class*="prism-code"] {
-  padding: 1.5rem !important; /* Apply padding only once */
-}
-
-/* Reset redundant padding in nested codeblock elements */
-div[class*="codeBlockLines_"] pre[class*="prism-code"],
-div[class*="theme-code-block"] > div > pre {
-  padding: 0 !important; /* Remove double padding */
-}
-
 /* Light mode code block styling */
 html[data-theme='light'] div[class*="codeBlockLines_"],
 html[data-theme='light'] pre[class*="prism-code"],
 html[data-theme='light'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
-  background-color: #FCE9D6 !important;
+  background-color: #FDE5D8 !important;
   color: var(--ifm-color-gray-900) !important;
+}
+
+/* Light mode code block container styling */
+html[data-theme='light'] div[class*="theme-code-block"],
+html[data-theme='light'] div[class*="codeBlockContainer"] {
+  background-color: #FDE5D8 !important;
+}
+
+/* Move code block button group to accommodate scrollbar */
+.buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
+div[class*="buttonGroup_"] {
+  background-color: #FDE5D8 !important;
+  padding-bottom: 0.5rem !important;
 }
 
 /* Dark mode code block styling */
@@ -758,23 +759,22 @@ html[data-theme="dark"] [class*="tabs__item--active"] {
   box-shadow: none !important;
 }
 
-/* Love section styling */
-.loveSection_src-pages-index-module {
-  max-width: 80rem;
-  margin: 0 auto;
-  border-radius: 140px;
-  margin-bottom: 160px;
-  box-shadow: 20px 20px #eb878829, 0px -10px 0px #ffdcdd29 inset;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+/* Direct selector for the loveSection styling */
+[class*="loveSection_"] {
+    border-radius: 140px;
+    box-shadow: 20px 20px #eb878829,inset 0 -10px 0 #ffdcdd29;
+    margin: 0 auto 160px;
+    max-width: 80rem;
+    transition: background-color .3s,transform .2s
 }
 
-/* Love section hover effect */
-a:hover .loveSection_src-pages-index-module {
+/* Direct selector for loveSection hover effect */
+a:hover [class*="loveSection_"] {
   background-color: #fff0f0;
   transform: translateY(-2px);
 }
 
-html[data-theme="dark"] a:hover .loveSection_src-pages-index-module {
+html[data-theme="dark"] a:hover [class*="loveSection_"] {
   background-color: #2a2625;
   color: #FFF4E9;
 }
@@ -932,4 +932,17 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
   img[src*="what-is-blob.svg"] {
     display: none !important;
   }
+}
+
+/* Move code block button group to accommodate scrollbar */
+.buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
+div[class*="buttonGroup_"] {
+  background-color: #FDE5D8 !important;
+  padding-bottom: 0.5rem !important;
+}
+
+html[data-theme='dark'] .buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
+html[data-theme='dark'] div[class*="buttonGroup_"] {
+  background-color: #2d2e27 !important;
+  padding-bottom: 0.5rem !important;
 }

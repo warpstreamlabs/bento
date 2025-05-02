@@ -332,7 +332,14 @@ function Home() {
         )}
 
         <a href="https://www.warpstream.com/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-          <section className={styles.loveSection}>
+          <section className={styles.loveSection} style={{
+            maxWidth: '80rem',
+            margin: '0 auto',
+            borderRadius: '140px',
+            marginBottom: '160px',
+            boxShadow: '20px 20px #eb878829, 0px -10px 0px #ffdcdd29 inset',
+            transition: 'background-color 0.3s ease'
+          }}>
             <div className="container">
               <div className="row">
                 <div className={classnames('col col--12')}>
@@ -361,7 +368,7 @@ function Home() {
               }}
               alt="Food Party" 
               style={{ 
-                width: '70%', 
+                width: '470px', 
                 display: 'block', 
                 margin: '0 auto', 
                 marginBottom: '-60px',
