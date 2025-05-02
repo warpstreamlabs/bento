@@ -1,6 +1,6 @@
 
 <p align="center">
-    <img src="what-is-blob.svg" width=50% height=50% alt="Bento">
+    <img src="bento_logo_gh.svg" width=50% height=50% alt="Bento">
 </p>
 
 [![godoc for warpstreamlabs/bento][godoc-badge]][godoc-url]
