@@ -181,7 +181,7 @@ code {
 
 /* Dark mode inline code styling */
 html[data-theme='dark'] code {
-  background-color: #3a3b33 !important;
+  background-color: #242521 !important;
   color: #ffffff !important;
 }
 
@@ -270,6 +270,10 @@ div[class^="announcementBar"] {
   background-color: #EB8788 !important;
   /* padding: 16px 0 !important; */
   height: 36px;
+}
+
+[class*="announcementBar_"] {
+  border-bottom: 0px !important;
 }
 
 div[class^="announcementBarContent"] {
@@ -479,7 +483,7 @@ div[class*="tabItem_"] > div {
 
 /* Custom margin adjustment */
 .margin-vert--xl {
-  margin-bottom: 3rem !important;
+  margin-bottom: 0rem !important;
   margin-top: 3rem !important;
 }
 
@@ -625,18 +629,18 @@ li[class*="theme-doc-sidebar-item-category-level-1"] > button {
 }
 
 /* Component card styling */
-.componentCard_src-theme-ComponentCard-styles-module {
+.componentCard_src-theme-ComponentCard-styles-module, [class*="componentCard_"] {
   padding: 4px 16px !important;
 }
 
 /* Dark mode ComponentCard styling */
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module {
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module, [class*="componentCard_"] {
   background-color: #333430 !important;
   border: 1px solid #4a4a4a !important;
   color: #fff4e9 !important;
 }
 
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover {
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover, [class*="componentCard_"]:hover {
   background-color: #3b3c37 !important;
   transform: translateY(-1px);
   transition: all 0.2s ease;
@@ -702,7 +706,7 @@ input.cookbookSearch {
 
 @media (min-width: 997px) {
   @supports (scrollbar-gutter: stable) {
-      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
+      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module, [class*="menu_node_modules"] {
           padding: 1rem !important;
       }
   }
@@ -722,7 +726,7 @@ input.cookbookSearch {
 [class*="tabs__item"] {
   position: relative;
   border: none !important;
-  background-color: #FFEFE0 !important;
+  background-color: #ffe6d0 !important;
   color: #333 !important;
   border-radius: 6px !important;
   margin-right: 8px;
