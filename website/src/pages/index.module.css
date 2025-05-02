@@ -7,7 +7,14 @@
   padding: 4rem 0;
   text-align: center;
   position: relative;
+  margin-bottom: 2rem;
   overflow: hidden;
+  background-color: #ffbcba34;
+}
+
+.heroBanner .row {
+  display: flex;
+  align-items: center;
 }
 
 @media screen and (max-width: 966px) {
@@ -34,7 +41,7 @@
 }
 
 .heroImg {
-  height: 200px;
+  height: 300px;
   margin: 10px 0;
 }
 
@@ -47,9 +54,9 @@
 }
 
 .loveSection {
-  padding: 40px 0;
-  background-color: #602541;
-
+  padding: 60px 0;
+  background-color: #EB8788;
+  text-align: center;
   --ifm-heading-color: #ffffff;
 }
 
@@ -62,9 +69,9 @@
 }
 
 .goldSponsors {
-  --logo-height: 100px;
+  --logo-height: 40px;
   --basis: calc(100% - 10px);
-  margin: 10px 0 50px 0;
+  margin: 0;
 }
 
 .silverSponsors {
@@ -75,9 +82,10 @@
 .sponsorsBox {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
+  padding: 0;
 }
 
 .sponsorsBox > a {
@@ -103,4 +111,15 @@
   position: absolute;
   right: calc(var(--ifm-pre-padding) / 2);
   bottom: calc(var(--ifm-pre-padding) / 2);
+}
+
+.tabbedSection {
+  background-color: #f9f9f9;
+  padding: 60px 0;
+  margin: 40px 0;
+}
+
+.tabbedSectionImg {
+  max-height: 250px;
+  width: auto;
 }

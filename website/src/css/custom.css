@@ -4,6 +4,9 @@
  * work well for content-centric websites.
  */
 
+/* Import IBM Plex Sans from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
 :root {
   --ifm-color-primary: #3578e5;
   --ifm-color-primary-dark: #1d68e1;
@@ -45,10 +48,10 @@
   --ifm-color-warning-lighter: #ffe69c;
   --ifm-color-warning-lightest: #fff3d1;
 
-  --ifm-navbar-background-color: #f9f9f9;
-  --ifm-background-surface-color: #f9f9f9;
-  --ifm-background-surface-color-secondary: #f3f3f3;
-  --ifm-background-color: #ffffff;
+  --ifm-navbar-background-color: #FFF4E9;
+  --ifm-background-surface-color: #FFF4E9;
+  --ifm-background-surface-color-secondary: #FFEFE0;
+  --ifm-background-color: #FFF4E9;
 
   --ifm-heading-color: #000000;
   --ifm-hero-text-color: #000000;
@@ -56,6 +59,16 @@
   --ifm-alert-color: #000000;
 
   --ifm-code-font-size: 95%;
+  
+  --ifm-code-background: #ffbcba34;
+  
+  /* Set IBM Plex Sans as the default font family */
+  --ifm-font-family-base: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Apply the font to the body */
+body {
+  font-family: var(--ifm-font-family-base);
 }
 
 .footer.footer--dark {
@@ -76,7 +89,7 @@ html[data-theme="dark"] {
   --ifm-background-surface-color-secondary: #2a2b25;
   --ifm-navbar-background-color: #272822;
 
-  --ifm-code-background: #2e2f28;
+  --ifm-code-background: #ffbcba34;
   --ifm-code-color: #ffffff;
 
   background-color: #1f201c;
@@ -165,4 +178,137 @@ html[data-theme='dark'] .DocSearch {
 
 .markdown > table td {
   min-width: 160px;
+}
+
+/* Custom announcement bar styling */
+div[class^="announcementBar"] {
+  background-color: #EB8788 !important;
+  padding: 16px 0 !important;
+}
+
+div[class^="announcementBarContent"] {
+  color: white !important;
+  font-weight: 400;
+}
+
+/* Reduce paragraph line height */
+p {
+  line-height: 1.4;
+}
+
+/* Reduce code block font size */
+pre, code {
+  font-size: 12px !important;
+}
+
+/* Navbar logo styling */
+.navbar__logo {
+  height: 32px;
+}
+
+.navbar__logo img {
+  height: 100%;
+  width: auto;
+}
+
+/* Navbar links styling - reduced font size */
+.navbar__link {
+  font-size: 14px; /* Reduced font size for navbar links */
+}
+
+/* Keep the navbar brand/title at normal size */
+.navbar__title {
+  font-size: 18px; /* Keep the original size or adjust as needed */
+}
+
+/* Override themed component images */
+div[class*="themedImage"],
+div[class*="themedComponent"] {
+  height: auto;
+  width: auto;
+}
+
+div[class*="themedImage"] img,
+div[class*="themedComponent"] img,
+div[class*="themedComponent--light"] img,
+div[class*="themedComponent--dark"] img {
+  height: 100%;
+  width: auto;
+  max-height: 300px;
+}
+
+/* 3D Extruded Button Styles */
+.button.button--primary {
+  background-color: #FFBCBA !important;
+  color: #333 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  position: relative;
+  box-shadow: 0 6px 0 #E8908E !important;
+  transform: translateY(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-weight: 600;
+}
+
+.button.button--primary:hover {
+  background-color: #FFD0CE !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #E8908E !important;
+}
+
+.button.button--primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #E8908E !important;
+}
+
+.button.button--outline.button--primary {
+  color: #333 !important;
+  border: 2px solid #FFBCBA !important;
+  background-color: transparent !important;
+  box-shadow: 0 6px 0 #E8908E !important;
+}
+
+.button.button--outline.button--primary:hover {
+  background-color: rgba(255, 188, 186, 0.1) !important;
+  border-color: #FFD0CE !important;
+}
+
+/* Add more padding to all code blocks */
+/* Removed extra padding for code blocks */
+
+/* Custom Tab Item styling - reduce vertical padding */
+div[class*="tabItem_"] {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* Make sure enough space for the code blocks inside tabs */
+div[class*="tabItem_"] > div {
+  margin-top: 0.25rem;
+}
+
+/* Custom container padding */
+.container.padding-top--md {
+  padding-top: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+}
+
+.container.padding-bottom--md {
+  padding-bottom: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+}
+
+/* Tabbed section styling */
+.tabbedSection {
+  background-color: #f9f9f9;
+  padding: 60px 0;
+  margin: 40px 0;
+}
+
+html[data-theme="dark"] .tabbedSection {
+  background-color: #2a2b25;
+}
+
+.tabbedSectionImg {
+  max-height: 250px;
+  width: auto;
+  margin-right: 20px;
 }

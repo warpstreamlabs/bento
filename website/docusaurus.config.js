@@ -24,8 +24,20 @@ module.exports = {
   },
   themeConfig: {
     prism: {
-      theme: require('./src/plugins/prism_themes/github'),
-      darkTheme: require('./src/plugins/prism_themes/monokai'),
+      theme: {
+        plain: {
+          color: '#393A34',
+          backgroundColor: '#ffbcba34',
+        },
+        styles: require('./src/plugins/prism_themes/github').styles
+      },
+      darkTheme: {
+        plain: {
+          color: '#f8f8f2',
+          backgroundColor: '#ffbcba34',
+        },
+        styles: require('./src/plugins/prism_themes/monokai').styles
+      },
     },
     colorMode: {
       defaultMode: 'light',
@@ -39,7 +51,8 @@ module.exports = {
       title: 'Bento',
       logo: {
         alt: 'Bento',
-        src: 'img/logo.svg',
+        src: 'img/lightmode.svg',
+        srcDark: 'img/darkmode.svg',
       },
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},

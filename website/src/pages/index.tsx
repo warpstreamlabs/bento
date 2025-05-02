@@ -5,6 +5,7 @@ import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import ThemedImage from '@theme/ThemedImage';
 import styles from './index.module.css';
 import CodeBlock from "@theme/CodeBlock";
 import Tabs from '@theme/Tabs';
@@ -159,7 +160,6 @@ output:
 const features = [
   {
     title: 'Takes Care of the Dull Stuff',
-    imageUrl: 'img/Blobboring.svg',
     description: (
       <>
         <p>
@@ -173,7 +173,6 @@ const features = [
   },
   {
     title: 'Well Connected',
-    imageUrl: 'img/Blobborg.svg',
     description: (
       <>
         <p>
@@ -187,7 +186,6 @@ const features = [
   },
   {
     title: 'Reliable and Operationally Simple',
-    imageUrl: 'img/Blobscales.svg',
     description: (
       <>
         <p>
@@ -201,7 +199,6 @@ const features = [
   },
   {
     title: 'Extendable',
-    imageUrl: 'img/Blobextended.svg',
     description: (
       <>
         <p>
@@ -225,11 +222,6 @@ function Feature({ imageUrl, title, description }: FeatureArgs) {
   const imgUrl = useBaseUrl(imageUrl);
   return (
     <div className={classnames('col col--6')}>
-      {imgUrl && (
-        <div className="text--center">
-          <img className={classnames('padding-vert--md', styles.featureImage)} src={imgUrl} alt={title} />
-        </div>
-      )}
       <h3>{title}</h3>
       {description}
     </div>
@@ -246,7 +238,7 @@ function Home() {
       <header className={classnames('hero', styles.heroBanner)}>
         <div className="container">
           <div className="row">
-            <div className={classnames('col col--5 col--offset-1')}>
+            <div className={classnames('col col--5 col--offset-1')} style={{display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
               <h1 className="hero__title">{siteConfig.title}</h1>
               <p className="hero__subtitle">{siteConfig.tagline}</p>
               <div className={styles.buttons}>
@@ -260,8 +252,15 @@ function Home() {
                 </Link>
               </div>
             </div>
-            <div className={classnames('col col--5')}>
-              <img className={styles.heroImg} src="img/logo_hero.svg" />
+            <div className={classnames('col col--5')} style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <ThemedImage
+                className={styles.heroImg}
+                sources={{
+                  light: useBaseUrl('img/lightmode.svg'),
+                  dark: useBaseUrl('img/darkmode.svg'),
+                }}
+                alt="Bento Logo"
+              />
             </div>
           </div>
         </div>
@@ -269,8 +268,8 @@ function Home() {
       <main>
         <div className="container">
           <div className="row">
-            <div className={classnames(`${styles.pitch} col col--6`)}>
-              <h2>It's boringly easy to use</h2>
+            <div className={classnames(`${styles.pitch} col col--10 col--offset-1`)}>
+              <h2>Boringly Easy, Nothing To Overthink</h2>
               <p>
                 Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
               </p>
@@ -287,27 +286,8 @@ function Home() {
                 </Tabs>
               )} */}
             </div>
-            <div className={classnames('col col--6')}>
-              {snippets && snippets.length && (
-                <section className={styles.configSnippets}>
-                  <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
-                    return { label: props.label, value: props.label };
-                  })}>
-                    {snippets.map((props, idx) => (
-                      <TabItem key={idx} value={props.label}>
-                        <div style={{ position: 'relative' }}>
-                          <CodeBlock {...props} />
-                          {props.further && <Link
-                            className={classnames(styles.furtherButton, 'button button--outline button--primary')}
-                            to={props.further}>
-                            Read about
-                          </Link>}
-                        </div>
-                      </TabItem>
-                    ))}
-                  </Tabs>
-                </section>
-              )}
+            <div className={classnames('col col--6')} style={{display: 'none'}}>
+              {/* Removed tabbed component from here */}
             </div>
           </div>
         </div>
@@ -322,11 +302,52 @@ function Home() {
             </div>
           </section>
         )}
+        
+        {/* Tabbed Section with Image */}
+        <section className={classnames(styles.tabbedSection)}>
+          <div className="container margin-vert--xl">
+            <div className="row">
+              <div className={classnames('col col--4 col--offset-1')} style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <ThemedImage
+                  className={styles.tabbedSectionImg}
+                  sources={{
+                    light: useBaseUrl('img/lightmode.svg'),
+                    dark: useBaseUrl('img/darkmode.svg'),
+                  }}
+                  alt="Bento Logo"
+                />
+              </div>
+              <div className={classnames('col col--6')}>
+                {snippets && snippets.length && (
+                  <section className={styles.configSnippets}>
+                    <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
+                      return { label: props.label, value: props.label };
+                    })}>
+                      {snippets.map((props, idx) => (
+                        <TabItem key={idx} value={props.label}>
+                          <div style={{ position: 'relative' }}>
+                            <CodeBlock {...props} />
+                            {props.further && <Link
+                              className={classnames(styles.furtherButton, 'button button--outline button--primary')}
+                              to={props.further}>
+                              Read about
+                            </Link>}
+                          </div>
+                        </TabItem>
+                      ))}
+                    </Tabs>
+                  </section>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className={styles.loveSection}>
           <div className="container">
             <div className="row">
-              <div className={classnames('col col--6')}>
-                <h3 id="sponsored-by">Sponsored by the following heroes</h3>
+              <div className={classnames('col col--12')}>
+                <h3 id="sponsored-by">Sponsored by the boring folks at</h3>
                 <div className="container">
                   <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
                     <a href="https://www.warpstream.com/"><img src="/bento/img/sponsors/warpstream_logo.svg" /></a>
