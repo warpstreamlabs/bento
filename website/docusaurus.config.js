@@ -2,11 +2,11 @@ const path = require('path');
 const {components} = require('./src/plugins/components');
 
 module.exports = {
-  title: 'Bento',
+  title: 'Bento | Fancy stream processing made operationally mundane',
   tagline: 'Fancy stream processing made operationally mundane',
   url: 'https://warpstreamlabs.github.io/',
   baseUrl: '/bento/',
-  favicon: '/img/favicon.ico',
+  favicon: '/img/favicon.png',
   organizationName: 'warpstreamlabs',
   projectName: 'bento',
   customFields: {
@@ -78,10 +78,12 @@ module.exports = {
             {
               html: `
                 <div style="display: flex; justify-content: center; align-items: flex-start; height: 100%;">
-                  <picture>
-                    <source srcset="/bento/img/logo_dark.svg" media="(prefers-color-scheme: dark)">
-                    <img src="/bento/img/logo.svg" alt="Bento Logo" width="140" height="auto" style="margin: 0 auto;">
-                  </picture>
+                  <a href="/bento/">
+                    <picture>
+                      <source srcset="/bento/img/logo_dark.svg" media="(prefers-color-scheme: dark)">
+                      <img src="/bento/img/logo.svg" alt="Bento Logo" width="140" height="auto" style="margin: 0 auto;">
+                    </picture>
+                  </a>
                 </div>
               `,
             },
@@ -97,7 +99,7 @@ module.exports = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} WarpStream Labs. Portions used under MIT License from Ashley Jeffs.`,
+      copyright: `Copyright © ${new Date().getFullYear()} <a href="https://warpstream.com" target="_blank" rel="noopener noreferrer">WarpStream Labs</a>. Portions used under MIT License from Ashley Jeffs.`,
     },
     announcementBar: {
       id: 'star_the_dang_repo',

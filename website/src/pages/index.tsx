@@ -240,7 +240,7 @@ function Home() {
         <div className="container">
           <div className="row">
             <div className={classnames('col col--5 col--offset-1')} style={{display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
-              <h1 className="hero__title">{siteConfig.title}</h1>
+              <h1 className="hero__title">Bento</h1>
               <p className="hero__subtitle">{siteConfig.tagline}</p>
               <div className={styles.buttons}>
                 <Link
@@ -282,7 +282,7 @@ function Home() {
                   style={{ marginTop: 0, marginBottom: '1rem' }}
                 />
                 <p className={styles.writtenInGo}>
-                  Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
+                  Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento" target="_blank" rel="noopener noreferrer">Open source</a> and cloud native as utter heck.
                 </p>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <Link
