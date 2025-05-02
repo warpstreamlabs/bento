@@ -397,6 +397,7 @@ div[class*="themedComponent--dark"] img {
 html[data-theme="dark"] .button.button--primary,
 html[data-theme="dark"] .button.button--outline.button--primary {
   color: #fff !important;
+  background-color: #ba6663 !important;
 }
 
 /* Style paragraph links to be dark pink and semibold */
@@ -415,8 +416,7 @@ html[data-theme="dark"] p a:not(.button) {
 }
 
 /* Homepage-only code blocks with max height */
-.homepage .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module,
-.homepage div[class*="codeBlockLines_"] {
+.homepage [class*="codeBlockLines_"] {
   max-height: 350px;
   overflow-y: scroll;
   overflow-x: hidden !important;
