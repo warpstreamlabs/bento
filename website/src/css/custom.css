@@ -4,14 +4,17 @@
  * work well for content-centric websites.
  */
 
+/* Import IBM Plex Sans from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
 :root {
-  --ifm-color-primary: #3578e5;
-  --ifm-color-primary-dark: #1d68e1;
-  --ifm-color-primary-darker: #1b62d4;
-  --ifm-color-primary-darkest: #1751af;
-  --ifm-color-primary-light: #4e89e8;
-  --ifm-color-primary-lighter: #5a91ea;
-  --ifm-color-primary-lightest: #80aaef;
+  --ifm-color-primary: #d32f2f;
+  --ifm-color-primary-dark: #be2a2a;
+  --ifm-color-primary-darker: #b32727;
+  --ifm-color-primary-darkest: #942020;
+  --ifm-color-primary-light: #d84545;
+  --ifm-color-primary-lighter: #db5151;
+  --ifm-color-primary-lightest: #e27676;
 
   --ifm-color-danger: #ff6188;
   --ifm-color-danger-dark: #ff3e6d;
@@ -45,10 +48,10 @@
   --ifm-color-warning-lighter: #ffe69c;
   --ifm-color-warning-lightest: #fff3d1;
 
-  --ifm-navbar-background-color: #f9f9f9;
-  --ifm-background-surface-color: #f9f9f9;
-  --ifm-background-surface-color-secondary: #f3f3f3;
-  --ifm-background-color: #ffffff;
+  --ifm-navbar-background-color: #FFF4E9;
+  --ifm-background-surface-color: #FFF4E9;
+  --ifm-background-surface-color-secondary: #FFEFE0;
+  --ifm-background-color: #FFF4E9;
 
   --ifm-heading-color: #000000;
   --ifm-hero-text-color: #000000;
@@ -56,10 +59,89 @@
   --ifm-alert-color: #000000;
 
   --ifm-code-font-size: 95%;
+  
+  --ifm-code-background: #FCE9D6;
+  
+  /* Set IBM Plex Sans as the default font family */
+  --ifm-font-family-base: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Apply the font to the body */
+body {
+  font-family: var(--ifm-font-family-base);
+}
+
+/* Set h1 size to 2rem */
+h1 {
+  font-size: 2rem;
 }
 
 .footer.footer--dark {
-  --ifm-footer-background-color: #272822;
+  --ifm-footer-background-color: var(--ifm-background-color);
+  --ifm-footer-color: var(--ifm-font-color-base);
+  --ifm-footer-link-color: var(--ifm-color-primary);
+  --ifm-footer-title-color: var(--ifm-heading-color);
+  padding: 6rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  position: relative;
+  text-align: center;
+}
+
+.footer__inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+html[data-theme="dark"] .footer.footer--dark {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer__copyright {
+  text-align: center;
+  padding-top: 2rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Override container padding in footer */
+.footer .container,
+.footer .container-fluid {
+  padding: 0;
+  text-align: center;
+}
+
+/* Remove padding from footer columns while preserving other .col styling */
+.footer .col {
+  padding: 0 1rem !important;
+  text-align: center;
+}
+
+.footer__title {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.footer__link-item {
+  line-height: 1.8;
+  transition: color 0.2s;
+  display: inline-block;
+}
+
+.footer__links {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary-dark);
+  text-decoration: none;
 }
 
 html[data-theme="dark"] {
@@ -76,20 +158,29 @@ html[data-theme="dark"] {
   --ifm-background-surface-color-secondary: #2a2b25;
   --ifm-navbar-background-color: #272822;
 
-  --ifm-code-background: #2e2f28;
+  --ifm-code-background: #2d2e27;
   --ifm-code-color: #ffffff;
 
   background-color: #1f201c;
 
-  --ifm-heading-color: #ffffff;
-  --ifm-hero-text-color: #ffffff;
-  --ifm-color-secondary: #f0f0f0;
-  --ifm-blockquote-color: #c0c0c0;
+  --ifm-heading-color: #FFF4E9;
+  --ifm-hero-text-color: #FFF4E9;
+  --ifm-color-secondary: #FFF4E9;
+  --ifm-blockquote-color: #FFF4E9;
+  --ifm-font-color-base: #FFF4E9;
 }
 
 code {
-  background-color: var(--ifm-code-background) !important;
+  background-color: #ffdebd !important;
   color: var(--ifm-code-color) !important;
+  border: none !important;
+  padding: 3px 7px !important;
+}
+
+/* Dark mode inline code styling */
+html[data-theme='dark'] code {
+  background-color: #3a3b33 !important;
+  color: #ffffff !important;
 }
 
 a > code {
@@ -140,6 +231,11 @@ html[data-theme='dark'] .header-github-link:before {
     no-repeat;
 }
 
+/* DocSearch styling for light mode */
+.DocSearch {
+  --docsearch-searchbox-background: #ffbcba34;
+}
+
 html[data-theme='dark'] .DocSearch {
   --docsearch-text-color: var(--ifm-font-color-base);
   --docsearch-muted-color: var(--ifm-color-secondary-darkest);
@@ -165,4 +261,675 @@ html[data-theme='dark'] .DocSearch {
 
 .markdown > table td {
   min-width: 160px;
+}
+
+/* Custom announcement bar styling */
+div[class^="announcementBar"] {
+  background-color: #EB8788 !important;
+  padding: 16px 0 !important;
+}
+
+div[class^="announcementBarContent"] {
+  color: white !important;
+  font-weight: 400;
+}
+
+/* Fix announcement bar close button alignment */
+div[class^="announcementBarClose"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0;
+  margin-right: 12px;
+  margin-top: -6px !important;
+}
+
+div[class*="closeButton_node"] {
+  margin-top: -6px !important;
+}
+
+/* Reduce paragraph line height */
+p {
+  line-height: 1.4;
+}
+
+/* Reduce code block font size */
+pre, code {
+  font-size: 12px !important;
+}
+
+/* Navbar logo styling */
+.navbar__logo {
+  height: 32px;
+}
+
+.navbar__logo img {
+  height: 100%;
+  width: auto;
+}
+
+/* Navbar brand spacing */
+.navbar__brand {
+  margin-right: 0rem;
+}
+
+/* Navbar links styling - reduced font size */
+.navbar__link {
+  font-size: 14px; /* Reduced font size for navbar links */
+}
+
+/* Keep the navbar brand/title at normal size */
+.navbar__title {
+  font-size: 18px; /* Keep the original size or adjust as needed */
+  display: none !important; /* Hide the navbar title with !important to override other styles */
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Override themed component images */
+div[class*="themedImage"],
+div[class*="themedComponent"] {
+  height: auto;
+  width: auto;
+}
+
+div[class*="themedImage"] img,
+div[class*="themedComponent"] img,
+div[class*="themedComponent--light"] img,
+div[class*="themedComponent--dark"] img {
+  height: 100%;
+  width: auto;
+  max-height: 300px;
+}
+
+/* 3D Extruded Button Styles */
+.button.button--primary {
+  background-color: #FFBCBA !important;
+  color: #333 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  position: relative;
+  box-shadow: 0 6px 0 #E8908E !important;
+  transform: translateY(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+  font-weight: 600;
+}
+
+.button.button--primary:hover {
+  background-color: #FFA7A5 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #D67573 !important;
+}
+
+.button.button--primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #D67573 !important;
+  background-color: #E89896 !important;
+  transition: all 0.05s ease-in;
+}
+
+.button.button--outline.button--primary {
+  color: #333 !important;
+  border: 2px solid #FFBCBA !important;
+  background-color: #ffbcba9e !important;
+  box-shadow: 0 6px 0 #E8908E !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.button.button--outline.button--primary:hover {
+  background-color: #FFA7A5 !important;
+  border-color: #FFA7A5 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #D67573 !important;
+}
+
+.button.button--outline.button--primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #D67573 !important;
+  background-color: #E89896 !important;
+  transition: all 0.05s ease-in;
+}
+
+/* Dark mode button styling fixes */
+html[data-theme="dark"] .button.button--primary,
+html[data-theme="dark"] .button.button--outline.button--primary {
+  color: #fff !important;
+}
+
+/* Style paragraph links to be dark pink and semibold */
+p a:not(.button) {
+  color: #d32f2f !important; /* Darker red */
+  font-weight: 600;
+}
+
+html[data-theme="dark"] p a:not(.button) {
+  color: #ff5252 !important; /* Brighter red for dark mode */
+}
+
+/* Target code blocks with increased padding */
+pre[class*="codeBlock_"] {
+  padding: 0 !important; /* Reset the pre padding */
+}
+
+/* Homepage-only code blocks with max height */
+.homepage .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module,
+.homepage div[class*="codeBlockLines_"] {
+  max-height: 350px;
+  overflow-y: scroll;
+  overflow-x: hidden !important;
+}
+
+/* Target the actual code lines with more specificity */
+div[class*="codeBlockLines_"],
+.codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module,
+pre[class*="prism-code"] {
+  padding: 1.5rem !important; /* Apply padding only once */
+}
+
+/* Reset redundant padding in nested codeblock elements */
+div[class*="codeBlockLines_"] pre[class*="prism-code"],
+div[class*="theme-code-block"] > div > pre {
+  padding: 0 !important; /* Remove double padding */
+}
+
+/* Light mode code block styling */
+html[data-theme='light'] div[class*="codeBlockLines_"],
+html[data-theme='light'] pre[class*="prism-code"],
+html[data-theme='light'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  background-color: #FCE9D6 !important;
+  color: var(--ifm-color-gray-900) !important;
+}
+
+/* Dark mode code block styling */
+html[data-theme='dark'] div[class*="codeBlockLines_"],
+html[data-theme='dark'] pre[class*="prism-code"],
+html[data-theme='dark'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  background-color: #2d2e27 !important;
+  color: #ffffff !important;
+}
+
+/* Additional dark mode code selector to ensure proper styling */
+html[data-theme='dark'] [class*="theme-code-block"] {
+  background-color: #2d2e27 !important;
+  color: #ffffff !important;
+}
+
+/* Custom Tab Item styling - reduce vertical padding */
+div[class*="tabItem_"] {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* Make sure enough space for the code blocks inside tabs */
+div[class*="tabItem_"] > div {
+  margin-top: 0.25rem;
+}
+
+/* Custom container padding */
+.container.padding-top--md {
+  padding-top: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+}
+
+.container.padding-bottom--md {
+  padding-bottom: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+}
+
+/* Custom margin adjustment */
+.margin-vert--xl {
+  margin-bottom: 3rem !important;
+  margin-top: 3rem !important;
+}
+
+/* Full-width container with no padding */
+.container-fluid {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* Tabbed section styling */
+.tabbedSection {
+  background-color: #f9f9f9;
+  padding: 60px 0;
+  margin: 40px 0;
+}
+
+html[data-theme="dark"] .tabbedSection {
+  background-color: #2a2b25;
+}
+
+.tabbedSectionImg {
+  max-height: 250px;
+  width: auto;
+  margin-right: 20px;
+  margin-top: -30px;
+}
+
+/* Adjust tabbed section column padding */
+.tabbedSection .col--4 {
+  flex: 1 1 0%;
+  padding-right: 3rem;
+}
+.col {
+  padding: 0 2rem !important;
+}
+
+/* Custom Scrollbar Styling for Docusaurus sidebar */
+/* Firefox */
+div[class*="docSidebarContainer_"],
+aside[class*="theme-doc-sidebar-container"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"],
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"] {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit browsers */
+div[class*="docSidebarContainer_"]::-webkit-scrollbar,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar {
+  width: 6px;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-track,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb:hover,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb,
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb:hover,
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Global scrollbar styling to match sidebar */
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+html[data-theme="dark"] {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Sidebar item link styling - reduce font size */
+li[class*="theme-doc-sidebar-item-link"] > a {
+  font-size: 14px;
+}
+
+li[class*="theme-doc-sidebar-item-category"] > div > a {
+  font-size: 14px;
+}
+
+li[class*="theme-doc-sidebar-item-category"] > button {
+  font-size: 14px;
+}
+
+/* Keep category headings at original size for hierarchy */
+li[class*="theme-doc-sidebar-item-category-level-1"] > div > a,
+li[class*="theme-doc-sidebar-item-category-level-1"] > button {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Remove top margin from menu list items except first child */
+.menu__list-item:not(:first-child) {
+  margin-top: 0;
+}
+
+/* Component card styling */
+.componentCard_src-theme-ComponentCard-styles-module {
+  padding: 4px 16px !important;
+}
+
+/* Cookbook header alignment and styling */
+.cookbookListHeader .row {
+  align-items: center !important;
+}
+
+/* Target the first column with content */
+.cookbookListHeader .col--5.col--offset-1 {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+}
+
+/* Target the image column */
+.cookbookListHeader .col--5:last-child {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Target the paragraph in the header */
+.cookbookListHeader h1,
+.cookbookListHeader p {
+  margin-bottom: 0.5rem !important;
+}
+
+/* Directly target the search input */
+input.cookbookSearch {
+  padding: 12px 16px !important;
+  width: 100% !important;
+  margin-top: 1rem !important;
+  box-sizing: border-box !important;
+  font-size: 14px !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+/* Target the search container */
+.cookbookListHeader .search {
+  width: 100% !important;
+  margin-top: 1rem !important;
+}
+
+@media (min-width: 996px) {
+  .cookbookListHeader .row {
+    display: flex;
+    align-items: center;
+  }
+  
+  .cookbookListHeader .col--5:last-child {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 997px) {
+  @supports (scrollbar-gutter: stable) {
+      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
+          padding: 1rem !important;
+      }
+  }
+}
+
+/* Breadcrumbs styling */
+.breadcrumbs__link {
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+.breadcrumbs__link--active {
+  font-weight: bold !important;
+}
+
+/* Custom 3D Keyboard-like Tabs Styling */
+[class*="tabs__item"] {
+  position: relative;
+  border: none !important;
+  background-color: #FFEFE0 !important;
+  color: #333 !important;
+  border-radius: 6px !important;
+  margin-right: 8px;
+  box-shadow: 0 3px 0 #E8908E !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0.75rem 1rem !important;
+}
+
+[class*="tabs__item"]:hover {
+  background-color: #FFD0CE !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #E8908E !important;
+}
+
+[class*="tabs__item"]:active,
+[class*="tabs__item--active"] {
+  background-color: #FFBCBA !important;
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #E8908E !important;
+}
+
+/* Dark mode tab styling */
+html[data-theme="dark"] [class*="tabs__item"] {
+  background-color: #2d2e27 !important;
+  box-shadow: 0 3px 0 #405580 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] [class*="tabs__item"]:hover {
+  background-color: #3a3b33 !important;
+  box-shadow: 0 4px 0 #405580 !important;
+}
+
+html[data-theme="dark"] [class*="tabs__item"]:active,
+html[data-theme="dark"] [class*="tabs__item--active"] {
+  background-color: #45464d !important;
+  box-shadow: 0 1px 0 #405580 !important;
+}
+
+/* Remove auto overflow from tabs container */
+[class*="tabs"] {
+  overflow: visible !important;
+}
+
+/* Remove box-shadow from code block container */
+.codeBlockContainer_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Container-styles-module {
+  box-shadow: none !important;
+}
+
+/* Love section styling */
+.loveSection_src-pages-index-module {
+  max-width: 80rem;
+  margin: 0 auto;
+  border-radius: 140px;
+  margin-bottom: 160px;
+  box-shadow: 20px 20px #eb878829, 0px -10px 0px #ffdcdd29 inset;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+/* Love section hover effect */
+a:hover .loveSection_src-pages-index-module {
+  background-color: #fff0f0;
+  transform: translateY(-2px);
+}
+
+html[data-theme="dark"] a:hover .loveSection_src-pages-index-module {
+  background-color: #2a2625;
+  color: #FFF4E9;
+}
+
+/* Dark mode text color overrides */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] p,
+html[data-theme="dark"] li,
+html[data-theme="dark"] td,
+html[data-theme="dark"] th,
+html[data-theme="dark"] blockquote,
+html[data-theme="dark"] label,
+html[data-theme="dark"] .navbar__link,
+html[data-theme="dark"] .table-of-contents__link,
+html[data-theme="dark"] .footer__link-item {
+  color: #FFF4E9 !important;
+}
+
+html[data-theme="dark"] .footer__copyright {
+  color: rgba(255, 244, 233, 0.7) !important;
+}
+
+html[data-theme="dark"] code {
+  color: #FFF4E9 !important;
+}
+
+/* Fix furtherButton positioning */
+.furtherButton_src-pages-index-module {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
+/* Community page card styling */
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffeeee;
+  transition: transform 0.3s ease;
+  border: 1px solid #ffd0d0;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .card {
+  background-color: #3a2e2e;
+  border: 1px solid #4a3e3e;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.card__footer {
+  padding: 1rem;
+}
+
+/* Pagination navigation bottom margin */
+.pagination-nav.docusaurus-mt-lg {
+  margin-bottom: 3rem;
+}
+
+/* Footer column alignment */
+.footer__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: flex-start;
+}
+
+/* Scroll margin for anchor links */
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+/* More specific selectors for anchor targets */
+h1[id], h2[id], h3[id], h4[id], h5[id], h6[id], 
+[data-anchor], 
+.anchor, 
+.hash-link, 
+.target {
+  scroll-margin-top: 5.5rem;
+  scroll-padding-top: 5.5rem;
+}
+
+/* Make sure this applies on all elements with an ID */
+:target {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Mobile hero banner adjustments */
+@media (max-width: 996px) {
+  .heroBanner_src-pages-index-module {
+    padding-bottom: 2rem;
+  }
+  
+  .heroBanner_src-pages-index-module .row .col:first-child {
+    margin-bottom: 2rem;
+  }
+  
+  .margin-vert--xl {
+    margin-top: -1rem !important;
+    margin-bottom: -2rem !important;
+  }
+  
+  .loveSection_src-pages-index-module {
+    margin-left: 1rem;
+    margin-right: 1rem;
+    border-radius: 50px;
+  }
+  
+  /* Tabs vertical stacking on mobile */
+  [class*="tabs"] {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  [class*="tabs__item"] {
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+    width: 100%;
+  }
+  
+  /* Fix footer links overflow */
+  .footer__links {
+    flex-wrap: wrap;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .footer .row {
+    margin: 0;
+    flex-wrap: wrap;
+  }
+  
+  .footer .col {
+    flex-basis: 100%;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Hide what-is-blob.svg on mobile */
+  img[src*="what-is-blob.svg"] {
+    display: none !important;
+  }
 }

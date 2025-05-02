@@ -7,7 +7,14 @@
   padding: 4rem 0;
   text-align: center;
   position: relative;
+  margin-bottom: 2rem;
   overflow: hidden;
+  background-color: #ffbcba34;
+}
+
+.heroBanner .row {
+  display: flex;
+  align-items: center;
 }
 
 @media screen and (max-width: 966px) {
@@ -25,7 +32,7 @@
 .features {
   display: flex;
   align-items: center;
-  padding: 2rem 0;
+  padding: 0 0 2rem 0;
   width: 100%;
 }
 
@@ -34,7 +41,7 @@
 }
 
 .heroImg {
-  height: 200px;
+  height: 300px;
   margin: 10px 0;
 }
 
@@ -43,14 +50,25 @@
 }
 
 .pitch {
-  margin: 40px 0;
+  margin: 40px 0 10px 0;
 }
 
 .loveSection {
-  padding: 40px 0;
-  background-color: #602541;
+  padding: 60px 0;
+  background-color: #EB8788;
+  text-align: center;
+  --ifm-heading-color: #FFF4E9;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
 
-  --ifm-heading-color: #ffffff;
+a:hover .loveSection {
+  background-color: #D97778;
+  --ifm-heading-color: #FFF4E9;
+}
+
+html[data-theme="dark"] a:hover .loveSection {
+  background-color: #c16768;
+  --ifm-heading-color: #FFF4E9;
 }
 
 .loveSectionPlea {
@@ -62,9 +80,9 @@
 }
 
 .goldSponsors {
-  --logo-height: 100px;
+  --logo-height: 40px;
   --basis: calc(100% - 10px);
-  margin: 10px 0 50px 0;
+  margin: 0;
 }
 
 .silverSponsors {
@@ -75,9 +93,16 @@
 .sponsorsBox {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
+  padding: 0;
+}
+
+.sponsorsBox img {
+  max-width: 100%;
+  max-height: 60px;
+  margin-bottom: 10px;
 }
 
 .sponsorsBox > a {
@@ -85,13 +110,11 @@
   flex-grow: 0;
 }
 
-.goldSponsors > a > img {
+.goldSponsors > a > img,
+.goldSponsors img {
   width: 100%;
-}
-
-.sponsorsBox > a > img {
-  max-width: 100%;
-  max-height: var(--logo-height);
+  max-height: 60px;
+  margin-bottom: 10px;
 }
 
 .synadiaImg {
@@ -101,6 +124,33 @@
 
 .furtherButton {
   position: absolute;
-  right: calc(var(--ifm-pre-padding) / 2);
-  bottom: calc(var(--ifm-pre-padding) / 2);
+  right: 0;
+  bottom: 0;
+}
+
+.learnMoreButton {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+.tabbedSection {
+  background-color: transparent;
+  padding: 0;
+  margin: 40px 0;
+}
+
+.tabbedSectionImg {
+  max-height: 300px;
+  width: auto;
+  margin-right: 20px;
+}
+
+.fullWidthImageSection {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.writtenInGo {
+  font-size: 1.5rem;
 }

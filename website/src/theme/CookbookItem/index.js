@@ -12,14 +12,27 @@ function CookbookItem(props) {
     metadata,
   } = props;
   const {description, permalink} = metadata;
-  const {title} = frontMatter;
+  const {title, tags = [], featured} = frontMatter;
 
   return (
-    <div>
+    <div className={styles.cookbookItemWrapper}>
       <Link to={permalink} className={classnames(styles.cookbookPostItem)}>
         <article>
+          {featured && (
+            <div className={styles.featuredTag}>Featured</div>
+          )}
           <h2>{title}</h2>
-          <div>{description}</div>
+          <div className={styles.description}>{description}</div>
+          
+          {tags && tags.length > 0 && (
+            <div className={styles.tagContainer}>
+              {tags.map((tag) => (
+                <span key={tag} className={styles.tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </article>
       </Link>
     </div>

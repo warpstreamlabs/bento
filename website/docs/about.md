@@ -4,17 +4,30 @@ sidebar_label: About
 hide_title: false
 ---
 
-<div style={{textAlign: 'center'}}><img width="300px" src="/bento/img/what-is-blob.svg" /></div>
-
-Bento is a declarative data streaming service that solves a wide range of data engineering problems with simple, chained, stateless [processing steps][docs.processors]. It implements transaction based resiliency with back pressure, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery without needing to persist messages during transit.
-
-It's [simple to deploy][docs.guides.getting_started], comes with a wide range of [connectors](#components), and is totally data agnostic, making it easy to drop into your existing infrastructure. Bento has functionality that overlaps with integration frameworks, log aggregators and ETL workflow engines, and can therefore be used to complement these traditional data engineering tools or act as a simpler alternative.
-
-Bento is ready to commit to this relationship, are you?
-
 import Link from '@docusaurus/Link';
 
-<Link to="/docs/guides/getting_started" className="button button--lg button--outline button--block button--primary">Get Started</Link>
+<div style={{display: 'flex', alignItems: 'flex-start'}}>
+  <div style={{flex: 1, paddingRight: '3rem'}}>
+    <p>Bento is a declarative data streaming service that solves a wide range of data engineering problems with simple, chained, stateless <a href="/bento/docs/components/processors/about">processing steps</a>. It implements transaction based resiliency with back pressure, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery without needing to persist messages during transit.</p>
+    
+    <p>It's <a href="/bento/docs/guides/getting_started">simple to deploy</a>, comes with a wide range of <a href="#components">connectors</a>, and is totally data agnostic, making it easy to drop into your existing infrastructure. Bento has functionality that overlaps with integration frameworks, log aggregators and ETL workflow engines, and can therefore be used to complement these traditional data engineering tools or act as a simpler alternative.</p>
+    
+    <p>Bento is ready to commit to this relationship, are you?</p>
+    
+    <Link to="/docs/guides/getting_started" className="button button--lg button--outline button--primary">Get Started</Link>
+  </div>
+  <img src="/bento/img/what-is-blob.svg" alt="Bento mascot" style={{width: '250px', marginTop: '-30px'}} />
+</div>
+
+<style dangerouslySetInnerHTML={{__html: `
+  .markdown h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .markdown h3 {
+    font-size: 1.2rem !important;
+  }
+`}} />
 
 ## Components
 

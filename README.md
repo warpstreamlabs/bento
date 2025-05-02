@@ -16,7 +16,7 @@ It comes with a [powerful mapping language][bloblang-about], is easy to deploy a
 
 Bento is declarative, with stream pipelines defined in as few as a single config file, allowing you to specify connectors and a list of processing stages:
 
-```yaml
+```yaml 
 input:
   gcp_pubsub:
     project: foo
