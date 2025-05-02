@@ -18,7 +18,7 @@ function Community() {
           <div className="hero--subtitle">
             These are places where you can ask questions and find your soul mate (no promises).
           </div>
-          <img className={styles.headerImg} src="/bento/img/Blobsocial.svg" />
+          <img className={styles.headerImg} src="/bento/img/what-is-blob.svg" />
         </div>
       </header>
       <main>

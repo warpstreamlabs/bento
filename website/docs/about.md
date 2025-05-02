@@ -14,7 +14,7 @@ import Link from '@docusaurus/Link';
     
     <p>Bento is ready to commit to this relationship, are you?</p>
     
-    <Link to="/docs/guides/getting_started" className="button button--lg button--outline button--block button--primary">Get Started</Link>
+    <Link to="/docs/guides/getting_started" className="button button--lg button--outline button--primary">Get Started</Link>
   </div>
   <img src="/bento/img/what-is-blob.svg" alt="Bento mascot" style={{width: '250px', marginTop: '-30px'}} />
 </div>

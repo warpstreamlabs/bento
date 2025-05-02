@@ -24,20 +24,8 @@ module.exports = {
   },
   themeConfig: {
     prism: {
-      theme: {
-        plain: {
-          color: '#393A34',
-          backgroundColor: '#ffbcba34',
-        },
-        styles: require('./src/plugins/prism_themes/github').styles
-      },
-      darkTheme: {
-        plain: {
-          color: '#f8f8f2',
-          backgroundColor: '#ffbcba34',
-        },
-        styles: require('./src/plugins/prism_themes/monokai').styles
-      },
+      theme: require('./src/plugins/prism_themes/github'),
+      darkTheme: require('./src/plugins/prism_themes/monokai'),
     },
     colorMode: {
       defaultMode: 'light',
@@ -48,11 +36,11 @@ module.exports = {
       {name: 'twitter:card', content: 'summary'},
     ],
     navbar: {
-      title: 'Bento',
+      title: '',
       logo: {
         alt: 'Bento',
-        src: 'img/lightmode.svg',
-        srcDark: 'img/darkmode.svg',
+        src: 'img/logo.svg',
+        srcDark: 'img/logo_dark.svg',
       },
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},

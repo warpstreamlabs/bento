@@ -234,7 +234,8 @@ function Home() {
   return (
     <Layout
       title={`${siteConfig.title}`}
-      description="Fancy stream processing made operationally mundane">
+      description="Fancy stream processing made operationally mundane"
+      wrapperClassName="homepage">
       <header className={classnames('hero', styles.heroBanner)}>
         <div className="container">
           <div className="row">
@@ -266,60 +267,40 @@ function Home() {
         </div>
       </header>
       <main>
-        <div className="container">
-          <div className="row">
-            <div className={classnames(`${styles.pitch} col col--10 col--offset-1`)}>
-              <h2>Boringly Easy, Nothing To Overthink</h2>
-              <p>
-                Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
-              </p>
-              {/* TODO(install): fix me */}
-              {/* {installs && installs.length && (
-                <Tabs defaultValue={installs[0].label} values={installs.map((props, idx) => {
-                  return { label: props.label, value: props.label };
-                })}>
-                  {installs.map((props, idx) => (
-                    <TabItem key={idx} value={props.label}>
-                      <CodeBlock {...props} />
-                    </TabItem>
-                  ))}
-                </Tabs>
-              )} */}
-            </div>
-            <div className={classnames('col col--6')} style={{display: 'none'}}>
-              {/* Removed tabbed component from here */}
-            </div>
-          </div>
-        </div>
-        {features && features.length && (
-          <section className={styles.features}>
-            <div className="container margin-vert--md">
-              <div className="row">
-                {features.map((props, idx) => (
-                  <Feature key={idx} {...props} />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-        
         {/* Tabbed Section with Image */}
         <section className={classnames(styles.tabbedSection)}>
           <div className="container margin-vert--xl">
             <div className="row">
-              <div className={classnames('col col--4 col--offset-1')} style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <div className={classnames('col col--5')} style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start'}}>
                 <ThemedImage
                   className={styles.tabbedSectionImg}
                   sources={{
-                    light: useBaseUrl('img/lightmode.svg'),
-                    dark: useBaseUrl('img/darkmode.svg'),
+                    light: useBaseUrl('img/boredom.svg'),
+                    dark: useBaseUrl('img/boredom_dark.svg'),
                   }}
-                  alt="Bento Logo"
+                  alt="Boredom"
+                  style={{ marginTop: 0, marginBottom: '1rem' }}
                 />
+                <p className={styles.writtenInGo}>
+                  Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento">Open source</a> and cloud native as utter heck.
+                </p>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <Link
+                    className={classnames('button button--outline button--primary', styles.learnMoreButton)}
+                    to={useBaseUrl('docs/guides/getting_started')}>
+                    Get Started
+                  </Link>
+                  <Link
+                    className={classnames('button button--outline button--primary', styles.learnMoreButton)}
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                    to={useBaseUrl('cookbooks')}>
+                    Explore Cookbooks
+                  </Link>
+                </div>
               </div>
-              <div className={classnames('col col--6')}>
+              <div className={classnames('col col--7')}>
                 {snippets && snippets.length && (
-                  <section className={styles.configSnippets}>
+                  <section className={styles.configSnippets} style={{ marginTop: '50px' }}>
                     <Tabs defaultValue={snippets[0].label} values={snippets.map((props, idx) => {
                       return { label: props.label, value: props.label };
                     })}>
@@ -327,11 +308,6 @@ function Home() {
                         <TabItem key={idx} value={props.label}>
                           <div style={{ position: 'relative' }}>
                             <CodeBlock {...props} />
-                            {props.further && <Link
-                              className={classnames(styles.furtherButton, 'button button--outline button--primary')}
-                              to={props.further}>
-                              Read about
-                            </Link>}
                           </div>
                         </TabItem>
                       ))}
@@ -342,22 +318,54 @@ function Home() {
             </div>
           </div>
         </section>
+        
+        {features && features.length && (
+          <section className={styles.features}>
+            <div className="container margin-vert--md">
+              <div className="row" style={{ rowGap: '2rem' }}>
+                {features.map((props, idx) => (
+                  <Feature key={idx} {...props} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
-        <section className={styles.loveSection}>
-          <div className="container">
-            <div className="row">
-              <div className={classnames('col col--12')}>
-                <h3 id="sponsored-by">Sponsored by the boring folks at</h3>
-                <div className="container">
-                  <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
-                    <a href="https://www.warpstream.com/"><img src="/bento/img/sponsors/warpstream_logo.svg" /></a>
+        <a href="https://www.warpstream.com/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+          <section className={styles.loveSection}>
+            <div className="container">
+              <div className="row">
+                <div className={classnames('col col--12')}>
+                  <h3 id="sponsored-by">Sponsored by the boring folks at</h3>
+                  <div className="container">
+                    <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
+                      <img src="/bento/img/sponsors/warpstream_logo.svg" />
+                    </div>
+                    {/* <div>
+                      <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
+                    </div> */}
                   </div>
-                  {/* <div>
-                    <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
-                  </div> */}
                 </div>
               </div>
             </div>
+          </section>
+        </a>
+
+        {/* Full width food party image */}
+        <section className={styles.fullWidthImageSection}>
+          <div className="container-fluid" style={{ padding: 0 }}>
+            <img 
+              src={useBaseUrl('img/foodparty.svg')} 
+              alt="Food Party" 
+              style={{ 
+                width: '70%', 
+                display: 'block', 
+                margin: '0 auto', 
+                marginBottom: '-60px',
+                position: 'relative',
+                zIndex: 10
+              }}
+            />
           </div>
         </section>
       </main>

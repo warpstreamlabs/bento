@@ -57,7 +57,18 @@
   padding: 60px 0;
   background-color: #EB8788;
   text-align: center;
-  --ifm-heading-color: #ffffff;
+  --ifm-heading-color: #FFF4E9;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+a:hover .loveSection {
+  background-color: #D97778;
+  --ifm-heading-color: #FFF4E9;
+}
+
+html[data-theme="dark"] a:hover .loveSection {
+  background-color: #c16768;
+  --ifm-heading-color: #FFF4E9;
 }
 
 .loveSectionPlea {
@@ -88,18 +99,22 @@
   padding: 0;
 }
 
+.sponsorsBox img {
+  max-width: 100%;
+  max-height: 60px;
+  margin-bottom: 10px;
+}
+
 .sponsorsBox > a {
   flex-basis: var(--basis);
   flex-grow: 0;
 }
 
-.goldSponsors > a > img {
+.goldSponsors > a > img,
+.goldSponsors img {
   width: 100%;
-}
-
-.sponsorsBox > a > img {
-  max-width: 100%;
-  max-height: var(--logo-height);
+  max-height: 60px;
+  margin-bottom: 10px;
 }
 
 .synadiaImg {
@@ -109,17 +124,33 @@
 
 .furtherButton {
   position: absolute;
-  right: calc(var(--ifm-pre-padding) / 2);
-  bottom: calc(var(--ifm-pre-padding) / 2);
+  right: 0;
+  bottom: 0;
+}
+
+.learnMoreButton {
+  margin-top: 0.5rem;
+  align-self: flex-start;
 }
 
 .tabbedSection {
-  background-color: #f9f9f9;
-  padding: 60px 0;
+  background-color: transparent;
+  padding: 0;
   margin: 40px 0;
 }
 
 .tabbedSectionImg {
-  max-height: 250px;
+  max-height: 300px;
   width: auto;
+  margin-right: 20px;
+}
+
+.fullWidthImageSection {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.writtenInGo {
+  font-size: 1.5rem;
 }

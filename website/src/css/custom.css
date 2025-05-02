@@ -60,7 +60,7 @@
 
   --ifm-code-font-size: 95%;
   
-  --ifm-code-background: #ffbcba34;
+  --ifm-code-background: #FCE9D6;
   
   /* Set IBM Plex Sans as the default font family */
   --ifm-font-family-base: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -71,8 +71,77 @@ body {
   font-family: var(--ifm-font-family-base);
 }
 
+/* Set h1 size to 2rem */
+h1 {
+  font-size: 2rem;
+}
+
 .footer.footer--dark {
-  --ifm-footer-background-color: #272822;
+  --ifm-footer-background-color: var(--ifm-background-color);
+  --ifm-footer-color: var(--ifm-font-color-base);
+  --ifm-footer-link-color: var(--ifm-color-primary);
+  --ifm-footer-title-color: var(--ifm-heading-color);
+  padding: 6rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  position: relative;
+  text-align: center;
+}
+
+.footer__inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+html[data-theme="dark"] .footer.footer--dark {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer__copyright {
+  text-align: center;
+  padding-top: 2rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Override container padding in footer */
+.footer .container,
+.footer .container-fluid {
+  padding: 0;
+  text-align: center;
+}
+
+/* Remove padding from footer columns while preserving other .col styling */
+.footer .col {
+  padding: 0 1rem !important;
+  text-align: center;
+}
+
+.footer__title {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.footer__link-item {
+  line-height: 1.8;
+  transition: color 0.2s;
+  display: inline-block;
+}
+
+.footer__links {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary-dark);
+  text-decoration: none;
 }
 
 html[data-theme="dark"] {
@@ -89,20 +158,29 @@ html[data-theme="dark"] {
   --ifm-background-surface-color-secondary: #2a2b25;
   --ifm-navbar-background-color: #272822;
 
-  --ifm-code-background: #ffbcba34;
+  --ifm-code-background: #2d2e27;
   --ifm-code-color: #ffffff;
 
   background-color: #1f201c;
 
-  --ifm-heading-color: #ffffff;
-  --ifm-hero-text-color: #ffffff;
-  --ifm-color-secondary: #f0f0f0;
-  --ifm-blockquote-color: #c0c0c0;
+  --ifm-heading-color: #FFF4E9;
+  --ifm-hero-text-color: #FFF4E9;
+  --ifm-color-secondary: #FFF4E9;
+  --ifm-blockquote-color: #FFF4E9;
+  --ifm-font-color-base: #FFF4E9;
 }
 
 code {
-  background-color: var(--ifm-code-background) !important;
+  background-color: #ffdebd !important;
   color: var(--ifm-code-color) !important;
+  border: none !important;
+  padding: 6px 7px !important;
+}
+
+/* Dark mode inline code styling */
+html[data-theme='dark'] code {
+  background-color: #3a3b33 !important;
+  color: #ffffff !important;
 }
 
 a > code {
@@ -211,6 +289,11 @@ pre, code {
   width: auto;
 }
 
+/* Navbar brand spacing */
+.navbar__brand {
+  margin-right: 0rem;
+}
+
 /* Navbar links styling - reduced font size */
 .navbar__link {
   font-size: 14px; /* Reduced font size for navbar links */
@@ -219,6 +302,12 @@ pre, code {
 /* Keep the navbar brand/title at normal size */
 .navbar__title {
   font-size: 18px; /* Keep the original size or adjust as needed */
+  display: none !important; /* Hide the navbar title with !important to override other styles */
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
 }
 
 /* Override themed component images */
@@ -246,31 +335,43 @@ div[class*="themedComponent--dark"] img {
   position: relative;
   box-shadow: 0 6px 0 #E8908E !important;
   transform: translateY(0);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
   font-weight: 600;
 }
 
 .button.button--primary:hover {
-  background-color: #FFD0CE !important;
+  background-color: #FFA7A5 !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 0 #E8908E !important;
+  box-shadow: 0 8px 0 #D67573 !important;
 }
 
 .button.button--primary:active {
   transform: translateY(4px);
-  box-shadow: 0 2px 0 #E8908E !important;
+  box-shadow: 0 2px 0 #D67573 !important;
+  background-color: #E89896 !important;
+  transition: all 0.05s ease-in;
 }
 
 .button.button--outline.button--primary {
   color: #333 !important;
   border: 2px solid #FFBCBA !important;
-  background-color: transparent !important;
+  background-color: #ffbcba9e !important;
   box-shadow: 0 6px 0 #E8908E !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .button.button--outline.button--primary:hover {
-  background-color: rgba(255, 188, 186, 0.1) !important;
-  border-color: #FFD0CE !important;
+  background-color: #FFA7A5 !important;
+  border-color: #FFA7A5 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #D67573 !important;
+}
+
+.button.button--outline.button--primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #D67573 !important;
+  background-color: #E89896 !important;
+  transition: all 0.05s ease-in;
 }
 
 /* Dark mode button styling fixes */
@@ -294,16 +395,47 @@ pre[class*="codeBlock_"] {
   padding: 0 !important; /* Reset the pre padding */
 }
 
-/* Target the actual code lines with more specificity */
-div[class*="codeBlockLines_"],
-.codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
-  padding: 1.5rem !important; /* Apply bigger padding */
+/* Homepage-only code blocks with max height */
+.homepage .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module,
+.homepage div[class*="codeBlockLines_"] {
+  max-height: 350px;
+  overflow-y: scroll;
+  overflow-x: hidden !important;
 }
 
-/* Additional specificity for Safari and other browsers */
-[data-theme='light'] div[class*="codeBlockLines_"],
-[data-theme='dark'] div[class*="codeBlockLines_"] {
-  padding: 1.5rem !important;
+/* Target the actual code lines with more specificity */
+div[class*="codeBlockLines_"],
+.codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module,
+pre[class*="prism-code"] {
+  padding: 1.5rem !important; /* Apply padding only once */
+}
+
+/* Reset redundant padding in nested codeblock elements */
+div[class*="codeBlockLines_"] pre[class*="prism-code"],
+div[class*="theme-code-block"] > div > pre {
+  padding: 0 !important; /* Remove double padding */
+}
+
+/* Light mode code block styling */
+html[data-theme='light'] div[class*="codeBlockLines_"],
+html[data-theme='light'] pre[class*="prism-code"],
+html[data-theme='light'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  background-color: #FCE9D6 !important;
+  color: var(--ifm-color-gray-900) !important;
+}
+
+/* Dark mode code block styling */
+html[data-theme='dark'] div[class*="codeBlockLines_"],
+html[data-theme='dark'] pre[class*="prism-code"],
+html[data-theme='dark'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  background-color: #2d2e27 !important;
+  color: #ffffff !important;
+}
+
+/* Additional dark mode code selector to ensure proper styling */
+html[data-theme='dark'] [class*="theme-code-block"] {
+  background-color: #2d2e27 !important;
+  color: #ffffff !important;
 }
 
 /* Custom Tab Item styling - reduce vertical padding */
@@ -324,6 +456,19 @@ div[class*="tabItem_"] > div {
 
 .container.padding-bottom--md {
   padding-bottom: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+}
+
+/* Custom margin adjustment */
+.margin-vert--xl {
+  margin-bottom: 3rem !important;
+  margin-top: 3rem !important;
+}
+
+/* Full-width container with no padding */
+.container-fluid {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
 }
 
 /* Tabbed section styling */
@@ -465,10 +610,216 @@ li[class*="theme-doc-sidebar-item-category-level-1"] > button {
   padding: 4px 16px !important;
 }
 
+/* Cookbook header alignment and styling */
+.cookbookListHeader .row {
+  align-items: center !important;
+}
+
+/* Target the first column with content */
+.cookbookListHeader .col--5.col--offset-1 {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+}
+
+/* Target the image column */
+.cookbookListHeader .col--5:last-child {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Target the paragraph in the header */
+.cookbookListHeader h1,
+.cookbookListHeader p {
+  margin-bottom: 0.5rem !important;
+}
+
+/* Directly target the search input */
+input.cookbookSearch {
+  padding: 12px 16px !important;
+  width: 100% !important;
+  margin-top: 1rem !important;
+  box-sizing: border-box !important;
+  font-size: 14px !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+/* Target the search container */
+.cookbookListHeader .search {
+  width: 100% !important;
+  margin-top: 1rem !important;
+}
+
+@media (min-width: 996px) {
+  .cookbookListHeader .row {
+    display: flex;
+    align-items: center;
+  }
+  
+  .cookbookListHeader .col--5:last-child {
+    display: flex;
+    justify-content: center;
+  }
+}
+
 @media (min-width: 997px) {
   @supports (scrollbar-gutter: stable) {
       .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
           padding: 1rem !important;
       }
   }
+}
+
+/* Breadcrumbs styling */
+.breadcrumbs__link {
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+.breadcrumbs__link--active {
+  font-weight: bold !important;
+}
+
+/* Custom 3D Keyboard-like Tabs Styling */
+[class*="tabs__item"] {
+  position: relative;
+  border: none !important;
+  background-color: #FFEFE0 !important;
+  color: #333 !important;
+  border-radius: 6px !important;
+  margin-right: 8px;
+  box-shadow: 0 3px 0 #E8908E !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0.75rem 1rem !important;
+}
+
+[class*="tabs__item"]:hover {
+  background-color: #FFD0CE !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #E8908E !important;
+}
+
+[class*="tabs__item"]:active,
+[class*="tabs__item--active"] {
+  background-color: #FFBCBA !important;
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #E8908E !important;
+}
+
+/* Dark mode tab styling */
+html[data-theme="dark"] [class*="tabs__item"] {
+  background-color: #2d2e27 !important;
+  box-shadow: 0 3px 0 #405580 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] [class*="tabs__item"]:hover {
+  background-color: #3a3b33 !important;
+  box-shadow: 0 4px 0 #405580 !important;
+}
+
+html[data-theme="dark"] [class*="tabs__item"]:active,
+html[data-theme="dark"] [class*="tabs__item--active"] {
+  background-color: #45464d !important;
+  box-shadow: 0 1px 0 #405580 !important;
+}
+
+/* Remove auto overflow from tabs container */
+[class*="tabs"] {
+  overflow: visible !important;
+}
+
+/* Remove box-shadow from code block container */
+.codeBlockContainer_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Container-styles-module {
+  box-shadow: none !important;
+}
+
+/* Love section styling */
+.loveSection_src-pages-index-module {
+  max-width: 80rem;
+  margin: 0 auto;
+  border-radius: 140px;
+  margin-bottom: 160px;
+  box-shadow: 20px 20px #eb878829, 0px -10px 0px #ffdcdd29 inset;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+/* Love section hover effect */
+a:hover .loveSection_src-pages-index-module {
+  background-color: #fff0f0;
+  transform: translateY(-2px);
+}
+
+html[data-theme="dark"] a:hover .loveSection_src-pages-index-module {
+  background-color: #2a2625;
+  color: #FFF4E9;
+}
+
+/* Dark mode text color overrides */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] p,
+html[data-theme="dark"] li,
+html[data-theme="dark"] td,
+html[data-theme="dark"] th,
+html[data-theme="dark"] blockquote,
+html[data-theme="dark"] label,
+html[data-theme="dark"] .navbar__link,
+html[data-theme="dark"] .table-of-contents__link,
+html[data-theme="dark"] .footer__link-item {
+  color: #FFF4E9 !important;
+}
+
+html[data-theme="dark"] .footer__copyright {
+  color: rgba(255, 244, 233, 0.7) !important;
+}
+
+html[data-theme="dark"] code {
+  color: #FFF4E9 !important;
+}
+
+/* Fix furtherButton positioning */
+.furtherButton_src-pages-index-module {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
+/* Community page card styling */
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffeeee;
+  transition: transform 0.3s ease;
+  border: 1px solid #ffd0d0;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .card {
+  background-color: #3a2e2e;
+  border: 1px solid #4a3e3e;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.card__footer {
+  padding: 1rem;
 }

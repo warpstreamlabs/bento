@@ -1,12 +1,30 @@
 .cookbookListHeader {
+  padding: 4rem 0;
   text-align: center;
-  background-color: var(--ifm-background-surface-color);
-  padding-top: 60px;
-  padding-bottom: 40px;
+  position: relative;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  background-color: #ffbcba34;
+}
+
+.cookbookListHeader .row {
+  align-items: center;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+}
+
+.imageCol {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .headerImg {
-  height: 200px;
+  height: 300px;
+  margin: 10px 0;
 }
 
 .headerImgMobile {
@@ -17,8 +35,7 @@
 
 @media only screen and (max-width: 996px) {
   .cookbookListHeader {
-    padding-top: 20px;
-    padding-bottom: 20px;
+    padding: 2rem;
   }
 
   .headerImg {
@@ -31,15 +48,93 @@
 }
 
 .cookbookItemsContainer {
-  --ifm-container-width: 800px;
-  --ifm-container-width-xl: 800px;
+  --ifm-container-width: 900px;
+  --ifm-container-width-xl: 900px;
+  padding: 2rem 0 4rem;
+}
+
+.cookbookGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .cookbookGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .cookbookSearch {
-  font-size: 12pt;
+  font-size: 14px;
   border-radius: var(--ifm-global-radius);
-  border: none;
-  padding: 5px;
-  color: var(--ifm-primary-color);
+  border: 1px solid #e0e0e0;
+  padding: 12px 16px;
+  color: var(--ifm-color-emphasis-700);
   background-color: var(--ifm-background-color);
+  width: 100%;
+  margin-top: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.cookbookSearch:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.25);
+}
+
+/* Dark mode adjustments */
+html[data-theme="dark"] .cookbookSearch {
+  border-color: #444;
+  background-color: #333;
+  color: white;
+}
+
+html[data-theme="dark"] .cookbookSearch:focus {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 209, 255, 0.25);
+}
+
+/* Style for the "Show more" button */
+.showMoreButton {
+  display: inline-block;
+  margin: 2rem auto 1rem;
+  padding: 0.75rem 2rem;
+  background-color: #FFBCBA;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 0 #E8908E;
+  transform: translateY(0);
+}
+
+.showMoreButton:hover {
+  background-color: #FFD0CE;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #E8908E;
+  text-decoration: none;
+}
+
+.showMoreButton:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #E8908E;
+}
+
+/* Dark mode adjustments for the button */
+html[data-theme="dark"] .showMoreButton {
+  color: white;
+  background-color: #3bd1ff;
+  box-shadow: 0 4px 0 #00a8dc;
+}
+
+html[data-theme="dark"] .showMoreButton:hover {
+  background-color: #5ad8ff;
+  box-shadow: 0 6px 0 #00a8dc;
+}
+
+html[data-theme="dark"] .showMoreButton:active {
+  box-shadow: 0 2px 0 #00a8dc;
 }
