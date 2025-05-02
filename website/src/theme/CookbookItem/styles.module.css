@@ -85,8 +85,9 @@
 }
 
 /* Dark mode styling */
-html[data-theme="dark"] .cookbookPostItem {
-  background-color: rgba(59, 209, 255, 0.1);
+html[data-theme="dark"] .cookbookPostItem,
+html[data-theme="dark"] [class*="cookbookPostItem"] {
+  background-color: #3a2623 !important;
   border: none;
 }
 

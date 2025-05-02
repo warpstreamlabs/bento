@@ -153,15 +153,15 @@ html[data-theme="dark"] {
   --ifm-color-primary-lighter: #6adcff;
   --ifm-color-primary-lightest: #99e7ff;
 
-  --ifm-background-color: #1f201c;
+  --ifm-background-color: #2A1A17;
   --ifm-background-surface-color: #272822;
   --ifm-background-surface-color-secondary: #2a2b25;
-  --ifm-navbar-background-color: #272822;
+  --ifm-navbar-background-color: #2A1A17;
 
   --ifm-code-background: #2d2e27;
   --ifm-code-color: #ffffff;
 
-  background-color: #2d2e27 !important;
+  background-color: #2A1A17 !important;
   color: #fff4e9 !important;
 
   --ifm-heading-color: #FFF4E9;
@@ -181,7 +181,7 @@ code {
 
 /* Dark mode inline code styling */
 html[data-theme='dark'] code {
-  background-color: #242521 !important;
+  background-color: #3a2623 !important;
   color: #ffffff !important;
 }
 
@@ -451,7 +451,7 @@ div[class*="buttonGroup_"] {
 html[data-theme='dark'] div[class*="codeBlockLines_"],
 html[data-theme='dark'] pre[class*="prism-code"],
 html[data-theme='dark'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
-  background-color: #242521 !important;
+  background-color: #3a2623 !important;
   color: #ffffff !important;
 }
 
@@ -634,19 +634,22 @@ li[class*="theme-doc-sidebar-item-category-level-1"] > button {
 }
 
 /* Dark mode ComponentCard styling */
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module, [class*="componentCard_"] {
-  background-color: #333430 !important;
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module, 
+html[data-theme="dark"] [class*="componentCard_"] {
+  background-color: #3a2623 !important;
   border: 1px solid #4a4a4a !important;
   color: #fff4e9 !important;
 }
 
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover, [class*="componentCard_"]:hover {
-  background-color: #3b3c37 !important;
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover, 
+html[data-theme="dark"] [class*="componentCard_"]:hover {
+  background-color: #4e342f !important; /* Slightly lighter on hover for visual feedback */
   transform: translateY(-1px);
   transition: all 0.2s ease;
 }
 
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module * {
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module *, 
+html[data-theme="dark"] [class*="componentCard_"] * {
   color: #fff4e9 !important;
 }
 
@@ -751,20 +754,20 @@ input.cookbookSearch {
 
 /* Dark mode tab styling */
 html[data-theme="dark"] [class*="tabs__item"] {
-  background-color: #1e1f1c !important;
-  box-shadow: 0 3px 0 #405580 !important;
+  background-color: #3a2623 !important;
+  box-shadow: 0 3px 0 #ba6663 !important;
   color: #fff !important;
 }
 
 html[data-theme="dark"] [class*="tabs__item"]:hover {
-  background-color: #2a2b27 !important;
-  box-shadow: 0 4px 0 #405580 !important;
+  background-color: #18100e !important;
+  box-shadow: 0 4px 0 #ba6663 !important;
 }
 
 html[data-theme="dark"] [class*="tabs__item"]:active,
 html[data-theme="dark"] [class*="tabs__item--active"] {
-  background-color: #333430 !important;
-  box-shadow: 0 1px 0 #405580 !important;
+  background-color: #18100e !important;
+  box-shadow: 0 1px 0 #ba6663 !important;
 }
 
 /* Remove auto overflow from tabs container */
@@ -961,6 +964,15 @@ div[class*="buttonGroup_"] {
 
 html[data-theme='dark'] .buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
 html[data-theme='dark'] div[class*="buttonGroup_"] {
-  background-color: #242521 !important;
+  background-color: #3a2623 !important;
   padding-bottom: 0.5rem !important;
+}
+
+/* Add dark mode hero banner background */
+html[data-theme="dark"] .heroBanner_src-pages-index-module {
+  background-color: #553630 !important;
+}
+
+.heroBanner_src-pages-index-module .row .col:first-child {
+  padding: 0 4rem 0 0;
 }
