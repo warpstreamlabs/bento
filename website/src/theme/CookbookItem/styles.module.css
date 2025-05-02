@@ -3,14 +3,14 @@
 }
 
 .cookbookPostItem {
-  background-color: white;
-  border: 1px solid #f0f0f0;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  background-color: #ffbcba34;
+  border: none;
+  border-radius: 6px;
+  box-shadow: none;
   color: var(--ifm-font-color-base);
   display: block;
   margin-bottom: 1.5rem;
-  padding: 1.75rem 2rem;
+  padding: 1.5rem 1.75rem;
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -31,8 +31,8 @@
 .cookbookPostItem:hover {
   text-decoration: none;
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  border-color: #e0e0e0;
+  box-shadow: none;
+  border-color: transparent;
 }
 
 .cookbookPostItem:hover::before {
@@ -40,17 +40,17 @@
 }
 
 .cookbookPostItem h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.75rem;
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
   color: #333333;
   font-weight: 600;
 }
 
 .description {
   color: #666666;
-  line-height: 1.6;
-  font-size: 1rem;
-  margin-bottom: 1.5rem;
+  line-height: 1.5;
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
 }
 
 .featuredTag {
@@ -61,7 +61,7 @@
   color: white;
   font-size: 0.8rem;
   padding: 0.3rem 0.8rem;
-  border-radius: 0 8px 0 8px;
+  border-radius: 0 6px 0 6px;
   font-weight: 600;
   z-index: 1;
 }
@@ -86,8 +86,8 @@
 
 /* Dark mode styling */
 html[data-theme="dark"] .cookbookPostItem {
-  background-color: #2d2e27;
-  border-color: #3e3f36;
+  background-color: rgba(59, 209, 255, 0.1);
+  border: none;
 }
 
 html[data-theme="dark"] .cookbookPostItem h2 {
@@ -99,8 +99,8 @@ html[data-theme="dark"] .description {
 }
 
 html[data-theme="dark"] .cookbookPostItem:hover {
-  border-color: #4a4b40;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  border: none;
+  box-shadow: none;
 }
 
 html[data-theme="dark"] .tag {

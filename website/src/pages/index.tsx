@@ -354,8 +354,11 @@ function Home() {
         {/* Full width food party image */}
         <section className={styles.fullWidthImageSection}>
           <div className="container-fluid" style={{ padding: 0 }}>
-            <img 
-              src={useBaseUrl('img/foodparty.svg')} 
+            <ThemedImage 
+              sources={{
+                light: useBaseUrl('img/foodparty.svg'),
+                dark: useBaseUrl('img/foodparty_dark.svg'),
+              }}
               alt="Food Party" 
               style={{ 
                 width: '70%', 

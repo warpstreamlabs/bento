@@ -48,8 +48,8 @@
 }
 
 .cookbookItemsContainer {
-  --ifm-container-width: 900px;
-  --ifm-container-width-xl: 900px;
+  --ifm-container-width: 1100px;
+  --ifm-container-width-xl: 1100px;
   padding: 2rem 0 4rem;
 }
 
