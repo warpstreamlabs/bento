@@ -286,11 +286,6 @@ div[class^="announcementBarClose"] {
   transform: translateY(-50%);
   padding: 0;
   margin-right: 12px;
-  margin-top: -6px !important;
-}
-
-div[class*="closeButton_"] {
-  margin-top: -6px !important;
 }
 
 /* Reduce paragraph line height */
