@@ -16,7 +16,7 @@ import Link from '@docusaurus/Link';
     
     <Link to="/docs/guides/getting_started" className="button button--lg button--outline button--primary">Get Started</Link>
   </div>
-  <img src="/bento/img/what-is-blob.svg" alt="Bento mascot" style={{width: '250px', marginTop: '-30px'}} />
+  <img src="/bento/img/geoff.svg" alt="Bento mascot" style={{width: '250px', marginTop: '-30px'}} />
 </div>
 
 <style dangerouslySetInnerHTML={{__html: `
