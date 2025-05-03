@@ -45,6 +45,11 @@ module.exports = {
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},
         {to: 'cookbooks', label: 'Cookbooks', position: 'left'},
+        {
+          type: 'html',
+          position: 'right',
+          value: '<div style="display: flex; align-items: center; height: 100%;"><iframe src="https://ghbtns.com/github-btn.html?user=warpstreamlabs&repo=bento&type=star&count=true" frameborder="0" scrolling="0" width="100" height="20" title="GitHub"></iframe></div>',
+        },
         {to: 'community', label: 'Community / Support', position: 'right'},
         {
           href: 'https://github.com/warpstreamlabs/bento/releases/latest',
