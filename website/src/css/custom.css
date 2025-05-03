@@ -925,6 +925,14 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
     border-radius: 50px;
   }
   
+  /* Add padding to loveSection on mobile */
+  [class*="loveSection_"] {
+    padding: 2rem !important;
+    margin-left: 2rem !important;
+    margin-right: 2rem !important;
+    border-radius: 20px !important;
+  }
+  
   /* Tabs vertical stacking on mobile */
   [class*="tabs"] {
     flex-direction: column;
@@ -975,7 +983,12 @@ html[data-theme='dark'] div[class*="buttonGroup_"] {
 
 /* Add dark mode hero banner background */
 html[data-theme="dark"] .heroBanner_src-pages-index-module {
-  background-color: #553630 !important;
+  background-color: #ffbcba12 !important;
+}
+
+/* Add dark mode cookbook header background */
+html[data-theme="dark"] [class*="cookbookListHeader"] {
+  background-color: #ffbcba12 !important;
 }
 
 .heroBanner_src-pages-index-module .row .col:first-child {
