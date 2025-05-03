@@ -85,13 +85,15 @@
 }
 
 /* Dark mode adjustments */
-html[data-theme="dark"] .cookbookSearch {
+html[data-theme="dark"] .cookbookSearch,
+html[data-theme="dark"] [class*="cookbookSearch"] {
   border-color: #444;
-  background-color: #333;
+  background-color: #2A1A17 !important;
   color: white;
 }
 
-html[data-theme="dark"] .cookbookSearch:focus {
+html[data-theme="dark"] .cookbookSearch:focus,
+html[data-theme="dark"] [class*="cookbookSearch"]:focus {
   border-color: var(--ifm-color-primary);
   box-shadow: 0 0 0 2px rgba(59, 209, 255, 0.25);
 }

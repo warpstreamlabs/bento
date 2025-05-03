@@ -153,15 +153,15 @@ html[data-theme="dark"] {
   --ifm-color-primary-lighter: #6adcff;
   --ifm-color-primary-lightest: #99e7ff;
 
-  --ifm-background-color: #1f201c;
+  --ifm-background-color: #2A1A17;
   --ifm-background-surface-color: #272822;
   --ifm-background-surface-color-secondary: #2a2b25;
-  --ifm-navbar-background-color: #272822;
+  --ifm-navbar-background-color: #2A1A17;
 
   --ifm-code-background: #2d2e27;
   --ifm-code-color: #ffffff;
 
-  background-color: #2d2e27 !important;
+  background-color: #2A1A17 !important;
   color: #fff4e9 !important;
 
   --ifm-heading-color: #FFF4E9;
@@ -181,7 +181,7 @@ code {
 
 /* Dark mode inline code styling */
 html[data-theme='dark'] code {
-  background-color: #3a3b33 !important;
+  background-color: #3a2623 !important;
   color: #ffffff !important;
 }
 
@@ -272,6 +272,10 @@ div[class^="announcementBar"] {
   height: 36px;
 }
 
+[class*="announcementBar_"] {
+  border-bottom: 0px !important;
+}
+
 div[class^="announcementBarContent"] {
   color: white !important;
   font-weight: 400;
@@ -316,6 +320,11 @@ pre, code {
 /* Navbar links styling - reduced font size */
 .navbar__link {
   font-size: 14px; /* Reduced font size for navbar links */
+}
+
+/* Add navbar dark mode box-shadow */
+html[data-theme="dark"] .navbar {
+  box-shadow: 0px 1px #444950;
 }
 
 /* Keep the navbar brand/title at normal size */
@@ -447,7 +456,7 @@ div[class*="buttonGroup_"] {
 html[data-theme='dark'] div[class*="codeBlockLines_"],
 html[data-theme='dark'] pre[class*="prism-code"],
 html[data-theme='dark'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
-  background-color: #242521 !important;
+  background-color: #3a2623 !important;
   color: #ffffff !important;
 }
 
@@ -479,7 +488,7 @@ div[class*="tabItem_"] > div {
 
 /* Custom margin adjustment */
 .margin-vert--xl {
-  margin-bottom: 3rem !important;
+  margin-bottom: 0rem !important;
   margin-top: 3rem !important;
 }
 
@@ -625,24 +634,27 @@ li[class*="theme-doc-sidebar-item-category-level-1"] > button {
 }
 
 /* Component card styling */
-.componentCard_src-theme-ComponentCard-styles-module {
+.componentCard_src-theme-ComponentCard-styles-module, [class*="componentCard_"] {
   padding: 4px 16px !important;
 }
 
 /* Dark mode ComponentCard styling */
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module {
-  background-color: #333430 !important;
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module, 
+html[data-theme="dark"] [class*="componentCard_"] {
+  background-color: #3a2623 !important;
   border: 1px solid #4a4a4a !important;
   color: #fff4e9 !important;
 }
 
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover {
-  background-color: #3b3c37 !important;
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover, 
+html[data-theme="dark"] [class*="componentCard_"]:hover {
+  background-color: #4e342f !important; /* Slightly lighter on hover for visual feedback */
   transform: translateY(-1px);
   transition: all 0.2s ease;
 }
 
-html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module * {
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module *, 
+html[data-theme="dark"] [class*="componentCard_"] * {
   color: #fff4e9 !important;
 }
 
@@ -702,7 +714,7 @@ input.cookbookSearch {
 
 @media (min-width: 997px) {
   @supports (scrollbar-gutter: stable) {
-      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
+      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module, [class*="menu_node_modules"] {
           padding: 1rem !important;
       }
   }
@@ -722,7 +734,7 @@ input.cookbookSearch {
 [class*="tabs__item"] {
   position: relative;
   border: none !important;
-  background-color: #FFEFE0 !important;
+  background-color: #ffe6d0 !important;
   color: #333 !important;
   border-radius: 6px !important;
   margin-right: 8px;
@@ -747,20 +759,20 @@ input.cookbookSearch {
 
 /* Dark mode tab styling */
 html[data-theme="dark"] [class*="tabs__item"] {
-  background-color: #1e1f1c !important;
-  box-shadow: 0 3px 0 #405580 !important;
+  background-color: #3a2623 !important;
+  box-shadow: 0 3px 0 #ba6663 !important;
   color: #fff !important;
 }
 
 html[data-theme="dark"] [class*="tabs__item"]:hover {
-  background-color: #2a2b27 !important;
-  box-shadow: 0 4px 0 #405580 !important;
+  background-color: #18100e !important;
+  box-shadow: 0 4px 0 #ba6663 !important;
 }
 
 html[data-theme="dark"] [class*="tabs__item"]:active,
 html[data-theme="dark"] [class*="tabs__item--active"] {
-  background-color: #333430 !important;
-  box-shadow: 0 1px 0 #405580 !important;
+  background-color: #18100e !important;
+  box-shadow: 0 1px 0 #ba6663 !important;
 }
 
 /* Remove auto overflow from tabs container */
@@ -913,6 +925,14 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
     border-radius: 50px;
   }
   
+  /* Add padding to loveSection on mobile */
+  [class*="loveSection_"] {
+    padding: 2rem !important;
+    margin-left: 2rem !important;
+    margin-right: 2rem !important;
+    border-radius: 20px !important;
+  }
+  
   /* Tabs vertical stacking on mobile */
   [class*="tabs"] {
     flex-direction: column;
@@ -957,6 +977,20 @@ div[class*="buttonGroup_"] {
 
 html[data-theme='dark'] .buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
 html[data-theme='dark'] div[class*="buttonGroup_"] {
-  background-color: #242521 !important;
+  background-color: #3a2623 !important;
   padding-bottom: 0.5rem !important;
+}
+
+/* Add dark mode hero banner background */
+html[data-theme="dark"] .heroBanner_src-pages-index-module {
+  background-color: #ffbcba12 !important;
+}
+
+/* Add dark mode cookbook header background */
+html[data-theme="dark"] [class*="cookbookListHeader"] {
+  background-color: #ffbcba12 !important;
+}
+
+.heroBanner_src-pages-index-module .row .col:first-child {
+  padding: 0 4rem 0 0;
 }
