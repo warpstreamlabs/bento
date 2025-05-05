@@ -327,36 +327,36 @@ function Home() {
                   <Feature key={idx} {...props} />
                 ))}
               </div>
+              
+              <a href="https://www.warpstream.com/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '3rem' }}>
+                <section className={styles.loveSection} style={{
+                  maxWidth: '80rem',
+                  margin: '0 auto',
+                  borderRadius: '140px',
+                  marginBottom: '60px',
+                  boxShadow: '20px 20px #eb878829, 0px -10px 0px #ffdcdd29 inset',
+                  transition: 'background-color 0.3s ease'
+                }}>
+                  <div className="container">
+                    <div className="row">
+                      <div className={classnames('col col--12')}>
+                        <h3 id="sponsored-by">Sponsored by the boring folks at</h3>
+                        <div className="container">
+                          <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
+                            <img src="/bento/img/sponsors/warpstream_logo.svg" />
+                          </div>
+                          {/* <div>
+                            <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
+                          </div> */}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </a>
             </div>
           </section>
         )}
-
-        <a href="https://www.warpstream.com/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-          <section className={styles.loveSection} style={{
-            maxWidth: '80rem',
-            margin: '0 auto',
-            borderRadius: '140px',
-            marginBottom: '160px',
-            boxShadow: '20px 20px #eb878829, 0px -10px 0px #ffdcdd29 inset',
-            transition: 'background-color 0.3s ease'
-          }}>
-            <div className="container">
-              <div className="row">
-                <div className={classnames('col col--12')}>
-                  <h3 id="sponsored-by">Sponsored by the boring folks at</h3>
-                  <div className="container">
-                    <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
-                      <img src="/bento/img/sponsors/warpstream_logo.svg" />
-                    </div>
-                    {/* <div>
-                      <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>
-                    </div> */}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </a>
 
         {/* Full width food party image */}
         <section className={styles.fullWidthImageSection}>

@@ -262,9 +262,58 @@ html[data-theme='dark'] [class*="colorModeToggle_"] svg {
   fill: #EB8788 !important;
 }
 
+/* Hero title color for light mode */
+[class*="hero__title"] {
+  color: #553630 !important;
+}
+
+html[data-theme='dark'] [class*="hero__title"] {
+  color: #FFF4E9 !important;
+}
+
 /* DocSearch styling for light mode */
 .DocSearch {
   --docsearch-searchbox-background: #ffbcba34;
+  --docsearch-searchbox-focus-background: #ffbcba55;
+  --docsearch-key-gradient: linear-gradient(
+    -26.5deg,
+    #FDE5D8 0%,
+    #FCE9D6 100%
+  );
+  --docsearch-key-shadow: 0 2px 2px #55363033;
+  --docsearch-muted-color: #553630;
+}
+
+.DocSearch-Button {
+  background-color: #FDE5D8 !important;
+}
+
+/* Extra selectors to ensure the style is applied */
+[class*="docSearchButton_"], 
+[class^="docSearchButton"],
+div[class*="searchBox_"] button {
+  background-color: #FDE5D8 !important;
+}
+
+.DocSearch-Button-Key {
+  background: linear-gradient(to bottom, #654641 0%, #553630 100%) !important;
+  border: 1px solid #44291e !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 0 #44291e !important;
+  color: #fff !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0 6px !important;
+}
+
+.DocSearch-Button:hover .DocSearch-Button-Key {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #44291e !important;
+}
+
+.DocSearch-Button:active .DocSearch-Button-Key {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #44291e !important;
 }
 
 html[data-theme='dark'] .DocSearch {
@@ -280,9 +329,38 @@ html[data-theme='dark'] .DocSearch {
   --docsearch-footer-background: var(--ifm-background-surface-color);
   --docsearch-key-gradient: linear-gradient(
     -26.5deg,
-    var(--ifm-color-emphasis-200) 0%,
-    var(--ifm-color-emphasis-100) 100%
+    #ba6663 0%,
+    #944c4b 100%
   );
+}
+
+html[data-theme='dark'] .DocSearch-Button,
+html[data-theme='dark'] [class*="DocSearch-Button"],
+html[data-theme='dark'] [class*="docSearchButton_"],
+html[data-theme='dark'] [class^="docSearchButton"],
+html[data-theme='dark'] div[class*="searchBox_"] button {
+  background-color: #3a2623 !important;
+}
+
+html[data-theme='dark'] .DocSearch-Button-Key {
+  background: linear-gradient(to bottom, #f9a7a8 0%, #EB8788 100%) !important;
+  border: 1px solid #d67573 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 0 #d67573 !important;
+  color: #2A1A17 !important;
+  text-shadow: 0 1px 0 #ffbcba22 !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+html[data-theme='dark'] .DocSearch-Button:hover .DocSearch-Button-Key {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #d67573 !important;
+}
+
+html[data-theme='dark'] .DocSearch-Button:active .DocSearch-Button-Key {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #d67573 !important;
 }
 
 .markdown > table {
@@ -936,7 +1014,7 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
 /* Mobile hero banner adjustments */
 @media (max-width: 996px) {
   /* Hide GitHub buttons iframe on mobile */
-  .navbar__items--right div iframe[src*="ghbtns.com"] {
+  .github-buttons-container {
     display: none !important;
   }
 
@@ -993,8 +1071,8 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
   /* Add padding to loveSection on mobile */
   [class*="loveSection_"] {
     padding: 2rem !important;
-    margin-left: 2rem !important;
-    margin-right: 2rem !important;
+    margin-left: 0rem !important;
+    margin-right: 0rem !important;
     border-radius: 20px !important;
     box-shadow: none !important;
     font-weight: 400 !important;
@@ -1073,4 +1151,21 @@ html[data-theme="dark"] [class*="cookbookListHeader"] {
 /* Toggle button hover background color */
 [class*="toggleButton_"]:hover {
   background-color: #FDE5D8 !important;
+}
+
+/* DocSearch search icon color for light mode */
+.DocSearch-Search-Icon {
+  color: #553630 !important;
+  stroke: #553630 !important;
+}
+
+[class*="searchIcon_"] {
+  color: #553630 !important;
+  stroke: #553630 !important;
+}
+
+html[data-theme='dark'] .DocSearch-Search-Icon,
+html[data-theme='dark'] [class*="searchIcon_"] {
+  color: #EB8788 !important;
+  stroke: #EB8788 !important;
 }
