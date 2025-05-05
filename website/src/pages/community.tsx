@@ -35,7 +35,7 @@ function Community() {
             <div className="col text--center padding-vert--md">
               <div className="card">
                 <div className="card__header">
-                  <i className={classnames(styles.icon, styles.discord)}></i>
+                  <i className={classnames(styles.icon, styles.twitter)}></i>
                 </div>
                 <div className="card__body">
                   <p>Join the official Bento discord server</p>
@@ -49,10 +49,10 @@ function Community() {
             <div className="col text--center padding-vert--md">
               <div className="card">
                 <div className="card__header">
-                  <i className={classnames(styles.icon, styles.twitter)}></i>
+                  <i className={classnames(styles.icon, styles.slack)}></i>
                 </div>
                 <div className="card__body">
-                  <p>Aggressively &#64;mention WarpStream on Twitter</p>
+                  <p>Aggressively &#64;mention WarpStream on X (Twitter)</p>
                 </div>
                 <div className="card__footer">
                   <Link to="https://twitter.com/warpstream_labs" className="button button--outline button--primary button--block">Follow &#64;WarpStream</Link>
@@ -63,7 +63,7 @@ function Community() {
             <div className="col text--center padding-vert--md">
               <div className="card">
                 <div className="card__header">
-                  <i className={classnames(styles.icon, styles.slack)}></i>
+                  <i className={classnames(styles.icon, styles.discord)}></i>
                 </div>
                 <div className="card__body">
                   <p>Join us on the &#35;bento channel in the WarpStream Labs Community slack</p>
