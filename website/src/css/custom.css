@@ -603,8 +603,16 @@ div[class*="tabItem_"] > div {
 }
 
 /* Custom container padding */
+/* Default padding for screens below 1675px */
 .container.padding-top--md {
-  padding-top: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+  padding-top: var(--ifm-spacing-vertical) !important; /* Default 1rem padding */
+}
+
+/* Increased padding for screens larger than 1675px */
+@media (min-width: 1675px) {
+  .container.padding-top--md {
+    padding-top: calc(var(--ifm-spacing-vertical) * 3) !important;
+  }
 }
 
 .container.padding-bottom--md {
