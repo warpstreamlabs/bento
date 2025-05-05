@@ -9,7 +9,7 @@
   position: relative;
   margin-bottom: 2rem;
   overflow: hidden;
-  background-color: #ffbcba34;
+  background-color: var(--ifm-hero-background-color);
 }
 
 .heroBanner .row {
