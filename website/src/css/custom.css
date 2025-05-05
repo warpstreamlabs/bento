@@ -286,6 +286,7 @@ html[data-theme='dark'] [class*="hero__title"] {
 
 .DocSearch-Button {
   background-color: #FDE5D8 !important;
+  padding: 0px 6px 0px 10px !important;
 }
 
 /* Extra selectors to ensure the style is applied */
@@ -293,6 +294,7 @@ html[data-theme='dark'] [class*="hero__title"] {
 [class^="docSearchButton"],
 div[class*="searchBox_"] button {
   background-color: #FDE5D8 !important;
+  padding: 0px 6px 0px 10px !important;
 }
 
 .DocSearch-Button-Key {
