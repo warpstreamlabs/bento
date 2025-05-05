@@ -104,25 +104,18 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Description("An optional maximum number of open connections to the database. If conn_max_idle is greater than 0 and the new conn_max_open is less than conn_max_idle, then conn_max_idle will be reduced to match the new conn_max_open limit. If `value <= 0`, then there is no limit on the number of open connections. The default is 0 (unlimited).").
 			Optional().
 			Advanced(),
-		service.NewBoolField("aws_enabled").
-			Description("Enables connectivity to AWS for credential retrieval.").
-			Default(false).
-			Advanced(),
-		service.NewObjectField(SQLFieldAWS,
-			append([]*service.ConfigField{
-				service.NewBoolField("iam_enabled").
-					Description("An optional field used to generate an IAM authentication token to connect to an Amazon Relational Database (RDS) DB instance. This will overwrite the Password in the DSN with the generated token only if the drivers are `mysql` or `postgres`.").
-					Optional().
-					Advanced(),
-				service.NewStringField("secret_name").
-					Description("An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to `postgres`.").
-					Optional().
-					Advanced()},
-				config.SessionFields()...)...,
-		).Description("Customises connectivity to AWS.").
+		service.NewStringField("secret_name").
+			Description("An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to `postgres`.").
 			Optional().
 			Advanced(),
+		service.NewBoolField("iam_enabled").
+			Description("An optional field used to generate an IAM authentication token to connect to an Amazon Relational Database (RDS) DB instance. This will overwrite the Password in the DSN with the generated token only if the drivers are `mysql` or `postgres`.").
+			Optional().
+			Default(false).
+			Advanced(),
 	}
+
+	connFields = append(connFields, config.SessionFields()...)
 
 	return connFields
 
@@ -245,7 +238,11 @@ func connSettingsFromParsed(
 		}
 	}
 
-	if ok, _ := conf.FieldBool("aws_enabled"); ok && conf.Contains("aws") {
+	awsEnabled, err := IsAWSEnabled(conf)
+	if err != nil {
+		return
+	}
+	if awsEnabled {
 		if BuildAwsDsn, err = AWSGetCredentialsGeneratorFn(conf); err != nil {
 			return
 		}

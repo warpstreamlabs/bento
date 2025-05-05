@@ -31,7 +31,8 @@ func sqlRawInputConfig() *service.ConfigSpec {
 			Example("root = [ this.cat.meow, this.doc.woofs[0] ]").
 			Example(`root = [ metadata("user.id").string() ]`).
 			Optional()).
-		Field(service.NewAutoRetryNacksToggleField())
+		Field(service.NewAutoRetryNacksToggleField()).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 	for _, f := range connFields() {
 		spec = spec.Field(f)
 	}
@@ -126,7 +127,7 @@ func newSQLRawInputFromConfig(conf *service.ParsedConfig, mgr *service.Resources
 		return nil, err
 	}
 
-	awsEnabled, err := conf.FieldBool("aws_enabled")
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
 	}

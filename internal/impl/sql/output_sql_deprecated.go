@@ -83,7 +83,7 @@ func newSQLDeprecatedOutputFromConfig(conf *service.ParsedConfig, mgr *service.R
 		return nil, err
 	}
 
-	awsEnabled, err := conf.FieldBool("aws_enabled")
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
 	}

@@ -1331,14 +1331,12 @@ output:
         this.name,
       ]
     init_statement: "CREATE TABLE test (name varchar(255), age int);"
-    aws_enabled: true
-    aws:
-      secret_name: "redshift-password"
-      region: us-east-1
-      endpoint: http://localhost:%v
-      credentials:
-        id: test
-        secret: test`, redshiftEndpointAddress, localstackPort))
+    secret_name: "redshift-password"
+    region: us-east-1
+    endpoint: http://localhost:%v
+    credentials:
+      id: test
+      secret: test`, redshiftEndpointAddress, localstackPort))
 
 	stream, err := builder.Build()
 	require.NoError(t, err)
@@ -1436,7 +1434,7 @@ func TestIntegrationRdsIamAuth(t *testing.T) {
 
 	_ = resource.Expire(900)
 
-	err = waitForRds(localstackPort, rdsPort)
+	err = waitForRds(localstackPort)
 	require.NoError(t, err)
 
 	// create user in DB
@@ -1473,9 +1471,7 @@ output:
         this.age,
         this.name,
       ]
-    aws_enabled: true
-    aws:
-      iam_enabled: true
+    iam_enabled: true
     init_statement: "CREATE TABLE test (name varchar(255), age int);"`, rdsPort))
 
 	stream, err := builder.Build()
@@ -1490,7 +1486,7 @@ output:
 	assert.Equal(t, 10, count)
 }
 
-func waitForRds(localstackPort string, rdsPort string) (err error) {
+func waitForRds(localstackPort string) (err error) {
 	cfg := aws.Config{
 		Region:      "us-east-1",
 		Credentials: credentials.NewStaticCredentialsProvider("test", "test", ""),

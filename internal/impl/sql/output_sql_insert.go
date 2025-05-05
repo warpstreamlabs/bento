@@ -45,8 +45,9 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 			Advanced().
 			Example("ON CONFLICT (name) DO NOTHING")).
 		Field(service.NewIntField("max_in_flight").
-			Description("The maximum number of inserts to run in parallel.").
-			Default(64))
+						Description("The maximum number of inserts to run in parallel.").
+						Default(64)).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -185,7 +186,7 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		return nil, err
 	}
 
-	awsEnabled, err := conf.FieldBool("aws_enabled")
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
 	}

@@ -70,7 +70,8 @@ The ` + "`add`" + ` operation is performed with a traditional ` + "`insert`" + `
 				"ON DUPLICATE KEY UPDATE bar=VALUES(bar)",
 				"ON CONFLICT (foo) DO UPDATE SET bar=excluded.bar",
 				"ON CONFLICT (foo) DO NOTHING",
-			))
+						)).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -167,7 +168,7 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 		return nil, err
 	}
 
-	awsEnabled, err := conf.FieldBool("aws_enabled")
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
 	}

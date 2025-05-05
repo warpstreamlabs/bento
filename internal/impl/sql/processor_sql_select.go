@@ -49,9 +49,10 @@ If the query fails to execute then the message will remain unchanged and the err
 			Optional().
 			Advanced()).
 		Field(service.NewStringField("suffix").
-			Description("An optional suffix to append to the select query.").
-			Optional().
-			Advanced())
+						Description("An optional suffix to append to the select query.").
+						Optional().
+						Advanced()).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -176,7 +177,7 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	awsEnabled, err := conf.FieldBool("aws_enabled")
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
 	}

@@ -41,19 +41,17 @@ output:
       ]
     init_statement: |
       CREATE TABLE test (name varchar(255), age int);
-    aws_enabled: true
-    aws:
-      secret_name: "$REDSHIFT_SECRET_NAME"
-      region: eu-west-1
-      credentials:
-        id: "$AWS_ACCESS_KEY_ID"
-        secret: "$AWS_SECRET_ACCESS_KEY"
+    secret_name: "$REDSHIFT_SECRET_NAME"
+    region: eu-west-1
+    credentials:
+      id: "$AWS_ACCESS_KEY_ID"
+      secret: "$AWS_SECRET_ACCESS_KEY"
 ```
 
  - `driver`: Redshift is compatible with PostgreSQL, so we set the driver field to `postgres`
  - `dsn`: We configure this to connect to Redshift, but the username + password we have them set to `username_from_secret` & `password_from_secret`, Bento will fetch the secret and update the DSN to use them. Bento will expect that the secret will have the keys 'username' & 'password'. Below is a standalone terraform module that will create a redshift cluster and store the username + password in a secret. Note: The username + password will be overwritten after we have the value from Secret Manager, but we still need to provide a DSN with a valid "shape" so it can be parsed correctly. 
- - `aws.secret_name`: Here we give the secret_name of the secret Bento will use to update the DSN. 
- - `aws.credentials`: This is one way to give the Bento Config access to the Secret in AWS. There are other ways explained [here][credentials].
+ - `secret_name`: Here we give the secret_name of the secret Bento will use to update the DSN. 
+ - `credentials`: This is one way to give the Bento Config access to the Secret in AWS. There are other ways explained [here][credentials].
 
 The other fields are can be looked up on the [sql_insert][credentials] page. The above config makes use of [environment variable interpolation][env_var_interpolation]. 
 

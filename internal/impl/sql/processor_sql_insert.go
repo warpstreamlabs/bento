@@ -41,10 +41,11 @@ If the insert fails to execute then the message will still remain unchanged and 
 			Optional().
 			Advanced()).
 		Field(service.NewStringField("suffix").
-			Description("An optional suffix to append to the insert query.").
-			Optional().
-			Advanced().
-			Example("ON CONFLICT (name) DO NOTHING"))
+						Description("An optional suffix to append to the insert query.").
+						Optional().
+						Advanced().
+						Example("ON CONFLICT (name) DO NOTHING")).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -174,7 +175,7 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	awsEnabled, err := conf.FieldBool("aws_enabled")
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
 	}

@@ -22,41 +22,42 @@ func init() {
 	}
 
 	sql.AWSGetCredentialsGeneratorFn = func(conf *service.ParsedConfig) (func(dsn, driver string) (password string, err error), error) {
-		if !conf.Contains(sql.SQLFieldAWS) {
-			return noop, nil
-		}
 
-		aConf := conf.Namespace(sql.SQLFieldAWS)
-		if aConf == nil {
-			return noop, errors.New("field 'aws' is not present in parsed config")
-		}
-
-		awsConfig, err := baws.GetSession(context.TODO(), aConf)
+		awsEnabled, err := sql.IsAWSEnabled(conf)
 		if err != nil {
 			return nil, err
 		}
 
-		if aConf.Contains("iam_enabled") {
-			isIamAuth, err := aConf.FieldBool("iam_enabled")
-			if err != nil {
-				return nil, err
-			}
-
-			if isIamAuth {
-				getCredentials := func(dbEndpoint string, dbUser string) (string, error) {
-					return buildIamAuthToken(dbEndpoint, dbUser, awsConfig)
-				}
-
-				wrapDsnBuilder := func(dsn, driver string) (string, error) {
-					return BuildAWSDsnFromIAMCredentials(dsn, driver, getCredentials)
-				}
-
-				return wrapDsnBuilder, nil
-			}
+		if !awsEnabled {
+			return noop, nil
 		}
 
-		if aConf.Contains("secret_name") {
-			secret, err := aConf.FieldString("secret_name")
+		awsConfig, err := baws.GetSession(context.TODO(), conf)
+		if err != nil {
+			return nil, err
+		}
+
+		iamEnabled, err := conf.FieldBool("iam_enabled")
+		if err != nil {
+			return nil, err
+		}
+
+		if iamEnabled {
+
+			getCredentials := func(dbEndpoint string, dbUser string) (string, error) {
+				return buildIamAuthToken(dbEndpoint, dbUser, awsConfig)
+			}
+
+			wrapDsnBuilder := func(dsn, driver string) (string, error) {
+				return BuildAWSDsnFromIAMCredentials(dsn, driver, getCredentials)
+			}
+
+			return wrapDsnBuilder, nil
+
+		}
+
+		if conf.Contains("secret_name") {
+			secret, err := conf.FieldString("secret_name")
 			if err != nil {
 				return nil, err
 			}
