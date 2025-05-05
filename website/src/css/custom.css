@@ -146,7 +146,7 @@ html[data-theme="dark"] .footer.footer--dark {
 }
 
 html[data-theme="dark"] {
-  --ifm-color-primary: #3bd1ff;
+  --ifm-color-primary: #ff5252;
   --ifm-color-primary-dark: #1ccaff;
   --ifm-color-primary-darker: #0cc6ff;
   --ifm-color-primary-darkest: #00a8dc;
@@ -745,6 +745,8 @@ li[class*="theme-doc-sidebar-item-category-level-1"] > button {
 /* Component card styling */
 .componentCard_src-theme-ComponentCard-styles-module, [class*="componentCard_"] {
   padding: 4px 16px !important;
+  background-color: #ffe5cc70 !important;
+  border: 1px solid #ffd6af !important;
 }
 
 /* Dark mode ComponentCard styling */
@@ -818,14 +820,6 @@ input.cookbookSearch {
   .cookbookListHeader .col--5:last-child {
     display: flex;
     justify-content: center;
-  }
-}
-
-@media (min-width: 997px) {
-  @supports (scrollbar-gutter: stable) {
-      .menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module, [class*="menu_node_modules"] {
-          padding: 1rem !important;
-      }
   }
 }
 
@@ -928,9 +922,15 @@ html[data-theme="dark"] th,
 html[data-theme="dark"] blockquote,
 html[data-theme="dark"] label,
 html[data-theme="dark"] .navbar__link,
+html[data-theme="dark"] [class*="menu__link"],
 html[data-theme="dark"] .table-of-contents__link,
 html[data-theme="dark"] .footer__link-item {
   color: #FFF4E9 !important;
+}
+
+html[data-theme="dark"] [class*="menu__link--active"],
+html[data-theme="dark"] [class*="menu__link"][aria-current="page"] {
+  color: #ff5252 !important;
 }
 
 html[data-theme="dark"] .footer__copyright {
@@ -1170,4 +1170,67 @@ html[data-theme='dark'] .DocSearch-Search-Icon,
 html[data-theme='dark'] [class*="searchIcon_"] {
   color: #EB8788 !important;
   stroke: #EB8788 !important;
+}
+
+html[data-theme="dark"] [class*="menu__link"],
+html[data-theme="dark"] .table-of-contents__link,
+html[data-theme="dark"] .footer__link-item {
+  color: #FFF4E9 !important;
+}
+
+html[data-theme="dark"] [class*="menu__link--active"],
+html[data-theme="dark"] [class*="menu__link"][aria-current="page"] {
+  color: #ff5252 !important;
+}
+
+html[data-theme="dark"] .footer__copyright {
+  color: rgba(255, 244, 233, 0.7) !important;
+}
+
+/* Menu link border radius styling */
+.menu__link {
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+.menu__link:hover {
+  border-right: 1px solid #ff5252;
+}
+
+/* Fix for menu__link--sublist-caret shifting during hover */
+.menu__link--sublist-caret:hover {
+  padding-right: calc(var(--ifm-menu-link-padding-horizontal) - 1px);
+}
+
+/* Ensure caret remains in the same position on hover */
+.menu__link--sublist-caret:after {
+  position: absolute;
+  right: var(--ifm-menu-link-padding-horizontal);
+}
+
+/* Set active table of contents link color */
+.table-of-contents__link--active {
+  color: #ff5252 !important;
+}
+
+/* More specific selector using wildcard for active TOC link */
+[class*="table-of-contents__link--active"] {
+  color: #ff5252 !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure dark mode also uses the correct color for active TOC link */
+html[data-theme="dark"] [class*="table-of-contents__link--active"] {
+  color: #ff5252 !important;
+  font-weight: 600 !important;
+}
+
+/* Hide geoff.svg and adjust padding on about page for smaller screens */
+@media (max-width: 1120px) {
+  img[src="/bento/img/geoff.svg"] {
+    display: none !important;
+  }
+  
+  [style*="padding-right: 3rem"] {
+    padding-right: 0 !important;
+  }
 }

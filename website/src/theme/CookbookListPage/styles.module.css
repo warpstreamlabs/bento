@@ -95,7 +95,7 @@ html[data-theme="dark"] [class*="cookbookSearch"] {
 html[data-theme="dark"] .cookbookSearch:focus,
 html[data-theme="dark"] [class*="cookbookSearch"]:focus {
   border-color: var(--ifm-color-primary);
-  box-shadow: 0 0 0 2px rgba(59, 209, 255, 0.25);
+  box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.25);
 }
 
 /* Style for the "Show more" button */
@@ -128,7 +128,7 @@ html[data-theme="dark"] [class*="cookbookSearch"]:focus {
 /* Dark mode adjustments for the button */
 html[data-theme="dark"] .showMoreButton {
   color: white;
-  background-color: #3bd1ff;
+  background-color: #ff5252;
   box-shadow: 0 4px 0 #00a8dc;
 }
 
