@@ -371,6 +371,7 @@ function Home() {
                 width: '470px', 
                 display: 'block', 
                 margin: '0 auto', 
+                marginTop: '6rem',
                 marginBottom: '-60px',
                 position: 'relative',
                 zIndex: 10

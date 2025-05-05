@@ -77,6 +77,22 @@ h1 {
   font-size: 2rem;
 }
 
+/* Set all headings in light mode to #553630 except in loveSection */
+h1:not([class*="loveSection_"] h1), 
+h2:not([class*="loveSection_"] h2), 
+h3:not([class*="loveSection_"] h3), 
+h4:not([class*="loveSection_"] h4), 
+h5:not([class*="loveSection_"] h5), 
+h6:not([class*="loveSection_"] h6) {
+  color: #553630;
+}
+
+/* Sponsored by text styling */
+#sponsored-by {
+  font-size: 18px;
+  font-weight: 500;
+}
+
 .footer.footer--dark {
   --ifm-footer-background-color: var(--ifm-background-color);
   --ifm-footer-color: var(--ifm-font-color-base);
@@ -601,6 +617,12 @@ div[class*="tabItem_"] > div {
   margin-top: 3rem !important;
 }
 
+/* Override for cookbooks page */
+[class*="CookbookPage"] .margin-vert--xl {
+  margin-top: 2rem !important;
+  margin-bottom: 2rem !important;
+}
+
 /* Full-width container with no padding */
 .container-fluid {
   width: 100%;
@@ -894,13 +916,12 @@ html[data-theme="dark"] [class*="tabs__item--active"] {
     box-shadow: 20px 20px #eb878829,inset 0 -10px 0 #ffdcdd29;
     margin: 0 auto 160px;
     max-width: 80rem;
-    transition: background-color .3s,transform .2s
+    transition: background-color .3s
 }
 
 /* Direct selector for loveSection hover effect */
 a:hover [class*="loveSection_"] {
   background-color: #fff0f0;
-  transform: translateY(-2px);
 }
 
 html[data-theme="dark"] a:hover [class*="loveSection_"] {
@@ -1046,6 +1067,7 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
   img[src*="foodparty_dark.svg"],
   img[src*="foodparty.svg"] {
     padding: 0 2rem;
+    margin-top: 6rem;
   }
   
   /* Using wildcard selector for hero banner */
@@ -1059,7 +1081,7 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
     margin-bottom: 2rem;
   }
   
-  .margin-vert--xl {
+  .margin-vert--xl:not([class*="CookbookPage"] .margin-vert--xl) {
     margin-top: -1rem !important;
     margin-bottom: -2rem !important;
   }

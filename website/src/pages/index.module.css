@@ -58,7 +58,7 @@
   background-color: #EB8788;
   text-align: center;
   --ifm-heading-color: #FFF4E9;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: background-color 0.3s ease;
 }
 
 a:hover .loveSection {
