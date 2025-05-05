@@ -997,12 +997,16 @@ html[data-theme="dark"] .card {
   transform: translateY(-5px);
 }
 
+.card__header {
+  margin-bottom: 0.5rem;
+}
+
 .card__body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 1.5rem 1rem;
+  justify-content: flex-start;
+  padding: 0rem 2rem 0rem 2rem;
 }
 
 .card__footer {
@@ -1044,6 +1048,21 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
 
 /* Mobile hero banner adjustments */
 @media (max-width: 996px) {
+  /* Increase menu item size on mobile */
+  .menu__list-item {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* Add gap between stacked cards on mobile */
+  .row .col.text--center.padding-vert--md {
+    margin-bottom: 2rem;
+  }
+  
+  .row .col.text--center.padding-vert--md:last-child {
+    margin-bottom: 0;
+  }
+
   /* Hide GitHub buttons iframe on mobile */
   .github-buttons-container {
     display: none !important;
@@ -1262,5 +1281,26 @@ html[data-theme="dark"] [class*="table-of-contents__link--active"] {
   
   [style*="padding-right: 3rem"] {
     padding-right: 0 !important;
+  }
+}
+
+/* For smaller mobile screens - specific adjustments */
+@media (max-width: 768px) {
+  .DocSearch-Button,
+  [class*="docSearchButton_"], 
+  [class^="docSearchButton"],
+  div[class*="searchBox_"] button {
+    padding: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Hide the search button text and keep only the icon */
+  .DocSearch-Button-Placeholder, 
+  .DocSearch-Button-Keys {
+    display: none !important;
   }
 }

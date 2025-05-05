@@ -4,6 +4,7 @@ import styles from './community.module.css';
 import classnames from 'classnames';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
+import ThemedImage from '@theme/ThemedImage';
 
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
@@ -18,7 +19,14 @@ function Community() {
           <div className="hero--subtitle">
             These are places where you can ask questions and find your soul mate (no promises).
           </div>
-          <img className={styles.headerImg} src="/bento/img/what-is-blob.svg" />
+          <ThemedImage
+            className={styles.headerImg}
+            sources={{
+              light: '/bento/img/foodparty.svg',
+              dark: '/bento/img/foodparty_dark.svg',
+            }}
+            alt="Food party illustration"
+          />
         </div>
       </header>
       <main>
