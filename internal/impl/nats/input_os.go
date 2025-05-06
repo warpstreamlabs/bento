@@ -168,13 +168,14 @@ func (osi *osInput) Read(ctx context.Context) (*service.Message, service.AckFunc
 			continue
 		}
 
-		if msg, err := osi.newMessageFromObjectInfo(ctx, objectInfo); err != nil {
+		msg, err := osi.newMessageFromObjectInfo(ctx, objectInfo)
+		if err != nil {
 			return nil, nil, err
-		} else {
-			return msg, func(ctx context.Context, res error) error {
-				return nil
-			}, nil
 		}
+
+		return msg, func(ctx context.Context, res error) error {
+			return nil
+		}, nil
 	}
 }
 
