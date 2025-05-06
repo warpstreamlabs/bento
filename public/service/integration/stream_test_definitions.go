@@ -557,6 +557,7 @@ func StreamTestStreamSaturatedUnacked(n int) StreamTestDefinition {
 
 // StreamTestAtLeastOnceDelivery ensures data is delivered through nacks and
 // restarts.
+// FIXME: Currently broken due to a race condition in fixture
 func StreamTestAtLeastOnceDelivery() StreamTestDefinition {
 	return namedStreamTest(
 		"at least once delivery",
@@ -583,7 +584,7 @@ func StreamTestAtLeastOnceDelivery() StreamTestDefinition {
 				msg, responseFn := receiveMessageNoRes(env.ctx, t, input.TransactionChan())
 				key := string(msg.AsBytes())
 				assert.Contains(t, expectedMessages, key)
-				delete(expectedMessages, key)
+				delete(expectedMessages, key) // FIXME: Race condition when called in parallel since this mutates the shared expectedMessages map
 				if key != "C" && key != "E" {
 					require.NoError(t, responseFn(env.ctx, nil))
 				} else {
