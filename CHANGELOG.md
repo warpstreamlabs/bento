@@ -3,6 +3,10 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.6.1 - 2025-05-06
+
+- update apache/pulsar-client-go dependency for CVE @gregfurman
+
 ## 1.6.0 - 2025-03-30
 
 ### Changed 
