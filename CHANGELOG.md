@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added 
 
+- `xml_documents_to_json` & `xml_documents_to_json:cast` options to `unarchive` processor `format` field @lublak 
+- `xml_documents` scanner - consumes a stream of one or more XML documents into discrete messages @lublak
 - `bsr` fields to `protobuf` processor - enables loading & using schemas from a remote "Buf Schema Registry" @oliver-anz
 - `stream_format` and `heartbeat` fields to `http_server` output to emit Server-Side Events (SSE) @asoorm
 
