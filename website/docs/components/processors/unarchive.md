@@ -50,6 +50,8 @@ Type: `string`
 | `json_map` | Attempt to parse the message as a JSON map and for each element of the map expands its contents into a new message. A metadata field is added to each message called `archive_key` with the relevant key from the top-level map. |
 | `lines` | Extract the lines of a message each into their own message. |
 | `tar` | Extract messages from a unix standard tape archive. |
+| `xml_documents_to_json` | Attempt to parse a message as a stream of concatenated XML documents. Each parsed document is expanded into a new message. |
+| `xml_documents_to_json:cast` | Attempt to parse a message as a stream of concatenated XML documents. Each parsed document is expanded into a new message. Cast values to the right type. |
 | `zip` | Extract messages from a zip file. |
 
 
