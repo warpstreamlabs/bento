@@ -19,7 +19,6 @@ func xmlDocumentScannerSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Summary("Consumes a stream of one or more XML documents and performs a mutation on the data.").
-		// Just a placeholder empty object as we don't have any fields yet
 		Fields(
 			service.NewStringEnumField(pFieldOperator, "to_json").
 				Description("An XML [operation](#operators) to apply to messages.").
