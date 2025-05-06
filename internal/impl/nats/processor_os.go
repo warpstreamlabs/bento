@@ -44,7 +44,7 @@ The NATS object store processor supports ` + "`get`" + ` and ` + "`put`" + ` ope
 			service.NewStringAnnotatedEnumField(ospOperationField, ospOperations).
 				Description("The operation to perform on the Object Store bucket."),
 			service.NewInterpolatedStringField(ospObjectNameField).
-				Description("TODO"),
+				Description("The name of the object in the object store to operate on."),
 		}...)...)
 }
 

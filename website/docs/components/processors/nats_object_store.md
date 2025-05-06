@@ -157,7 +157,7 @@ Type: `string`
 
 ### `object_name`
 
-TODO
+The name of the object in the object store to operate on.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
