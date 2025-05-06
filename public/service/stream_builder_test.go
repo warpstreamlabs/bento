@@ -1447,7 +1447,6 @@ error_handling:
 				consumerMut.Lock()
 				defer consumerMut.Unlock()
 				messageWasReceived = true
-				//t.Log("Consumer func: message received when it should have been rejected!")
 				return nil
 			})
 			require.NoError(t, err)
