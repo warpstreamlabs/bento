@@ -828,7 +828,7 @@ func (s *StreamBuilder) runConsumerFunc(mgr *manager.Type) error {
 // Build a Bento stream pipeline according to the components specified by this
 // stream builder.
 func (s *StreamBuilder) Build() (*Stream, error) {
-	return s.buildWithEnv(s.env.internal)
+	return s.buildWithEnv(s.env.internal, false)
 }
 
 // BuildTraced creates a Bento stream pipeline according to the components
@@ -842,7 +842,7 @@ func (s *StreamBuilder) Build() (*Stream, error) {
 // version releases.
 func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
 	tenv, summary := tracing.TracedBundle(s.env.internal)
-	strm, err := s.buildWithEnv(tenv)
+	strm, err := s.buildWithEnv(tenv, false)
 	return strm, &TracingSummary{summary}, err
 }
 
@@ -855,11 +855,11 @@ func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
 // version releases.
 func (s *StreamBuilder) BuildStrict() (*Stream, error) {
 	senv := strict.StrictBundle(s.env.internal)
-	strm, err := s.buildWithEnv(senv, strict.OptSetStrictModeFromManager()...)
+	strm, err := s.buildWithEnv(senv, true, strict.OptSetStrictModeFromManager()...)
 	return strm, err
 }
 
-func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, opts ...manager.OptFunc) (*Stream, error) {
+func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool, opts ...manager.OptFunc) (*Stream, error) {
 	conf := s.buildConfig()
 
 	logger := s.customLogger
@@ -935,13 +935,17 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, opts ...manager.Op
 		manager.OptSetTracer(tracer),
 	)
 
-	if s.errHandler.Strategy == "reject" {
-		managerOpts = append(managerOpts, strict.OptSetStrictModeFromManager()...)
-	} else if s.errHandler.Strategy == "retry" {
-		managerOpts = append(managerOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
-		managerOpts = append(managerOpts, strict.OptSetRetryModeFromManager()...)
+	// Let's read the strategy from the config, but ONLY IF we are not already in a strict build mode
+	// (because in a strict build, we don't want to override the strategy from the config).
+	if !isStrictBuild {
+		if s.errHandler.Strategy == "reject" {
+			managerOpts = append(managerOpts, strict.OptSetStrictModeFromManager()...)
+		} else if s.errHandler.Strategy == "retry" {
+			managerOpts = append(managerOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
+			managerOpts = append(managerOpts, strict.OptSetRetryModeFromManager()...)
+		}
 	}
-	
+
 	mgr, err := manager.New(
 		conf.ResourceConfig,
 		managerOpts...,
