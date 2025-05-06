@@ -623,6 +623,7 @@ func (s *StreamBuilder) setFromConfig(sconf config.Type) {
 	s.logger = sconf.Logger
 	s.metrics = sconf.Metrics
 	s.tracer = sconf.Tracer
+	s.errHandler = sconf.ErrorHandling
 }
 
 // SetBufferYAML parses a buffer YAML configuration and sets it to the builder
@@ -934,6 +935,13 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, opts ...manager.Op
 		manager.OptSetTracer(tracer),
 	)
 
+	if s.errHandler.Strategy == "reject" {
+		managerOpts = append(managerOpts, strict.OptSetStrictModeFromManager()...)
+	} else if s.errHandler.Strategy == "retry" {
+		managerOpts = append(managerOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
+		managerOpts = append(managerOpts, strict.OptSetRetryModeFromManager()...)
+	}
+	
 	mgr, err := manager.New(
 		conf.ResourceConfig,
 		managerOpts...,
