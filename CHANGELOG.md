@@ -3,11 +3,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.6.1 - 2025-05-06
-
-- update apache/pulsar-client-go dependency for CVE @gregfurman
-
-## 1.7.0 - TODO: Add date of release here
+## 1.7.0 - 2025-05-07
 
 ### Added 
 
@@ -20,6 +16,10 @@ All notable changes to this project will be documented in this file.
 
 - ignoring context cancellation / timeout during graceful shutdown of streams for error logging purposes @jub0bs 
 - public implementations of `MessageAwareRateLimit` now correctly register @maudgautier
+
+## 1.6.1 - 2025-05-06
+
+- update apache/pulsar-client-go dependency for CVE @gregfurman
 
 ## 1.6.0 - 2025-03-30
 
