@@ -1344,12 +1344,13 @@ func (tpl *mockPrintLogger) Content() string {
 	return tpl.buf.String()
 }
 
-func TestStreamBuilder_ErrorHandlingReject_SuppressesOutput(t *testing.T) {
+func TestStreamBuilder_ErrorHandlingStrategies(t *testing.T) {
 	tests := []struct {
-		name                  string
-		configYAML            string
-		expectMessageReceived bool
-		expectLogError        string
+		name                    string
+		configYAML              string
+		expectMessageReceived   bool
+		expectLogError          string
+		expectMultipleLogErrors bool
 	}{
 		{
 			name: "Do not reject message if message is valid and error strategy is reject",
@@ -1371,7 +1372,7 @@ error_handling:
 			expectLogError:        "",
 		},
 		{
-			name: "Reject message if message is invalid and error strategy is reject",
+			name: "Reject message if message is invalid and error strategy is reject (by default, generate will retry on a nack so we get multiple errors)",
 			configYAML: `input:
   generate:
     count: 1
@@ -1386,8 +1387,30 @@ pipeline:
 error_handling:
   strategy: reject
 `,
-			expectMessageReceived: false,
-			expectLogError:        "invalid character 'o' in literal null (expecting 'u')",
+			expectMessageReceived:   false,
+			expectLogError:          "invalid character 'o' in literal null (expecting 'u')",
+			expectMultipleLogErrors: true,
+		},
+		{
+			name: "Reject message if message is invalid and error strategy is reject (we should get a single error if we don't replay nacks in the input)",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = "not a valid json message"'
+    auto_replay_nacks: false
+    
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: reject
+`,
+			expectMessageReceived:   false,
+			expectLogError:          "invalid character 'o' in literal null (expecting 'u')",
+			expectMultipleLogErrors: false,
 		},
 		{
 			name: "Do not reject message if message is invalid and error strategy is none but expect error log anyway",
@@ -1426,6 +1449,26 @@ error_handling:
 `,
 			expectMessageReceived: true,
 			expectLogError:        "",
+		},
+		{
+			name: "Retry message if message is invalid and error strategy is retry => we should see the error logged multiple times",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = "not a valid json message"'
+
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: retry
+`,
+			expectMessageReceived:   false,
+			expectLogError:          "invalid character 'o' in literal null (expecting 'u')",
+			expectMultipleLogErrors: true,
 		},
 	}
 
@@ -1483,7 +1526,11 @@ error_handling:
 			logs := mockedPrintLogger.Content()
 			if test.expectLogError != "" {
 				require.Contains(t, logs, "failed assignment")
-				require.Contains(t, logs, test.expectLogError)
+				if test.expectMultipleLogErrors {
+					require.Greater(t, strings.Count(logs, test.expectLogError), 1)
+				} else {
+					require.Equal(t, strings.Count(logs, test.expectLogError), 1)
+				}
 			} else {
 				require.NotContains(t, logs, "failed assignment")
 			}
