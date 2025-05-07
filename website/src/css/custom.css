@@ -1377,8 +1377,13 @@ html[data-theme="dark"] hr {
   scrollbar-gutter: auto !important;
 }
 
+/* Fix for scrollbar-gutter */
+[class*="menu_"] {
+  scrollbar-gutter: auto !important;
+}
+
 /* Custom class for the features section */
 .snarf {
-  margin-top: -3rem;
+  margin-top: -2.5rem;
 }
 
