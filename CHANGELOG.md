@@ -3,6 +3,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.8.0 - TODO UPDATE WITH RELEASE DATE
+
+### Added 
+
+### Fixed 
+
+### Changed 
+
 ## 1.7.0 - 2025-05-07
 
 ### Added 
