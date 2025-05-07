@@ -342,7 +342,7 @@ div[class*="searchBox_"] button {
 html[data-theme='dark'] .DocSearch {
   --docsearch-text-color: var(--ifm-font-color-base);
   --docsearch-muted-color: var(--ifm-color-secondary-darkest);
-  --docsearch-container-background: #2e2f28;
+  --docsearch-container-background: rgba(46, 47, 40, 0.8);
   --docsearch-modal-background: var(--ifm-background-color);
   --docsearch-searchbox-background: var(--ifm-background-color);
   --docsearch-searchbox-focus-background: var(--ifm-color-black);
@@ -626,7 +626,7 @@ div[class*="tabItem_"] > div {
 
 /* Custom margin adjustment */
 .margin-vert--xl {
-  margin-bottom: 0rem !important;
+  margin-bottom: 3rem !important;
   margin-top: 3rem !important;
 }
 
@@ -1349,4 +1349,25 @@ html[data-theme="dark"] [class*="table-of-contents__link--active"] {
   padding: 0;
   overflow: hidden;
   visibility: hidden;
+}
+
+/* Marfo class to replace margin-vert--xl with custom margins */
+.marfo {
+  margin-top: 3rem !important;
+  margin-bottom: 0rem !important;
+}
+
+/* Override tabbedSection margin with wildcard selector */
+[class*="tabbedSection"] {
+  margin: 0 0 40px 0 !important;
+}
+
+/* HR styling */
+hr {
+  background-color: #dadde1;
+}
+
+/* Dark mode HR styling */
+html[data-theme="dark"] hr {
+  background-color: #444950;
 }

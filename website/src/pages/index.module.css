@@ -136,7 +136,7 @@ html[data-theme="dark"] a:hover .loveSection {
 .tabbedSection {
   background-color: transparent;
   padding: 0;
-  margin: 40px 0;
+  margin: 0 0 40px 0;
 }
 
 .tabbedSectionImg {

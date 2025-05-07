@@ -269,7 +269,7 @@ function Home() {
       <main>
         {/* Tabbed Section with Image */}
         <section className={classnames(styles.tabbedSection)}>
-          <div className="container margin-vert--xl">
+          <div className="container marfo">
             <div className="row">
               <div className={classnames('col col--5')} style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start'}}>
                 <ThemedImage

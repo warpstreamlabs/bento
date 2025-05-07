@@ -18,9 +18,161 @@
 }
 
 @media (max-width: 996px) {
+    .assetList {
+        grid-template-columns: 1fr;
+    }
+    
     .brandContent {
         padding-left: 10%;
         padding-right: 10%;
+    }
+}
+
+/* Override the negative margin for brand page */
+:global(.brand-page) :global(.margin-vert--xl) {
+    margin-top: 2rem !important;
+    margin-bottom: 2rem !important;
+}
+
+/* Add a more specific override for the media query */
+@media (max-width: 996px) {
+    :global(.brand-page) :global(.margin-vert--xl) {
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+    
+    :global(.brand-margin) {
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+}
+
+/* Asset list styling */
+.assetList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    margin: 0 auto;
+    max-width: 1200px;
+}
+
+.assetItem {
+    display: flex;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background-color: var(--ifm-card-background-color);
+    border: 1px dashed #dadde1;
+    transition: all 0.3s ease;
+    min-height: 180px;
+}
+
+/* Make containers transparent in dark mode */
+html[data-theme='dark'] .assetItem {
+    background-color: transparent;
+    border-color: #444950;
+}
+
+.assetItem:hover {
+    border-color: var(--ifm-color-primary-lighter);
+}
+
+.assetItem:hover .assetImage {
+    border-color: var(--ifm-color-primary-lighter);
+}
+
+.assetImage {
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4rem;
+    height: 140px;
+    padding: 1rem;
+    border-radius: .5rem;
+    border: 1px solid #dadde1;
+    transition: border-color 0.3s ease;
+}
+
+/* Dark mode image container border */
+html[data-theme='dark'] .assetImage {
+    border-color: #444950;
+}
+
+.assetImage img {
+    width: 100%;
+    height: auto;
+    max-height: 120px;
+    object-fit: contain;
+}
+
+.assetInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.assetInfo h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.assetInfo p {
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+    font-size: 1.1rem;
+}
+
+.assetInfo a.button {
+    align-self: flex-start;
+    min-width: 120px;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    text-align: center;
+}
+
+.downloadButton {
+    display: inline-block !important;
+    width: auto !important;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 160px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    .assetItem {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        min-height: auto;
+        padding-bottom: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .assetImage {
+        margin-right: 0;
+        margin-bottom: 1.5rem;
+        width: 100%;
+        max-width: 330px;
+        height: auto;
+        min-height: 160px;
+    }
+    
+    .assetInfo {
+        align-items: center;
+        width: 100%;
+    }
+    
+    .assetInfo a.button {
+        align-self: center;
+    }
+    
+    /* Ensure proper spacing between stacked items */
+    .assetList {
+        gap: 1.5rem;
     }
 }
 
@@ -106,4 +258,19 @@
 
 .uploadedFiles h3 {
     margin-top: 0;
+}
+
+
+
+/* Fix margin-vert--xl spacing */
+:global(.margin-vertical--xl) {
+    margin-bottom: 3rem !important;
+    margin-top: 3rem !important;
+}
+
+@media (max-width: 996px) {
+    /* Force single column on mobile */
+    .assetList {
+        grid-template-columns: 1fr !important;
+    }
 } 
