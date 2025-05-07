@@ -1372,8 +1372,4 @@ html[data-theme="dark"] hr {
   background-color: #444950;
 }
 
-/* Fix for scrollbar-gutter */
-.menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
-  scrollbar-gutter: auto !important;
 }
-
