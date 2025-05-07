@@ -75,19 +75,27 @@ module.exports = {
               label: 'Documentation',
               to: 'docs/guides/getting_started',
             },
+            {
+              label: 'See the Code',
+              href: 'https://github.com/warpstreamlabs/bento',
+            },
+            {
+              label: 'Brand',
+              to: 'brand',
+            },
           ],
         },
         {
-          title: ' ',
+          title: null,
           items: [
             {
               html: `
-                <div style="display: flex; justify-content: center; align-items: flex-start; height: 100%;">
-                  <a href="/bento/">
-                  <picture>
-                    <source srcset="/bento/img/logo_dark.svg" media="(prefers-color-scheme: dark)">
-                    <img src="/bento/img/logo.svg" alt="Bento Logo" width="140" height="auto" style="margin: 0 auto;">
-                  </picture>
+                <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                  <a href="/bento/" style="display: flex; align-items: center; justify-content: center;">
+                    <picture style="display: flex; align-items: center; justify-content: center; margin: 0;">
+                      <source srcset="/bento/img/logo_dark.svg" media="(prefers-color-scheme: dark)">
+                      <img src="/bento/img/logo.svg" alt="Bento Logo" width="180" height="auto" style="margin: 0;">
+                    </picture>
                   </a>
                 </div>
               `,
@@ -98,8 +106,16 @@ module.exports = {
           title: 'Community',
           items: [
             {
-              label: 'See the Code',
-              href: 'https://github.com/warpstreamlabs/bento',
+              label: 'X (Twitter)',
+              href: 'https://twitter.com/warpstream_labs',
+            },
+            {
+              label: 'Slack',
+              href: 'https://console.warpstream.com/socials/slack',
+            },
+            {
+              label: 'Discord',
+              href: 'https://console.warpstream.com/socials/discord',
             }
           ],
         },

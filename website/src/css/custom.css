@@ -146,9 +146,14 @@ html[data-theme="dark"] .footer.footer--dark {
 }
 
 .footer__link-item {
-  line-height: 1.8;
+  line-height: 1.2;
   transition: color 0.2s;
   display: inline-block;
+}
+
+/* Remove external link icons from footer links */
+.footer__link-item svg {
+  display: none;
 }
 
 .footer__links {
@@ -1023,7 +1028,28 @@ html[data-theme="dark"] .card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  align-self: flex-start;
+  align-self: center;
+  justify-content: center;
+}
+
+/* Ensure middle column with logo is vertically centered */
+.footer__col:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Make sure the logo container is properly centered */
+.footer__col:nth-child(2) a,
+.footer__col:nth-child(2) picture,
+.footer__col:nth-child(2) img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
 }
 
 /* Scroll margin for anchor links */
@@ -1164,6 +1190,16 @@ h1[id], h2[id], h3[id], h4[id], h5[id], h6[id],
   .footer .col {
     flex-basis: 100%;
     margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Ensure consistent spacing between footer columns on mobile */
+  .footer__col:nth-child(2) {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
   }
   
   /* Hide what-is-blob.svg on mobile */
@@ -1303,4 +1339,14 @@ html[data-theme="dark"] [class*="table-of-contents__link--active"] {
   .DocSearch-Button-Keys {
     display: none !important;
   }
+}
+
+/* Hide footer title in the middle column with the logo */
+.footer__col:nth-child(2) .footer__title {
+  display: none;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  visibility: hidden;
 }

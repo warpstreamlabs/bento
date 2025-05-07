@@ -1,0 +1,109 @@
+.headerImg {
+    padding-top: 20px;
+    height: 260px;
+}
+
+/* Custom styling for brand page foodparty image on mobile */
+@media (max-width: 996px) {
+    .headerImg[src*="foodparty"], 
+    .headerImg[alt="Food party illustration"] {
+        padding: 0 !important;
+        margin-top: 2rem !important;
+    }
+}
+
+.brandContent {
+    padding-left: 30%;
+    padding-right: 30%;
+}
+
+@media (max-width: 996px) {
+    .brandContent {
+        padding-left: 10%;
+        padding-right: 10%;
+    }
+}
+
+.logoGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .logoGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.logoItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.logo {
+    width: 180px;
+    height: auto;
+    margin-bottom: 1rem;
+}
+
+.logoTitle {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.colorGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .colorGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.colorItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.colorSwatch {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.colorTitle {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.colorCode {
+    font-size: 0.8rem;
+    font-family: monospace;
+    color: var(--ifm-color-emphasis-700);
+}
+
+.uploadedFiles {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: var(--ifm-color-emphasis-100);
+    border-radius: var(--ifm-card-border-radius);
+}
+
+.uploadedFiles ul {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.uploadedFiles h3 {
+    margin-top: 0;
+} 
