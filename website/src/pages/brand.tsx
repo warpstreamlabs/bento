@@ -51,14 +51,6 @@ function Brand() {
       name: 'Geoff',
       file: 'Geoff.svg',
     },
-    {
-      name: 'Blob',
-      file: 'Blob.svg',
-    },
-    {
-      name: 'Geoff Blob',
-      file: 'Geoff Blob.svg',
-    },
   ];
 
   return (
