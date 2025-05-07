@@ -129,7 +129,7 @@ module.exports = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} <a href="https://warpstream.com" target="_blank" rel="noopener noreferrer">WarpStream Labs</a>. Portions used under MIT License from Ashley Jeffs.`,
+      copyright: `Copyright © ${new Date().getFullYear()} <a href="https://warpstream.com" target="_blank" rel="external follow">WarpStream Labs</a>. Portions used under MIT License from Ashley Jeffs.`,
     },
     announcementBar: {
       id: 'star_the_dang_repo',

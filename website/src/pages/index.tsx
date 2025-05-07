@@ -328,7 +328,7 @@ function Home() {
                 ))}
               </div>
               
-              <a href="https://www.warpstream.com/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '3rem' }}>
+              <a href="https://www.warpstream.com/" target="_blank" rel="external follow" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '3rem' }}>
                 <section className={styles.loveSection} style={{
                   maxWidth: '80rem',
                   margin: '0 auto',
