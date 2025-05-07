@@ -102,14 +102,14 @@ function Brand() {
                           </div>
                           <div className={styles.assetInfo}>
                             <h3>{asset.name}</h3>
-                            <Link
+                            <a
                               className={`button button--primary ${styles.downloadButton}`}
                               href={`/bento/img/Brand/${asset.file}`}
-                              download
+                              download={asset.file}
                               style={{ width: 'auto', display: 'inline-block' }}
                             >
                               Download
-                            </Link>
+                            </a>
                           </div>
                         </div>
                       ))}
