@@ -3,6 +3,16 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+
+
+## 1.8.0 - TODO UPDATE WITH RELEASE DATE
+
+### Added 
+
+### Fixed 
+
+### Changed 
+
 ## 1.7.1 - 2025-05-13 
 
 - enabled `error_handling.strategy` fields when using streamBuilder.Build() @MaudGautier
