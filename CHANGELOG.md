@@ -3,6 +3,20 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.7.0 - 2025-05-07
+
+### Added 
+
+- `xml_documents_to_json` & `xml_documents_to_json:cast` options to `unarchive` processor `format` field @lublak 
+- `xml_documents` scanner - consumes a stream of one or more XML documents into discrete messages @lublak
+- `bsr` fields to `protobuf` processor - enables loading & using schemas from a remote "Buf Schema Registry" @oliver-anz
+- `stream_format` and `heartbeat` fields to `http_server` output to emit Server-Side Events (SSE) @asoorm
+
+### Fixed 
+
+- ignoring context cancellation / timeout during graceful shutdown of streams for error logging purposes @jub0bs 
+- public implementations of `MessageAwareRateLimit` now correctly register @maudgautier
+
 ## 1.6.1 - 2025-05-06
 
 - update apache/pulsar-client-go dependency for CVE @gregfurman
