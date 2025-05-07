@@ -320,7 +320,7 @@ function Home() {
         </section>
         
         {features && features.length && (
-          <section className={styles.features}>
+          <section className={classnames(styles.features, 'snarf')}>
             <div className="container margin-vert--md">
               <div className="row" style={{ rowGap: '2rem' }}>
                 {features.map((props, idx) => (
