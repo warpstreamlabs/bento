@@ -1529,7 +1529,7 @@ error_handling:
 				if test.expectMultipleLogErrors {
 					require.Greater(t, strings.Count(logs, test.expectLogError), 1)
 				} else {
-					require.Equal(t, strings.Count(logs, test.expectLogError), 1)
+					require.Equal(t, 1, strings.Count(logs, test.expectLogError))
 				}
 			} else {
 				require.NotContains(t, logs, "failed assignment")
