@@ -88,10 +88,6 @@ module.exports = {
               label: 'See the Code',
               href: 'https://github.com/warpstreamlabs/bento',
             },
-            {
-              label: 'Brand',
-              to: 'brand',
-            },
           ],
         },
         {

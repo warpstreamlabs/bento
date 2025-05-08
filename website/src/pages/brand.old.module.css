@@ -248,29 +248,4 @@ html[data-theme='dark'] .assetImage {
     margin-top: 2rem;
     padding: 1rem;
     background-color: var(--ifm-color-emphasis-100);
-    border-radius: var(--ifm-card-border-radius);
-}
-
-.uploadedFiles ul {
-    padding-left: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-.uploadedFiles h3 {
-    margin-top: 0;
-}
-
-
-
-/* Fix margin-vert--xl spacing */
-:global(.margin-vertical--xl) {
-    margin-bottom: 3rem !important;
-    margin-top: 3rem !important;
-}
-
-@media (max-width: 996px) {
-    /* Force single column on mobile */
-    .assetList {
-        grid-template-columns: 1fr !important;
-    }
 } 

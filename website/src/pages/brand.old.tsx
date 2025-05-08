@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './brand.module.css';
+import styles from './brand.old.module.css';
 import Layout from '@theme/Layout';
 import ThemedImage from '@theme/ThemedImage';
 import Link from '@docusaurus/Link';
