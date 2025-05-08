@@ -16,7 +16,7 @@ function CookbookItem(props) {
 
   return (
     <div className={styles.cookbookItemWrapper}>
-      <Link to={permalink} className={classnames(styles.cookbookPostItem)}>
+      <Link to={permalink} className={classnames(styles.cookbookPostItem)} aria-label={`View cookbook: ${title}`}>
         <article>
           {featured && (
             <div className={styles.featuredTag}>Featured</div>

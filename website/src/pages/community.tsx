@@ -41,7 +41,7 @@ function Community() {
                   <p>Join the official Bento discord server</p>
                 </div>
                 <div className="card__footer">
-                  <Link to="https://console.warpstream.com/socials/discord" className="button button--outline button--primary button--block">Join</Link>
+                  <Link to="https://console.warpstream.com/socials/discord" className="button button--outline button--primary button--block" aria-label="Join Bento Discord server">Join</Link>
                 </div>
               </div>
             </div>
@@ -55,7 +55,7 @@ function Community() {
                   <p>Aggressively &#64;mention WarpStream on X (Twitter)</p>
                 </div>
                 <div className="card__footer">
-                  <Link to="https://twitter.com/warpstream_labs" className="button button--outline button--primary button--block">Follow &#64;WarpStream</Link>
+                  <Link to="https://twitter.com/warpstream_labs" className="button button--outline button--primary button--block" aria-label="Follow WarpStream on Twitter/X">Follow &#64;WarpStream</Link>
                 </div>
               </div>
             </div>
@@ -69,7 +69,7 @@ function Community() {
                   <p>Join us on the &#35;bento channel in the WarpStream Labs Community slack</p>
                 </div>
                 <div className="card__footer">
-                  <Link to="https://console.warpstream.com/socials/slack" className="button button--outline button--primary button--block">Open</Link>
+                  <Link to="https://console.warpstream.com/socials/slack" className="button button--outline button--primary button--block" aria-label="Join WarpStream Labs Community Slack">Open</Link>
                 </div>
               </div>
             </div>

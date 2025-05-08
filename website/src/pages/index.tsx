@@ -189,10 +189,10 @@ const features = [
     description: (
       <>
         <p>
-          Delivery guarantees <a href="https://youtu.be/QmpBOCvY8mY">can be a dodgy subject</a>. Bento processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
+          Delivery guarantees <a href="https://youtu.be/QmpBOCvY8mY" aria-label="Watch video about delivery guarantees">can be a dodgy subject</a>. Bento processes and acknowledges messages using an in-process transaction model with no need for any disk persisted state, so when connecting to at-least-once sources and sinks it's able to guarantee at-least-once delivery even in the event of crashes, disk corruption, or other unexpected server faults.
         </p>
         <p>
-          This behaviour is the default and free of caveats, which also makes deploying and scaling Bento much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/bento/docs/components/metrics/about">metrics</a> and <a href="/bento/docs/components/tracers/about">tracing</a> events to targets of your choice.
+          This behaviour is the default and free of caveats, which also makes deploying and scaling Bento much simpler. However, simplicity doesn't negate the need for observability, so it also exposes <a href="/bento/docs/components/metrics/about" aria-label="Learn about Bento metrics">metrics</a> and <a href="/bento/docs/components/tracers/about" aria-label="Learn about Bento tracing">tracing</a> events to targets of your choice.
         </p>
       </>
     ),
@@ -205,7 +205,7 @@ const features = [
           Sometimes the components that come with Bento aren't enough. Luckily, Bento has been designed to be easily plugged with whatever components you need.
         </p>
         <p>
-          You can either write plugins <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/public">directly in Go (recommended)</a> or you can have Bento run your plugin as a <a href="/bento/docs/components/processors/subprocess">subprocess</a>.
+          You can either write plugins <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/public" aria-label="Learn how to write Bento plugins in Go">directly in Go (recommended)</a> or you can have Bento run your plugin as a <a href="/bento/docs/components/processors/subprocess" aria-label="Learn about Bento subprocess plugins">subprocess</a>.
         </p>
       </>
     ),
@@ -282,7 +282,7 @@ function Home() {
                   style={{ marginTop: 0, marginBottom: '1rem' }}
                 />
                 <p className={styles.writtenInGo}>
-                  Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento" target="_blank" rel="noopener noreferrer">Open source</a> and cloud native as utter heck.
+                  Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento" target="_blank" rel="noopener noreferrer" aria-label="View Bento source code on GitHub">Open source</a> and cloud native as utter heck.
                 </p>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                   <Link
@@ -328,7 +328,7 @@ function Home() {
                 ))}
               </div>
               
-              <a href="https://www.warpstream.com/" target="_blank" rel="external follow" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '3rem' }}>
+              <a href="https://www.warpstream.com/" target="_blank" rel="external follow" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: '3rem' }} aria-label="Visit WarpStream - Sponsor of Bento">
                 <section className={styles.loveSection} style={{
                   maxWidth: '80rem',
                   margin: '0 auto',
@@ -343,7 +343,7 @@ function Home() {
                         <h3 id="sponsored-by">Sponsored by the boring folks at</h3>
                         <div className="container">
                           <div className={classnames(styles.sponsorsBox, styles.goldSponsors)}>
-                            <img src="/bento/img/sponsors/warpstream_logo.svg" />
+                            <img src="/bento/img/sponsors/warpstream_logo.svg" alt="WarpStream Logo" />
                           </div>
                           {/* <div>
                             <a href="https://synadia.com"><img className={styles.synadiaImg} src="/bento/img/sponsors/synadia.svg" /></a>

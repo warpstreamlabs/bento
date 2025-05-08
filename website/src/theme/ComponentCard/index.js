@@ -10,7 +10,7 @@ function ComponentCard(props) {
   } = props;
 
   return (
-    <Link to={`/docs/components/${type}/${component.name}`} className={styles.componentCard}>
+    <Link to={`/docs/components/${type}/${component.name}`} className={styles.componentCard} aria-label={`View ${component.name} component documentation`}>
       <strong>{component.name}</strong>
     </Link>
   );
