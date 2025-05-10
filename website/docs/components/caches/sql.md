@@ -307,6 +307,7 @@ An optional field that can be used to get the Username + Password from AWS Secre
 
 
 Type: `string`  
+Requires version 1.3.0 or newer  
 
 ### `iam_enabled`
 
@@ -315,6 +316,7 @@ An optional field used to generate an IAM authentication token to connect to an 
 
 Type: `bool`  
 Default: `false`  
+Requires version 1.8.0 or newer  
 
 ### `region`
 

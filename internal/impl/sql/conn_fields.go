@@ -107,11 +107,13 @@ CREATE TABLE IF NOT EXISTS some_table (
 		service.NewStringField("secret_name").
 			Description("An optional field that can be used to get the Username + Password from AWS Secrets Manager. This will overwrite the Username + Password in the DSN with the values from the Secret only if the driver is set to `postgres`.").
 			Optional().
+			Version("1.3.0").
 			Advanced(),
 		service.NewBoolField("iam_enabled").
 			Description("An optional field used to generate an IAM authentication token to connect to an Amazon Relational Database (RDS) DB instance. This will overwrite the Password in the DSN with the generated token only if the drivers are `mysql` or `postgres`.").
 			Optional().
 			Default(false).
+			Version("1.8.0").
 			Advanced(),
 	}
 
