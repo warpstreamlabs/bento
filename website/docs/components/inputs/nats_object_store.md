@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Watches for updates in a nats object store.
 
-Introduced in version 1.7.0.
+Introduced in version 1.8.0.
 
 
 <Tabs defaultValue="common" values={[
