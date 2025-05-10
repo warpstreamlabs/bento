@@ -62,7 +62,6 @@ input:
 
 	suite := integration.StreamTests(
 		integration.StreamTestOpenClose(),
-		// integration.StreamTestMetadata(),
 		integration.StreamTestSendBatch(10),
 		integration.StreamTestStreamParallel(1000),
 		integration.StreamTestStreamSequential(1000),
