@@ -18,7 +18,7 @@ const (
 func natsOSOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Services").
-		Version("1.7.0").
+		Version("1.8.0").
 		Summary("Put messages in a NATS object-store bucket.").
 		Description(`
 The field ` + "`object_name`" + ` supports

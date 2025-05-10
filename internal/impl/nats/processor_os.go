@@ -32,7 +32,7 @@ var ospOperations = map[string]string{
 func natsOSProcessorConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Services").
-		Version("1.7.0").
+		Version("1.8.0").
 		Summary("Perform operations on a NATS object store bucket.").
 		Description(`
 ### Operations

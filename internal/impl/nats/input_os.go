@@ -21,7 +21,7 @@ const (
 func natsOSInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Services").
-		Version("1.7.0").
+		Version("1.8.0").
 		Summary("Watches for updates in a nats object store.").
 		Description(`
 ### Metadata
