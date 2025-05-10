@@ -11,6 +11,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -48,9 +49,10 @@ If the query fails to execute then the message will remain unchanged and the err
 			Optional().
 			Advanced()).
 		Field(service.NewStringField("suffix").
-			Description("An optional suffix to append to the select query.").
-			Optional().
-			Advanced())
+						Description("An optional suffix to append to the select query.").
+						Optional().
+						Advanced()).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -175,14 +177,18 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
-	if driverStr == "postgres" && connSettings.secretName != "" {
-		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := IsAWSEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings, s.awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings); err != nil {
 		return nil, err
 	}
 	connSettings.apply(context.Background(), s.db, s.logger)
