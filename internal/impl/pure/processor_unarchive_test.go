@@ -205,6 +205,64 @@ format: json_documents
 	}
 }
 
+func TestUnarchiveXMLDocuments(t *testing.T) {
+	conf, err := unarchiveProcConfig().ParseYAML(`
+format: xml_documents_to_json
+`, nil)
+	require.NoError(t, err)
+
+	exp := [][]byte{
+		[]byte(`{"root":{"foo":"bar"}}`),
+		[]byte(`{"root":"inner"}`),
+		[]byte(`{"root":{"num":"1"}}`),
+		[]byte(`{"root":{"bool":"true"}}`),
+	}
+
+	proc, err := newUnarchiveFromParsed(conf, service.MockResources())
+	require.NoError(t, err)
+
+	msgs, res := proc.Process(context.Background(), service.NewMessage([]byte(
+		`<root><foo>bar</foo></root><root>inner</root><root><num>1</num></root><root><bool>true</bool></root>`,
+	)))
+	require.NoError(t, res)
+	require.Len(t, msgs, len(exp))
+
+	for i, e := range exp {
+		mBytes, err := msgs[i].AsBytes()
+		require.NoError(t, err)
+		assert.Equal(t, string(e), string(mBytes))
+	}
+}
+
+func TestUnarchiveXMLDocumentsCast(t *testing.T) {
+	conf, err := unarchiveProcConfig().ParseYAML(`
+format: xml_documents_to_json:cast
+`, nil)
+	require.NoError(t, err)
+
+	exp := [][]byte{
+		[]byte(`{"root":{"foo":"bar"}}`),
+		[]byte(`{"root":"inner"}`),
+		[]byte(`{"root":{"num":1}}`),
+		[]byte(`{"root":{"bool":true}}`),
+	}
+
+	proc, err := newUnarchiveFromParsed(conf, service.MockResources())
+	require.NoError(t, err)
+
+	msgs, res := proc.Process(context.Background(), service.NewMessage([]byte(
+		`<root><foo>bar</foo></root><root>inner</root><root><num>1</num></root><root><bool>true</bool></root>`,
+	)))
+	require.NoError(t, res)
+	require.Len(t, msgs, len(exp))
+
+	for i, e := range exp {
+		mBytes, err := msgs[i].AsBytes()
+		require.NoError(t, err)
+		assert.Equal(t, string(e), string(mBytes))
+	}
+}
+
 func TestUnarchiveJSONArray(t *testing.T) {
 	conf, err := unarchiveProcConfig().ParseYAML(`
 format: json_array

@@ -498,11 +498,18 @@ func (e *Environment) RegisterRateLimit(name string, spec *ConfigSpec, ctor Rate
 		if err != nil {
 			return nil, err
 		}
-		// TODO: This MessageAwareRateLimit shoud eventually replace V1
+		// TODO: This MessageAwareRateLimit should eventually replace V1
 		// Try to upgrade to message aware rate-limiter if possible.
+
+		// When registering from an internal rate limit (local rate limit, redis rate limit)
 		if rl, ok := r.(ratelimit.MessageAwareRateLimit); ok {
 			agrl := newReverseAirGapMessageAwareRateLimit(rl)
 			return newAirGapMessageAwareRateLimit(agrl, nm.Metrics()), nil
+		}
+
+		// When registering an external rate limit via the plugin
+		if rl, ok := r.(MessageAwareRateLimit); ok {
+			return newAirGapMessageAwareRateLimit(rl, nm.Metrics()), nil
 		}
 
 		return newAirGapRateLimit(r, nm.Metrics()), nil
@@ -693,4 +700,11 @@ func (e *Environment) RegisterTemplateYAML(yamlStr string) error {
 // signature and/or behaviour changed outside of major version bumps.
 func XFormatConfigJSON() ([]byte, error) {
 	return json.Marshal(config.Spec())
+}
+
+// XRateLimitInitForTest is a helper specifically for testing the internal rate
+// limit initialization process based on the environment's registered components.
+// DO NOT USE OUTSIDE OF TESTS.
+func (e *Environment) XRateLimitInitForTest(conf ratelimit.Config, mgr bundle.NewManagement) (ratelimit.V1, error) {
+	return e.internal.RateLimitInit(conf, mgr)
 }

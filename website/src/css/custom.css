@@ -4,14 +4,17 @@
  * work well for content-centric websites.
  */
 
+/* Import IBM Plex Sans from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
 :root {
-  --ifm-color-primary: #3578e5;
-  --ifm-color-primary-dark: #1d68e1;
-  --ifm-color-primary-darker: #1b62d4;
-  --ifm-color-primary-darkest: #1751af;
-  --ifm-color-primary-light: #4e89e8;
-  --ifm-color-primary-lighter: #5a91ea;
-  --ifm-color-primary-lightest: #80aaef;
+  --ifm-color-primary: #d32f2f;
+  --ifm-color-primary-dark: #be2a2a;
+  --ifm-color-primary-darker: #b32727;
+  --ifm-color-primary-darkest: #942020;
+  --ifm-color-primary-light: #d84545;
+  --ifm-color-primary-lighter: #db5151;
+  --ifm-color-primary-lightest: #e27676;
 
   --ifm-color-danger: #ff6188;
   --ifm-color-danger-dark: #ff3e6d;
@@ -45,25 +48,126 @@
   --ifm-color-warning-lighter: #ffe69c;
   --ifm-color-warning-lightest: #fff3d1;
 
-  --ifm-navbar-background-color: #f9f9f9;
-  --ifm-background-surface-color: #f9f9f9;
-  --ifm-background-surface-color-secondary: #f3f3f3;
-  --ifm-background-color: #ffffff;
+  --ifm-navbar-background-color: #FFF4E9;
+  --ifm-background-surface-color: #FFF4E9;
+  --ifm-background-surface-color-secondary: #FFEFE0;
+  --ifm-background-color: #FFF4E9;
 
   --ifm-heading-color: #000000;
   --ifm-hero-text-color: #000000;
+  --ifm-hero-background-color: #ffbcba34;
   --ifm-blockquote-color: #3c3c3c;
   --ifm-alert-color: #000000;
 
   --ifm-code-font-size: 95%;
+  
+  --ifm-code-background: #FCE9D6;
+  
+  /* Set IBM Plex Sans as the default font family */
+  --ifm-font-family-base: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Apply the font to the body */
+body {
+  font-family: var(--ifm-font-family-base);
+}
+
+/* Set h1 size to 2rem */
+h1 {
+  font-size: 2rem;
+}
+
+/* Set all headings in light mode to #553630 except in loveSection */
+h1:not([class*="loveSection_"] h1), 
+h2:not([class*="loveSection_"] h2), 
+h3:not([class*="loveSection_"] h3), 
+h4:not([class*="loveSection_"] h4), 
+h5:not([class*="loveSection_"] h5), 
+h6:not([class*="loveSection_"] h6) {
+  color: #553630;
+}
+
+/* Sponsored by text styling */
+#sponsored-by {
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .footer.footer--dark {
-  --ifm-footer-background-color: #272822;
+  --ifm-footer-background-color: var(--ifm-background-color);
+  --ifm-footer-color: var(--ifm-font-color-base);
+  --ifm-footer-link-color: var(--ifm-color-primary);
+  --ifm-footer-title-color: var(--ifm-heading-color);
+  padding: 6rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  position: relative;
+  text-align: center;
+}
+
+.footer__inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+html[data-theme="dark"] .footer.footer--dark {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer__copyright {
+  text-align: center;
+  padding-top: 2rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* Override container padding in footer */
+.footer .container,
+.footer .container-fluid {
+  padding: 0;
+  text-align: center;
+}
+
+/* Remove padding from footer columns while preserving other .col styling */
+.footer .col {
+  padding: 0 1rem !important;
+  text-align: center;
+}
+
+.footer__title {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.footer__link-item {
+  line-height: 1.2;
+  transition: color 0.2s;
+  display: inline-block;
+}
+
+/* Remove external link icons from footer links */
+.footer__link-item svg {
+  display: none;
+}
+
+.footer__links {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary-dark);
+  text-decoration: none;
 }
 
 html[data-theme="dark"] {
-  --ifm-color-primary: #3bd1ff;
+  --ifm-color-primary: #ff5252;
   --ifm-color-primary-dark: #1ccaff;
   --ifm-color-primary-darker: #0cc6ff;
   --ifm-color-primary-darkest: #00a8dc;
@@ -71,25 +175,37 @@ html[data-theme="dark"] {
   --ifm-color-primary-lighter: #6adcff;
   --ifm-color-primary-lightest: #99e7ff;
 
-  --ifm-background-color: #1f201c;
+  --ifm-background-color: #2A1A17;
   --ifm-background-surface-color: #272822;
   --ifm-background-surface-color-secondary: #2a2b25;
-  --ifm-navbar-background-color: #272822;
+  --ifm-navbar-background-color: #2A1A17;
 
-  --ifm-code-background: #2e2f28;
+  --ifm-code-background: #2d2e27;
   --ifm-code-color: #ffffff;
 
-  background-color: #1f201c;
+  background-color: #2A1A17 !important;
+  color: #fff4e9 !important;
 
-  --ifm-heading-color: #ffffff;
-  --ifm-hero-text-color: #ffffff;
-  --ifm-color-secondary: #f0f0f0;
-  --ifm-blockquote-color: #c0c0c0;
+  --ifm-heading-color: #FFF4E9;
+  --ifm-hero-text-color: #FFF4E9;
+  --ifm-hero-background-color: #ffbcba12;
+  --ifm-color-secondary: #FFF4E9;
+  --ifm-blockquote-color: #FFF4E9;
+  --ifm-font-color-base: #FFF4E9;
 }
 
+/* Light mode inline code styling */
 code {
-  background-color: var(--ifm-code-background) !important;
+  background-color: #FDE5D8 !important;
   color: var(--ifm-code-color) !important;
+  border: none !important;
+  padding: 3px 7px !important;
+}
+
+/* Dark mode inline code styling */
+html[data-theme='dark'] code {
+  background-color: #3a2623 !important;
+  color: #ffffff !important;
 }
 
 a > code {
@@ -119,11 +235,16 @@ a.contents__link > code {
   height: 24px;
   display: flex;
 
-  background: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' viewBox='0 0 24 24' width='24'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z'/%3E%3C/svg%3E") no-repeat;
+  background: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' viewBox='0 0 24 24' width='24'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z' style='fill:%23553630'/%3E%3C/svg%3E") no-repeat;
+}
+
+/* Hover state for download button */
+.header-download-link:hover:before {
+  opacity: 0.8;
 }
 
 html[data-theme='dark'] .header-download-link:before {
-  background: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' viewBox='0 0 24 24' width='24'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z' style='fill:%23ffffff'/%3E%3C/svg%3E") no-repeat;
+  background: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' viewBox='0 0 24 24' width='24'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z' style='fill:%23EB8788'/%3E%3C/svg%3E") no-repeat;
 }
 
 .header-github-link:before {
@@ -131,19 +252,97 @@ html[data-theme='dark'] .header-download-link:before {
   width: 24px;
   height: 24px;
   display: flex;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23553630' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
     no-repeat;
 }
 
+/* Hover state for the GitHub icon */
+.header-github-link:hover:before {
+  opacity: 0.8;
+}
+
 html[data-theme='dark'] .header-github-link:before {
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='white' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23EB8788' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
     no-repeat;
+}
+
+/* Theme toggle button styling */
+[class*="colorModeToggle_"] {
+  color: #553630 !important;
+}
+
+[class*="colorModeToggle_"] svg {
+  fill: #553630 !important;
+}
+
+html[data-theme='dark'] [class*="colorModeToggle_"] {
+  color: #EB8788 !important;
+}
+
+html[data-theme='dark'] [class*="colorModeToggle_"] svg {
+  fill: #EB8788 !important;
+}
+
+/* Hero title color for light mode */
+[class*="hero__title"] {
+  color: #553630 !important;
+}
+
+html[data-theme='dark'] [class*="hero__title"] {
+  color: #FFF4E9 !important;
+}
+
+/* DocSearch styling for light mode */
+.DocSearch {
+  --docsearch-searchbox-background: #ffbcba34;
+  --docsearch-searchbox-focus-background: #ffbcba55;
+  --docsearch-key-gradient: linear-gradient(
+    -26.5deg,
+    #FDE5D8 0%,
+    #FCE9D6 100%
+  );
+  --docsearch-key-shadow: 0 2px 2px #55363033;
+  --docsearch-muted-color: #553630;
+}
+
+.DocSearch-Button {
+  background-color: #FDE5D8 !important;
+  padding: 0px 6px 0px 10px !important;
+}
+
+/* Extra selectors to ensure the style is applied */
+[class*="docSearchButton_"], 
+[class^="docSearchButton"],
+div[class*="searchBox_"] button {
+  background-color: #FDE5D8 !important;
+  padding: 0px 6px 0px 10px !important;
+}
+
+.DocSearch-Button-Key {
+  background: linear-gradient(to bottom, #654641 0%, #553630 100%) !important;
+  border: 1px solid #44291e !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 0 #44291e !important;
+  color: #fff !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0 6px !important;
+}
+
+.DocSearch-Button:hover .DocSearch-Button-Key {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #44291e !important;
+}
+
+.DocSearch-Button:active .DocSearch-Button-Key {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #44291e !important;
 }
 
 html[data-theme='dark'] .DocSearch {
   --docsearch-text-color: var(--ifm-font-color-base);
   --docsearch-muted-color: var(--ifm-color-secondary-darkest);
-  --docsearch-container-background: #2e2f28;
+  --docsearch-container-background: rgba(46, 47, 40, 0.8);
   --docsearch-modal-background: var(--ifm-background-color);
   --docsearch-searchbox-background: var(--ifm-background-color);
   --docsearch-searchbox-focus-background: var(--ifm-color-black);
@@ -153,9 +352,38 @@ html[data-theme='dark'] .DocSearch {
   --docsearch-footer-background: var(--ifm-background-surface-color);
   --docsearch-key-gradient: linear-gradient(
     -26.5deg,
-    var(--ifm-color-emphasis-200) 0%,
-    var(--ifm-color-emphasis-100) 100%
+    #ba6663 0%,
+    #944c4b 100%
   );
+}
+
+html[data-theme='dark'] .DocSearch-Button,
+html[data-theme='dark'] [class*="DocSearch-Button"],
+html[data-theme='dark'] [class*="docSearchButton_"],
+html[data-theme='dark'] [class^="docSearchButton"],
+html[data-theme='dark'] div[class*="searchBox_"] button {
+  background-color: #3a2623 !important;
+}
+
+html[data-theme='dark'] .DocSearch-Button-Key {
+  background: linear-gradient(to bottom, #f9a7a8 0%, #EB8788 100%) !important;
+  border: 1px solid #d67573 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 0 #d67573 !important;
+  color: #2A1A17 !important;
+  text-shadow: 0 1px 0 #ffbcba22 !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+html[data-theme='dark'] .DocSearch-Button:hover .DocSearch-Button-Key {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #d67573 !important;
+}
+
+html[data-theme='dark'] .DocSearch-Button:active .DocSearch-Button-Key {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #d67573 !important;
 }
 
 .markdown > table {
@@ -166,3 +394,996 @@ html[data-theme='dark'] .DocSearch {
 .markdown > table td {
   min-width: 160px;
 }
+
+/* Custom announcement bar styling */
+div[class^="announcementBar"] {
+  background-color: #EB8788 !important;
+  /* padding: 16px 0 !important; */
+  height: 36px;
+}
+
+[class*="announcementBar_"] {
+  border-bottom: 0px !important;
+}
+
+div[class^="announcementBarContent"] {
+  color: white !important;
+  font-weight: 400;
+}
+
+/* Fix announcement bar close button alignment */
+div[class^="announcementBarClose"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0;
+  margin-right: 12px;
+}
+
+/* Reduce paragraph line height */
+p {
+  line-height: 1.4;
+}
+
+/* Reduce code block font size */
+pre, code {
+  font-size: 12px !important;
+}
+
+/* Navbar logo styling */
+.navbar__logo {
+  height: 32px;
+}
+
+.navbar__logo img {
+  height: 100%;
+  width: auto;
+}
+
+/* Navbar brand spacing */
+.navbar__brand {
+  margin-right: 0rem;
+}
+
+/* Navbar links styling - reduced font size */
+.navbar__link {
+  font-size: 14px; /* Reduced font size for navbar links */
+}
+
+/* Add navbar dark mode box-shadow */
+html[data-theme="dark"] .navbar {
+  box-shadow: 0px 1px #444950;
+}
+
+/* Keep the navbar brand/title at normal size */
+.navbar__title {
+  font-size: 18px; /* Keep the original size or adjust as needed */
+  display: none !important; /* Hide the navbar title with !important to override other styles */
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Override themed component images */
+div[class*="themedImage"],
+div[class*="themedComponent"] {
+  height: auto;
+  width: auto;
+}
+
+div[class*="themedImage"] img,
+div[class*="themedComponent"] img,
+div[class*="themedComponent--light"] img,
+div[class*="themedComponent--dark"] img {
+  height: 100%;
+  width: auto;
+  max-height: 300px;
+}
+
+/* 3D Extruded Button Styles */
+.button.button--primary {
+  background-color: #FFBCBA !important;
+  color: #333 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  position: relative;
+  box-shadow: 0 6px 0 #E8908E !important;
+  transform: translateY(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+  font-weight: 600;
+}
+
+.button.button--primary:hover {
+  background-color: #FFA7A5 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #D67573 !important;
+}
+
+.button.button--primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #D67573 !important;
+  background-color: #E89896 !important;
+  transition: all 0.05s ease-in;
+}
+
+.button.button--outline.button--primary {
+  color: #333 !important;
+  border: 2px solid #FFBCBA !important;
+  background-color: #ffbcba9e !important;
+  box-shadow: 0 6px 0 #E8908E !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.button.button--outline.button--primary:hover {
+  background-color: #FFA7A5 !important;
+  border-color: #FFA7A5 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #D67573 !important;
+}
+
+.button.button--outline.button--primary:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #D67573 !important;
+  background-color: #E89896 !important;
+  transition: all 0.05s ease-in;
+}
+
+/* Dark mode button styling fixes */
+html[data-theme="dark"] .button.button--primary,
+html[data-theme="dark"] .button.button--outline.button--primary {
+  color: #fff !important;
+  background-color: #ba6663 !important;
+}
+
+/* Style paragraph links to be dark pink and semibold */
+p a:not(.button) {
+  color: #d32f2f !important; /* Darker red */
+  font-weight: 600;
+}
+
+html[data-theme="dark"] p a:not(.button) {
+  color: #ff5252 !important; /* Brighter red for dark mode */
+}
+
+/* Target code blocks with increased padding */
+.padding--none, div[class*=codeBlockLines_] pre[class*=prism-code], div[class*=theme-code-block]>div>pre, pre[class*=codeBlock_] {
+    padding: 1rem !important;
+}
+
+/* Homepage-only code blocks with max height */
+.homepage [class*="codeBlockLines_"] {
+  max-height: 350px;
+  overflow-y: scroll;
+  overflow-x: hidden !important;
+}
+
+/* Light mode code block styling */
+html[data-theme='light'] div[class*="codeBlockLines_"],
+html[data-theme='light'] pre[class*="prism-code"],
+html[data-theme='light'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  background-color: #FDE5D8 !important;
+  color: var(--ifm-color-gray-900) !important;
+}
+
+/* Light mode code block container styling */
+html[data-theme='light'] div[class*="theme-code-block"],
+html[data-theme='light'] div[class*="codeBlockContainer"] {
+  background-color: #FDE5D8 !important;
+}
+
+/* Move code block button group to accommodate scrollbar */
+.buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
+div[class*="buttonGroup_"] {
+  background-color: #FDE5D8 !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* Dark mode code block styling */
+html[data-theme='dark'] div[class*="codeBlockLines_"],
+html[data-theme='dark'] pre[class*="prism-code"],
+html[data-theme='dark'] .codeBlockLines_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-styles-module {
+  background-color: #3a2623 !important;
+  color: #ffffff !important;
+}
+
+/* Additional dark mode code selector to ensure proper styling */
+html[data-theme='dark'] [class*="theme-code-block"] {
+  background-color: #242521 !important;
+  color: #ffffff !important;
+}
+
+/* Custom Tab Item styling - reduce vertical padding */
+div[class*="tabItem_"] {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* Make sure enough space for the code blocks inside tabs */
+div[class*="tabItem_"] > div {
+  margin-top: 0.25rem;
+}
+
+/* Custom container padding */
+/* Default padding for screens below 1675px */
+.container.padding-top--md {
+  padding-top: var(--ifm-spacing-vertical) !important; /* Default 1rem padding */
+}
+
+/* Increased padding for screens larger than 1675px */
+@media (min-width: 1675px) {
+  .container.padding-top--md {
+    padding-top: calc(var(--ifm-spacing-vertical) * 3) !important;
+  }
+}
+
+.container.padding-bottom--md {
+  padding-bottom: calc(var(--ifm-spacing-vertical) * 3) !important; /* Convert md to lg padding */
+}
+
+/* Custom margin adjustment */
+.margin-vert--xl {
+  margin-bottom: 3rem !important;
+  margin-top: 3rem !important;
+}
+
+/* Override for cookbooks page */
+[class*="CookbookPage"] .margin-vert--xl {
+  margin-top: 2rem !important;
+  margin-bottom: 2rem !important;
+}
+
+/* Full-width container with no padding */
+.container-fluid {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* Tabbed section styling */
+.tabbedSection {
+  background-color: #f9f9f9;
+  padding: 60px 0;
+  margin: 40px 0;
+}
+
+html[data-theme="dark"] .tabbedSection {
+  background-color: #2a2b25;
+}
+
+.tabbedSectionImg {
+  max-height: 250px;
+  width: auto;
+  margin-right: 20px;
+  margin-top: -30px;
+}
+
+/* Adjust tabbed section column padding */
+.tabbedSection .col--4 {
+  flex: 1 1 0%;
+  padding-right: 3rem;
+}
+.col {
+  padding: 0 2rem !important;
+}
+
+/* Custom Scrollbar Styling for Docusaurus sidebar */
+/* Firefox */
+div[class*="docSidebarContainer_"],
+aside[class*="theme-doc-sidebar-container"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"],
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"] {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit browsers */
+div[class*="docSidebarContainer_"]::-webkit-scrollbar,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar {
+  width: 6px;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-track,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb:hover,
+aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb,
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="dark"] div[class*="docSidebarContainer_"]::-webkit-scrollbar-thumb:hover,
+html[data-theme="dark"] aside[class*="theme-doc-sidebar-container"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Global scrollbar styling to match sidebar */
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+html[data-theme="dark"] {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Sidebar item link styling - reduce font size */
+li[class*="theme-doc-sidebar-item-link"] > a {
+  font-size: 14px;
+}
+
+li[class*="theme-doc-sidebar-item-category"] > div > a {
+  font-size: 14px;
+}
+
+li[class*="theme-doc-sidebar-item-category"] > button {
+  font-size: 14px;
+}
+
+/* Keep category headings at original size for hierarchy */
+li[class*="theme-doc-sidebar-item-category-level-1"] > div > a,
+li[class*="theme-doc-sidebar-item-category-level-1"] > button {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Remove top margin from menu list items except first child */
+.menu__list-item:not(:first-child) {
+  margin-top: 0;
+}
+
+/* Component card styling */
+.componentCard_src-theme-ComponentCard-styles-module, [class*="componentCard_"] {
+  padding: 4px 16px !important;
+  background-color: #ffe5cc70 !important;
+  border: 1px solid #ffd6af !important;
+}
+
+/* Dark mode ComponentCard styling */
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module, 
+html[data-theme="dark"] [class*="componentCard_"] {
+  background-color: #3a2623 !important;
+  border: 1px solid #4a4a4a !important;
+  color: #fff4e9 !important;
+}
+
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module:hover, 
+html[data-theme="dark"] [class*="componentCard_"]:hover {
+  background-color: #4e342f !important; /* Slightly lighter on hover for visual feedback */
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+html[data-theme="dark"] .componentCard_src-theme-ComponentCard-styles-module *, 
+html[data-theme="dark"] [class*="componentCard_"] * {
+  color: #fff4e9 !important;
+}
+
+/* Cookbook header alignment and styling */
+.cookbookListHeader .row {
+  align-items: center !important;
+}
+
+/* Target the first column with content */
+.cookbookListHeader .col--5.col--offset-1 {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+}
+
+/* Target the image column */
+.cookbookListHeader .col--5:last-child {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Target the paragraph in the header */
+.cookbookListHeader h1,
+.cookbookListHeader p {
+  margin-bottom: 0.5rem !important;
+}
+
+/* Directly target the search input */
+input.cookbookSearch {
+  padding: 12px 16px !important;
+  width: 100% !important;
+  margin-top: 1rem !important;
+  box-sizing: border-box !important;
+  font-size: 14px !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+/* Target the search container */
+.cookbookListHeader .search {
+  width: 100% !important;
+  margin-top: 1rem !important;
+}
+
+@media (min-width: 996px) {
+  .cookbookListHeader .row {
+    display: flex;
+    align-items: center;
+  }
+  
+  .cookbookListHeader .col--5:last-child {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+/* Breadcrumbs styling */
+.breadcrumbs__link {
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+.breadcrumbs__link--active {
+  font-weight: bold !important;
+}
+
+/* Custom 3D Keyboard-like Tabs Styling */
+[class*="tabs__item"] {
+  position: relative;
+  border: none !important;
+  background-color: #ffe6d0 !important;
+  color: #333 !important;
+  border-radius: 6px !important;
+  margin-right: 8px;
+  box-shadow: 0 3px 0 #E8908E !important;
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0.75rem 1rem !important;
+}
+
+[class*="tabs__item"]:hover {
+  background-color: #FFD0CE !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #E8908E !important;
+}
+
+[class*="tabs__item"]:active,
+[class*="tabs__item--active"] {
+  background-color: #FFBCBA !important;
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #E8908E !important;
+}
+
+/* Dark mode tab styling */
+html[data-theme="dark"] [class*="tabs__item"] {
+  background-color: #3a2623 !important;
+  box-shadow: 0 3px 0 #ba6663 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] [class*="tabs__item"]:hover {
+  background-color: #18100e !important;
+  box-shadow: 0 4px 0 #ba6663 !important;
+}
+
+html[data-theme="dark"] [class*="tabs__item"]:active,
+html[data-theme="dark"] [class*="tabs__item--active"] {
+  background-color: #18100e !important;
+  box-shadow: 0 1px 0 #ba6663 !important;
+}
+
+/* Remove auto overflow from tabs container */
+[class*="tabs"] {
+  overflow: visible !important;
+}
+
+/* Remove box-shadow from code block container */
+.codeBlockContainer_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Container-styles-module {
+  box-shadow: none !important;
+}
+
+/* Direct selector for the loveSection styling */
+[class*="loveSection_"] {
+    border-radius: 140px;
+    box-shadow: 20px 20px #eb878829,inset 0 -10px 0 #ffdcdd29;
+    margin: 0 auto 160px;
+    max-width: 80rem;
+    transition: background-color .3s
+}
+
+/* Direct selector for loveSection hover effect */
+a:hover [class*="loveSection_"] {
+  background-color: #fff0f0;
+}
+
+html[data-theme="dark"] a:hover [class*="loveSection_"] {
+  background-color: #2a2625;
+  color: #FFF4E9;
+}
+
+/* Dark mode text color overrides */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] p,
+html[data-theme="dark"] li,
+html[data-theme="dark"] td,
+html[data-theme="dark"] th,
+html[data-theme="dark"] blockquote,
+html[data-theme="dark"] label,
+html[data-theme="dark"] .navbar__link,
+html[data-theme="dark"] [class*="menu__link"],
+html[data-theme="dark"] .table-of-contents__link,
+html[data-theme="dark"] .footer__link-item {
+  color: #FFF4E9 !important;
+}
+
+html[data-theme="dark"] [class*="menu__link--active"],
+html[data-theme="dark"] [class*="menu__link"][aria-current="page"] {
+  color: #ff5252 !important;
+}
+
+html[data-theme="dark"] .footer__copyright {
+  color: rgba(255, 244, 233, 0.7) !important;
+}
+
+html[data-theme="dark"] code {
+  color: #FFF4E9 !important;
+}
+
+/* Fix furtherButton positioning */
+.furtherButton_src-pages-index-module {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
+/* Community page card styling */
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffeeee;
+  transition: transform 0.3s ease;
+  border: 1px solid #ffd0d0;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .card {
+  background-color: #3a2e2e;
+  border: 1px solid #4a3e3e;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card__header {
+  margin-bottom: 0.5rem;
+}
+
+.card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 0rem 2rem 0rem 2rem;
+}
+
+.card__footer {
+  padding: 1rem;
+}
+
+/* Pagination navigation bottom margin */
+.pagination-nav.docusaurus-mt-lg {
+  margin-bottom: 3rem;
+}
+
+/* Footer column alignment */
+.footer__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  justify-content: center;
+}
+
+/* Ensure middle column with logo is vertically centered */
+.footer__col:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Make sure the logo container is properly centered */
+.footer__col:nth-child(2) a,
+.footer__col:nth-child(2) picture,
+.footer__col:nth-child(2) img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+/* Scroll margin for anchor links */
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+/* More specific selectors for anchor targets */
+h1[id], h2[id], h3[id], h4[id], h5[id], h6[id], 
+[data-anchor], 
+.anchor, 
+.hash-link, 
+.target {
+  scroll-margin-top: 5.5rem;
+  scroll-padding-top: 5.5rem;
+}
+
+/* Make sure this applies on all elements with an ID */
+:target {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Mobile hero banner adjustments */
+@media (max-width: 996px) {
+  /* Increase menu item size on mobile */
+  .menu__list-item {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  /* Add gap between stacked cards on mobile */
+  .row .col.text--center.padding-vert--md {
+    margin-bottom: 2rem;
+  }
+  
+  .row .col.text--center.padding-vert--md:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Hide GitHub buttons iframe on mobile */
+  .github-buttons-container {
+    display: none !important;
+  }
+
+  /* Make the Get Started and Explore Cookbooks buttons stack vertically on mobile */
+  [class*="tabbedSection"] div[style*="display: flex; gap: 1rem"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  /* Make both buttons full width on mobile */
+  [class*="tabbedSection"] div[style*="display: flex; gap: 1rem"] a {
+    width: 100% !important;
+  }
+
+  [class*="heroImg_"] {
+    height: 100% !important;
+    margin: 10px 0;
+  }
+  /* Hide announcement bar on mobile */
+  div[class^="announcementBar"] {
+    display: none !important;
+  }
+  
+  /* Add padding to foodparty_dark.svg container */
+  img[src*="foodparty_dark.svg"],
+  img[src*="foodparty.svg"] {
+    padding: 0 2rem;
+    margin-top: 6rem;
+  }
+  
+  /* Using wildcard selector for hero banner */
+  [class*="heroBanner"] {
+    padding-bottom: 2rem;
+    background-color: var(--ifm-hero-background-color);
+  }
+  
+  /* Using wildcard selector for hero banner row */
+  [class*="heroBanner"] .row .col:first-child {
+    margin-bottom: 2rem;
+  }
+  
+  .margin-vert--xl:not([class*="CookbookPage"] .margin-vert--xl) {
+    margin-top: -1rem !important;
+    margin-bottom: -2rem !important;
+  }
+  
+  .loveSection_src-pages-index-module {
+    margin-left: 1rem;
+    margin-right: 1rem;
+    border-radius: 50px;
+  }
+  
+  /* Add padding to loveSection on mobile */
+  [class*="loveSection_"] {
+    padding: 2rem !important;
+    margin-left: 0rem !important;
+    margin-right: 0rem !important;
+    border-radius: 20px !important;
+    box-shadow: none !important;
+    font-weight: 400 !important;
+  }
+  
+  /* Make text in love section lighter on mobile */
+  [class*="loveSection_"] h1,
+  [class*="loveSection_"] h2,
+  [class*="loveSection_"] h3,
+  [class*="loveSection_"] p {
+    font-weight: 400 !important;
+  }
+  
+  /* Tabs vertical stacking on mobile */
+  [class*="tabs"] {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  [class*="tabs__item"] {
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+    width: 100%;
+  }
+  
+  /* Fix footer links overflow */
+  .footer__links {
+    flex-wrap: wrap;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .footer .row {
+    margin: 0;
+    flex-wrap: wrap;
+  }
+  
+  .footer .col {
+    flex-basis: 100%;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Ensure consistent spacing between footer columns on mobile */
+  .footer__col:nth-child(2) {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Hide what-is-blob.svg on mobile */
+  img[src*="what-is-blob.svg"] {
+    display: none !important;
+  }
+}
+
+/* Move code block button group to accommodate scrollbar */
+.buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
+div[class*="buttonGroup_"] {
+  background-color: #FDE5D8 !important;
+  padding-bottom: 0.5rem !important;
+}
+
+html[data-theme='dark'] .buttonGroup_node_modules-\@docusaurus-theme-classic-lib-theme-CodeBlock-Content-with,
+html[data-theme='dark'] div[class*="buttonGroup_"] {
+  background-color: #3a2623 !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* Add dark mode hero banner background */
+html[data-theme="dark"] [class*="heroBanner"] {
+  background-color: #ffbcba12 !important;
+}
+
+/* Add dark mode cookbook header background */
+html[data-theme="dark"] [class*="cookbookListHeader"] {
+  background-color: #ffbcba12 !important;
+}
+
+.heroBanner_src-pages-index-module .row .col:first-child {
+  padding: 0 4rem 0 0;
+}
+
+/* Toggle button hover background color */
+[class*="toggleButton_"]:hover {
+  background-color: #FDE5D8 !important;
+}
+
+/* DocSearch search icon color for light mode */
+.DocSearch-Search-Icon {
+  color: #553630 !important;
+  stroke: #553630 !important;
+}
+
+[class*="searchIcon_"] {
+  color: #553630 !important;
+  stroke: #553630 !important;
+}
+
+html[data-theme='dark'] .DocSearch-Search-Icon,
+html[data-theme='dark'] [class*="searchIcon_"] {
+  color: #EB8788 !important;
+  stroke: #EB8788 !important;
+}
+
+html[data-theme="dark"] [class*="menu__link"],
+html[data-theme="dark"] .table-of-contents__link,
+html[data-theme="dark"] .footer__link-item {
+  color: #FFF4E9 !important;
+}
+
+html[data-theme="dark"] [class*="menu__link--active"],
+html[data-theme="dark"] [class*="menu__link"][aria-current="page"] {
+  color: #ff5252 !important;
+}
+
+html[data-theme="dark"] .footer__copyright {
+  color: rgba(255, 244, 233, 0.7) !important;
+}
+
+/* Menu link border radius styling */
+.menu__link {
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+.menu__link:hover {
+  border-right: 1px solid #ff5252;
+}
+
+/* Fix for menu__link--sublist-caret shifting during hover */
+.menu__link--sublist-caret:hover {
+  padding-right: calc(var(--ifm-menu-link-padding-horizontal) - 1px);
+}
+
+/* Ensure caret remains in the same position on hover */
+.menu__link--sublist-caret:after {
+  position: absolute;
+  right: var(--ifm-menu-link-padding-horizontal);
+}
+
+/* Set active table of contents link color */
+.table-of-contents__link--active {
+  color: #ff5252 !important;
+}
+
+/* More specific selector using wildcard for active TOC link */
+[class*="table-of-contents__link--active"] {
+  color: #ff5252 !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure dark mode also uses the correct color for active TOC link */
+html[data-theme="dark"] [class*="table-of-contents__link--active"] {
+  color: #ff5252 !important;
+  font-weight: 600 !important;
+}
+
+/* Hide geoff.svg and adjust padding on about page for smaller screens */
+@media (max-width: 1120px) {
+  img[src="/bento/img/geoff.svg"] {
+    display: none !important;
+  }
+  
+  [style*="padding-right: 3rem"] {
+    padding-right: 0 !important;
+  }
+}
+
+/* For smaller mobile screens - specific adjustments */
+@media (max-width: 768px) {
+  .DocSearch-Button,
+  [class*="docSearchButton_"], 
+  [class^="docSearchButton"],
+  div[class*="searchBox_"] button {
+    padding: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Hide the search button text and keep only the icon */
+  .DocSearch-Button-Placeholder, 
+  .DocSearch-Button-Keys {
+    display: none !important;
+  }
+}
+
+/* Hide footer title in the middle column with the logo */
+.footer__col:nth-child(2) .footer__title {
+  display: none;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+/* Marfo class to replace margin-vert--xl with custom margins */
+.marfo {
+  margin-top: 3rem !important;
+  margin-bottom: 0rem !important;
+}
+
+/* Override tabbedSection margin with wildcard selector */
+[class*="tabbedSection"] {
+  margin: 0 0 40px 0 !important;
+}
+
+/* HR styling */
+hr {
+  background-color: #dadde1;
+}
+
+/* Dark mode HR styling */
+html[data-theme="dark"] hr {
+  background-color: #444950;
+}
+
+/* Fix for scrollbar-gutter */
+.menu_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-Desktop-Content-styles-module {
+  scrollbar-gutter: auto !important;
+}
+
+/* Fix for scrollbar-gutter */
+[class*="menu_"] {
+  scrollbar-gutter: auto !important;
+}
+
+/* Custom class for the features section */
+.snarf {
+  margin-top: -2.5rem;
+}
+

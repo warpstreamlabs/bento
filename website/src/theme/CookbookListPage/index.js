@@ -64,9 +64,9 @@ function CookbookListPage(props) {
     <Layout title="Cookbooks" description="Bento Cookbooks">
       <header className={styles.cookbookListHeader}>
         <div className="container">
-          <div className="row">
+          <div className={classnames("row", styles.headerRow)}>
             <div className="col col--5 col--offset-1">
-              <img className={styles.headerImgMobile} src="/bento/img/Blobchef.svg" />
+              <img className={styles.headerImgMobile} src="/bento/img/Blobchef.svg" alt="Chef Blob character" />
               <div>
                 <h1>Bento Cookbooks</h1>
                 <p>A collection of guides to walk you through more advanced Bento applications.</p>
@@ -79,30 +79,32 @@ function CookbookListPage(props) {
                   placeholder="🔍 Search..." />
               </div>
             </div>
-            <div className="col col--5">
-              <img className={styles.headerImg} src="/bento/img/Blobchef.svg" />
+            <div className={classnames("col", "col--5", styles.imageCol)}>
+              <img className={styles.headerImg} src="/bento/img/Blobchef.svg" alt="Chef Blob character" />
             </div>
           </div>
         </div>
       </header>
       <div className={styles.cookbookItemsContainer}>
         <div className="container container--narrow container--bleed margin-vert--lg">
-          {itemsFiltered.map(({content: CookbookContent}) => (
-            <CookbookItem
-              key={CookbookContent.metadata.permalink}
-              frontMatter={CookbookContent.frontMatter}
-              metadata={CookbookContent.metadata}
-              truncated>
-              <CookbookContent />
-            </CookbookItem>
-          ))}
+          <div className={styles.cookbookGrid}>
+            {itemsFiltered.map(({content: CookbookContent}) => (
+              <CookbookItem
+                key={CookbookContent.metadata.permalink}
+                frontMatter={CookbookContent.frontMatter}
+                metadata={CookbookContent.metadata}
+                truncated>
+                <CookbookContent />
+              </CookbookItem>
+            ))}
+          </div>
           {itemsFiltered.length > 0 && itemsFiltered.length < items.length && itemsFiltered.length > searchLimit &&
-            <div className="col">
-              <button className="button button--secondary cookbook-show-more" onClick={() => increaseSearchLimit()}>Show more</button>
+            <div className="col text-center">
+              <button className={classnames("button", styles.showMoreButton)} onClick={() => increaseSearchLimit()}>Show more</button>
             </div>}
           {itemsFiltered.length == 0 &&
             <div className="col">
-              <p>Whoops, looks like your search hasn't got any results. If the cookbook you want doesn't exist please <a href="https://github.com/warpstreamlabs/bento/issues/new">ask for it</a>.</p>
+              <p>Whoops, looks like your search hasn't got any results. If the cookbook you want doesn't exist please <a href="https://github.com/warpstreamlabs/bento/issues/new" aria-label="Create a new issue to request a cookbook">ask for it</a>.</p>
             </div>}
         </div>
       </div>

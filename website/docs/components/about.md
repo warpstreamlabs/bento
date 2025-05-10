@@ -6,8 +6,6 @@ description: Learn about Bento components
 
 A good ninja gets clued up on its gear.
 
-<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/Blobninja.svg" /></div>
-
 ## Core Components
 
 Every Bento pipeline has at least one [input][inputs], an optional [buffer][buffers], an [output][outputs] and any number of [processors][processors]:

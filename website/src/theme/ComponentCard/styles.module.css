@@ -1,5 +1,5 @@
 .componentCard {
-  background-color: var(--ifm-background-surface-color);
+  background-color: #ffe5cc;
   border: 1px solid var(--ifm-background-surface-color-secondary);
   border-radius: var(--ifm-global-radius);
   box-shadow: var(--ifm-panel-box-shadow);
@@ -11,9 +11,18 @@
 
 .componentCard:hover {
   text-decoration: none;
-  background-color: var(--ifm-background-surface-color-secondary);
+  background-color: #ffd9b3;
 }
 
 .componentCard > * {
   color: var(--ifm-font-base-color);
+}
+
+/* Fix text color in dark mode */
+html[data-theme='dark'] .componentCard {
+  color: #333;
+}
+
+html[data-theme='dark'] .componentCard > * {
+  color: #333;
 }

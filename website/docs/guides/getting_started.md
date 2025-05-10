@@ -3,8 +3,6 @@ title: Getting Started
 description: Getting started with Bento
 ---
 
-<div style={{textAlign: 'center'}}><img style={{maxWidth: '300px'}} src="/bento/img/teacher-blob.svg" /></div>
-
 ## Install
 
 The easiest way to install Bento is with this handy script:
