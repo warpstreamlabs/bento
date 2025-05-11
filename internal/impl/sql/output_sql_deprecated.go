@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 
@@ -82,9 +83,16 @@ func newSQLDeprecatedOutputFromConfig(conf *service.ParsedConfig, mgr *service.R
 		return nil, err
 	}
 
-	awsConf, err := bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
+	}
+	var awsConf aws.Config
+	if awsEnabled {
+		awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return newSQLRawOutput(mgr.Logger(), driverStr, dsnStr, queryStatic, nil, argsMapping, connSettings, awsConf), nil
