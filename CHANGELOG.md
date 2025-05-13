@@ -3,6 +3,11 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.7.1 - 2025-05-13 
+
+- enabled `error_handling.strategy` fields when using streamBuilder.Build() @MaudGautier
+- update gosnowflake dependency and fix test @gregfurman
+
 ## 1.7.0 - 2025-05-07
 
 ### Added 
