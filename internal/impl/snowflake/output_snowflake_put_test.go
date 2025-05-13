@@ -105,9 +105,6 @@ func (c *MockHTTPClient) hasPayload(payload string) bool {
 }
 
 func TestSnowflakeOutput(t *testing.T) {
-	// TODO: Fix me.
-	t.Skip()
-
 	type testCase struct {
 		name                      string
 		privateKeyPath            string
@@ -248,7 +245,7 @@ snowpipe: '` + tc.snowpipe + `'
 			wantSnowpipeQuery:         "/v1/data/pipes/test_db.test_schema.test_pipe/insertFiles?requestId=" + dummyUUID,
 			wantSnowpipeQueriesCount:  1,
 			wantSnowpipePayload:       `{"files":[{"path":"foo/bar/baz/` + dummyUUID + `.json"}]}`,
-			wantSnowpipeJWT:           "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOi02MjEzNTU5Njc0MCwiaWF0IjotNjIxMzU1OTY4MDAsImlzcyI6IkJFTlRIT1MuRk9PQkFSLlNIQTI1Njprc3dSSG9uZmU0QllXQWtReUlBUDVzY2w5OUxRQ0U2S1Irc0J4VEVoenBFPSIsInN1YiI6IkJFTlRIT1MuRk9PQkFSIn0.ABldbfDem53G-EDMoQaY7VVA2RXPryvXFcY0Hqogu_-qjT3qcJEY1aM1B9SqATkeFDNiagOXPl218dUc-Hes4WTbWnoXq8EUlMLjbg3_9qrlp6p-6SzUbX88lpkuYPXD3UiDBhLXsQso5ciufev2IFX5oCt-Oxg9GbI4uIveey_k8dv3S2a942RQbB6ffCj3Stca31oz2F_IPaF2xDmwVsBig_C9NoHToQFVAfVbPIV1hMDIc7zutuLqXQWZPfT6K0PPc15ZMutQQ0tEYCboDanx3tXe9ub_gLfyGaHwuDUXBk3EN3UkZ8rmgasCk_VnFZ_Xk6tnaZfdIrGKRZ5dsA",
+			wantSnowpipeJWT:           "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOi02MjEzNTU5Njc0MCwiaWF0IjotNjIxMzU1OTY4MDAsImlzcyI6IkJFTlRPLkZPT0JBUi5TSEEyNTY6T2FZV1NXdkVqRVFUTkduS1NFTlJKeW5QWnJSU0gvckMrR2pHbkJLaDRyQT0iLCJzdWIiOiJCRU5UTy5GT09CQVIifQ.FYFzWBNoNjdydakDylECfPozygu8ycFlvTfAyaHbTBQq0LSfSN5BA0Z0-Vdt8gqzyEoI64RPdXU2Le_LKI_lnnE5PsZfSdFqnJah6JGgnojcI0jUt6Vr6YpBqPLULziDRrf2tADUW26H6BGcdT-0IbRuTLAeWD4rSxRcHIfiBC_PEw6ksTzFVYAeeJaO1FGaKT4lJxXSKoZ6p6ShUWuEW0FeRr8k3XeVZrDGhuQi43GsOLL5LJel4XnAyYra70AyXQqWcuattflc8UAcrP2KHWM2wDHcs3eVDOlaEvfIycE01r0zO6u0iqWp99nxm-qNt6EBdFBQHyj4_PDer8EQ0A",
 		},
 		{
 			name:                      "gets error code from Snowpipe",
@@ -290,7 +287,7 @@ snowpipe: '` + tc.snowpipe + `'
 			wantSnowpipeQuery:         "/v1/data/pipes/test_db.test_schema.test_pipe_bar/insertFiles?requestId=" + dummyUUID,
 			wantSnowpipeQueriesCount:  2,
 			wantSnowpipePayload:       `{"files":[{"path":"foo/bar/baz/` + dummyUUID + `.json"}]}`,
-			wantSnowpipeJWT:           "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOi02MjEzNTU5Njc0MCwiaWF0IjotNjIxMzU1OTY4MDAsImlzcyI6IkJFTlRIT1MuRk9PQkFSLlNIQTI1Njprc3dSSG9uZmU0QllXQWtReUlBUDVzY2w5OUxRQ0U2S1Irc0J4VEVoenBFPSIsInN1YiI6IkJFTlRIT1MuRk9PQkFSIn0.ABldbfDem53G-EDMoQaY7VVA2RXPryvXFcY0Hqogu_-qjT3qcJEY1aM1B9SqATkeFDNiagOXPl218dUc-Hes4WTbWnoXq8EUlMLjbg3_9qrlp6p-6SzUbX88lpkuYPXD3UiDBhLXsQso5ciufev2IFX5oCt-Oxg9GbI4uIveey_k8dv3S2a942RQbB6ffCj3Stca31oz2F_IPaF2xDmwVsBig_C9NoHToQFVAfVbPIV1hMDIc7zutuLqXQWZPfT6K0PPc15ZMutQQ0tEYCboDanx3tXe9ub_gLfyGaHwuDUXBk3EN3UkZ8rmgasCk_VnFZ_Xk6tnaZfdIrGKRZ5dsA",
+			wantSnowpipeJWT:           "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOi02MjEzNTU5Njc0MCwiaWF0IjotNjIxMzU1OTY4MDAsImlzcyI6IkJFTlRPLkZPT0JBUi5TSEEyNTY6T2FZV1NXdkVqRVFUTkduS1NFTlJKeW5QWnJSU0gvckMrR2pHbkJLaDRyQT0iLCJzdWIiOiJCRU5UTy5GT09CQVIifQ.FYFzWBNoNjdydakDylECfPozygu8ycFlvTfAyaHbTBQq0LSfSN5BA0Z0-Vdt8gqzyEoI64RPdXU2Le_LKI_lnnE5PsZfSdFqnJah6JGgnojcI0jUt6Vr6YpBqPLULziDRrf2tADUW26H6BGcdT-0IbRuTLAeWD4rSxRcHIfiBC_PEw6ksTzFVYAeeJaO1FGaKT4lJxXSKoZ6p6ShUWuEW0FeRr8k3XeVZrDGhuQi43GsOLL5LJel4XnAyYra70AyXQqWcuattflc8UAcrP2KHWM2wDHcs3eVDOlaEvfIycE01r0zO6u0iqWp99nxm-qNt6EBdFBQHyj4_PDer8EQ0A",
 		},
 		{
 			name:                      "handles request_id interpolation and runs a query and makes a single Snowpipe call for the entire batch",
@@ -306,7 +303,7 @@ snowpipe: '` + tc.snowpipe + `'
 			wantSnowpipeQuery:         "/v1/data/pipes/test_db.test_schema.test_pipe/insertFiles?requestId=deadbeef",
 			wantSnowpipeQueriesCount:  1,
 			wantSnowpipePayload:       `{"files":[{"path":"foo/bar/baz/deadbeef.json"}]}`,
-			wantSnowpipeJWT:           "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOi02MjEzNTU5Njc0MCwiaWF0IjotNjIxMzU1OTY4MDAsImlzcyI6IkJFTlRIT1MuRk9PQkFSLlNIQTI1Njprc3dSSG9uZmU0QllXQWtReUlBUDVzY2w5OUxRQ0U2S1Irc0J4VEVoenBFPSIsInN1YiI6IkJFTlRIT1MuRk9PQkFSIn0.ABldbfDem53G-EDMoQaY7VVA2RXPryvXFcY0Hqogu_-qjT3qcJEY1aM1B9SqATkeFDNiagOXPl218dUc-Hes4WTbWnoXq8EUlMLjbg3_9qrlp6p-6SzUbX88lpkuYPXD3UiDBhLXsQso5ciufev2IFX5oCt-Oxg9GbI4uIveey_k8dv3S2a942RQbB6ffCj3Stca31oz2F_IPaF2xDmwVsBig_C9NoHToQFVAfVbPIV1hMDIc7zutuLqXQWZPfT6K0PPc15ZMutQQ0tEYCboDanx3tXe9ub_gLfyGaHwuDUXBk3EN3UkZ8rmgasCk_VnFZ_Xk6tnaZfdIrGKRZ5dsA",
+			wantSnowpipeJWT:           "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOi02MjEzNTU5Njc0MCwiaWF0IjotNjIxMzU1OTY4MDAsImlzcyI6IkJFTlRPLkZPT0JBUi5TSEEyNTY6T2FZV1NXdkVqRVFUTkduS1NFTlJKeW5QWnJSU0gvckMrR2pHbkJLaDRyQT0iLCJzdWIiOiJCRU5UTy5GT09CQVIifQ.FYFzWBNoNjdydakDylECfPozygu8ycFlvTfAyaHbTBQq0LSfSN5BA0Z0-Vdt8gqzyEoI64RPdXU2Le_LKI_lnnE5PsZfSdFqnJah6JGgnojcI0jUt6Vr6YpBqPLULziDRrf2tADUW26H6BGcdT-0IbRuTLAeWD4rSxRcHIfiBC_PEw6ksTzFVYAeeJaO1FGaKT4lJxXSKoZ6p6ShUWuEW0FeRr8k3XeVZrDGhuQi43GsOLL5LJel4XnAyYra70AyXQqWcuattflc8UAcrP2KHWM2wDHcs3eVDOlaEvfIycE01r0zO6u0iqWp99nxm-qNt6EBdFBQHyj4_PDer8EQ0A",
 		},
 		// TODO:
 		// - Snowflake PUT query payload tests
