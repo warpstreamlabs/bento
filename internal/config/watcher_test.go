@@ -507,7 +507,7 @@ processor_resources:
 
 	rdr := newDummyReader("", []string{confDir + "/*.yaml"})
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, _, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
 
