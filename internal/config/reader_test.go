@@ -80,7 +80,7 @@ processor_resources:
 	}}
 	rdr := newDummyReader("foo_main.yaml", []string{"a.yaml", "b.yaml"}, OptUseFS(testFS))
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, _, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
 
@@ -133,7 +133,7 @@ processor_resources:
 	}}
 	rdr := newDummyReader("foo_main.yaml", nil, OptUseFS(testFS))
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, _, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
 

@@ -23,7 +23,7 @@ import (
 func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 	mainPath, inferredMainPath, confReader := ReadConfig(c, cliOpts, streamsMode)
 
-	conf, pConf, lints, err := confReader.Read()
+	conf, pConf, lints, lintWarns, err := confReader.Read()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Configuration file read error: %v\n", err)
 		return 1
@@ -58,6 +58,10 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 	if strict && len(lints) > 0 {
 		logger.Error(cliOpts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
 		return 1
+	}
+
+	for _, lintWarn := range lintWarns {
+		logger.With("lint", lintWarn).Warn("Config lint warning")
 	}
 
 	stoppableManager, err := CreateManager(c, cliOpts, logger, streamsMode, conf)

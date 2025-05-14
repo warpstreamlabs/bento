@@ -179,8 +179,8 @@ func (r *Reader) lintCtx() docs.LintContext {
 }
 
 // Read a Bento config from the files and options specified.
-func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, err error) {
-	if conf, pConf, lints, err = r.readMain(r.mainPath); err != nil {
+func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, lintWarns []string, err error) {
+	if conf, pConf, lints, lintWarns, err = r.readMain(r.mainPath); err != nil {
 		return
 	}
 	r.configFileInfo = resInfoFromConfig(&conf.ResourceConfig)
@@ -277,7 +277,7 @@ func applyOverrides(specs docs.FieldSpecs, root *yaml.Node, overrides ...string)
 	return nil
 }
 
-func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig, lints []string, err error) {
+func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig, lints []string, lintWarns []string, err error) {
 	defer func() {
 		if err != nil && mainPath != "" {
 			err = fmt.Errorf("%v: %w", mainPath, err)
@@ -321,7 +321,12 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		lintFilePrefix := mainPath
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
-			lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			if lint.Level == docs.LintError {
+				lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			}
+			if lint.Level == docs.LintWarning {
+				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			}
 		}
 	}
 
@@ -345,7 +350,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // the provided main update func, and apply changes to resources to the provided
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
-	conf, _, lints, err := r.readMain(newPath)
+	conf, _, lints, _, err := r.readMain(newPath) // COULD WARN HERE
 	if errors.Is(err, fs.ErrNotExist) {
 		if r.mainPath != newPath {
 			mgr.Logger().Error("Failed to read changed main config: %v", err)
