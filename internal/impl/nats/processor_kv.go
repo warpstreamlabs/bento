@@ -87,7 +87,7 @@ This processor adds the following metadata fields to each message, depending on 
 ` + "```" + `
 
 ` + connectionNameDescription() + authDescription()).
-		Fields(kvDocs([]*service.ConfigField{
+		Fields(Docs("KV", []*service.ConfigField{
 			service.NewStringAnnotatedEnumField(kvpFieldOperation, kvpOperations).
 				Description("The operation to perform on the KV bucket."),
 			service.NewInterpolatedStringField(kvpFieldKey).
