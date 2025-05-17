@@ -46,6 +46,30 @@ A path prefix for HTTP endpoints that are registered.
 Type: `string`  
 Default: `""`  
 
+## Examples
+
+<Tabs defaultValue="stdout & file" values={[
+{ label: 'stdout & file', value: 'stdout & file', },
+]}>
+
+<TabItem value="stdout & file">
+
+
+```yaml
+output:
+  dynamic:
+    outputs:
+      file_output_id:
+        file: 
+          path: ./foo/bar.baz
+
+      stdout_output_id:
+        stdout: {}
+```
+
+</TabItem>
+</Tabs>
+
 ## Endpoints
 
 ### GET `/outputs`

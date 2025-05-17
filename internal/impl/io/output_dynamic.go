@@ -56,7 +56,19 @@ Returns the uptime of an output as a duration string (of the form "72h3m0.5s").`
 			service.NewStringField(doFieldPrefix).
 				Description("A path prefix for HTTP endpoints that are registered.").
 				Default(""),
-		)
+		).
+		Example("stdout & file", "",
+			`
+output:
+  dynamic:
+    outputs:
+      file_output_id:
+        file: 
+          path: ./foo/bar.baz
+
+      stdout_output_id:
+        stdout: {}
+`)
 }
 
 func init() {
