@@ -44,6 +44,31 @@ A path prefix for HTTP endpoints that are registered.
 Type: `string`  
 Default: `""`  
 
+## Examples
+
+<Tabs defaultValue="stdin & file" values={[
+{ label: 'stdin & file', value: 'stdin & file', },
+]}>
+
+<TabItem value="stdin & file">
+
+
+```yaml
+input:
+  dynamic:
+    inputs:
+      file_input_id:
+        file:
+          paths:
+            - ./foo/bar.baz
+
+      stdin_input_id:
+        stdin: {}
+```
+
+</TabItem>
+</Tabs>
+
 ## Endpoints
 
 ### GET `/inputs`
