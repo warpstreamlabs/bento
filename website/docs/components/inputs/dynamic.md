@@ -46,12 +46,13 @@ Default: `""`
 
 ## Examples
 
-<Tabs defaultValue="stdin & file" values={[
-{ label: 'stdin & file', value: 'stdin & file', },
+<Tabs defaultValue="Dynamic Input with stdin & file" values={[
+{ label: 'Dynamic Input with stdin & file', value: 'Dynamic Input with stdin & file', },
 ]}>
 
-<TabItem value="stdin & file">
+<TabItem value="Dynamic Input with stdin & file">
 
+Demonstrates a dynamic input composed of a stdin and a file input, identified by 'stdin_input_id' and 'file_input_id'.
 
 ```yaml
 input:
