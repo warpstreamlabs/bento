@@ -57,7 +57,7 @@ Returns the uptime of an output as a duration string (of the form "72h3m0.5s").`
 				Description("A path prefix for HTTP endpoints that are registered.").
 				Default(""),
 		).
-		Example("stdout & file", "",
+		Example("Dynamic Output with stdout & file", "Demonstrates a dynamic output composed of a stdout and a file output, identified by 'stdout_output_id' and 'file_output_id'.",
 			`
 output:
   dynamic:
