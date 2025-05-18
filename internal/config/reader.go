@@ -155,10 +155,13 @@ func OptSetLintConfig(lConf docs.LintConfig) OptFunc {
 }
 
 // OptSetLintConfigWarnDeprecated sets the option to warn about deprecated
-// fields and components in the lint configuration.
+// fields and components in the lint configuration, only if RejectDeprecated is
+// false (which is the default).
 func OptSetLintConfigWarnDeprecated() OptFunc {
 	return func(r *Reader) {
-		r.lintConf.WarnDeprecated = true
+		if !r.lintConf.RejectDeprecated {
+			r.lintConf.WarnDeprecated = true
+		}
 	}
 }
 
@@ -195,17 +198,19 @@ func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, li
 	r.resourceSources.populateFrom(r.mainPath, &r.configFileInfo)
 
 	var rLints []string
-	if rLints, err = r.readResources(&conf.ResourceConfig); err != nil {
+	var rLintWarns []string
+	if rLints, rLintWarns, err = r.readResources(&conf.ResourceConfig); err != nil {
 		return
 	}
 	lints = append(lints, rLints...)
+	lintWarns = append(lintWarns, rLintWarns...)
 	return
 }
 
 // ReadStreams attempts to read Bento stream configs from one or more paths.
 // Stream configs are extracted and added to a provided map, where the id is
 // derived from the path of the stream config file.
-func (r *Reader) ReadStreams(confs map[string]stream.Config) (lints []string, err error) {
+func (r *Reader) ReadStreams(confs map[string]stream.Config) (lints []string, lintWarns []string, err error) {
 	return r.readStreamFiles(confs)
 }
 
@@ -358,7 +363,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // the provided main update func, and apply changes to resources to the provided
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
-	conf, _, lints, _, err := r.readMain(newPath) // COULD WARN HERE
+	conf, _, lints, lintWarns, err := r.readMain(newPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		if r.mainPath != newPath {
 			mgr.Logger().Error("Failed to read changed main config: %v", err)
@@ -392,6 +397,9 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 
 		// Rejecting from linters means we do not want to try again.
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
+	}
+	for _, lintWarn := range lintWarns {
+		lintlog.Warn(lintWarn)
 	}
 
 	// If the main config file has been changed then we remove all resources

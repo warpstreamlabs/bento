@@ -124,7 +124,7 @@ func initStreamsMode(
 	streamMgr := strmmgr.New(mgr, strmmgr.OptAPIEnabled(enableAPI))
 
 	streamConfs := map[string]stream.Config{}
-	lints, err := confReader.ReadStreams(streamConfs)
+	lints, lintWarns, err := confReader.ReadStreams(streamConfs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Stream configuration file read error: %v\n", err)
 		os.Exit(1)
@@ -140,6 +140,10 @@ func initStreamsMode(
 	if strict && len(lints) > 0 {
 		logger.Error(opts.ExecTemplate("Shutting down due to stream linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
 		os.Exit(1)
+	}
+
+	for _, lintWarn := range lintWarns {
+		logger.With("lint", lintWarn).Warn("Config lint warning")
 	}
 
 	for id, conf := range streamConfs {

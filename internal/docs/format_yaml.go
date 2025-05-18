@@ -538,6 +538,8 @@ func LintYAML(ctx LintContext, cType Type, node *yaml.Node) []Lint {
 
 	if ctx.conf.RejectDeprecated && cSpec.Status == StatusDeprecated {
 		lints = append(lints, NewLintError(node.Line, LintDeprecated, fmt.Errorf("component %v is deprecated", cSpec.Name)))
+	} else if ctx.conf.WarnDeprecated && cSpec.Status == StatusDeprecated {
+		lints = append(lints, NewLintWarning(node.Line, LintDeprecated, fmt.Sprintf("component %v is deprecated", cSpec.Name)))
 	}
 
 	nameFound := false
