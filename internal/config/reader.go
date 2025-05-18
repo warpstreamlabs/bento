@@ -154,6 +154,14 @@ func OptSetLintConfig(lConf docs.LintConfig) OptFunc {
 	}
 }
 
+// OptSetLintConfigWarnDeprecated sets the option to warn about deprecated
+// fields and components in the lint configuration.
+func OptSetLintConfigWarnDeprecated() OptFunc {
+	return func(r *Reader) {
+		r.lintConf.WarnDeprecated = true
+	}
+}
+
 // OptSetStreamPaths marks this config reader as operating in streams mode, and
 // adds a list of paths to obtain individual stream configs from.
 func OptSetStreamPaths(streamsPaths ...string) OptFunc {

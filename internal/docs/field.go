@@ -678,6 +678,9 @@ type LintConfig struct {
 	// Reject any deprecated components or fields as linting errors.
 	RejectDeprecated bool
 
+	// Warn any deprecated components or fields as linting warnings.
+	WarnDeprecated bool
+
 	// Require labels for components.
 	RequireLabels bool
 }
