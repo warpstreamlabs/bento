@@ -93,6 +93,10 @@ You can access these metadata fields using [function interpolation](/docs/config
 		service.NewStringField(consumerTagField).
 			Description("A consumer tag.").
 			Default(""),
+		service.NewIntField(consumerPriorityField).
+			Description("A consumer priority. Sets x-priority on basic.consume method declaration, can be a negative number.").
+			Default(0).
+			Advanced(),
 		service.NewBoolField(autoAckField).
 			Description("Acknowledge messages automatically as they are consumed rather than waiting for acknowledgments from downstream. This can improve throughput and prevent the pipeline from blocking but at the cost of eliminating delivery guarantees.").
 			Default(false).
@@ -142,10 +146,11 @@ type amqp09Reader struct {
 	tlsEnabled bool
 	tlsConf    *tls.Config
 
-	prefetchCount int
-	prefetchSize  int
-	consumerTag   string
-	autoAck       bool
+	prefetchCount    int
+	prefetchSize     int
+	consumerTag      string
+	consumerPriority int
+	autoAck          bool
 
 	nackRejectPattens []*regexp.Regexp
 
@@ -194,6 +199,9 @@ func amqp09ReaderFromParsed(conf *service.ParsedConfig, mgr *service.Resources) 
 		return nil, err
 	}
 	if a.consumerTag, err = conf.FieldString(consumerTagField); err != nil {
+		return nil, err
+	}
+	if a.consumerPriority, err = conf.FieldInt(consumerPriorityField); err != nil {
 		return nil, err
 	}
 	if a.autoAck, err = conf.FieldBool(autoAckField); err != nil {
@@ -309,7 +317,9 @@ func (a *amqp09Reader) Connect(ctx context.Context) (err error) {
 		false,         // exclusive
 		false,         // noLocal
 		false,         // noWait
-		nil,           // arguments
+		amqp.Table{
+			"x-priority": a.consumerPriority,
+		}, // arguments
 	); err != nil {
 		_ = amqpChan.Close()
 		_ = conn.Close()

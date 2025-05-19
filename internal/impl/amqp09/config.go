@@ -15,6 +15,7 @@ const (
 	bindingsDeclareExchangeField = "exchange"
 	bindingsDeclareKeyField      = "key"
 	consumerTagField             = "consumer_tag"
+	consumerPriorityField        = "consumer_priority"
 	autoAckField                 = "auto_ack"
 	nackRejectPattensField       = "nack_reject_patterns"
 	prefetchCountField           = "prefetch_count"

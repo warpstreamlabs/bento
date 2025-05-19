@@ -88,6 +88,8 @@ input:
     bindings_declare:
       - exchange: exchange-$ID
         key: bento-key
+    consumer_tag: bento-consumer-$ID
+    consumer_priority: -1
 `,
 			queueDeclareAutoDeleteFragment,
 		)
