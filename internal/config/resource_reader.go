@@ -228,11 +228,11 @@ func (r *Reader) readResource(path string) (conf manager.ResourceConfig, lints [
 	}, r.specResources...)
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		for _, lint := range spec.LintYAML(r.lintCtx(), rawNode) {
-			if lint.Level == docs.LintError {
-				lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
-			}
-			if lint.Level == docs.LintWarning {
+			switch lint.Level {
+			case docs.LintWarning:
 				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", path, lint.Error()))
+			default:
+				lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
 			}
 		}
 	}

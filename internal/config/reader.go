@@ -334,11 +334,11 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		lintFilePrefix := mainPath
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
-			if lint.Level == docs.LintError {
-				lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
-			}
-			if lint.Level == docs.LintWarning {
+			switch lint.Level {
+			case docs.LintWarning:
 				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			default:
+				lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
 			}
 		}
 	}

@@ -68,11 +68,11 @@ func (r *Reader) readStreamFileConfig(path string) (conf stream.Config, lints []
 
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
-			if lint.Level == docs.LintError {
-				lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
-			}
-			if lint.Level == docs.LintWarning {
+			switch lint.Level {
+			case docs.LintWarning:
 				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", path, lint.Error()))
+			default:
+				lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
 			}
 		}
 	}
