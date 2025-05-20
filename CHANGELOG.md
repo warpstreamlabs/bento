@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added 
 
 - `iam_enabled` field to sql components enables connection to aws rds instances via iam authentication @gregfurman & @jem-davies
+- `nats_object_store` components enable connecting to a nats object store @jem-davies
 
 ### Fixed 
 
