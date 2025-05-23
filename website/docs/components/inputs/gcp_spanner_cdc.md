@@ -32,6 +32,23 @@ input:
 
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
+### Event Data Structure
+The data structure of the events emitted by this input can be found here:
+* [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records).
+* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord).
+
+### Metadata
+
+This input adds the following metadata fields to each message:
+
+``` text
+- gcp_spanner_commit_timestamp - The time the records were committed in spanner.
+- gcp_spanner_cdc_mod_type - The type of modification that occurred (INSERT, UPDATE, DELETE).
+- gcp_spanner_table_name - The name of the table that was modified.
+- gcp_spanner_cdc_server_transaction_id - The server transaction ID of the change.
+- gcp_spanner_cdc_record_sequence - The sequence number of the record in the change stream.
+```
+
 This Input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within spanner.
 Currently does not support Postgresql Dialect for the Spanner CDC.
 
@@ -85,7 +102,7 @@ An optional field to configure the heartbeat interval for partitions.
 
 
 Type: `string`  
-Default: `3000000000`  
+Default: `"3s"`  
 
 ### `start_time`
 
