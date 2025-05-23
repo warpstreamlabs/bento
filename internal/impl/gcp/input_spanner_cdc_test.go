@@ -24,8 +24,7 @@ func TestCDCConfigFromParsed(t *testing.T) {
 spanner_dsn: projects/test/instances/test/databases/test
 metadata_table: test_table
 spanner_metadata_dsn: projects/test/instances/test/databases/metadata
-stream_name: test_stream
-heartbeat_interval: 3s`,
+stream_name: test_stream`,
 			want: cdcConfig{
 				SpannerDSN:           "projects/test/instances/test/databases/test",
 				SpannerMetadataTable: "test_table",

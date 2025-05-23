@@ -109,7 +109,7 @@ Currently does not support Postgresql Dialect for the Spanner CDC.
 				Example("stream_metadata"),
 			service.NewDurationField(cdcFieldHeartbeatInterval).
 				Description("An optional field to configure the heartbeat interval for partitions.").
-				Default(time.Second*3),
+				Default((time.Second * 3).String()),
 			service.NewStringField(cdcFieldStartTime).
 				Description("An optional field to define the start point to read from the changestreams, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)").
 				Example(time.RFC3339).
@@ -159,6 +159,7 @@ type consumer struct {
 
 // Consume implements the message consumption callback
 func (c consumer) Consume(data []byte) error {
+	c.msgQueue <- data
 	return nil
 }
 
@@ -177,6 +178,9 @@ func newGcpSpannerCDCInput(conf cdcConfig, res *service.Resources) (*gcpSpannerC
 	runnerID := uuid.NewString()
 
 	ps := partitionstorage.NewSpanner(metadataClient, conf.SpannerMetadataTable)
+	if err := ps.RunMigrations(ctx); err != nil {
+		return nil, err
+	}
 	if err := ps.RegisterRunner(ctx, runnerID); err != nil {
 		return nil, err
 	}
