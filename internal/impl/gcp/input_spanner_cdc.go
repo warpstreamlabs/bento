@@ -94,6 +94,10 @@ func spannerCdcSpec() *service.ConfigSpec {
 		Description(`
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
+This Input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within spanner.\
+Currently does not support Postgresql Dialect for the Spanner CDC.\
+It does support multiple runners using a distributed lock to ensure that only one runner is reading from a partition at a time.
+
 ### Event Data Structure
 The data structure of the events emitted by this input can be found here:
 * [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records).
@@ -111,8 +115,6 @@ This input adds the following metadata fields to each message:
 - gcp_spanner_cdc_record_sequence - The sequence number of the record in the change stream.
 `+"```"+`
 
-This Input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within spanner.
-Currently does not support Postgresql Dialect for the Spanner CDC.
 `).
 		Fields(
 			service.NewStringField(cdcFieldSpannerDSN).
@@ -127,7 +129,7 @@ Currently does not support Postgresql Dialect for the Spanner CDC.
 				Example("stream_metadata"),
 			service.NewDurationField(cdcFieldHeartbeatInterval).
 				Description("An optional field to configure the heartbeat interval for partitions.").
-				Default((time.Second * 3).String()),
+				Default((time.Second * 3).String()).Optional(),
 			service.NewStringField(cdcFieldStartTime).
 				Description("An optional field to define the start point to read from the changestreams, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)").
 				Example(time.RFC3339).
