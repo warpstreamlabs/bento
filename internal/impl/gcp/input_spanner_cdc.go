@@ -5,6 +5,7 @@ package gcp
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -92,6 +93,23 @@ func spannerCdcSpec() *service.ConfigSpec {
 		Summary(`Consumes spanner Change Stream Events from a GCP Spanner instance.`).
 		Description(`
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
+
+### Event Data Structure
+The data structure of the events emitted by this input can be found here:
+* [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records).
+* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord).
+
+### Metadata
+
+This input adds the following metadata fields to each message:
+
+`+"``` text"+`
+- gcp_spanner_commit_timestamp - The time the records were committed in spanner.
+- gcp_spanner_cdc_mod_type - The type of modification that occurred (INSERT, UPDATE, DELETE).
+- gcp_spanner_table_name - The name of the table that was modified.
+- gcp_spanner_cdc_server_transaction_id - The server transaction ID of the change.
+- gcp_spanner_cdc_record_sequence - The sequence number of the record in the change stream.
+`+"```"+`
 
 This Input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within spanner.
 Currently does not support Postgresql Dialect for the Spanner CDC.
@@ -244,8 +262,18 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 	if !open {
 		return nil, nil, service.ErrNotConnected
 	}
-
+	dcr := screamer.DataChangeRecord{}
+	err := json.Unmarshal(data, &dcr)
+	if err != nil {
+		return nil, nil, err
+	}
 	msg := service.NewMessage(data)
+
+	msg.MetaSetMut("gcp_spanner_commit_timestamp", dcr.CommitTimestamp)
+	msg.MetaSetMut("gcp_spanner_cdc_mod_type", dcr.ModType)
+	msg.MetaSetMut("gcp_spanner_table_name", dcr.TableName)
+	msg.MetaSetMut("gcp_spanner_cdc_server_transaction_id", dcr.ServerTransactionID)
+	msg.MetaSetMut("gcp_spanner_cdc_record_sequence", dcr.RecordSequence)
 
 	return msg, func(ctx context.Context, res error) error {
 		return nil
