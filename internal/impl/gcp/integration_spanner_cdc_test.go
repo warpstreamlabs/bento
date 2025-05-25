@@ -69,7 +69,7 @@ func (s *SpannerCDCIntegrationTestSuite) SetupSuite() {
 
 	_ = resource.Expire(900)
 
-	os.Setenv("SPANNER_EMULATOR_HOST", "localhost:"+resource.GetPort("9010/tcp")) //nolint: tenv // this test runs in parallel
+	os.Setenv("SPANNER_EMULATOR_HOST", "localhost:"+resource.GetPort("9010/tcp"))
 	s.T().Cleanup(func() {
 		defer os.Unsetenv("SPANNER_EMULATOR_HOST")
 	})
