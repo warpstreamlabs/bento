@@ -35,7 +35,8 @@ const (
 
 type SpannerCDCIntegrationTestSuite struct {
 	suite.Suite
-	// container testcontainers.Container
+	container *dockertest.Resource
+
 	client *spanner.Client
 	dsn    string
 }
@@ -66,7 +67,6 @@ func (s *SpannerCDCIntegrationTestSuite) SetupSuite() {
 	s.T().Cleanup(func() {
 		s.NoError(pool.Purge(resource))
 	})
-
 	_ = resource.Expire(900)
 
 	os.Setenv("SPANNER_EMULATOR_HOST", "localhost:"+resource.GetPort("9010/tcp"))
@@ -92,10 +92,10 @@ func (s *SpannerCDCIntegrationTestSuite) SetupSuite() {
 }
 
 func (s *SpannerCDCIntegrationTestSuite) TearDownSuite() {
-	// if s.container != nil {
-	// 	err := s.container.Terminate(s.ctx)
-	// 	s.NoError(err)
-	// }
+	if s.container != nil {
+		err := s.container.Close()
+		s.NoError(err)
+	}
 }
 
 func (s *SpannerCDCIntegrationTestSuite) AfterTest(suiteName, testName string) {
