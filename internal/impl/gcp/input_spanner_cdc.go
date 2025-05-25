@@ -25,6 +25,12 @@ const (
 	cdcFieldStartTime            = "start_time"
 	cdcFieldEndTime              = "end_time"
 	cdcFieldHeartbeatInterval    = "heartbeat_interval"
+
+	metadataTimestamp   = "gcp_spanner_commit_timestamp"
+	metadataModType     = "gcp_spanner_cdc_mod_type"
+	metadataTableName   = "gcp_spanner_table_name"
+	metadataServerTxnID = "gcp_spanner_cdc_server_transaction_id"
+	metadataRecordSeq   = "gcp_spanner_cdc_record_sequence"
 )
 
 // cdcConfig holds the configuration for the Spanner CDC input component
@@ -271,11 +277,11 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 	}
 	msg := service.NewMessage(data)
 
-	msg.MetaSetMut("gcp_spanner_commit_timestamp", dcr.CommitTimestamp)
-	msg.MetaSetMut("gcp_spanner_cdc_mod_type", dcr.ModType)
-	msg.MetaSetMut("gcp_spanner_table_name", dcr.TableName)
-	msg.MetaSetMut("gcp_spanner_cdc_server_transaction_id", dcr.ServerTransactionID)
-	msg.MetaSetMut("gcp_spanner_cdc_record_sequence", dcr.RecordSequence)
+	msg.MetaSetMut(metadataTimestamp, dcr.CommitTimestamp.Format(time.RFC3339Nano))
+	msg.MetaSetMut(metadataModType, dcr.ModType)
+	msg.MetaSetMut(metadataTableName, dcr.TableName)
+	msg.MetaSetMut(metadataServerTxnID, dcr.ServerTransactionID)
+	msg.MetaSetMut(metadataRecordSeq, dcr.RecordSequence)
 
 	return msg, func(ctx context.Context, res error) error {
 		return nil

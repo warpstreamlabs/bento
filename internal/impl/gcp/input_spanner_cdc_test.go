@@ -2,10 +2,12 @@ package gcp
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/anicoll/screamer"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -110,6 +112,46 @@ func TestGcpSpannerCDCInput_Read(t *testing.T) {
 	cancel()
 	_, _, err = input.Read(ctxWithCancel)
 	assert.Equal(t, context.Canceled, err)
+}
+
+func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
+	ctx := context.Background()
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 1),
+		},
+	}
+
+	inputMsg := screamer.DataChangeRecord{
+		CommitTimestamp:     time.Now(),
+		RecordSequence:      "98989",
+		ServerTransactionID: uuid.NewString(),
+		TableName:           "foo_bar",
+		ModType:             screamer.ModType_DELETE,
+	}
+	expectedMetadata := map[string]any{
+		metadataModType:     inputMsg.ModType,
+		metadataRecordSeq:   inputMsg.RecordSequence,
+		metadataServerTxnID: inputMsg.ServerTransactionID,
+		metadataTableName:   inputMsg.TableName,
+		metadataTimestamp:   inputMsg.CommitTimestamp.Format(time.RFC3339Nano),
+	}
+
+	inputData, err := json.Marshal(inputMsg)
+	require.NoError(t, err)
+
+	err = input.consumer.Consume(inputData)
+	require.NoError(t, err)
+
+	msg, _, err := input.Read(ctx)
+	require.NoError(t, err)
+	err = msg.MetaWalkMut(func(key string, value any) error {
+		expectedValue, found := expectedMetadata[key]
+		require.True(t, found)
+		require.Equal(t, expectedValue, value)
+		return nil
+	})
+	require.NoError(t, err)
 }
 
 // Helper function to parse time strings into time pointers
