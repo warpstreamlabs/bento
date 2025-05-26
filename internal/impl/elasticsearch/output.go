@@ -188,7 +188,10 @@ func OutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Services").
-		Summary(`Publishes messages into an Elasticsearch index. If the index does not exist then it is created with a dynamic mapping.`).
+		Summary(`:::warning TO BE DEPRECATED
+This component will be deprecated in the next minor release - and removed in the next major release. Please consider using [elasticsearch_v2](/docs/components/outputs/elasticsearch_v2).
+:::
+Publishes messages into an Elasticsearch index. If the index does not exist then it is created with a dynamic mapping.`).
 		Description(`
 Both the `+"`id` and `index`"+` fields can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries). When sending batched messages these interpolations are performed per message part.
 
