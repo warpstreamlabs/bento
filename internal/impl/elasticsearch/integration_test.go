@@ -241,11 +241,11 @@ func TestIntegrationConnectTLS(t *testing.T) {
 	require.NoError(t, err)
 
 	client := createHTTPClientWithCA(t, output)
-	polllUrl := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
-	configUrl := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
+	polllURL := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
+	configURL := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
 
 	err = pool.Retry(func() error {
-		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", polllUrl))
+		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", polllURL))
 		if err != nil {
 			return err
 		}
@@ -271,7 +271,7 @@ basic_auth:
 tls:
   enabled: true
   root_cas_file: "%s"
-`, configUrl, fullPath)
+`, configURL, fullPath)
 
 	pConf, err := OutputSpec().ParseYAML(template, nil)
 	require.NoError(t, err)
