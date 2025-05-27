@@ -16,26 +16,22 @@ import (
 )
 
 const (
-	esoV2FieldURLs                  = "urls"                    // ✅ ✅ Client
-	esoV2FieldDiscoverNodesOnStart  = "discover_nodes_on_start" // ✅ ✅ // WAS 'SNIFF'  // node discovery in client // Sniffing is mentioned in the new module...
-	esoV2FieldDiscoverNodesInterval = "discover_nodes_interval" // ✅ ✅ NEW
-	esoV2FieldHealthcheck           = "healthcheck"             // ❌
-	esoV2FieldID                    = "id"                      // ✅ ✅
-	esoV2FieldAction                = "action"                  // ✅ ✅ (delete switch) // There is no 'upsert' only 'create', 'delete', 'index', 'update'
-	esoV2FieldIndex                 = "index"                   // ✅ ✅
-	esoV2FieldPipeline              = "pipeline"                // ✅ ✅ // BulkIndexerConfig (deprecated supported interpolation functions)
-	esoV2FieldRouting               = "routing"                 // ✅ ✅ // interpolation // BulkIndexerItem
-	esoV2FieldType                  = "type"                    // ❌    // Required for versions of elasticsearch earlier than 6.0.0, but are invalid for versions 7.0.0 or later.
-	esoV2FieldTimeout               = "timeout"                 // ✅ ✅ // BulkIndexerConfig
-	esoV2FieldTLS                   = "tls"                     // ✅ ✅
-	esoV2FieldAuth                  = "basic_auth"              // ✅ ✅
-	esoV2FieldAuthEnabled           = "enabled"                 // ✅ ✅
-	esoV2FieldAuthUsername          = "username"                // ✅ ✅
-	esoV2FieldAuthPassword          = "password"                // ✅ ✅
-	esoV2FieldAWS                   = "aws"                     // ❌
-	esoV2FieldAWSEnabled            = "enabled"                 // ❌
-	esoV2FieldCompressRequestBody   = "compress_request_body"   // ✅ ✅ // Client opt
-	esoV2FieldBatching              = "batching"                // ✅ ✅
+	esoV2FieldURLs                  = "urls"
+	esoV2FieldDiscoverNodesOnStart  = "discover_nodes_on_start"
+	esoV2FieldDiscoverNodesInterval = "discover_nodes_interval"
+	esoV2FieldID                    = "id"
+	esoV2FieldAction                = "action"
+	esoV2FieldIndex                 = "index"
+	esoV2FieldPipeline              = "pipeline"
+	esoV2FieldRouting               = "routing"
+	esoV2FieldTimeout               = "timeout"
+	esoV2FieldTLS                   = "tls"
+	esoV2FieldAuth                  = "basic_auth"
+	esoV2FieldAuthEnabled           = "enabled"
+	esoV2FieldAuthUsername          = "username"
+	esoV2FieldAuthPassword          = "password"
+	esoV2FieldCompressRequestBody   = "compress_request_body"
+	esoV2FieldBatching              = "batching"
 )
 
 func init() {
