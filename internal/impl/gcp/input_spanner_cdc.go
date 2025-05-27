@@ -133,6 +133,8 @@ This input adds the following metadata fields to each message:
 				Description("The table name you want to use for tracking partition metadata.").
 				Example("table_metadata").
 				Example("stream_metadata"),
+			service.NewStringField(cdcFieldStreamName).
+				Description("The name of the stream to track changes on."),
 			service.NewDurationField(cdcFieldHeartbeatInterval).
 				Description("An optional field to configure the heartbeat interval for partitions.").
 				Default((time.Second * 3).String()).Optional(),
@@ -278,7 +280,7 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 	msg := service.NewMessage(data)
 
 	msg.MetaSetMut(metadataTimestamp, dcr.CommitTimestamp.Format(time.RFC3339Nano))
-	msg.MetaSetMut(metadataModType, dcr.ModType)
+	msg.MetaSetMut(metadataModType, string(dcr.ModType))
 	msg.MetaSetMut(metadataTableName, dcr.TableName)
 	msg.MetaSetMut(metadataServerTxnID, dcr.ServerTransactionID)
 	msg.MetaSetMut(metadataRecordSeq, dcr.RecordSequence)
