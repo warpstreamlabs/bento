@@ -98,19 +98,22 @@ func esoConfigFromParsed(pConf *service.ParsedConfig) (conf esoConfig, err error
 		return
 	}
 
-	httpClient := &http.Client{
-		Timeout: timeout,
-	}
+	transport := &http.Transport{}
 
 	var tlsConf *tls.Config
 	var tlsEnabled bool
 	if tlsConf, tlsEnabled, err = pConf.FieldTLSToggled(esoFieldTLS); err != nil {
 		return
 	} else if tlsEnabled {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsConf,
-		}
+		transport.TLSClientConfig = tlsConf
 	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+
+	conf.clientOpts = append(conf.clientOpts, elastic.SetHttpClient(httpClient))
 
 	if pConf.Contains(esoFieldAWS) {
 		var awsOpts []elastic.ClientOptionFunc
