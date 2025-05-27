@@ -263,6 +263,39 @@ var _ = registerSimpleFunction(
 	},
 )
 
+var _ = registerSimpleFunction(
+	NewFunctionSpec(
+		FunctionCategoryMessage, "flow_id",
+		"Provides the message flow id used for tracing the journey of a message through the pipeline. If no flow id exists, one will be created and stored in the message metadata.",
+		NewExampleSpec("",
+			`meta flow_id = flow_id()`,
+		),
+	).Experimental(),
+	func(fCtx FunctionContext) (any, error) {
+		part := fCtx.MsgBatch.Get(fCtx.Index)
+
+		// Check if we already have a flow ID in metadata
+		if flowID, exists := part.MetaGetMut("_bento_flow_id"); exists {
+			if flowIDStr, ok := flowID.(string); ok && flowIDStr != "" {
+				return flowIDStr, nil
+			}
+		}
+
+		// Try to use OpenTelemetry trace ID if available
+		if traceID := tracing.GetTraceID(part); traceID != "" && traceID != "00000000000000000000000000000000" {
+			// Store it in metadata for future use
+			part.MetaSetMut("_bento_flow_id", traceID)
+			return traceID, nil
+		}
+
+		// Generate a new flow ID - we'll use a simple approach here
+		// In a real implementation, you might want to use UUID or similar
+		flowID := fmt.Sprintf("%d_%d", time.Now().UnixNano(), rand.Int63())
+		part.MetaSetMut("_bento_flow_id", flowID)
+		return flowID, nil
+	},
+)
+
 //------------------------------------------------------------------------------
 
 var _ = registerFunction(

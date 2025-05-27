@@ -1,10 +1,13 @@
 package tracing
 
 import (
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/tracing"
 )
 
 // EventType describes the type of event a component might experience during
@@ -21,9 +24,11 @@ var (
 
 // NodeEvent represents a single event that occurred within the stream.
 type NodeEvent struct {
-	Type    EventType
-	Content string
-	Meta    map[string]any
+	Type      EventType
+	Content   string
+	Meta      map[string]any
+	FlowID    string    // Unique identifier for the message flow journey
+	Timestamp time.Time // When the event occurred
 }
 
 // EventProduceOf creates a produce event from a message part.
@@ -35,9 +40,11 @@ func EventProduceOf(part *message.Part) NodeEvent {
 	})
 
 	return NodeEvent{
-		Type:    EventProduce,
-		Content: string(part.AsBytes()),
-		Meta:    meta,
+		Type:      EventProduce,
+		Content:   string(part.AsBytes()),
+		Meta:      meta,
+		FlowID:    getOrCreateFlowID(part),
+		Timestamp: time.Now(),
 	}
 }
 
@@ -50,25 +57,83 @@ func EventConsumeOf(part *message.Part) NodeEvent {
 	})
 
 	return NodeEvent{
-		Type:    EventConsume,
-		Content: string(part.AsBytes()),
-		Meta:    meta,
+		Type:      EventConsume,
+		Content:   string(part.AsBytes()),
+		Meta:      meta,
+		FlowID:    getOrCreateFlowID(part),
+		Timestamp: time.Now(),
 	}
 }
 
 // EventDeleteOf creates a deleted event from a message part.
 func EventDeleteOf() NodeEvent {
 	return NodeEvent{
-		Type: EventDelete,
+		Type:      EventDelete,
+		FlowID:    "", // No part available, so no flow ID
+		Timestamp: time.Now(),
+	}
+}
+
+// EventDeleteOfPart creates a deleted event from a message part with flow ID.
+func EventDeleteOfPart(part *message.Part) NodeEvent {
+	return NodeEvent{
+		Type:      EventDelete,
+		FlowID:    getOrCreateFlowID(part),
+		Timestamp: time.Now(),
 	}
 }
 
 // EventErrorOf creates an error event from a message part.
 func EventErrorOf(err error) NodeEvent {
 	return NodeEvent{
-		Type:    EventError,
-		Content: err.Error(),
+		Type:      EventError,
+		Content:   err.Error(),
+		FlowID:    "", // No part available, so no flow ID
+		Timestamp: time.Now(),
 	}
+}
+
+// EventErrorOfPart creates an error event from a message part with flow ID.
+func EventErrorOfPart(part *message.Part, err error) NodeEvent {
+	return NodeEvent{
+		Type:      EventError,
+		Content:   err.Error(),
+		FlowID:    getOrCreateFlowID(part),
+		Timestamp: time.Now(),
+	}
+}
+
+// getOrCreateFlowID retrieves or creates a flow ID for a message part.
+// It first tries to get an existing flow ID from metadata, then from OpenTelemetry trace ID,
+// and finally generates a new one if neither exists.
+func getOrCreateFlowID(part *message.Part) string {
+	// First, check if we already have a flow ID in metadata
+	if flowID, exists := part.MetaGetMut("_bento_flow_id"); exists {
+		if flowIDStr, ok := flowID.(string); ok && flowIDStr != "" {
+			return flowIDStr
+		}
+	}
+
+	// Try to use OpenTelemetry trace ID if available
+	if traceID := tracing.GetTraceID(part); traceID != "" && traceID != "00000000000000000000000000000000" {
+		// Store it in metadata for future use
+		part.MetaSetMut("_bento_flow_id", traceID)
+		return traceID
+	}
+
+	// Generate a new flow ID using atomic counter for simplicity and performance
+	flowID := generateFlowID()
+	part.MetaSetMut("_bento_flow_id", flowID)
+	return flowID
+}
+
+// Flow ID counter for generating unique IDs
+var flowIDCounter uint64
+
+// generateFlowID creates a new unique flow ID using an atomic counter
+func generateFlowID() string {
+	id := atomic.AddUint64(&flowIDCounter, 1)
+	return strconv.FormatUint(id, 10)
 }
 
 type control struct {
