@@ -93,11 +93,11 @@ func TestIntegrationV2ConnectBasicAuth(t *testing.T) {
 		assert.NoError(t, pool.Purge(resource))
 	})
 
-	polllUrl := fmt.Sprintf("http://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
-	configUrl := fmt.Sprintf("http://localhost:%s", resource.GetPort("9200/tcp"))
+	polllURL := fmt.Sprintf("http://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
+	configURL := fmt.Sprintf("http://localhost:%s", resource.GetPort("9200/tcp"))
 
 	err = pool.Retry(func() error {
-		resp, err := http.Get(fmt.Sprintf("%s/_cluster/health", polllUrl))
+		resp, err := http.Get(fmt.Sprintf("%s/_cluster/health", polllURL))
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ basic_auth:
   enabled: true
   username: elastic
   password: password
-`, configUrl) // TODO: Update with defaults if changed
+`, configURL) // TODO: Update with defaults if changed
 
 	pConf, err := OutputSpecV2().ParseYAML(template, nil)
 	require.NoError(t, err)
@@ -163,11 +163,11 @@ func TestIntegrationV2ConnectTLS(t *testing.T) {
 	require.NoError(t, err)
 
 	client := createHTTPClientWithCA(t, output)
-	polllUrl := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
-	configUrl := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
+	pollURL := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
+	configURL := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
 
 	err = pool.Retry(func() error {
-		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", polllUrl))
+		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", pollURL))
 		if err != nil {
 			return err
 		}
@@ -192,7 +192,7 @@ basic_auth:
 tls:
   enabled: true
   root_cas_file: "%s"
-`, configUrl, fullPath) // TODO: Update with defaults if changed
+`, configURL, fullPath) // TODO: Update with defaults if changed
 
 	pConf, err := OutputSpecV2().ParseYAML(template, nil)
 	require.NoError(t, err)
