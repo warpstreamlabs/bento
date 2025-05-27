@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -46,8 +47,8 @@ type TracingEvent struct {
 	Type      TracingEventType
 	Content   string
 	Meta      map[string]any
-	FlowID    string    // Unique identifier for the message flow journey
-	Timestamp time.Time // When the event occurred
+	FlowID    string
+	Timestamp time.Time
 }
 
 // TracingSummary is a high level description of all traced events. When tracing
@@ -180,14 +181,9 @@ func (s *TracingSummary) EventsByFlowID(flush bool) map[string][]TracingEvent {
 
 	// Sort events by timestamp within each flow
 	for flowID, events := range flowEvents {
-		// Simple bubble sort since we expect small numbers of events per flow
-		for i := 0; i < len(events)-1; i++ {
-			for j := 0; j < len(events)-i-1; j++ {
-				if events[j].Timestamp.After(events[j+1].Timestamp) {
-					events[j], events[j+1] = events[j+1], events[j]
-				}
-			}
-		}
+		sort.Slice(events, func(i, j int) bool {
+			return events[i].Timestamp.Before(events[j].Timestamp)
+		})
 		flowEvents[flowID] = events
 	}
 
