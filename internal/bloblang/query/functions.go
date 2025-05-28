@@ -288,8 +288,7 @@ var _ = registerSimpleFunction(
 			return traceID, nil
 		}
 
-		// Generate a new flow ID - we'll use a simple approach here
-		// In a real implementation, you might want to use UUID or similar
+		// Generate a new flow ID
 		flowID := fmt.Sprintf("%d_%d", time.Now().UnixNano(), rand.Int63())
 		part.MetaSetMut("_bento_flow_id", flowID)
 		return flowID, nil

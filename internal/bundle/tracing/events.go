@@ -27,8 +27,8 @@ type NodeEvent struct {
 	Type      EventType
 	Content   string
 	Meta      map[string]any
-	FlowID    string    // Unique identifier for the message flow journey
-	Timestamp time.Time // When the event occurred
+	FlowID    string
+	Timestamp time.Time
 }
 
 // EventProduceOf creates a produce event from a message part.
