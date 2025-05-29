@@ -96,6 +96,10 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Description("Determines whether to consume from the oldest available offset, otherwise messages are consumed from the latest offset. The setting is applied when creating a new consumer group or the saved offset no longer exists.").
 			Default(true).
 			Advanced()).
+		Field(service.NewBoolField("reconnect_on_unknown_topic").
+			Description("Determines whether to  close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.").
+			Default(false).
+			Advanced()).
 		Field(service.NewStringEnumField("auto_offset_reset", "earliest", "latest", "none").
 			Description("Determines which offset to automatically consume from, matching Kafka's `auto.offset.reset` property. When specified, this takes precedence over `start_from_oldest`.").
 			Version("1.6.0").
@@ -194,6 +198,8 @@ type franzKafkaReader struct {
 	regexPattern    bool
 	multiHeader     bool
 	batchPolicy     service.BatchPolicy
+
+	reconnectOnUnknownTopic bool
 
 	metadataMaxAge         time.Duration
 	fetchMaxBytes          int32
@@ -331,6 +337,10 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	}
 
 	if f.consumerGroup, err = conf.FieldString("consumer_group"); err != nil {
+		return nil, err
+	}
+
+	if f.reconnectOnUnknownTopic, err = conf.FieldBool("reconnect_on_unknown_topic"); err != nil {
 		return nil, err
 	}
 
@@ -758,6 +768,22 @@ func (c *checkpointTracker) removeTopicPartitions(ctx context.Context, m map[str
 	}
 }
 
+// TODO: The documentation from franz-go is top-tier, it
+// should be straight forward to expand this to include more
+// errors that are safe to disregard.
+func (f *franzKafkaReader) isRetriableError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	isUnknownTopicErr := err == kerr.UnknownTopicOrPartition || err == kerr.UnknownTopicID
+	if isUnknownTopicErr && f.reconnectOnUnknownTopic {
+		return false
+	}
+	return kerr.IsRetriable(err)
+}
+
 //------------------------------------------------------------------------------
 
 func (f *franzKafkaReader) Connect(ctx context.Context) error {
@@ -810,6 +836,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
+		// kobe
 		kgo.KeepRetryableFetchErrors(),
 	}
 
@@ -876,12 +903,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 				nonTemporalErr := false
 
 				for _, err := range errs {
-					// TODO: The documentation from franz-go is top-tier, it
-					// should be straight forward to expand this to include more
-					// errors that are safe to disregard.
-					if errors.Is(err.Err, context.DeadlineExceeded) ||
-						errors.Is(err.Err, context.Canceled) ||
-						kerr.IsRetriable(err.Err) && err.Err != kerr.UnknownTopicOrPartition && err.Err != kerr.UnknownTopicID {
+					if f.isRetriableError(err.Err) {
 						continue
 					}
 
