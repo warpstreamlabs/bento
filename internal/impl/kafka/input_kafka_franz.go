@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
 
@@ -809,6 +810,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
+		kgo.KeepRetryableFetchErrors(),
 	}
 
 	if f.consumerGroup != "" {
@@ -830,6 +832,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 	}
 
 	if f.tlsConf != nil {
+
 		clientOpts = append(clientOpts, kgo.DialTLSConfig(f.tlsConf))
 	}
 
@@ -872,19 +875,20 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 				// forcing a reconnect.
 				nonTemporalErr := false
 
-				for _, kerr := range errs {
+				for _, err := range errs {
 					// TODO: The documentation from franz-go is top-tier, it
 					// should be straight forward to expand this to include more
 					// errors that are safe to disregard.
-					if errors.Is(kerr.Err, context.DeadlineExceeded) ||
-						errors.Is(kerr.Err, context.Canceled) {
+					if errors.Is(err.Err, context.DeadlineExceeded) ||
+						errors.Is(err.Err, context.Canceled) ||
+						kerr.IsRetriable(err.Err) && err.Err != kerr.UnknownTopicOrPartition && err.Err != kerr.UnknownTopicID {
 						continue
 					}
 
 					nonTemporalErr = true
 
-					if !errors.Is(kerr.Err, kgo.ErrClientClosed) {
-						f.log.Errorf("Kafka poll error on topic %v, partition %v: %v", kerr.Topic, kerr.Partition, kerr.Err)
+					if !errors.Is(err.Err, kgo.ErrClientClosed) {
+						f.log.Errorf("Kafka poll error on topic %v, partition %v: %v", err.Topic, err.Partition, err.Err)
 					}
 				}
 
