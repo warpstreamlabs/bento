@@ -22,7 +22,7 @@ function ComponentSelect(props) {
     <ul className={classnames(styles.componentList, "dropdown__menu")}>
       {types.map((info) => {
         return <li key={info.name}>
-          <a className="dropdown__link" href={`/bento/docs/components/${type}/${info.name}`}>{info.name}</a>
+          <a className="dropdown__link" href={`/bento/docs/components/${type}/${info.name}`} aria-label={`View ${info.name} ${singular} documentation`}>{info.name}</a>
         </li>
       })}
     </ul>

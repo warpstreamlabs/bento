@@ -35,6 +35,9 @@ Introduced in version 1.4.0.
 output:
   label: ""
   cypher:
+    query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
+    values: {}
+    max_in_flight: 64
     database: neo4j # No default (required)
     uri: bolt://localhost:7687 # No default (required)
     no_auth: false
@@ -42,9 +45,6 @@ output:
       user: ""
       password: ""
       realm: ""
-    query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
-    values: {}
-    max_in_flight: 64
     batching:
       count: 0
       byte_size: 0
@@ -61,6 +61,9 @@ output:
 output:
   label: ""
   cypher:
+    query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
+    values: {}
+    max_in_flight: 64
     database: neo4j # No default (required)
     uri: bolt://localhost:7687 # No default (required)
     no_auth: false
@@ -68,9 +71,6 @@ output:
       user: ""
       password: ""
       realm: ""
-    query: 'CREATE (p:Person {name: $name}) RETURN p' # No default (required)
-    values: {}
-    max_in_flight: 64
     tls:
       enabled: false
       skip_cert_verify: false
@@ -137,6 +137,43 @@ output:
 </Tabs>
 
 ## Fields
+
+### `query`
+
+The cypher query to execute.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+query: 'CREATE (p:Person {name: $name}) RETURN p'
+```
+
+### `values`
+
+A map of strings -> bloblang interpolations that form the values of the references in the query i.e. $name.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `object`  
+Default: `{}`  
+
+```yml
+# Examples
+
+values:
+  name: ${! json("name") }
+```
+
+### `max_in_flight`
+
+The maximum number of messages to have in flight at a given time. Increase this to improve throughput.
+
+
+Type: `int`  
+Default: `64`  
 
 ### `database`
 
@@ -205,43 +242,6 @@ The realm for basic auth.
 
 Type: `string`  
 Default: `""`  
-
-### `query`
-
-The cypher query to execute.
-
-
-Type: `string`  
-
-```yml
-# Examples
-
-query: 'CREATE (p:Person {name: $name}) RETURN p'
-```
-
-### `values`
-
-A map of strings -> bloblang interpolations that form the values of the references in the query i.e. $name.
-This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
-
-
-Type: `object`  
-Default: `{}`  
-
-```yml
-# Examples
-
-values:
-  name: ${! json("name") }
-```
-
-### `max_in_flight`
-
-The maximum number of queries to run in parallel.
-
-
-Type: `int`  
-Default: `64`  
 
 ### `tls`
 

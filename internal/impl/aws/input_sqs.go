@@ -3,8 +3,11 @@ package aws
 import (
 	"context"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -19,21 +22,25 @@ import (
 
 const (
 	// SQS Input Fields
-	sqsiFieldURL                 = "url"
-	sqsiFieldWaitTimeSeconds     = "wait_time_seconds"
-	sqsiFieldDeleteMessage       = "delete_message"
-	sqsiFieldResetVisibility     = "reset_visibility"
-	sqsiFieldMaxNumberOfMessages = "max_number_of_messages"
+	sqsiFieldURL                  = "url"
+	sqsiFieldWaitTimeSeconds      = "wait_time_seconds"
+	sqsiFieldDeleteMessage        = "delete_message"
+	sqsiFieldResetVisibility      = "reset_visibility"
+	sqsiFieldUpdateVisibility     = "update_visibility"
+	sqsiFieldMaxNumberOfMessages  = "max_number_of_messages"
+	sqsiFieldCustomRequestHeaders = "custom_request_headers"
 
 	sqsiAttributeNameVisibilityTimeout = "VisibilityTimeout"
 )
 
 type sqsiConfig struct {
-	URL                 string
-	WaitTimeSeconds     int
-	DeleteMessage       bool
-	ResetVisibility     bool
-	MaxNumberOfMessages int
+	URL                  string
+	WaitTimeSeconds      int
+	DeleteMessage        bool
+	ResetVisibility      bool
+	UpdateVisibility     bool
+	MaxNumberOfMessages  int
+	CustomRequestHeaders map[string]string
 }
 
 func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err error) {
@@ -49,7 +56,13 @@ func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err err
 	if conf.ResetVisibility, err = pConf.FieldBool(sqsiFieldResetVisibility); err != nil {
 		return
 	}
+	if conf.UpdateVisibility, err = pConf.FieldBool(sqsiFieldUpdateVisibility); err != nil {
+		return
+	}
 	if conf.MaxNumberOfMessages, err = pConf.FieldInt(sqsiFieldMaxNumberOfMessages); err != nil {
+		return
+	}
+	if conf.CustomRequestHeaders, err = pConf.FieldStringMap(sqsiFieldCustomRequestHeaders); err != nil {
 		return
 	}
 	return
@@ -93,6 +106,11 @@ You can access these metadata fields using
 				Version("1.0.0").
 				Default(true).
 				Advanced(),
+			service.NewBoolField(sqsiFieldUpdateVisibility).
+				Description("Whether to periodically refresh the visibility timeout of in-flight messages to prevent more-than-once delivery while still processing.").
+				Version("1.6.0").
+				Default(true).
+				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
 				Description("The maximum number of messages to return on one poll. Valid values: 1 to 10.").
 				Default(10).
@@ -100,6 +118,11 @@ You can access these metadata fields using
 			service.NewIntField("wait_time_seconds").
 				Description("Whether to set the wait time. Enabling this activates long-polling. Valid values: 0 to 20.").
 				Default(0).
+				Advanced(),
+			service.NewStringMapField(sqsiFieldCustomRequestHeaders).
+				Description("A map used to send custom HTTP headers alongside each SQS operation to AWS.").
+				Version("1.6.0").
+				Default(map[string]string{}).
 				Advanced(),
 		).
 		Fields(config.SessionFields()...)
@@ -165,6 +188,10 @@ func newAWSSQSReader(conf sqsiConfig, aconf aws.Config, log *service.Logger) (*a
 func (a *awsSQSReader) Connect(ctx context.Context) error {
 	if a.sqs == nil {
 		a.sqs = sqs.NewFromConfig(a.aconf)
+	}
+
+	if customHeaders := a.conf.CustomRequestHeaders; len(customHeaders) > 0 {
+		a.sqs = newCustomHeaderSQSClient(a.sqs, customHeaders)
 	}
 
 	ift := &sqsInFlightTracker{
@@ -442,6 +469,10 @@ func (a *awsSQSReader) resetMessages(ctx context.Context, msgs ...sqsMessageHand
 }
 
 func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int, msgs ...sqsMessageHandle) error {
+	if !a.conf.UpdateVisibility {
+		return nil
+	}
+
 	for len(msgs) > 0 {
 		input := sqs.ChangeMessageVisibilityBatchInput{
 			QueueUrl: aws.String(a.conf.URL),
@@ -475,12 +506,19 @@ func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int
 func addSQSMetadata(p *service.Message, sqsMsg types.Message) {
 	p.MetaSetMut("sqs_message_id", *sqsMsg.MessageId)
 	p.MetaSetMut("sqs_receipt_handle", *sqsMsg.ReceiptHandle)
-	if rCountStr, exists := sqsMsg.Attributes["ApproximateReceiveCount"]; exists {
-		p.MetaSetMut("sqs_approximate_receive_count", rCountStr)
+	for k, v := range sqsMsg.Attributes {
+		p.MetaSetMut(awsFieldToMetadataKey(k, "sqs", ""), v)
 	}
+
 	for k, v := range sqsMsg.MessageAttributes {
 		if v.StringValue != nil {
 			p.MetaSetMut(k, *v.StringValue)
+			continue
+		}
+
+		if v.BinaryValue != nil {
+			p.MetaSetMut(k, string(v.BinaryValue))
+			continue
 		}
 	}
 }
@@ -573,4 +611,36 @@ func (a *awsSQSReader) Close(ctx context.Context) error {
 	case <-a.closeSignal.HasStoppedChan():
 	}
 	return nil
+}
+
+func awsFieldToMetadataKey(attribute, prefix, suffix string) string {
+	var result strings.Builder
+	if prefix != "" {
+		result.WriteString(prefix)
+		result.WriteRune('_')
+	}
+
+	var prev rune
+	for i, v := range attribute {
+		if unicode.IsLower(v) {
+			result.WriteRune(v)
+		} else {
+			// There is a scenario where we get multiple capitals in a row i.e AWSTraceHeader
+			// which should be converted to aws_trace_header and not a_w_s_traceheader
+			nextRune, _ := utf8.DecodeRuneInString(attribute[i+utf8.RuneLen(v):])
+			if i > 0 && (unicode.IsLower(prev) ||
+				unicode.IsLower(nextRune)) {
+				result.WriteByte('_')
+			}
+			result.WriteRune(unicode.ToLower(v))
+		}
+		prev = v
+	}
+
+	if suffix != "" {
+		result.WriteRune('_')
+		result.WriteString(suffix)
+	}
+
+	return result.String()
 }

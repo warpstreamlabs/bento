@@ -2,9 +2,8 @@
 // components and executing either a standard Bento CLI, or programmatically
 // building isolated pipelines with a StreamBuilder API.
 //
-// For a video guide on Bento plugins check out: https://youtu.be/uH6mKw-Ly0g
-// And an example repo containing component plugins and tests can be found at:
-// https://github.com/warpstreamlabs/bento-plugin-example
+// An example Bento distribution containing component plugins and tests can be found at:
+// https://github.com/warpstreamlabs/bento/tree/main/resources/plugin_example
 //
 // In order to add custom Bloblang functions and methods use the
 // ./public/bloblang package.

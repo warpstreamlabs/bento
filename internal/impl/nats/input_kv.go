@@ -40,7 +40,7 @@ This input adds the following metadata fields to each message:
 ` + "```" + `
 
 ` + connectionNameDescription() + authDescription()).
-		Fields(kvDocs([]*service.ConfigField{
+		Fields(Docs("KV", []*service.ConfigField{
 			service.NewStringField(kviFieldKey).
 				Description("Key to watch for updates, can include wildcards.").
 				Default(">").

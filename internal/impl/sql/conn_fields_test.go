@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bento_sql "github.com/warpstreamlabs/bento/internal/impl/sql"
+	baws "github.com/warpstreamlabs/bento/internal/impl/sql/aws"
+
 	"github.com/warpstreamlabs/bento/public/service"
 
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
@@ -189,7 +189,7 @@ sql_select:
 	}, msgs)
 }
 
-func mockGetSecretFromAWS(secretName string, awsConf aws.Config) (secretString string, err error) {
+func mockGetSecretFromAWS(secretName string) (secretString string, err error) {
 	var secret map[string]interface{}
 	if secretName == "validFullSecret" {
 		secret = map[string]interface{}{
@@ -211,9 +211,7 @@ func mockGetSecretFromAWS(secretName string, awsConf aws.Config) (secretString s
 	return string(secretBytes), nil
 }
 
-func TestBuildAwsDsn(t *testing.T) {
-	awsConf := aws.Config{}
-
+func TestBuildAwsDsnFromSecret(t *testing.T) {
 	tests := []struct {
 		name          string
 		dsn           string
@@ -269,7 +267,10 @@ func TestBuildAwsDsn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			awsSecretDsn, err := bento_sql.BuildAwsDsn(tt.dsn, tt.driver, tt.secretName, awsConf, mockGetSecretFromAWS)
+			fn := func() (string, error) {
+				return mockGetSecretFromAWS(tt.secretName)
+			}
+			awsSecretDsn, err := baws.BuildAWSDsnFromSecret(tt.dsn, tt.driver, fn)
 			if tt.expectedError {
 				assert.Error(t, err)
 				assert.Equal(t, tt.errorValue, err.Error())
@@ -277,6 +278,87 @@ func TestBuildAwsDsn(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedDSN, awsSecretDsn)
 			}
+		})
+	}
+}
+
+func mockGenerateIAMToken(dbEndpoint string, dbUser string) (string, error) {
+	tokenMap := map[string]string{
+		"mydb.cluster.region.rds.amazonaws.com:5432": "mock-postgres-token",
+		"mydb.cluster.region.rds.amazonaws.com:3306": "mock-mysql-token",
+	}
+
+	if dbEndpoint == "error.endpoint:5432" {
+		return "", fmt.Errorf("failed to generate IAM token")
+	}
+
+	if token, exists := tokenMap[dbEndpoint]; exists {
+		return token, nil
+	}
+
+	return "default-mock-token", nil
+}
+
+func TestBuildAwsDsnFromIAM(t *testing.T) {
+	tests := []struct {
+		name          string
+		dsn           string
+		driver        string
+		endpoint      string
+		username      string
+		expectedDSN   string
+		expectedError bool
+		errorValue    string
+	}{
+		{
+			name:          "valid_postgres_iam",
+			dsn:           "postgres://myuser:password@mydb.cluster.region.rds.amazonaws.com:5432/mydb?sslmode=require",
+			driver:        "postgres",
+			endpoint:      "mydb.cluster.region.rds.amazonaws.com:5432",
+			username:      "myuser",
+			expectedDSN:   "postgres://myuser:mock-postgres-token@mydb.cluster.region.rds.amazonaws.com:5432/mydb?sslmode=require",
+			expectedError: false,
+		},
+		{
+			name:          "valid_mysql_iam",
+			dsn:           "mysql://admin@mydb.cluster.region.rds.amazonaws.com:3306/mydb?tls=true",
+			driver:        "mysql",
+			endpoint:      "mydb.cluster.region.rds.amazonaws.com:3306",
+			username:      "admin",
+			expectedDSN:   "mysql://admin:mock-mysql-token@mydb.cluster.region.rds.amazonaws.com:3306/mydb?tls=true",
+			expectedError: false,
+		},
+		{
+			name:          "invalid_driver",
+			dsn:           "mongodb://user:pass@localhost:27017/db",
+			driver:        "mongodb",
+			expectedDSN:   "",
+			expectedError: true,
+			errorValue:    "cannot create DSN from IAM when driver is not postgres or mysql",
+		},
+		{
+			name:          "iam_token_error",
+			dsn:           "postgres://myuser:password@error.endpoint:5432/mydb",
+			driver:        "postgres",
+			username:      "myuser",
+			expectedDSN:   "",
+			expectedError: true,
+			errorValue:    "error retrieving IAM token: failed to generate IAM token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			awsSecretDsn, err := baws.BuildAWSDsnFromIAMCredentials(tt.dsn, tt.driver, mockGenerateIAMToken)
+			if tt.expectedError {
+				assert.Error(t, err)
+				assert.Equal(t, tt.errorValue, err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedDSN, awsSecretDsn)
+			}
+
+			assert.Equal(t, tt.expectedDSN, awsSecretDsn)
 		})
 	}
 }

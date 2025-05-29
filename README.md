@@ -1,6 +1,6 @@
 
 <p align="center">
-    <img src="icon.png" width=50% height=50% alt="Bento">
+    <img src="bento_logo_gh.svg" width=100% alt="Bento">
 </p>
 
 [![godoc for warpstreamlabs/bento][godoc-badge]][godoc-url]
@@ -16,7 +16,7 @@ It comes with a [powerful mapping language][bloblang-about], is easy to deploy a
 
 Bento is declarative, with stream pipelines defined in as few as a single config file, allowing you to specify connectors and a list of processing stages:
 
-```yaml
+```yaml 
 input:
   gcp_pubsub:
     project: foo

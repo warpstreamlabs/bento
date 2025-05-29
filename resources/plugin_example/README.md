@@ -7,7 +7,7 @@ This module serves as an example on how to implement components as plugins using
 ├── config.yaml             - an example Bento config file using the plugin component from ./plugins/faker.go
 ├── go.mod                  - Go module definition for this module
 ├── go.sum                  - Go checksum file
-├── plugins                   - Go package 'plugins'
+├── plugins                 - Go package 'plugins'
 │   ├── faker.go            - An example 'input plugin component'
 │   └── faker_test.go       - An example unit test for the plugin
 └── main.go                 - Go entrypoint

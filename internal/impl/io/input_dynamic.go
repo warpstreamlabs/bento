@@ -54,7 +54,20 @@ Returns the uptime of an input as a duration string (of the form "72h3m0.5s"), o
 			service.NewStringField(diFieldPrefix).
 				Description("A path prefix for HTTP endpoints that are registered.").
 				Default(""),
-		)
+		).
+		Example("Dynamic Input with stdin & file", "Demonstrates a dynamic input composed of a stdin and a file input, identified by 'stdin_input_id' and 'file_input_id'.",
+			`
+input:
+  dynamic:
+    inputs:
+      file_input_id:
+        file:
+          paths:
+            - ./foo/bar.baz
+
+      stdin_input_id:
+        stdin: {}
+`)
 }
 
 func init() {

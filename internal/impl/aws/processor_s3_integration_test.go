@@ -24,10 +24,13 @@ import (
 
 func TestIntegrationS3Processor(t *testing.T) {
 	integration.CheckSkip(t)
-	servicePort := getLocalStack(t)
+	servicePort := GetLocalStack(t, nil)
 	bucketName := "test-bucket"
 	objectKey := "example.txt"
 	objectData := "hello world"
+
+	err := createBucket(context.TODO(), servicePort, bucketName)
+	require.NoError(t, err)
 
 	client, err := uploadFile(servicePort, bucketName, objectKey, objectData)
 	require.NoError(t, err)

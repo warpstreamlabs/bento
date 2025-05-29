@@ -60,6 +60,7 @@ input:
     auto_replay_nacks: true
     commit_period: 5s
     start_from_oldest: true
+    auto_offset_reset: "" # No default (optional)
     group_balancers:
       - cooperative_sticky
     metadata_max_age: 5m
@@ -233,6 +234,15 @@ Determines whether to consume from the oldest available offset, otherwise messag
 
 Type: `bool`  
 Default: `true`  
+
+### `auto_offset_reset`
+
+Determines which offset to automatically consume from, matching Kafka's `auto.offset.reset` property. When specified, this takes precedence over `start_from_oldest`.
+
+
+Type: `string`  
+Requires version 1.6.0 or newer  
+Options: `earliest`, `latest`, `none`.
 
 ### `group_balancers`
 

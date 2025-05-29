@@ -12,6 +12,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/clbanning/mxj/v2"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -29,15 +30,17 @@ When a message is unarchived the new messages replace the original message in th
 The metadata found on the messages handled by this processor will be copied into the resulting messages. For the unarchive formats that contain file information (tar, zip), a metadata field is also added to each message called ` + "`archive_filename`" + ` with the extracted filename.
 `).
 		Field(service.NewStringAnnotatedEnumField("format", map[string]string{
-			`tar`:            `Extract messages from a unix standard tape archive.`,
-			`zip`:            `Extract messages from a zip file.`,
-			`binary`:         `Extract messages from a [binary blob format](https://github.com/warpstreamlabs/bento/blob/main/internal/message/message.go#L96).`,
-			`lines`:          `Extract the lines of a message each into their own message.`,
-			`json_documents`: `Attempt to parse a message as a stream of concatenated JSON documents. Each parsed document is expanded into a new message.`,
-			`json_array`:     `Attempt to parse a message as a JSON array, and extract each element into its own message.`,
-			`json_map`:       `Attempt to parse the message as a JSON map and for each element of the map expands its contents into a new message. A metadata field is added to each message called ` + "`archive_key`" + ` with the relevant key from the top-level map.`,
-			`csv`:            `Attempt to parse the message as a csv file (header required) and for each row in the file expands its contents into a json object in a new message.`,
-			`csv:x`:          `Attempt to parse the message as a csv file (header required) and for each row in the file expands its contents into a json object in a new message using a custom delimiter. The custom delimiter must be a single character, e.g. the format "csv:\t" would consume a tab delimited file.`,
+			`tar`:                        `Extract messages from a unix standard tape archive.`,
+			`zip`:                        `Extract messages from a zip file.`,
+			`binary`:                     `Extract messages from a [binary blob format](https://github.com/warpstreamlabs/bento/blob/main/internal/message/message.go#L96).`,
+			`lines`:                      `Extract the lines of a message each into their own message.`,
+			`json_documents`:             `Attempt to parse a message as a stream of concatenated JSON documents. Each parsed document is expanded into a new message.`,
+			`xml_documents_to_json`:      `Attempt to parse a message as a stream of concatenated XML documents. Each parsed document is expanded into a new message.`,
+			`xml_documents_to_json:cast`: `Attempt to parse a message as a stream of concatenated XML documents. Each parsed document is expanded into a new message. Cast values to the right type.`,
+			`json_array`:                 `Attempt to parse a message as a JSON array, and extract each element into its own message.`,
+			`json_map`:                   `Attempt to parse the message as a JSON map and for each element of the map expands its contents into a new message. A metadata field is added to each message called ` + "`archive_key`" + ` with the relevant key from the top-level map.`,
+			`csv`:                        `Attempt to parse the message as a csv file (header required) and for each row in the file expands its contents into a json object in a new message.`,
+			`csv:x`:                      `Attempt to parse the message as a csv file (header required) and for each row in the file expands its contents into a json object in a new message using a custom delimiter. The custom delimiter must be a single character, e.g. the format "csv:\t" would consume a tab delimited file.`,
 		}).Description("The unarchiving format to apply.").LintRule(``)) // NOTE: We disable the linter here because `csv:x` is a dynamic pattern
 }
 
@@ -182,6 +185,50 @@ func jsonDocumentsUnarchive(part *service.Message) (service.MessageBatch, error)
 	return parts, nil
 }
 
+func xmlDocumentsUnarchive(part *service.Message) (service.MessageBatch, error) {
+	pBytes, err := part.AsBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var parts service.MessageBatch
+	r := bytes.NewReader(pBytes)
+	for {
+		m, err := mxj.NewMapXmlReader(r, false)
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		newPart := part.Copy()
+		newPart.SetStructuredMut(map[string]any(m))
+		parts = append(parts, newPart)
+	}
+	return parts, nil
+}
+
+func xmlDocumentsCastUnarchive(part *service.Message) (service.MessageBatch, error) {
+	pBytes, err := part.AsBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var parts service.MessageBatch
+	r := bytes.NewReader(pBytes)
+	for {
+		m, err := mxj.NewMapXmlReader(r, true)
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		newPart := part.Copy()
+		newPart.SetStructuredMut(map[string]any(m))
+		parts = append(parts, newPart)
+	}
+	return parts, nil
+}
+
 func jsonArrayUnarchive(part *service.Message) (service.MessageBatch, error) {
 	jDoc, err := part.AsStructuredMut()
 	if err != nil {
@@ -296,6 +343,10 @@ func strToUnarchiver(str string) (unarchiveFunc, error) {
 		return linesUnarchive, nil
 	case "json_documents":
 		return jsonDocumentsUnarchive, nil
+	case "xml_documents_to_json":
+		return xmlDocumentsUnarchive, nil
+	case "xml_documents_to_json:cast":
+		return xmlDocumentsCastUnarchive, nil
 	case "json_array":
 		return jsonArrayUnarchive, nil
 	case "json_map":

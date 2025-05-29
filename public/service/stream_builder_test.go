@@ -1319,3 +1319,222 @@ output:
 		},
 	}, eventKeys)
 }
+
+// mockPrintLogger is a helper logger to capture stdout in tests
+type mockPrintLogger struct {
+	buf bytes.Buffer
+	mut sync.Mutex
+}
+
+func (tpl *mockPrintLogger) Printf(format string, v ...any) {
+	tpl.mut.Lock()
+	defer tpl.mut.Unlock()
+
+	tpl.buf.WriteString(fmt.Sprintf(format, v...))
+}
+
+func (tpl *mockPrintLogger) Println(v ...any) {
+	tpl.mut.Lock()
+	defer tpl.mut.Unlock()
+
+	tpl.buf.WriteString(fmt.Sprintln(v...))
+}
+
+func (tpl *mockPrintLogger) Content() string {
+	return tpl.buf.String()
+}
+
+func TestStreamBuilder_ErrorHandlingStrategies(t *testing.T) {
+	tests := []struct {
+		name                    string
+		configYAML              string
+		expectMessageReceived   bool
+		expectLogError          string
+		expectMultipleLogErrors bool
+	}{
+		{
+			name: "Do not reject message if message is valid and error strategy is reject",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = {"hello": "world"}'
+
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: reject
+`,
+			expectMessageReceived: true,
+			expectLogError:        "",
+		},
+		{
+			name: "Reject message if message is invalid and error strategy is reject (by default, generate will retry on a nack so we get multiple errors)",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = "not a valid json message"'
+    
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: reject
+`,
+			expectMessageReceived:   false,
+			expectLogError:          "invalid character 'o' in literal null (expecting 'u')",
+			expectMultipleLogErrors: true,
+		},
+		{
+			name: "Reject message if message is invalid and error strategy is reject (we should get a single error if we don't replay nacks in the input)",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = "not a valid json message"'
+    auto_replay_nacks: false
+    
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: reject
+`,
+			expectMessageReceived:   false,
+			expectLogError:          "invalid character 'o' in literal null (expecting 'u')",
+			expectMultipleLogErrors: false,
+		},
+		{
+			name: "Do not reject message if message is invalid and error strategy is none but expect error log anyway",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = "not a valid json message"'
+
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: none
+`,
+			expectMessageReceived: true,
+			expectLogError:        "invalid character 'o' in literal null (expecting 'u')",
+		},
+		{
+			name: "Do not reject message if message is valid and error strategy is none and expect no error log",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = {"hello": "world"}'
+
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: none
+`,
+			expectMessageReceived: true,
+			expectLogError:        "",
+		},
+		{
+			name: "Retry message if message is invalid and error strategy is retry => we should see the error logged multiple times",
+			configYAML: `input:
+  generate:
+    count: 1
+    interval: 1ms
+    mapping: 'root = "not a valid json message"'
+
+pipeline:
+  processors:
+    - bloblang: |
+        root = content().parse_json(use_number: false)
+
+error_handling:
+  strategy: retry
+`,
+			expectMessageReceived:   false,
+			expectLogError:          "invalid character 'o' in literal null (expecting 'u')",
+			expectMultipleLogErrors: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.configYAML, func(t *testing.T) {
+
+			sb := service.NewStreamBuilder()
+
+			mockedPrintLogger := &mockPrintLogger{}
+			sb.SetPrintLogger(mockedPrintLogger)
+
+			err := sb.SetYAML(test.configYAML)
+			require.NoError(t, err)
+
+			var messageWasReceived bool
+			var consumerMut sync.Mutex
+
+			err = sb.AddBatchConsumerFunc(func(ctx context.Context, b service.MessageBatch) error {
+				consumerMut.Lock()
+				defer consumerMut.Unlock()
+				messageWasReceived = true
+				return nil
+			})
+			require.NoError(t, err)
+
+			strm, err := sb.Build()
+			require.NoError(t, err)
+
+			runCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			streamDoneChan := make(chan error, 1)
+			go func() {
+				// Run the stream
+				streamDoneChan <- strm.Run(runCtx)
+			}()
+
+			// We leave the goroutine running until either the pipeline finishes (for non-erroring cases) or the timeout
+			// expires (for erroring cases that are retried forever).
+			select {
+			case runErr := <-streamDoneChan:
+				require.NoError(t, runErr)
+			case <-runCtx.Done():
+				// We get in this case if the pipeline never ends (because an error makes it retry, for example)
+				// In that case, we need to make sure the stream is stopped.
+				stopCtx, stopCancel := context.WithTimeout(context.Background(), 1*time.Second)
+				defer stopCancel()
+				_ = strm.Stop(stopCtx)
+			}
+
+			consumerMut.Lock()
+			require.Equal(t, test.expectMessageReceived, messageWasReceived)
+			consumerMut.Unlock()
+
+			logs := mockedPrintLogger.Content()
+			if test.expectLogError != "" {
+				require.Contains(t, logs, "failed assignment")
+				if test.expectMultipleLogErrors {
+					require.Greater(t, strings.Count(logs, test.expectLogError), 1)
+				} else {
+					require.Equal(t, 1, strings.Count(logs, test.expectLogError))
+				}
+			} else {
+				require.NotContains(t, logs, "failed assignment")
+			}
+		})
+	}
+
+}

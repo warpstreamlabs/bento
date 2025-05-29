@@ -11,6 +11,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -44,8 +45,9 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 			Advanced().
 			Example("ON CONFLICT (name) DO NOTHING")).
 		Field(service.NewIntField("max_in_flight").
-			Description("The maximum number of inserts to run in parallel.").
-			Default(64))
+						Description("The maximum number of inserts to run in parallel.").
+						Default(64)).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -184,8 +186,12 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		return nil, err
 	}
 
-	if s.driver == "postgres" && s.connSettings.secretName != "" {
-		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := IsAWSEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
 		if err != nil {
 			return nil, err
 		}
@@ -203,7 +209,7 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings); err != nil {
 		return err
 	}
 

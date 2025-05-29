@@ -2,9 +2,11 @@ package lang
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
+	frand "math/rand/v2"
 	"strings"
 	"time"
 
@@ -12,7 +14,6 @@ import (
 	"github.com/go-faker/faker/v4"
 	"github.com/gosimple/slug"
 	"github.com/oklog/ulid"
-	frand "golang.org/x/exp/rand"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
 )
@@ -271,10 +272,11 @@ func registerULID() error {
 		)
 
 	secureRandom := rand.Reader
-	fastRandom := frand.New(new(frand.LockedSource))
 	// The cast to uint64 is done on the assumption that we will not get a
 	// negative value for time.
-	fastRandom.Seed(uint64(time.Now().UnixNano()))
+	var seed [32]byte
+	binary.LittleEndian.PutUint64(seed[:], uint64(time.Now().UnixNano()))
+	fastRandom := frand.NewChaCha8(seed)
 
 	return bloblang.RegisterFunctionV2("ulid", spec, func(args *bloblang.ParsedParams) (bloblang.Function, error) {
 		encoding, err := args.GetString("encoding")

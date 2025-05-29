@@ -12,24 +12,6 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-const (
-	cypherDatabase    = "database"
-	cypherURI         = "uri"
-	cypherNoAuth      = "no_auth"
-	cypherBasicAuth   = "basic_auth"
-	cypherQuery       = "query"
-	cypherValues      = "values"
-	cypherMaxInFlight = "max_in_flight"
-	cypherBatching    = "batching"
-
-	// Basic Auth
-	cypherUser     = "user"
-	cypherPassword = "password"
-	cypherRealm    = "realm"
-
-	cypherTLS = "tls"
-)
-
 var cypherOutputDescription string = `
 ## Executes a Cypher Query
 
@@ -54,17 +36,6 @@ func cypherOutputSpec() *service.ConfigSpec {
 		Summary("Executes a Cypher Query").
 		Description(cypherOutputDescription).
 		Fields(
-			service.NewStringField(cypherDatabase).
-				Description("The name of the database to connect to.").
-				Example("neo4j"),
-			service.NewStringField(cypherURI).
-				Description("The URL of the database engine.").
-				Example("bolt://localhost:7687"),
-			service.NewBoolField(cypherNoAuth).
-				Description("Set to true to connect without authentication.").
-				Default(false),
-			service.NewObjectField(cypherBasicAuth, basicAuthSpec()...).
-				Description("Basic Authentication fields"),
 			service.NewStringField(cypherQuery).
 				Description("The cypher query to execute.").
 				Example("CREATE (p:Person {name: $name}) RETURN p"),
@@ -74,11 +45,9 @@ func cypherOutputSpec() *service.ConfigSpec {
 				Example(map[string]any{
 					"name": `${! json("name") }`,
 				}),
-			service.NewIntField(cypherMaxInFlight).
-				Description("The maximum number of queries to run in parallel.").
-				Default(64),
-			service.NewTLSToggledField(cypherTLS),
-		)
+			service.NewOutputMaxInFlightField(),
+		).
+		Fields(connFields()...)
 
 	spec = spec.Field(service.NewBatchPolicyField(cypherBatching)).
 		Example("Create Node",
@@ -103,21 +72,6 @@ output:
 	return spec
 }
 
-func basicAuthSpec() []*service.ConfigField {
-	return []*service.ConfigField{
-		service.NewStringField(cypherUser).
-			Default("").
-			Description("The username for basic auth."),
-		service.NewStringField(cypherPassword).
-			Default("").
-			Secret().
-			Description("The password for basic auth."),
-		service.NewStringField(cypherRealm).
-			Default("").
-			Description("The realm for basic auth."),
-	}
-}
-
 func init() {
 	err := service.RegisterBatchOutput(
 		"cypher", cypherOutputSpec(),
@@ -125,7 +79,7 @@ func init() {
 			if batchPolicy, err = conf.FieldBatchPolicy("batching"); err != nil {
 				return
 			}
-			if maxInFlight, err = conf.FieldInt("max_in_flight"); err != nil {
+			if maxInFlight, err = conf.FieldMaxInFlight(); err != nil {
 				return
 			}
 			out, err = NewCypherOutputFromConfig(conf, mgr)
@@ -148,12 +102,6 @@ type CypherOutput struct {
 	values    map[string]*service.InterpolatedString
 	driver    neo4j.DriverWithContext
 	session   neo4j.SessionWithContext
-}
-
-type CypherBasicAuth struct {
-	user     string
-	password string
-	realm    string
 }
 
 func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*CypherOutput, error) {
@@ -189,6 +137,14 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 		return nil, err
 	}
 
+	output := &CypherOutput{
+		database: database,
+		uri:      uri,
+		noAuth:   noAuth,
+		query:    query,
+		values:   values,
+	}
+
 	if !noAuth {
 
 		basicAuthMap, err := conf.FieldStringMap(cypherBasicAuth)
@@ -202,21 +158,14 @@ func NewCypherOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 			realm:    basicAuthMap[cypherRealm],
 		}
 
-		if tlsEnabled {
-			return &CypherOutput{
-				database:  database,
-				uri:       uri,
-				noAuth:    noAuth,
-				basicAuth: basicAuth,
-				tlsConfig: tlsConfig,
-				query:     query,
-				values:    values}, nil
-		}
+		output.basicAuth = basicAuth
 
-		return &CypherOutput{database: database, uri: uri, noAuth: noAuth, basicAuth: basicAuth, query: query, values: values}, nil
+		if tlsEnabled {
+			output.tlsConfig = tlsConfig
+		}
 	}
 
-	return &CypherOutput{database: database, uri: uri, noAuth: noAuth, query: query, values: values}, nil
+	return output, nil
 }
 
 func validateQueryAndValues(query string, values map[string]*service.InterpolatedString) error {
@@ -258,6 +207,13 @@ func (cyp *CypherOutput) Connect(ctx context.Context) error {
 	}
 
 	if err != nil {
+		return err
+	}
+
+	if err := driver.VerifyConnectivity(ctx); err != nil {
+		return err
+	}
+	if err := driver.VerifyAuthentication(ctx, nil); err != nil {
 		return err
 	}
 

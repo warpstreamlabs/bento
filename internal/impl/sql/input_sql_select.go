@@ -11,6 +11,7 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	bento_aws "github.com/warpstreamlabs/bento/internal/impl/aws"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
@@ -49,7 +50,8 @@ func sqlSelectInputConfig() *service.ConfigSpec {
 			Description("An optional suffix to append to the select query.").
 			Optional().
 			Advanced()).
-		Field(service.NewAutoRetryNacksToggleField())
+		Field(service.NewAutoRetryNacksToggleField()).
+		LintRule(SQLConnLintRule) // TODO: Move AWS related fields to an 'aws' object field in Bento v2
 
 	for _, f := range connFields() {
 		spec = spec.Field(f)
@@ -177,8 +179,12 @@ func newSQLSelectInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 		return nil, err
 	}
 
-	if s.driver == "postgres" && s.connSettings.secretName != "" {
-		s.awsConf, err = bento_aws.GetSession(context.Background(), conf)
+	awsEnabled, err := IsAWSEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+	if awsEnabled {
+		s.awsConf, err = bento_aws.GetSession(context.Background(), conf.Namespace("aws"))
 		if err != nil {
 			return nil, err
 		}
@@ -195,7 +201,7 @@ func (s *sqlSelectInput) Connect(ctx context.Context) (err error) {
 	}
 
 	var db *sql.DB
-	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings, s.awsConf); err != nil {
+	if db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings); err != nil {
 		return
 	}
 	defer func() {

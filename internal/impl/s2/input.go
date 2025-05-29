@@ -66,10 +66,12 @@ func newInputConfigSpec() *service.ConfigSpec {
 				Description("Interval after which the streams list should update dynamically"),
 			service.NewDurationField(backoffDurationField).
 				Advanced().
+				Version("1.6.0").
 				Default("100ms").
 				Description("Interval to backoff for before reconnecting to a stream"),
 			service.NewStringEnumField(startSeqNumField, startSeqNumEarliest, startSeqNumLatest).
 				Description("Start consuming the stream from either the earliest or the latest sequence number").
+				Version("1.6.0").
 				Default(startSeqNumEarliest).
 				Advanced(),
 		).

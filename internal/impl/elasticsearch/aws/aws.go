@@ -6,24 +6,22 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/olivere/elastic/v7"
 
 	baws "github.com/warpstreamlabs/bento/internal/impl/aws"
 	"github.com/warpstreamlabs/bento/internal/impl/elasticsearch"
 	"github.com/warpstreamlabs/bento/public/service"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 )
 
 func init() {
-	elasticsearch.AWSOptFn = func(conf *service.ParsedConfig) ([]elastic.ClientOptionFunc, error) {
+	elasticsearch.AWSOptFn = func(conf *service.ParsedConfig, client *http.Client) ([]elastic.ClientOptionFunc, error) {
 		if enabled, _ := conf.FieldBool(elasticsearch.ESOFieldAWSEnabled); !enabled {
 			return nil, nil
 		}
@@ -43,73 +41,72 @@ func init() {
 			return nil, err
 		}
 
-		signingClient := newV4SigningClientWithHTTPClient(creds, region, http.DefaultClient)
-		return []elastic.ClientOptionFunc{elastic.SetHttpClient(signingClient)}, nil
+		signerTransport := &awsSignerTransport{
+			RoundTripper: client.Transport,
+			signer:       v4.NewSigner(),
+			creds:        creds,
+			region:       tsess.Region,
+			service:      "es",
+		}
+		client.Transport = signerTransport
+
+		return []elastic.ClientOptionFunc{elastic.SetHttpClient(client)}, nil
 	}
 }
 
-func newV4SigningClientWithHTTPClient(creds aws.Credentials, region string, httpClient *http.Client) *http.Client {
-	return &http.Client{
-		Transport: Transport{
-			client: httpClient,
-			creds:  creds,
-			signer: v4.NewSigner(),
-			region: region,
-		},
-	}
-}
+// The ElasticSearch service requires requests be properly signed. Since the ElasticSearch library is quite outdated, it
+// relies on aws-sdk-go v1. Instead, we sign our own requests using the awsSignerTransport transport wrapper.
 
-// Transport is a RoundTripper that will sign requests with AWS V4 Signing
-type Transport struct {
-	client *http.Client
-	creds  aws.Credentials
+// awsSignerTransport signs HTTP requests to AWS using passed in credentials.
+type awsSignerTransport struct {
+	http.RoundTripper
+
 	signer *v4.Signer
-	region string
+
+	creds   aws.Credentials
+	region  string
+	service string
 }
 
-// RoundTrip uses the underlying RoundTripper transport, but signs request first with AWS V4 Signing
-func (st Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if h, ok := req.Header["Authorization"]; ok && len(h) > 0 && strings.HasPrefix(h[0], "AWS4") {
-		// Received a signed request, just pass it on.
-		return st.client.Do(req)
+func (t *awsSignerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	hash, err := computePayloadHash(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute SHA256 for request payload: %w", err)
 	}
 
-	if strings.Contains(req.URL.RawPath, "%2C") {
-		// Escaping path
-		req.URL.RawPath = url.PathEscape(req.URL.RawPath)
-	}
-
-	hash, err := hexEncodedSha256OfRequest(req)
+	err = t.signer.SignHTTP(context.TODO(), t.creds, req, hash, t.service, t.region, time.Now())
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-Amz-Content-Sha256", hash)
-
-	if err := st.signer.SignHTTP(req.Context(), st.creds, req, hash, "es", st.region, time.Now().UTC()); err != nil {
-		return nil, err
-	}
-	return st.client.Do(req)
+	return t.RoundTripper.RoundTrip(req)
 }
 
-func hexEncodedSha256OfRequest(r *http.Request) (string, error) {
-	if r.Body == nil {
+func computePayloadHash(req *http.Request) (string, error) {
+	// If the body is empty, use the empty string SHA.
+	// See https://github.com/aws/aws-sdk-go-v2/blob/a8a6a95eeb38a9d95edb2c3eaec8ce7284c6202a/aws/signer/v4/v4.go#L249-L260
+	if req.Body == nil {
 		return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", nil
 	}
 
-	hasher := sha256.New()
-
-	reqBodyBytes, err := io.ReadAll(r.Body)
+	// Consume all bytes from the request's body Reader
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return "", err
 	}
-
-	if err := r.Body.Close(); err != nil {
+	if err := req.Body.Close(); err != nil {
 		return "", err
 	}
 
-	r.Body = io.NopCloser(bytes.NewBuffer(reqBodyBytes))
-	hasher.Write(reqBodyBytes)
-	digest := hasher.Sum(nil)
+	if len(body) == 0 {
+		return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", nil
+	}
 
-	return hex.EncodeToString(digest), nil
+	h := sha256.New()
+	h.Write(body)
+	payloadHash := hex.EncodeToString(h.Sum(nil))
+
+	// Now we have to set the body Reader back
+	req.Body = io.NopCloser(bytes.NewReader(body))
+
+	return payloadHash, nil
 }
