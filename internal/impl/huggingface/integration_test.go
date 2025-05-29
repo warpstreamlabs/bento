@@ -1,6 +1,4 @@
-//go:build GO
-
-package huggingface
+package huggingface_test
 
 import (
 	"context"
@@ -28,28 +26,17 @@ var tokenClassificationExpectedByte []byte
 //go:embed testdata/expected_feature_extraction.json
 var featureExtractionExpectedByte []byte
 
-var (
-	onnxRuntimeSession *hugot.Session
-	onnxLibPath        string
-)
+//go:embed testdata/expected_text_classification.json
+var textClassificationExpectedBytes []byte
 
-func setup(t *testing.T) {
-	var (
-		err error
-	)
-
-	onnxRuntimeSession, err = globalSession.NewSession()
-	require.NoError(t, err)
-	require.NotNil(t, onnxRuntimeSession)
-}
+//go:embed testdata/expected_multi_token_classification.json
+var textClassificationMultiExpectedBytes []byte
 
 func TestIntegration_TextClassifier(t *testing.T) {
-	setup(t)
-
 	tmpDir := t.TempDir()
 
 	modelName := "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
-	modelPath, err := onnxRuntimeSession.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
+	modelPath, err := hugot.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
 	require.NoError(t, err)
 	t.Logf("downloading to %v", modelPath)
 	defer t.Cleanup(func() {
@@ -59,9 +46,8 @@ func TestIntegration_TextClassifier(t *testing.T) {
 	template := fmt.Sprintf(`
 nlp_classify_text:
   pipeline_name: classify-incoming-data-1
-  onnx_library_path: %s
   model_path: %s
-`, onnxLibPath, modelPath)
+`, modelPath)
 
 	b := service.NewStreamBuilder()
 	require.NoError(t, b.SetLoggerYAML("level: INFO"))
@@ -120,21 +106,21 @@ nlp_classify_text:
 
 	outMut.Lock()
 	assert.Equal(t, map[string]struct{}{
-		`[{"Label":"POSITIVE","Score":0.999869}],[{"Label":"POSITIVE","Score":0.9992634}]`:  {},
-		`[{"Label":"NEGATIVE","Score":0.9996588}],[{"Label":"POSITIVE","Score":0.9908547}]`: {},
-		`[{"Label":"POSITIVE","Score":0.9811118}],[{"Label":"NEGATIVE","Score":0.9700846}]`: {},
+		`[{"Label":"POSITIVE","Score":0.999869}],[{"Label":"POSITIVE","Score":0.9992634}]`:   {},
+		`[{"Label":"NEGATIVE","Score":0.9996588}],[{"Label":"POSITIVE","Score":0.9908547}]`:  {},
+		`[{"Label":"POSITIVE","Score":0.9811118}],[{"Label":"NEGATIVE","Score":0.97008467}]`: {},
 	}, outBatches)
 	outMut.Unlock()
 
 }
 
 func TestIntegration_TokenClassifier(t *testing.T) {
-	setup(t)
-
 	tmpDir := t.TempDir()
 
 	modelName := "KnightsAnalytics/distilbert-NER"
-	modelPath, err := onnxRuntimeSession.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
+	opts := hugot.NewDownloadOptions()
+	opts.ConcurrentConnections = 1
+	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
 	require.NoError(t, err)
 
 	defer t.Cleanup(func() {
@@ -144,9 +130,8 @@ func TestIntegration_TokenClassifier(t *testing.T) {
 	template := fmt.Sprintf(`
 nlp_classify_tokens:
   pipeline_name: classify-tokens
-  onnx_library_path: %s
   model_path: %s
-`, onnxLibPath, modelPath)
+`, modelPath)
 
 	b := service.NewStreamBuilder()
 	require.NoError(t, b.SetLoggerYAML("level: INFO"))
@@ -224,13 +209,14 @@ nlp_classify_tokens:
 }
 
 func TestIntegration_FeatureExtractor(t *testing.T) {
-	setup(t)
-
 	tmpDir := t.TempDir()
 
 	modelName := "sentence-transformers/all-MiniLM-L6-v2"
 
-	modelPath, err := onnxRuntimeSession.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
+	opts := hugot.NewDownloadOptions()
+	opts.OnnxFilePath = "onnx/model.onnx"
+	opts.ConcurrentConnections = 1
+	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
 	require.NoError(t, err)
 
 	defer t.Cleanup(func() {
@@ -240,9 +226,8 @@ func TestIntegration_FeatureExtractor(t *testing.T) {
 	template := fmt.Sprintf(`
 nlp_extract_features:
   pipeline_name: classify-incoming-data-1
-  onnx_library_path: %s
   model_path: %s
-`, onnxLibPath, modelPath)
+`, modelPath)
 
 	b := service.NewStreamBuilder()
 	require.NoError(t, b.SetLoggerYAML("level: INFO"))
@@ -307,17 +292,19 @@ nlp_extract_features:
 			var actualEntity []float64
 			err = json.Unmarshal([]byte(outBatches[batch][msg]), &actualEntity)
 			require.NoError(t, err)
-			assert.Equal(t, expectedResults[prompt], actualEntity)
+
+			require.Equal(t, len(expectedResults[prompt]), len(actualEntity), "Vector dimensions should match")
+			for i, expected := range expectedResults[prompt] {
+				assert.InDelta(t, expected, actualEntity[i], 1e-5, // Ensure accuracy to the 1e-5 decimal place
+					"Mismatch at index %d: expected %f, got %f", i, expected, actualEntity[i])
+			}
 		}
 
 	}
 	outMut.Unlock()
-
 }
 
 func TestIntegration_TextClassifier_Download(t *testing.T) {
-	setup(t)
-
 	tmpDir := t.TempDir()
 
 	modelName := "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
@@ -329,12 +316,11 @@ func TestIntegration_TextClassifier_Download(t *testing.T) {
 	template := fmt.Sprintf(`
 nlp_classify_text:
   pipeline_name: classify-incoming-data-1
-  onnx_library_path: %s
   model_path: %s
   enable_model_download: true
   model_download_options:
     model_repository: %s
-`, onnxLibPath, tmpDir, modelName)
+`, tmpDir, modelName)
 
 	b := service.NewStreamBuilder()
 	require.NoError(t, b.SetLoggerYAML("level: DEBUG"))
@@ -373,7 +359,7 @@ nlp_classify_text:
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		time.Sleep(60 * time.Second)
+
 		ctx, done := context.WithTimeout(context.Background(), time.Second*60)
 		defer done()
 
@@ -394,9 +380,9 @@ nlp_classify_text:
 
 	outMut.Lock()
 	assert.Equal(t, map[string]struct{}{
-		`[{"Label":"POSITIVE","Score":0.999869}],[{"Label":"POSITIVE","Score":0.9992634}]`:  {},
-		`[{"Label":"NEGATIVE","Score":0.9996588}],[{"Label":"POSITIVE","Score":0.9908547}]`: {},
-		`[{"Label":"POSITIVE","Score":0.9811118}],[{"Label":"NEGATIVE","Score":0.9700846}]`: {},
+		`[{"Label":"POSITIVE","Score":0.999869}],[{"Label":"POSITIVE","Score":0.9992634}]`:   {},
+		`[{"Label":"NEGATIVE","Score":0.9996588}],[{"Label":"POSITIVE","Score":0.9908547}]`:  {},
+		`[{"Label":"POSITIVE","Score":0.9811117}],[{"Label":"NEGATIVE","Score":0.97008467}]`: {},
 	}, outBatches)
 	outMut.Unlock()
 

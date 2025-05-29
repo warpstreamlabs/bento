@@ -1,5 +1,3 @@
-//go:build GO
-
 package huggingface
 
 import (
@@ -9,7 +7,8 @@ import (
 	"time"
 
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelines"
+	"github.com/knights-analytics/hugot/options"
+	"github.com/knights-analytics/hugot/pipelineBackends"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -80,11 +79,15 @@ func hugotConfigFields() []*service.ConfigField {
 
 //------------------------------------------------------------------------------
 
+type SessionConstructorKey struct{}
+
+type SessionConstructor func() (*hugot.Session, error)
+
 type pipelineProcessor struct {
 	log *service.Logger
 
 	session  *hugot.Session
-	pipeline pipelines.Pipeline
+	pipeline pipelineBackends.Pipeline
 
 	pipelineName string
 	modelPath    string
@@ -106,8 +109,15 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 
 	var err error
 
-	if p.session, err = globalSession.NewSession(); err != nil {
-		return nil, err
+	ctorValue, _ := mgr.GetOrSetGeneric(SessionConstructorKey{}, hugot.NewGoSession)
+	sessCtor, ok := ctorValue.(func(opts ...options.WithOption) (*hugot.Session, error))
+	if !ok {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	p.session, err = sessCtor()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
 	if modelPath, err = conf.FieldString("model_path"); err != nil {
@@ -135,7 +145,7 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		}
 
 		start := time.Now()
-		if path, err := p.session.DownloadModel(modelRepo, modelPath, opts); err != nil {
+		if path, err := hugot.DownloadModel(modelRepo, modelPath, opts); err != nil {
 			return nil, fmt.Errorf("failed to download model %s from HuggingFace to %s: %w", modelRepo, modelPath, err)
 		} else {
 			modelPath = path
@@ -188,8 +198,5 @@ func (p *pipelineProcessor) ProcessBatch(ctx context.Context, batch service.Mess
 }
 
 func (p *pipelineProcessor) Close(context.Context) error {
-	p.closeOnce.Do(func() {
-		globalSession.Destroy()
-	})
-	return nil
+	return p.pipeline.GetModel().Destroy()
 }

@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "created_at": "2025-05-30T01:04:53.775906+02:00",
+    "model_name": "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english",
+    "go_version": "go1.24.2",
+    "platform": "darwin/arm64",
+    "test_name": "TestSnapshot_CreateClassificationData"
+  },
+  "data": {
+    "Best experience ever, highly recommend!": {
+      "label": "POSITIVE",
+      "score": 0.9998742341995239,
+      "timestamp": "2025-05-30T01:04:53.775884+02:00"
+    },
+    "I love this amazing product!": {
+      "label": "POSITIVE",
+      "score": 0.9998895525932312,
+      "timestamp": "2025-05-30T01:04:40.915682+02:00"
+    },
+    "The service was okay, nothing special.": {
+      "label": "NEGATIVE",
+      "score": 0.9862402677536011,
+      "timestamp": "2025-05-30T01:04:49.414195+02:00"
+    },
+    "This is absolutely terrible.": {
+      "label": "NEGATIVE",
+      "score": 0.9995138645172119,
+      "timestamp": "2025-05-30T01:04:45.080082+02:00"
+    }
+  }
+}

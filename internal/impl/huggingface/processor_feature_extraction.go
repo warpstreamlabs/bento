@@ -1,9 +1,8 @@
-//go:build GO
-
 package huggingface
 
 import (
 	"github.com/knights-analytics/hugot"
+	"github.com/knights-analytics/hugot/pipelineBackends"
 	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -34,8 +33,8 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-func getFeatureExtractionOptions(conf *service.ParsedConfig) ([]pipelines.PipelineOption[*pipelines.FeatureExtractionPipeline], error) {
-	var options []pipelines.PipelineOption[*pipelines.FeatureExtractionPipeline]
+func getFeatureExtractionOptions(conf *service.ParsedConfig) ([]pipelineBackends.PipelineOption[*pipelines.FeatureExtractionPipeline], error) {
+	var options []pipelineBackends.PipelineOption[*pipelines.FeatureExtractionPipeline]
 
 	normalization, err := conf.FieldBool("normalization")
 	if err != nil {
