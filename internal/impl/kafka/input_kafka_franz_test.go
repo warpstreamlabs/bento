@@ -159,8 +159,6 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 	_, err = admin.CreateTopic(ctx, 1, 1, nil, "foo")
 	require.NoError(t, err)
-	fmt.Println("everything worked!")
-	// fmt.Println("topic ID", createdTopic.ID)
 
 	conf, err := franzKafkaInputConfig().ParseYAML(fmt.Sprintf(`
 seed_brokers: [ localhost:%v ]
@@ -170,6 +168,7 @@ checkpoint_limit: 100
 commit_period: 1s
 batching:
   count: 10
+reconnect_on_unknown_topic: true
 `, kafkaPortStr), nil)
 	require.NoError(t, err)
 

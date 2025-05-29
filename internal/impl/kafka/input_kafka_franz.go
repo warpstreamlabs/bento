@@ -97,7 +97,7 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Default(true).
 			Advanced()).
 		Field(service.NewBoolField("reconnect_on_unknown_topic").
-			Description("Determines whether to  close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.").
+			Description("Determines whether to close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.").
 			Default(false).
 			Advanced()).
 		Field(service.NewStringEnumField("auto_offset_reset", "earliest", "latest", "none").
@@ -768,9 +768,7 @@ func (c *checkpointTracker) removeTopicPartitions(ctx context.Context, m map[str
 	}
 }
 
-// TODO: The documentation from franz-go is top-tier, it
-// should be straight forward to expand this to include more
-// errors that are safe to disregard.
+// If this returns false, the reader will close the client to force a reconnect.
 func (f *franzKafkaReader) isRetriableError(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, context.Canceled) {
@@ -836,7 +834,6 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
-		// kobe
 		kgo.KeepRetryableFetchErrors(),
 	}
 
