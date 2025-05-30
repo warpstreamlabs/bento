@@ -500,9 +500,7 @@ func (r *csvReader) ReadBatch(ctx context.Context) (service.MessageBatch, servic
 
 			if len(r.expectedHeaders) > 0 {
 				tmpHeaders := make([]string, 0, len(record))
-				for _, rec := range record {
-					tmpHeaders = append(tmpHeaders, rec)
-				}
+				tmpHeaders = append(tmpHeaders, record...)
 				if slices.Compare(r.expectedHeaders, tmpHeaders) != 0 {
 					return nil, nil, errors.New("expected_headers don't match file contents")
 				}

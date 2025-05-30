@@ -54,8 +54,8 @@ input:
     delete_on_finish: false
     batch_count: 1
     auto_replay_nacks: true
-    expected_headers: []
-    expected_number_of_fields: 0
+    expected_headers: [] # No default (optional)
+    expected_number_of_fields: 0 # No default (optional)
 ```
 
 </TabItem>
@@ -201,25 +201,30 @@ Whether messages that are rejected (nacked) at the output level should be automa
 Type: `bool`  
 Default: `true`  
 
-This input is particularly useful when consuming CSV from files too large to parse entirely within memory. However, in cases where CSV is consumed from other input types it's also possible to parse them using the [Bloblang `parse_csv` method](/docs/guides/bloblang/methods#parse_csv).
+### `expected_headers`
 
-## `expected_headers`
+An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.
 
-An optional list of expected headers for the header row. If provided, the actual headers will be validated against it. If any expected headers do not match, an error will be generated.
 
-Type: `array`
+Type: `array`  
+Requires version 1.7.1 or newer  
 
 ```yml
-input:
-  csv:
-    expected_headers:
-      - first_name
-      - last_name
-      - age
+# Examples
+
+expected_headers:
+  - first_name
+  - last_name
+  - age
 ```
 
 ### `expected_number_of_fields`
 
 The number of expected fields in the csv file.
 
+
 Type: `int`  
+Requires version 1.7.1 or newer  
+
+This input is particularly useful when consuming CSV from files too large to parse entirely within memory. However, in cases where CSV is consumed from other input types it's also possible to parse them using the [Bloblang `parse_csv` method](/docs/guides/bloblang/methods#parse_csv).
+
