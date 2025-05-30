@@ -6,384 +6,190 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/warpstreamlabs/bento/internal/impl/huggingface"
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-//go:embed testdata/expected_token_classification.json
-var tokenClassificationExpectedByte []byte
+func compareResults(t *testing.T, expected, actual any) {
+	t.Helper()
 
-//go:embed testdata/expected_feature_extraction.json
-var featureExtractionExpectedByte []byte
+	// Normalize types by marshaling and unmarshaling...
+	// HACK: This is a SUPER dirty hack but there are issues when converting to-and-from
+	// JSON since all decimals numbers are treated as float64s
+	expectedJSON, _ := json.Marshal(expected)
+	actualJSON, _ := json.Marshal(actual)
 
-//go:embed testdata/expected_text_classification.json
-var textClassificationExpectedBytes []byte
+	var expectedNorm, actualNorm any
+	require.NoError(t, json.Unmarshal(expectedJSON, &expectedNorm))
+	require.NoError(t, json.Unmarshal(actualJSON, &actualNorm))
 
-//go:embed testdata/expected_multi_token_classification.json
-var textClassificationMultiExpectedBytes []byte
+	opts := cmp.Options{
+		cmpopts.EquateApprox(0, 1e-6), // allows for floating point precision to differ between runs
+	}
+
+	if !cmp.Equal(expectedNorm, actualNorm, opts...) {
+		t.Errorf("Results differ:\n%s", cmp.Diff(expectedNorm, actualNorm, opts...))
+	}
+}
 
 func TestIntegration_TextClassifier(t *testing.T) {
-	tmpDir := t.TempDir()
+	tests := []struct {
+		name string
 
-	modelName := "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
-	require.NoError(t, err)
-	t.Logf("downloading to %v", modelPath)
-	defer t.Cleanup(func() {
-		assert.NoError(t, os.RemoveAll(tmpDir))
-	})
+		snapshotId   string
+		snapshotPath string
+		problemType  string
+	}{
+		{
 
-	template := fmt.Sprintf(`
-nlp_classify_text:
-  pipeline_name: classify-incoming-data-1
-  model_path: %s
-`, modelPath)
-
-	b := service.NewStreamBuilder()
-	require.NoError(t, b.SetLoggerYAML("level: INFO"))
-	require.NoError(t, b.AddProcessorYAML(template))
-
-	outBatches := map[string]struct{}{}
-	var outMut sync.Mutex
-	handler := func(_ context.Context, mb service.MessageBatch) error {
-		outMut.Lock()
-		defer outMut.Unlock()
-
-		outMsgs := []string{}
-		for _, m := range mb {
-			b, err := m.AsBytes()
-			assert.NoError(t, err)
-			outMsgs = append(outMsgs, string(b))
-		}
-
-		outBatches[strings.Join(outMsgs, ",")] = struct{}{}
-		return nil
-	}
-	require.NoError(t, b.AddBatchConsumerFunc(handler))
-
-	pushFn, err := b.AddBatchProducerFunc()
-
-	strm, err := b.Build()
-	require.NoError(t, err)
-
-	promptsBatch := [][]string{
-		{"Bento boxes taste amazing!", "Meow meow meow... meow meow."},
-		{"Why does the blobfish look so sad? :(", "Sir, are you aware of the magnificent octopus on your head?"},
-		{"Streaming data is my favourite pastime.", "You are wearing a silly hat."},
+			name:         "single label test",
+			snapshotId:   "test-snapshot-text-classifier",
+			snapshotPath: "expected_text_classification.json",
+			problemType:  "singleLabel",
+		},
+		{
+			name:         "multi label test",
+			snapshotId:   "test-snapshot-text-multi-classifier",
+			snapshotPath: "expected_text_classification.json",
+			problemType:  "multiLabel",
+		},
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-		ctx, done := context.WithTimeout(context.Background(), time.Second*60)
-		defer done()
+			snapshot := loadSnapshot(t, tt.snapshotId, tt.snapshotPath)
 
-		for _, prompts := range promptsBatch {
-			batch := make(service.MessageBatch, len(prompts))
-			for i, prompt := range prompts {
-				batch[i] = service.NewMessage([]byte(prompt))
+			tmpDir := t.TempDir()
+			modelName := snapshot.Metadata.ModelName
+			modelPath, err := hugot.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
+			require.NoError(t, err)
+
+			t.Logf("downloading to %v", modelPath)
+			defer t.Cleanup(func() {
+				assert.NoError(t, os.RemoveAll(tmpDir))
+			})
+
+			template := fmt.Sprintf(`
+pipeline_name: classify-incoming-data
+model_path: %s
+problem_type: %s
+`, modelPath, tt.problemType)
+
+			conf, err := huggingface.HugotTextClassificationConfigSpec().ParseYAML(template, nil)
+			require.NoError(t, err)
+
+			proc, err := huggingface.NewTextClassificationPipeline(conf, service.MockResources())
+			if err != nil {
+				t.Fatal(err)
 			}
-			require.NoError(t, pushFn(ctx, batch))
-		}
 
-		require.NoError(t, strm.StopWithin(time.Second*30))
-	}()
+			ctx, done := context.WithTimeout(context.Background(), time.Second*60)
+			defer done()
 
-	require.NoError(t, strm.Run(context.Background()))
-	wg.Wait()
+			for _, expected := range snapshot.Results {
+				input := service.NewMessage([]byte(expected.Input))
 
-	outMut.Lock()
-	assert.Equal(t, map[string]struct{}{
-		`[{"Label":"POSITIVE","Score":0.999869}],[{"Label":"POSITIVE","Score":0.9992634}]`:   {},
-		`[{"Label":"NEGATIVE","Score":0.9996588}],[{"Label":"POSITIVE","Score":0.9908547}]`:  {},
-		`[{"Label":"POSITIVE","Score":0.9811118}],[{"Label":"NEGATIVE","Score":0.97008467}]`: {},
-	}, outBatches)
-	outMut.Unlock()
+				batches, err := proc.ProcessBatch(ctx, []*service.Message{input})
+				require.NoError(t, err)
+
+				for _, batch := range batches {
+					for _, msg := range batch {
+
+						output, err := msg.AsStructured()
+						require.NoError(t, err)
+
+						compareResults(t, expected.Result, output)
+					}
+				}
+			}
+		})
+	}
 
 }
 
 func TestIntegration_TokenClassifier(t *testing.T) {
+	snapshot := loadSnapshot(t, "test-snapshot-token-classification", "expected_token_classification.json")
+
 	tmpDir := t.TempDir()
-
-	modelName := "KnightsAnalytics/distilbert-NER"
-	opts := hugot.NewDownloadOptions()
-	opts.ConcurrentConnections = 1
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
+	modelPath, err := hugot.DownloadModel(snapshot.Metadata.ModelName, tmpDir, hugot.NewDownloadOptions())
 	require.NoError(t, err)
-
-	defer t.Cleanup(func() {
-		assert.NoError(t, os.RemoveAll(tmpDir))
-	})
 
 	template := fmt.Sprintf(`
-nlp_classify_tokens:
-  pipeline_name: classify-tokens
-  model_path: %s
+pipeline_name: classify-tokens
+model_path: %s
 `, modelPath)
 
-	b := service.NewStreamBuilder()
-	require.NoError(t, b.SetLoggerYAML("level: INFO"))
-	require.NoError(t, b.AddProcessorYAML(template))
-
-	var outBatches [][]string
-	var outMut sync.Mutex
-	handler := func(_ context.Context, mb service.MessageBatch) error {
-		outMut.Lock()
-		defer outMut.Unlock()
-
-		outMsgs := []string{}
-		for _, m := range mb {
-			b, err := m.AsBytes()
-			assert.NoError(t, err)
-			outMsgs = append(outMsgs, string(b))
-		}
-		outBatches = append(outBatches, outMsgs)
-		return nil
-	}
-	require.NoError(t, b.AddBatchConsumerFunc(handler))
-
-	pushFn, err := b.AddBatchProducerFunc()
-
-	strm, err := b.Build()
+	conf, err := huggingface.HugotTokenClassificationConfigSpec().ParseYAML(template, nil)
 	require.NoError(t, err)
 
-	promptsBatch := [][]string{
-		{"Japanese Bento boxes taste amazing!", "My name is Wolfgang and I live in Berlin."},
-		{"WarpStream Labs have a great offering!", "An Italian man went to Malta..."},
-		{"NVIDIA corporation was valued higher than Apple!?", "My silly hat is from Hatfield."},
-	}
+	proc, err := huggingface.NewTokenClassificationPipeline(conf, service.MockResources())
+	require.NoError(t, err)
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	ctx, done := context.WithTimeout(context.Background(), time.Second*60)
+	defer done()
 
-		ctx, done := context.WithTimeout(context.Background(), time.Second*60)
-		defer done()
+	for _, expected := range snapshot.Results {
+		input := service.NewMessage([]byte(expected.Input))
 
-		for _, prompts := range promptsBatch {
-			batch := make(service.MessageBatch, len(prompts))
-			for i, prompt := range prompts {
-				batch[i] = service.NewMessage([]byte(prompt))
+		batches, err := proc.ProcessBatch(ctx, []*service.Message{input})
+		require.NoError(t, err)
+
+		for _, batch := range batches {
+			for _, msg := range batch {
+				output, err := msg.AsStructured()
+				require.NoError(t, err)
+				compareResults(t, expected.Result, output)
 			}
-			require.NoError(t, pushFn(ctx, batch))
 		}
-
-		require.NoError(t, strm.StopWithin(time.Second*30))
-	}()
-
-	require.NoError(t, strm.Run(context.Background()))
-	wg.Wait()
-
-	type Tokens struct {
-		Entities []pipelines.Entity `json:"entities"`
 	}
-
-	var expectedResults map[string]Tokens
-	err = json.Unmarshal(tokenClassificationExpectedByte, &expectedResults)
-	require.NoError(t, err)
-
-	outMut.Lock()
-	for batch, prompts := range promptsBatch {
-		for msg, prompt := range prompts {
-			var actualEntity []pipelines.Entity
-			err = json.Unmarshal([]byte(outBatches[batch][msg]), &actualEntity)
-			require.NoError(t, err)
-			assert.Equal(t, expectedResults[prompt].Entities, actualEntity)
-		}
-
-	}
-	outMut.Unlock()
 }
 
 func TestIntegration_FeatureExtractor(t *testing.T) {
+	snapshot := loadSnapshot(t, "test-snapshot-feature-extraction", "expected_feature_extraction.json")
+
 	tmpDir := t.TempDir()
-
-	modelName := "sentence-transformers/all-MiniLM-L6-v2"
-
 	opts := hugot.NewDownloadOptions()
 	opts.OnnxFilePath = "onnx/model.onnx"
-	opts.ConcurrentConnections = 1
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
+	modelPath, err := hugot.DownloadModel(snapshot.Metadata.ModelName, tmpDir, opts)
 	require.NoError(t, err)
 
-	defer t.Cleanup(func() {
-		assert.NoError(t, os.RemoveAll(tmpDir))
-	})
-
 	template := fmt.Sprintf(`
-nlp_extract_features:
-  pipeline_name: classify-incoming-data-1
-  model_path: %s
+pipeline_name: extract-features
+model_path: %s
 `, modelPath)
 
-	b := service.NewStreamBuilder()
-	require.NoError(t, b.SetLoggerYAML("level: INFO"))
-	require.NoError(t, b.AddProcessorYAML(template))
-
-	var outBatches [][]string
-	var outMut sync.Mutex
-	handler := func(_ context.Context, mb service.MessageBatch) error {
-		outMut.Lock()
-		defer outMut.Unlock()
-
-		outMsgs := []string{}
-		for _, m := range mb {
-			b, err := m.AsBytes()
-			assert.NoError(t, err)
-			outMsgs = append(outMsgs, string(b))
-		}
-		outBatches = append(outBatches, outMsgs)
-		return nil
-	}
-	require.NoError(t, b.AddBatchConsumerFunc(handler))
-
-	pushFn, err := b.AddBatchProducerFunc()
-
-	strm, err := b.Build()
+	conf, err := huggingface.HugotFeatureExtractionConfigSpec().ParseYAML(template, nil)
 	require.NoError(t, err)
 
-	promptsBatch := [][]string{
-		{"Bento boxes taste amazing!", "Meow meow meow... meow meow."},
-		{"Streaming data is my favourite pastime.", "You are wearing a silly hat."},
-	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		ctx, done := context.WithTimeout(context.Background(), time.Second*60)
-		defer done()
-
-		for _, prompts := range promptsBatch {
-			batch := make(service.MessageBatch, len(prompts))
-			for i, prompt := range prompts {
-				batch[i] = service.NewMessage([]byte(prompt))
-			}
-			require.NoError(t, pushFn(ctx, batch))
-		}
-
-		require.NoError(t, strm.StopWithin(time.Second*30))
-	}()
-
-	require.NoError(t, strm.Run(context.Background()))
-	wg.Wait()
-
-	var expectedResults map[string][]float64
-	err = json.Unmarshal(featureExtractionExpectedByte, &expectedResults)
+	proc, err := huggingface.NewFeatureExtractionPipeline(conf, service.MockResources())
 	require.NoError(t, err)
 
-	outMut.Lock()
-	for batch, prompts := range promptsBatch {
-		for msg, prompt := range prompts {
-			var actualEntity []float64
-			err = json.Unmarshal([]byte(outBatches[batch][msg]), &actualEntity)
-			require.NoError(t, err)
+	ctx, done := context.WithTimeout(context.Background(), time.Second*60)
+	defer done()
 
-			require.Equal(t, len(expectedResults[prompt]), len(actualEntity), "Vector dimensions should match")
-			for i, expected := range expectedResults[prompt] {
-				assert.InDelta(t, expected, actualEntity[i], 1e-5, // Ensure accuracy to the 1e-5 decimal place
-					"Mismatch at index %d: expected %f, got %f", i, expected, actualEntity[i])
+	for _, expected := range snapshot.Results {
+		input := service.NewMessage([]byte(expected.Input))
+
+		batches, err := proc.ProcessBatch(ctx, []*service.Message{input})
+		require.NoError(t, err)
+
+		for _, batch := range batches {
+			for _, msg := range batch {
+				output, err := msg.AsStructured()
+				require.NoError(t, err)
+				compareResults(t, expected.Result, output)
 			}
 		}
-
 	}
-	outMut.Unlock()
-}
-
-func TestIntegration_TextClassifier_Download(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	modelName := "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
-
-	defer t.Cleanup(func() {
-		assert.NoError(t, os.RemoveAll(tmpDir))
-	})
-
-	template := fmt.Sprintf(`
-nlp_classify_text:
-  pipeline_name: classify-incoming-data-1
-  model_path: %s
-  enable_model_download: true
-  model_download_options:
-    model_repository: %s
-`, tmpDir, modelName)
-
-	b := service.NewStreamBuilder()
-	require.NoError(t, b.SetLoggerYAML("level: DEBUG"))
-	require.NoError(t, b.AddProcessorYAML(template))
-
-	outBatches := map[string]struct{}{}
-	var outMut sync.Mutex
-	handler := func(_ context.Context, mb service.MessageBatch) error {
-		outMut.Lock()
-		defer outMut.Unlock()
-
-		outMsgs := []string{}
-		for _, m := range mb {
-			b, err := m.AsBytes()
-			assert.NoError(t, err)
-			outMsgs = append(outMsgs, string(b))
-		}
-
-		outBatches[strings.Join(outMsgs, ",")] = struct{}{}
-		return nil
-	}
-	require.NoError(t, b.AddBatchConsumerFunc(handler))
-
-	pushFn, err := b.AddBatchProducerFunc()
-
-	strm, err := b.Build()
-	require.NoError(t, err)
-
-	promptsBatch := [][]string{
-		{"Bento boxes taste amazing!", "Meow meow meow... meow meow."},
-		{"Why does the blobfish look so sad? :(", "Sir, are you aware of the magnificent octopus on your head?"},
-		{"Streaming data is my favourite pastime.", "You are wearing a silly hat."},
-	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		ctx, done := context.WithTimeout(context.Background(), time.Second*60)
-		defer done()
-
-		for _, prompts := range promptsBatch {
-			batch := make(service.MessageBatch, len(prompts))
-			for i, prompt := range prompts {
-				batch[i] = service.NewMessage([]byte(prompt))
-			}
-			require.NoError(t, pushFn(ctx, batch))
-		}
-
-		require.NoError(t, strm.StopWithin(time.Second*30))
-	}()
-
-	require.NoError(t, strm.Run(context.Background()))
-
-	wg.Wait()
-
-	outMut.Lock()
-	assert.Equal(t, map[string]struct{}{
-		`[{"Label":"POSITIVE","Score":0.999869}],[{"Label":"POSITIVE","Score":0.9992634}]`:   {},
-		`[{"Label":"NEGATIVE","Score":0.9996588}],[{"Label":"POSITIVE","Score":0.9908547}]`:  {},
-		`[{"Label":"POSITIVE","Score":0.9811117}],[{"Label":"NEGATIVE","Score":0.97008467}]`: {},
-	}, outBatches)
-	outMut.Unlock()
-
 }

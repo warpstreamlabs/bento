@@ -8,7 +8,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func hugotFeatureExtractionConfigSpec() *service.ConfigSpec {
+func HugotFeatureExtractionConfigSpec() *service.ConfigSpec {
 	featureExtractionDescription := "### Feature Extraction" + "\n" +
 		"Feature extraction is the task of extracting features learnt in a model." +
 		"This processor runs a feature extraction model against batches of text data, returning a model's multidimensional representation of said features" +
@@ -25,7 +25,7 @@ func hugotFeatureExtractionConfigSpec() *service.ConfigSpec {
 }
 
 func init() {
-	err := service.RegisterBatchProcessor("nlp_extract_features", hugotFeatureExtractionConfigSpec(), newFeatureExtractionipeline)
+	err := service.RegisterBatchProcessor("nlp_extract_features", HugotFeatureExtractionConfigSpec(), NewFeatureExtractionPipeline)
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +49,7 @@ func getFeatureExtractionOptions(conf *service.ParsedConfig) ([]pipelineBackends
 
 //------------------------------------------------------------------------------
 
-func newFeatureExtractionipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
+func NewFeatureExtractionPipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
 	p, err := newPipelineProcessor(conf, mgr)
 	if err != nil {
 		return nil, err
@@ -81,4 +81,8 @@ func newFeatureExtractionipeline(conf *service.ParsedConfig, mgr *service.Resour
 	}
 
 	return p, nil
+}
+
+func convertFeatureExtractionOutput(result pipelines.FeatureExtractionOutput) []any {
+	return result.GetOutput()
 }

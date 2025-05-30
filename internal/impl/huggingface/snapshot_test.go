@@ -15,36 +15,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type SnapshotResult struct {
-	Entities  []pipelines.Entity `json:"entities"`
-	Timestamp time.Time          `json:"timestamp"`
-	Version   string             `json:"version"`
+type Result struct {
+	Input  string `json:"input"`
+	Result any    `json:"result"`
 }
 
-type FeatureSnapshotResult struct {
-	Embeddings []float64 `json:"embeddings"`
-	Dimensions int       `json:"dimensions"`
-	Timestamp  time.Time `json:"timestamp"`
+type Stats struct {
+	Duration time.Duration `json:"total_duration"`
+	Calls    uint64        `json:"total_calls"`
 }
 
-type ClassificationSnapshotResult struct {
-	Label     string    `json:"label"`
-	Score     float64   `json:"score"`
-	Timestamp time.Time `json:"timestamp"`
+type Metadata struct {
+	CreatedAt    time.Time `json:"created_at"`
+	ModelName    string    `json:"model_name"`
+	GoVersion    string    `json:"go_version"`
+	HugotVersion string    `json:"hugot_version"`
+	Platform     string    `json:"platform"`
+	TestName     string    `json:"test_name"`
 }
 
-type SnapshotMetadata struct {
-	CreatedAt time.Time `json:"created_at"`
-	ModelName string    `json:"model_name"`
-	GoVersion string    `json:"go_version"`
-	Platform  string    `json:"platform"`
-	TestName  string    `json:"test_name"`
+type Snapshot struct {
+	Results        []Result `json:"results"`
+	TokenizerStats Stats    `json:"tokenizer_stats"`
+	PipelineStats  Stats    `json:"pipeline_stats"`
+	Metadata       Metadata `json:"metadata"`
 }
 
 //------------------------------------------------------------------------------
 
 func isSnapshotMode() bool {
-	return true
 	val := os.Getenv("SNAPSHOT_UPDATE")
 	switch strings.ToLower(val) {
 	case "1", "true", "yes":
@@ -55,123 +54,192 @@ func isSnapshotMode() bool {
 
 //------------------------------------------------------------------------------
 
-func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
-	if !isSnapshotMode() {
-		t.Skip("Skipping snapshot creation (set SNAPSHOT_UPDATE=1)")
-	}
-
-	tmpDir := t.TempDir()
-	modelName := "KnightsAnalytics/distilbert-NER"
-
-	opts := hugot.NewDownloadOptions()
-	opts.OnnxFilePath = "model.onnx"
-
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
-	require.NoError(t, err, "Failed to download model")
-	t.Logf("Model downloaded to: %s", modelPath)
-
-	session, err := hugot.NewGoSession()
-	require.NoError(t, err, "Failed to create session")
-	defer session.Destroy()
-
-	config := hugot.TokenClassificationConfig{
-		ModelPath: modelPath,
-		Name:      "snapshot-token-classifier",
-		Options: []hugot.TokenClassificationOption{
-			pipelines.WithSimpleAggregation(),
-			pipelines.WithIgnoreLabels([]string{"O"}),
-		},
-	}
-
-	pipeline, err := hugot.NewPipeline(session, config)
-	require.NoError(t, err, "Failed to create pipeline")
-
-	testPrompts := []string{
-		"Barack Obama visited New York City last week.",
-		"Apple Inc. and Microsoft Corporation are competing.",
-		"Dr. Martin Luther King Jr. spoke in Washington, D.C.",
-		"The University of California is in Los Angeles.",
-		"John works at Google with Mary Smith.",
-	}
-
-	snapshotData := make(map[string]SnapshotResult)
-
-	for _, prompt := range testPrompts {
-		result, err := pipeline.RunPipeline([]string{prompt})
-		require.NoError(t, err, "Failed to run pipeline for prompt: %s", prompt)
-
-		var allEntities []pipelines.Entity
-		for _, entities := range result.Entities {
-			allEntities = append(allEntities, entities...)
-		}
-
-		snapshotData[prompt] = SnapshotResult{
-			Entities:  allEntities,
-			Timestamp: time.Now(),
-			Version:   "hugot-direct",
-		}
-	}
-
-	saveSnapshot(t, "expected_token_classification.json", modelName, snapshotData)
-}
+// Generate the snapshots
 
 func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 	if !isSnapshotMode() {
 		t.Skip("Skipping snapshot creation (set SNAPSHOT_UPDATE=1)")
 	}
 
-	tmpDir := t.TempDir()
-	modelName := "sentence-transformers/all-MiniLM-L6-v2"
-
-	opts := hugot.NewDownloadOptions()
-	opts.OnnxFilePath = "onnx/model.onnx"
-	opts.ConcurrentConnections = 1
-
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
-	require.NoError(t, err, "Failed to download model")
-
+	// Create a new Hugot Go session
 	session, err := hugot.NewGoSession()
 	require.NoError(t, err, "Failed to create session")
 	defer session.Destroy()
 
-	config := hugot.FeatureExtractionConfig{
-		ModelPath:    modelPath,
-		Name:         "snapshot-feature-extractor",
-		OnnxFilename: "model.onnx",
+	tests := []struct {
+		name  string
+		model string
+
+		opts              []hugot.FeatureExtractionOption
+		modelDownloadPath string
+
+		prompts [][]string
+	}{
+		{
+			name:              "test-snapshot-feature-extraction",
+			model:             "sentence-transformers/all-MiniLM-L6-v2",
+			modelDownloadPath: "onnx/model.onnx",
+			opts:              []hugot.FeatureExtractionOption{},
+			prompts: [][]string{
+				{"Barack Obama visited New York City last week."},
+				{"Apple Inc. and Microsoft Corporation are competing."},
+				{"Dr. Martin Luther King Jr. spoke in Washington, D.C."},
+				{"The University of California is in Los Angeles."},
+				{"John works at Google with Mary Smith."},
+			},
+		},
 	}
 
-	pipeline, err := hugot.NewPipeline(session, config)
-	require.NoError(t, err, "Failed to create pipeline")
+	for _, tt := range tests {
+		tmpDir := t.TempDir()
 
-	testPrompts := []string{
-		"Bento boxes taste amazing!",
-		"Streaming data is my favourite pastime.",
-		"The weather is nice today.",
-		"Machine learning models are powerful tools.",
-	}
-
-	snapshotData := make(map[string]FeatureSnapshotResult)
-
-	for _, prompt := range testPrompts {
-		result, err := pipeline.RunPipeline([]string{prompt})
-		require.NoError(t, err, "Failed to run pipeline for prompt: %s", prompt)
-
-		require.Greater(t, len(result.Embeddings), 0, "No embeddings returned")
-
-		// Convert float32 to float64 for JSON compatibility
-		embeddings := make([]float64, len(result.Embeddings[0]))
-		for i, v := range result.Embeddings[0] {
-			embeddings[i] = float64(v)
+		// Download the model from huggingface
+		opts := hugot.NewDownloadOptions()
+		if tt.modelDownloadPath != "" {
+			opts.OnnxFilePath = tt.modelDownloadPath
 		}
 
-		snapshotData[prompt] = FeatureSnapshotResult{
-			Embeddings: embeddings,
-			Dimensions: len(embeddings),
-			Timestamp:  time.Now(),
+		path, err := hugot.DownloadModel(tt.model, tmpDir, opts)
+		require.NoError(t, err, "Failed to download model")
+
+		// Setup
+		config := hugot.FeatureExtractionConfig{
+			Name:      tt.name,
+			ModelPath: path,
+			Options:   tt.opts,
 		}
+
+		pipeline, err := hugot.NewPipeline(session, config)
+		require.NoError(t, err, "Failed to create pipeline")
+
+		defer pipeline.GetModel().Destroy()
+
+		// Run the pipeline and save the results
+		var results []Result
+		for _, batch := range tt.prompts {
+
+			res, err := pipeline.RunPipeline(batch)
+			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
+
+			for i, outRes := range res.GetOutput() {
+				results = append(results, Result{
+					Input:  batch[i],
+					Result: outRes,
+				})
+			}
+		}
+
+		snapshot := Snapshot{
+			Results: results,
+			TokenizerStats: Stats{
+				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
+				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+			},
+			PipelineStats: Stats{
+				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
+				Calls:    pipeline.PipelineTimings.NumCalls,
+			},
+			Metadata: Metadata{
+				TestName:  tt.name,
+				ModelName: tt.model,
+				CreatedAt: time.Now(),
+				GoVersion: runtime.Version(),
+				Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+			},
+		}
+		updateSnapshot(t, "expected_feature_extraction.json", tt.name, snapshot)
+	}
+}
+
+func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
+	if !isSnapshotMode() {
+		t.Skip("Skipping snapshot creation (set SNAPSHOT_UPDATE=1)")
 	}
 
-	saveSnapshot(t, "expected_feature_extraction.json", modelName, snapshotData)
+	// Create a new Hugot Go session
+	session, err := hugot.NewGoSession()
+	require.NoError(t, err, "Failed to create session")
+	defer session.Destroy()
+
+	tests := []struct {
+		name  string
+		model string
+
+		opts []hugot.TokenClassificationOption
+
+		prompts [][]string
+	}{
+		{
+			name:  "test-snapshot-token-classification",
+			model: "KnightsAnalytics/distilbert-NER",
+			opts: []hugot.TokenClassificationOption{
+				pipelines.WithSimpleAggregation(),
+				pipelines.WithIgnoreLabels([]string{"O"}),
+			},
+			prompts: [][]string{
+				{"Barack Obama visited New York City last week."},
+				{"Apple Inc. and Microsoft Corporation are competing."},
+				{"Dr. Martin Luther King Jr. spoke in Washington, D.C."},
+				{"The University of California is in Los Angeles."},
+				{"John works at Google with Mary Smith."},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tmpDir := t.TempDir()
+
+		// Download the model from huggingface
+		path, err := hugot.DownloadModel(tt.model, tmpDir, hugot.NewDownloadOptions())
+		require.NoError(t, err, "Failed to download model")
+
+		// Setup
+		config := hugot.TokenClassificationConfig{
+			Name:      tt.name,
+			ModelPath: path,
+			Options:   tt.opts,
+		}
+
+		pipeline, err := hugot.NewPipeline(session, config)
+		require.NoError(t, err, "Failed to create pipeline")
+
+		defer pipeline.GetModel().Destroy()
+
+		// Run the pipeline and save the results
+		var results []Result
+		for _, batch := range tt.prompts {
+
+			res, err := pipeline.RunPipeline(batch)
+			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
+
+			for i, outRes := range res.GetOutput() {
+				results = append(results, Result{
+					Input:  batch[i],
+					Result: outRes,
+				})
+			}
+		}
+
+		snapshot := Snapshot{
+			Results: results,
+			TokenizerStats: Stats{
+				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
+				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+			},
+			PipelineStats: Stats{
+				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
+				Calls:    pipeline.PipelineTimings.NumCalls,
+			},
+			Metadata: Metadata{
+				TestName:  tt.name,
+				ModelName: tt.model,
+				CreatedAt: time.Now(),
+				GoVersion: runtime.Version(),
+				Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+			},
+		}
+		updateSnapshot(t, "expected_token_classification.json", tt.name, snapshot)
+	}
 }
 
 func TestSnapshot_CreateClassificationData(t *testing.T) {
@@ -179,126 +247,107 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 		t.Skip("Skipping snapshot creation (set SNAPSHOT_UPDATE=1)")
 	}
 
-	tmpDir := t.TempDir()
-	modelName := "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
-
-	opts := hugot.NewDownloadOptions()
-	opts.ConcurrentConnections = 1
-
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
-	require.NoError(t, err, "Failed to download model")
-
+	// Create a new Hugot Go session
 	session, err := hugot.NewGoSession()
 	require.NoError(t, err, "Failed to create session")
 	defer session.Destroy()
 
-	config := hugot.TextClassificationConfig{
-		ModelPath: modelPath,
-		Name:      "snapshot-text-classifier",
-		Options: []hugot.TextClassificationOption{
-			pipelines.WithSoftmax(),
+	tests := []struct {
+		name  string
+		model string
+
+		opts []hugot.TextClassificationOption
+
+		prompts [][]string
+	}{
+		{
+			name:  "test-snapshot-text-classifier",
+			model: "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english",
+			opts: []hugot.TextClassificationOption{
+				pipelines.WithSoftmax(),
+				pipelines.WithSingleLabel(),
+			},
+			prompts: [][]string{
+				{"I love this amazing product!"},
+				{"This is absolutely terrible."},
+				{"The service was okay, nothing special."},
+				{"Best experience ever, highly recommend!"},
+			},
+		},
+		{
+			name:  "test-snapshot-text-multi-classifier",
+			model: "KnightsAnalytics/roberta-base-go_emotions",
+			opts: []hugot.TextClassificationOption{
+				pipelines.WithSoftmax(),
+				pipelines.WithMultiLabel(),
+			},
+			prompts: [][]string{
+				{"Bento boxes taste amazing!", "Meow meow meow... meow meow."},
+				{"Why does the blobfish look so sad? :(", "Sir, are you aware of the magnificent octopus on your head?"},
+				{"Streaming data is my favourite pastime.", "You are wearing a silly hat."},
+			},
 		},
 	}
 
-	pipeline, err := hugot.NewPipeline(session, config)
-	require.NoError(t, err, "Failed to create pipeline")
+	for _, tt := range tests {
+		tmpDir := t.TempDir()
 
-	testPrompts := []string{
-		"I love this amazing product!",
-		"This is absolutely terrible.",
-		"The service was okay, nothing special.",
-		"Best experience ever, highly recommend!",
-	}
+		// Download the model from huggingface
+		path, err := hugot.DownloadModel(tt.model, tmpDir, hugot.NewDownloadOptions())
+		require.NoError(t, err, "Failed to download model")
 
-	snapshotData := make(map[string]ClassificationSnapshotResult)
-
-	for _, prompt := range testPrompts {
-
-		result, err := pipeline.RunPipeline([]string{prompt})
-		require.NoError(t, err, "Failed to run pipeline for prompt: %s", prompt)
-
-		require.Greater(t, len(result.ClassificationOutputs), 0, "No classification outputs returned")
-		require.Greater(t, len(result.ClassificationOutputs[0]), 0, "No classification results returned")
-
-		// Take the first (highest confidence) result
-		classification := result.ClassificationOutputs[0][0]
-
-		snapshotData[prompt] = ClassificationSnapshotResult{
-			Label:     classification.Label,
-			Score:     float64(classification.Score),
-			Timestamp: time.Now(),
+		// Setup
+		config := hugot.TextClassificationConfig{
+			Name:      tt.name,
+			ModelPath: path,
+			Options:   tt.opts,
 		}
-	}
 
-	saveSnapshot(t, "expected_text_classification.json", modelName, snapshotData)
-}
+		pipeline, err := hugot.NewPipeline(session, config)
+		require.NoError(t, err, "Failed to create pipeline")
 
-func TestSnapshot_CreateMultiClassificationData(t *testing.T) {
-	if !isSnapshotMode() {
-		t.Skip("Skipping snapshot creation (set SNAPSHOT_UPDATE=1)")
-	}
+		defer pipeline.GetModel().Destroy()
 
-	tmpDir := t.TempDir()
-	modelName := "KnightsAnalytics/roberta-base-go_emotions"
+		// Run the pipeline and save the results
+		var results []Result
+		for _, batch := range tt.prompts {
 
-	opts := hugot.NewDownloadOptions()
-	opts.ConcurrentConnections = 1
+			res, err := pipeline.RunPipeline(batch)
+			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
 
-	modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
-	require.NoError(t, err, "Failed to download model")
-
-	session, err := hugot.NewGoSession()
-	require.NoError(t, err, "Failed to create session")
-	defer session.Destroy()
-
-	config := hugot.TextClassificationConfig{
-		ModelPath: modelPath,
-		Name:      "snapshot-multi-token-classifier",
-		Options: []hugot.TextClassificationOption{
-			pipelines.WithSigmoid(),
-			pipelines.WithMultiLabel(),
-		},
-	}
-
-	pipeline, err := hugot.NewPipeline(session, config)
-	require.NoError(t, err, "Failed to create pipeline")
-
-	testPrompts := []string{
-		"Barack Obama visited New York City last week.",
-		"Apple Inc. and Microsoft Corporation are competing in Seattle, Washington.",
-		"The University of California, Los Angeles (UCLA) is in Los Angeles, California.",
-		"Dr. Martin Luther King Jr. spoke at Washington, D.C. in 1963.",
-		"Goldman Sachs Group Inc. is headquartered in New York.",
-	}
-
-	snapshotData := make(map[string][]ClassificationSnapshotResult)
-
-	for _, prompt := range testPrompts {
-		t.Logf("Processing: %s", prompt)
-
-		result, err := pipeline.RunPipeline([]string{prompt})
-		require.NoError(t, err, "Failed to run pipeline for prompt: %s", prompt)
-		require.Greater(t, len(result.ClassificationOutputs), 0, "No classification outputs returned")
-		require.Greater(t, len(result.ClassificationOutputs[0]), 0, "No classification results returned")
-
-		// Let's store _all_ classification results since this is a multi-token snapshot
-		var promptResults []ClassificationSnapshotResult
-		for _, classification := range result.ClassificationOutputs[0] {
-			promptResults = append(promptResults, ClassificationSnapshotResult{
-				Label:     classification.Label,
-				Score:     float64(classification.Score),
-				Timestamp: time.Now(),
-			})
+			for i, outRes := range res.ClassificationOutputs {
+				results = append(results, Result{
+					Input:  batch[i],
+					Result: outRes,
+				})
+			}
 		}
-		snapshotData[prompt] = promptResults
-	}
 
-	saveSnapshot(t, "expected_multi_token_classification.json", modelName, snapshotData)
+		snapshot := Snapshot{
+			Results: results,
+			TokenizerStats: Stats{
+				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
+				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+			},
+			PipelineStats: Stats{
+				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
+				Calls:    pipeline.PipelineTimings.NumCalls,
+			},
+			Metadata: Metadata{
+				TestName:  tt.name,
+				ModelName: tt.model,
+				CreatedAt: time.Now(),
+				GoVersion: runtime.Version(),
+				Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+			},
+		}
+		updateSnapshot(t, "expected_text_classification.json", tt.name, snapshot)
+	}
 }
 
 //------------------------------------------------------------------------------
 
-func saveSnapshot(t *testing.T, filename, modelName string, data interface{}) {
+func saveSnapshot(t *testing.T, filename string, updates map[string]Snapshot) {
 	t.Helper()
 
 	testDataDir := "testdata"
@@ -306,49 +355,58 @@ func saveSnapshot(t *testing.T, filename, modelName string, data interface{}) {
 		t.Fatalf("Failed to create testdata directory: %v", err)
 	}
 
-	snapshotWithMeta := struct {
-		Metadata SnapshotMetadata `json:"metadata"`
-		Data     interface{}      `json:"data"`
-	}{
-		Metadata: SnapshotMetadata{
-			TestName:  t.Name(),
-			ModelName: modelName,
-			CreatedAt: time.Now(),
-			GoVersion: runtime.Version(),
-			Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
-		},
-		Data: data,
+	filePath := filepath.Join(testDataDir, filename)
+	existing := make(map[string]Snapshot)
+
+	data, err := os.ReadFile(filePath)
+	if !os.IsNotExist(err) {
+		require.NoError(t, err)
 	}
 
-	jsonData, err := json.MarshalIndent(snapshotWithMeta, "", "  ")
+	if len(data) > 0 {
+		err = json.Unmarshal(data, &existing)
+		require.NoError(t, err, "Failed to unmarshal existing snapshot data")
+	}
+
+	// Merge the new snapshot objects with what we retrieved from our saved file
+	for key, value := range updates {
+		existing[key] = value
+	}
+
+	jsonData, err := json.MarshalIndent(existing, "", "  ")
 	require.NoError(t, err, "Failed to marshal snapshot data")
 
-	filePath := filepath.Join(testDataDir, filename)
 	err = os.WriteFile(filePath, jsonData, 0644)
 	require.NoError(t, err, "Failed to write snapshot file")
 }
 
-func loadSnapshot(t *testing.T, filename string, target interface{}) {
+func loadSnapshots(t *testing.T, filename string) map[string]Snapshot {
 	t.Helper()
 
 	filePath := filepath.Join("testdata", filename)
 	data, err := os.ReadFile(filePath)
 	require.NoError(t, err, "Failed to read snapshot file: %s", filename)
 
-	var snapshotWithMeta struct {
-		Metadata SnapshotMetadata `json:"metadata"`
-		Data     json.RawMessage  `json:"data"`
+	snapshots := make(map[string]Snapshot)
+	err = json.Unmarshal(data, &snapshots)
+	require.NoError(t, err, "Failed to unmarshal snapshot data")
+
+	return snapshots
+}
+
+func loadSnapshot(t *testing.T, name, filename string) Snapshot {
+	t.Helper()
+
+	snapshots := loadSnapshots(t, filename)
+	snapshot, ok := snapshots[name]
+	if !ok {
+		t.Fatalf("Could not load in snapshot '%s' from '%s'", name, filename)
 	}
+	return snapshot
+}
 
-	require.NoError(t, json.Unmarshal(data, &snapshotWithMeta),
-		"Failed to unmarshal snapshot metadata")
-
-	t.Logf("Loading snapshot %s created at %s (Go %s, %s)",
-		filename,
-		snapshotWithMeta.Metadata.CreatedAt.Format(time.RFC3339),
-		snapshotWithMeta.Metadata.GoVersion,
-		snapshotWithMeta.Metadata.Platform)
-
-	require.NoError(t, json.Unmarshal(snapshotWithMeta.Data, target),
-		"Failed to unmarshal snapshot data")
+func updateSnapshot(t *testing.T, filename string, key string, snapshot Snapshot) {
+	t.Helper()
+	updates := map[string]Snapshot{key: snapshot}
+	saveSnapshot(t, filename, updates)
 }

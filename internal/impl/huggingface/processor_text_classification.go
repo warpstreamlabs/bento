@@ -8,7 +8,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func hugotTextClassificationConfigSpec() *service.ConfigSpec {
+func HugotTextClassificationConfigSpec() *service.ConfigSpec {
 	textClassificationDescription := "### Text Classification" + "\n" +
 		"Text Classification is the task of assigning a label or class to a given text." +
 		"Some use cases are sentiment analysis, natural language inference, and assessing grammatical correctness." + "\n" +
@@ -58,7 +58,7 @@ pipeline:
 }
 
 func init() {
-	err := service.RegisterBatchProcessor("nlp_classify_text", hugotTextClassificationConfigSpec(), newTextClassificationPipeline)
+	err := service.RegisterBatchProcessor("nlp_classify_text", HugotTextClassificationConfigSpec(), NewTextClassificationPipeline)
 	if err != nil {
 		panic(err)
 	}
@@ -96,7 +96,7 @@ func getTextClassificationOptions(conf *service.ParsedConfig) ([]pipelineBackend
 
 //------------------------------------------------------------------------------
 
-func newTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
+func NewTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
 	p, err := newPipelineProcessor(conf, mgr)
 	if err != nil {
 		return nil, err
@@ -119,11 +119,6 @@ func newTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Reso
 		return nil, err
 	}
 
-	// pipeline.Tokenizer.GoTokenizer = []tokenizer.EncodeOption{
-	// 	tokenizers.WithReturnAttentionMask(),
-	// 	tokenizers.WithReturnTypeIDs(),
-	// }
-
 	p.pipeline = pipeline
 
 	if err := p.pipeline.Validate(); err != nil {
@@ -136,4 +131,19 @@ func newTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Reso
 	}
 
 	return p, nil
+}
+
+func convertTextClassificationOutput(result *pipelines.TextClassificationOutput) []any {
+	out := make([]any, len(result.ClassificationOutputs))
+	for i, classificationBatch := range result.ClassificationOutputs {
+		batchMaps := make([]any, len(classificationBatch))
+		for j, classification := range classificationBatch {
+			batchMaps[j] = map[string]any{
+				"Label": classification.Label,
+				"Score": classification.Score,
+			}
+		}
+		out[i] = batchMaps
+	}
+	return out
 }

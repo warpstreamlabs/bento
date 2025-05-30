@@ -9,6 +9,7 @@ import (
 	"github.com/knights-analytics/hugot"
 	"github.com/knights-analytics/hugot/options"
 	"github.com/knights-analytics/hugot/pipelineBackends"
+	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -35,7 +36,7 @@ func hugotConfigSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Beta().
 		Categories("Machine Learning", "NLP").
-		Version("v1.3.0 (huggingbento)").
+		Version("v1.9.0").
 		Fields(hugotConfigFields()...)
 
 	return spec
@@ -163,40 +164,81 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 
 //------------------------------------------------------------------------------
 
-func (p *pipelineProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
-	messages := make([]string, len(batch))
+func (p *pipelineProcessor) ProcessBatch(ctx context.Context, b service.MessageBatch) ([]service.MessageBatch, error) {
+	messages := make([]string, 0, len(b))
+	validIndices := make([]int, 0, len(b))
 
-	batch = batch.Copy()
-	for i, msg := range batch {
+	batchCopy := b.Copy()
+
+	for i, msg := range batchCopy {
 		msgBytes, err := msg.AsBytes()
 		if err != nil {
 			msg.SetError(err)
 			continue
 		}
-		messages[i] = string(msgBytes)
-		p.log.Debug(string(msgBytes))
+		messages = append(messages, string(msgBytes))
+		validIndices = append(validIndices, i)
+	}
+
+	if len(messages) == 0 {
+		return []service.MessageBatch{batchCopy}, nil
 	}
 
 	results, err := p.pipeline.Run(messages)
 	if err != nil {
-		return nil, err
+		p.log.Errorf("Failed to process input against model: %v", err)
+		for _, idx := range validIndices {
+			if batchCopy[idx].GetError() == nil {
+				batchCopy[idx].SetError(err)
+			}
+		}
+		return []service.MessageBatch{batchCopy}, nil
 	}
 
-	resultsOut := results.GetOutput()
-	for i, msg := range batch {
+	resultsOut := convertPipelineOutput(results)
+	if err != nil {
+		p.log.Errorf("Failed to convert pipeline output: %v", err)
+		for _, idx := range validIndices {
+			if batchCopy[idx].GetError() == nil {
+				batchCopy[idx].SetError(err)
+			}
+		}
+		return []service.MessageBatch{batchCopy}, nil
+	}
+
+	for resultIdx, msgIdx := range validIndices {
+		msg := batchCopy[msgIdx]
 		if msg.GetError() != nil {
 			continue
 		}
 
-		msg.SetStructuredMut(resultsOut[i])
+		if resultIdx >= len(resultsOut) {
+			msg.SetError(fmt.Errorf("result index %d out of range", resultIdx))
+			continue
+		}
+
+		msg.SetStructuredMut(resultsOut[resultIdx])
 		msg.MetaSetMut("pipeline_name", p.pipelineName)
 		msg.MetaSetMut("output_type", p.metaOutputType)
 		msg.MetaSetMut("output_shape", p.metaOutputLayerDim)
 	}
 
-	return []service.MessageBatch{batch}, nil
+	return []service.MessageBatch{batchCopy}, nil
 }
 
 func (p *pipelineProcessor) Close(context.Context) error {
 	return p.pipeline.GetModel().Destroy()
+}
+
+func convertPipelineOutput(output pipelineBackends.PipelineBatchOutput) []any {
+	switch result := output.(type) {
+	case *pipelines.FeatureExtractionOutput:
+		return result.GetOutput()
+	case *pipelines.TextClassificationOutput:
+		return convertTextClassificationOutput(result)
+	case *pipelines.TokenClassificationOutput:
+		return convertTokenClassificationOutput(result)
+	default:
+		return output.GetOutput()
+	}
 }

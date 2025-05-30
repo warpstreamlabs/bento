@@ -72,6 +72,7 @@ require (
 	github.com/gocql/gocql v1.6.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/google/go-cmp v0.6.0
 	github.com/googleapis/go-sql-spanner v1.7.4
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
@@ -139,7 +140,6 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
-	github.com/yalue/onnxruntime_go v1.19.1-0.20250521134902-f70a71e4f522
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78
 	go.etcd.io/etcd/api/v3 v3.5.16
 	go.etcd.io/etcd/client/v3 v3.5.16
@@ -169,11 +169,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.48.3 // indirect
-	github.com/advancedclimatesystems/gonnx v1.1.0 // indirect
 	github.com/apache/arrow-go/v18 v18.0.0 // indirect
-	github.com/bodaay/HuggingFaceModelDownloader v0.0.0-20241026025743-cbf2f5e84f54 // indirect
-	github.com/chewxy/hm v1.0.0 // indirect
-	github.com/chewxy/math32 v1.11.1 // indirect
 	github.com/daulet/tokenizers v1.20.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
@@ -191,13 +187,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
-	github.com/xtgo/set v1.0.0 // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
+	github.com/yalue/onnxruntime_go v1.19.1-0.20250521134902-f70a71e4f522 // indirect
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
-	gonum.org/v1/gonum v0.16.0 // indirect
-	gorgonia.org/tensor v0.9.25-0.20240409020000-068d850921c0 // indirect
-	gorgonia.org/vecf32 v0.9.1-0.20200604202942-a54163b7bf07 // indirect
-	gorgonia.org/vecf64 v0.9.1-0.20200604203017-530efa246ea5 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 )
@@ -379,14 +370,12 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/schollz/progressbar/v2 v2.15.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
-	github.com/segmentio/encoding v0.4.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/sugarme/regexpset v0.0.0-20200920021344-4d4ec8eaf93c // indirect
 	github.com/sugarme/tokenizer v0.2.3-0.20250520132433-91c3b3a35d4f // indirect
 	github.com/viant/afs v1.26.2 // indirect
-	github.com/viant/afsc v1.9.5-0.20241029213958-b40d6acbe9e3 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

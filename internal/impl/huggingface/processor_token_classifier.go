@@ -8,7 +8,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func hugotTokenClassificationConfigSpec() *service.ConfigSpec {
+func HugotTokenClassificationConfigSpec() *service.ConfigSpec {
 	tokenClassificaitionDescription := "### Token Classification" + "\n" +
 		"Token classification assigns a label to individual tokens in a sentence." +
 		"This processor runs token classification inference against batches of text data, returning a set of Entities classification corresponding to each input." + "\n" +
@@ -30,7 +30,7 @@ func hugotTokenClassificationConfigSpec() *service.ConfigSpec {
 }
 
 func init() {
-	err := service.RegisterBatchProcessor("nlp_classify_tokens", hugotTokenClassificationConfigSpec(), newTokenClassificationPipeline)
+	err := service.RegisterBatchProcessor("nlp_classify_tokens", HugotTokenClassificationConfigSpec(), NewTokenClassificationPipeline)
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +66,7 @@ func getTokenClassificationOptions(conf *service.ParsedConfig) ([]pipelineBacken
 
 //------------------------------------------------------------------------------
 
-func newTokenClassificationPipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
+func NewTokenClassificationPipeline(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
 	p, err := newPipelineProcessor(conf, mgr)
 	if err != nil {
 		return nil, err
@@ -98,4 +98,26 @@ func newTokenClassificationPipeline(conf *service.ParsedConfig, mgr *service.Res
 	}
 
 	return p, nil
+}
+
+func convertTokenClassificationOutput(result *pipelines.TokenClassificationOutput) []any {
+	out := make([]any, len(result.Entities))
+	for i, entityBatch := range result.Entities {
+		batchMaps := make([]any, len(entityBatch))
+		for j, entity := range entityBatch {
+			batchMaps[j] = map[string]any{
+				"Entity":    entity.Entity,
+				"Score":     entity.Score,
+				"Scores":    entity.Scores,
+				"Index":     entity.Index,
+				"Word":      entity.Word,
+				"TokenID":   entity.TokenID,
+				"Start":     entity.Start,
+				"End":       entity.End,
+				"IsSubword": entity.IsSubword,
+			}
+		}
+		out[i] = batchMaps
+	}
+	return out
 }
