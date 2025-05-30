@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -203,4 +204,158 @@ reconnect_on_unknown_topic: true
 			t.Fatalf("connect should've stopped before timeout due to unknown topic error")
 		}
 	}
+}
+
+// e2e test.
+func TestLol(t *testing.T) {
+	integration.CheckSkip(t)
+	t.Parallel()
+
+	ctx, cc := context.WithCancel(context.Background())
+	defer cc()
+
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		t.Skipf("Could not connect to docker: %s", err)
+	}
+
+	kafkaPort, err := integration.GetFreePort()
+	require.NoError(t, err)
+
+	kafkaPortStr := strconv.Itoa(kafkaPort)
+
+	options := &dockertest.RunOptions{
+		Repository:   "redpandadata/redpanda",
+		Tag:          "latest",
+		Hostname:     "redpanda",
+		ExposedPorts: []string{"9092"},
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
+		},
+		Cmd: []string{
+			"redpanda", "start", "--smp 1", "--overprovisioned",
+			"--kafka-addr 0.0.0.0:9092",
+			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
+		},
+	}
+
+	pool.MaxWait = time.Minute
+	resource, err := pool.RunWithOptions(options)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(resource))
+	})
+	_ = resource.Expire(900)
+
+	brokerAddress := "localhost:" + kafkaPortStr
+	cl, err := kgo.NewClient(kgo.SeedBrokers(brokerAddress))
+	require.NoError(t, err)
+	defer cl.Close()
+
+	kgoClient, err := kgo.NewClient(
+		kgo.SeedBrokers(fmt.Sprintf("%s:%d", "localhost", kafkaPort)),
+		kgo.RequestRetries(1),
+		kgo.DisableIdempotentWrite(),
+	)
+	require.NoError(t, err)
+
+	admin := kadm.NewClient(kgoClient)
+	require.Eventually(t, func() bool {
+		_, err := admin.Metadata(ctx)
+		return err == nil
+	}, 5*time.Second, 100*time.Millisecond)
+
+	_, err = admin.CreateTopic(ctx, 1, 1, nil, "foo")
+	require.NoError(t, err)
+
+	r := kgoClient.ProduceSync(ctx,
+		&kgo.Record{
+			Value:     []byte("before_recreate_topic"),
+			Timestamp: time.Now(),
+			Topic:     "foo",
+			Partition: 0,
+		},
+	)
+	require.NoError(t, r.FirstErr())
+
+	inBuilder := service.NewStreamBuilder()
+	err = inBuilder.AddInputYAML(fmt.Sprintf(`
+kafka_franz:
+  seed_brokers: [ localhost:%v ]
+  topics: [ foo ]
+  consumer_group: test-group
+  checkpoint_limit: 100
+  commit_period: 1s
+  reconnect_on_unknown_topic: true
+  start_from_oldest: true
+`, kafkaPortStr))
+	require.NoError(t, err)
+
+	msgOutCh := make(chan service.MessageBatch)
+	defer close(msgOutCh)
+
+	var messageCountMut sync.Mutex
+	var messageCount int
+	require.NoError(t, inBuilder.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
+
+		recordBytes, err := m.AsBytes()
+		require.NoError(t, err)
+
+		fmt.Println(string(recordBytes))
+
+		// if messageCount == 0 {
+		// 	// fmt.Println("message count 0 is indeed before_recreate_topic")
+		// 	require.Equal(t, string(recordBytes), "before_recreate_topic")
+		// } else if messageCount == 1 {
+		// 	require.Equal(t, string(recordBytes), "after_recreate_topic")
+		// }
+
+		messageCountMut.Lock()
+		messageCount++
+		messageCountMut.Unlock()
+
+		return nil
+	}))
+
+	inStrm, err := inBuilder.Build()
+	require.NoError(t, err)
+	go func() {
+		// ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+		// defer done()
+		assert.NoError(t, inStrm.Run(context.Background()))
+	}()
+
+	// Make sure it was able to read from the old topic
+	require.Eventually(t, func() bool {
+		messageCountMut.Lock()
+		defer messageCountMut.Unlock()
+		return messageCount == 1
+	}, time.Second*20, time.Millisecond*500)
+
+	fmt.Println("deleting topic")
+
+	_, err = admin.DeleteTopic(ctx, "foo")
+	require.NoError(t, err)
+	// Recreate topic
+	_, err = admin.CreateTopic(ctx, 1, 1, nil, "foo")
+	require.NoError(t, err)
+
+	r = kgoClient.ProduceSync(ctx,
+		&kgo.Record{
+			Value:     []byte("after_recreate_topic"),
+			Timestamp: time.Now(),
+			Topic:     "foo",
+			Partition: 0,
+		},
+	)
+	require.NoError(t, r.FirstErr())
+
+	fmt.Println("finished producing")
+
+	require.Eventually(t, func() bool {
+		messageCountMut.Lock()
+		defer messageCountMut.Unlock()
+		return messageCount == 2
+	}, time.Second*20, time.Millisecond*500)
+
 }

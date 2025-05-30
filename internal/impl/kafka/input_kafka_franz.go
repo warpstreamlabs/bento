@@ -834,7 +834,9 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
-		kgo.KeepRetryableFetchErrors(),
+	}
+	if f.reconnectOnUnknownTopic {
+		clientOpts = append(clientOpts, kgo.KeepRetryableFetchErrors())
 	}
 
 	if f.consumerGroup != "" {
@@ -913,6 +915,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 
 				if nonTemporalErr {
 					cl.Close()
+					fmt.Println("kobe connect close")
 					return
 				}
 			}
