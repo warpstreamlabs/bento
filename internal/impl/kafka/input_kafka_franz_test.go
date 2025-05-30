@@ -99,8 +99,8 @@ batching:
 	}
 }
 
-// This test
-// kobe
+// This test asserts that if reconnect_on_unknown_topic is set to true
+// and the reader sees an unknown topic error, it will force a reconnect.
 func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
@@ -119,17 +119,20 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
 	options := &dockertest.RunOptions{
-		Repository:   "redpandadata/redpanda",
+		Repository:   "bitnami/kafka",
 		Tag:          "latest",
-		Hostname:     "redpanda",
 		ExposedPorts: []string{"9092"},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
 		},
-		Cmd: []string{
-			"redpanda", "start", "--smp 1", "--overprovisioned",
-			"--kafka-addr 0.0.0.0:9092",
-			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
+		Env: []string{
+			"KAFKA_CFG_NODE_ID=0",
+			"KAFKA_CFG_PROCESS_ROLES=controller,broker",
+			"KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
+			"KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
+			"KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
+			"KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
 		},
 	}
 
@@ -157,7 +160,7 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := admin.Metadata(ctx)
 		return err == nil
-	}, 5*time.Second, 100*time.Millisecond)
+	}, 20*time.Second, 100*time.Millisecond)
 	_, err = admin.CreateTopic(ctx, 1, 1, nil, "foo")
 	require.NoError(t, err)
 
@@ -175,7 +178,6 @@ reconnect_on_unknown_topic: true
 
 	reader, err := newFranzKafkaReaderFromConfig(conf, service.MockResources())
 	require.NoError(t, err)
-	fmt.Println(reader)
 
 	err = reader.Connect(ctx)
 	require.NoError(t, err)
@@ -187,7 +189,7 @@ reconnect_on_unknown_topic: true
 	timeoutCtx, cc := context.WithTimeout(ctx, time.Second*10)
 	defer cc()
 
-	timer := time.NewTimer(time.Second)
+	timer := time.NewTicker(time.Second)
 	defer timer.Stop()
 
 	for {
@@ -206,8 +208,9 @@ reconnect_on_unknown_topic: true
 	}
 }
 
-// e2e test.
-func TestLol(t *testing.T) {
+// This test asserts that if reconnect_on_unknown_topic is set to true,
+// the input reader can handle recreated topics.
+func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
@@ -225,20 +228,22 @@ func TestLol(t *testing.T) {
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
 	options := &dockertest.RunOptions{
-		Repository:   "redpandadata/redpanda",
+		Repository:   "bitnami/kafka",
 		Tag:          "latest",
-		Hostname:     "redpanda",
 		ExposedPorts: []string{"9092"},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
 		},
-		Cmd: []string{
-			"redpanda", "start", "--smp 1", "--overprovisioned",
-			"--kafka-addr 0.0.0.0:9092",
-			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
+		Env: []string{
+			"KAFKA_CFG_NODE_ID=0",
+			"KAFKA_CFG_PROCESS_ROLES=controller,broker",
+			"KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
+			"KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
+			"KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
+			"KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
 		},
 	}
-
 	pool.MaxWait = time.Minute
 	resource, err := pool.RunWithOptions(options)
 	require.NoError(t, err)
@@ -263,7 +268,7 @@ func TestLol(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := admin.Metadata(ctx)
 		return err == nil
-	}, 5*time.Second, 100*time.Millisecond)
+	}, 20*time.Second, 100*time.Millisecond)
 
 	_, err = admin.CreateTopic(ctx, 1, 1, nil, "foo")
 	require.NoError(t, err)
@@ -285,7 +290,6 @@ kafka_franz:
   topics: [ foo ]
   consumer_group: test-group
   checkpoint_limit: 100
-  commit_period: 1s
   reconnect_on_unknown_topic: true
   start_from_oldest: true
 `, kafkaPortStr))
@@ -297,18 +301,13 @@ kafka_franz:
 	var messageCountMut sync.Mutex
 	var messageCount int
 	require.NoError(t, inBuilder.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
-
 		recordBytes, err := m.AsBytes()
 		require.NoError(t, err)
-
-		fmt.Println(string(recordBytes))
-
-		// if messageCount == 0 {
-		// 	// fmt.Println("message count 0 is indeed before_recreate_topic")
-		// 	require.Equal(t, string(recordBytes), "before_recreate_topic")
-		// } else if messageCount == 1 {
-		// 	require.Equal(t, string(recordBytes), "after_recreate_topic")
-		// }
+		if messageCount == 0 {
+			require.Equal(t, string(recordBytes), "before_recreate_topic")
+		} else if messageCount == 1 {
+			require.Equal(t, string(recordBytes), "after_recreate_topic")
+		}
 
 		messageCountMut.Lock()
 		messageCount++
@@ -332,8 +331,7 @@ kafka_franz:
 		return messageCount == 1
 	}, time.Second*20, time.Millisecond*500)
 
-	fmt.Println("deleting topic")
-
+	time.Sleep(3 * time.Second)
 	_, err = admin.DeleteTopic(ctx, "foo")
 	require.NoError(t, err)
 	// Recreate topic
@@ -350,12 +348,9 @@ kafka_franz:
 	)
 	require.NoError(t, r.FirstErr())
 
-	fmt.Println("finished producing")
-
 	require.Eventually(t, func() bool {
 		messageCountMut.Lock()
 		defer messageCountMut.Unlock()
 		return messageCount == 2
 	}, time.Second*20, time.Millisecond*500)
-
 }

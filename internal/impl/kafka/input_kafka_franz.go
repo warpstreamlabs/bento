@@ -915,7 +915,6 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 
 				if nonTemporalErr {
 					cl.Close()
-					fmt.Println("kobe connect close")
 					return
 				}
 			}
