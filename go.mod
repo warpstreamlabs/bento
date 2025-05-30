@@ -131,6 +131,7 @@ require (
 	github.com/tilinna/z85 v1.0.0
 	github.com/trinodb/trino-go-client v0.313.0
 	github.com/twmb/franz-go v1.18.1
+	github.com/twmb/franz-go/pkg/kadm v1.16.0
 	github.com/twmb/franz-go/pkg/kmsg v1.9.0
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/vmihailenco/msgpack/v5 v5.4.1
