@@ -295,9 +295,6 @@ kafka_franz:
 `, kafkaPortStr))
 	require.NoError(t, err)
 
-	msgOutCh := make(chan service.MessageBatch)
-	defer close(msgOutCh)
-
 	var messageCountMut sync.Mutex
 	var messageCount int
 	require.NoError(t, inBuilder.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
