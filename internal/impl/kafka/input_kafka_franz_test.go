@@ -93,8 +93,8 @@ batching:
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.description, func(t *testing.T) {
-			require.Equal(t, reconnectReader.isRetriableError(testCase.err), testCase.reconnectReaderExpected)
-			require.Equal(t, defaultReader.isRetriableError(testCase.err), testCase.disableReconnectReaderExpected)
+			require.Equal(t, testCase.reconnectReaderExpected, reconnectReader.isRetriableError(testCase.err))
+			require.Equal(t, testCase.disableReconnectReaderExpected, defaultReader.isRetriableError(testCase.err))
 		})
 	}
 }
@@ -301,9 +301,9 @@ kafka_franz:
 		recordBytes, err := m.AsBytes()
 		require.NoError(t, err)
 		if messageCount == 0 {
-			require.Equal(t, string(recordBytes), "before_recreate_topic")
+			require.Equal(t, "before_recreate_topic", string(recordBytes))
 		} else if messageCount == 1 {
-			require.Equal(t, string(recordBytes), "after_recreate_topic")
+			require.Equal(t, "after_recreate_topic", string(recordBytes))
 		}
 
 		messageCountMut.Lock()
