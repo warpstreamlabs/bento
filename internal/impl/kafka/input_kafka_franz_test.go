@@ -319,8 +319,6 @@ kafka_franz:
 	inStrm, err := inBuilder.Build()
 	require.NoError(t, err)
 	go func() {
-		// ctx, done := context.WithTimeout(context.Background(), time.Second*30)
-		// defer done()
 		assert.NoError(t, inStrm.Run(context.Background()))
 	}()
 
