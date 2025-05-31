@@ -16,8 +16,6 @@ var (
 	DateBuilt string
 	// BinaryName binary name.
 	BinaryName string = "bento"
-	// ProductName name of product for CLI.
-	ProductName string = "Bento"
 )
 
 func main() {
@@ -25,7 +23,7 @@ func main() {
 		context.Background(),
 		service.CLIOptSetVersion(Version, DateBuilt),
 		service.CLIOptSetBinaryName(BinaryName),
-		service.CLIOptSetProductName(ProductName),
+		service.CLIOptSetProductName("Bento"),
 		service.CLIOptSetDocumentationURL("https://warpstreamlabs.github.io/bento/docs"),
 		service.CLIOptSetShowRunCommand(true),
 	)
