@@ -43,7 +43,6 @@ type Snapshot struct {
 //------------------------------------------------------------------------------
 
 func isSnapshotMode() bool {
-	return true
 	val := os.Getenv("SNAPSHOT_UPDATE")
 	switch strings.ToLower(val) {
 	case "1", "true", "yes":
