@@ -22,10 +22,7 @@ func HugotTextClassificationConfigSpec() *service.ConfigSpec {
 			"SOFTMAX",
 			"SIGMOID",
 		).Description("The aggregation function to use for the text classification pipeline.").Default("SOFTMAX")).
-		Field(service.NewStringEnumField("problem_type",
-			"singleLabel",
-			"multiLabel",
-		).Description("The problem type for the text classification pipeline.").Default("singleLabel")).
+		Field(service.NewBoolField("multi_label").Description("Whether a text classification pipeline should return multiple labels. If false, only the label-pair with the highest score is returned.").Default(false)).
 		Example("Emotion Scoring (Local Model)", "Here, we load the [Cohee/distilbert-base-uncased-go-emotions-onnx](https://huggingface.co/Cohee/distilbert-base-uncased-go-emotions-onnx) model from the local directory at `models/coheedistilbert_base_uncased_go_emotions_onnx`."+
 			"The processor returns a single-label output with the highest emotion score for the text. ",
 			`
@@ -44,6 +41,7 @@ pipeline:
   processors:
     - nlp_classify_text:
         pipeline_name: classify-multi-label
+        multi_label: true
         model_path: "./models"
         enable_model_download: true
         model_download_options:
@@ -80,15 +78,15 @@ func getTextClassificationOptions(conf *service.ParsedConfig) ([]pipelineBackend
 		options = append(options, pipelines.WithSigmoid())
 	}
 
-	problemType, err := conf.FieldString("problem_type")
+	isMultiLabel, err := conf.FieldBool("multi_label")
 	if err != nil {
 		return nil, err
 	}
-	switch problemType {
-	case "singleLabel":
-		options = append(options, pipelines.WithSingleLabel())
-	case "multiLabel":
+
+	if isMultiLabel {
 		options = append(options, pipelines.WithMultiLabel())
+	} else {
+		options = append(options, pipelines.WithSingleLabel())
 	}
 
 	return options, nil

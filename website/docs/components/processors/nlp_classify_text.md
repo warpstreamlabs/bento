@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Performs text classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.
 
-Introduced in version v1.3.0 (huggingbento).
+Introduced in version v1.9.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -38,7 +38,7 @@ nlp_classify_text:
   model_path: /model_repository
   model_download_options: {}
   aggregation_function: SOFTMAX
-  problem_type: singleLabel
+  multi_label: false
 ```
 
 </TabItem>
@@ -56,7 +56,7 @@ nlp_classify_text:
   model_download_options:
     model_repository: ""
   aggregation_function: SOFTMAX
-  problem_type: singleLabel
+  multi_label: false
 ```
 
 </TabItem>
@@ -115,6 +115,7 @@ pipeline:
   processors:
     - nlp_classify_text:
         pipeline_name: classify-multi-label
+        multi_label: true
         model_path: "./models"
         enable_model_download: true
         model_download_options:
@@ -215,13 +216,12 @@ Type: `string`
 Default: `"SOFTMAX"`  
 Options: `SOFTMAX`, `SIGMOID`.
 
-### `problem_type`
+### `multi_label`
 
-The problem type for the text classification pipeline.
+Whether a text classification pipeline should return multiple labels. If false, only the label-pair with the highest score is returned.
 
 
-Type: `string`  
-Default: `"singleLabel"`  
-Options: `singleLabel`, `multiLabel`.
+Type: `bool`  
+Default: `false`  
 
 

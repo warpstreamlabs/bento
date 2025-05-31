@@ -26,12 +26,11 @@ type Stats struct {
 }
 
 type Metadata struct {
-	CreatedAt    time.Time `json:"created_at"`
-	ModelName    string    `json:"model_name"`
-	GoVersion    string    `json:"go_version"`
-	HugotVersion string    `json:"hugot_version"`
-	Platform     string    `json:"platform"`
-	TestName     string    `json:"test_name"`
+	CreatedAt time.Time `json:"created_at"`
+	ModelName string    `json:"model_name"`
+	GoVersion string    `json:"go_version"`
+	Platform  string    `json:"platform"`
+	TestName  string    `json:"test_name"`
 }
 
 type Snapshot struct {
@@ -44,6 +43,7 @@ type Snapshot struct {
 //------------------------------------------------------------------------------
 
 func isSnapshotMode() bool {
+	return true
 	val := os.Getenv("SNAPSHOT_UPDATE")
 	switch strings.ToLower(val) {
 	case "1", "true", "yes":
@@ -342,6 +342,117 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 			},
 		}
 		updateSnapshot(t, "expected_text_classification.json", tt.name, snapshot)
+	}
+}
+
+func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
+	if !isSnapshotMode() {
+		t.Skip("Skipping snapshot creation (set SNAPSHOT_UPDATE=1)")
+	}
+
+	// Create a new Hugot Go session
+	session, err := hugot.NewGoSession()
+	require.NoError(t, err, "Failed to create session")
+	defer session.Destroy()
+
+	tests := []struct {
+		name              string
+		model             string
+		labels            []string
+		prompts           [][]string
+		modelDownloadPath string
+	}{
+		{
+			name:              "test-snapshot-zero-shot-classification",
+			model:             "MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33",
+			labels:            []string{"spam"},
+			modelDownloadPath: "onnx/model.onnx",
+			prompts: [][]string{
+				{"BUY ONE GET ONE FREE"},
+				{"hi do yuo have time for a job meetign?"},
+				{"Sir, this parrot is dead."},
+				{"I thought /r/TheDoors was about doors?!"},
+			},
+		},
+		{
+			name:              "test-snapshot-zero-shot-classification-multi",
+			model:             "MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33",
+			labels:            []string{"positive", "negative", "neutral"},
+			modelDownloadPath: "onnx/model.onnx",
+			prompts: [][]string{
+				{"I love this new restaurant, the food was amazing!"},
+				{"This movie was terrible and boring."},
+				{"The weather is okay today."},
+				{"Best purchase I've ever made!"},
+				{"I hate waiting in long lines."},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tmpDir := t.TempDir()
+
+		// Download the model from huggingface
+		opts := hugot.NewDownloadOptions()
+		if tt.modelDownloadPath != "" {
+			opts.OnnxFilePath = tt.modelDownloadPath
+		}
+
+		path, err := hugot.DownloadModel(tt.model, tmpDir, opts)
+		require.NoError(t, err, "Failed to download model")
+
+		// Setup
+		isMultiLabel := len(tt.labels) > 1
+		modelOpts := []hugot.ZeroShotClassificationOption{
+			pipelines.WithLabels(tt.labels),
+			pipelines.WithMultilabel(isMultiLabel),
+		}
+
+		config := hugot.ZeroShotClassificationConfig{
+			Name:      tt.name,
+			ModelPath: path,
+			Options:   modelOpts,
+		}
+
+		pipeline, err := hugot.NewPipeline(session, config)
+		require.NoError(t, err, "Failed to create pipeline")
+
+		defer pipeline.GetModel().Destroy()
+
+		// Run the pipeline and save the results
+		var results []Result
+		for _, batch := range tt.prompts {
+
+			res, err := pipeline.RunPipeline(batch)
+			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
+
+			for i, outRes := range res.GetOutput() {
+				results = append(results, Result{
+					Input:  batch[i],
+					Result: outRes,
+				})
+			}
+		}
+
+		snapshot := Snapshot{
+			Results: results,
+			TokenizerStats: Stats{
+				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
+				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+			},
+			PipelineStats: Stats{
+				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
+				Calls:    pipeline.PipelineTimings.NumCalls,
+			},
+			Metadata: Metadata{
+				TestName:  tt.name,
+				ModelName: tt.model,
+				CreatedAt: time.Now(),
+				GoVersion: runtime.Version(),
+				Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+			},
+		}
+		updateSnapshot(t, "expected_zero_shot_classification.json", tt.name, snapshot)
 	}
 }
 

@@ -238,6 +238,8 @@ func convertPipelineOutput(output pipelineBackends.PipelineBatchOutput) []any {
 		return convertTextClassificationOutput(result)
 	case *pipelines.TokenClassificationOutput:
 		return convertTokenClassificationOutput(result)
+	case *pipelines.ZeroShotOutput:
+		return convertZeroShotTextClassificationOutput(result)
 	default:
 		return output.GetOutput()
 	}

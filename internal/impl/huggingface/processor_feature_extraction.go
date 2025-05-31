@@ -19,8 +19,26 @@ func HugotFeatureExtractionConfigSpec() *service.ConfigSpec {
 		Description(featureExtractionDescription).
 		Field(service.NewBoolField("normalization").
 			Description("Whether to apply normalization in the feature extraction pipeline.").
-			Default(false))
-
+			Default(false)).
+		Example("Text Embeddings", "Extract normalized embeddings from text using a sentence transformer model stored locally.",
+			`pipeline:
+  processors:
+    - nlp_extract_features:
+        model_path: "onnx/model.onnx"
+        normalization: true
+# In: "Hello world"
+# Out: [0.1234, -0.5678, 0.9012, ...] (384-dimensional vector)`).
+		Example("Document Embeddings", "Extract raw features from documents using the all-MiniLM-L6-v2 model.",
+			`pipeline:
+  processors:
+    - nlp_extract_features:
+        model_path: "./models"
+        enable_model_download: true
+        model_download_options:
+          model_repository: "sentence-transformers/all-MiniLM-L6-v2"
+        normalization: false
+# In: "This is a sample document for feature extraction."
+# Out: [0.2341, -0.8765, 1.2345, ...] (384-dimensional vector)`)
 	return spec
 }
 

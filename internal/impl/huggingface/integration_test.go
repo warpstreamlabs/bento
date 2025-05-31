@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,20 +50,20 @@ func TestIntegration_TextClassifier(t *testing.T) {
 
 		snapshotId   string
 		snapshotPath string
-		problemType  string
+		multiLabel   bool
 	}{
 		{
 
 			name:         "single label test",
 			snapshotId:   "test-snapshot-text-classifier",
 			snapshotPath: "expected_text_classification.json",
-			problemType:  "singleLabel",
+			multiLabel:   false,
 		},
 		{
 			name:         "multi label test",
 			snapshotId:   "test-snapshot-text-multi-classifier",
 			snapshotPath: "expected_text_classification.json",
-			problemType:  "multiLabel",
+			multiLabel:   true,
 		},
 	}
 
@@ -83,8 +85,8 @@ func TestIntegration_TextClassifier(t *testing.T) {
 			template := fmt.Sprintf(`
 pipeline_name: classify-incoming-data
 model_path: %s
-problem_type: %s
-`, modelPath, tt.problemType)
+multi_label: %s
+`, modelPath, strconv.FormatBool(tt.multiLabel))
 
 			conf, err := huggingface.HugotTextClassificationConfigSpec().ParseYAML(template, nil)
 			require.NoError(t, err)
@@ -191,5 +193,80 @@ model_path: %s
 				compareResults(t, expected.Result, output)
 			}
 		}
+	}
+}
+
+func TestIntegration_ZeroShotTextClassifier(t *testing.T) {
+	tests := []struct {
+		name         string
+		snapshotId   string
+		snapshotPath string
+		multiLabel   bool
+		labels       []string
+	}{
+		{
+			name:         "single label test",
+			snapshotId:   "test-snapshot-zero-shot-classification",
+			snapshotPath: "expected_zero_shot_classification.json",
+			multiLabel:   false,
+			labels:       []string{"spam"},
+		},
+		{
+			name:         "multi label test",
+			snapshotId:   "test-snapshot-zero-shot-classification-multi",
+			snapshotPath: "expected_zero_shot_classification.json",
+			multiLabel:   true,
+			labels:       []string{"positive", "negative", "neutral"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snapshot := loadSnapshot(t, tt.snapshotId, tt.snapshotPath)
+			tmpDir := t.TempDir()
+			modelName := snapshot.Metadata.ModelName
+
+			opts := hugot.NewDownloadOptions()
+			opts.OnnxFilePath = "onnx/model.onnx"
+			modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
+			require.NoError(t, err)
+
+			defer t.Cleanup(func() {
+				assert.NoError(t, os.RemoveAll(tmpDir))
+			})
+
+			template := fmt.Sprintf(`
+pipeline_name: zero-shot-classify
+model_path: %s
+labels: [%s]
+multi_label: %s
+hypothesis_template: "This example is {}."
+`, modelPath, strings.Join(tt.labels, ","), strconv.FormatBool(tt.multiLabel))
+
+			conf, err := huggingface.HugotZeroShotTextClassificationConfigSpec().ParseYAML(template, nil)
+			require.NoError(t, err)
+
+			proc, err := huggingface.NewZeroShotTextClassificationPipeline(conf, service.MockResources())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx, done := context.WithTimeout(context.Background(), time.Second*60)
+			defer done()
+
+			for _, expected := range snapshot.Results {
+				input := service.NewMessage([]byte(expected.Input))
+				batches, err := proc.ProcessBatch(ctx, []*service.Message{input})
+				require.NoError(t, err)
+
+				for _, batch := range batches {
+					for _, msg := range batch {
+						output, err := msg.AsStructured()
+						require.NoError(t, err)
+						compareResults(t, expected.Result, output)
+					}
+				}
+			}
+		})
 	}
 }

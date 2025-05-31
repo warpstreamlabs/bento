@@ -22,10 +22,9 @@ DATE      := $(shell date +"%Y-%m-%dT%H:%M:%SZ")
 
 VER_FLAGS = -X main.Version=$(VERSION) -X main.DateBuilt=$(DATE)
 
-LD_FLAGS   	?= -w -s
-CGO_LDFLAGS ?= 
-GO_FLAGS   	?=
-DOCS_FLAGS 	?=
+LD_FLAGS   ?= -w -s
+GO_FLAGS   ?=
+DOCS_FLAGS ?=
 
 APPS = bento
 all: $(APPS)

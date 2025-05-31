@@ -1,6 +1,6 @@
 ---
-title: nlp_extract_features
-slug: nlp_extract_features
+title: nlp_zero_shot_classify
+slug: nlp_zero_shot_classify
 type: processor
 status: beta
 categories: ["Machine Learning","NLP"]
@@ -18,7 +18,7 @@ import TabItem from '@theme/TabItem';
 :::caution BETA
 This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
 :::
-Performs feature extraction using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.
+Performs zero-shot text classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.
 
 Introduced in version v1.9.0.
 
@@ -33,11 +33,13 @@ Introduced in version v1.9.0.
 ```yml
 # Common config fields, showing default values
 label: ""
-nlp_extract_features:
+nlp_zero_shot_classify:
   pipeline_name: "" # No default (optional)
   model_path: /model_repository
   model_download_options: {}
-  normalization: false
+  labels: [] # No default (required)
+  multi_label: false
+  hypothesis_template: This example is {}.
 ```
 
 </TabItem>
@@ -46,7 +48,7 @@ nlp_extract_features:
 ```yml
 # All config fields, showing default values
 label: ""
-nlp_extract_features:
+nlp_zero_shot_classify:
   pipeline_name: "" # No default (optional)
   model_path: /model_repository
   onnx_library_path: /usr/lib/onnxruntime.so
@@ -54,14 +56,17 @@ nlp_extract_features:
   enable_model_download: false
   model_download_options:
     model_repository: ""
-  normalization: false
+  labels: [] # No default (required)
+  multi_label: false
+  hypothesis_template: This example is {}.
 ```
 
 </TabItem>
 </Tabs>
 
-### Feature Extraction
-Feature extraction is the task of extracting features learnt in a model.This processor runs a feature extraction model against batches of text data, returning a model's multidimensional representation of said featuresin tensor/float64 format.
+### Zero Shot Text Classification
+Zero-shot text classification allows you to classify text into any labels without training on those specific labels. It uses Natural Language Inference (NLI) models to determine if a text entails each candidate label. This is more flexible than regular text classification as labels can be chosen at runtime, but may be slower.
+Common use cases include sentiment analysis, topic classification, intent detection, and content moderation.
 This component uses [Hugot](https://github.com/knights-analytics/hugot), a library that provides an interface for running [Open Neural Network Exchange (ONNX) models](https://onnx.ai/onnx/intro/) and transformer pipelines, with a focus on NLP tasks.
 
 Currently, [HuggingBento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
@@ -82,38 +87,38 @@ Otherwise, check out using [HuggingFace Optimum](https://huggingface.co/docs/opt
 
 ## Examples
 
-<Tabs defaultValue="Text Embeddings" values={[
-{ label: 'Text Embeddings', value: 'Text Embeddings', },
-{ label: 'Document Embeddings', value: 'Document Embeddings', },
+<Tabs defaultValue="Emotion Classification" values={[
+{ label: 'Emotion Classification', value: 'Emotion Classification', },
+{ label: 'Multi-Label State Classification', value: 'Multi-Label State Classification', },
 ]}>
 
-<TabItem value="Text Embeddings">
+<TabItem value="Emotion Classification">
 
-Extract normalized embeddings from text using a sentence transformer model stored locally.
+Classify text emotions using zero-shot approach with any custom labels.
 
 ```yamlpipeline:
   processors:
-    - nlp_extract_features:
-        model_path: "onnx/model.onnx"
-        normalization: true
-# In: "Hello world"
-# Out: [0.1234, -0.5678, 0.9012, ...] (384-dimensional vector)```
+    - nlp_zero_shot_classify:
+        model_path: "KnightsAnalytics/deberta-v3-base-zeroshot-v1"
+        labels: ["fun", "dangerous", "boring"]
+        multi_label: false
+# In: "I am going to the park"
+# Out: {"sequence": "I am going to the park", "labels": ["fun", "boring", "dangerous"], "scores": [0.77, 0.15, 0.08]}```
 
 </TabItem>
-<TabItem value="Document Embeddings">
+<TabItem value="Multi-Label State Classification">
 
-Extract raw features from documents using the all-MiniLM-L6-v2 model.
+Classify emotional states with multiple labels enabled.
 
 ```yamlpipeline:
   processors:
-    - nlp_extract_features:
-        model_path: "./models"
-        enable_model_download: true
-        model_download_options:
-          model_repository: "sentence-transformers/all-MiniLM-L6-v2"
-        normalization: false
-# In: "This is a sample document for feature extraction."
-# Out: [0.2341, -0.8765, 1.2345, ...] (384-dimensional vector)```
+    - nlp_zero_shot_classify:
+        model_path: "KnightsAnalytics/deberta-v3-base-zeroshot-v1"
+        labels: ["busy", "relaxed", "stressed"]
+        multi_label: true
+        hypothesis_template: "This person is {}."
+# In: "Please don't bother me, I'm in a rush"
+# Out: {"sequence": "Please don't bother me, I'm in a rush", "labels": ["stressed", "busy", "relaxed"], "scores": [0.89, 0.11, 0.007]}```
 
 </TabItem>
 </Tabs>
@@ -196,12 +201,36 @@ model_repository: KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-engli
 model_repository: sentence-transformers/all-MiniLM-L6-v2
 ```
 
-### `normalization`
+### `labels`
 
-Whether to apply normalization in the feature extraction pipeline.
+The set of possible class labels to classify each sequence into.
+
+
+Type: `array`  
+
+```yml
+# Examples
+
+labels:
+  - positive
+  - negative
+  - neutral
+```
+
+### `multi_label`
+
+Whether multiple labels can be true. If false, scores sum to 1. If true, each label is scored independently.
 
 
 Type: `bool`  
 Default: `false`  
+
+### `hypothesis_template`
+
+Template to turn each label into an NLI-style hypothesis. Must include {} where the label will be inserted.
+
+
+Type: `string`  
+Default: `"This example is {}."`  
 
 
