@@ -23,24 +23,27 @@ func HugotZeroShotTextClassificationConfigSpec() *service.ConfigSpec {
 		Field(service.NewBoolField("multi_label").Description("Whether multiple labels can be true. If false, scores sum to 1. If true, each label is scored independently.").Default(false)).
 		Field(service.NewStringField("hypothesis_template").Description("Template to turn each label into an NLI-style hypothesis. Must include {} where the label will be inserted.").Default("This example is {}.")).
 		Example("Emotion Classification", "Classify text emotions using zero-shot approach with any custom labels.",
-			`pipeline:
+			`
+pipeline:
   processors:
     - nlp_zero_shot_classify:
-        model_path: "KnightsAnalytics/deberta-v3-base-zeroshot-v1"
+        path: "KnightsAnalytics/deberta-v3-base-zeroshot-v1"
         labels: ["fun", "dangerous", "boring"]
         multi_label: false
 # In: "I am going to the park"
 # Out: {"sequence": "I am going to the park", "labels": ["fun", "boring", "dangerous"], "scores": [0.77, 0.15, 0.08]}`).
 		Example("Multi-Label State Classification", "Classify emotional states with multiple labels enabled.",
-			`pipeline:
+			`
+pipeline:
   processors:
     - nlp_zero_shot_classify:
-        model_path: "KnightsAnalytics/deberta-v3-base-zeroshot-v1"
+        path: "KnightsAnalytics/deberta-v3-base-zeroshot-v1"
         labels: ["busy", "relaxed", "stressed"]
         multi_label: true
         hypothesis_template: "This person is {}."
 # In: "Please don't bother me, I'm in a rush"
-# Out: {"sequence": "Please don't bother me, I'm in a rush", "labels": ["stressed", "busy", "relaxed"], "scores": [0.89, 0.11, 0.007]}`)
+# Out: {"sequence": "Please don't bother me, I'm in a rush", "labels": ["stressed", "busy", "relaxed"], "scores": [0.89, 0.11, 0.007]}
+`)
 
 	return spec
 }

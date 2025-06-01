@@ -34,9 +34,8 @@ Introduced in version v1.9.0.
 # Common config fields, showing default values
 label: ""
 nlp_classify_text:
-  pipeline_name: "" # No default (optional)
-  model_path: /model_repository
-  model_download_options: {}
+  name: "" # No default (optional)
+  path: /path/to/models/my_model.onnx # No default (required)
   aggregation_function: SOFTMAX
   multi_label: false
 ```
@@ -48,13 +47,12 @@ nlp_classify_text:
 # All config fields, showing default values
 label: ""
 nlp_classify_text:
-  pipeline_name: "" # No default (optional)
-  model_path: /model_repository
-  onnx_library_path: /usr/lib/onnxruntime.so
-  onnx_filename: ""
-  enable_model_download: false
-  model_download_options:
-    model_repository: ""
+  name: "" # No default (optional)
+  path: /path/to/models/my_model.onnx # No default (required)
+  enable_download: false
+  download_options:
+    repository: KnightsAnalytics/distilbert-NER # No default (required)
+    onnx_filepath: model.onnx
   aggregation_function: SOFTMAX
   multi_label: false
 ```
@@ -67,11 +65,12 @@ Text Classification is the task of assigning a label or class to a given text.So
 This processor runs text-classification inference against batches of text data, returning labelled classification corresponding to each input.
 This component uses [Hugot](https://github.com/knights-analytics/hugot), a library that provides an interface for running [Open Neural Network Exchange (ONNX) models](https://onnx.ai/onnx/intro/) and transformer pipelines, with a focus on NLP tasks.
 
-Currently, [HuggingBento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
+Currently, [Bento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
 	
 - [featureExtraction](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.FeatureExtractionPipeline)
 - [textClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.TextClassificationPipeline)
 - [tokenClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.TokenClassificationPipeline)
+- [zeroShotClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline)
 
 ### What is a pipeline?
 From [HuggingFace docs](https://huggingface.co/docs/transformers/en/main_classes/pipelines):
@@ -98,8 +97,8 @@ Here, we load the [Cohee/distilbert-base-uncased-go-emotions-onnx](https://huggi
 pipeline:
   processors:
     - nlp_classify_text:
-        pipeline_name: classify-incoming-data
-        model_path: "models/coheedistilbert_base_uncased_go_emotions_onnx"
+        name: classify-incoming-data
+        path: "models/coheedistilbert_base_uncased_go_emotions_onnx"
 
 # In: "I'm super excited for my Bento box!"
 # Out: [{"Label":"excitement","Score":0.34134513}]
@@ -108,18 +107,18 @@ pipeline:
 </TabItem>
 <TabItem value="Sentiment Analysis (Downloaded Model)">
 
-Here, we retrieve the [KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english(https://huggingface.co/KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english) model from HuggingFace and store it in a `./models` directory.The processor returns a multi-label output indicating showing a `POSITIVE` and `NEGATIVE` score some input text-data.
+Here, we retrieve the [KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english](https://huggingface.co/KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english) model from HuggingFace and store it in a `./models` directory.The processor returns a multi-label output indicating showing a `POSITIVE` and `NEGATIVE` score some input text-data.
 
 ```yaml
 pipeline:
   processors:
     - nlp_classify_text:
-        pipeline_name: classify-multi-label
+        name: classify-multi-label
+        path: "./models"
         multi_label: true
-        model_path: "./models"
-        enable_model_download: true
-        model_download_options:
-          model_repository: "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
+        enable_download: true
+        download_options:
+          repository: "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
 
 
 # In: "This meal tastes like old boots."
@@ -131,80 +130,76 @@ pipeline:
 
 ## Fields
 
-### `pipeline_name`
+### `name`
 
-Name of the pipeline. Defaults to uuid_v4() if not set
-
-
-Type: `string`  
-
-### `model_path`
-
-Path to the ONNX model directory. If `enable_model_download` is `true`, the model will be downloaded here.
+Name of the pipeline. Defaults to a random UUID if not set.
 
 
 Type: `string`  
-Default: `"/model_repository"`  
+
+### `path`
+
+Path to the ONNX model file, or directory containing the model. When downloading (`enable_download: true`), this becomes the destination and must be a directory.
+
+
+Type: `string`  
 
 ```yml
 # Examples
 
-model_path: /path/to/models/my_model.onnx
+path: /path/to/models/my_model.onnx
+
+path: /path/to/models/
 ```
 
-### `onnx_library_path`
+### `enable_download`
 
-The location of the ONNX Runtime dynamic library.
-
-
-Type: `string`  
-Default: `"/usr/lib/onnxruntime.so"`  
-
-### `onnx_filename`
-
-The filename of the model to run. Only necessary to specify when multiple .onnx files are present.
-
-
-Type: `string`  
-Default: `""`  
-
-```yml
-# Examples
-
-onnx_filename: model.onnx
-```
-
-### `enable_model_download`
-
-If enabled, attempts to download an ONNX Runtime compatible model from HuggingFace specified in `model_name`.
+When enabled, attempts to download an ONNX Runtime compatible model from HuggingFace specified in `repository`.
 
 
 Type: `bool`  
 Default: `false`  
 
-### `model_download_options`
+### `download_options`
 
-Sorry! This field is missing documentation.
+Options used to download a model directly from HuggingFace. Before the model is downloaded, validation occurs to ensure the remote repository contains both an`.onnx` and `tokenizers.json` file.
 
 
 Type: `object`  
 
-### `model_download_options.model_repository`
+### `download_options.repository`
 
 The name of the huggingface model repository.
 
 
 Type: `string`  
-Default: `""`  
 
 ```yml
 # Examples
 
-model_repository: KnightsAnalytics/distilbert-NER
+repository: KnightsAnalytics/distilbert-NER
 
-model_repository: KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english
+repository: KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english
 
-model_repository: sentence-transformers/all-MiniLM-L6-v2
+repository: sentence-transformers/all-MiniLM-L6-v2
+```
+
+### `download_options.onnx_filepath`
+
+Filename of the ONNX model within the repository. Only needed when multiple `.onnx` files exist.
+
+
+Type: `string`  
+Default: `"model.onnx"`  
+
+```yml
+# Examples
+
+onnx_filepath: onnx/model.onnx
+
+onnx_filepath: onnx/model_quantized.onnx
+
+onnx_filepath: onnx/model_fp16.onnx
 ```
 
 ### `aggregation_function`

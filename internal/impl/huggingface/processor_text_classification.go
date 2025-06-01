@@ -29,23 +29,23 @@ func HugotTextClassificationConfigSpec() *service.ConfigSpec {
 pipeline:
   processors:
     - nlp_classify_text:
-        pipeline_name: classify-incoming-data
-        model_path: "models/coheedistilbert_base_uncased_go_emotions_onnx"
+        name: classify-incoming-data
+        path: "models/coheedistilbert_base_uncased_go_emotions_onnx"
 
 # In: "I'm super excited for my Bento box!"
 # Out: [{"Label":"excitement","Score":0.34134513}]
-`).Example("Sentiment Analysis (Downloaded Model)", "Here, we retrieve the [KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english(https://huggingface.co/KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english) model from HuggingFace and store it in a `./models` directory."+
+`).Example("Sentiment Analysis (Downloaded Model)", "Here, we retrieve the [KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english](https://huggingface.co/KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english) model from HuggingFace and store it in a `./models` directory."+
 		"The processor returns a multi-label output indicating showing a `POSITIVE` and `NEGATIVE` score some input text-data.",
 		`
 pipeline:
   processors:
     - nlp_classify_text:
-        pipeline_name: classify-multi-label
+        name: classify-multi-label
+        path: "./models"
         multi_label: true
-        model_path: "./models"
-        enable_model_download: true
-        model_download_options:
-          model_repository: "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
+        enable_download: true
+        download_options:
+          repository: "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english"
 
 
 # In: "This meal tastes like old boots."

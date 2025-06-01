@@ -34,9 +34,8 @@ Introduced in version v1.9.0.
 # Common config fields, showing default values
 label: ""
 nlp_classify_tokens:
-  pipeline_name: "" # No default (optional)
-  model_path: /model_repository
-  model_download_options: {}
+  name: "" # No default (optional)
+  path: /path/to/models/my_model.onnx # No default (required)
   aggregation_strategy: SIMPLE
   ignore_labels: []
 ```
@@ -48,13 +47,12 @@ nlp_classify_tokens:
 # All config fields, showing default values
 label: ""
 nlp_classify_tokens:
-  pipeline_name: "" # No default (optional)
-  model_path: /model_repository
-  onnx_library_path: /usr/lib/onnxruntime.so
-  onnx_filename: ""
-  enable_model_download: false
-  model_download_options:
-    model_repository: ""
+  name: "" # No default (optional)
+  path: /path/to/models/my_model.onnx # No default (required)
+  enable_download: false
+  download_options:
+    repository: KnightsAnalytics/distilbert-NER # No default (required)
+    onnx_filepath: model.onnx
   aggregation_strategy: SIMPLE
   ignore_labels: []
 ```
@@ -66,11 +64,12 @@ nlp_classify_tokens:
 Token classification assigns a label to individual tokens in a sentence.This processor runs token classification inference against batches of text data, returning a set of Entities classification corresponding to each input.
 This component uses [Hugot](https://github.com/knights-analytics/hugot), a library that provides an interface for running [Open Neural Network Exchange (ONNX) models](https://onnx.ai/onnx/intro/) and transformer pipelines, with a focus on NLP tasks.
 
-Currently, [HuggingBento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
+Currently, [Bento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
 	
 - [featureExtraction](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.FeatureExtractionPipeline)
 - [textClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.TextClassificationPipeline)
 - [tokenClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.TokenClassificationPipeline)
+- [zeroShotClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline)
 
 ### What is a pipeline?
 From [HuggingFace docs](https://huggingface.co/docs/transformers/en/main_classes/pipelines):
@@ -93,10 +92,11 @@ Otherwise, check out using [HuggingFace Optimum](https://huggingface.co/docs/opt
 
 Extract entities like persons, organizations, and locations from text.
 
-```yamlpipeline:
+```yaml
+pipeline:
   processors:
     - nlp_classify_tokens:
-        model_path: "KnightsAnalytics/distilbert-NER"
+        path: "KnightsAnalytics/distilbert-NER"
         aggregation_strategy: "SIMPLE"
         ignore_labels: ["O"]
 # In: "John works at Apple Inc. in New York."
@@ -104,17 +104,19 @@ Extract entities like persons, organizations, and locations from text.
 #   {"Entity": "PER", "Score": 0.997136, "Index": 0, "Word": "John", "Start": 0, "End": 4, "IsSubword": false},
 #   {"Entity": "ORG", "Score": 0.985432, "Index": 3, "Word": "Apple Inc.", "Start": 14, "End": 24, "IsSubword": false},
 #   {"Entity": "LOC", "Score": 0.972841, "Index": 6, "Word": "New York", "Start": 28, "End": 36, "IsSubword": false}
-# ]```
+# ]
+```
 
 </TabItem>
 <TabItem value="Custom Entity Extraction">
 
 Extract entities with no aggregation to see individual token classifications.
 
-```yamlpipeline:
+```yaml
+pipeline:
   processors:
     - nlp_classify_tokens:
-        model_path: "KnightsAnalytics/distilbert-NER"
+        path: "KnightsAnalytics/distilbert-NER"
         aggregation_strategy: "NONE"
         ignore_labels: ["O", "MISC"]
 # In: "Microsoft was founded by Bill Gates."
@@ -122,87 +124,84 @@ Extract entities with no aggregation to see individual token classifications.
 #   {"Entity": "B-ORG", "Score": 0.991234, "Index": 0, "Word": "Microsoft", "Start": 0, "End": 9, "IsSubword": false},
 #   {"Entity": "B-PER", "Score": 0.987654, "Index": 4, "Word": "Bill", "Start": 23, "End": 27, "IsSubword": false},
 #   {"Entity": "I-PER", "Score": 0.976543, "Index": 5, "Word": "Gates", "Start": 28, "End": 33, "IsSubword": false}
-# ]```
+# ]
+```
 
 </TabItem>
 </Tabs>
 
 ## Fields
 
-### `pipeline_name`
+### `name`
 
-Name of the pipeline. Defaults to uuid_v4() if not set
-
-
-Type: `string`  
-
-### `model_path`
-
-Path to the ONNX model directory. If `enable_model_download` is `true`, the model will be downloaded here.
+Name of the pipeline. Defaults to a random UUID if not set.
 
 
 Type: `string`  
-Default: `"/model_repository"`  
+
+### `path`
+
+Path to the ONNX model file, or directory containing the model. When downloading (`enable_download: true`), this becomes the destination and must be a directory.
+
+
+Type: `string`  
 
 ```yml
 # Examples
 
-model_path: /path/to/models/my_model.onnx
+path: /path/to/models/my_model.onnx
+
+path: /path/to/models/
 ```
 
-### `onnx_library_path`
+### `enable_download`
 
-The location of the ONNX Runtime dynamic library.
-
-
-Type: `string`  
-Default: `"/usr/lib/onnxruntime.so"`  
-
-### `onnx_filename`
-
-The filename of the model to run. Only necessary to specify when multiple .onnx files are present.
-
-
-Type: `string`  
-Default: `""`  
-
-```yml
-# Examples
-
-onnx_filename: model.onnx
-```
-
-### `enable_model_download`
-
-If enabled, attempts to download an ONNX Runtime compatible model from HuggingFace specified in `model_name`.
+When enabled, attempts to download an ONNX Runtime compatible model from HuggingFace specified in `repository`.
 
 
 Type: `bool`  
 Default: `false`  
 
-### `model_download_options`
+### `download_options`
 
-Sorry! This field is missing documentation.
+Options used to download a model directly from HuggingFace. Before the model is downloaded, validation occurs to ensure the remote repository contains both an`.onnx` and `tokenizers.json` file.
 
 
 Type: `object`  
 
-### `model_download_options.model_repository`
+### `download_options.repository`
 
 The name of the huggingface model repository.
 
 
 Type: `string`  
-Default: `""`  
 
 ```yml
 # Examples
 
-model_repository: KnightsAnalytics/distilbert-NER
+repository: KnightsAnalytics/distilbert-NER
 
-model_repository: KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english
+repository: KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english
 
-model_repository: sentence-transformers/all-MiniLM-L6-v2
+repository: sentence-transformers/all-MiniLM-L6-v2
+```
+
+### `download_options.onnx_filepath`
+
+Filename of the ONNX model within the repository. Only needed when multiple `.onnx` files exist.
+
+
+Type: `string`  
+Default: `"model.onnx"`  
+
+```yml
+# Examples
+
+onnx_filepath: onnx/model.onnx
+
+onnx_filepath: onnx/model_quantized.onnx
+
+onnx_filepath: onnx/model_fp16.onnx
 ```
 
 ### `aggregation_strategy`

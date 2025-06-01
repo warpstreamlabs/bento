@@ -3,7 +3,7 @@ package huggingface
 import (
 	"context"
 	"fmt"
-	"sync"
+	"path/filepath"
 	"time"
 
 	"github.com/knights-analytics/hugot"
@@ -16,11 +16,12 @@ import (
 
 var description = `This component uses [Hugot](https://github.com/knights-analytics/hugot), a library that provides an interface for running [Open Neural Network Exchange (ONNX) models](https://onnx.ai/onnx/intro/) and transformer pipelines, with a focus on NLP tasks.
 
-Currently, [HuggingBento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
+Currently, [Bento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
 	
 - [featureExtraction](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.FeatureExtractionPipeline)
 - [textClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.TextClassificationPipeline)
 - [tokenClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.TokenClassificationPipeline)
+- [zeroShotClassification](https://huggingface.co/docs/transformers/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline)
 
 ### What is a pipeline?
 From [HuggingFace docs](https://huggingface.co/docs/transformers/en/main_classes/pipelines):
@@ -44,37 +45,39 @@ func hugotConfigSpec() *service.ConfigSpec {
 
 func hugotConfigFields() []*service.ConfigField {
 	return []*service.ConfigField{
-		service.NewStringField("pipeline_name").
-			Description("Name of the pipeline. Defaults to uuid_v4() if not set").
+		service.NewStringField("name").
+			Description("Name of the pipeline. Defaults to a random UUID if not set.").
 			Optional(),
-		service.NewStringField("model_path").
-			Description("Path to the ONNX model directory. If `enable_model_download` is `true`, the model will be downloaded here.").
-			Example("/path/to/models/my_model.onnx").
-			Default("/model_repository"),
-		service.NewStringField("onnx_library_path").
-			Description("The location of the ONNX Runtime dynamic library.").
-			Default("/usr/lib/onnxruntime.so").
-			Advanced(),
-		service.NewStringField("onnx_filename").
-			Description("The filename of the model to run. Only necessary to specify when multiple .onnx files are present.").
-			Example("model.onnx").
-			Default("").
-			Advanced(),
-		service.NewBoolField("enable_model_download").
-			Description("If enabled, attempts to download an ONNX Runtime compatible model from HuggingFace specified in `model_name`.").
+		service.NewStringField("path").
+			Description("Path to the ONNX model file, or directory containing the model. When downloading (`enable_download: true`), this becomes the destination and must be a directory.").
+			Examples(
+				"/path/to/models/my_model.onnx",
+				"/path/to/models/",
+			),
+		service.NewBoolField("enable_download").
+			Description("When enabled, attempts to download an ONNX Runtime compatible model from HuggingFace specified in `repository`.").
 			Default(false).
 			Advanced(),
-		service.NewObjectField("model_download_options",
-			service.NewStringField("model_repository").
+		service.NewObjectField("download_options",
+			service.NewStringField("repository").
 				Description("The name of the huggingface model repository.").
 				Examples(
 					"KnightsAnalytics/distilbert-NER",
 					"KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english",
 					"sentence-transformers/all-MiniLM-L6-v2",
+				),
+			service.NewStringField("onnx_filepath").
+				Description("Filepath of the ONNX model within the repository. Only needed when multiple `.onnx` files exist.").
+				Examples(
+					"onnx/model.onnx",
+					"onnx/model_quantized.onnx",
+					"onnx/model_fp16.onnx",
 				).
-				Default("").
+				Default("model.onnx").
 				Advanced(),
-		),
+		).Description(`Options used to download a model directly from HuggingFace. Before the model is downloaded, validation occurs to ensure the remote repository contains both an` + "`.onnx` and " + "`tokenizers.json` file.").
+			Optional().
+			Advanced(),
 	}
 }
 
@@ -92,20 +95,16 @@ type pipelineProcessor struct {
 
 	pipelineName string
 	modelPath    string
-	modelName    string
 	onnxFilename string
 
 	metaOutputType     string
 	metaOutputLayerDim []int64
-
-	closeOnce sync.Once
 }
 
 func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*pipelineProcessor, error) {
 	p := &pipelineProcessor{log: mgr.Logger()}
 
 	var modelRepo, modelPath, pipelineName string
-	var onnxFileName string
 	var shouldDownload bool
 
 	var err error
@@ -121,27 +120,31 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	if modelPath, err = conf.FieldString("model_path"); err != nil {
+	if modelPath, err = conf.FieldString("path"); err != nil {
 		return nil, err
 	}
 
-	if pipelineName, err = conf.FieldString("pipeline_name"); err != nil {
+	if pipelineName, err = conf.FieldString("name"); err != nil {
 		return nil, err
 	}
 
-	if onnxFileName, err = conf.FieldString("onnx_filename"); err != nil {
-		return nil, err
-	}
-
-	if shouldDownload, err = conf.FieldBool("enable_model_download"); err != nil {
+	if shouldDownload, err = conf.FieldBool("enable_download"); err != nil {
 		return nil, err
 	}
 
 	if shouldDownload {
+		if filepath.Ext(modelPath) != "" {
+			return nil, fmt.Errorf("when enable_download is true, path must be a directory, got file path: %s", modelPath)
+		}
+
 		opts := hugot.NewDownloadOptions()
 		opts.Verbose = false
 
-		if modelRepo, err = conf.FieldString("model_download_options", "model_repository"); err != nil {
+		if modelRepo, err = conf.FieldString("download_options", "repository"); err != nil {
+			return nil, err
+		}
+
+		if opts.OnnxFilePath, err = conf.FieldString("download_options", "onnx_filepath"); err != nil {
 			return nil, err
 		}
 
@@ -151,13 +154,12 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		} else {
 			modelPath = path
 		}
-		p.log.With("model_repository", modelRepo).Infof("Completed download (took %d ms)", time.Since(start).Milliseconds())
+		p.log.With("repository", modelRepo).Infof("Completed download (took %d ms)", time.Since(start).Milliseconds())
+
 	}
 
-	p.onnxFilename = onnxFileName
 	p.modelPath = modelPath
 	p.pipelineName = pipelineName
-	p.modelName = modelRepo
 
 	return p, nil
 }

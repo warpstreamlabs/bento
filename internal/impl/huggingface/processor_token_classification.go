@@ -26,10 +26,11 @@ func HugotTokenClassificationConfigSpec() *service.ConfigSpec {
 			Default([]string{}).
 			Example([]string{"O", "MISC"})).
 		Example("Named Entity Recognition", "Extract entities like persons, organizations, and locations from text.",
-			`pipeline:
+			`
+pipeline:
   processors:
     - nlp_classify_tokens:
-        model_path: "KnightsAnalytics/distilbert-NER"
+        path: "KnightsAnalytics/distilbert-NER"
         aggregation_strategy: "SIMPLE"
         ignore_labels: ["O"]
 # In: "John works at Apple Inc. in New York."
@@ -37,12 +38,14 @@ func HugotTokenClassificationConfigSpec() *service.ConfigSpec {
 #   {"Entity": "PER", "Score": 0.997136, "Index": 0, "Word": "John", "Start": 0, "End": 4, "IsSubword": false},
 #   {"Entity": "ORG", "Score": 0.985432, "Index": 3, "Word": "Apple Inc.", "Start": 14, "End": 24, "IsSubword": false},
 #   {"Entity": "LOC", "Score": 0.972841, "Index": 6, "Word": "New York", "Start": 28, "End": 36, "IsSubword": false}
-# ]`).
+# ]
+`).
 		Example("Custom Entity Extraction", "Extract entities with no aggregation to see individual token classifications.",
-			`pipeline:
+			`
+pipeline:
   processors:
     - nlp_classify_tokens:
-        model_path: "KnightsAnalytics/distilbert-NER"
+        path: "KnightsAnalytics/distilbert-NER"
         aggregation_strategy: "NONE"
         ignore_labels: ["O", "MISC"]
 # In: "Microsoft was founded by Bill Gates."
@@ -50,7 +53,8 @@ func HugotTokenClassificationConfigSpec() *service.ConfigSpec {
 #   {"Entity": "B-ORG", "Score": 0.991234, "Index": 0, "Word": "Microsoft", "Start": 0, "End": 9, "IsSubword": false},
 #   {"Entity": "B-PER", "Score": 0.987654, "Index": 4, "Word": "Bill", "Start": 23, "End": 27, "IsSubword": false},
 #   {"Entity": "I-PER", "Score": 0.976543, "Index": 5, "Word": "Gates", "Start": 28, "End": 33, "IsSubword": false}
-# ]`)
+# ]
+`)
 
 	return spec
 }

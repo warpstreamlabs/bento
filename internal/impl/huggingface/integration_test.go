@@ -16,6 +16,7 @@ import (
 	"github.com/knights-analytics/hugot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/internal/impl/huggingface"
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
@@ -83,8 +84,8 @@ func TestIntegration_TextClassifier(t *testing.T) {
 			})
 
 			template := fmt.Sprintf(`
-pipeline_name: classify-incoming-data
-model_path: %s
+name: classify-incoming-data
+path: %s
 multi_label: %s
 `, modelPath, strconv.FormatBool(tt.multiLabel))
 
@@ -128,8 +129,8 @@ func TestIntegration_TokenClassifier(t *testing.T) {
 	require.NoError(t, err)
 
 	template := fmt.Sprintf(`
-pipeline_name: classify-tokens
-model_path: %s
+name: classify-tokens
+path: %s
 `, modelPath)
 
 	conf, err := huggingface.HugotTokenClassificationConfigSpec().ParseYAML(template, nil)
@@ -167,8 +168,8 @@ func TestIntegration_FeatureExtractor(t *testing.T) {
 	require.NoError(t, err)
 
 	template := fmt.Sprintf(`
-pipeline_name: extract-features
-model_path: %s
+name: extract-features
+path: %s
 `, modelPath)
 
 	conf, err := huggingface.HugotFeatureExtractionConfigSpec().ParseYAML(template, nil)
@@ -236,8 +237,8 @@ func TestIntegration_ZeroShotTextClassifier(t *testing.T) {
 			})
 
 			template := fmt.Sprintf(`
-pipeline_name: zero-shot-classify
-model_path: %s
+name: zero-shot-classify
+path: %s
 labels: [%s]
 multi_label: %s
 hypothesis_template: "This example is {}."
@@ -268,5 +269,43 @@ hypothesis_template: "This example is {}."
 				}
 			}
 		})
+	}
+}
+
+func TestIntegration_Download(t *testing.T) {
+	snapshot := loadSnapshot(t, "test-snapshot-feature-extraction", "expected_feature_extraction.json")
+
+	tmpDir := t.TempDir()
+	template := fmt.Sprintf(`
+name: extract-features
+path: %s
+enable_download: true
+download_options:
+  repository: %s
+  onnx_filepath: onnx/model.onnx
+`, tmpDir, snapshot.Metadata.ModelName)
+
+	conf, err := huggingface.HugotFeatureExtractionConfigSpec().ParseYAML(template, nil)
+	require.NoError(t, err)
+
+	proc, err := huggingface.NewFeatureExtractionPipeline(conf, service.MockResources())
+	require.NoError(t, err)
+
+	ctx, done := context.WithTimeout(context.Background(), time.Second*60)
+	defer done()
+
+	for _, expected := range snapshot.Results {
+		input := service.NewMessage([]byte(expected.Input))
+
+		batches, err := proc.ProcessBatch(ctx, []*service.Message{input})
+		require.NoError(t, err)
+
+		for _, batch := range batches {
+			for _, msg := range batch {
+				output, err := msg.AsStructured()
+				require.NoError(t, err)
+				compareResults(t, expected.Result, output)
+			}
+		}
 	}
 }
