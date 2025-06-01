@@ -25,6 +25,7 @@ input:
     spanner_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName} # No default (required)
     spanner_metadata_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName} # No default (required)
     metadata_table: table_metadata # No default (required)
+    stream_name: "" # No default (required)
     heartbeat_interval: 3s
     start_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
     end_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
@@ -97,6 +98,13 @@ metadata_table: table_metadata
 
 metadata_table: stream_metadata
 ```
+
+### `stream_name`
+
+The name of the stream to track changes on.
+
+
+Type: `string`  
 
 ### `heartbeat_interval`
 
