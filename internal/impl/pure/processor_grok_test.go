@@ -91,7 +91,7 @@ func TestGrok(t *testing.T) {
 			if test.definitions == nil {
 				test.definitions = map[string]any{}
 			}
-			conf, err := testutil.ProcessorFromYAML(`
+			conf, err := testutil.ProcessorFromYAMLWithArgs(`
 grok:
   expressions:
     - '%v'
@@ -115,7 +115,7 @@ grok:
 			if test.definitions == nil {
 				test.definitions = map[string]any{}
 			}
-			conf, err := testutil.ProcessorFromYAML(`
+			conf, err := testutil.ProcessorFromYAMLWithArgs(`
 grok:
   expressions:
     - '%v'
@@ -144,7 +144,7 @@ FOONESTED %{INT:nested.first:int} %{WORD:nested.second} %{WORD:nested.third}
 `), 0o777)
 	require.NoError(t, err)
 
-	conf, err := testutil.ProcessorFromYAML(`
+	conf, err := testutil.ProcessorFromYAMLWithArgs(`
 grok:
   expressions:
     - "%%{FOONESTED}"
