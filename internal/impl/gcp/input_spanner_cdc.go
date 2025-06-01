@@ -94,20 +94,21 @@ func cdcConfigFromParsed(pConf *service.ParsedConfig) (conf cdcConfig, err error
 
 func spannerCdcSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Stable().
+		Beta().
+		Version("1.8.0").
 		Categories("Services", "GCP").
-		Summary(`Consumes spanner Change Stream Events from a GCP Spanner instance.`).
+		Summary(`Consumes Spanner Change Stream Events from a GCP Spanner instance.`).
 		Description(`
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
-This Input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within spanner.\
-Currently does not support Postgresql Dialect for the Spanner CDC.\
-It does support multiple runners using a distributed lock to ensure that only one runner is reading from a partition at a time.
+This input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within Spanner.
+Currently, it does not support PostgreSQL Dialect for the Spanner CDC.
+It supports multiple runners using a distributed lock to ensure that only one runner reads from a given partition at a time.
 
 ### Event Data Structure
 The data structure of the events emitted by this input can be found here:
-* [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records).
-* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord).
+* [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records)
+* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord)
 
 ### Metadata
 
