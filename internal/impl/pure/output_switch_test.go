@@ -170,7 +170,7 @@ func TestSwitchBatchNoRetries(t *testing.T) {
 	confStr := `
 retry_until_success: false
 cases:
-  - check: 'root = this.id %% 2 == 0'
+  - check: 'root = this.id % 2 == 0'
     output:
       drop: {}
   - check: 'root = true'

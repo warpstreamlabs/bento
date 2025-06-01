@@ -20,7 +20,7 @@ func TestGrokAllParts(t *testing.T) {
 	conf, err := testutil.ProcessorFromYAML(`
 grok:
   expressions:
-    - "%%{WORD:first},%%{INT:second:int}"
+    - "%{WORD:first},%{INT:second:int}"
 `)
 	require.NoError(t, err)
 
