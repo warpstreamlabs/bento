@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed 
 
-- 
+- `elasticsearch` output `tls` connections @jem-davies
 
 ### Changed 
 
