@@ -63,7 +63,9 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 	// Create a new Hugot Go session
 	session, err := hugot.NewGoSession()
 	require.NoError(t, err, "Failed to create session")
-	defer session.Destroy()
+	t.Cleanup(func() {
+		require.NoError(t, session.Destroy())
+	})
 
 	tests := []struct {
 		name  string
@@ -111,7 +113,9 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 		pipeline, err := hugot.NewPipeline(session, config)
 		require.NoError(t, err, "Failed to create pipeline")
 
-		defer pipeline.GetModel().Destroy()
+		t.Cleanup(func() {
+			require.NoError(t, pipeline.GetModel().Destroy())
+		})
 
 		// Run the pipeline and save the results
 		var results []Result
@@ -158,7 +162,9 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 	// Create a new Hugot Go session
 	session, err := hugot.NewGoSession()
 	require.NoError(t, err, "Failed to create session")
-	defer session.Destroy()
+	t.Cleanup(func() {
+		require.NoError(t, session.Destroy())
+	})
 
 	tests := []struct {
 		name  string
@@ -202,8 +208,9 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 		pipeline, err := hugot.NewPipeline(session, config)
 		require.NoError(t, err, "Failed to create pipeline")
 
-		defer pipeline.GetModel().Destroy()
-
+		t.Cleanup(func() {
+			require.NoError(t, pipeline.GetModel().Destroy())
+		})
 		// Run the pipeline and save the results
 		var results []Result
 		for _, batch := range tt.prompts {
@@ -249,7 +256,9 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 	// Create a new Hugot Go session
 	session, err := hugot.NewGoSession()
 	require.NoError(t, err, "Failed to create session")
-	defer session.Destroy()
+	t.Cleanup(func() {
+		require.NoError(t, session.Destroy())
+	})
 
 	tests := []struct {
 		name  string
@@ -305,7 +314,9 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 		pipeline, err := hugot.NewPipeline(session, config)
 		require.NoError(t, err, "Failed to create pipeline")
 
-		defer pipeline.GetModel().Destroy()
+		t.Cleanup(func() {
+			require.NoError(t, pipeline.GetModel().Destroy())
+		})
 
 		// Run the pipeline and save the results
 		var results []Result
@@ -352,7 +363,10 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 	// Create a new Hugot Go session
 	session, err := hugot.NewGoSession()
 	require.NoError(t, err, "Failed to create session")
-	defer session.Destroy()
+
+	t.Cleanup(func() {
+		require.NoError(t, session.Destroy())
+	})
 
 	tests := []struct {
 		name              string
@@ -416,8 +430,9 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 		pipeline, err := hugot.NewPipeline(session, config)
 		require.NoError(t, err, "Failed to create pipeline")
 
-		defer pipeline.GetModel().Destroy()
-
+		t.Cleanup(func() {
+			require.NoError(t, pipeline.GetModel().Destroy())
+		})
 		// Run the pipeline and save the results
 		var results []Result
 		for _, batch := range tt.prompts {

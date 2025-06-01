@@ -419,8 +419,10 @@ require (
 
 go 1.24
 
-toolchain go1.24.2
-
 // This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
 // Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842
 replace inet.af/peercred => github.com/tailscale/peercred v0.0.0-20240214030740-b535050b2aa4
+
+// The original repo creates a directory and logs to stout on package init().
+// Remove once https://github.com/sugarme/tokenizer/pull/58 is merged.
+replace github.com/sugarme/tokenizer => github.com/knights-analytics/tokenizer v0.0.0-20250601083932-4b2976732377

@@ -49,20 +49,20 @@ func TestIntegration_TextClassifier(t *testing.T) {
 	tests := []struct {
 		name string
 
-		snapshotId   string
+		snapshotID   string
 		snapshotPath string
 		multiLabel   bool
 	}{
 		{
 
 			name:         "single label test",
-			snapshotId:   "test-snapshot-text-classifier",
+			snapshotID:   "test-snapshot-text-classifier",
 			snapshotPath: "expected_text_classification.json",
 			multiLabel:   false,
 		},
 		{
 			name:         "multi label test",
-			snapshotId:   "test-snapshot-text-multi-classifier",
+			snapshotID:   "test-snapshot-text-multi-classifier",
 			snapshotPath: "expected_text_classification.json",
 			multiLabel:   true,
 		},
@@ -71,7 +71,7 @@ func TestIntegration_TextClassifier(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			snapshot := loadSnapshot(t, tt.snapshotId, tt.snapshotPath)
+			snapshot := loadSnapshot(t, tt.snapshotID, tt.snapshotPath)
 
 			tmpDir := t.TempDir()
 			modelName := snapshot.Metadata.ModelName
@@ -200,21 +200,21 @@ path: %s
 func TestIntegration_ZeroShotTextClassifier(t *testing.T) {
 	tests := []struct {
 		name         string
-		snapshotId   string
+		snapshotID   string
 		snapshotPath string
 		multiLabel   bool
 		labels       []string
 	}{
 		{
 			name:         "single label test",
-			snapshotId:   "test-snapshot-zero-shot-classification",
+			snapshotID:   "test-snapshot-zero-shot-classification",
 			snapshotPath: "expected_zero_shot_classification.json",
 			multiLabel:   false,
 			labels:       []string{"spam"},
 		},
 		{
 			name:         "multi label test",
-			snapshotId:   "test-snapshot-zero-shot-classification-multi",
+			snapshotID:   "test-snapshot-zero-shot-classification-multi",
 			snapshotPath: "expected_zero_shot_classification.json",
 			multiLabel:   true,
 			labels:       []string{"positive", "negative", "neutral"},
@@ -223,7 +223,7 @@ func TestIntegration_ZeroShotTextClassifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			snapshot := loadSnapshot(t, tt.snapshotId, tt.snapshotPath)
+			snapshot := loadSnapshot(t, tt.snapshotID, tt.snapshotPath)
 			tmpDir := t.TempDir()
 			modelName := snapshot.Metadata.ModelName
 
