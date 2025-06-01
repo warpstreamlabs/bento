@@ -138,13 +138,14 @@ This input adds the following metadata fields to each message:
 				Description("The name of the stream to track changes on."),
 			service.NewDurationField(cdcFieldHeartbeatInterval).
 				Description("An optional field to configure the heartbeat interval for partitions.").
-				Default((time.Second * 3).String()).Optional(),
+				Default((time.Second * 3).String()).
+				Optional(),
 			service.NewStringField(cdcFieldStartTime).
-				Description("An optional field to define the start point to read from the changestreams, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)").
+				Description("An optional field to define the start point to read from the changestreams, timestamp format should conform to RFC3339, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)").
 				Example(time.RFC3339).
 				Optional(),
 			service.NewStringField(cdcFieldEndTime).
-				Description("An optional field to define the end time to read from the changestreams").
+				Description("An optional field to define the end time to read from the changestreams, timestamp format should conform to RFC3339").
 				Example(time.RFC3339).
 				Optional(),
 		)
