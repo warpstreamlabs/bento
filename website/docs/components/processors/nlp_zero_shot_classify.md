@@ -183,7 +183,7 @@ repository: sentence-transformers/all-MiniLM-L6-v2
 
 ### `download_options.onnx_filepath`
 
-Filename of the ONNX model within the repository. Only needed when multiple `.onnx` files exist.
+Filepath of the ONNX model within the repository. Only needed when multiple `.onnx` files exist.
 
 
 Type: `string`  
