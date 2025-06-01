@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/options"
 	"github.com/knights-analytics/hugot/pipelineBackends"
 	"github.com/knights-analytics/hugot/pipelines"
 
@@ -109,8 +108,13 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 
 	var err error
 
-	ctorValue, _ := mgr.GetOrSetGeneric(SessionConstructorKey{}, hugot.NewGoSession)
-	sessCtor, ok := ctorValue.(func(opts ...options.WithOption) (*hugot.Session, error))
+	// To prevent multiple sessions being created at once, rather store the constructor and allow it
+	// to be atomically retrieved.
+	ctorValue, _ := mgr.GetOrSetGeneric(SessionConstructorKey{}, func() (*hugot.Session, error) {
+		return hugot.NewGoSession()
+	})
+
+	sessCtor, ok := ctorValue.(func() (*hugot.Session, error))
 	if !ok {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
