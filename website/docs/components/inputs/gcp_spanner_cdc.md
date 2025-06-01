@@ -2,7 +2,7 @@
 title: gcp_spanner_cdc
 slug: gcp_spanner_cdc
 type: input
-status: stable
+status: beta
 categories: ["Services","GCP"]
 ---
 
@@ -15,7 +15,12 @@ categories: ["Services","GCP"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Consumes spanner Change Stream Events from a GCP Spanner instance.
+:::caution BETA
+This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
+:::
+Consumes Spanner Change Stream Events from a GCP Spanner instance.
+
+Introduced in version 1.8.0.
 
 ```yml
 # Config fields, showing default values
@@ -33,14 +38,14 @@ input:
 
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
-This Input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within spanner.\
-Currently does not support Postgresql Dialect for the Spanner CDC.\
-It does support multiple runners using a distributed lock to ensure that only one runner is reading from a partition at a time.
+This input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within Spanner.
+Currently, it does not support PostgreSQL Dialect for the Spanner CDC.
+It supports multiple runners using a distributed lock to ensure that only one runner reads from a given partition at a time.
 
 ### Event Data Structure
 The data structure of the events emitted by this input can be found here:
-* [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records).
-* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord).
+* [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records)
+* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord)
 
 ### Metadata
 
@@ -116,7 +121,7 @@ Default: `"3s"`
 
 ### `start_time`
 
-An optional field to define the start point to read from the changestreams, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)
+An optional field to define the start point to read from the changestreams, timestamp format should conform to RFC3339, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)
 
 
 Type: `string`  
@@ -129,7 +134,7 @@ start_time: 2006-01-02T15:04:05Z07:00
 
 ### `end_time`
 
-An optional field to define the end time to read from the changestreams
+An optional field to define the end time to read from the changestreams, timestamp format should conform to RFC3339
 
 
 Type: `string`  
