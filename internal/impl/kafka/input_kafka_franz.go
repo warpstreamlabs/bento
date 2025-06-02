@@ -99,6 +99,7 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 		Field(service.NewBoolField("reconnect_on_unknown_topic").
 			Description("Determines whether to close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.").
 			Default(false).
+			Version("1.8.0").
 			Advanced()).
 		Field(service.NewStringEnumField("auto_offset_reset", "earliest", "latest", "none").
 			Description("Determines which offset to automatically consume from, matching Kafka's `auto.offset.reset` property. When specified, this takes precedence over `start_from_oldest`.").
