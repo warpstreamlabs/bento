@@ -341,7 +341,7 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 		return nil, err
 	}
 
-	if f.reconnectOnUnknownTopic, err = conf.FieldBool("reconnect_on_unknown_topic"); err != nil {
+	if f.reconnectOnUnknownTopic, err = conf.FieldBool("reconnect_on_unknown_topic_or_partition"); err != nil {
 		return nil, err
 	}
 

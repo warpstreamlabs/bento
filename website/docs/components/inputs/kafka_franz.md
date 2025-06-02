@@ -243,6 +243,7 @@ Determines whether to close the client and force a reconnect after seeing an UNK
 
 Type: `bool`  
 Default: `false`  
+Requires version 1.8.0 or newer  
 
 ### `auto_offset_reset`
 
