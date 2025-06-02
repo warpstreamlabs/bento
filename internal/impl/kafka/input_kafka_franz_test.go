@@ -25,7 +25,7 @@ func TestInputKafkaFranzRetriableError(t *testing.T) {
 seed_brokers: [ localhost:9092 ]
 topics: [ foo ]
 consumer_group: test-group
-reconnect_on_unknown_topic: true
+reconnect_on_unknown_topic_or_partition: true
 batching:
   count: 10
 `, nil)
@@ -99,7 +99,7 @@ batching:
 	}
 }
 
-// This test asserts that if reconnect_on_unknown_topic is set to true
+// This test asserts that if reconnect_on_unknown_topic_or_partition is set to true
 // and the reader sees an unknown topic error, it will force a reconnect.
 func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	integration.CheckSkip(t)
@@ -172,7 +172,7 @@ checkpoint_limit: 100
 commit_period: 1s
 batching:
   count: 10
-reconnect_on_unknown_topic: true
+reconnect_on_unknown_topic_or_partition: true
 `, kafkaPortStr), nil)
 	require.NoError(t, err)
 
@@ -208,7 +208,7 @@ reconnect_on_unknown_topic: true
 	}
 }
 
-// This test asserts that if reconnect_on_unknown_topic is set to true,
+// This test asserts that if reconnect_on_unknown_topic_or_partition is set to true,
 // the input reader can handle recreated topics.
 func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 	integration.CheckSkip(t)
@@ -290,7 +290,7 @@ kafka_franz:
   topics: [ foo ]
   consumer_group: test-group
   checkpoint_limit: 100
-  reconnect_on_unknown_topic: true
+  reconnect_on_unknown_topic_or_partition: true
   start_from_oldest: true
 `, kafkaPortStr))
 	require.NoError(t, err)
