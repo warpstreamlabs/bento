@@ -38,7 +38,6 @@ Please always make sure a pull request has been:
 - Unit tested with `make test`
 - Linted with `make lint`
 - Formatted with `make fmt`
-- Regenerated docs with `make docs`
 
 If your change impacts inputs, outputs or other connectors then try to test them with `make test-integration`. If the integration tests aren't working on your machine then don't panic, just mention it in your PR.
 

@@ -103,7 +103,7 @@ Type: `string`
 
 ### `open_messages`
 
-An optional list of messages to send to the server upon connection.
+An optional list of messages to send to the server upon connection. This field replaces `open_message`, which will be removed in a future version.
 
 
 Type: `array`  
