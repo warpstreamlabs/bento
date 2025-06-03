@@ -91,6 +91,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
+	github.com/marcboeker/go-duckdb/v2 v2.3.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/microsoft/gocosmos v1.1.1
@@ -167,16 +168,25 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
-	github.com/apache/arrow-go/v18 v18.0.0 // indirect
+	github.com/apache/arrow-go/v18 v18.1.0 // indirect
+	github.com/duckdb/duckdb-go-bindings v0.1.15 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.10 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.10 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.10 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.10 // indirect
+	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.10 // indirect
+	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
-	github.com/hamba/avro/v2 v2.26.0 // indirect
+	github.com/hamba/avro/v2 v2.27.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/marcboeker/go-duckdb/arrowmapping v0.0.8 // indirect
+	github.com/marcboeker/go-duckdb/mapping v0.0.9 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 )
 
@@ -282,7 +292,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
-	github.com/goccy/go-json v0.10.4 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
@@ -290,7 +300,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/flatbuffers v24.12.23+incompatible // indirect
+	github.com/google/flatbuffers v25.1.24+incompatible // indirect
 	github.com/google/pprof v0.0.0-20241101162523-b92577c0c142 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -399,7 +409,9 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-go 1.23.0
+go 1.24
+
+toolchain go1.24.3
 
 // This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
 // Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842
