@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - `iam_enabled` field to sql components enables connection to aws rds instances via iam authentication @gregfurman & @jem-davies
 - `nats_object_store` components enable connecting to a nats object store @jem-davies
 - `reconnect_on_unknown_topic` field enables the `kafka_franz` input to handle recreated topics @brianshih1
+- `expected_headers` & `expected_number_of_fields` added to `csv` input providing more validation options @etolbakov
 
 ### Fixed 
 
