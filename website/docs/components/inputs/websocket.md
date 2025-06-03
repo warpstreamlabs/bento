@@ -44,7 +44,7 @@ input:
   websocket:
     url: ws://localhost:4195/get/ws # No default (required)
     proxy_url: "" # No default (optional)
-    open_message: "" # No default (optional)
+    open_messages: [] # No default (optional)
     open_message_type: binary
     auto_replay_nacks: true
     tls:
@@ -101,12 +101,12 @@ An optional HTTP proxy URL.
 
 Type: `string`  
 
-### `open_message`
+### `open_messages`
 
-An optional message to send to the server upon connection.
+An optional list of messages to send to the server upon connection. This field replaces `open_message`, which will be removed in a future version.
 
 
-Type: `string`  
+Type: `array`  
 
 ### `open_message_type`
 
