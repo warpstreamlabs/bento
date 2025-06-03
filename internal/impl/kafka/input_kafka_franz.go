@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
 
@@ -94,6 +95,11 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 		Field(service.NewBoolField("start_from_oldest").
 			Description("Determines whether to consume from the oldest available offset, otherwise messages are consumed from the latest offset. The setting is applied when creating a new consumer group or the saved offset no longer exists.").
 			Default(true).
+			Advanced()).
+		Field(service.NewBoolField("reconnect_on_unknown_topic_or_partition").
+			Description("Determines whether to close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.").
+			Default(false).
+			Version("1.8.0").
 			Advanced()).
 		Field(service.NewStringEnumField("auto_offset_reset", "earliest", "latest", "none").
 			Description("Determines which offset to automatically consume from, matching Kafka's `auto.offset.reset` property. When specified, this takes precedence over `start_from_oldest`.").
@@ -193,6 +199,8 @@ type franzKafkaReader struct {
 	regexPattern    bool
 	multiHeader     bool
 	batchPolicy     service.BatchPolicy
+
+	reconnectOnUnknownTopic bool
 
 	metadataMaxAge         time.Duration
 	fetchMaxBytes          int32
@@ -330,6 +338,10 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	}
 
 	if f.consumerGroup, err = conf.FieldString("consumer_group"); err != nil {
+		return nil, err
+	}
+
+	if f.reconnectOnUnknownTopic, err = conf.FieldBool("reconnect_on_unknown_topic_or_partition"); err != nil {
 		return nil, err
 	}
 
@@ -757,6 +769,26 @@ func (c *checkpointTracker) removeTopicPartitions(ctx context.Context, m map[str
 	}
 }
 
+// If this returns false, the reader will close the client to force a reconnect.
+func (f *franzKafkaReader) isRetriableError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	// Currently, franzgo consumers cannot deal with recreated topics.
+	// Issue: https://github.com/twmb/franz-go/issues/676.
+	// Since the metadata won't refresh topic IDs that have been deleted, the consumer will keep failing forever.
+	// The temporary solution here is to add a flag `reconnect_on_unknown_topic_or_partition`
+	// so that if it's set and an unknown topic error is received, Bento forces a reconnect
+	// so that it can pick up the newly created topic.
+	isUnknownTopicErr := err == kerr.UnknownTopicOrPartition || err == kerr.UnknownTopicID
+	if isUnknownTopicErr && f.reconnectOnUnknownTopic {
+		return false
+	}
+	return kerr.IsRetriable(err)
+}
+
 //------------------------------------------------------------------------------
 
 func (f *franzKafkaReader) Connect(ctx context.Context) error {
@@ -810,6 +842,9 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
 	}
+	if f.reconnectOnUnknownTopic {
+		clientOpts = append(clientOpts, kgo.KeepRetryableFetchErrors())
+	}
 
 	if f.consumerGroup != "" {
 		clientOpts = append(clientOpts,
@@ -830,6 +865,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 	}
 
 	if f.tlsConf != nil {
+
 		clientOpts = append(clientOpts, kgo.DialTLSConfig(f.tlsConf))
 	}
 
@@ -872,19 +908,15 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 				// forcing a reconnect.
 				nonTemporalErr := false
 
-				for _, kerr := range errs {
-					// TODO: The documentation from franz-go is top-tier, it
-					// should be straight forward to expand this to include more
-					// errors that are safe to disregard.
-					if errors.Is(kerr.Err, context.DeadlineExceeded) ||
-						errors.Is(kerr.Err, context.Canceled) {
+				for _, err := range errs {
+					if f.isRetriableError(err.Err) {
 						continue
 					}
 
 					nonTemporalErr = true
 
-					if !errors.Is(kerr.Err, kgo.ErrClientClosed) {
-						f.log.Errorf("Kafka poll error on topic %v, partition %v: %v", kerr.Topic, kerr.Partition, kerr.Err)
+					if !errors.Is(err.Err, kgo.ErrClientClosed) {
+						f.log.Errorf("Kafka poll error on topic %v, partition %v: %v", err.Topic, err.Partition, err.Err)
 					}
 				}
 
