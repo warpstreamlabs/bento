@@ -96,7 +96,7 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Description("Determines whether to consume from the oldest available offset, otherwise messages are consumed from the latest offset. The setting is applied when creating a new consumer group or the saved offset no longer exists.").
 			Default(true).
 			Advanced()).
-		Field(service.NewBoolField("reconnect_on_unknown_topic").
+		Field(service.NewBoolField("reconnect_on_unknown_topic_or_partition").
 			Description("Determines whether to close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.").
 			Default(false).
 			Version("1.8.0").
