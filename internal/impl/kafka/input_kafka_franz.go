@@ -776,6 +776,12 @@ func (f *franzKafkaReader) isRetriableError(err error) bool {
 		return true
 	}
 
+	// Currently, franzgo consumers cannot deal with recreated topics.
+	// Issue: https://github.com/twmb/franz-go/issues/676.
+	// Since the metadata won't refresh topic IDs that have been deleted, the consumer will keep failing forever.
+	// The temporary solution here is to add a flag `reconnect_on_unknown_topic_or_partition`
+	// so that if it's set and an unknown topic error is received, Bento forces a reconnect
+	// so that it can pick up the newly created topic.
 	isUnknownTopicErr := err == kerr.UnknownTopicOrPartition || err == kerr.UnknownTopicID
 	if isUnknownTopicErr && f.reconnectOnUnknownTopic {
 		return false
