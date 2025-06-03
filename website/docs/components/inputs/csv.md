@@ -207,7 +207,7 @@ An optional list of expected headers in the header row. If provided, the scanner
 
 
 Type: `array`  
-Requires version 1.7.1 or newer  
+Requires version 1.8.0 or newer  
 
 ```yml
 # Examples
@@ -224,7 +224,7 @@ The number of expected fields in the csv file.
 
 
 Type: `int`  
-Requires version 1.7.1 or newer  
+Requires version 1.8.0 or newer  
 
 This input is particularly useful when consuming CSV from files too large to parse entirely within memory. However, in cases where CSV is consumed from other input types it's also possible to parse them using the [Bloblang `parse_csv` method](/docs/guides/bloblang/methods#parse_csv).
 

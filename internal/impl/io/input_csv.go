@@ -135,11 +135,11 @@ output:
 			service.NewStringListField(csviFieldExpectedHeaders).
 				Description("An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.").
 				Example([]string{"first_name", "last_name", "age"}).
-				Version("1.7.1").
+				Version("1.8.0").
 				Optional(),
 			service.NewIntField(csviFieldExpectedNumberOfFields).
 				Description("The number of expected fields in the csv file.").
-				Version("1.7.1").
+				Version("1.8.0").
 				LintRule(`root = if this < 1 { [ "`+csviFieldExpectedNumberOfFields+` must be at least 1" ] }`).
 				Optional(),
 		)
@@ -431,7 +431,7 @@ func (r *csvReader) Connect(ctx context.Context) error {
 func (r *csvReader) readNext(reader *csv.Reader) ([]string, error) {
 	record, err := reader.Read()
 	if err != nil {
-		if r.strict || len(record) == 0 {
+		if r.strict || len(record) == 0 || r.expectedNumberOfFields != 0 {
 			if errors.Is(err, io.EOF) {
 				var deleteFn func() error
 				r.mut.Lock()
@@ -449,28 +449,7 @@ func (r *csvReader) readNext(reader *csv.Reader) ([]string, error) {
 			}
 			return nil, err
 		}
-		if r.expectedNumberOfFields != 0 {
-			return nil, err
-		}
 	}
-	//if err != nil && (r.strict || len(record) == 0) {
-	//	if errors.Is(err, io.EOF) {
-	//		var deleteFn func() error
-	//		r.mut.Lock()
-	//		r.scanner = nil
-	//		r.header = nil
-	//		deleteFn = r.scannerInfo.deleteFn
-	//		r.mut.Unlock()
-	//
-	//		if r.delete {
-	//			if err := deleteFn(); err != nil {
-	//				return nil, err
-	//			}
-	//		}
-	//		return nil, service.ErrNotConnected
-	//	}
-	//	return nil, err
-	//}
 	return record, nil
 }
 
