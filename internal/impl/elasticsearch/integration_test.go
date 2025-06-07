@@ -2,8 +2,13 @@ package elasticsearch
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
@@ -202,6 +208,80 @@ output:
 	)
 }
 
+func TestIntegrationConnectTLS(t *testing.T) {
+	integration.CheckSkip(t)
+
+	pool, err := dockertest.NewPool("")
+	require.NoError(t, err)
+
+	pool.MaxWait = time.Minute * 3
+	resource, err := pool.Run("elasticsearch", "8.16.5", []string{
+		"discovery.type=single-node",
+		"ES_JAVA_OPTS=-Xms512m -Xmx512m",
+		"ELASTIC_PASSWORD=password",
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(resource))
+	})
+
+	// give elasticsearch a moment to create a tls cert
+	time.Sleep(time.Second * 20)
+
+	containerName := resource.Container.Name[1:]
+	cmd := exec.Command("docker", "exec", containerName, "cat", "config/certs/http_ca.crt")
+	output, err := cmd.Output()
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	fileName := "http_ca.crt"
+	fullPath := filepath.Join(tmpDir, fileName)
+
+	err = os.WriteFile(fullPath, output, 0644)
+	require.NoError(t, err)
+
+	client := createHTTPClientWithCA(t, output)
+	polllURL := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
+	configURL := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
+
+	err = pool.Retry(func() error {
+		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", polllURL))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("not ready yet, status: %s", resp.Status)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
+	template := fmt.Sprintf(`
+urls:
+  - %s
+index: test-index
+id: ${! uuid_v4() }
+sniff: false
+basic_auth:
+  enabled: true
+  username: elastic
+  password: password
+tls:
+  enabled: true
+  root_cas_file: "%s"
+`, configURL, fullPath)
+
+	pConf, err := OutputSpec().ParseYAML(template, nil)
+	require.NoError(t, err)
+
+	o, err := OutputFromParsed(pConf, service.MockResources())
+	require.NoError(t, err)
+
+	err = o.Connect(context.Background())
+	require.NoError(t, err)
+}
 func BenchmarkIntegrationElasticsearch(b *testing.B) {
 	integration.CheckSkip(b)
 
@@ -261,4 +341,16 @@ output:
 		b, template,
 		integration.StreamTestOptPort(resource.GetPort("9200/tcp")),
 	)
+}
+
+func createHTTPClientWithCA(t *testing.T, caBytes []byte) *http.Client {
+	caCertPool := x509.NewCertPool()
+	require.True(t, caCertPool.AppendCertsFromPEM(caBytes))
+
+	tlsConfig := &tls.Config{
+		RootCAs: caCertPool,
+	}
+
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	return &http.Client{Transport: transport}
 }

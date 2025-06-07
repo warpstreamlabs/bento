@@ -60,6 +60,7 @@ input:
     auto_replay_nacks: true
     commit_period: 5s
     start_from_oldest: true
+    reconnect_on_unknown_topic_or_partition: false
     auto_offset_reset: "" # No default (optional)
     group_balancers:
       - cooperative_sticky
@@ -234,6 +235,15 @@ Determines whether to consume from the oldest available offset, otherwise messag
 
 Type: `bool`  
 Default: `true`  
+
+### `reconnect_on_unknown_topic_or_partition`
+
+Determines whether to close the client and force a reconnect after seeing an UNKNOWN_TOPIC_OR_PARTITION or UNKNOWN_TOPIC_ID error.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.8.0 or newer  
 
 ### `auto_offset_reset`
 

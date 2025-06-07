@@ -25,7 +25,7 @@ import (
 
 func parseYAMLOutputConf(t testing.TB, formatStr string, args ...any) output.Config {
 	t.Helper()
-	conf, err := testutil.OutputFromYAML(fmt.Sprintf(formatStr, args...))
+	conf, err := testutil.OutputFromYAMLWithArgs(formatStr, args...)
 	require.NoError(t, err)
 	return conf
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
 	"time"
 
@@ -15,12 +16,14 @@ import (
 
 var (
 	// CSV Input Fields
-	csviFieldPaths          = "paths"
-	csviFieldParseHeaderRow = "parse_header_row"
-	csviFieldDelim          = "delimiter"
-	csviFieldLazyQuotes     = "lazy_quotes"
-	csviFieldBatchCount     = "batch_count"
-	csviFieldDeleteOnFinish = "delete_on_finish"
+	csviFieldPaths                  = "paths"
+	csviFieldParseHeaderRow         = "parse_header_row"
+	csviFieldDelim                  = "delimiter"
+	csviFieldLazyQuotes             = "lazy_quotes"
+	csviFieldBatchCount             = "batch_count"
+	csviFieldDeleteOnFinish         = "delete_on_finish"
+	csviFieldExpectedHeaders        = "expected_headers"
+	csviFieldExpectedNumberOfFields = "expected_number_of_fields"
 )
 
 func csviFieldSpec() *service.ConfigSpec {
@@ -129,6 +132,16 @@ output:
 				Advanced().
 				Default(1),
 			service.NewAutoRetryNacksToggleField(),
+			service.NewStringListField(csviFieldExpectedHeaders).
+				Description("An optional list of expected headers in the header row. If provided, the scanner will check the file contents and emit an error if any expected headers don't match.").
+				Example([]string{"first_name", "last_name", "age"}).
+				Version("1.8.0").
+				Optional(),
+			service.NewIntField(csviFieldExpectedNumberOfFields).
+				Description("The number of expected fields in the csv file.").
+				Version("1.8.0").
+				LintRule(`root = if this < 1 { [ "`+csviFieldExpectedNumberOfFields+` must be at least 1" ] }`).
+				Optional(),
 		)
 }
 
@@ -190,6 +203,20 @@ func init() {
 				return nil, err
 			}
 
+			var expectedHeaders []string
+			if conf.Contains(csviFieldExpectedHeaders) {
+				if expectedHeaders, err = conf.FieldStringList(csviFieldExpectedHeaders); err != nil {
+					return nil, err
+				}
+			}
+
+			var expectedNumberOfFields int
+			if conf.Contains(csviFieldExpectedNumberOfFields) {
+				if expectedNumberOfFields, err = conf.FieldInt(csviFieldExpectedNumberOfFields); err != nil {
+					return nil, err
+				}
+			}
+
 			rdr, err := newCSVReader(
 				func(context.Context) (csvScannerInfo, error) {
 					if len(pathsRemaining) == 0 {
@@ -226,6 +253,8 @@ func init() {
 				optCSVSetGroupCount(batchCount),
 				optCSVSetLazyQuotes(lazyQuotes),
 				optCSVSetDeleteOnFinish(deleteOnFinish),
+				optCSVSetExpectedHeaders(expectedHeaders),
+				optCSVSetExpectedNumberOfFields(expectedNumberOfFields),
 			)
 			if err != nil {
 				return nil, err
@@ -250,12 +279,14 @@ type csvReader struct {
 	scannerInfo csvScannerInfo
 	header      []any
 
-	expectHeader bool
-	comma        rune
-	strict       bool
-	groupCount   int
-	lazyQuotes   bool
-	delete       bool
+	expectHeader           bool
+	comma                  rune
+	strict                 bool
+	groupCount             int
+	lazyQuotes             bool
+	delete                 bool
+	expectedHeaders        []string
+	expectedNumberOfFields int
 }
 
 // newCSVReader creates a new reader input type able to create a feed of line
@@ -275,14 +306,16 @@ func newCSVReader(
 	options ...func(r *csvReader),
 ) (*csvReader, error) {
 	r := csvReader{
-		handleCtor:   handleCtor,
-		onClose:      onClose,
-		comma:        ',',
-		expectHeader: true,
-		strict:       false,
-		groupCount:   1,
-		lazyQuotes:   false,
-		delete:       false,
+		handleCtor:             handleCtor,
+		onClose:                onClose,
+		comma:                  ',',
+		expectHeader:           true,
+		strict:                 false,
+		groupCount:             1,
+		lazyQuotes:             false,
+		delete:                 false,
+		expectedHeaders:        nil,
+		expectedNumberOfFields: 0,
 	}
 
 	for _, opt := range options {
@@ -294,7 +327,7 @@ func newCSVReader(
 
 //------------------------------------------------------------------------------
 
-// OptCSVSetComma is a option func that sets the comma character (default ',')
+// OptCSVSetComma is an option func that sets the comma character (default ',')
 // to be used to divide record fields.
 func optCSVSetComma(comma rune) func(r *csvReader) {
 	return func(r *csvReader) {
@@ -302,7 +335,7 @@ func optCSVSetComma(comma rune) func(r *csvReader) {
 	}
 }
 
-// OptCSVSetGroupCount is a option func that sets the group count used to batch
+// OptCSVSetGroupCount is an option func that sets the group count used to batch
 // process records.
 func optCSVSetGroupCount(groupCount int) func(r *csvReader) {
 	return func(r *csvReader) {
@@ -342,6 +375,22 @@ func optCSVSetDeleteOnFinish(del bool) func(r *csvReader) {
 	}
 }
 
+// optCSVSetExpectedHeaders is an option func that sets
+// the expected header values.
+func optCSVSetExpectedHeaders(headers []string) func(*csvReader) {
+	return func(r *csvReader) {
+		r.expectedHeaders = headers
+	}
+}
+
+// optCSVSetExpectedNumberOfFields is an option func that sets
+// the number of expected fields per record.
+func optCSVSetExpectedNumberOfFields(count int) func(*csvReader) {
+	return func(r *csvReader) {
+		r.expectedNumberOfFields = count
+	}
+}
+
 //------------------------------------------------------------------------------
 
 func (r *csvReader) closeHandle() (err error) {
@@ -373,32 +422,33 @@ func (r *csvReader) Connect(ctx context.Context) error {
 	scanner.LazyQuotes = r.lazyQuotes
 	scanner.Comma = r.comma
 	scanner.ReuseRecord = true
-
+	scanner.FieldsPerRecord = r.expectedNumberOfFields
 	r.scanner = scanner
 	r.scannerInfo = scannerInfo
-
 	return nil
 }
 
 func (r *csvReader) readNext(reader *csv.Reader) ([]string, error) {
 	record, err := reader.Read()
-	if err != nil && (r.strict || len(record) == 0) {
-		if errors.Is(err, io.EOF) {
-			var deleteFn func() error
-			r.mut.Lock()
-			r.scanner = nil
-			r.header = nil
-			deleteFn = r.scannerInfo.deleteFn
-			r.mut.Unlock()
+	if err != nil {
+		if r.strict || len(record) == 0 || r.expectedNumberOfFields != 0 {
+			if errors.Is(err, io.EOF) {
+				var deleteFn func() error
+				r.mut.Lock()
+				r.scanner = nil
+				r.header = nil
+				deleteFn = r.scannerInfo.deleteFn
+				r.mut.Unlock()
 
-			if r.delete {
-				if err := deleteFn(); err != nil {
-					return nil, err
+				if r.delete {
+					if err := deleteFn(); err != nil {
+						return nil, err
+					}
 				}
+				return nil, service.ErrNotConnected
 			}
-			return nil, service.ErrNotConnected
+			return nil, err
 		}
-		return nil, err
 	}
 	return record, nil
 }
@@ -426,8 +476,21 @@ func (r *csvReader) ReadBatch(ctx context.Context) (service.MessageBatch, servic
 
 		if r.expectHeader && header == nil {
 			header = make([]any, 0, len(record))
-			for _, rec := range record {
-				header = append(header, rec)
+
+			if len(r.expectedHeaders) > 0 {
+				tmpHeaders := make([]string, 0, len(record))
+				tmpHeaders = append(tmpHeaders, record...)
+				if slices.Compare(r.expectedHeaders, tmpHeaders) != 0 {
+					return nil, nil, errors.New("expected_headers don't match file contents")
+				}
+
+				for _, rec := range tmpHeaders {
+					header = append(header, rec)
+				}
+			} else {
+				for _, rec := range record {
+					header = append(header, rec)
+				}
 			}
 
 			r.mut.Lock()
