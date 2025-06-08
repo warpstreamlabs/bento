@@ -163,7 +163,7 @@ func generateListType(
 ) (reflect.Type, error) {
 	fields, err := field.FieldAnyList("fields")
 	if err != nil {
-		return nil, fmt.Errorf("getting map fields: %w", err)
+		return nil, fmt.Errorf("getting list fields: %w", err)
 	}
 
 	if len(fields) != 1 {
@@ -172,7 +172,7 @@ func generateListType(
 
 	elementType, err := generateFieldType(fields[0], schemaOpts)
 	if err != nil {
-		return nil, fmt.Errorf("generating map key type: %w", err)
+		return nil, fmt.Errorf("generating list key type: %w", err)
 	}
 
 	return reflect.SliceOf(elementType), nil
