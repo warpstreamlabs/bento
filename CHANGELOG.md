@@ -3,6 +3,24 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.8.0 - TODO UPDATE WITH RELEASE DATE
+
+### Added 
+
+- `iam_enabled` field to sql components enables connection to aws rds instances via iam authentication @gregfurman & @jem-davies
+- `nats_object_store` components enable connecting to a nats object store @jem-davies
+- `reconnect_on_unknown_topic` field enables the `kafka_franz` input to handle recreated topics @brianshih1
+- `expected_headers` & `expected_number_of_fields` added to `csv` input providing more validation options @etolbakov
+
+### Fixed 
+
+- `elasticsearch` output `tls` connections @jem-davies
+
+### Changed 
+
+- `open_message` field in `websocket` input deprecated for `open_messages` enabling sending multiple messages to the server upon connection @jr200
+- `ResourceFromYAML` test helpers to use constant during string formatting, in preparation for Go 1.24 update @gregfurman
+
 ## 1.7.1 - 2025-05-13 
 
 - enabled `error_handling.strategy` fields when using streamBuilder.Build() @MaudGautier
@@ -20,7 +38,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed 
 
 - ignoring context cancellation / timeout during graceful shutdown of streams for error logging purposes @jub0bs 
-- public implementations of `MessageAwareRateLimit` now correctly register @maudgautier
+- public implementations of `MessageAwareRateLimit` now correctly register @MaudGautier
 
 ## 1.6.1 - 2025-05-06
 
