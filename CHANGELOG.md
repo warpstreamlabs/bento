@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 ### Changed 
 
 - `open_message` field in `websocket` input deprecated for `open_messages` enabling sending multiple messages to the server upon connection @jr200
+- `ResourceFromYAML` test helpers to use constant during string formatting, in preparation for Go 1.24 update @gregfurman
 
 ## 1.7.1 - 2025-05-13 
 
