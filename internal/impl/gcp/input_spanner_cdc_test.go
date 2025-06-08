@@ -3,6 +3,7 @@ package gcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -130,7 +131,7 @@ func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
 		ModType:             screamer.ModType_DELETE,
 	}
 	expectedMetadata := map[string]any{
-		metadataModType:     inputMsg.ModType,
+		metadataModType:     string(inputMsg.ModType),
 		metadataRecordSeq:   inputMsg.RecordSequence,
 		metadataServerTxnID: inputMsg.ServerTransactionID,
 		metadataTableName:   inputMsg.TableName,
@@ -154,6 +155,275 @@ func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGcpSpannerCDCInput_Connect_Errors(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns error when subscriber is nil", func(t *testing.T) {
+		input := &gcpSpannerCDCInput{
+			consumer: consumer{
+				msgQueue: make(chan []byte, 1000),
+			},
+			subscriber: nil,
+		}
+
+		err := input.Connect(ctx)
+		assert.Equal(t, service.ErrNotConnected, err)
+	})
+
+	t.Run("handles subscription error", func(t *testing.T) {
+		input := &gcpSpannerCDCInput{
+			consumer: consumer{
+				msgQueue: make(chan []byte, 1000),
+			},
+			subscriber: &mockSubscriber{
+				subscribeErr: service.ErrNotConnected,
+			},
+			log: nil,
+		}
+
+		err := input.Connect(ctx)
+		require.NoError(t, err)
+
+		// Wait for subscription goroutine to complete
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify channel was closed due to error
+		_, open := <-input.consumer.msgQueue
+		assert.False(t, open, "message queue should be closed after error")
+	})
+}
+
+func TestGcpSpannerCDCInput_SigTerm(t *testing.T) {
+	ctx := context.Background()
+	mockSub := &mockSubscriber{}
+
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 1000),
+		},
+		subscriber: mockSub,
+		log:        nil,
+	}
+
+	// Connect the input
+	err := input.Connect(ctx)
+	require.NoError(t, err)
+	// Wait for subscription goroutine to complete
+	time.Sleep(100 * time.Millisecond)
+
+	// Ensure subscriber was called
+	assert.True(t, mockSub.subscribeCalled)
+
+	// Verify closeFunc is set
+	input.cdcMut.Lock()
+	assert.NotNil(t, input.closeFunc)
+	input.cdcMut.Unlock()
+
+	// Create a context with cancel to simulate SIGTERM
+	sigCtx, cancel := context.WithCancel(ctx)
+
+	// Start a goroutine that will try to read
+	readDone := make(chan struct{})
+	go func() {
+		_, _, _ = input.Read(sigCtx)
+		close(readDone)
+	}()
+
+	// Cancel the context to simulate SIGTERM
+	cancel()
+
+	// Wait for read to exit
+	select {
+	case <-readDone:
+		// Expected path
+	case <-time.After(time.Second):
+		t.Fatal("Read did not exit after context cancellation")
+	}
+
+	// Clean up
+	err = input.Close(ctx)
+	require.NoError(t, err)
+}
+
+func TestGcpSpannerCDCInput_Read_WithValidMessage(t *testing.T) {
+	ctx := context.Background()
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 1),
+		},
+	}
+
+	// Prepare test data
+	changeRecord := screamer.DataChangeRecord{
+		CommitTimestamp:     time.Now(),
+		RecordSequence:      "1234567",
+		ServerTransactionID: uuid.NewString(),
+		TableName:           "users",
+		ModType:             screamer.ModType_INSERT,
+		Mods: []*screamer.Mod{
+			{
+				Keys:      map[string]any{"id": "1"},
+				NewValues: map[string]any{"id": "1", "name": "John Doe"},
+			},
+		},
+	}
+
+	recordBytes, err := json.Marshal(changeRecord)
+	require.NoError(t, err)
+
+	// Send data to the queue
+	input.consumer.msgQueue <- recordBytes
+
+	// Read the message
+	msg, ackFunc, err := input.Read(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+	require.NotNil(t, ackFunc)
+
+	// Verify message content
+	var actualRecord screamer.DataChangeRecord
+	bytes, err := msg.AsBytes()
+	require.NoError(t, err)
+
+	err = json.Unmarshal(bytes, &actualRecord)
+	require.NoError(t, err)
+	assert.Equal(t, changeRecord.TableName, actualRecord.TableName)
+	assert.Equal(t, changeRecord.ModType, actualRecord.ModType)
+	assert.Equal(t, changeRecord.RecordSequence, actualRecord.RecordSequence)
+	assert.Equal(t, changeRecord.ServerTransactionID, actualRecord.ServerTransactionID)
+
+	// Verify metadata
+	expectedMetadata := map[string]any{
+		metadataModType:     string(changeRecord.ModType),
+		metadataRecordSeq:   changeRecord.RecordSequence,
+		metadataServerTxnID: changeRecord.ServerTransactionID,
+		metadataTableName:   changeRecord.TableName,
+		metadataTimestamp:   changeRecord.CommitTimestamp.Format(time.RFC3339Nano),
+	}
+
+	err = msg.MetaWalkMut(func(key string, value any) error {
+		expectedValue, found := expectedMetadata[key]
+		assert.True(t, found, "Unexpected metadata key: %s", key)
+		assert.Equal(t, expectedValue, value, "Metadata value mismatch for key %s", key)
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Test the ack function
+	err = ackFunc(ctx, nil)
+	assert.NoError(t, err)
+}
+
+func TestGcpSpannerCDCInput_Read_UnmarshalError(t *testing.T) {
+	ctx := context.Background()
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 1),
+		},
+	}
+
+	// Send invalid JSON data
+	input.consumer.msgQueue <- []byte(`{"invalid json`)
+
+	// Read should return an error
+	_, _, err := input.Read(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected end of JSON input")
+}
+
+func TestGcpSpannerCDCInput_Read_WithSigterm(t *testing.T) {
+	// Create a context that can be canceled to simulate SIGTERM
+	ctx, cancel := context.WithCancel(context.Background())
+
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 1),
+		},
+	}
+
+	// Start a goroutine that will read from the input
+	readErrCh := make(chan error, 1)
+	go func() {
+		_, _, err := input.Read(ctx)
+		readErrCh <- err
+	}()
+
+	// Give the goroutine time to start
+	time.Sleep(50 * time.Millisecond)
+
+	// Simulate SIGTERM by canceling the context
+	cancel()
+
+	// Verify that Read returns the context canceled error
+	select {
+	case err := <-readErrCh:
+		assert.Equal(t, context.Canceled, err)
+	case <-time.After(time.Second):
+		t.Fatal("Read did not exit after context cancellation")
+	}
+}
+
+func TestGcpSpannerCDCInput_Read_ClosedChannel(t *testing.T) {
+	ctx := context.Background()
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 1),
+		},
+	}
+
+	// Close the channel before attempting to read
+	close(input.consumer.msgQueue)
+
+	// Read should return ErrNotConnected
+	_, _, err := input.Read(ctx)
+	assert.Equal(t, service.ErrNotConnected, err)
+}
+
+func TestGcpSpannerCDCInput_Read_WithMultipleMessages(t *testing.T) {
+	ctx := context.Background()
+	input := &gcpSpannerCDCInput{
+		consumer: consumer{
+			msgQueue: make(chan []byte, 3),
+		},
+	}
+
+	// Create several different messages
+	for i := 0; i < 3; i++ {
+		record := screamer.DataChangeRecord{
+			CommitTimestamp:     time.Now().Add(time.Duration(i) * time.Second),
+			RecordSequence:      fmt.Sprintf("seq-%d", i),
+			ServerTransactionID: uuid.NewString(),
+			TableName:           fmt.Sprintf("table_%d", i),
+			ModType:             screamer.ModType(fmt.Sprintf("MOD_TYPE_%d", i)),
+		}
+
+		recordBytes, err := json.Marshal(record)
+		require.NoError(t, err)
+		input.consumer.msgQueue <- recordBytes
+	}
+
+	// Read and verify all three messages
+	for i := 0; i < 3; i++ {
+		msg, ackFunc, err := input.Read(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, msg)
+
+		var record screamer.DataChangeRecord
+		bytes, err := msg.AsBytes()
+		require.NoError(t, err)
+		err = json.Unmarshal(bytes, &record)
+		require.NoError(t, err)
+		assert.Contains(t, record.TableName, "table_")
+
+		tableName, found := msg.MetaGetMut(metadataTableName)
+		assert.True(t, found)
+		assert.Equal(t, record.TableName, tableName)
+
+		err = ackFunc(ctx, nil)
+		assert.NoError(t, err)
+	}
+}
+
 // Helper function to parse time strings into time pointers
 func parseTimePtr(t *testing.T, timeStr string) *time.Time {
 	t.Helper()
@@ -170,5 +440,11 @@ type mockSubscriber struct {
 
 func (m *mockSubscriber) Subscribe(ctx context.Context, consumer screamer.Consumer) error {
 	m.subscribeCalled = true
-	return m.subscribeErr
+	if m.subscribeErr != nil {
+		return m.subscribeErr
+	}
+
+	// Keep the subscription running until context is canceled
+	<-ctx.Done()
+	return nil
 }
