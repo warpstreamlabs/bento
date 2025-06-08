@@ -105,7 +105,3 @@ func NewFeatureExtractionPipeline(conf *service.ParsedConfig, mgr *service.Resou
 
 	return p, nil
 }
-
-func convertFeatureExtractionOutput(result pipelines.FeatureExtractionOutput) []any {
-	return result.GetOutput()
-}

@@ -202,16 +202,6 @@ func (p *pipelineProcessor) ProcessBatch(ctx context.Context, b service.MessageB
 	}
 
 	resultsOut := convertPipelineOutput(results)
-	if err != nil {
-		p.log.Errorf("Failed to convert pipeline output: %v", err)
-		for _, idx := range validIndices {
-			if batchCopy[idx].GetError() == nil {
-				batchCopy[idx].SetError(err)
-			}
-		}
-		return []service.MessageBatch{batchCopy}, nil
-	}
-
 	for resultIdx, msgIdx := range validIndices {
 		msg := batchCopy[msgIdx]
 		if msg.GetError() != nil {

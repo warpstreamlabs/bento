@@ -90,7 +90,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/klauspost/compress v1.17.11
 	github.com/klauspost/pgzip v1.2.6
-	github.com/knights-analytics/hugot v0.3.9-0.20250529073652-f0c8c6510922
+	github.com/knights-analytics/hugot v0.4.1
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
@@ -177,10 +177,10 @@ require (
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gomlx/exceptions v0.0.3 // indirect
-	github.com/gomlx/go-huggingface v0.2.0 // indirect
-	github.com/gomlx/gomlx v0.19.5-0.20250529072816-28f55e1fb9fe // indirect
-	github.com/gomlx/gopjrt v0.7.2-0.20250528040425-ce7ea228cb87 // indirect
-	github.com/gomlx/onnx-gomlx v0.2.2 // indirect
+	github.com/gomlx/go-huggingface v0.2.1 // indirect
+	github.com/gomlx/gomlx v0.20.0 // indirect
+	github.com/gomlx/gopjrt v0.7.3 // indirect
+	github.com/gomlx/onnx-gomlx v0.2.4-0.20250603072118-d222391b57d4 // indirect
 	github.com/hamba/avro/v2 v2.26.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -188,8 +188,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
-	github.com/yalue/onnxruntime_go v1.19.1-0.20250521134902-f70a71e4f522 // indirect
-	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
+	github.com/yalue/onnxruntime_go v1.20.0 // indirect
+	golang.org/x/exp v0.0.0-20250531010427-b6e5de432a8b // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 )
@@ -341,7 +341,7 @@ require (
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
@@ -375,7 +375,7 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/sugarme/regexpset v0.0.0-20200920021344-4d4ec8eaf93c // indirect
-	github.com/sugarme/tokenizer v0.2.3-0.20250520132433-91c3b3a35d4f // indirect
+	github.com/sugarme/tokenizer v0.2.3-0.20250602044353-04fa4887ad64 // indirect
 	github.com/viant/afs v1.26.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -423,7 +423,3 @@ go 1.24
 // This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
 // Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842
 replace inet.af/peercred => github.com/tailscale/peercred v0.0.0-20240214030740-b535050b2aa4
-
-// The original repo creates a directory and logs to stout on package init().
-// Remove once https://github.com/sugarme/tokenizer/pull/58 is merged.
-replace github.com/sugarme/tokenizer => github.com/knights-analytics/tokenizer v0.0.0-20250601083932-4b2976732377
