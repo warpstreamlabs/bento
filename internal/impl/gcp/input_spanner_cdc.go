@@ -6,6 +6,7 @@ package gcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/anicoll/screamer"
 	"github.com/anicoll/screamer/pkg/partitionstorage"
 	"github.com/google/uuid"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/warpstreamlabs/bento/public/service"
+	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -251,9 +254,17 @@ func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	go func() {
 		rerr := c.subscriber.Subscribe(subCtx, c.consumer)
 
-		if rerr != nil && rerr != context.Canceled {
+		var apiErr *apierror.APIError
+		if errors.As(rerr, &apiErr) {
+			if apiErr.GRPCStatus().Code() == codes.Canceled {
+				c.log.Infof("Subscription cancelled: %v\n", apiErr)
+			} else {
+				c.log.Errorf("API error during subscription: %v\n", apiErr)
+			}
+		} else {
 			c.log.Errorf("Subscription error: %v\n", rerr)
 		}
+
 		c.cdcMut.Lock()
 		close(c.consumer.msgQueue)
 		c.closeFunc = nil
