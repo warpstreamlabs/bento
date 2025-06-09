@@ -269,7 +269,14 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 	select {
 	case data, open = <-c.consumer.msgQueue:
 	case <-ctx.Done():
-		return nil, nil, ctx.Err()
+		// If context is cancelled, ensure we call closeFunc to clean up resources
+		c.cdcMut.Lock()
+		if c.closeFunc != nil {
+			c.closeFunc()
+		}
+		c.cdcMut.Unlock()
+		c.log.Error("Context cancelled while waiting for data :" + ctx.Err().Error())
+		return nil, nil, service.ErrNotConnected
 	}
 	if !open {
 		return nil, nil, service.ErrNotConnected
