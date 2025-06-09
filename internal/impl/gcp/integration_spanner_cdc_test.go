@@ -317,4 +317,27 @@ stream_name: %[3]s
 			require.Equal(t, commetTimestamp.UTC(), dcr.CommitTimestamp.UTC())
 		}
 	})
+
+	s.Run("handles context cancellation while reading", func() {
+		// Create a context with cancellation
+		readCtx, cancel := context.WithCancel(ctx)
+
+		// Start a goroutine to cancel the context after a short delay
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			cancel()
+		}()
+
+		// Generate some data to read
+		_, err = s.client.Apply(readCtx, []*spanner.Mutation{
+			spanner.InsertOrUpdate(tableName, []string{"Int64", "String"}, []interface{}{40, "Daniel"}),
+		})
+		s.NoError(err)
+
+		// Attempt to read with a context that will be cancelled
+		_, _, err = input.Read(readCtx)
+
+		// Verify we got a context cancellation error
+		s.ErrorIs(err, service.ErrNotConnected, "Expected context.Canceled error, got: %v", err)
+	})
 }

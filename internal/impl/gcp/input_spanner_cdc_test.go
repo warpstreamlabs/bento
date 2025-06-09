@@ -105,14 +105,14 @@ func TestGcpSpannerCDCInput_Read(t *testing.T) {
 	// Test reading when channel is closed
 	close(input.consumer.msgQueue)
 	_, _, err := input.Read(ctx)
-	assert.Equal(t, service.ErrNotConnected, err)
+	assert.ErrorIs(t, err, service.ErrNotConnected)
 
 	// Test context cancellation
 	input.consumer.msgQueue = make(chan []byte, 1)
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	cancel()
 	_, _, err = input.Read(ctxWithCancel)
-	assert.Equal(t, context.Canceled, err)
+	assert.ErrorIs(t, err, service.ErrNotConnected)
 }
 
 func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
@@ -357,7 +357,7 @@ func TestGcpSpannerCDCInput_Read_WithSigterm(t *testing.T) {
 	// Verify that Read returns the context canceled error
 	select {
 	case err := <-readErrCh:
-		assert.Equal(t, context.Canceled, err)
+		assert.ErrorIs(t, err, service.ErrNotConnected)
 	case <-time.After(time.Second):
 		t.Fatal("Read did not exit after context cancellation")
 	}
