@@ -52,6 +52,7 @@ func (a *awsKinesisRecordBatcher) AddRecord(r types.Record) bool {
 		p.MetaSetMut("kinesis_partition_key", *r.PartitionKey)
 	}
 	p.MetaSetMut("kinesis_sequence_number", *r.SequenceNumber)
+	p.MetaSetMut("kinesis_approximate_arrival_timestamp", *r.ApproximateArrivalTimestamp)
 
 	a.batchedSequence = *r.SequenceNumber
 	if a.flushedMessage != nil {
