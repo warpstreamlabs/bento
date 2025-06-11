@@ -664,6 +664,6 @@ action: create
 	require.NoError(t, dec.Decode(&result))
 
 	// Verify the number of hits matches the number of messages sent
-	assert.Equal(t, N, len(result.Hits.Hits), "Expected %d documents in the data stream", N)
+	assert.Len(t, result.Hits.Hits, N, "Expected %d documents in the data stream", N)
 
 }
