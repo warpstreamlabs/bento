@@ -372,6 +372,18 @@ func (e *Output) buildBulkableRequest(p *pendingBulkIndex, onError func(err erro
 		if p.Routing != "" {
 			r.Routing = &p.Routing
 		}
+	case "create":
+		r = &opensearchutil.BulkIndexerItem{
+			Index:  p.Index,
+			Action: "create",
+			Body:   bytes.NewReader(p.Payload),
+		}
+		if p.ID != "" {
+			r.DocumentID = p.ID
+		}
+		if p.Routing != "" {
+			r.Routing = &p.Routing
+		}
 	default:
 		return nil, fmt.Errorf("opensearch action '%s' is not allowed", p.Action)
 	}
