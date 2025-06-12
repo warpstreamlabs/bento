@@ -347,6 +347,7 @@ root.encrypted = this.value.encrypt_aes("ctr", $key, $vector).encode("hex")`,
 		case "ofb":
 			schemeFn = func(b []byte) (string, error) {
 				ciphertext := make([]byte, len(b))
+				//nolint:staticcheck // Ignore SA1019 deprecation warning for NewOFB
 				stream := cipher.NewOFB(block, iv)
 				stream.XORKeyStream(ciphertext, b)
 				return string(ciphertext), nil
