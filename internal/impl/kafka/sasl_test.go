@@ -9,6 +9,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/impl/kafka"
 
+	_ "github.com/warpstreamlabs/bento/internal/impl/kafka/aws"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -135,4 +136,46 @@ sasl:
 
 	conf := &sarama.Config{}
 	require.Error(t, kafka.ApplySaramaSASLFromParsed(pConf, service.MockResources(), conf))
+}
+
+type mockAccessTokenProvider struct{}
+
+func (s *mockAccessTokenProvider) Token() (*sarama.AccessToken, error) {
+	return &sarama.AccessToken{Token: "mockToken"}, nil
+}
+
+func TestApplyAwsMskIamMechanism(t *testing.T) {
+	kafka.SaramaTokenProviderFromConfigFn = func(c *service.ParsedConfig) (sarama.AccessTokenProvider, error) {
+		return &mockAccessTokenProvider{}, nil
+	}
+
+	saslConf := service.NewConfigSpec().Field(kafka.SaramaSASLField())
+	pConf, err := saslConf.ParseYAML(`
+sasl:
+  mechanism: AWS_MSK_IAM
+  aws:
+    region: foo
+`, nil)
+	require.NoError(t, err)
+
+	conf := &sarama.Config{}
+	require.NoError(t, kafka.ApplySaramaSASLFromParsed(pConf, service.MockResources(), conf))
+
+	if !conf.Net.SASL.Enable {
+		t.Errorf("SASL not enabled")
+	}
+
+	if conf.Net.SASL.Mechanism != sarama.SASLTypeOAuth {
+		t.Errorf("Wrong SASL mechanism: %v != %v", conf.Net.SASL.Mechanism, sarama.SASLTypeOAuth)
+	}
+
+	token, err := conf.Net.SASL.TokenProvider.Token()
+	if err != nil {
+		t.Errorf("Failed to get token")
+	}
+
+	expected := "mockToken"
+	if act := token.Token; act != expected {
+		t.Errorf("Wrong SASL token: %v != %v", act, expected)
+	}
 }
