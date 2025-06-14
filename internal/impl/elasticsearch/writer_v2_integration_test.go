@@ -122,9 +122,9 @@ func TestIntegtationWriterV2(t *testing.T) {
 		testElasticParallelWritesV2(urls, client, te)
 	})
 
-	// t.Run("TestElasticErrorHandlingV2", func(te *testing.T) {
-	// 	testElasticErrorHandlingV2(urls, te)
-	// })
+	t.Run("TestElasticErrorHandlingV2", func(te *testing.T) {
+		testElasticErrorHandlingV2(urls, te)
+	})
 
 	t.Run("TestElasticConnectV2", func(te *testing.T) {
 		testElasticConnectV2(urls, client, te)
@@ -142,9 +142,9 @@ func TestIntegtationWriterV2(t *testing.T) {
 		testElasticBatchDeleteV2(urls, client, te)
 	})
 
-	// t.Run("TestElasticBatchIDCollision", func(te *testing.T) {
-	// 	testElasticBatchIDCollisionV2(urls, client, te)
-	// })
+	t.Run("TestElasticBatchIDCollision", func(te *testing.T) {
+		testElasticBatchIDCollisionV2(urls, client, te)
+	})
 }
 
 func testElasticNoIndexV2(urls []string, client *goEs.Client, t *testing.T) {
@@ -155,7 +155,7 @@ func testElasticNoIndexV2(urls []string, client *goEs.Client, t *testing.T) {
 index: does_not_exist
 id: 'foo-${!count("noIndexTest")}'
 urls: %v
-`, urls) // TODO: V1 has retry backof fields here
+`, urls)
 
 	require.NoError(t, o.Connect(ctx))
 	defer func() {
@@ -177,7 +177,7 @@ urls: %v
 		get, err := client.Get("does_not_exist", id)
 		require.NoError(t, err, id)
 
-		assert.True(t, get.StatusCode == 200, id)
+		assert.Equal(t, 200, get.StatusCode)
 		require.NoError(t, err, id)
 
 		get.Body.Close()
@@ -192,7 +192,7 @@ func testElasticParallelWritesV2(urls []string, client *goEs.Client, t *testing.
 index: new_index_parallel_writes
 id: '${!json("key")}'
 urls: %v
-`, urls) // TODO: V1 has retry backof fields here
+`, urls)
 
 	require.NoError(t, o.Connect(ctx))
 	defer func() {
@@ -226,7 +226,7 @@ urls: %v
 		get, err := client.Get("new_index_parallel_writes", id)
 		require.NoError(t, err, id)
 
-		assert.True(t, get.StatusCode == 200, id)
+		assert.Equal(t, 200, get.StatusCode)
 		require.NoError(t, err, id)
 
 		var source map[string]any
@@ -247,7 +247,7 @@ func testElasticErrorHandlingV2(urls []string, t *testing.T) { // TODO: Test fai
 	o := outputFromConfV2(t, `
 index: test_conn_index?
 id: foo-static
-urls: %v`, urls) // TODO: Backoff fields !
+urls: %v`, urls)
 
 	require.NoError(t, o.Connect(ctx))
 	defer func() {
@@ -296,7 +296,7 @@ urls: %v
 
 		get, err := client.Get("test_conn_index", id)
 		require.NoError(t, err)
-		assert.True(t, get.StatusCode == 200, id)
+		assert.Equal(t, 200, get.StatusCode)
 		require.NoError(t, err, id)
 	}
 }
@@ -331,7 +331,7 @@ urls: %v
 		id := fmt.Sprintf("bar-%v", i+1)
 		get, err := client.Get("test_conn_index", id)
 		require.NoError(t, err)
-		assert.True(t, get.StatusCode == 200)
+		assert.Equal(t, 200, get.StatusCode)
 
 		var source map[string]any
 		err = json.NewDecoder(get.Body).Decode(&source)
@@ -352,8 +352,6 @@ func testElasticBatchV2(urls []string, client *goEs.Client, t *testing.T) {
 index: ${! @index }
 id: 'baz-${!count("baz")}'
 urls: %v
-type: _doc
-sniff: false
 `, urls)
 
 	require.NoError(t, m.Connect(ctx))
@@ -377,7 +375,7 @@ sniff: false
 		id := fmt.Sprintf("baz-%v", i+1)
 		get, err := client.Get("test_conn_index", id)
 		require.NoError(t, err)
-		assert.True(t, get.StatusCode == 200)
+		assert.Equal(t, 200, get.StatusCode)
 
 		var source map[string]any
 		err = json.NewDecoder(get.Body).Decode(&source)
@@ -424,7 +422,7 @@ action: ${! @elastic_action }
 		get, err := client.Get("test_conn_index", id)
 
 		require.NoError(t, err)
-		assert.True(t, get.StatusCode == 200)
+		assert.Equal(t, 200, get.StatusCode)
 
 		var source map[string]any
 		err = json.NewDecoder(get.Body).Decode(&source)
@@ -457,7 +455,7 @@ action: ${! @elastic_action }
 	}
 }
 
-func testElasticBatchIDCollisionV2(urls []string, client *goEs.Client, t *testing.T) {
+func testElasticBatchIDCollisionV2(urls []string, client *goEs.Client, t *testing.T) { //TODO: test failing
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -491,7 +489,7 @@ urls: %v
 
 		get, err := client.Get(index, "bar-id")
 		require.NoError(t, err)
-		require.True(t, get.StatusCode == 200)
+		assert.Equal(t, 200, get.StatusCode)
 
 		var source map[string]any
 		err = json.NewDecoder(get.Body).Decode(&source)
@@ -524,7 +522,7 @@ action: update
 
 	get, err := client.Get("test_conn_index", "bar-id")
 	require.NoError(t, err)
-	assert.True(t, get.StatusCode == 200)
+	assert.Equal(t, 200, get.StatusCode)
 
 	// var doc struct {
 	// 	Message string `json:"message"`
