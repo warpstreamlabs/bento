@@ -2,8 +2,6 @@ package elasticsearch
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -162,7 +160,7 @@ func TestIntegrationV2ConnectTLS(t *testing.T) {
 	err = os.WriteFile(fullPath, output, 0644)
 	require.NoError(t, err)
 
-	client := createHTTPClientWithCAV2(t, output)
+	client := createHTTPClientWithCA(t, output)
 	pollURL := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
 	configURL := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
 
@@ -202,18 +200,6 @@ tls:
 
 	err = o.Connect(context.Background())
 	require.NoError(t, err)
-}
-
-func createHTTPClientWithCAV2(t *testing.T, caBytes []byte) *http.Client {
-	caCertPool := x509.NewCertPool()
-	require.True(t, caCertPool.AppendCertsFromPEM(caBytes))
-
-	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
-	}
-
-	transport := &http.Transport{TLSClientConfig: tlsConfig}
-	return &http.Client{Transport: transport}
 }
 
 func TestIntegrationV2ElasticsearchV8(t *testing.T) {
