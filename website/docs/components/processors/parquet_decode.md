@@ -22,13 +22,49 @@ Decodes [Parquet files](https://parquet.apache.org/docs/) into a batch of struct
 
 Introduced in version 1.0.0.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 label: ""
 parquet_decode: {}
 ```
 
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+label: ""
+parquet_decode:
+  use_parquet_list_format: true
+```
+
+</TabItem>
+</Tabs>
+
 This processor uses [https://github.com/parquet-go/parquet-go](https://github.com/parquet-go/parquet-go), which is itself experimental. Therefore changes could be made into how this processor functions outside of major version releases.
+
+## Fields
+
+### `use_parquet_list_format`
+
+Whether to decode`LIST`type columns into their Parquet logical type format `{"list": [{"element": value_1}, {"element": value_2}, ...]}` instead of a Go slice `[value_1, value_2, ...]`.
+
+:::caution
+This flag will be disabled (set to `false`) by default and deprecated in future versions, with the logical format being deprecated in favour of the Go slice.
+:::
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.8.0 or newer  
 
 ## Examples
 
