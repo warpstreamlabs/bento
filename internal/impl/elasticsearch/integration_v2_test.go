@@ -162,7 +162,7 @@ func TestIntegrationV2ConnectTLS(t *testing.T) {
 	err = os.WriteFile(fullPath, output, 0644)
 	require.NoError(t, err)
 
-	client := createHTTPClientWithCA(t, output)
+	client := createHTTPClientWithCAV2(t, output)
 	pollURL := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
 	configURL := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
 
@@ -204,7 +204,7 @@ tls:
 	require.NoError(t, err)
 }
 
-func createHTTPClientWithCA(t *testing.T, caBytes []byte) *http.Client {
+func createHTTPClientWithCAV2(t *testing.T, caBytes []byte) *http.Client {
 	caCertPool := x509.NewCertPool()
 	require.True(t, caCertPool.AppendCertsFromPEM(caBytes))
 
