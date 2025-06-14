@@ -20,8 +20,15 @@ func notImportedAWSFn(c *service.ParsedConfig) (sasl.Mechanism, error) {
 	return nil, errors.New("unable to configure AWS SASL as this binary does not import components/aws")
 }
 
+func notImportedAWSFnSarama(c *service.ParsedConfig) (sarama.AccessTokenProvider, error) {
+	return nil, errors.New("unable to configure AWS SASL as this binary does not import components/aws")
+}
+
 // AWSSASLFromConfigFn is populated with the child `aws` package when imported.
 var AWSSASLFromConfigFn = notImportedAWSFn
+
+// AWSSASLFromConfigFnSarama is populated with the child `aws` package when imported.
+var SaramaTokenProviderFromConfigFn = notImportedAWSFnSarama
 
 func saslField() *service.ConfigField {
 	return service.NewObjectListField("sasl",
@@ -196,6 +203,7 @@ const (
 	saramaFieldSASLAccessToken = "access_token"
 	saramaFieldSASLTokenCache  = "token_cache"
 	saramaFieldSASLTokenKey    = "token_key"
+	saramaFieldSASLAws         = "aws"
 )
 
 // SaramaSASLField returns a field spec definition for SASL within the sarama
@@ -209,6 +217,7 @@ func SaramaSASLField() *service.ConfigField {
 				"OAUTHBEARER":   "OAuth Bearer based authentication.",
 				"SCRAM-SHA-256": "Authentication using the SCRAM-SHA-256 mechanism.",
 				"SCRAM-SHA-512": "Authentication using the SCRAM-SHA-512 mechanism.",
+				"AWS_MSK_IAM":   "AWS IAM based authentication using MSK sasl signer.",
 			}).
 			Description("The SASL authentication mechanism, if left empty SASL authentication is not used.").
 			Default("none"),
@@ -230,6 +239,9 @@ func SaramaSASLField() *service.ConfigField {
 		service.NewStringField(saramaFieldSASLTokenKey).
 			Description("Required when using a `token_cache`, the key to query the cache with for tokens.").
 			Default(""),
+		service.NewObjectField(saramaFieldSASLAws, config.SessionFields()...).
+			Description("Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.").
+			Optional(),
 	).
 		Description("Enables SASL authentication.").
 		Optional().
@@ -286,21 +298,32 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 			}
 		}
 		conf.Net.SASL.TokenProvider = tp
+		conf.Net.SASL.Mechanism = sarama.SASLMechanism(mechanism)
 	case sarama.SASLTypeSCRAMSHA256:
 		conf.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient {
 			return &XDGSCRAMClient{HashGeneratorFcn: SHA256}
 		}
 		conf.Net.SASL.User = username
 		conf.Net.SASL.Password = password
+		conf.Net.SASL.Mechanism = sarama.SASLMechanism(mechanism)
 	case sarama.SASLTypeSCRAMSHA512:
 		conf.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient {
 			return &XDGSCRAMClient{HashGeneratorFcn: SHA512}
 		}
 		conf.Net.SASL.User = username
 		conf.Net.SASL.Password = password
+		conf.Net.SASL.Mechanism = sarama.SASLMechanism(mechanism)
 	case sarama.SASLTypePlaintext:
 		conf.Net.SASL.User = username
 		conf.Net.SASL.Password = password
+		conf.Net.SASL.Mechanism = sarama.SASLMechanism(mechanism)
+	case "AWS_MSK_IAM":
+		tp, err := SaramaTokenProviderFromConfigFn(pConf)
+		if err != nil {
+			return err
+		}
+		conf.Net.SASL.TokenProvider = tp
+		conf.Net.SASL.Mechanism = sarama.SASLTypeOAuth
 	case "", "none":
 		return nil
 	default:
@@ -308,7 +331,6 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 	}
 
 	conf.Net.SASL.Enable = true
-	conf.Net.SASL.Mechanism = sarama.SASLMechanism(mechanism)
 
 	return nil
 }
