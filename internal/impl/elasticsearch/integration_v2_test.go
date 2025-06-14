@@ -61,12 +61,12 @@ urls:
   - %s
 index: test-index
 id: ${! uuid_v4() }
-`, url) // TODO: Update with defaults if changed
+`, url)
 
 	pConf, err := OutputSpecV2().ParseYAML(template, nil)
 	require.NoError(t, err)
 
-	o, err := esoOutputConstructor(pConf, service.MockResources())
+	o, err := EsoOutputConstructor(pConf, service.MockResources())
 	require.NoError(t, err)
 
 	err = o.Connect(context.Background())
@@ -118,12 +118,12 @@ basic_auth:
   enabled: true
   username: elastic
   password: password
-`, configURL) // TODO: Update with defaults if changed
+`, configURL)
 
 	pConf, err := OutputSpecV2().ParseYAML(template, nil)
 	require.NoError(t, err)
 
-	o, err := esoOutputConstructor(pConf, service.MockResources())
+	o, err := EsoOutputConstructor(pConf, service.MockResources())
 	require.NoError(t, err)
 
 	err = o.Connect(context.Background())
@@ -192,12 +192,12 @@ basic_auth:
 tls:
   enabled: true
   root_cas_file: "%s"
-`, configURL, fullPath) // TODO: Update with defaults if changed
+`, configURL, fullPath)
 
 	pConf, err := OutputSpecV2().ParseYAML(template, nil)
 	require.NoError(t, err)
 
-	o, err := esoOutputConstructor(pConf, service.MockResources())
+	o, err := EsoOutputConstructor(pConf, service.MockResources())
 	require.NoError(t, err)
 
 	err = o.Connect(context.Background())

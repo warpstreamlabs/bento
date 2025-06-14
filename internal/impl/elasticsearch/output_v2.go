@@ -43,7 +43,7 @@ func init() {
 			if batchPolicy, err = conf.FieldBatchPolicy(esoV2FieldBatching); err != nil {
 				return
 			}
-			out, err = esoOutputConstructor(conf, mgr)
+			out, err = EsoOutputConstructor(conf, mgr)
 			return
 		})
 	if err != nil {
@@ -179,25 +179,25 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 
 //------------------------------------------------------------------------------
 
-type esOutput struct {
+type EsOutput struct {
 	log  *service.Logger
 	conf esoV2Config
 
 	client *elasticsearch.Client
 }
 
-func esoOutputConstructor(pConf *service.ParsedConfig, mgr *service.Resources) (*esOutput, error) {
+func EsoOutputConstructor(pConf *service.ParsedConfig, mgr *service.Resources) (*EsOutput, error) {
 	conf, err := esoV2ConfigFromParsed(pConf)
 	if err != nil {
 		return nil, err
 	}
-	return &esOutput{
+	return &EsOutput{
 		log:  mgr.Logger(),
 		conf: conf,
 	}, nil
 }
 
-func (eso *esOutput) Connect(ctx context.Context) error {
+func (eso *EsOutput) Connect(ctx context.Context) error {
 	if eso.client != nil {
 		return nil
 	}
@@ -221,7 +221,7 @@ func (eso *esOutput) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (eso *esOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
+func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
 	if eso.client == nil {
 		return service.ErrNotConnected
 	}
@@ -317,13 +317,13 @@ func (eso *esOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	return nil
 }
 
-func (eso *esOutput) Close(context.Context) error {
+func (eso *EsOutput) Close(context.Context) error {
 	return nil
 }
 
 //------------------------------------------------------------------------------
 
-func (eso *esOutput) newInterpolationExecutor(batch *service.MessageBatch) (ie interpolationExecutor) {
+func (eso *EsOutput) newInterpolationExecutor(batch *service.MessageBatch) (ie interpolationExecutor) {
 	ie.indexExecutor = batch.InterpolationExecutor(eso.conf.indexExpr)
 	ie.actionExecutor = batch.InterpolationExecutor(eso.conf.actionExpr)
 	ie.idExecutor = batch.InterpolationExecutor(eso.conf.idExpr)
