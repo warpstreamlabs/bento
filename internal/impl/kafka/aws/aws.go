@@ -3,6 +3,9 @@ package aws
 import (
 	"context"
 
+	"github.com/IBM/sarama"
+	"github.com/aws/aws-msk-iam-sasl-signer-go/signer"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/warpstreamlabs/bento/internal/impl/kafka"
 	"github.com/warpstreamlabs/bento/public/service"
 
@@ -32,4 +35,30 @@ func init() {
 			}, nil
 		}), nil
 	}
+
+	kafka.SaramaTokenProviderFromConfigFn = func(c *service.ParsedConfig) (sarama.AccessTokenProvider, error) {
+		awsConf, err := sess.GetSession(context.Background(), c.Namespace("aws"))
+		if err != nil {
+			return nil, err
+		}
+
+		return &mskAccessTokenProvider{
+			region:              awsConf.Region,
+			credentialsProvider: awsConf.Credentials,
+		}, nil
+	}
+}
+
+type mskAccessTokenProvider struct {
+	region              string
+	credentialsProvider aws.CredentialsProvider
+}
+
+func (m *mskAccessTokenProvider) Token() (*sarama.AccessToken, error) {
+	token, _, err := signer.GenerateAuthTokenFromCredentialsProvider(
+		context.Background(),
+		m.region,
+		m.credentialsProvider,
+	)
+	return &sarama.AccessToken{Token: token}, err
 }
