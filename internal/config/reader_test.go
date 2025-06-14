@@ -80,9 +80,10 @@ processor_resources:
 	}}
 	rdr := newDummyReader("foo_main.yaml", []string{"a.yaml", "b.yaml"}, OptUseFS(testFS))
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	assert.Equal(t, "fooin", conf.Input.Label)
 	assert.Equal(t, "fooout", conf.Output.Label)
@@ -133,9 +134,10 @@ processor_resources:
 	}}
 	rdr := newDummyReader("foo_main.yaml", nil, OptUseFS(testFS))
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	assert.Equal(t, "fooin", conf.Input.Label)
 	assert.Equal(t, "fooout", conf.Output.Label)
