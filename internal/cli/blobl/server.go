@@ -168,12 +168,13 @@ func (f *fileSync) mapping() string {
 	return f.mappingString
 }
 
-// Serve embedded static assets
-func serveEmbeddedAsset(w http.ResponseWriter, r *http.Request, content string, contentType string) {
+func serveEmbeddedAsset(w http.ResponseWriter, content string, contentType string) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(content))
+	if _, err := w.Write([]byte(content)); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 // Serve static files from filesystem if they exist, otherwise serve embedded
@@ -225,7 +226,7 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request, staticDir string) {
 		return
 	}
 
-	serveEmbeddedAsset(w, r, content, contentType)
+	serveEmbeddedAsset(w, content, contentType)
 }
 
 func runServer(c *cli.Context) error {

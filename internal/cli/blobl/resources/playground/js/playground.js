@@ -1,7 +1,6 @@
 class BloblangPlayground {
   constructor() {
     this.state = {
-      wasmReady: false,
       isExecuting: false,
       executionTimeout: null,
       inputFormatMode: "format",
@@ -24,13 +23,8 @@ class BloblangPlayground {
   async init() {
     try {
       // Initialize modules
-      // this.wasm = new WasmManager();
       this.editor = new EditorManager();
       this.ui = new UIManager();
-
-      // Load WASM
-      // await this.wasm.load();
-      // this.state.wasmReady = true;
 
       // Setup ACE and fallback editors
       this.editor.init({
@@ -285,28 +279,3 @@ class BloblangPlayground {
 document.addEventListener("DOMContentLoaded", () => {
   window.playground = new BloblangPlayground();
 });
-
-// executeWithWASM() {
-//   if (!this.state.wasmReady || this.state.isExecuting) return;
-
-//   this.state.isExecuting = true;
-
-//   try {
-//     const input = this.editor.getInput();
-//     const mapping = this.editor.getMapping();
-//     const response = this.wasm.execute(input, mapping);
-
-//     this.handleExecutionResult(response);
-//   } catch (error) {
-//       this.handleError(
-//         "Connection Error",
-//         error.message,
-//         "Ensure Bloblang server is running and try again",
-//         null,
-//         "outputStatus",
-//         "Connection Error"
-//       );
-//   } finally {
-//     this.state.isExecuting = false;
-//   }
-// }
