@@ -1,0 +1,340 @@
+/* =============================================================================
+   Bloblang Playground - UI Components
+   ============================================================================= */
+
+/* Panel Components */
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--bento-bg-highlight);
+  border-radius: var(--bento-border-radius);
+  overflow: hidden;
+  box-shadow: var(--bento-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel.error {
+  border-color: var(--bento-error);
+  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
+}
+
+.panel.error .panel-header {
+  background: var(--bento-error-bg);
+  color: var(--bento-error);
+  border-bottom: 1px solid var(--bento-error);
+}
+
+.panel-header {
+  background: var(--bento-button-selected);
+  color: var(--bento-button-text);
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 2px solid var(--bento-bg-highlight);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Status Badges */
+.status-badge {
+  background: var(--bento-bg-alt);
+  color: var(--bento-text-heading);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.status-badge.show {
+  opacity: 1;
+}
+
+.status-badge.success {
+  background: var(--bento-success-bg);
+  color: var(--bento-success);
+}
+
+.status-badge.error {
+  background: var(--bento-error-bg);
+  color: var(--bento-error);
+}
+
+.status-badge.executing {
+  background: var(--bento-bg-alt);
+  color: var(--bento-text-heading);
+}
+
+/* 3D Action Buttons (Docusaurus Style) */
+.action-btn {
+  position: relative;
+  border: none;
+  background-color: #ffe6d0;
+  color: var(--bento-button-text);
+  border-radius: var(--bento-border-radius);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--bento-font-family);
+  box-shadow: var(--bento-shadow-3d);
+  transform: translateY(0);
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease;
+  margin-left: 4px;
+}
+
+.action-btn:hover {
+  background-color: #ffd0ce;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #e8908e;
+  cursor: pointer;
+}
+
+.action-btn:active {
+  background-color: var(--bento-button-selected);
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #e8908e;
+}
+
+.action-btn.primary {
+  background-color: var(--bento-button-unselected);
+  color: var(--bento-text-heading);
+  box-shadow: 0 3px 0 var(--bento-bg-highlight);
+}
+
+.action-btn.primary:hover {
+  background-color: #f5d5c8;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--bento-bg-highlight);
+}
+
+.action-btn.primary:active {
+  background-color: #edc5b8;
+  box-shadow: 0 1px 0 var(--bento-bg-highlight);
+}
+
+/* Formatter Section */
+.formatter-section {
+  border-top: 1px solid var(--bento-bg-highlight);
+  background: var(--bento-bg-alt);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--bento-text-heading);
+}
+
+.formatter-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.formatter-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Lint Indicators */
+.lint-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.lint-indicator.valid::before {
+  content: "✓";
+  color: var(--bento-success);
+}
+
+.lint-indicator.invalid::before {
+  content: "✗";
+  color: var(--bento-error);
+}
+
+.lint-indicator.warning::before {
+  content: "⚠";
+  color: var(--bento-warning);
+}
+
+/* Format Buttons */
+.format-btn {
+  background: #ffffff;
+  border: 1px solid var(--bento-bg-highlight);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--bento-text-heading);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--bento-font-family);
+}
+
+.format-btn:hover {
+  background: var(--bento-button-selected);
+  transform: translateY(-1px);
+}
+
+.format-btn:active {
+  transform: translateY(0);
+}
+
+.format-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Output States */
+.output.error {
+  background: var(--bento-error-bg);
+  color: var(--bento-error);
+  border: 1px solid var(--bento-error);
+  padding: 16px;
+  white-space: normal;
+}
+
+.output.success {
+  background: #ffffff;
+  color: var(--bento-text-body);
+}
+
+.output.json-formatted {
+  white-space: pre;
+}
+
+/* Error Messages */
+.error-message {
+  background: var(--bento-error-bg);
+  border: 1px solid var(--bento-error);
+  border-radius: var(--bento-border-radius);
+  padding: 16px;
+  margin: 8px;
+  color: var(--bento-error);
+  font-family: var(--bento-font-family);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-title::before {
+  content: "⚠️";
+  font-size: 16px;
+}
+
+.error-details {
+  font-family: var(--bento-font-mono);
+  background: rgba(211, 47, 47, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+/* JSON Syntax Highlighting */
+.output .json-key {
+  color: var(--bento-text-highlight);
+  font-weight: 600;
+}
+
+.output .json-string {
+  color: var(--bento-success);
+  font-weight: 500;
+}
+
+.output .json-number {
+  color: var(--bento-bg-highlight);
+  font-weight: 500;
+}
+
+.output .json-boolean {
+  color: var(--bento-text-heading);
+  font-weight: 600;
+}
+
+.output .json-null {
+  color: #999999;
+  font-style: italic;
+}
+
+.output .json-punctuation {
+  color: var(--bento-text-heading);
+}
+
+/* Toast Notifications */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  border-radius: var(--bento-border-radius);
+  font-family: var(--bento-font-family);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification.success {
+  background: var(--bento-success-bg);
+  color: var(--bento-success);
+  border: 1px solid var(--bento-success);
+}
+
+.notification.error {
+  background: var(--bento-error-bg);
+  color: var(--bento-error);
+  border: 1px solid var(--bento-error);
+}
+
+.notification.info {
+  background: var(--bento-bg-alt);
+  color: var(--bento-text-heading);
+  border: 1px solid var(--bento-bg-highlight);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .action-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .formatter-section {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .format-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}

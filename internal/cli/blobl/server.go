@@ -13,7 +13,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -29,6 +31,32 @@ import (
 
 //go:embed resources/bloblang_editor_page.html
 var bloblangEditorPage string
+
+// Assets for the new playground
+//
+//go:embed resources/playground/playground.html
+var playgroundPage string
+
+//go:embed resources/playground/assets/css/main.css
+var mainCSS string
+
+//go:embed resources/playground/assets/css/components.css
+var componentsCSS string
+
+//go:embed resources/playground/assets/css/ace-theme.css
+var aceThemeCSS string
+
+//go:embed resources/playground/js/utils.js
+var utilsJS string
+
+//go:embed resources/playground/js/ui.js
+var uiJS string
+
+//go:embed resources/playground/js/editor.js
+var editorJS string
+
+//go:embed resources/playground/js/playground.js
+var playgroundJS string
 
 func openBrowserAt(url string) {
 	switch runtime.GOOS {
@@ -140,6 +168,67 @@ func (f *fileSync) mapping() string {
 	return f.mappingString
 }
 
+func serveEmbeddedAsset(w http.ResponseWriter, content string, contentType string) {
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte(content)); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
+}
+
+// Serve static files from filesystem if they exist, otherwise serve embedded
+func serveStaticFile(w http.ResponseWriter, r *http.Request, staticDir string) {
+	// Clean the path to prevent directory traversal
+	cleanPath := filepath.Clean(r.URL.Path)
+	if strings.Contains(cleanPath, "..") {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	// Try to serve from filesystem first (for development)
+	if staticDir != "" {
+		fsPath := filepath.Join(staticDir, cleanPath)
+		if _, err := os.Stat(fsPath); err == nil {
+			http.ServeFile(w, r, fsPath)
+			return
+		}
+	}
+
+	// Serve embedded assets as fallback
+	var content string
+	var contentType string
+
+	switch cleanPath {
+	case "/assets/css/main.css":
+		content = mainCSS
+		contentType = "text/css"
+	case "/assets/css/components.css":
+		content = componentsCSS
+		contentType = "text/css"
+	case "/assets/css/ace-theme.css":
+		content = aceThemeCSS
+		contentType = "text/css"
+	case "/js/utils.js":
+		content = utilsJS
+		contentType = "application/javascript"
+	case "/js/ui.js":
+		content = uiJS
+		contentType = "application/javascript"
+	case "/js/editor.js":
+		content = editorJS
+		contentType = "application/javascript"
+	case "/js/playground.js":
+		content = playgroundJS
+		contentType = "application/javascript"
+	default:
+		http.NotFound(w, r)
+		return
+	}
+
+	serveEmbeddedAsset(w, content, contentType)
+}
+
 func runServer(c *cli.Context) error {
 	fSync := newFileSync(c.String("input-file"), c.String("mapping-file"), c.Bool("write"))
 	defer fSync.write()
@@ -192,7 +281,23 @@ func runServer(c *cli.Context) error {
 		}
 	})
 
-	indexTemplate := template.Must(template.New("index").Parse(bloblangEditorPage))
+	// Determine which editor to use
+	var pageTemplate string
+	if c.Bool("playground") {
+		pageTemplate = playgroundPage
+
+		// Only serve static assets for playground
+		mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
+			serveStaticFile(w, r, "resources")
+		})
+		mux.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
+			serveStaticFile(w, r, "resources")
+		})
+	} else {
+		pageTemplate = bloblangEditorPage
+	}
+
+	indexTemplate := template.Must(template.New("index").Parse(pageTemplate))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		err := indexTemplate.Execute(w, struct {

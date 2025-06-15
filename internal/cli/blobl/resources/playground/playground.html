@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Bloblang Playground</title>
+
+    <link rel="stylesheet" href="./assets/css/main.css" />
+    <link rel="stylesheet" href="./assets/css/components.css" />
+    <link rel="stylesheet" href="./assets/css/ace-theme.css" />
+  </head>
+  <body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-spinner"></div>
+      <div>Loading Bloblang Playground...</div>
+    </div>
+
+    <div class="container" id="container">
+      <!-- Input Panel -->
+      <div class="panel input-panel" id="inputPanel">
+        <div class="panel-header">
+          <div class="header-left">
+            <span>Input JSON</span>
+          </div>
+          <div class="header-left">
+            <span class="status-badge" id="inputStatus">Ready</span>
+            <button
+              class="action-btn"
+              data-action="copy-input"
+              title="Copy input to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn"
+              data-action="load-input"
+              title="Load JSON from file"
+            >
+              Load
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="aceInput" class="ace-editor"></div>
+          <textarea
+            id="fallbackInput"
+            class="editor fallback-editor"
+            placeholder="Enter your JSON input here..."
+          >
+{"message": "hello world", "number": 42}
+          </textarea>
+        </div>
+        <div class="formatter-section">
+          <div class="formatter-left">
+            <span class="lint-indicator valid" id="inputLint">Valid JSON</span>
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              id="toggleFormatInputBtn"
+              data-action="toggle-format-input"
+              title="Format and prettify JSON"
+            >
+              Format
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mapping Panel -->
+      <div class="panel mapping-panel" id="mappingPanel">
+        <div class="panel-header">
+          <div class="header-right">
+            <span>Bloblang Mapping</span>
+          </div>
+          <div class="header-right">
+            <span class="status-badge" id="mappingStatus">Ready</span>
+            <button
+              class="action-btn"
+              data-action="copy-mapping"
+              title="Copy mapping to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn"
+              data-action="load-mapping"
+              title="Load mapping from file"
+            >
+              Load
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="aceMapping" class="ace-editor"></div>
+          <textarea
+            id="fallbackMapping"
+            class="editor fallback-editor"
+            placeholder="Enter your Bloblang mapping here..."
+          >
+root.greeting = this.message.uppercase()
+root.doubled = this.number * 2
+          </textarea>
+        </div>
+        <div class="formatter-section">
+          <div class="formatter-left">
+            <span class="lint-indicator valid" id="mappingLint"
+              >Valid Syntax</span
+            >
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              data-action="format-mapping"
+              title="Format Bloblang mapping"
+            >
+              Format
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Horizontal Resizer -->
+      <div class="horizontal-resizer" id="horizontalResizer"></div>
+
+      <!-- Output Panel -->
+      <div class="panel output-panel">
+        <div class="panel-header">
+          <div class="header-bottom">
+            <span>Output</span>
+          </div>
+          <div class="header-bottom">
+            <span class="status-badge" id="outputStatus">Ready</span>
+            <button
+              class="action-btn"
+              data-action="copy-output"
+              title="Copy output to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn primary"
+              data-action="save-output"
+              title="Save output to file"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div id="output" class="output success">
+            Ready to execute your first mapping...
+          </div>
+        </div>
+        <div class="formatter-section">
+          <div class="formatter-left">
+            <span class="lint-indicator" id="outputLint">Ready</span>
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              id="toggleFormatOutputBtn"
+              data-action="toggle-format-output"
+              title="Format output JSON"
+            >
+              Minifiy
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden file inputs -->
+    <input
+      type="file"
+      id="inputFileInput"
+      accept=".json,.txt"
+      style="display: none"
+    />
+    <input
+      type="file"
+      id="mappingFileInput"
+      accept=".blobl,.txt"
+      style="display: none"
+    />
+
+    <!-- ACE Editor -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/ace.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/mode-json.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/mode-text.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- Application modules -->
+    <script src="./js/utils.js"></script>
+    <script src="./js/editor.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/playground.js"></script>
+  </body>
+</html>
