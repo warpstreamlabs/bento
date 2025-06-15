@@ -112,11 +112,6 @@ Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1
 						Value: false,
 						Usage: "Use the new playground.html template instead of bloblang_editor_page.html",
 					},
-					&cli.StringFlag{
-						Name:  "static-dir",
-						Usage: "Directory to serve static files from (CSS/JS). If not specified, uses embedded assets.",
-						Value: "",
-					},
 				},
 			},
 		},

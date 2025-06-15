@@ -32,30 +32,30 @@ import (
 //go:embed resources/bloblang_editor_page.html
 var bloblangEditorPage string
 
-//go:embed resources/playground.html
+// Assets for the new playground
+//
+//go:embed resources/playground/playground.html
 var playgroundPage string
 
-// Embed static assets for the new playground
-//
-//go:embed resources/assets/css/main.css
+//go:embed resources/playground/assets/css/main.css
 var mainCSS string
 
-//go:embed resources/assets/css/components.css
+//go:embed resources/playground/assets/css/components.css
 var componentsCSS string
 
-//go:embed resources/assets/css/ace-theme.css
+//go:embed resources/playground/assets/css/ace-theme.css
 var aceThemeCSS string
 
-//go:embed resources/js/utils.js
+//go:embed resources/playground/js/utils.js
 var utilsJS string
 
-//go:embed resources/js/ui.js
+//go:embed resources/playground/js/ui.js
 var uiJS string
 
-//go:embed resources/js/editor.js
+//go:embed resources/playground/js/editor.js
 var editorJS string
 
-//go:embed resources/js/playground.js
+//go:embed resources/playground/js/playground.js
 var playgroundJS string
 
 func openBrowserAt(url string) {
@@ -220,9 +220,6 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request, staticDir string) {
 	case "/js/playground.js":
 		content = playgroundJS
 		contentType = "application/javascript"
-	// case "/js/merged.js":
-	// 	content = mergedJS
-	// 	contentType = "application/javascript"
 	default:
 		http.NotFound(w, r)
 		return
@@ -237,24 +234,7 @@ func runServer(c *cli.Context) error {
 
 	mux := http.NewServeMux()
 
-	// API endpoint for executing Bloblang mappings
 	mux.HandleFunc("/execute", func(w http.ResponseWriter, r *http.Request) {
-		// Enable CORS for development
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
 		req := struct {
 			Mapping string `json:"mapping"`
 			Input   string `json:"input"`
@@ -300,38 +280,25 @@ func runServer(c *cli.Context) error {
 		}
 	})
 
-	// Static file serving for CSS/JS assets
-	staticDir := c.String("static-dir") // Add this as a CLI option
+	// Determine which editor to use
+	var pageTemplate string
+	if c.Bool("playground") {
+		pageTemplate = playgroundPage
 
-	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
-		serveStaticFile(w, r, staticDir)
-	})
+		// Only serve static assets for playground
+		mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
+			serveStaticFile(w, r, "resources")
+		})
+		mux.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
+			serveStaticFile(w, r, "resources")
+		})
+	} else {
+		pageTemplate = bloblangEditorPage
+	}
 
-	mux.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
-		serveStaticFile(w, r, staticDir)
-	})
+	indexTemplate := template.Must(template.New("index").Parse(pageTemplate))
 
-	// Main page handler
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Serve static files if they exist in the static directory
-		if staticDir != "" && r.URL.Path != "/" {
-			fsPath := filepath.Join(staticDir, r.URL.Path)
-			if _, err := os.Stat(fsPath); err == nil {
-				http.ServeFile(w, r, fsPath)
-				return
-			}
-		}
-
-		// Serve the main page
-		var pageTemplate string
-		if c.Bool("playground") {
-			pageTemplate = playgroundPage
-		} else {
-			pageTemplate = bloblangEditorPage
-		}
-
-		indexTemplate := template.Must(template.New("index").Parse(pageTemplate))
-
 		err := indexTemplate.Execute(w, struct {
 			InitialInput   string
 			InitialMapping string
@@ -357,11 +324,6 @@ func runServer(c *cli.Context) error {
 	}
 
 	log.Printf("Serving at: http://%v\n", bindAddress)
-	if staticDir != "" {
-		log.Printf("Static files from: %s\n", staticDir)
-	} else {
-		log.Printf("Using embedded static assets\n")
-	}
 
 	server := http.Server{
 		Addr:    bindAddress,
