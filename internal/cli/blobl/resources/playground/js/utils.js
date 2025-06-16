@@ -94,17 +94,6 @@ function lintBloblang(mappingString) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line === "" || line.startsWith("#")) continue;
-
-    // Basic syntax validation
-    if (line.includes("=") && !line.match(/^(root|let)\./)) {
-      if (!line.match(/^\w+\s*=/) && !line.match(/^root\./)) {
-        errors.push(
-          `Line ${
-            i + 1
-          }: Assignments should start with 'root.' or variable name`
-        );
-      }
-    }
   }
 
   if (errors.length > 0) {

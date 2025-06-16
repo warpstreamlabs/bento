@@ -26,9 +26,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
-//go:embed resources/bloblang_editor_page.html
-var bloblangEditorPage string
-
 //go:embed resources/playground
 var playgroundFS embed.FS
 
@@ -204,27 +201,19 @@ func runServer(c *cli.Context) error {
 		}
 	})
 
-	// Determine which editor to use
-	var pageTemplate string
-	if c.Bool("playground") {
-		pageTemplate = bloblangPlaygroundPage
-
-		assetsFS, err := fs.Sub(playgroundFS, "resources/playground/assets")
-		if err != nil {
-			return fmt.Errorf("failed to get assets subFS: %w", err)
-		}
-		jsFS, err := fs.Sub(playgroundFS, "resources/playground/js")
-		if err != nil {
-			return fmt.Errorf("failed to get js subFS: %w", err)
-		}
-
-		mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
-		mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(jsFS))))
-	} else {
-		pageTemplate = bloblangEditorPage
+	assetsFS, err := fs.Sub(playgroundFS, "resources/playground/assets")
+	if err != nil {
+		return fmt.Errorf("failed to get assets subFS: %w", err)
+	}
+	jsFS, err := fs.Sub(playgroundFS, "resources/playground/js")
+	if err != nil {
+		return fmt.Errorf("failed to get js subFS: %w", err)
 	}
 
-	indexTemplate := template.Must(template.New("index").Parse(pageTemplate))
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
+	mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(jsFS))))
+
+	indexTemplate := template.Must(template.New("index").Parse(bloblangPlaygroundPage))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		err := indexTemplate.Execute(w, struct {
@@ -251,7 +240,7 @@ func runServer(c *cli.Context) error {
 		openBrowserAt(u.String())
 	}
 
-	log.Printf("Serving at: http://%v\n", bindAddress)
+	log.Printf("Serving at: http://" + bindAddress + "?mode=server")
 
 	server := http.Server{
 		Addr:    bindAddress,

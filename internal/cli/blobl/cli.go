@@ -107,11 +107,6 @@ Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1
 						Aliases: []string{"w"},
 						Usage:   "when editing a mapping and/or input file write changes made back to the respective source file, if the file does not exist it will be created.",
 					},
-					&cli.BoolFlag{
-						Name:  "playground",
-						Value: false,
-						Usage: "Use the new playground.html template instead of bloblang_editor_page.html",
-					},
 				},
 			},
 		},
