@@ -1,0 +1,122 @@
+/* =============================================================================
+   Bloblang Playground - ACE Editor Bento Theme
+   ============================================================================= */
+
+/* Base ACE Theme Styles */
+.ace-bento .ace_editor {
+  font-family: var(--bento-font-mono) !important;
+  background-color: #ffffff !important;
+  color: var(--bento-text-body) !important;
+}
+
+.ace-bento .ace_gutter {
+  background-color: var(--bento-bg-alt) !important;
+  color: var(--bento-text-heading) !important;
+  border-right: 1px solid var(--bento-bg-highlight) !important;
+}
+
+.ace-bento .ace_gutter-active-line {
+  background-color: var(--bento-button-selected) !important;
+}
+
+.ace-bento .ace_cursor {
+  color: var(--bento-text-heading) !important;
+}
+
+.ace-bento .ace_selection {
+  background-color: rgba(235, 135, 136, 0.2) !important;
+}
+
+.ace-bento .ace_active-line {
+  background-color: rgba(253, 229, 216, 0.3) !important;
+}
+
+.ace-bento .ace_marker-layer .ace_bracket {
+  background: rgba(235, 135, 136, 0.3);
+  border: 1px solid var(--bento-bg-highlight);
+}
+
+.ace-bento .ace_invisible {
+  color: var(--bento-bg-highlight);
+}
+
+/* JSON Syntax Highlighting */
+.ace-bento .ace_string {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_string.ace_property {
+  color: var(--bento-text-highlight) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_constant.ace_numeric {
+  color: var(--bento-bg-highlight) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_constant.ace_language {
+  color: var(--bento-text-heading) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_constant.ace_language.ace_null {
+  color: #999999 !important;
+  font-style: italic !important;
+}
+
+.ace-bento .ace_punctuation {
+  color: var(--bento-text-heading) !important;
+}
+
+/* Bloblang DSL Syntax Highlighting */
+.ace-bento .ace_keyword {
+  color: var(--bento-text-highlight) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_support.ace_function {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_variable {
+  color: var(--bento-bg-highlight) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_identifier {
+  color: var(--bento-text-body) !important;
+}
+
+.ace-bento .ace_comment {
+  color: #999999 !important;
+  font-style: italic !important;
+}
+
+.ace-bento .ace_constant.ace_other {
+  color: var(--bento-text-heading) !important;
+  font-weight: 600 !important;
+}
+
+/* Bloblang-specific tokens */
+.ace-bento .ace_bloblang_root {
+  color: var(--bento-text-highlight) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_bloblang_this {
+  color: var(--bento-success) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_bloblang_method {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_bloblang_operator {
+  color: var(--bento-text-heading) !important;
+  font-weight: 500 !important;
+}
