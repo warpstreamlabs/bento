@@ -379,6 +379,227 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
 	}
 }
 
+func TestParquetDecodeListFormat(t *testing.T) {
+	tctx := context.Background()
+
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: id, type: INT64 }
+  - name: tags
+    type: LIST
+    fields:
+      - { name: element, type: UTF8 }
+  - name: scores
+    type: LIST
+    fields:
+      - { name: element, type: FLOAT }
+  - name: nested
+    fields:
+      - name: items
+        type: LIST
+        fields:
+          - { name: element, type: INT32 }
+  - { name: regular_array, type: INT32, repeated: true }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	input := `{
+  "id": 123,
+  "tags": ["foo", "bar", "baz"],
+  "scores": [1.5, 2.5, 3.5],
+  "nested": {
+    "items": [10, 20, 30]
+  },
+  "regular_array": [100, 200, 300]
+}`
+
+	encodedBatches, err := encodeProc.ProcessBatch(tctx, service.MessageBatch{
+		service.NewMessage([]byte(input)),
+	})
+	require.NoError(t, err)
+	require.Len(t, encodedBatches, 1)
+	require.Len(t, encodedBatches[0], 1)
+
+	encodedBytes, err := encodedBatches[0][0].AsBytes()
+	require.NoError(t, err)
+
+	t.Run("with legacy format", func(t *testing.T) {
+		decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+use_parquet_list_format: true
+`, nil)
+		require.NoError(t, err)
+
+		decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+		require.NoError(t, err)
+
+		decodedBatch, err := decodeProc.Process(tctx, service.NewMessage(encodedBytes))
+		require.NoError(t, err)
+		require.Len(t, decodedBatch, 1)
+
+		decodedBytes, err := decodedBatch[0].AsBytes()
+		require.NoError(t, err)
+
+		expected := `{
+  "id": 123,
+  "tags": {
+    "list": [
+      {"element": "foo"},
+      {"element": "bar"},
+      {"element": "baz"}
+    ]
+  },
+  "scores": {
+    "list": [
+      {"element": 1.5},
+      {"element": 2.5},
+      {"element": 3.5}
+    ]
+  },
+  "nested": {
+    "items": {
+      "list": [
+        {"element": 10},
+        {"element": 20},
+        {"element": 30}
+      ]
+    }
+  },
+  "regular_array": [100, 200, 300]
+}`
+
+		assert.JSONEq(t, expected, string(decodedBytes))
+	})
+
+	t.Run("without legacy format", func(t *testing.T) {
+		decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+use_parquet_list_format: false
+`, nil)
+		require.NoError(t, err)
+
+		decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+		require.NoError(t, err)
+
+		decodedBatch, err := decodeProc.Process(tctx, service.NewMessage(encodedBytes))
+		require.NoError(t, err)
+		require.Len(t, decodedBatch, 1)
+
+		decodedBytes, err := decodedBatch[0].AsBytes()
+		require.NoError(t, err)
+
+		expected := `{
+  "id": 123,
+  "tags": ["foo", "bar", "baz"],
+  "scores": [1.5, 2.5, 3.5],
+  "nested": {
+    "items": [10, 20, 30]
+  },
+  "regular_array": [100, 200, 300]
+}`
+
+		assert.JSONEq(t, expected, string(decodedBytes))
+	})
+}
+
+func TestParquetDecodeListFormatEdgeCases(t *testing.T) {
+	// FIXME: Close https://github.com/warpstreamlabs/bento/issues/360 when 2D array support added to parquet-go.
+	t.Skip("2D slices are not currently supported by parquet encoder.")
+
+	tctx := context.Background()
+
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - name: normal_list
+    type: LIST
+    fields:
+      - { name: element, type: UTF8 }
+  - name: nullable_list
+    type: LIST
+    optional: true
+    fields:
+      - { name: element, type: INT32 }
+  - name: list_of_lists
+    type: LIST
+    fields:
+      - name: element
+        type: LIST
+        fields:
+          - { name: element, type: FLOAT }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "empty lists",
+			input: `{
+  "normal_list": [],
+  "nullable_list": null,
+  "list_of_lists": []
+}`,
+			expected: `{
+  "normal_list": {"list": []},
+  "nullable_list": null,
+  "list_of_lists": {"list": []}
+}`,
+		},
+		{
+			name: "nested lists",
+			input: `{
+  "normal_list": ["a"],
+  "nullable_list": [1, 2],
+  "list_of_lists": [[1.1, 2.2], [3.3]]
+}`,
+			expected: `{
+  "normal_list": {"list": [{"element": "a"}]},
+  "nullable_list": {"list": [{"element": 1}, {"element": 2}]},
+  "list_of_lists": {
+    "list": [
+      {"element": {"list": [{"element": 1.1}, {"element": 2.2}]}},
+      {"element": {"list": [{"element": 3.3}]}}
+    ]
+  }
+}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			encodedBatches, err := encodeProc.ProcessBatch(tctx, service.MessageBatch{
+				service.NewMessage([]byte(test.input)),
+			})
+			require.NoError(t, err)
+
+			encodedBytes, err := encodedBatches[0][0].AsBytes()
+			require.NoError(t, err)
+
+			decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+use_parquet_list_format: true
+`, nil)
+			require.NoError(t, err)
+
+			decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+			require.NoError(t, err)
+
+			decodedBatch, err := decodeProc.Process(tctx, service.NewMessage(encodedBytes))
+			require.NoError(t, err)
+
+			decodedBytes, err := decodedBatch[0].AsBytes()
+			require.NoError(t, err)
+
+			assert.JSONEq(t, test.expected, string(decodedBytes))
+		})
+	}
+}
+
 func TestParquetEncodeEmptyBatch(t *testing.T) {
 	tctx := context.Background()
 
