@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -13,7 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner").
+var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb").
 	Description("A database [driver](#drivers) to use.")
 
 var dsnField = service.NewStringField("dsn").
@@ -35,6 +36,7 @@ The following is a list of supported drivers, their placeholder style, and their
 ` + "| `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |" + `
 ` + "| `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |" + `
 ` + "| `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |" + `
+` + "| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` |" + `
 
 Please note that the ` + "`postgres`" + ` driver enforces SSL by default, you can override this with the parameter ` + "`sslmode=disable`" + ` if required.
 
@@ -44,7 +46,8 @@ The ` + "[`gocosmos`](https://pkg.go.dev/github.com/microsoft/gocosmos)" + ` dri
 	Example("clickhouse://username:password@host1:9000,host2:9000/database?dial_timeout=200ms&max_execution_time=60").
 	Example("foouser:foopassword@tcp(localhost:3306)/foodb").
 	Example("postgres://foouser:foopass@localhost:5432/foodb?sslmode=disable").
-	Example("oracle://foouser:foopass@localhost:1521/service_name")
+	Example("oracle://foouser:foopass@localhost:1521/service_name").
+	Example("db_file.duckdb?threads=4&access_mode=READ_ONLY")
 
 func connFields() []*service.ConfigField {
 
@@ -139,6 +142,7 @@ func rawQueryField() *service.ConfigField {
 ` + "| `spanner` | Question mark |" + `
 ` + "| `trino` | Question mark |" + `
 ` + "| `gocosmos` | Colon |" + `
+` + "| `duckdb` | Question mark |" + `
 `)
 }
 
@@ -286,6 +290,13 @@ func reworkDSN(driver, dsn string) (string, error) {
 }
 
 func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings) (*sql.DB, error) {
+	if !slices.Contains(sql.Drivers(), driver) {
+		msg := fmt.Sprintf("sql driver %q not registered", driver)
+		if driver == "duckdb" {
+			msg += `; this driver requires a CGO build. Solutions: use a Bento binary built with "-tags x_bento_extra", or the "-cgo" Docker image (e.g., "ghcr.io/warpstreamlabs/bento:VERSION-cgo")`
+		}
+		return nil, fmt.Errorf("%s", msg)
+	}
 	updatedDSN, err := reworkDSN(driver, dsn)
 	if err != nil {
 		return nil, err
