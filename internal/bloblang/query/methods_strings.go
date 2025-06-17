@@ -327,13 +327,18 @@ root.encrypted = this.value.encrypt_aes("ctr", $key, $vector).encode("hex")`,
 
 		var schemeFn func([]byte) (string, error)
 		switch schemeStr {
-		case "ofb":
-			// Deprecated and (silently) replaced by CTR, as recommended by https://github.com/golang/go/issues/69445
-			fallthrough
 		case "ctr":
 			schemeFn = func(b []byte) (string, error) {
 				ciphertext := make([]byte, len(b))
 				stream := cipher.NewCTR(block, iv)
+				stream.XORKeyStream(ciphertext, b)
+				return string(ciphertext), nil
+			}
+		case "ofb":
+			schemeFn = func(b []byte) (string, error) {
+				ciphertext := make([]byte, len(b))
+				//nolint:staticcheck // Ignore SA1019 deprecation warning for NewOFB
+				stream := cipher.NewOFB(block, iv)
 				stream.XORKeyStream(ciphertext, b)
 				return string(ciphertext), nil
 			}
@@ -384,7 +389,7 @@ var _ = registerSimpleMethod(
 		"decrypt_aes", "",
 	).InCategory(
 		MethodCategoryEncoding,
-		"Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `cbc`. Support for `ofb` has been silently dropped since v1.9.0 and replaced with `ctr`.",
+		"Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `cbc`, `ofb` (deprecated since v1.9.0; rather use `ctr`).",
 		NewExampleSpec("",
 			`let key = "2b7e151628aed2a6abf7158809cf4f3c".decode("hex")
 let vector = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff".decode("hex")
@@ -393,7 +398,7 @@ root.decrypted = this.value.decode("hex").decrypt_aes("ctr", $key, $vector).stri
 			`{"decrypted":"hello world!"}`,
 		),
 	).
-		Param(ParamString("scheme", "The scheme to use for decryption, one of `ctr`, `gcm`, `cbc`.")).
+		Param(ParamString("scheme", "The scheme to use for decryption, one of `ctr`, `gcm`, `cbc`, `ofb` (deprecated since v1.9.0).")).
 		Param(ParamString("key", "A key to decrypt with.")).
 		Param(ParamString("iv", "An initialization vector / nonce.")),
 	func(args *ParsedParams) (simpleMethod, error) {
@@ -429,13 +434,18 @@ root.decrypted = this.value.decode("hex").decrypt_aes("ctr", $key, $vector).stri
 
 		var schemeFn func([]byte) ([]byte, error)
 		switch schemeStr {
-		case "ofb":
-			// Deprecated and (silently) replaced by CTR, as recommended by https://github.com/golang/go/issues/69445
-			fallthrough
 		case "ctr":
 			schemeFn = func(b []byte) ([]byte, error) {
 				plaintext := make([]byte, len(b))
 				stream := cipher.NewCTR(block, iv)
+				stream.XORKeyStream(plaintext, b)
+				return plaintext, nil
+			}
+		case "ofb":
+			schemeFn = func(b []byte) ([]byte, error) {
+				plaintext := make([]byte, len(b))
+				//nolint:staticcheck // Ignore SA1019 deprecation warning for NewOFB
+				stream := cipher.NewOFB(block, iv)
 				stream.XORKeyStream(plaintext, b)
 				return plaintext, nil
 			}
