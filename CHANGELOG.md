@@ -3,7 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.8.0 -  2025-06-08
+## 1.8.1 - 2025-06-17
+
+### Added 
+
+- `AWS_MSK_IAM` option to `kafka` components `sasl.mechanism` @gitphill
+
+## 1.8.0 - 2025-06-08
 
 ### Added 
 
