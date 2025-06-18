@@ -90,4 +90,5 @@ linters:
     - mirror
     - rowserrcheck
     - bodyclose
-    - nolintlint
+    # nolintlint is too strict given the need to preserve backwards compatability using (sometimes) deprecated functionality.
+    # - nolintlint
