@@ -3298,11 +3298,11 @@ root.result = this.compressed.decode("base64").decompress("lz4").string()
 
 ### `decrypt_aes`
 
-Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `cbc`. Support for `ofb` has been silently dropped since v1.9.0 and replaced with `ctr`.
+Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `cbc`, `ofb` (deprecated since v1.9.0; rather use `ctr`).
 
 #### Parameters
 
-**`scheme`** &lt;string&gt; The scheme to use for decryption, one of `ctr`, `gcm`, `cbc`.  
+**`scheme`** &lt;string&gt; The scheme to use for decryption, one of `ctr`, `gcm`, `cbc`, `ofb` (deprecated since v1.9.0).  
 **`key`** &lt;string&gt; A key to decrypt with.  
 **`iv`** &lt;string&gt; An initialization vector / nonce.  
 
