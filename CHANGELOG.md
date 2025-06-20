@@ -3,6 +3,17 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.9.0 - TBD
+
+### Added 
+
+### Fixed 
+
+### Changed 
+
+- metadata `gcp_pubsub_message_id` & `gcp_pubsub_ordering_key` added to `gcp_pubsub` input @anicoll
+- shiny new bloblang editor: interactive bloblang editor given a overhall @iamramtin
+
 ## 1.8.1 - 2025-06-17
 
 ### Added 
