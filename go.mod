@@ -19,7 +19,7 @@ require (
 	github.com/Azure/go-amqp v1.0.5
 	github.com/ClickHouse/clickhouse-go/v2 v2.21.1
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.21.0
-	github.com/IBM/sarama v1.42.2
+	github.com/IBM/sarama v1.45.2
 	github.com/Jeffail/checkpoint v1.0.1
 	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/Jeffail/grok v1.1.0
@@ -88,7 +88,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/klauspost/compress v1.17.11
+	github.com/klauspost/compress v1.18.0
 	github.com/klauspost/pgzip v1.2.6
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
@@ -153,11 +153,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0
 	go.opentelemetry.io/otel/trace v1.32.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.36.0
-	golang.org/x/net v0.37.0
+	golang.org/x/crypto v0.38.0
+	golang.org/x/net v0.40.0
 	golang.org/x/oauth2 v0.27.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/text v0.23.0
+	golang.org/x/sync v0.14.0
+	golang.org/x/text v0.25.0
 	google.golang.org/api v0.203.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.4
@@ -271,7 +271,7 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
-	github.com/eapache/go-resiliency v1.5.0 // indirect
+	github.com/eapache/go-resiliency v1.7.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.13.1 // indirect
@@ -378,8 +378,8 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.29.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
