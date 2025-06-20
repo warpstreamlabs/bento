@@ -1,165 +1,127 @@
+const THEME_BENTO = "ace/theme/bento";
+const MODE_JSON = "ace/mode/json";
+const MODE_BLOBLANG = "ace/mode/bloblang";
+
+const DOM_IDS = {
+  aceInput: "aceInput",
+  fallbackInput: "fallbackInput",
+  aceMapping: "aceMapping",
+  fallbackMapping: "fallbackMapping",
+};
+
 class EditorManager {
-  constructor() {
+  constructor(defaultInput = null, defaultMapping = null) {
+    this.callbacks = {};
     this.aceInputEditor = null;
     this.aceMappingEditor = null;
-    this.callbacks = {};
+    this.bloblangSyntax = null;
+
+    this.defaultMapping =
+      defaultMapping ||
+      "root.greeting = this.message.uppercase()\nroot.doubled = this.number * 2";
+
+    this.defaultInput =
+      defaultInput || '{"message": "hello world", "number": 42}';
+
+    // Future-proof event listeners
+    this.inputChangeListeners = [];
+    this.mappingChangeListeners = [];
   }
 
-  init(callbacks = {}) {
+  // ─────────────────────────────────────────────────────
+  // Initialization & Setup
+  // ─────────────────────────────────────────────────────
+
+  async init(callbacks = {}) {
     this.callbacks = callbacks;
-    this.setupAceTheme();
-    this.setupBloblangMode();
-    this.initializeEditors();
-  }
 
-  setupAceTheme() {
-    // Define custom Bento theme for ACE
-    ace.define("ace/theme/bento", function (require, exports, module) {
+    ace.define(THEME_BENTO, function (require, exports, module) {
       exports.cssClass = "ace-bento";
     });
+
+    await this.loadBloblangSyntax();
+    this.setupTheme();
+
+    try {
+      this.configureInputEditor();
+      this.configureMappingEditor();
+      this.registerEditorChangeHandlers();
+    } catch (error) {
+      console.warn("ACE editor failed to load, falling back to textarea");
+      this.configureFallbackEditors();
+    }
   }
 
-  setupBloblangMode() {
-    // Define custom Bloblang mode for ACE
-    ace.define("ace/mode/bloblang", function (require, exports, module) {
-      const oop = require("../lib/oop");
-      const TextMode = require("./text").Mode;
-      const TextHighlightRules =
-        require("./text_highlight_rules").TextHighlightRules;
-
-      const BloblangHighlightRules = function () {
-        this.$rules = {
-          start: [
-            // Comments (Python-style)
-            { token: "comment", regex: "#.*$" },
-
-            // Keywords and control flow
-            { token: "keyword", regex: "\\b(if|else|match|let|root)\\b" },
-
-            // Special Bloblang identifiers
-            { token: "ace_bloblang_root", regex: "\\broot\\b" },
-            { token: "ace_bloblang_this", regex: "\\bthis\\b" },
-
-            // Variables (starting with $)
-            { token: "variable", regex: "\\$[a-zA-Z_][a-zA-Z0-9_]*" },
-
-            // Arrow function operator
-            { token: "keyword.operator", regex: "->" },
-
-            // Built-in methods (after a dot)
-            {
-              token: "support.function",
-              regex:
-                "\\.(without|exists|map_each|filter|concat|append|sort_by|group_by|" +
-                "uppercase|lowercase|trim|split|join|replace|contains|length|index|slice|" +
-                "prepend|reverse|sort|unique|flatten|select|merge|delete|type|string|" +
-                "number|bool|array|object|keys|values|has|get|set|not_null|catch|try|" +
-                "sum|min|max|floor|ceil|round|abs|sqrt|from_base64|to_base64|" +
-                "parse_json|format_json|parse_yaml|format_yaml|parse_xml|" +
-                "timestamp_unix|format_timestamp|parse_timestamp)\\b",
-            },
-
-            // Function calls and built-in functions
-            {
-              token: "support.function",
-              regex:
-                "\\b(deleted|error|range|json|yaml|xml|csv|file|env|hostname|" +
-                "uuid_v4|timestamp_unix|timestamp_unix_nano|timestamp|now|" +
-                "content|meta|batch_index|batch_size|count|random|random_int)\\b",
-            },
-
-            // Constants
-            { token: "constant.language", regex: "\\b(true|false|null)\\b" },
-
-            // Numbers (integers, floats, scientific notation)
-            {
-              token: "constant.numeric",
-              regex: "\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b",
-            },
-
-            // Strings (double quotes, single quotes, backticks)
-            { token: "string.quoted.double", regex: '"(?:[^"\\\\]|\\\\.)*"' },
-            { token: "string.quoted.single", regex: "'(?:[^'\\\\]|\\\\.)*'" },
-            { token: "string.quoted.backtick", regex: "`(?:[^`\\\\]|\\\\.)*`" },
-
-            // Operators
-            { token: "keyword.operator", regex: "\\b(and|or|not)\\b" },
-            {
-              token: "keyword.operator",
-              regex: "[=!<>]=?|[+\\-*/%]|&&|\\|\\||!",
-            },
-            { token: "keyword.operator", regex: "\\|" }, // Pipe operator
-
-            // Assignment operators
-            { token: "keyword.operator", regex: "=" },
-
-            // Punctuation
-            { token: "punctuation", regex: "[{}\\[\\](),.:]" },
-
-            // Object property access
-            {
-              token: "support.type",
-              regex: "\\.[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*[^(])",
-            },
-
-            // Identifiers (general)
-            { token: "identifier", regex: "[a-zA-Z_][a-zA-Z0-9_]*" },
-          ],
-        };
+  async loadBloblangSyntax() {
+    try {
+      const response = await fetch("/bloblang-syntax");
+      this.bloblangSyntax = await response.json();
+    } catch (error) {
+      console.warn("Failed to load Bloblang syntax:", error);
+      this.bloblangSyntax = {
+        functions: [],
+        methods: [],
+        rules: [],
       };
+    }
+  }
 
-      oop.inherits(BloblangHighlightRules, TextHighlightRules);
+  setupTheme() {
+    const rules = this.bloblangSyntax?.rules || [];
+
+    ace.define(MODE_BLOBLANG, function (require, exports, module) {
+      const oop = require("../lib/oop");
+      const CoffeeMode = require("./coffee").Mode;
+      const CoffeeHighlightRules =
+        require("./coffee_highlight_rules").CoffeeHighlightRules;
+
+      // Use CoffeeScript as base and prepend Bloblang-specific rules for priority matching
+      const BloblangHighlightRules = function () {
+        CoffeeHighlightRules.call(this);
+        this.$rules.start = rules.concat(this.$rules.start);
+        this.normalizeRules();
+      };
+      oop.inherits(BloblangHighlightRules, CoffeeHighlightRules);
 
       const BloblangMode = function () {
+        CoffeeMode.call(this);
         this.HighlightRules = BloblangHighlightRules;
+        this.$id = MODE_BLOBLANG;
       };
-      oop.inherits(BloblangMode, TextMode);
-
-      (function () {
-        this.$id = "ace/mode/bloblang";
-      }).call(BloblangMode.prototype);
+      oop.inherits(BloblangMode, CoffeeMode);
 
       exports.Mode = BloblangMode;
     });
   }
 
-  initializeEditors() {
-    try {
-      // Initialize input editor
-      this.aceInputEditor = ace.edit("aceInput");
-      this.aceInputEditor.setValue(
-        '{"message": "hello world", "number": 42}',
-        1
-      );
-      this.aceInputEditor.session.setMode("ace/mode/json");
-      this.aceInputEditor.setTheme("ace/theme/bento");
-      this.setupEditorOptions(this.aceInputEditor);
+  // ─────────────────────────────────────────────────────
+  // Editor Initialization
+  // ─────────────────────────────────────────────────────
 
-      // Initialize mapping editor
-      this.aceMappingEditor = ace.edit("aceMapping");
-      this.aceMappingEditor.setValue(
-        "root.greeting = this.message.uppercase()\nroot.doubled = this.number * 2",
-        1
-      );
-      this.aceMappingEditor.session.setMode("ace/mode/bloblang");
-      this.aceMappingEditor.setTheme("ace/theme/bento");
-      this.setupEditorOptions(this.aceMappingEditor);
+  configureInputEditor() {
+    const inputEl = this.getElement(DOM_IDS.aceInput);
+    if (!inputEl) return;
 
-      // Set up change listeners
-      this.aceInputEditor.on("change", () => {
-        if (this.callbacks.onInputChange) this.callbacks.onInputChange();
-      });
-
-      this.aceMappingEditor.on("change", () => {
-        if (this.callbacks.onMappingChange) this.callbacks.onMappingChange();
-      });
-    } catch (error) {
-      console.warn("ACE editor failed to load, falling back to textarea");
-      this.setupFallbackEditors();
-    }
+    this.aceInputEditor = ace.edit(inputEl);
+    this.aceInputEditor.setValue(this.defaultInput, 1);
+    this.aceInputEditor.session.setMode(MODE_JSON);
+    this.aceInputEditor.setTheme(THEME_BENTO);
+    this.configureEditorOptions(this.aceInputEditor);
   }
 
-  setupEditorOptions(editor) {
+  configureMappingEditor() {
+    const mappingEl = this.getElement(DOM_IDS.aceMapping);
+    if (!mappingEl) return;
+
+    this.aceMappingEditor = ace.edit(mappingEl);
+    this.aceMappingEditor.setValue(this.defaultMapping, 1);
+    this.aceMappingEditor.session.setMode(MODE_BLOBLANG);
+    this.aceMappingEditor.setTheme(THEME_BENTO);
+    this.configureEditorOptions(this.aceMappingEditor);
+    this.configureAutocompletion();
+  }
+
+  configureEditorOptions(editor) {
     editor.session.setTabSize(2);
     editor.session.setUseSoftTabs(true);
     editor.session.setUseWorker(false);
@@ -167,53 +129,164 @@ class EditorManager {
     editor.setOption("wrap", true);
   }
 
-  setupFallbackEditors() {
+  configureFallbackEditors() {
+    const aceInput = this.getElement(DOM_IDS.aceInput);
+    const aceMapping = this.getElement(DOM_IDS.aceMapping);
+    const fallbackInput = this.getElement(DOM_IDS.fallbackInput);
+    const fallbackMapping = this.getElement(DOM_IDS.fallbackMapping);
+
     // Show fallback textareas
-    document.getElementById("aceInput").style.display = "none";
-    document.getElementById("fallbackInput").style.display = "block";
-    document.getElementById("aceMapping").style.display = "none";
-    document.getElementById("fallbackMapping").style.display = "block";
+    if (aceInput) aceInput.style.display = "none";
+    if (fallbackInput) fallbackInput.style.display = "block";
+    if (aceMapping) aceMapping.style.display = "none";
+    if (fallbackMapping) fallbackMapping.style.display = "block";
 
     // Set up fallback listeners
-    const fallbackInput = document.getElementById("fallbackInput");
-    const fallbackMapping = document.getElementById("fallbackMapping");
-
-    fallbackInput.addEventListener("input", () => {
-      if (this.callbacks.onInputChange) this.callbacks.onInputChange();
+    fallbackInput?.addEventListener("input", () => {
+      this.inputChangeListeners.forEach((fn) => fn());
+      this.callbacks.onInputChange?.();
     });
 
-    fallbackMapping.addEventListener("input", () => {
-      if (this.callbacks.onMappingChange) this.callbacks.onMappingChange();
+    fallbackMapping?.addEventListener("input", () => {
+      this.mappingChangeListeners.forEach((fn) => fn());
+      this.callbacks.onMappingChange?.();
     });
   }
 
+  registerEditorChangeHandlers() {
+    this.aceInputEditor.on("change", () => {
+      if (this.callbacks.onInputChange) {
+        this.callbacks.onInputChange();
+      }
+    });
+
+    this.aceMappingEditor.on("change", () => {
+      if (this.callbacks.onMappingChange) {
+        this.callbacks.onMappingChange();
+      }
+    });
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Autocompletion Logic
+  // ─────────────────────────────────────────────────────
+
+  configureAutocompletion() {
+    if (!this.aceMappingEditor || !this.bloblangSyntax) return;
+
+    try {
+      const completer = this.createBloblangCompleter();
+      this.aceMappingEditor.setOptions({
+        enableBasicAutocompletion: [completer],
+        enableLiveAutocompletion: true,
+      });
+    } catch (error) {
+      console.warn("Autocompletion disabled:", error);
+    }
+  }
+
+  createBloblangCompleter() {
+    return {
+      getCompletions: (editor, session, pos, prefix, callback) => {
+        const completions = [];
+        const line = session.getLine(pos.row);
+        const beforeCursor = line.substring(0, pos.column);
+
+        if (beforeCursor.match(/\.\w*$/)) {
+          this.bloblangSyntax.methods.forEach((method) =>
+            completions.push({
+              caption: method,
+              value: `${method}()`,
+              meta: "bloblang method",
+              type: "method",
+              score: 1000,
+            })
+          );
+        } else {
+          this.bloblangSyntax.functions.forEach((func) =>
+            completions.push({
+              caption: func,
+              value: `${func}()`,
+              meta: "bloblang function",
+              type: "function",
+              score: 1000,
+            })
+          );
+
+          ["root", "this", "if", "else", "match", "let"].forEach((keyword) => {
+            if (keyword.startsWith(prefix.toLowerCase())) {
+              completions.push({
+                caption: keyword,
+                value: keyword,
+                meta: "bloblang keyword",
+                type: "keyword",
+                score: 900,
+              });
+            }
+          });
+        }
+
+        callback(null, completions);
+      },
+    };
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Data Accessors
+  // ─────────────────────────────────────────────────────
+
+  /**
+   * Gets the current input value from the editor or fallback.
+   * @returns {string}
+   */
   getInput() {
-    if (this.aceInputEditor) {
-      return this.aceInputEditor.getValue();
-    }
-    return document.getElementById("fallbackInput").value;
+    return this.aceInputEditor
+      ? this.aceInputEditor.getValue()
+      : this.getElement(DOM_IDS.fallbackInput)?.value || "";
   }
 
+  /**
+   * Gets the current mapping value from the editor or fallback.
+   * @returns {string}
+   */
   getMapping() {
-    if (this.aceMappingEditor) {
-      return this.aceMappingEditor.getValue();
-    }
-    return document.getElementById("fallbackMapping").value;
+    return this.aceMappingEditor
+      ? this.aceMappingEditor.getValue()
+      : this.getElement(DOM_IDS.fallbackMapping)?.value || "";
   }
 
+  /**
+   * Sets the content of the input editor or fallback.
+   * @param {string} content
+   */
   setInput(content) {
     if (this.aceInputEditor) {
       this.aceInputEditor.setValue(content, 1);
     } else {
-      document.getElementById("fallbackInput").value = content;
+      const fallback = this.getElement(DOM_IDS.fallbackInput);
+      if (fallback) fallback.value = content;
     }
   }
 
+  /**
+   * Sets the content of the mapping editor or fallback.
+   * @param {string} content
+   */
   setMapping(content) {
     if (this.aceMappingEditor) {
       this.aceMappingEditor.setValue(content, 1);
     } else {
-      document.getElementById("fallbackMapping").value = content;
+      const fallback = this.getElement(DOM_IDS.fallbackMapping);
+      if (fallback) fallback.value = content;
     }
+  }
+
+  /**
+   * Returns a DOM element by ID.
+   * @param {string} id
+   * @returns {HTMLElement|null}
+   */
+  getElement(id) {
+    return document.getElementById(id);
   }
 }

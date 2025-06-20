@@ -23,6 +23,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/bloblang/syntax"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
@@ -227,6 +228,17 @@ func runServer(c *cli.Context) error {
 			http.Error(w, "Template error", http.StatusBadGateway)
 			return
 		}
+	})
+
+	mux.HandleFunc("/bloblang-syntax", func(w http.ResponseWriter, r *http.Request) {
+		syntax, err := syntax.GenerateBloblangSyntax()
+		if err != nil {
+			http.Error(w, "Failed to generate Bloblang syntax", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+		w.Write(syntax)
 	})
 
 	host, port := c.String("host"), c.String("port")

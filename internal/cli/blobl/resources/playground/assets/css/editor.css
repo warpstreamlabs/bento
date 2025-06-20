@@ -1,14 +1,11 @@
-/* =============================================================================
-   Bloblang Playground - ACE Editor Bento Theme
-   ============================================================================= */
-
-/* Base ACE Theme Styles */
+/* Bento ACE Editor Theme */
 .ace-bento .ace_editor {
   font-family: var(--bento-font-mono) !important;
   background-color: #ffffff !important;
   color: var(--bento-text-body) !important;
 }
 
+/* Gutter styling */
 .ace-bento .ace_gutter {
   background-color: var(--bento-bg-alt) !important;
   color: var(--bento-text-heading) !important;
@@ -19,6 +16,7 @@
   background-color: var(--bento-button-selected) !important;
 }
 
+/* Editor interaction elements */
 .ace-bento .ace_cursor {
   color: var(--bento-text-heading) !important;
 }
@@ -40,17 +38,13 @@
   color: var(--bento-bg-highlight);
 }
 
-/* JSON Syntax Highlighting */
+/* Syntax highlighting - Strings */
 .ace-bento .ace_string {
   color: var(--bento-success) !important;
   font-weight: 500 !important;
 }
 
-.ace-bento .ace_string.ace_property {
-  color: var(--bento-text-highlight) !important;
-  font-weight: 600 !important;
-}
-
+/* Syntax highlighting - Numbers and constants */
 .ace-bento .ace_constant.ace_numeric {
   color: var(--bento-bg-highlight) !important;
   font-weight: 500 !important;
@@ -66,57 +60,46 @@
   font-style: italic !important;
 }
 
-.ace-bento .ace_punctuation {
-  color: var(--bento-text-heading) !important;
-}
-
-/* Bloblang DSL Syntax Highlighting */
+/* Syntax highlighting - Keywords and operators */
 .ace-bento .ace_keyword {
   color: var(--bento-text-highlight) !important;
   font-weight: 600 !important;
 }
 
+.ace-bento .ace_punctuation {
+  color: var(--bento-text-heading) !important;
+}
+
+/* Syntax highlighting - Functions and methods */
 .ace-bento .ace_support.ace_function {
   color: var(--bento-success) !important;
   font-weight: 500 !important;
 }
 
+.ace-bento .ace_support.ace_method {
+  color: var(--bento-accent) !important;
+  font-weight: 500 !important;
+}
+
+/* Syntax highlighting - Variables and identifiers */
 .ace-bento .ace_variable {
   color: var(--bento-bg-highlight) !important;
   font-weight: 500 !important;
 }
 
-.ace-bento .ace_identifier {
-  color: var(--bento-text-body) !important;
-}
-
+/* Syntax highlighting - Comments */
 .ace-bento .ace_comment {
   color: #999999 !important;
   font-style: italic !important;
 }
 
-.ace-bento .ace_constant.ace_other {
-  color: var(--bento-text-heading) !important;
-  font-weight: 600 !important;
-}
-
-/* Bloblang-specific tokens */
+/* Bloblang-specific syntax highlighting */
 .ace-bento .ace_bloblang_root {
   color: var(--bento-text-highlight) !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
 }
 
 .ace-bento .ace_bloblang_this {
   color: var(--bento-success) !important;
-  font-weight: 600 !important;
-}
-
-.ace-bento .ace_bloblang_method {
-  color: var(--bento-success) !important;
-  font-weight: 500 !important;
-}
-
-.ace-bento .ace_bloblang_operator {
-  color: var(--bento-text-heading) !important;
-  font-weight: 500 !important;
+  font-weight: 700 !important;
 }
