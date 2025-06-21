@@ -252,7 +252,7 @@ variables have been resolved:
   {{.BinaryName}} -c ./config.yaml echo | less`)[1:],
 				Action: func(c *cli.Context) error {
 					_, _, confReader := common.ReadConfig(c, opts, false)
-					_, pConf, _, err := confReader.Read()
+					_, pConf, _, _, err := confReader.Read()
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Configuration file read error: %v\n", err)
 						os.Exit(1)
