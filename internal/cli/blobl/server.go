@@ -231,14 +231,16 @@ func runServer(c *cli.Context) error {
 	})
 
 	mux.HandleFunc("/bloblang-syntax", func(w http.ResponseWriter, r *http.Request) {
-		syntax, err := syntax.GenerateBloblangSyntax()
+		response, err := syntax.GenerateBloblangSyntax()
 		if err != nil {
 			http.Error(w, "Failed to generate Bloblang syntax", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
-		w.Write(syntax)
+		if _, writeErr := w.Write(response); writeErr != nil {
+			log.Printf("Failed to write response: %v", writeErr)
+		}
 	})
 
 	host, port := c.String("host"), c.String("port")

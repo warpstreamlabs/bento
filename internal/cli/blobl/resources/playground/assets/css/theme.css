@@ -242,12 +242,6 @@ body {
   background: var(--bento-text-highlight);
 }
 
-/* Firefox scrollbar */
-.output {
-  scrollbar-width: thin;
-  scrollbar-color: var(--bento-bg-highlight) var(--bento-bg-alt);
-}
-
 /* Focus and accessibility improvements */
 .editor:focus,
 .output:focus {

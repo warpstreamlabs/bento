@@ -33,6 +33,11 @@ class EditorManager {
   // ─────────────────────────────────────────────────────
 
   async init(callbacks = {}) {
+    if (!ace) {
+      console.error("Unable to load ACE");
+      return;
+    }
+
     this.callbacks = callbacks;
 
     ace.define(THEME_BENTO, function (require, exports, module) {
@@ -59,9 +64,11 @@ class EditorManager {
     } catch (error) {
       console.warn("Failed to load Bloblang syntax:", error);
       this.bloblangSyntax = {
-        functions: [],
-        methods: [],
+        functions: {},
+        methods: {},
         rules: [],
+        function_names: [],
+        method_names: [],
       };
     }
   }
@@ -78,8 +85,9 @@ class EditorManager {
       // Use CoffeeScript as base and prepend Bloblang-specific rules for priority matching
       const BloblangHighlightRules = function () {
         CoffeeHighlightRules.call(this);
-        this.$rules.start = rules.concat(this.$rules.start);
-        this.normalizeRules();
+        if (rules && rules.length > 0) {
+          this.$rules.start = rules.concat(this.$rules.start);
+        }
       };
       oop.inherits(BloblangHighlightRules, CoffeeHighlightRules);
 
@@ -192,35 +200,51 @@ class EditorManager {
         const line = session.getLine(pos.row);
         const beforeCursor = line.substring(0, pos.column);
 
+        // Method suggestions (after a dot)
         if (beforeCursor.match(/\.\w*$/)) {
-          this.bloblangSyntax.methods.forEach((method) =>
+          Object.values(this.bloblangSyntax.methods).forEach((spec) =>
             completions.push({
-              caption: method,
-              value: `${method}()`,
-              meta: "bloblang method",
+              caption: spec.name,
+              value: `${spec.name}()`,
+              meta: this.getMethodCategory(spec),
               type: "method",
-              score: 1000,
+              score: this.getCompletionScore(spec),
+              docHTML: this.createMethodDocumentationHTML(spec),
             })
           );
-        } else {
-          this.bloblangSyntax.functions.forEach((func) =>
+        }
+        // Function suggestions (standalone)
+        else {
+          Object.values(this.bloblangSyntax.functions).forEach((spec) =>
             completions.push({
-              caption: func,
-              value: `${func}()`,
-              meta: "bloblang function",
+              caption: spec.name,
+              value: `${spec.name}()`,
+              meta: this.getFunctionCategory(spec),
               type: "function",
-              score: 1000,
+              score: this.getCompletionScore(spec),
+              docHTML: this.createFunctionDocumentationHTML(spec),
             })
           );
 
-          ["root", "this", "if", "else", "match", "let"].forEach((keyword) => {
-            if (keyword.startsWith(prefix.toLowerCase())) {
+          // Add Bloblang keywords
+          const keywords = [
+            { name: "root", description: "The root of the output document" },
+            { name: "this", description: "The current context value" },
+            { name: "if", description: "Conditional expression" },
+            { name: "else", description: "Alternative branch" },
+            { name: "match", description: "Pattern matching expression" },
+            { name: "let", description: "Variable assignment" },
+          ];
+
+          keywords.forEach((keyword) => {
+            if (keyword.name.startsWith(prefix.toLowerCase())) {
               completions.push({
-                caption: keyword,
-                value: keyword,
-                meta: "bloblang keyword",
+                caption: keyword.name,
+                value: keyword.name,
+                meta: "keyword",
                 type: "keyword",
                 score: 900,
+                docHTML: `<div class="ace-doc"><strong>${keyword.name}</strong><br/>${keyword.description}</div>`,
               });
             }
           });
@@ -229,6 +253,198 @@ class EditorManager {
         callback(null, completions);
       },
     };
+  }
+
+  getCompletionScore(spec) {
+    // Prioritize by status
+    switch (spec.status) {
+      case "stable":
+        return 1000;
+      case "beta":
+        return 800;
+      case "experimental":
+        return 600;
+      case "deprecated":
+        return 200;
+      default:
+        return 700;
+    }
+  }
+
+  getFunctionCategory(functionSpec) {
+    if (functionSpec.status === "deprecated") return "Deprecated";
+    if (functionSpec.status === "experimental") return "Experimental";
+
+    // Categorize by name patterns
+    const name = functionSpec.name;
+    if (name.includes("json")) return "JSON";
+    if (name.includes("string") || name.endsWith("case")) return "String";
+    if (name.includes("time") || name.includes("date")) return "Time";
+    if (name.includes("math") || name.includes("calc")) return "Math";
+    if (name.includes("crypto") || name.includes("hash")) return "Crypto";
+    if (name.includes("env") || name.includes("hostname")) return "Environment";
+    if (name.includes("uuid") || name.includes("nanoid"))
+      return "ID Generation";
+    if (name.includes("random")) return "Random";
+    return "General";
+  }
+
+  getMethodCategory(methodSpec) {
+    if (methodSpec.categories && methodSpec.categories.length > 0) {
+      return methodSpec.categories[0].category;
+    }
+
+    if (methodSpec.status === "deprecated") return "Deprecated";
+    if (methodSpec.status === "experimental") return "Experimental";
+
+    // Fallback categorization
+    const name = methodSpec.name;
+    if (name.includes("json")) return "JSON";
+    if (name.includes("string")) return "String";
+    if (name.includes("array") || name.includes("slice")) return "Array";
+    if (name.includes("map") || name.includes("object")) return "Object";
+    return "General";
+  }
+
+  formatParameterSignature(params) {
+    if (!params || !params.named || params.named.length === 0) {
+      return "";
+    }
+
+    const paramStrings = params.named.map((param) => {
+      let paramStr = param.name;
+      if (param.type) {
+        paramStr += `: ${param.type}`;
+      }
+      if (param.default !== undefined) {
+        paramStr += ` = ${param.default}`;
+      }
+      return param.optional ? `[${paramStr}]` : paramStr;
+    });
+
+    const variadicIndicator = params.variadic ? ", ..." : "";
+    return paramStrings.join(", ") + variadicIndicator;
+  }
+
+  createFunctionDocumentationHTML(functionSpec) {
+    const signature = `${functionSpec.name}(${this.formatParameterSignature(
+      functionSpec.params
+    )})`;
+    const statusBadge = functionSpec.status
+      ? `<span class="ace-status-${functionSpec.status}">${functionSpec.status}</span>`
+      : "";
+
+    let html = `
+      <div class="ace-doc">
+        <div class="ace-doc-signature">
+          <strong>${signature}</strong>
+          ${statusBadge}
+        </div>
+        <div class="ace-doc-description">${
+          functionSpec.description || "No description available"
+        }</div>
+    `;
+
+    // Add parameter details
+    if (
+      functionSpec.params &&
+      functionSpec.params.named &&
+      functionSpec.params.named.length > 0
+    ) {
+      html += `<div class="ace-doc-parameters"><strong>Parameters:</strong>`;
+      functionSpec.params.named.forEach((param) => {
+        const optionalText = param.optional ? " (optional)" : "";
+        const defaultText =
+          param.default !== undefined ? ` = ${param.default}` : "";
+        const typeText = param.type ? ` [${param.type}]` : "";
+
+        html += `<div class="ace-doc-param">`;
+        html += `<code>${param.name}${typeText}${defaultText}${optionalText}</code><br/>`;
+        html += `<span class="ace-doc-param-desc">${
+          param.description || "No description"
+        }</span>`;
+        html += `</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Add examples if available
+    if (functionSpec.examples && functionSpec.examples.length > 0) {
+      html += `<div class="ace-doc-examples"><strong>Examples:</strong><br/>`;
+      functionSpec.examples.slice(0, 2).forEach((example) => {
+        // Limit to 2 examples
+        if (example.summary) {
+          html += `<div class="ace-doc-example-summary">${example.summary}</div>`;
+        }
+        html += `<code>${example.mapping}</code><br/>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  createMethodDocumentationHTML(methodSpec) {
+    const signature = `.${methodSpec.name}(${this.formatParameterSignature(
+      methodSpec.params
+    )})`;
+    const statusBadge = methodSpec.status
+      ? `<span class="ace-status-${methodSpec.status}">${methodSpec.status}</span>`
+      : "";
+    const impureBadge = methodSpec.impure
+      ? '<span class="ace-impure-badge">impure</span>'
+      : "";
+
+    let html = `
+      <div class="ace-doc">
+        <div class="ace-doc-signature">
+          <strong>${signature}</strong>
+          ${statusBadge}
+          ${impureBadge}
+        </div>
+        <div class="ace-doc-description">${
+          methodSpec.description || "No description available"
+        }</div>
+    `;
+
+    // Add parameter details
+    if (
+      methodSpec.params &&
+      methodSpec.params.named &&
+      methodSpec.params.named.length > 0
+    ) {
+      html += `<div class="ace-doc-parameters"><strong>Parameters:</strong>`;
+      methodSpec.params.named.forEach((param) => {
+        const optionalText = param.optional ? " (optional)" : "";
+        const defaultText =
+          param.default !== undefined ? ` = ${param.default}` : "";
+        const typeText = param.type ? ` [${param.type}]` : "";
+
+        html += `<div class="ace-doc-param">`;
+        html += `<code>${param.name}${typeText}${defaultText}${optionalText}</code><br/>`;
+        html += `<span class="ace-doc-param-desc">${
+          param.description || "No description"
+        }</span>`;
+        html += `</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Add examples if available
+    if (methodSpec.examples && methodSpec.examples.length > 0) {
+      html += `<div class="ace-doc-examples"><strong>Examples:</strong><br/>`;
+      methodSpec.examples.slice(0, 2).forEach((example) => {
+        if (example.summary) {
+          html += `<div class="ace-doc-example-summary">${example.summary}</div>`;
+        }
+        html += `<code>${example.mapping}</code><br/>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
   }
 
   // ─────────────────────────────────────────────────────

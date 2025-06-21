@@ -1,31 +1,3 @@
-// JSON Utilities
-function isValidJSON(str) {
-  try {
-    JSON.parse(str);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function formatJSON(jsonString) {
-  try {
-    const parsed = JSON.parse(jsonString);
-    return JSON.stringify(parsed, null, 2);
-  } catch (e) {
-    return jsonString;
-  }
-}
-
-function minifyJSON(jsonString) {
-  try {
-    const parsed = JSON.parse(jsonString);
-    return JSON.stringify(parsed);
-  } catch (e) {
-    return jsonString;
-  }
-}
-
 // Bloblang Utilities
 function formatBloblang(mappingString) {
   const lines = mappingString.split("\n");
@@ -78,52 +50,39 @@ function syntaxHighlightJSON(json) {
 }
 
 // Linting Functions
-function lintJSON(jsonString) {
+function lintJSON(json) {
   try {
-    JSON.parse(jsonString);
-    return { valid: true, message: "Valid JSON" };
+    return JSON.parse(json);
   } catch (e) {
-    return { valid: false, message: `Invalid JSON: ${e.message}` };
+    return null;
   }
 }
 
-function lintBloblang(mappingString) {
-  const lines = mappingString.split("\n");
-  const errors = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line === "" || line.startsWith("#")) continue;
-  }
-
-  if (errors.length > 0) {
-    return { valid: false, message: errors[0] };
-  }
-
-  return { valid: true, message: "Valid Syntax" };
-}
-
-// Linter Update Functions
 function updateInputLinter(input) {
-  const lint = lintJSON(input);
+  const lint = lintJSON(input)
+    ? { valid: true, message: "Valid Syntax" }
+    : { valid: false, message: "Invalid Syntax" };
+
   const indicator = document.getElementById("inputLint");
   if (indicator) {
     indicator.textContent = lint.message;
     indicator.className = `lint-indicator ${lint.valid ? "valid" : "invalid"}`;
   }
+
   return lint;
 }
 
 function updateMappingLinter(mapping, errorMessage = null) {
-  const lint = errorMessage
-    ? { valid: false, message: "Invalid Syntax" }
-    : lintBloblang(mapping);
+  const lint = !errorMessage
+    ? { valid: true, message: "Valid Syntax" }
+    : { valid: false, message: "Invalid Syntax" };
 
   const indicator = document.getElementById("mappingLint");
   if (indicator) {
     indicator.textContent = lint.message;
     indicator.className = `lint-indicator ${lint.valid ? "valid" : "invalid"}`;
   }
+
   return lint;
 }
 
@@ -142,8 +101,7 @@ function updateOutputLinter(output) {
     return;
   }
 
-  const isJSON = isValidJSON(output);
-  if (isJSON) {
+  if (isValidJSON(output)) {
     indicator.textContent = "Valid JSON";
     indicator.className = "lint-indicator valid";
     if (formatBtn) formatBtn.disabled = false;
@@ -184,7 +142,7 @@ function downloadFile(content, filename, contentType = "text/plain") {
   window.URL.revokeObjectURL(url);
 }
 
-// Global action handlers for onclick events
+// Action handlers
 function copyInput() {
   if (window.playground) {
     copyToClipboard(window.playground.editor.getInput(), "Input copied!");
@@ -298,13 +256,30 @@ function saveOutput() {
   }
 }
 
-// Error Message Creation
-function createErrorMessage(title, message, details = null) {
-  return `
-    <div class="error-message">
-      <div class="error-title">${title}</div>
-      <div>${message}</div>
-      ${details ? `<div class="error-details">${details}</div>` : ""}
-    </div>
-  `;
+// JSON Utilities
+function isValidJSON(str) {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function formatJSON(jsonString) {
+  try {
+    const parsed = JSON.parse(jsonString);
+    return JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    return jsonString;
+  }
+}
+
+function minifyJSON(jsonString) {
+  try {
+    const parsed = JSON.parse(jsonString);
+    return JSON.stringify(parsed);
+  } catch (e) {
+    return jsonString;
+  }
 }
