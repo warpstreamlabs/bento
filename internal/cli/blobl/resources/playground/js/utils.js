@@ -1,23 +1,3 @@
-// Bloblang Utilities
-function formatBloblang(mappingString) {
-  const lines = mappingString.split("\n");
-  const formatted = lines
-    .map((line) => {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#")) return trimmed;
-
-      // Add consistent spacing around operators
-      return trimmed
-        .replace(/\s*=\s*/g, " = ")
-        .replace(/\s*\.\s*/g, ".")
-        .replace(/\s*\(\s*/g, "(")
-        .replace(/\s*\)\s*/g, ")");
-    })
-    .join("\n");
-
-  return formatted;
-}
-
 // Syntax Highlighting
 function syntaxHighlightJSON(json) {
   if (typeof json !== "string") {
@@ -180,11 +160,45 @@ function minifyInput() {
   }
 }
 
-function formatMapping() {
-  if (window.playground) {
-    const formatted = formatBloblang(window.playground.editor.getMapping());
+function formatBloblang() {
+  if (!window.playground || !window.playground.editor) return;
+
+  try {
+    const raw = window.playground.editor.getMapping();
+    if (!raw || typeof raw !== "string") return;
+
+    const lines = raw.split("\n");
+    const formatted = lines
+      .map((line) => {
+        const trimmed = line.trim();
+
+        // Pass through empty lines and comments
+        if (trimmed === "" || trimmed.startsWith("#")) return trimmed;
+
+        return (
+          trimmed
+            // Normalize spacing around assignment and object keys
+            .replace(/\s*=\s*/g, " = ")
+            .replace(/\s*:\s*/g, ": ")
+            // Normalize spacing around function args
+            .replace(/\s*\(\s*/g, "(")
+            .replace(/\s*\)\s*/g, ")")
+            .replace(/\s*,\s*/g, ", ")
+            // Normalize spacing around dot access
+            .replace(/\s*\.\s*/g, ".")
+            // Add spacing around binary operators
+            .replace(/\s*([+\-*/%<>=!]=?|==|!=|&&|\|\|)\s*/g, " $1 ")
+            // Collapse multiple spaces
+            .replace(/\s{2,}/g, " ")
+            .trim()
+        );
+      })
+      .join("\n");
+
     window.playground.editor.setMapping(formatted);
     updateMappingLinter(formatted);
+  } catch (err) {
+    console.warn("Formatting error:", err);
   }
 }
 

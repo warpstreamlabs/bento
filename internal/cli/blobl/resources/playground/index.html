@@ -249,6 +249,11 @@ root.doubled = this.number * 2
       defer
     ></script>
 
+    <!-- Inject the Bloblang syntax into the global JS context -->
+    <script>
+      window.BLOBLANG_SYNTAX = {{.BloblangSyntax}};
+    </script>
+
     <!-- Application scripts -->
     <script src="./js/utils.js" defer></script>
     <script src="./js/editor.js" defer></script>

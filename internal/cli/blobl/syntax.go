@@ -1,40 +1,40 @@
-package syntax
+package blobl
 
 import (
-	"encoding/json"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
 
 // Token → semantic class used to apply styling.
 // Regex → JavaScript-compatible regex pattern used to match code tokens.
-type HighlightRule struct {
+type highlightRule struct {
 	Token string `json:"token"`
 	Regex string `json:"regex"`
 }
 
-// BloblangSyntax contains everything needed for Bloblang syntax highlighting and autocompletion
-type BloblangSyntax struct {
-	// Rich function and method data with descriptions
+type bloblangSyntax struct {
+	// Rich function and method data
 	Functions map[string]query.FunctionSpec `json:"functions"`
 	Methods   map[string]query.MethodSpec   `json:"methods"`
 
-	// Minimal syntax highlighting rules that extend CoffeeScript
-	Rules []HighlightRule `json:"rules"`
+	// Minimal syntax highlighting rules that extends CoffeeScript
+	Rules []highlightRule `json:"rules"`
 
-	// Quick lookup arrays for regex generation (internal use)
+	// Quick lookup arrays for regex generation
 	FunctionNames []string `json:"function_names"`
 	MethodNames   []string `json:"method_names"`
 }
 
-func GenerateBloblangSyntax() ([]byte, error) {
-	env := bloblang.GlobalEnvironment()
+type Walker interface {
+	WalkFunctions(fn func(name string, spec query.FunctionSpec))
+	WalkMethods(fn func(name string, spec query.MethodSpec))
+}
 
+func GenerateBloblangSyntax(env Walker) (bloblangSyntax, error) {
+	var functionNames, methodNames []string
 	functions := make(map[string]query.FunctionSpec)
 	methods := make(map[string]query.MethodSpec)
-	var functionNames, methodNames []string
 
 	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
 		functions[name] = spec
@@ -46,22 +46,8 @@ func GenerateBloblangSyntax() ([]byte, error) {
 		methodNames = append(methodNames, name)
 	})
 
-	rules := createHighlightRules(functionNames, methodNames)
-
-	syntax := BloblangSyntax{
-		Functions:     functions,
-		Methods:       methods,
-		Rules:         rules,
-		FunctionNames: functionNames,
-		MethodNames:   methodNames,
-	}
-
-	return json.Marshal(syntax)
-}
-
-func createHighlightRules(functionNames, methodNames []string) []HighlightRule {
 	// Generate syntax highlighting rules
-	rules := []HighlightRule{
+	rules := []highlightRule{
 		// Matches `root` (highest priority)
 		{Token: "bloblang_root", Regex: `\broot\b`},
 		// Matches `this` (highest priority)
@@ -72,5 +58,13 @@ func createHighlightRules(functionNames, methodNames []string) []HighlightRule {
 		{Token: "support.method", Regex: `\.(` + strings.Join(methodNames, "|") + `)(?=\s*\()`},
 	}
 
-	return rules
+	syntax := bloblangSyntax{
+		Functions:     functions,
+		Methods:       methods,
+		Rules:         rules,
+		FunctionNames: functionNames,
+		MethodNames:   methodNames,
+	}
+
+	return syntax, nil
 }

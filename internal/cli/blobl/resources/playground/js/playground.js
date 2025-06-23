@@ -74,7 +74,7 @@ class BloblangPlayground {
       "load-input": () => this.elements.inputFileInput.click(),
       "load-mapping": () => this.elements.mappingFileInput.click(),
       "save-output": () => saveOutput(),
-      "format-mapping": () => formatMapping(),
+      "format-mapping": () => formatBloblang(),
       "toggle-format-input": () => this.toggleFormat("input"),
       "toggle-format-output": () => this.toggleFormat("output"),
     };
