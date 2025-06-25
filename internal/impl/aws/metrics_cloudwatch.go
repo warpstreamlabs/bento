@@ -523,6 +523,9 @@ func (c *cwMetrics) HandlerFunc() http.HandlerFunc {
 }
 
 func (c *cwMetrics) Close(ctx context.Context) error {
-	c.cancel()
-	return c.flush(ctx)
+	defer c.cancel()
+	if err := c.flush(ctx); err != nil {
+		return err
+	}
+	return nil
 }

@@ -432,7 +432,6 @@ func TestCloudWatchShutdown(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 
 	ctx := context.Background()
-	cw.cancel()
 	cw.Close(ctx)
 
 	expKey := fmt.Sprintf("counter.foo:%v", expTagMap)
