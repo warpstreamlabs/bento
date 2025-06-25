@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.8.2 - 2025-06-25
+
+### Fixed 
+
+- `aws_cloudwatch` metrics not flushed before Bento shutdown @jem-davies
+
 ## 1.8.1 - 2025-06-17
 
 ### Added 
