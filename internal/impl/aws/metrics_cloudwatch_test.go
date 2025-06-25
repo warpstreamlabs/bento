@@ -28,7 +28,16 @@ func cwmMock(svc cloudWatchAPI) *cwMetrics {
 }
 
 func (m *mockCloudWatchClient) PutMetricData(ctx context.Context, params *cloudwatch.PutMetricDataInput, optFns ...func(*cloudwatch.Options)) (*cloudwatch.PutMetricDataOutput, error) {
+	time.Sleep(time.Millisecond * 100)
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	m.inputs = append(m.inputs, *params)
+
 	if len(m.errs) > 0 {
 		err := m.errs[0]
 		m.errs = m.errs[1:]
@@ -117,7 +126,7 @@ func TestCloudWatchBasic(t *testing.T) {
 	tmgFoo.Timing(87001)
 	tmgFoo.Timing(23010)
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	ctrFoo.Incr(2)
 
@@ -132,7 +141,7 @@ func TestCloudWatchBasic(t *testing.T) {
 	tmgFoo.Timing(87120)
 	tmgFoo.Timing(23400)
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	assert.Len(t, mockSvc.inputs, 2)
 
@@ -219,7 +228,7 @@ func TestCloudWatchMoreThan20Items(t *testing.T) {
 		}
 	}
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	assert.Len(t, mockSvc.inputs, 2)
 	assert.Len(t, mockSvc.inputs[0].MetricData, 20)
@@ -257,7 +266,7 @@ func TestCloudWatchMoreThan150Values(t *testing.T) {
 		gge.Set(v)
 	}
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	assert.Len(t, mockSvc.inputs, 1)
 	assert.Len(t, mockSvc.inputs[0].MetricData, 1)
@@ -280,7 +289,7 @@ func TestCloudWatchMoreThan150RandomReduce(t *testing.T) {
 		gge.Set(i)
 	}
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	assert.Len(t, mockSvc.inputs, 1)
 	assert.Len(t, mockSvc.inputs[0].MetricData, 1)
@@ -300,7 +309,7 @@ func TestCloudWatchMoreThan150LiveReduce(t *testing.T) {
 		gge.Set(i)
 	}
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	assert.Len(t, mockSvc.inputs, 1)
 	assert.Len(t, mockSvc.inputs[0].MetricData, 1)
@@ -323,7 +332,7 @@ func TestCloudWatchTags(t *testing.T) {
 	ctr("").Incr(3) // Test that empty ones are skipped
 	gge("third").Set(3)
 
-	cw.flush()
+	cw.flush(cw.ctx)
 
 	assert.Len(t, mockSvc.inputs, 1)
 	assert.Equal(t, "Bento", *mockSvc.inputs[0].Namespace)
@@ -379,7 +388,52 @@ func TestCloudWatchTagsMoreThan20(t *testing.T) {
 	ctrFoo := cw.NewCounterCtor("counter.foo", tagNames...)
 	ctrFoo(tagValues...).Incr(3)
 
-	cw.flush()
+	cw.flush(cw.ctx)
+
+	expKey := fmt.Sprintf("counter.foo:%v", expTagMap)
+
+	assert.Len(t, mockSvc.inputs, 1)
+	assert.Equal(t, "Bento", *mockSvc.inputs[0].Namespace)
+	assert.Len(t, mockSvc.inputs[0].MetricData, 1)
+	assert.Len(t, mockSvc.inputs[0].MetricData[0].Dimensions, 10)
+	assert.Equal(t, map[string]checkedDatum{
+		expKey: {
+			unit:       "Count",
+			dimensions: expTagMap,
+			value:      3,
+		},
+	}, checkInput(mockSvc.inputs[0]))
+}
+
+func TestCloudWatchShutdown(t *testing.T) {
+	mockSvc := &mockCloudWatchClient{}
+	cw := cwmMock(mockSvc)
+	cw.config.FlushPeriod = time.Minute * 10
+	cw.ctx, cw.cancel = context.WithCancel(context.Background())
+
+	expTagMap := map[string]string{}
+	tagNames := []string{}
+	tagValues := []string{}
+	for i := range 30 {
+		name := fmt.Sprintf("%v", i)
+		value := fmt.Sprintf("foo%v", i)
+		tagNames = append(tagNames, name)
+		tagValues = append(tagValues, value)
+		if i < 10 {
+			expTagMap[name] = value
+		}
+	}
+
+	ctrFoo := cw.NewCounterCtor("counter.foo", tagNames...)
+	ctrFoo(tagValues...).Incr(3)
+
+	go cw.loop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	ctx := context.Background()
+	cw.cancel()
+	cw.Close(ctx)
 
 	expKey := fmt.Sprintf("counter.foo:%v", expTagMap)
 

@@ -396,7 +396,7 @@ func (c *cwMetrics) loop() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
-			c.flush()
+			c.flush(c.ctx)
 		}
 	}
 }
@@ -455,7 +455,7 @@ func valuesMapToSlices(m map[int64]int64) (values, counts []float64) {
 	return
 }
 
-func (c *cwMetrics) flush() error {
+func (c *cwMetrics) flush(ctx context.Context) error {
 	c.datumLock.Lock()
 	datumMap := c.datumses
 	c.datumses = map[string]*cloudWatchDatum{}
@@ -495,16 +495,16 @@ func (c *cwMetrics) flush() error {
 		}
 		throttled = false
 
-		if _, err := c.client.PutMetricData(c.ctx, &input); err != nil {
-			if c.ctx.Err() != nil {
+		if _, err := c.client.PutMetricData(ctx, &input); err != nil {
+			if ctx.Err() != nil {
 				return err
 			}
 			c.log.Errorf("Failed to send metric data: %v", err)
 
 			select {
 			case <-time.After(time.Second):
-			case <-c.ctx.Done():
-				return c.ctx.Err()
+			case <-ctx.Done():
+				return ctx.Err()
 			}
 		}
 
@@ -524,6 +524,5 @@ func (c *cwMetrics) HandlerFunc() http.HandlerFunc {
 
 func (c *cwMetrics) Close(ctx context.Context) error {
 	c.cancel()
-	c.flush()
-	return nil
+	return c.flush(ctx)
 }
