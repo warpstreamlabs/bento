@@ -26,15 +26,27 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
+type fileSync struct {
+	mut sync.Mutex
+
+	dirty         bool
+	mappingString string
+	inputString   string
+
+	writeBack   bool
+	mappingFile string
+	inputFile   string
+}
+
 //go:embed resources/playground
 var playgroundFS embed.FS
 
 var bloblangPlaygroundPage string
 
 func init() {
-	page, err := playgroundFS.ReadFile("resources/playground/playground.html")
+	page, err := playgroundFS.ReadFile("resources/playground/index.html")
 	if err != nil {
-		log.Fatalf("Failed to read embedded playground.html: %v", err)
+		log.Fatalf("Failed to read embedded playground: %v", err)
 	}
 	bloblangPlaygroundPage = string(page)
 }
@@ -50,16 +62,19 @@ func openBrowserAt(url string) {
 	}
 }
 
-type fileSync struct {
-	mut sync.Mutex
+// Generates and marshals the Bloblang syntax spec as template.JS for HTML templates
+func generateBloblangSyntaxTemplate() (template.JS, error) {
+	syntax, err := GenerateBloblangSyntax(bloblang.GlobalEnvironment())
+	if err != nil {
+		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
+	}
 
-	dirty         bool
-	mappingString string
-	inputString   string
+	jsonBytes, err := json.Marshal(syntax)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal bloblang syntax: %w", err)
+	}
 
-	writeBack   bool
-	mappingFile string
-	inputFile   string
+	return template.JS(jsonBytes), nil
 }
 
 func newFileSync(inputFile, mappingFile string, writeBack bool) *fileSync {
@@ -214,15 +229,22 @@ func runServer(c *cli.Context) error {
 	mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(jsFS))))
 
 	indexTemplate := template.Must(template.New("index").Parse(bloblangPlaygroundPage))
+	bloblangSyntaxTemplate, err := generateBloblangSyntaxTemplate()
+	if err != nil {
+		return err
+	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		err := indexTemplate.Execute(w, struct {
 			InitialInput   string
 			InitialMapping string
+			BloblangSyntax template.JS
 		}{
 			fSync.input(),
 			fSync.mapping(),
+			bloblangSyntaxTemplate,
 		})
+
 		if err != nil {
 			http.Error(w, "Template error", http.StatusBadGateway)
 			return

@@ -1,10 +1,8 @@
-/* =============================================================================
-   Bloblang Playground - Core Styles & Layout
-   ============================================================================= */
-
 /* Bento Design System Variables */
 :root {
+  /* Color palette */
   --bento-bg-main: #fff4e9;
+  --bento-accent: #5c6ac4;
   --bento-bg-alt: #fde5d8;
   --bento-bg-highlight: #eb8788;
   --bento-text-body: #1c1e21;
@@ -18,26 +16,37 @@
   --bento-error: #d32f2f;
   --bento-error-bg: #ffebee;
   --bento-warning: #eb8788;
+
+  /* Layout */
   --bento-border-radius: 6px;
-  --bento-font-family: "IBM Plex Sans", sans-serif;
-  --bento-font-mono: "Monaco", "IBM Plex Sans", monospace;
   --bento-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --bento-shadow-3d: 0 3px 0 #e8908e;
+
+  /* Typography */
+  --bento-font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --bento-font-mono: "Monaco", "IBM Plex Mono", "SF Mono", "Consolas", monospace;
 }
 
 /* Reset & Base Styles */
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html,
+html {
+  height: 100%;
+}
+
 body {
   font-family: var(--bento-font-family);
   background-color: var(--bento-bg-main);
+  color: var(--bento-text-body);
   margin: 0;
   padding: 0;
   height: 100vh;
-  color: var(--bento-text-body);
+  overflow: hidden;
 }
 
 /* Main Layout Grid */
@@ -52,18 +61,15 @@ body {
 
 /* Grid Positioning */
 .input-panel {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: 1 / 1 / 2 / 2;
 }
 
 .mapping-panel {
-  grid-column: 2;
-  grid-row: 1;
+  grid-area: 1 / 2 / 2 / 3;
 }
 
 .horizontal-resizer {
-  grid-column: 1 / 3;
-  grid-row: 2;
+  grid-area: 2 / 1 / 3 / 3;
   height: 8px;
   background: var(--bento-bg-highlight);
   cursor: row-resize;
@@ -72,6 +78,7 @@ body {
   justify-content: center;
   border-radius: var(--bento-border-radius);
   transition: background-color 0.2s ease;
+  position: relative;
 }
 
 .horizontal-resizer:hover {
@@ -87,8 +94,7 @@ body {
 }
 
 .output-panel {
-  grid-column: 1 / 3;
-  grid-row: 3;
+  grid-area: 3 / 1 / 4 / 3;
 }
 
 /* Loading Overlay */
@@ -99,6 +105,7 @@ body {
   width: 100%;
   height: 100%;
   background: rgba(255, 244, 233, 0.95);
+  backdrop-filter: blur(2px);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -123,12 +130,6 @@ body {
   margin-bottom: 20px;
 }
 
-.loading-subtitle {
-  font-size: 14px;
-  margin-top: 10px;
-  opacity: 0.7;
-}
-
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -138,57 +139,49 @@ body {
   }
 }
 
-/* Editor & Output Base Styles */
+/* Editor & Output Styles */
 .editor {
   width: 100%;
   height: 100%;
   border: none;
   font-family: var(--bento-font-mono);
   font-size: 13px;
+  line-height: 1.4;
   padding: 12px;
   background: #ffffff;
   color: var(--bento-text-body);
   resize: none;
   outline: none;
+  tab-size: 2;
 }
 
 .fallback-editor {
   display: none;
 }
 
-/* Panel content needs relative positioning for overlay */
 .panel-content {
   flex: 1;
   position: relative;
   overflow: hidden;
 }
 
-/* Fallback editor styling */
+/* Fallback editor for when ACE fails to load */
 .fallback-editor {
   display: block !important;
 }
 
-/* Fallback editor wrapper styling */
-.fallback-editor-wrapper {
-  border-radius: 0;
-  overflow: hidden;
-}
-
-.fallback-editor-wrapper .fallback-editor {
-  display: block !important;
-}
-
-/* Active fallback editor gets ACE-like focus styling */
 .fallback-editor:focus {
   outline: 2px solid var(--bento-text-heading) !important;
   outline-offset: -2px !important;
 }
 
+/* ACE Editor container */
 .ace-editor {
   width: 100%;
   height: 100%;
 }
 
+/* Output display */
 .output {
   width: 100%;
   height: 100%;
@@ -197,43 +190,39 @@ body {
   color: var(--bento-text-body);
   font-family: var(--bento-font-mono);
   font-size: 13px;
+  line-height: 1.4;
   white-space: pre-wrap;
   overflow: auto;
   border: none;
-  line-height: 1.4;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto;
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 8px;
   }
 
   .input-panel {
-    grid-column: 1;
-    grid-row: 1;
+    grid-area: 1 / 1 / 2 / 2;
   }
 
   .mapping-panel {
-    grid-column: 1;
-    grid-row: 2;
+    grid-area: 2 / 1 / 3 / 2;
   }
 
   .horizontal-resizer {
-    grid-column: 1;
-    grid-row: 3;
+    grid-area: 3 / 1 / 4 / 2;
   }
 
   .output-panel {
-    grid-column: 1;
-    grid-row: 4;
+    grid-area: 4 / 1 / 5 / 2;
   }
 }
 
-/* Scrollbar Styling */
+/* Custom Scrollbar Styling */
 .output::-webkit-scrollbar {
   width: 8px;
 }
@@ -246,8 +235,32 @@ body {
 .output::-webkit-scrollbar-thumb {
   background: var(--bento-bg-highlight);
   border-radius: 4px;
+  transition: background-color 0.2s ease;
 }
 
 .output::-webkit-scrollbar-thumb:hover {
   background: var(--bento-text-highlight);
+}
+
+/* Focus and accessibility improvements */
+.editor:focus,
+.output:focus {
+  outline: 2px solid var(--bento-accent);
+  outline-offset: -2px;
+}
+
+/* Print styles */
+@media print {
+  .loading-overlay {
+    display: none !important;
+  }
+
+  .container {
+    grid-template-rows: auto auto auto;
+    height: auto;
+  }
+
+  .horizontal-resizer {
+    display: none;
+  }
 }

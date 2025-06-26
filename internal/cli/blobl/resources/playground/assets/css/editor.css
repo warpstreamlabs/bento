@@ -1,0 +1,258 @@
+/* Base editor styling */
+.ace-bento .ace_editor {
+  font-family: var(--bento-font-mono) !important;
+  background-color: #ffffff !important;
+  color: var(--bento-text-body) !important;
+}
+
+.ace-bento .ace_gutter {
+  background-color: var(--bento-bg-alt) !important;
+  color: var(--bento-text-heading) !important;
+  border-right: 1px solid var(--bento-bg-highlight) !important;
+}
+
+.ace-bento .ace_gutter-active-line {
+  background-color: var(--bento-button-selected) !important;
+}
+
+/* Editor interaction elements */
+.ace-bento .ace_cursor {
+  color: var(--bento-text-heading) !important;
+}
+
+.ace-bento .ace_selection {
+  background-color: rgba(235, 135, 136, 0.2) !important;
+}
+
+.ace-bento .ace_active-line {
+  background-color: rgba(253, 229, 216, 0.3) !important;
+}
+
+.ace-bento .ace_marker-layer .ace_bracket {
+  background: rgba(235, 135, 136, 0.3);
+  border: 1px solid var(--bento-bg-highlight);
+}
+
+.ace-bento .ace_invisible {
+  color: var(--bento-bg-highlight);
+}
+
+/* Syntax highlighting - Strings */
+.ace-bento .ace_string {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+/* Syntax highlighting - Numbers and constants */
+.ace-bento .ace_constant.ace_numeric {
+  color: var(--bento-bg-highlight) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_constant.ace_language {
+  color: var(--bento-text-heading) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_constant.ace_language.ace_null {
+  color: #999999 !important;
+  font-style: italic !important;
+}
+
+/* Syntax highlighting - Keywords and operators */
+.ace-bento .ace_keyword {
+  color: var(--bento-text-highlight) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_punctuation {
+  color: var(--bento-text-heading) !important;
+}
+
+/* Syntax highlighting - Functions and methods */
+.ace-bento .ace_support.ace_function {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_support.ace_method {
+  color: var(--bento-accent) !important;
+  font-weight: 500 !important;
+}
+
+/* Syntax highlighting - Variables and identifiers */
+.ace-bento .ace_variable {
+  color: var(--bento-bg-highlight) !important;
+  font-weight: 500 !important;
+}
+
+/* Syntax highlighting - Comments */
+.ace-bento .ace_comment {
+  color: #999999 !important;
+  font-style: italic !important;
+}
+
+/* Bloblang-specific syntax highlighting */
+.ace-bento .ace_bloblang_root {
+  color: var(--bento-text-highlight);
+  font-weight: 700;
+  background-color: rgba(211, 47, 47, 0.075);
+  border-radius: 3px;
+}
+
+.ace-bento .ace_bloblang_this {
+  color: var(--bento-success) !important;
+  font-weight: 700;
+  background-color: rgba(46, 125, 50, 0.075);
+  border-radius: 3px;
+}
+
+/* Documentation Tooltip Styling */
+.ace_tooltip {
+  background-image: none;
+  white-space: normal;
+  border: none;
+}
+
+.ace-doc {
+  max-width: 350px;
+  padding: 8px;
+  background: white;
+  font-family: var(--bento-font-family);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--bento-text-body);
+}
+
+.ace-doc-signature {
+  font-family: var(--bento-font-mono);
+  font-size: 12px;
+  color: var(--bento-text-heading);
+  margin-bottom: 12px;
+  padding: 8px;
+  background-color: var(--bento-bg-alt);
+  border-radius: 3px;
+}
+
+.ace-doc-description {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.ace-doc-category {
+  font-size: 11px;
+  color: var(--bento-text-secondary);
+  margin-bottom: 6px;
+}
+
+.ace-doc-examples {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(235, 135, 136, 0.2);
+}
+
+.ace-doc-examples strong {
+  color: var(--bento-text-heading);
+  font-size: 11px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.ace-doc-examples code {
+  display: block;
+  font-family: var(--bento-font-mono);
+  font-size: 11px;
+  background-color: var(--bento-bg-alt);
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin: 2px 0;
+  color: var(--bento-text-heading);
+}
+
+/* Status badges for functions and methods */
+.ace-status-stable {
+  background-color: var(--bento-success);
+  color: white;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+.ace-status-beta {
+  background-color: #ff9800;
+  color: white;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+.ace-status-experimental {
+  background-color: #9c27b0;
+  color: white;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+.ace-status-deprecated {
+  background-color: var(--bento-error);
+  color: white;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+.ace-impure-badge {
+  background-color: #795548;
+  color: white;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+
+.ace-doc-example-summary {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--bento-text-heading);
+  margin: 4px 0 2px 0;
+}
+
+.ace-doc-parameters {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(235, 135, 136, 0.2);
+}
+
+.ace-doc-parameters strong {
+  color: var(--bento-text-heading);
+  font-size: 11px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.ace-doc-param code {
+  font-family: var(--bento-font-mono);
+  font-size: 11px;
+  background-color: var(--bento-bg-alt);
+  padding: 2px 4px;
+  border-radius: 2px;
+  color: var(--bento-text-heading);
+  font-weight: 600;
+}
+
+.ace-doc-param-desc {
+  font-size: 11px;
+  color: var(--bento-text-body);
+  margin-left: 4px;
+  line-height: 1.3;
+}

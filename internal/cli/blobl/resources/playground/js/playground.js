@@ -17,40 +17,43 @@ class BloblangPlayground {
       toggleFormatInputBtn: document.getElementById("toggleFormatInputBtn"),
       toggleFormatOutputBtn: document.getElementById("toggleFormatOutputBtn"),
     };
+
+    this.editor = new EditorManager();
+    this.ui = new UIManager();
+    this.bindEvents();
     this.init();
   }
 
   async init() {
     try {
-      // Initialize modules
-      this.editor = new EditorManager();
-      this.ui = new UIManager();
-
-      // Setup ACE and fallback editors
       this.editor.init({
-        onInputChange: () => this.onEditorChange("input"),
-        onMappingChange: () => this.onEditorChange("mapping"),
+        onInputChange: () => {
+          this.updateLinters();
+          this.debouncedExecute("input");
+        },
+        onMappingChange: () => {
+          this.updateLinters();
+          this.debouncedExecute("mapping");
+        },
       });
-
-      // Setup UI
       this.ui.init();
-      this.bindEvents();
-
-      // Initial execution and linting
       this.updateLinters();
       this.execute();
       this.hideLoading();
     } catch (error) {
-      this.handleInitError(error);
+      console.error("Application error:", error);
+      this.elements.loadingOverlay.innerHTML = `
+        <div style="color: var(--bento-error); text-align: center;">
+          <h3>Failed to Load Playground</h3>
+          <p>${error.message}</p>
+        </div>
+      `;
     }
   }
 
   bindEvents() {
     // Button clicks
-    document.addEventListener("click", (e) => {
-      const action = e.target.dataset.action;
-      if (action) this.handleAction(action, e.target);
-    });
+    document.addEventListener("click", (e) => this.handleAction(e));
 
     // File inputs
     this.elements.inputFileInput.addEventListener("change", (e) =>
@@ -61,7 +64,8 @@ class BloblangPlayground {
     );
   }
 
-  handleAction(action, element) {
+  handleAction(e) {
+    const action = e.target.dataset.action;
     const actions = {
       "copy-input": () => copyToClipboard(this.editor.getInput()),
       "copy-mapping": () => copyToClipboard(this.editor.getMapping()),
@@ -70,35 +74,12 @@ class BloblangPlayground {
       "load-input": () => this.elements.inputFileInput.click(),
       "load-mapping": () => this.elements.mappingFileInput.click(),
       "save-output": () => saveOutput(),
-      "format-mapping": () => formatMapping(),
-      "toggle-format-input": () => this.toggleFormatInput(),
-      "toggle-format-output": () => this.toggleFormatOutput(),
+      "format-mapping": () => formatBloblang(),
+      "toggle-format-input": () => this.toggleFormat("input"),
+      "toggle-format-output": () => this.toggleFormat("output"),
     };
 
-    if (actions[action]) {
-      actions[action]();
-    }
-  }
-
-  onEditorChange(type) {
-    this.updateLinters();
-    this.debouncedExecute(type);
-  }
-
-  debouncedExecute(type) {
-    if (this.state.executionTimeout) {
-      clearTimeout(this.state.executionTimeout);
-    }
-
-    if (type === "input") {
-      this.ui.updateStatus("inputStatus", "executing", "Processing...");
-    } else if (type === "mapping") {
-      this.ui.updateStatus("mappingStatus", "executing", "Processing...");
-    }
-
-    this.state.executionTimeout = setTimeout(() => {
-      this.execute();
-    }, 300);
+    actions[action]?.();
   }
 
   async execute() {
@@ -108,134 +89,102 @@ class BloblangPlayground {
     try {
       const input = this.editor.getInput();
       const mapping = this.editor.getMapping();
-
-      // Make HTTP request to /execute endpoint
-      const request = new Request("/execute", {
+      const response = await fetch("/execute", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mapping: mapping,
-          input: input,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input, mapping }),
       });
 
-      const response = await fetch(request);
-
-      if (response.status === 200) {
+      if (response.ok) {
         const result = await response.json();
-        this.handleExecutionResult(result);
+        this.handleExecution(result);
       } else {
-        throw new Error("Server error: " + response.status);
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       this.handleError(
         "Connection Error",
         "Ensure Bloblang server is running and try again",
-        error.message,
-        null,
-        "outputStatus",
-        "Connection Error"
+        error.message
       );
     } finally {
       this.state.isExecuting = false;
     }
   }
 
-  handleExecutionResult(response) {
-    // Reset error states
-    this.elements.inputPanel.classList.remove("error");
-    this.elements.mappingPanel.classList.remove("error");
-    this.elements.outputArea.classList.remove(
-      "error",
-      "success",
-      "json-formatted"
-    );
+  debouncedExecute(type) {
+    if (this.state.executionTimeout) {
+      clearTimeout(this.state.executionTimeout);
+    }
 
-    let mappingError = null;
+    this.ui.updateStatus(`${type}Status`, "executing", "Processing...");
 
-    if (response.result && response.result.length > 0) {
-      this.handleSuccess(response.result);
-    } else if (response.mapping_error && response.mapping_error.length > 0) {
+    this.state.executionTimeout = setTimeout(() => {
+      this.execute();
+    }, 300);
+  }
+
+  handleExecution(response) {
+    this.resetErrorStates();
+
+    const { result, mapping_error, parse_error } = response;
+    let mappingErrorMessage = null;
+
+    if (result && result.length > 0) {
+      this.elements.outputArea.classList.add("success");
+      this.ui.updateStatus("outputStatus", "success", "Success");
+
+      if (isValidJSON(result)) {
+        const formatted = formatJSON(result);
+        const highlighted = syntaxHighlightJSON(formatted);
+        this.elements.outputArea.innerHTML = highlighted;
+        this.elements.outputArea.classList.add("json-formatted");
+      } else {
+        this.elements.outputArea.textContent = result.trim();
+      }
+    } else if (mapping_error && mapping_error.length > 0) {
       this.handleError(
         "Input Error",
         "There was an error parsing your input JSON",
-        response.mapping_error,
+        mapping_error,
         "inputPanel",
-        "inputStatus",
+        "Invalid Input",
         "Input Error"
       );
-    } else if (response.parse_error && response.parse_error.length > 0) {
+    } else if (parse_error && parse_error.length > 0) {
       this.handleError(
         "Mapping Error",
         "There is an error in your Bloblang mapping",
-        response.parse_error,
+        parse_error,
         "mappingPanel",
-        "mappingStatus",
+        "Invalid Mapping",
         "Mapping Error"
       );
+      mappingErrorMessage = parse_error;
     }
 
-    this.updateLinters(mappingError);
+    this.updateLinters(mappingErrorMessage);
   }
 
-  handleSuccess(result) {
-    this.elements.outputArea.classList.add("success");
-    this.ui.updateStatus("outputStatus", "success", "Success");
+  toggleFormat(type) {
+    const formatMode =
+      type === "input" ? "inputFormatMode" : "outputFormatMode";
+    const btn =
+      type === "input"
+        ? this.elements.toggleFormatInputBtn
+        : this.elements.toggleFormatOutputBtn;
 
-    if (isValidJSON(result)) {
-      const formatted = formatJSON(result);
-      const highlighted = syntaxHighlightJSON(formatted);
-      this.elements.outputArea.innerHTML = highlighted;
-      this.elements.outputArea.classList.add("json-formatted");
+    if (this.state[formatMode] === "format") {
+      this.state[formatMode] = "minify";
+      btn.textContent = "Minify";
+      type === "input" ? formatInput() : formatOutput();
     } else {
-      this.elements.outputArea.textContent = result.trim();
+      this.state[formatMode] = "format";
+      btn.textContent = "Format";
+      type === "input" ? minifyInput() : minifyOutput();
     }
   }
 
-  handleError(title, message, error, errorPanelClass, statusKey, statusLabel) {
-    if (errorPanelClass && this.elements[errorPanelClass]) {
-      this.elements[errorPanelClass].classList.add("error");
-    }
-    this.elements.outputArea.classList.add("error");
-
-    this.elements.outputArea.innerHTML = createErrorMessage(
-      title,
-      message,
-      error
-    );
-
-    this.ui.updateStatus(statusKey, "error", "Error");
-    this.ui.updateStatus("outputStatus", "error", statusLabel);
-  }
-
-  // Format actions
-  toggleFormatInput() {
-    if (this.state.inputFormatMode === "format") {
-      formatInput();
-      this.state.inputFormatMode = "minify";
-      this.elements.toggleFormatInputBtn.textContent = "Minify";
-    } else {
-      minifyInput();
-      this.state.inputFormatMode = "format";
-      this.elements.toggleFormatInputBtn.textContent = "Format";
-    }
-  }
-
-  toggleFormatOutput() {
-    if (this.state.outputFormatMode === "format") {
-      formatOutput();
-      this.state.outputFormatMode = "minify";
-      this.elements.toggleFormatOutputBtn.textContent = "Minify";
-    } else {
-      minifyOutput();
-      this.state.outputFormatMode = "format";
-      this.elements.toggleFormatOutputBtn.textContent = "Format";
-    }
-  }
-
-  // File operations
   handleFileLoad(event, type) {
     const file = event.target.files[0];
     if (!file) return;
@@ -251,12 +200,13 @@ class BloblangPlayground {
       this.ui.showNotification(`Loaded ${file.name}`, "success");
       this.execute();
     };
+
     reader.readAsText(file);
   }
 
-  updateLinters(mappingError = null) {
+  updateLinters(mappingErrorMessage = null) {
     updateInputLinter(this.editor.getInput());
-    updateMappingLinter(this.editor.getMapping(), mappingError);
+    updateMappingLinter(this.editor.getMapping(), mappingErrorMessage);
     updateOutputLinter(this.elements.outputArea.textContent);
   }
 
@@ -264,14 +214,31 @@ class BloblangPlayground {
     this.elements.loadingOverlay.classList.add("hidden");
   }
 
-  handleInitError(error) {
-    console.error("Application error:", error);
-    this.elements.loadingOverlay.innerHTML = `
-      <div style="color: var(--bento-error); text-align: center;">
-        <h3>Failed to Load Playground</h3>
-        <p>${error.message}</p>
+  resetErrorStates() {
+    const { inputPanel, mappingPanel, outputArea } = this.elements;
+    inputPanel.classList.remove("error");
+    mappingPanel.classList.remove("error");
+    outputArea.classList.remove("error", "success", "json-formatted");
+  }
+
+  handleError(
+    title,
+    message,
+    error,
+    errorPanelClass = "outputArea",
+    statusLabel = "Error"
+  ) {
+    const panel = this.elements[errorPanelClass];
+    if (panel) panel.classList.add("error");
+    this.elements.outputArea.classList.add("error");
+    this.elements.outputArea.innerHTML = `
+      <div class="error-message">
+        <div class="error-title">${title}</div>
+        <div>${message}</div>
+        ${error ? `<div class="error-details">${error}</div>` : ""}
       </div>
     `;
+    this.ui.updateStatus("outputStatus", "error", statusLabel);
   }
 }
 

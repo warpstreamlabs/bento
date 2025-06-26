@@ -1,51 +1,3 @@
-// JSON Utilities
-function isValidJSON(str) {
-  try {
-    JSON.parse(str);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function formatJSON(jsonString) {
-  try {
-    const parsed = JSON.parse(jsonString);
-    return JSON.stringify(parsed, null, 2);
-  } catch (e) {
-    return jsonString;
-  }
-}
-
-function minifyJSON(jsonString) {
-  try {
-    const parsed = JSON.parse(jsonString);
-    return JSON.stringify(parsed);
-  } catch (e) {
-    return jsonString;
-  }
-}
-
-// Bloblang Utilities
-function formatBloblang(mappingString) {
-  const lines = mappingString.split("\n");
-  const formatted = lines
-    .map((line) => {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#")) return trimmed;
-
-      // Add consistent spacing around operators
-      return trimmed
-        .replace(/\s*=\s*/g, " = ")
-        .replace(/\s*\.\s*/g, ".")
-        .replace(/\s*\(\s*/g, "(")
-        .replace(/\s*\)\s*/g, ")");
-    })
-    .join("\n");
-
-  return formatted;
-}
-
 // Syntax Highlighting
 function syntaxHighlightJSON(json) {
   if (typeof json !== "string") {
@@ -78,52 +30,39 @@ function syntaxHighlightJSON(json) {
 }
 
 // Linting Functions
-function lintJSON(jsonString) {
+function lintJSON(json) {
   try {
-    JSON.parse(jsonString);
-    return { valid: true, message: "Valid JSON" };
+    return JSON.parse(json);
   } catch (e) {
-    return { valid: false, message: `Invalid JSON: ${e.message}` };
+    return null;
   }
 }
 
-function lintBloblang(mappingString) {
-  const lines = mappingString.split("\n");
-  const errors = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line === "" || line.startsWith("#")) continue;
-  }
-
-  if (errors.length > 0) {
-    return { valid: false, message: errors[0] };
-  }
-
-  return { valid: true, message: "Valid Syntax" };
-}
-
-// Linter Update Functions
 function updateInputLinter(input) {
-  const lint = lintJSON(input);
+  const lint = lintJSON(input)
+    ? { valid: true, message: "Valid Syntax" }
+    : { valid: false, message: "Invalid Syntax" };
+
   const indicator = document.getElementById("inputLint");
   if (indicator) {
     indicator.textContent = lint.message;
     indicator.className = `lint-indicator ${lint.valid ? "valid" : "invalid"}`;
   }
+
   return lint;
 }
 
 function updateMappingLinter(mapping, errorMessage = null) {
-  const lint = errorMessage
-    ? { valid: false, message: "Invalid Syntax" }
-    : lintBloblang(mapping);
+  const lint = !errorMessage
+    ? { valid: true, message: "Valid Syntax" }
+    : { valid: false, message: "Invalid Syntax" };
 
   const indicator = document.getElementById("mappingLint");
   if (indicator) {
     indicator.textContent = lint.message;
     indicator.className = `lint-indicator ${lint.valid ? "valid" : "invalid"}`;
   }
+
   return lint;
 }
 
@@ -142,8 +81,7 @@ function updateOutputLinter(output) {
     return;
   }
 
-  const isJSON = isValidJSON(output);
-  if (isJSON) {
+  if (isValidJSON(output)) {
     indicator.textContent = "Valid JSON";
     indicator.className = "lint-indicator valid";
     if (formatBtn) formatBtn.disabled = false;
@@ -184,7 +122,7 @@ function downloadFile(content, filename, contentType = "text/plain") {
   window.URL.revokeObjectURL(url);
 }
 
-// Global action handlers for onclick events
+// Action handlers
 function copyInput() {
   if (window.playground) {
     copyToClipboard(window.playground.editor.getInput(), "Input copied!");
@@ -222,11 +160,45 @@ function minifyInput() {
   }
 }
 
-function formatMapping() {
-  if (window.playground) {
-    const formatted = formatBloblang(window.playground.editor.getMapping());
+function formatBloblang() {
+  if (!window.playground || !window.playground.editor) return;
+
+  try {
+    const raw = window.playground.editor.getMapping();
+    if (!raw || typeof raw !== "string") return;
+
+    const lines = raw.split("\n");
+    const formatted = lines
+      .map((line) => {
+        const trimmed = line.trim();
+
+        // Pass through empty lines and comments
+        if (trimmed === "" || trimmed.startsWith("#")) return trimmed;
+
+        return (
+          trimmed
+            // Normalize spacing around assignment and object keys
+            .replace(/\s*=\s*/g, " = ")
+            .replace(/\s*:\s*/g, ": ")
+            // Normalize spacing around function args
+            .replace(/\s*\(\s*/g, "(")
+            .replace(/\s*\)\s*/g, ")")
+            .replace(/\s*,\s*/g, ", ")
+            // Normalize spacing around dot access
+            .replace(/\s*\.\s*/g, ".")
+            // Add spacing around binary operators
+            .replace(/\s*([+\-*/%<>=!]=?|==|!=|&&|\|\|)\s*/g, " $1 ")
+            // Collapse multiple spaces
+            .replace(/\s{2,}/g, " ")
+            .trim()
+        );
+      })
+      .join("\n");
+
     window.playground.editor.setMapping(formatted);
     updateMappingLinter(formatted);
+  } catch (err) {
+    console.warn("Formatting error:", err);
   }
 }
 
@@ -298,13 +270,30 @@ function saveOutput() {
   }
 }
 
-// Error Message Creation
-function createErrorMessage(title, message, details = null) {
-  return `
-    <div class="error-message">
-      <div class="error-title">${title}</div>
-      <div>${message}</div>
-      ${details ? `<div class="error-details">${details}</div>` : ""}
-    </div>
-  `;
+// JSON Utilities
+function isValidJSON(str) {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function formatJSON(jsonString) {
+  try {
+    const parsed = JSON.parse(jsonString);
+    return JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    return jsonString;
+  }
+}
+
+function minifyJSON(jsonString) {
+  try {
+    const parsed = JSON.parse(jsonString);
+    return JSON.stringify(parsed);
+  } catch (e) {
+    return jsonString;
+  }
 }
