@@ -11,6 +11,7 @@
   --bento-button-selected: #ffbcba;
   --bento-button-unselected: #fde5d8;
   --bento-button-text: #333333;
+  --bento-panel-header-bg: #ffbcba;
   --bento-success: #2e7d32;
   --bento-success-bg: #e8f5e8;
   --bento-error: #d32f2f;
@@ -26,6 +27,26 @@
   --bento-font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
   --bento-font-mono: "Monaco", "IBM Plex Mono", "SF Mono", "Consolas", monospace;
+}
+
+/* Dark mode color palette */
+[data-theme="dark"] {
+  --bento-bg-main: #2a1a17;
+  --bento-accent: #ff5252;
+  --bento-bg-alt: #3a2623;
+  --bento-bg-highlight: #eb8788;
+  --bento-text-body: #fff4e9;
+  --bento-text-heading: #fff4e9;
+  --bento-text-highlight: #ff5252;
+  --bento-button-selected: #5a453f;
+  --bento-button-unselected: #3a2623;
+  --bento-button-text: #fff4e9;
+  --bento-panel-header-bg: #4a3530;
+  --bento-success: #a9dc76;
+  --bento-success-bg: #2a2b25;
+  --bento-error: #ff6188;
+  --bento-error-bg: #3d1b1b;
+  --bento-warning: #ffd866;
 }
 
 /* Reset & Base Styles */
@@ -153,6 +174,12 @@ body {
   resize: none;
   outline: none;
   tab-size: 2;
+}
+
+/* Dark mode editor styles */
+[data-theme="dark"] .editor {
+  background: var(--bento-bg-alt);
+  color: var(--bento-text-body);
 }
 
 .fallback-editor {

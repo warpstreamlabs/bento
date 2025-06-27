@@ -168,30 +168,63 @@ function formatBloblang() {
     if (!raw || typeof raw !== "string") return;
 
     const lines = raw.split("\n");
+    let indentLevel = 0;
+    const indentSize = 2; // spaces per indent level
+
     const formatted = lines
       .map((line) => {
         const trimmed = line.trim();
 
         // Pass through empty lines and comments
-        if (trimmed === "" || trimmed.startsWith("#")) return trimmed;
+        if (trimmed === "" || trimmed.startsWith("#")) {
+          return trimmed;
+        }
 
-        return (
-          trimmed
-            // Normalize spacing around assignment and object keys
-            .replace(/\s*=\s*/g, " = ")
-            .replace(/\s*:\s*/g, ": ")
-            // Normalize spacing around function args
-            .replace(/\s*\(\s*/g, "(")
-            .replace(/\s*\)\s*/g, ")")
-            .replace(/\s*,\s*/g, ", ")
-            // Normalize spacing around dot access
-            .replace(/\s*\.\s*/g, ".")
-            // Add spacing around binary operators
-            .replace(/\s*([+\-*/%<>=!]=?|==|!=|&&|\|\|)\s*/g, " $1 ")
-            // Collapse multiple spaces
-            .replace(/\s{2,}/g, " ")
-            .trim()
-        );
+        // Determine if this line should decrease indent (closing braces)
+        if (trimmed.startsWith("}")) {
+          indentLevel = Math.max(0, indentLevel - 1);
+        }
+
+        // Format the line content
+        let formattedLine = trimmed
+          // Normalize spacing around function args
+          .replace(/\s*\(\s*/g, "(")
+          .replace(/\s*\)\s*/g, ")")
+          .replace(/\s*,\s*/g, ", ")
+          // Normalize spacing around dot access
+          .replace(/\s*\.\s*/g, ".")
+          // Normalize spacing around object keys
+          .replace(/\s*:\s*/g, ": ")
+          // Use placeholders for compound operators to protect them
+          .replace(/\s*(<=)\s*/g, " __LE__ ")
+          .replace(/\s*(>=)\s*/g, " __GE__ ")
+          .replace(/\s*(==)\s*/g, " __EQ__ ")
+          .replace(/\s*(!=)\s*/g, " __NE__ ")
+          .replace(/\s*(&&)\s*/g, " __AND__ ")
+          .replace(/\s*(\|\|)\s*/g, " __OR__ ")
+          // Handle single-character operators safely
+          .replace(/\s*([+\-*/%<>=!])\s*/g, " $1 ")
+          // Restore compound operators
+          .replace(/ __LE__ /g, " <= ")
+          .replace(/ __GE__ /g, " >= ")
+          .replace(/ __EQ__ /g, " == ")
+          .replace(/ __NE__ /g, " != ")
+          .replace(/ __AND__ /g, " && ")
+          .replace(/ __OR__ /g, " || ")
+          // Collapse multiple spaces
+          .replace(/\s{2,}/g, " ")
+          .trim();
+
+        // Apply indentation
+        const indent = " ".repeat(indentLevel * indentSize);
+        const result = trimmed === "" ? "" : indent + formattedLine;
+
+        // Determine if this line should increase indent (opening braces)
+        if (trimmed.includes("{") && !trimmed.includes("}")) {
+          indentLevel++;
+        }
+
+        return result;
       })
       .join("\n");
 
