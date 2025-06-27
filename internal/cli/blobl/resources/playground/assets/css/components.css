@@ -9,6 +9,12 @@
   flex-direction: column;
 }
 
+/* Dark mode panel styles */
+[data-theme="dark"] .panel {
+  background: var(--bento-bg-alt);
+  border-color: var(--bento-bg-highlight);
+}
+
 .panel.error {
   border-color: var(--bento-error);
   box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
@@ -21,7 +27,7 @@
 }
 
 .panel-header {
-  background: var(--bento-button-selected);
+  background: var(--bento-panel-header-bg);
   color: var(--bento-button-text);
   padding: 8px 16px;
   font-weight: 600;
@@ -86,6 +92,40 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease,
     background-color 0.15s ease;
   margin-left: 4px;
+}
+
+/* Dark mode action button styles */
+[data-theme="dark"] .action-btn {
+  background-color: var(--bento-button-unselected);
+  color: var(--bento-button-text);
+  box-shadow: 0 3px 0 #1a1a17;
+  border-color: var(--bento-bg-highlight);
+}
+
+[data-theme="dark"] .action-btn:hover {
+  background-color: var(--bento-button-selected);
+  box-shadow: 0 4px 0 #1a1a17;
+}
+
+[data-theme="dark"] .action-btn:active {
+  background-color: var(--bento-button-selected);
+  box-shadow: 0 1px 0 #1a1a17;
+}
+
+[data-theme="dark"] .action-btn.primary {
+  background-color: var(--bento-accent);
+  color: var(--bento-text-body);
+  box-shadow: 0 3px 0 #cc4242;
+}
+
+[data-theme="dark"] .action-btn.primary:hover {
+  background-color: #ff6b6b;
+  box-shadow: 0 4px 0 #cc4242;
+}
+
+[data-theme="dark"] .action-btn.primary:active {
+  background-color: var(--bento-accent);
+  box-shadow: 0 1px 0 #cc4242;
 }
 
 .action-btn:hover {
@@ -179,6 +219,17 @@
   font-family: var(--bento-font-family);
 }
 
+/* Dark mode format button styles */
+[data-theme="dark"] .format-btn {
+  background: var(--bento-button-unselected);
+  border-color: var(--bento-bg-highlight);
+  color: var(--bento-text-heading);
+}
+
+[data-theme="dark"] .format-btn:hover {
+  background: var(--bento-button-selected);
+}
+
 .format-btn:hover {
   background: var(--bento-button-selected);
   transform: translateY(-1px);
@@ -205,6 +256,17 @@
 .output.success {
   background: #ffffff;
   color: var(--bento-text-body);
+}
+
+/* Dark mode output styles */
+[data-theme="dark"] .output.success {
+  background: var(--bento-bg-alt);
+  color: var(--bento-text-body);
+}
+
+[data-theme="dark"] .output.error {
+  background: var(--bento-error-bg);
+  color: var(--bento-error);
 }
 
 .output.json-formatted {
@@ -276,6 +338,90 @@
 
 .output .json-punctuation {
   color: var(--bento-text-heading);
+}
+
+/* Dark mode JSON syntax highlighting - Monokai colors from website */
+[data-theme="dark"] .output .json-string {
+  color: rgb(230, 219, 116);
+}
+
+[data-theme="dark"] .output .json-number {
+  color: rgb(174, 129, 255);
+}
+
+[data-theme="dark"] .output .json-null {
+  color: rgb(174, 129, 255);
+}
+
+[data-theme="dark"] .output .json-key {
+  color: rgb(249, 38, 114);
+}
+
+[data-theme="dark"] .output .json-boolean {
+  color: rgb(174, 129, 255);
+}
+
+[data-theme="dark"] .output .json-punctuation {
+  color: rgb(249, 38, 114);
+}
+
+/* Floating Discreet Theme Toggle */
+.floating-theme-toggle {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 999;
+  border: none;
+  background-color: rgba(253, 229, 216, 0.3);
+  color: var(--bento-text-heading);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: var(--bento-font-family);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(235, 135, 136, 0.2);
+}
+
+.floating-theme-toggle:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+  background-color: rgba(253, 229, 216, 0.9);
+  border-color: rgba(235, 135, 136, 0.4);
+}
+
+.floating-theme-toggle:active {
+  transform: scale(0.95);
+  opacity: 1;
+}
+
+/* Dark mode floating theme toggle */
+[data-theme="dark"] .floating-theme-toggle {
+  background-color: rgba(74, 53, 48, 0.4);
+  color: var(--bento-text-heading);
+  border-color: rgba(106, 90, 85, 0.3);
+  opacity: 0.3;
+}
+
+[data-theme="dark"] .floating-theme-toggle:hover {
+  background-color: rgba(74, 53, 48, 0.7);
+  border-color: rgba(106, 90, 85, 0.5);
+  opacity: 0.7;
+}
+
+[data-theme="dark"] .theme-icon::before {
+  content: "☀️";
+}
+
+.theme-icon::before {
+  content: "🌙";
+  font-size: 10px;
 }
 
 /* Toast Notifications */

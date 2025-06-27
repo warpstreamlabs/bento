@@ -37,6 +37,7 @@ class BloblangPlayground {
         },
       });
       this.ui.init();
+      this.editor.setupDocumentationClickHandlers();
       this.updateLinters();
       this.execute();
       this.hideLoading();

@@ -3,10 +3,71 @@ class UIManager {
     this.isResizing = false;
     this.container = document.getElementById("container");
     this.horizontalResizer = document.getElementById("horizontalResizer");
+    this.themeToggle = document.getElementById("themeToggle");
+    this.currentTheme = this.getInitialTheme();
   }
 
   init() {
     this.setupResizer();
+    this.setupTheme();
+  }
+
+  getStoredTheme() {
+    return localStorage.getItem("bloblang-theme");
+  }
+
+  getSystemTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  getUrlTheme() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('dark')) {
+      return 'dark';
+    }
+    if (urlParams.has('light')) {
+      return 'light';
+    }
+    return null;
+  }
+
+  getInitialTheme() {
+    // Priority: URL param > localStorage > system preference
+    return this.getUrlTheme() || this.getStoredTheme() || this.getSystemTheme();
+  }
+
+  setTheme(theme) {
+    this.currentTheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("bloblang-theme", theme);
+  }
+
+  toggleTheme() {
+    const newTheme = this.currentTheme === "dark" ? "light" : "dark";
+    this.setTheme(newTheme);
+  }
+
+  setupTheme() {
+    // Apply initial theme
+    this.setTheme(this.currentTheme);
+
+    // Setup theme toggle button
+    if (this.themeToggle) {
+      this.themeToggle.addEventListener("click", () => {
+        this.toggleTheme();
+      });
+    }
+
+    // Listen for system theme changes when no stored preference
+    if (!this.getStoredTheme()) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+        if (!this.getStoredTheme()) {
+          this.setTheme(e.matches ? "dark" : "light");
+        }
+      });
+    }
   }
 
   setupResizer() {
