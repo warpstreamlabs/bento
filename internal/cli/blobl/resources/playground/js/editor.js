@@ -331,23 +331,26 @@ class EditorManager {
 
   processMarkdown(text) {
     if (typeof text !== "string") return text;
-    
+
     let processed = text;
-    
+
     // Process inline code (backticks)
-    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
+    processed = processed.replace(/`([^`]+)`/g, "<code>$1</code>");
+
     // Process markdown links - handle docs links specially
-    processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
-      // If it's a docs link, convert to full URL or strip if preferred
-      if (url.startsWith('/docs/')) {
-        const fullUrl = `https://warpstreamlabs.github.io/bento${url}`;
-        return `<a href="${fullUrl}" target="_blank" rel="noopener">${linkText}</a>`;
+    processed = processed.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (match, linkText, url) => {
+        // If it's a docs link, convert to full URL
+        if (url.startsWith("/docs/")) {
+          const fullUrl = `https://warpstreamlabs.github.io/bento${url}`;
+          return `<a href="${fullUrl}" target="_blank" rel="noopener">${linkText}</a>`;
+        }
+        // For other links, use as-is
+        return `<a href="${url}" target="_blank" rel="noopener">${linkText}</a>`;
       }
-      // For other links, use as-is
-      return `<a href="${url}" target="_blank" rel="noopener">${linkText}</a>`;
-    });
-    
+    );
+
     return processed.trim();
   }
 
@@ -356,8 +359,8 @@ class EditorManager {
 
     const paramStrs = params.named.map((param) => {
       const type = param.type ? `: ${param.type}` : "";
-      
-      // Handle default values properly - only show if non-empty
+
+      // Handle default values properly
       let def = "";
       if (param.default !== undefined) {
         const defaultValue = String(param.default).trim();
@@ -365,7 +368,7 @@ class EditorManager {
           def = ` = ${defaultValue}`;
         }
       }
-      
+
       const token = `${param.name}${type}${def}`;
       return param.optional ? `[${token}]` : token;
     });
@@ -386,9 +389,9 @@ class EditorManager {
         : "";
 
     // Create specific docs URL with anchor
-    const docsSection = isMethod ? 'methods' : 'functions';
+    const docsSection = isMethod ? "methods" : "functions";
     const docsUrl = `https://warpstreamlabs.github.io/bento/docs/guides/bloblang/${docsSection}#${spec.name}`;
-    
+
     const strippedDesc = this.stripAdmonitions(spec.description);
     const processedDesc = this.processMarkdown(strippedDesc);
 
@@ -406,8 +409,8 @@ class EditorManager {
     if (spec.category) {
       html += `<div class="ace-doc-category">Category: ${spec.category}</div>`;
     }
-    
-    // Add version information if available
+
+    // Add version information
     if (spec.version) {
       html += `<div class="ace-doc-version">Since: v${spec.version}</div>`;
     }
@@ -424,13 +427,13 @@ class EditorManager {
           param.default !== undefined ? ` = ${param.default}` : "";
         const typeText = param.type ? ` [${param.type}]` : "";
 
-        const processedParamDesc = this.processMarkdown(param.description || "No description");
-        
+        const processedParamDesc = this.processMarkdown(
+          param.description || "No description"
+        );
+
         html += `
         <div class="ace-doc-param">
-          <code>${
-            param.name
-          }${typeText}${defaultText}${optionalText}</code><br/>
+          <code>${param.name}${typeText}${defaultText}${optionalText}</code><br/>
           <span class="ace-doc-param-desc">${processedParamDesc}</span>
         </div>`;
       }
@@ -449,37 +452,25 @@ class EditorManager {
       html += `</div>`;
     }
 
-    // Add walkthrough link if this is a commonly used function
-    const walkthroughFunctions = ['contains', 'split', 'join', 'map_each', 'filter', 'this', 'root', 'metadata'];
-    if (walkthroughFunctions.includes(spec.name)) {
-      html += `<div class="ace-doc-walkthrough">
-        <span class="ace-doc-walkthrough-icon">🎓</span>
-        <span>This function is featured in the <a href="https://warpstreamlabs.github.io/bento/docs/guides/bloblang/walkthrough" target="_blank">Bloblang Walkthrough</a></span>
-      </div>`;
-    }
-
     html += `</div>`;
     return html;
   }
 
   setupDocumentationClickHandlers() {
     // Make header and signature section clickable
-    document.addEventListener('click', (event) => {
-      // Check if clicked element is within ace-doc-header or ace-doc-signature
-      const clickedHeader = event.target.closest('.ace-doc-header');
-      const clickedSignature = event.target.closest('.ace-doc-signature');
-      
+    document.addEventListener("click", (event) => {
+      const clickedHeader = event.target.closest(".ace-doc-header");
+      const clickedSignature = event.target.closest(".ace-doc-signature");
+
       if (clickedHeader || clickedSignature) {
         event.preventDefault();
         event.stopPropagation();
-        
-        const aceDoc = event.target.closest('.ace-doc');
+
+        const aceDoc = event.target.closest(".ace-doc");
         const docsUrl = aceDoc?.dataset.docsUrl;
-        
-        console.log('Clicked on header/signature, URL:', docsUrl); // Debug log
-        
+
         if (docsUrl) {
-          window.open(docsUrl, '_blank', 'noopener,noreferrer');
+          window.open(docsUrl, "_blank", "noopener,noreferrer");
         }
       }
     });

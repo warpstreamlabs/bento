@@ -365,64 +365,126 @@
   color: rgb(249, 38, 114);
 }
 
-/* Floating Discreet Theme Toggle */
+/* Dark Mode Toggle with Peek Effect */
 .floating-theme-toggle {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 50%;
+  right: -20px; /* Half hidden by default */
+  transform: translateY(-50%);
   z-index: 999;
   border: none;
-  background-color: rgba(253, 229, 216, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(253, 229, 216, 0.95),
+    rgba(255, 240, 230, 0.9)
+  );
   color: var(--bento-text-heading);
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  font-size: 10px;
+  border-radius: 12px 0 0 12px; /* Rounded left side only */
+  width: 40px;
+  height: 50px;
+  font-size: 14px;
   cursor: pointer;
   font-family: var(--bento-font-family);
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.4;
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(235, 135, 136, 0.2);
-}
-
-.floating-theme-toggle:hover {
-  opacity: 0.8;
-  transform: scale(1.1);
-  background-color: rgba(253, 229, 216, 0.9);
-  border-color: rgba(235, 135, 136, 0.4);
-}
-
-.floating-theme-toggle:active {
-  transform: scale(0.95);
-  opacity: 1;
-}
-
-/* Dark mode floating theme toggle */
-[data-theme="dark"] .floating-theme-toggle {
-  background-color: rgba(74, 53, 48, 0.4);
-  color: var(--bento-text-heading);
-  border-color: rgba(106, 90, 85, 0.3);
-  opacity: 0.3;
-}
-
-[data-theme="dark"] .floating-theme-toggle:hover {
-  background-color: rgba(74, 53, 48, 0.7);
-  border-color: rgba(106, 90, 85, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(235, 135, 136, 0.3);
+  border-right: none;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
   opacity: 0.7;
 }
 
-[data-theme="dark"] .theme-icon::before {
-  content: "☀️";
+.floating-theme-toggle::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: linear-gradient(
+    to bottom,
+    var(--bento-primary),
+    var(--bento-secondary)
+  );
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.floating-theme-toggle:hover {
+  right: 0; /* Slide in fully */
+  opacity: 1;
+  transform: translateY(-50%) scale(1.02);
+  background: linear-gradient(
+    135deg,
+    rgba(253, 229, 216, 1),
+    rgba(255, 240, 230, 0.95)
+  );
+  border-color: rgba(235, 135, 136, 0.5);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+}
+
+.floating-theme-toggle:hover::before {
+  opacity: 1;
+  background: linear-gradient(to bottom, #ff6b6b, #ffa726);
+}
+
+.floating-theme-toggle:active {
+  transform: translateY(-50%) scale(0.98);
+  transition: all 0.1s ease;
+}
+
+/* Dark mode toggle */
+[data-theme="dark"] .floating-theme-toggle {
+  background: linear-gradient(
+    135deg,
+    rgba(74, 53, 48, 0.95),
+    rgba(64, 45, 40, 0.9)
+  );
+  color: var(--bento-text-heading);
+  border-color: rgba(106, 90, 85, 0.4);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .floating-theme-toggle::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 206, 84, 0.8),
+    rgba(255, 183, 77, 0.6)
+  );
+}
+
+[data-theme="dark"] .floating-theme-toggle:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(74, 53, 48, 1),
+    rgba(64, 45, 40, 0.95)
+  );
+  border-color: rgba(106, 90, 85, 0.6);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .floating-theme-toggle:hover::before {
+  background: linear-gradient(to bottom, #ffce54, #ffb74d);
+}
+
+.theme-icon {
+  transform-origin: center center;
+  display: inline-block;
+  transition: transform 0.6s ease-in-out;
+  margin-left: 6px;
 }
 
 .theme-icon::before {
-  content: "🌙";
-  font-size: 10px;
+  content: "☀️";
+  font-size: 16px;
+  display: block;
+  text-align: center;
+  line-height: 1;
 }
+
 
 /* Toast Notifications */
 .notification {
@@ -478,5 +540,24 @@
   .format-btn {
     font-size: 10px;
     padding: 3px 6px;
+  }
+
+  /* Dark mode toggle adjustments */
+  .floating-theme-toggle {
+    width: 35px;
+    height: 45px;
+    right: -18px;
+    font-size: 12px;
+  }
+
+  .floating-theme-toggle::before {
+    width: 2px;
+    height: 16px;
+    left: 6px;
+  }
+
+  .theme-icon::before,
+  [data-theme="dark"] .theme-icon::before {
+    font-size: 14px;
   }
 }

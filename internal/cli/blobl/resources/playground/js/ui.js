@@ -5,6 +5,7 @@ class UIManager {
     this.horizontalResizer = document.getElementById("horizontalResizer");
     this.themeToggle = document.getElementById("themeToggle");
     this.currentTheme = this.getInitialTheme();
+    this.rotationAngle = 0; // Track current rotation for smooth animations
   }
 
   init() {
@@ -17,25 +18,15 @@ class UIManager {
   }
 
   getSystemTheme() {
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+    return window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
   }
 
-  getUrlTheme() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('dark')) {
-      return 'dark';
-    }
-    if (urlParams.has('light')) {
-      return 'light';
-    }
-    return null;
-  }
-
   getInitialTheme() {
-    // Priority: URL param > localStorage > system preference
-    return this.getUrlTheme() || this.getStoredTheme() || this.getSystemTheme();
+    // Priority: localStorage > system preference
+    return this.getStoredTheme() || this.getSystemTheme();
   }
 
   setTheme(theme) {
@@ -45,6 +36,16 @@ class UIManager {
   }
 
   toggleTheme() {
+    // Smooth rotation using CSS transforms
+    if (this.themeToggle) {
+      const icon = this.themeToggle.querySelector(".theme-icon");
+
+      if (icon) {
+        this.rotationAngle += 360; // Add 360 degrees to current rotation
+        icon.style.transform = `rotate(${this.rotationAngle}deg)`;
+      }
+    }
+
     const newTheme = this.currentTheme === "dark" ? "light" : "dark";
     this.setTheme(newTheme);
   }
@@ -53,7 +54,7 @@ class UIManager {
     // Apply initial theme
     this.setTheme(this.currentTheme);
 
-    // Setup theme toggle button
+    // Setup dark mode toggle button
     if (this.themeToggle) {
       this.themeToggle.addEventListener("click", () => {
         this.toggleTheme();
@@ -62,11 +63,13 @@ class UIManager {
 
     // Listen for system theme changes when no stored preference
     if (!this.getStoredTheme()) {
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-        if (!this.getStoredTheme()) {
-          this.setTheme(e.matches ? "dark" : "light");
-        }
-      });
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          if (!this.getStoredTheme()) {
+            this.setTheme(e.matches ? "dark" : "light");
+          }
+        });
     }
   }
 
