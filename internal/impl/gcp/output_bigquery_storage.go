@@ -26,6 +26,8 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
+type Unmarshaller func(b []byte, m protoreflect.ProtoMessage) error
+
 func gcpBigQueryWriteAPIConfig() *service.ConfigSpec {
 
 	return service.NewConfigSpec().
@@ -61,6 +63,10 @@ The table to insert messages to.`)).
 Only ` + "`DEFAULT`" + ` stream types are currently enabled. Future versions will see support extended to ` + "`COMMITTED`, `BUFFERED`, and `PENDING`." + `
 :::
 sets the type of stream this write client is managing.`).Default(string(managedwriter.DefaultStream)).Advanced()).
+		Field(service.NewStringAnnotatedEnumField("message_format", map[string]string{
+			"json":     "Messages are in JSON format (default)",
+			"protobuf": "Messages are in protobuf format",
+		}).Description("Format of incoming messages").Default("json")).
 		Field(service.NewBatchPolicyField("batching").Advanced().LintRule(`root = if this.byte_size >= 1000000 { "the amount of bytes in a batch cannot exceed 10 MB" }`)).
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of message batches to have in flight at a given time. Increase this to improve throughput.").
@@ -114,6 +120,10 @@ func bigQueryStorageWriterConfigFromParsed(pConf *service.ParsedConfig) (conf bi
 		return
 	}
 
+	if conf.messageFormat, err = pConf.FieldString("message_format"); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -121,9 +131,20 @@ func newBigQueryStorageOutput(
 	conf bigQueryStorageWriterConfig,
 	log *service.Logger,
 ) (*bigQueryStorageWriter, error) {
+
+	var fn Unmarshaller
+	switch conf.messageFormat {
+	case "protobuf":
+		fn = proto.Unmarshal
+	default:
+		fn = protojson.Unmarshal
+
+	}
+
 	g := &bigQueryStorageWriter{
-		conf: conf,
-		log:  log,
+		conf:      conf,
+		log:       log,
+		unmarshal: fn,
 	}
 
 	return g, nil
@@ -168,6 +189,8 @@ type bigQueryStorageWriter struct {
 
 	streamCacheLock sync.Mutex
 	streams         map[string]*streamWithDescriptor
+
+	unmarshal Unmarshaller
 }
 
 type bigQueryStorageWriterConfig struct {
@@ -182,6 +205,8 @@ type bigQueryStorageWriterConfig struct {
 	grpcEndpoint string
 
 	streamType managedwriter.StreamType
+
+	messageFormat string
 
 	// Not implemented: tableSchema holds an explicitly defined BigQuery table schema.
 	tableSchema bigquery.Schema
@@ -263,13 +288,11 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 			return err
 		}
 
-		// First, json->proto message
-		err = protojson.Unmarshal(msgBytes, protoMessage)
-		if err != nil {
-			return fmt.Errorf("failed to Unmarshal json message for item %d: err: %w, sampleEvent: %s", i, err, string(msgBytes))
+		if err := bq.unmarshal(msgBytes, protoMessage); err != nil {
+			return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(msgBytes))
 		}
 
-		// Then, proto message -> bytes.
+		// Marshal to proto bytes for BigQuery
 		protoBytes, err := proto.Marshal(protoMessage)
 		if err != nil {
 			return fmt.Errorf("failed to marshal proto bytes for item %d: %w", i, err)
