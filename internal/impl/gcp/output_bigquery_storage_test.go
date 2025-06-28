@@ -370,15 +370,14 @@ endpoint:
 	}
 
 	for i, row := range rows {
-		if i < len(expectedValues) {
-			require.Equal(t, expectedValues[i].Type, row.Type)
-			require.Equal(t, expectedValues[i].Public, row.Public)
-			require.Equal(t, expectedValues[i].Repo.Name, row.Repo.Name)
-			require.Equal(t, expectedValues[i].Repo.URL, row.Repo.URL)
-			if expectedValues[i].Repo.ID.Valid {
-				require.Equal(t, expectedValues[i].Repo.ID.Int64, row.Repo.ID.Int64)
-			}
+		require.Equal(t, expectedValues[i].Type, row.Type)
+		require.Equal(t, expectedValues[i].Public, row.Public)
+		require.Equal(t, expectedValues[i].Repo.Name, row.Repo.Name)
+		require.Equal(t, expectedValues[i].Repo.URL, row.Repo.URL)
+		if expectedValues[i].Repo.ID.Valid {
+			require.Equal(t, expectedValues[i].Repo.ID.Int64, row.Repo.ID.Int64)
 		}
+
 	}
 }
 
@@ -522,59 +521,4 @@ func createSampleProtobufMessages(t *testing.T, msgDesc protoreflect.MessageDesc
 	}
 
 	return messages
-}
-
-func TestGCPBigQueryStorageProtobufIntegrationDemo(t *testing.T) {
-	fileDesc := createTestProtobufDescriptor(t)
-	msgDesc := fileDesc.Messages().ByName("TestMessage")
-
-	testJSON := []string{
-		`{"type": "demo", "public": true, "repo": {"id": 123, "name": "test-repo", "url": "https://example.com"}}`,
-	}
-
-	var protobufMessages [][]byte
-	for _, jsonData := range testJSON {
-		protobufData := createProtobufMessageFromJSON(t, msgDesc, jsonData)
-		protobufMessages = append(protobufMessages, protobufData)
-	}
-
-	protoMessage := dynamicpb.NewMessage(msgDesc)
-	err := proto.Unmarshal(protobufMessages[0], protoMessage)
-	require.NoError(t, err)
-
-	typeField := protoMessage.Get(msgDesc.Fields().ByName("type")).String()
-	publicField := protoMessage.Get(msgDesc.Fields().ByName("public")).Bool()
-	repoField := protoMessage.Get(msgDesc.Fields().ByName("repo")).Message()
-
-	require.Equal(t, "demo", typeField)
-	require.Equal(t, true, publicField)
-	require.NotNil(t, repoField)
-}
-
-func createProtobufMessageFromJSON(t *testing.T, msgDesc protoreflect.MessageDescriptor, jsonData string) []byte {
-	t.Helper()
-
-	var data map[string]interface{}
-	err := json.Unmarshal([]byte(jsonData), &data)
-	require.NoError(t, err)
-
-	msg := dynamicpb.NewMessage(msgDesc)
-
-	msg.Set(msgDesc.Fields().ByName("type"), protoreflect.ValueOfString(data["type"].(string)))
-	msg.Set(msgDesc.Fields().ByName("public"), protoreflect.ValueOfBool(data["public"].(bool)))
-
-	repoDesc := msgDesc.Fields().ByName("repo").Message()
-	repoMsg := dynamicpb.NewMessage(repoDesc)
-	repoData := data["repo"].(map[string]interface{})
-
-	repoMsg.Set(repoDesc.Fields().ByName("id"), protoreflect.ValueOfInt64(int64(repoData["id"].(float64))))
-	repoMsg.Set(repoDesc.Fields().ByName("name"), protoreflect.ValueOfString(repoData["name"].(string)))
-	repoMsg.Set(repoDesc.Fields().ByName("url"), protoreflect.ValueOfString(repoData["url"].(string)))
-
-	msg.Set(msgDesc.Fields().ByName("repo"), protoreflect.ValueOfMessage(repoMsg))
-
-	msgBytes, err := proto.Marshal(msg)
-	require.NoError(t, err)
-
-	return msgBytes
 }
