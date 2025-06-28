@@ -168,25 +168,25 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 	if conf.clientConfig.RetryOnStatus, err = pConf.FieldIntList(esoV2FieldRetryOnStatus); err != nil {
 		return
 	}
-
-	var backoffCtor func() backoff.BackOff
-	if backoffCtor, err = retries.CommonRetryBackOffCtorFromParsed(pConf); err != nil {
-		return
-	}
-
-	boff := backoffCtor()
-
-	retryBackoffFunc := func(i int) time.Duration {
-		if i == 1 {
-			boff.Reset()
-		}
-		return boff.NextBackOff()
-	}
-
-	conf.clientConfig.RetryBackoff = retryBackoffFunc
-
 	if conf.clientConfig.MaxRetries, err = pConf.FieldInt("max_retries"); err != nil {
 		return
+	}
+	if conf.clientConfig.MaxRetries != 0 {
+		var backoffCtor func() backoff.BackOff
+		if backoffCtor, err = retries.CommonRetryBackOffCtorFromParsed(pConf); err != nil {
+			return
+		}
+
+		boff := backoffCtor()
+
+		retryBackoffFunc := func(i int) time.Duration {
+			if i == 1 {
+				boff.Reset()
+			}
+			return boff.NextBackOff()
+		}
+
+		conf.clientConfig.RetryBackoff = retryBackoffFunc
 	}
 
 	authConf := pConf.Namespace(esoV2FieldAuth)
