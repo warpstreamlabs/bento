@@ -38,6 +38,7 @@ output:
     project: ""
     dataset: "" # No default (required)
     table: "" # No default (required)
+    message_format: json
 ```
 
 </TabItem>
@@ -55,6 +56,7 @@ output:
       http: ""
       grpc: ""
     stream_type: DEFAULT
+    message_format: json
     batching:
       count: 0
       byte_size: 0
@@ -141,6 +143,20 @@ Default: `"DEFAULT"`
 | Option | Summary |
 |---|---|
 | `DEFAULT` | DefaultStream most closely mimics the legacy bigquery tabledata.insertAll semantics. Successful inserts are committed immediately, and there's no tracking offsets as all writes go into a `default` stream that always exists for a table. |
+
+
+### `message_format`
+
+Format of incoming messages
+
+
+Type: `string`  
+Default: `"json"`  
+
+| Option | Summary |
+|---|---|
+| `json` | Messages are in JSON format (default) |
+| `protobuf` | Messages are in protobuf format |
 
 
 ### `batching`
