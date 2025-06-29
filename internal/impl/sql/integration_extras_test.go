@@ -19,9 +19,18 @@ func TestIntegrationDuckDB(t *testing.T) {
 	dbFile := filepath.Join(t.TempDir(), "test.duckdb")
 	db, err := sql.Open("duckdb", dbFile)
 	require.NoError(t, err)
+
 	t.Cleanup(func() {
-		require.NoError(t, db.Close())
+		if db != nil {
+			if err := db.Close(); err != nil {
+				t.Errorf("error closing duckdb database: %v", err)
+			}
+		}
 	})
+
+	require.Eventually(t, func() bool {
+		return db.Ping() == nil
+	}, time.Second, 100*time.Millisecond, "duckdb did not respond to ping in time")
 
 	createTable := func(name string) (string, error) {
 		_, err := db.Exec(fmt.Sprintf(`create table %s (
@@ -32,8 +41,6 @@ func TestIntegrationDuckDB(t *testing.T) {
 		)`, name))
 		return name, err
 	}
-
-	require.NoError(t, db.Ping())
 	_, err = createTable("footable")
 	require.NoError(t, err)
 

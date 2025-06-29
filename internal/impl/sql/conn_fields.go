@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -290,13 +289,6 @@ func reworkDSN(driver, dsn string) (string, error) {
 }
 
 func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn string, connSettings *connSettings) (*sql.DB, error) {
-	if !slices.Contains(sql.Drivers(), driver) {
-		msg := fmt.Sprintf("sql driver %q not registered", driver)
-		if driver == "duckdb" {
-			msg += `; this driver requires a CGO build. Solutions: use a Bento binary built with "-tags x_bento_extra", or the "-cgo" Docker image (e.g., "ghcr.io/warpstreamlabs/bento:VERSION-cgo")`
-		}
-		return nil, fmt.Errorf("%s", msg)
-	}
 	updatedDSN, err := reworkDSN(driver, dsn)
 	if err != nil {
 		return nil, err
