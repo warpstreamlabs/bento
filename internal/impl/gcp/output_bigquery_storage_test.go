@@ -289,9 +289,8 @@ table: test`,
 			config := gcpBigQueryWriteAPIConfFromYAML(t, tt.config)
 			require.Equal(t, tt.expectedFormat, config.messageFormat)
 
-			output, err := newBigQueryStorageOutput(config, nil)
+			_, err := newBigQueryStorageOutput(config, nil)
 			require.NoError(t, err)
-			require.NotNil(t, output.unmarshal)
 		})
 	}
 }

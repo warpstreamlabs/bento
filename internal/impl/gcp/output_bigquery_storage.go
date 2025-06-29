@@ -26,8 +26,6 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-type Unmarshaller func(b []byte, m protoreflect.ProtoMessage) error
-
 func gcpBigQueryWriteAPIConfig() *service.ConfigSpec {
 
 	return service.NewConfigSpec().
@@ -131,22 +129,10 @@ func newBigQueryStorageOutput(
 	conf bigQueryStorageWriterConfig,
 	log *service.Logger,
 ) (*bigQueryStorageWriter, error) {
-
-	var fn Unmarshaller
-	switch conf.messageFormat {
-	case "protobuf":
-		fn = proto.Unmarshal
-	default:
-		fn = protojson.Unmarshal
-
-	}
-
 	g := &bigQueryStorageWriter{
-		conf:      conf,
-		log:       log,
-		unmarshal: fn,
+		conf: conf,
+		log:  log,
 	}
-
 	return g, nil
 }
 
@@ -189,8 +175,6 @@ type bigQueryStorageWriter struct {
 
 	streamCacheLock sync.Mutex
 	streams         map[string]*streamWithDescriptor
-
-	unmarshal Unmarshaller
 }
 
 type bigQueryStorageWriterConfig struct {
@@ -281,21 +265,26 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 	var result *managedwriter.AppendResult
 	rowData := make([][]byte, len(batch))
 	for i, msg := range batch {
-		protoMessage := dynamicpb.NewMessage(messageDescriptor)
-
 		msgBytes, err := msg.AsBytes()
 		if err != nil {
 			return err
 		}
 
-		if err := bq.unmarshal(msgBytes, protoMessage); err != nil {
-			return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(msgBytes))
-		}
+		var protoBytes []byte
+		switch bq.conf.messageFormat {
+		case "json":
+			protoMessage := dynamicpb.NewMessage(messageDescriptor)
+			if err := protojson.Unmarshal(msgBytes, protoMessage); err != nil {
+				return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(msgBytes))
+			}
 
-		// Marshal to proto bytes for BigQuery
-		protoBytes, err := proto.Marshal(protoMessage)
-		if err != nil {
-			return fmt.Errorf("failed to marshal proto bytes for item %d: %w", i, err)
+			// Marshal to proto bytes for BigQuery
+			protoBytes, err = proto.Marshal(protoMessage)
+			if err != nil {
+				return fmt.Errorf("failed to marshal proto bytes for item %d: %w", i, err)
+			}
+		case "protobuf":
+			protoBytes = msgBytes
 		}
 
 		rowData[i] = protoBytes
