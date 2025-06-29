@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -523,7 +524,8 @@ func (c *cwMetrics) HandlerFunc() http.HandlerFunc {
 }
 
 func (c *cwMetrics) Close(ctx context.Context) error {
-	c.cancel()
-	c.flush()
-	return nil
+	defer c.cancel()
+	eg, _ := errgroup.WithContext(ctx)
+	eg.Go(c.flush)
+	return eg.Wait()
 }

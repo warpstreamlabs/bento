@@ -2,6 +2,7 @@ package blobl
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,12 +24,32 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
-
-	_ "embed"
 )
 
-//go:embed resources/bloblang_editor_page.html
-var bloblangEditorPage string
+type fileSync struct {
+	mut sync.Mutex
+
+	dirty         bool
+	mappingString string
+	inputString   string
+
+	writeBack   bool
+	mappingFile string
+	inputFile   string
+}
+
+//go:embed resources/playground
+var playgroundFS embed.FS
+
+var bloblangPlaygroundPage string
+
+func init() {
+	page, err := playgroundFS.ReadFile("resources/playground/index.html")
+	if err != nil {
+		log.Fatalf("Failed to read embedded playground: %v", err)
+	}
+	bloblangPlaygroundPage = string(page)
+}
 
 func openBrowserAt(url string) {
 	switch runtime.GOOS {
@@ -41,16 +62,19 @@ func openBrowserAt(url string) {
 	}
 }
 
-type fileSync struct {
-	mut sync.Mutex
+// Generates and marshals the Bloblang syntax spec as template.JS for HTML templates
+func generateBloblangSyntaxTemplate() (template.JS, error) {
+	syntax, err := GenerateBloblangSyntax(bloblang.GlobalEnvironment())
+	if err != nil {
+		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
+	}
 
-	dirty         bool
-	mappingString string
-	inputString   string
+	jsonBytes, err := json.Marshal(syntax)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal bloblang syntax: %w", err)
+	}
 
-	writeBack   bool
-	mappingFile string
-	inputFile   string
+	return template.JS(jsonBytes), nil
 }
 
 func newFileSync(inputFile, mappingFile string, writeBack bool) *fileSync {
@@ -192,16 +216,35 @@ func runServer(c *cli.Context) error {
 		}
 	})
 
-	indexTemplate := template.Must(template.New("index").Parse(bloblangEditorPage))
+	assetsFS, err := fs.Sub(playgroundFS, "resources/playground/assets")
+	if err != nil {
+		return fmt.Errorf("failed to get assets subFS: %w", err)
+	}
+	jsFS, err := fs.Sub(playgroundFS, "resources/playground/js")
+	if err != nil {
+		return fmt.Errorf("failed to get js subFS: %w", err)
+	}
+
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
+	mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(jsFS))))
+
+	indexTemplate := template.Must(template.New("index").Parse(bloblangPlaygroundPage))
+	bloblangSyntaxTemplate, err := generateBloblangSyntaxTemplate()
+	if err != nil {
+		return err
+	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		err := indexTemplate.Execute(w, struct {
 			InitialInput   string
 			InitialMapping string
+			BloblangSyntax template.JS
 		}{
 			fSync.input(),
 			fSync.mapping(),
+			bloblangSyntaxTemplate,
 		})
+
 		if err != nil {
 			http.Error(w, "Template error", http.StatusBadGateway)
 			return
@@ -219,7 +262,7 @@ func runServer(c *cli.Context) error {
 		openBrowserAt(u.String())
 	}
 
-	log.Printf("Serving at: http://%v\n", bindAddress)
+	log.Printf("Serving at: http://%s?mode=server", bindAddress)
 
 	server := http.Server{
 		Addr:    bindAddress,

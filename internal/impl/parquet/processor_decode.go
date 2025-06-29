@@ -20,6 +20,14 @@ func parquetDecodeProcessorConfig() *service.ConfigSpec {
 		Field(service.NewBoolField("byte_array_as_string").
 			Description("Whether to extract BYTE_ARRAY and FIXED_LEN_BYTE_ARRAY values as strings rather than byte slices in all cases. Values with a logical type of UTF8 will automatically be extracted as strings irrespective of this field. Enabling this field makes serialising the data as JSON more intuitive as `[]byte` values are serialised as base64 encoded strings by default.").
 			Default(false).Deprecated()).
+		Field(service.NewBoolField("use_parquet_list_format").
+			Description(`Whether to decode`+"`LIST`"+`type columns into their Parquet logical type format `+"`{\"list\": [{\"element\": value_1}, {\"element\": value_2}, ...]}` instead of a Go slice `[value_1, value_2, ...]`."+`
+
+:::caution
+This flag will be disabled `+"(set to `false`)"+` by default and deprecated in future versions, with the logical format being deprecated in favour of the Go slice.
+:::`).Version("1.8.0").
+			Default(true).
+			Advanced()).
 		Description(`
 This processor uses [https://github.com/parquet-go/parquet-go](https://github.com/parquet-go/parquet-go), which is itself experimental. Therefore changes could be made into how this processor functions outside of major version releases.`).
 		Version("1.0.0").
@@ -58,13 +66,18 @@ func init() {
 //------------------------------------------------------------------------------
 
 func newParquetDecodeProcessorFromConfig(conf *service.ParsedConfig, logger *service.Logger) (*parquetDecodeProcessor, error) {
+	isLegacy, _ := conf.FieldBool("use_parquet_list_format")
+
 	return &parquetDecodeProcessor{
-		logger: logger,
+		logger:              logger,
+		useLegacyListFormat: isLegacy,
 	}, nil
 }
 
 type parquetDecodeProcessor struct {
 	logger *service.Logger
+
+	useLegacyListFormat bool
 }
 
 func newReaderWithoutPanic(r io.ReaderAt) (pRdr *parquet.GenericReader[any], err error) {
@@ -119,6 +132,11 @@ func (s *parquetDecodeProcessor) Process(ctx context.Context, msg *service.Messa
 
 		for i := 0; i < n; i++ {
 			newMsg := msg.Copy()
+
+			if s.useLegacyListFormat {
+				rowBuf[i] = transformDataWithSchema(rowBuf[i], pRdr.Schema().Fields()...)
+			}
+
 			newMsg.SetStructuredMut(rowBuf[i])
 			resBatch = append(resBatch, newMsg)
 		}
