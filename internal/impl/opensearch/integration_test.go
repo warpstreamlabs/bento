@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -95,6 +96,47 @@ func TestIntegration(t *testing.T) {
 					Body:  strings.NewReader(index),
 				}, nil)
 			}
+			if cerr == nil {
+				// Create index template for data stream
+				template := `{
+	"index_patterns": ["test_datastream*"],
+	"data_stream": {},
+	"priority": 100,
+	"template": {
+		"settings": {
+			"number_of_shards": 1,
+			"number_of_replicas": 0
+		},
+		"mappings": {
+			"properties": {
+				"@timestamp": {
+					"type": "date"
+				},
+				"user": {
+					"type": "keyword"
+				},
+				"message": {
+					"type": "text",
+					"store": true,
+					"fielddata": true
+				}
+			}
+		}
+	}
+}`
+
+				_, cerr = client.Do(context.Background(), osapi.IndexTemplateCreateReq{
+					IndexTemplate: "test_datastream_template",
+					Body:          strings.NewReader(template),
+				}, nil)
+			}
+			if cerr == nil {
+				// Create an index to trigger data stream creation
+				_, cerr = client.Do(context.Background(), osapi.DataStreamCreateReq{
+					DataStream: "test_datastream",
+				}, nil)
+			}
+
 		}
 		return cerr
 	}); err != nil {
@@ -137,6 +179,14 @@ func TestIntegration(t *testing.T) {
 
 	t.Run("TestOpenSearchBatchIDCollision", func(te *testing.T) {
 		testOpenSearchBatchIDCollision(urls, client, te)
+	})
+
+	t.Run("TestOpenSearchDataStream", func(te *testing.T) {
+		testOpenSearchDataStream(urls, client, te)
+	})
+
+	t.Run("TestOpenSearchBatchCreate", func(te *testing.T) {
+		testOpenSearchBatchCreate(urls, client, te)
 	})
 }
 
@@ -562,4 +612,172 @@ action: update
 
 	assert.Equal(t, "updated", tmp.Source["user"])
 	assert.Equal(t, "goodbye", tmp.Source["message"])
+}
+
+func testOpenSearchDataStream(urls []string, client *os.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	m := outputFromConf(t, `
+index: test_datastream
+id: 'doc-${!count("datastream")}'
+urls: %v
+action: create
+`, urls)
+
+	require.NoError(t, m.Connect(ctx))
+	defer func() {
+		require.NoError(t, m.Close(ctx))
+	}()
+
+	N := 10
+
+	var testBatch service.MessageBatch
+	for i := 0; i < N; i++ {
+		testData := []byte(fmt.Sprintf(`{"@timestamp":"%s","message":"hello world","user":"%v"}`, time.Now().UTC().Format(time.RFC3339), i))
+		testBatch = append(testBatch, service.NewMessage(testData))
+	}
+
+	err := m.WriteBatch(ctx, testBatch)
+	require.NoError(t, err, "Failed to write batch to data stream")
+
+	_, err = client.Do(ctx, osapi.IndicesRefreshReq{
+		Indices: []string{"test_datastream"},
+	}, nil)
+	require.NoError(t, err, "Failed to refresh data stream")
+
+	searchReq := osapi.SearchReq{
+		Indices: []string{"test_datastream"},
+		Body: strings.NewReader(`{
+			"query": {
+				"match_all": {}
+			}
+		}`),
+	}
+	searchRes, err := client.Do(ctx, searchReq, nil)
+	require.NoError(t, err)
+	assert.False(t, searchRes.IsError())
+
+	var result struct {
+		Hits struct {
+			Hits []struct {
+				Source json.RawMessage `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	dec := json.NewDecoder(searchRes.Body)
+	require.NoError(t, dec.Decode(&result))
+
+	// Verify the number of hits matches the number of messages sent
+	assert.Len(t, result.Hits.Hits, N, "Expected %d documents in the data stream", N)
+
+}
+
+func testOpenSearchBatchCreate(urls []string, client *os.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConf(t, `
+index: test_index
+id: ${! @id }
+urls: %v
+action: index
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	testMsg := [][]byte{
+		[]byte(`{"message":"hello world","user":"0"}`),
+		[]byte(`{"message":"hello world","user":"1"}`),
+	}
+	testBatch := service.MessageBatch{
+		service.NewMessage(testMsg[0]),
+		service.NewMessage(testMsg[1]),
+	}
+
+	testBatch[0].MetaSetMut("id", "0")
+	testBatch[1].MetaSetMut("id", "1")
+
+	require.NoError(t, o.WriteBatch(ctx, testBatch))
+
+	for i := range 2 {
+
+		get, err := client.Do(ctx, osapi.DocumentGetReq{
+			Index:      "test_index",
+			DocumentID: strconv.Itoa(i),
+		}, nil)
+		require.NoError(t, err)
+		assert.Equal(t, 200, get.StatusCode)
+
+		var source map[string]any
+		err = json.NewDecoder(get.Body).Decode(&source)
+		require.NoError(t, err)
+
+		sourceBytes, err := json.Marshal(source["_source"])
+		require.NoError(t, err)
+
+		assert.Equal(t, string(testMsg[i]), string(sourceBytes))
+	}
+
+	// test successful create action:
+	o2 := outputFromConf(t, `
+index: test_index
+id: '3'
+urls: %v
+action: create
+`, urls)
+
+	require.NoError(t, o2.Connect(ctx))
+	defer func() {
+		require.NoError(t, o2.Close(ctx))
+	}()
+
+	testBatch = service.MessageBatch{
+		service.NewMessage([]byte(`{"message":"hello world","user":"3"}`)),
+	}
+	require.NoError(t, o2.WriteBatch(ctx, testBatch))
+
+	get, err := client.Do(ctx, osapi.DocumentGetReq{
+		Index:      "test_index",
+		DocumentID: "3",
+	}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 200, get.StatusCode)
+
+	var doc struct {
+		Message string `json:"message"`
+		User    string `json:"user"`
+	}
+
+	var source map[string]any
+	err = json.NewDecoder(get.Body).Decode(&source)
+	require.NoError(t, err)
+
+	sourceBytes, err := json.Marshal(source["_source"])
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(sourceBytes, &doc))
+	assert.Equal(t, "3", doc.User)
+	assert.Equal(t, "hello world", doc.Message)
+
+	// test create action on existing doc:
+	o3 := outputFromConf(t, `
+index: test_index
+id: '3'
+urls: %v
+action: create
+`, urls)
+
+	require.NoError(t, o3.Connect(ctx))
+	defer func() {
+		require.NoError(t, o3.Close(ctx))
+	}()
+
+	testBatch = service.MessageBatch{
+		service.NewMessage([]byte(`{"message":"hello world","user":"3"}`)),
+	}
+	err = o3.WriteBatch(ctx, testBatch)
+	require.ErrorContains(t, err, "document already exists")
 }

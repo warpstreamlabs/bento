@@ -153,7 +153,7 @@ Type: `string`
 
 ### `action`
 
-The action to take on the document. This field must resolve to one of the following action types: `index`, `update` or `delete`.
+The action to take on the document. This field must resolve to one of the following action types: `create`, `index`, `update` or `delete`. To write to a data stream, the action must be set to `create`.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
