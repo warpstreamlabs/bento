@@ -11,9 +11,7 @@ mapping: |
     {
       "log": {
         "level": "ERROR",
-        "fields": {
-          "content": "${! content() }"
-        },
+        "fields_mapping": "root.content = content()",
         "message": "${! error() }"
       }
     },
@@ -34,7 +32,6 @@ tests:
       catch:
         - log:
             level: ERROR
-            fields:
-              content: "${! content() }"
+            fields_mapping: root.content = content()
             message: "${! error() }"
         - bloblang: root = deleted()

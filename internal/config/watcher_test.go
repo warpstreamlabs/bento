@@ -162,9 +162,10 @@ func TestReaderStreamDirectWatching(t *testing.T) {
 	initConfs := map[string]stream.Config{}
 	rdr := newDummyReader("", nil, OptSetStreamPaths(confAPath, confBPath, confCPath))
 
-	lints, err := rdr.ReadStreams(initConfs)
+	lints, lintWarns, err := rdr.ReadStreams(initConfs)
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	assert.Equal(t, "a1", initConfs["a"].Output.Label)
 	assert.Equal(t, "b1", initConfs["b"].Output.Label)
@@ -246,9 +247,10 @@ func TestReaderStreamWildcardWatching(t *testing.T) {
 	initConfs := map[string]stream.Config{}
 	rdr := newDummyReader("", nil, OptSetStreamPaths(confDir+"/*.yaml"))
 
-	lints, err := rdr.ReadStreams(initConfs)
+	lints, lintWarns, err := rdr.ReadStreams(initConfs)
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	assert.Equal(t, "a1", initConfs["a"].Output.Label)
 	assert.NotContains(t, initConfs, "b")
@@ -330,9 +332,10 @@ func TestReaderStreamDirWatching(t *testing.T) {
 	initConfs := map[string]stream.Config{}
 	rdr := newDummyReader("", nil, OptSetStreamPaths(confDir))
 
-	lints, err := rdr.ReadStreams(initConfs)
+	lints, lintWarns, err := rdr.ReadStreams(initConfs)
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	assert.Equal(t, "a1", initConfs["inner_a"].Output.Label)
 	assert.NotContains(t, initConfs, "b")
@@ -415,9 +418,10 @@ func TestReaderWatcherRace(t *testing.T) {
 	initConfs := map[string]stream.Config{}
 	rdr := newDummyReader("", nil, OptSetStreamPaths(confDir))
 
-	lints, err := rdr.ReadStreams(initConfs)
+	lints, lintWarns, err := rdr.ReadStreams(initConfs)
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	assert.Equal(t, "a1", initConfs["inner_a"].Output.Label)
 	assert.NotContains(t, initConfs, "b")
@@ -507,9 +511,10 @@ processor_resources:
 
 	rdr := newDummyReader("", []string{confDir + "/*.yaml"})
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	require.Len(t, conf.ResourceProcessors, 2)
 	require.Equal(t, "a", conf.ResourceProcessors[0].Label)

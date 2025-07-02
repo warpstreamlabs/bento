@@ -154,6 +154,17 @@ func OptSetLintConfig(lConf docs.LintConfig) OptFunc {
 	}
 }
 
+// OptSetLintConfigWarnDeprecated sets the option to warn about deprecated
+// fields and components in the lint configuration, only if RejectDeprecated is
+// false (which is the default).
+func OptSetLintConfigWarnDeprecated() OptFunc {
+	return func(r *Reader) {
+		if !r.lintConf.RejectDeprecated {
+			r.lintConf.WarnDeprecated = true
+		}
+	}
+}
+
 // OptSetStreamPaths marks this config reader as operating in streams mode, and
 // adds a list of paths to obtain individual stream configs from.
 func OptSetStreamPaths(streamsPaths ...string) OptFunc {
@@ -179,25 +190,27 @@ func (r *Reader) lintCtx() docs.LintContext {
 }
 
 // Read a Bento config from the files and options specified.
-func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, err error) {
-	if conf, pConf, lints, err = r.readMain(r.mainPath); err != nil {
+func (r *Reader) Read() (conf Type, pConf *docs.ParsedConfig, lints []string, lintWarns []string, err error) {
+	if conf, pConf, lints, lintWarns, err = r.readMain(r.mainPath); err != nil {
 		return
 	}
 	r.configFileInfo = resInfoFromConfig(&conf.ResourceConfig)
 	r.resourceSources.populateFrom(r.mainPath, &r.configFileInfo)
 
 	var rLints []string
-	if rLints, err = r.readResources(&conf.ResourceConfig); err != nil {
+	var rLintWarns []string
+	if rLints, rLintWarns, err = r.readResources(&conf.ResourceConfig); err != nil {
 		return
 	}
 	lints = append(lints, rLints...)
+	lintWarns = append(lintWarns, rLintWarns...)
 	return
 }
 
 // ReadStreams attempts to read Bento stream configs from one or more paths.
 // Stream configs are extracted and added to a provided map, where the id is
 // derived from the path of the stream config file.
-func (r *Reader) ReadStreams(confs map[string]stream.Config) (lints []string, err error) {
+func (r *Reader) ReadStreams(confs map[string]stream.Config) (lints []string, lintWarns []string, err error) {
 	return r.readStreamFiles(confs)
 }
 
@@ -277,7 +290,7 @@ func applyOverrides(specs docs.FieldSpecs, root *yaml.Node, overrides ...string)
 	return nil
 }
 
-func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig, lints []string, err error) {
+func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig, lints []string, lintWarns []string, err error) {
 	defer func() {
 		if err != nil && mainPath != "" {
 			err = fmt.Errorf("%v: %w", mainPath, err)
@@ -321,7 +334,12 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		lintFilePrefix := mainPath
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
-			lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			switch lint.Level {
+			case docs.LintWarning:
+				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			default:
+				lints = append(lints, fmt.Sprintf("%v%v", lintFilePrefix, lint.Error()))
+			}
 		}
 	}
 
@@ -345,7 +363,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // the provided main update func, and apply changes to resources to the provided
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
-	conf, _, lints, err := r.readMain(newPath)
+	conf, _, lints, lintWarns, err := r.readMain(newPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		if r.mainPath != newPath {
 			mgr.Logger().Error("Failed to read changed main config: %v", err)
@@ -379,6 +397,9 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 
 		// Rejecting from linters means we do not want to try again.
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
+	}
+	for _, lintWarn := range lintWarns {
+		lintlog.Warn(lintWarn)
 	}
 
 	// If the main config file has been changed then we remove all resources
