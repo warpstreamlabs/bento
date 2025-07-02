@@ -3,6 +3,21 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.9.0 - TBD
+
+### Added 
+
+- `create` added to `opensearch`'s `action` field to support write to data streams @arnitolog
+- dark mode to shiny new bloblang editor @iamramtin
+- `message_format` to `gcp_bigquery_write_api` enabling protobuf messages to be sent without need for marshalling to json @gregfurman
+
+### Fixed 
+
+### Changed 
+
+- metadata `gcp_pubsub_message_id` & `gcp_pubsub_ordering_key` added to `gcp_pubsub` input @anicoll
+- shiny new bloblang editor: interactive bloblang editor given a overhall @iamramtin
+
 ## 1.8.2 - 2025-06-25
 
 ### Fixed 
