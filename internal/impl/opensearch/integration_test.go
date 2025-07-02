@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -182,6 +183,10 @@ func TestIntegration(t *testing.T) {
 
 	t.Run("TestOpenSearchDataStream", func(te *testing.T) {
 		testOpenSearchDataStream(urls, client, te)
+	})
+
+	t.Run("TestOpenSearchBatchCreate", func(te *testing.T) {
+		testOpenSearchBatchCreate(urls, client, te)
 	})
 }
 
@@ -666,4 +671,113 @@ action: create
 	// Verify the number of hits matches the number of messages sent
 	assert.Len(t, result.Hits.Hits, N, "Expected %d documents in the data stream", N)
 
+}
+
+func testOpenSearchBatchCreate(urls []string, client *os.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConf(t, `
+index: test_index
+id: ${! @id }
+urls: %v
+action: index
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	testMsg := [][]byte{
+		[]byte(`{"message":"hello world","user":"0"}`),
+		[]byte(`{"message":"hello world","user":"1"}`),
+	}
+	testBatch := service.MessageBatch{
+		service.NewMessage(testMsg[0]),
+		service.NewMessage(testMsg[1]),
+	}
+
+	testBatch[0].MetaSetMut("id", "0")
+	testBatch[1].MetaSetMut("id", "1")
+
+	require.NoError(t, o.WriteBatch(ctx, testBatch))
+
+	for i := range 2 {
+
+		get, err := client.Do(ctx, osapi.DocumentGetReq{
+			Index:      "test_index",
+			DocumentID: strconv.Itoa(i),
+		}, nil)
+		require.NoError(t, err)
+		assert.Equal(t, 200, get.StatusCode)
+
+		var source map[string]any
+		err = json.NewDecoder(get.Body).Decode(&source)
+		require.NoError(t, err)
+
+		sourceBytes, err := json.Marshal(source["_source"])
+		require.NoError(t, err)
+
+		assert.Equal(t, string(testMsg[i]), string(sourceBytes))
+	}
+
+	// test successful create action:
+	o2 := outputFromConf(t, `
+index: test_index
+id: '3'
+urls: %v
+action: create
+`, urls)
+
+	require.NoError(t, o2.Connect(ctx))
+	defer func() {
+		require.NoError(t, o2.Close(ctx))
+	}()
+
+	testBatch = service.MessageBatch{
+		service.NewMessage([]byte(`{"message":"hello world","user":"3"}`)),
+	}
+	require.NoError(t, o2.WriteBatch(ctx, testBatch))
+
+	get, err := client.Do(ctx, osapi.DocumentGetReq{
+		Index:      "test_index",
+		DocumentID: "3",
+	}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 200, get.StatusCode)
+
+	var doc struct {
+		Message string `json:"message"`
+		User    string `json:"user"`
+	}
+
+	var source map[string]any
+	err = json.NewDecoder(get.Body).Decode(&source)
+	require.NoError(t, err)
+
+	sourceBytes, err := json.Marshal(source["_source"])
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(sourceBytes, &doc))
+	assert.Equal(t, "3", doc.User)
+	assert.Equal(t, "hello world", doc.Message)
+
+	// test create action on existing doc:
+	o3 := outputFromConf(t, `
+index: test_index
+id: '3'
+urls: %v
+action: create
+`, urls)
+
+	require.NoError(t, o3.Connect(ctx))
+	defer func() {
+		require.NoError(t, o3.Close(ctx))
+	}()
+
+	testBatch = service.MessageBatch{
+		service.NewMessage([]byte(`{"message":"hello world","user":"3"}`)),
+	}
+	err = o3.WriteBatch(ctx, testBatch)
+	require.ErrorContains(t, err, "document already exists")
 }
