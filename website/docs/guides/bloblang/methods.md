@@ -3298,11 +3298,11 @@ root.result = this.compressed.decode("base64").decompress("lz4").string()
 
 ### `decrypt_aes`
 
-Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `ofb`, `cbc`.
+Decrypts an encrypted string or byte array target according to a chosen AES encryption method and returns the result as a byte array. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `cbc`, `ofb` (deprecated since v1.9.0; rather use `ctr`).
 
 #### Parameters
 
-**`scheme`** &lt;string&gt; The scheme to use for decryption, one of `ctr`, `gcm`, `ofb`, `cbc`.  
+**`scheme`** &lt;string&gt; The scheme to use for decryption, one of `ctr`, `gcm`, `cbc`, `ofb` (deprecated since v1.9.0).  
 **`key`** &lt;string&gt; A key to decrypt with.  
 **`iv`** &lt;string&gt; An initialization vector / nonce.  
 
@@ -3345,11 +3345,11 @@ root.encoded = content().encode("ascii85")
 
 ### `encrypt_aes`
 
-Encrypts a string or byte array target according to a chosen AES encryption method and returns a string result. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `ofb`, `cbc`.
+Encrypts a string or byte array target according to a chosen AES encryption method and returns a string result. The algorithms require a key and an initialization vector / nonce. Available schemes are: `ctr`, `gcm`, `cbc`. Support for `ofb` has been silently dropped since v1.9.0 and replaced with `ctr`.
 
 #### Parameters
 
-**`scheme`** &lt;string&gt; The scheme to use for encryption, one of `ctr`, `gcm`, `ofb`, `cbc`.  
+**`scheme`** &lt;string&gt; The scheme to use for encryption, one of `ctr`, `gcm`, `cbc`.  
 **`key`** &lt;string&gt; A key to encrypt with.  
 **`iv`** &lt;string&gt; An initialization vector / nonce.  
 

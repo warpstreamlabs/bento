@@ -71,6 +71,17 @@ output:
       access_token: ""
       token_cache: ""
       token_key: ""
+      aws:
+        region: ""
+        endpoint: ""
+        credentials:
+          profile: ""
+          id: ""
+          secret: ""
+          token: ""
+          from_ec2_role: false
+          role: ""
+          role_external_id: ""
     topic: "" # No default (required)
     client_id: bento
     target_version: 2.1.0 # No default (optional)
@@ -318,6 +329,7 @@ Default: `"none"`
 
 | Option | Summary |
 |---|---|
+| `AWS_MSK_IAM` | AWS IAM based authentication using MSK sasl signer. |
 | `OAUTHBEARER` | OAuth Bearer based authentication. |
 | `PLAIN` | Plain text authentication. NOTE: When using plain text auth it is extremely likely that you'll also need to [enable TLS](#tlsenabled). |
 | `SCRAM-SHA-256` | Authentication using the SCRAM-SHA-256 mechanism. |
@@ -375,6 +387,96 @@ Default: `""`
 ### `sasl.token_key`
 
 Required when using a `token_cache`, the key to query the cache with for tokens.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws`
+
+Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.
+
+
+Type: `object`  
+
+### `sasl.aws.region`
+
+The AWS region to target.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.endpoint`
+
+Allows you to specify a custom endpoint for the AWS API.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.credentials`
+
+Optional manual configuration of AWS credentials to use. More information can be found [in this document](/docs/guides/cloud/aws).
+
+
+Type: `object`  
+
+### `sasl.aws.credentials.profile`
+
+A profile from `~/.aws/credentials` to use.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.credentials.id`
+
+The ID of credentials to use.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.credentials.secret`
+
+The secret for the credentials being used.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.credentials.token`
+
+The token for the credentials being used, required when using short term credentials.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.credentials.from_ec2_role`
+
+Use the credentials of a host EC2 machine configured to assume [an IAM role associated with the instance](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html).
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.0.0 or newer  
+
+### `sasl.aws.credentials.role`
+
+A role ARN to assume.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.aws.credentials.role_external_id`
+
+An external ID to provide when assuming a role.
 
 
 Type: `string`  

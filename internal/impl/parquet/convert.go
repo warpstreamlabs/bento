@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+
+	"github.com/parquet-go/parquet-go"
 )
 
 // MapToStruct converts a map[string]any to a struct using reflection.
@@ -329,4 +331,50 @@ func setField(field reflect.Value, value any) error {
 	}
 
 	return nil
+}
+
+// transformDataWithSchema recursively walks through decoded data and converts any instance of a LIST into
+// its Logical Type format.
+//
+// See https://github.com/warpstreamlabs/bento/issues/359 for more details.
+func transformDataWithSchema(data any, fields ...parquet.Field) any {
+	switch v := data.(type) {
+	case map[string]any:
+		result := make(map[string]any)
+		for key, value := range v {
+			field := findFieldByName(fields, key)
+			if field != nil {
+				if lt := field.Type().LogicalType(); lt != nil && lt.List != nil {
+					result[key] = transformList(value)
+				} else {
+					result[key] = transformDataWithSchema(value, field.Fields()...)
+				}
+			} else {
+				result[key] = value
+			}
+		}
+		return result
+	default:
+		return data
+	}
+}
+
+func findFieldByName(fields []parquet.Field, name string) parquet.Field {
+	for _, field := range fields {
+		if field.Name() == name {
+			return field
+		}
+	}
+	return nil
+}
+
+func transformList(data any) any {
+	if slice, ok := data.([]any); ok {
+		wrapped := make([]any, len(slice))
+		for i, item := range slice {
+			wrapped[i] = map[string]any{"element": item}
+		}
+		return map[string]any{"list": wrapped}
+	}
+	return data
 }
