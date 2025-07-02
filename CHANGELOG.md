@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added 
 
 - `create` added to `opensearch`'s `action` field to support write to data streams @arnitolog
-- Dark Mode to shiny new bloblang editor @iamramtin
+- dark mode to shiny new bloblang editor @iamramtin
 - `message_format` to `gcp_bigquery_write_api` enabling protobuf messages to be sent without need for marshalling to json @gregfurman
 
 ### Fixed 
