@@ -9,6 +9,7 @@
     "prestart": "sh build_plugins.sh",
     "start": "docusaurus start -h 0.0.0.0",
     "prebuild": "sh build_plugins.sh",
+    "build::playground": "sh build_playground.sh",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy"
