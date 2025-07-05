@@ -38,13 +38,13 @@ type fileSync struct {
 	inputFile   string
 }
 
-//go:embed resources/playground
+//go:embed playground
 var playgroundFS embed.FS
 
 var bloblangPlaygroundPage string
 
 func init() {
-	page, err := playgroundFS.ReadFile("resources/playground/index.html")
+	page, err := playgroundFS.ReadFile("playground/index.html")
 	if err != nil {
 		log.Fatalf("Failed to read embedded playground: %v", err)
 	}
@@ -216,11 +216,11 @@ func runServer(c *cli.Context) error {
 		}
 	})
 
-	assetsFS, err := fs.Sub(playgroundFS, "resources/playground/assets")
+	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")
 	if err != nil {
 		return fmt.Errorf("failed to get assets subFS: %w", err)
 	}
-	jsFS, err := fs.Sub(playgroundFS, "resources/playground/js")
+	jsFS, err := fs.Sub(playgroundFS, "playground/js")
 	if err != nil {
 		return fmt.Errorf("failed to get js subFS: %w", err)
 	}
