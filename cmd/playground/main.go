@@ -1,16 +1,14 @@
 //go:build js && wasm
 
-// This file provides a WebAssembly (WASM) entry point for executing Bloblang mappings from JavaScript.
-// It exposes two main functions to the JavaScript environment:
+// WASM entry point for executing Bloblang mappings from JavaScript.
+// Exposes:
 //   1. executeBloblang(input: string, mapping: string): object
-//      - Parses and executes a Bloblang mapping on a JSON input string.
-//      - Returns an object with "result", "parse_error", and "mapping_error" fields.
+//      - Runs a Bloblang mapping on a JSON input string.
 //   2. getBloblangSyntax(): object
-//      - Returns Bloblang syntax information for editor tooling.
+//      - Returns Bloblang syntax info for editor tooling.
 //
-// The WASM module signals readiness by setting `wasmReady` to true in the global JavaScript context.
-// Build metadata is exposed via `wasmMetadata`.
-// The Go program runs indefinitely to serve JavaScript calls.
+// Signals readiness with `wasmReady` and exposes build metadata via `wasmMetadata`.
+// Keeps running to serve JS calls.
 
 package main
 
@@ -25,28 +23,18 @@ import (
 var env *blobl.BloblangEnvironment
 
 // executeBloblang is exposed to JavaScript.
-// It expects two string arguments: input JSON and Bloblang mapping.
+// Args: input JSON and Bloblang mapping as strings.
 // Returns an object with "result", "parse_error", and "mapping_error".
-func executeBloblang(this js.Value, args []js.Value) any {
-	if len(args) != 2 {
+func executeBloblang(_ js.Value, args []js.Value) any {
+	if len(args) != 2 || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
 		return toJS(map[string]any{
-			"mapping_error": "Invalid arguments: expected exactly two string parameters (input, mapping)",
+			"mapping_error": "Invalid arguments: expected two strings (input, mapping)",
 			"parse_error":   nil,
 			"result":        nil,
 		})
 	}
 
-	if args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
-		return toJS(map[string]any{
-			"mapping_error": "Arguments must be strings (input, mapping)",
-			"parse_error":   nil,
-			"result":        nil,
-		})
-	}
-
-	input := args[0].String()
-	mapping := args[1].String()
-
+	input, mapping := args[0].String(), args[1].String()
 	result, err := env.ExecuteMapping(input, mapping)
 	if err != nil {
 		return toJS(map[string]any{
@@ -64,8 +52,8 @@ func executeBloblang(this js.Value, args []js.Value) any {
 }
 
 // getBloblangSyntax is exposed to JavaScript.
-// Returns Bloblang syntax information as an object, or an error.
-func getBloblangSyntax(this js.Value, args []js.Value) any {
+// Returns Bloblang syntax info or an error.
+func getBloblangSyntax(_ js.Value, args []js.Value) any {
 	syntax, err := env.GetSyntax()
 	if err != nil {
 		return toJS(map[string]any{
@@ -73,59 +61,24 @@ func getBloblangSyntax(this js.Value, args []js.Value) any {
 		})
 	}
 
-	// Convert to JSON and back to ensure compatibility with JS
-	jsonBytes, err := json.Marshal(syntax)
-	if err != nil {
-		return toJS(map[string]any{
-			"error": "Failed to serialize syntax data: " + err.Error(),
-		})
-	}
-	var result map[string]any
-	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		return toJS(map[string]any{
-			"error": "Failed to deserialize syntax data: " + err.Error(),
-		})
-	}
-
-	return toJS(result)
+	return toJS(syntax)
 }
 
 // toJS converts Go data structures to JavaScript values for WASM compatibility.
-func toJS(data any) any {
+func toJS(data any) js.Value {
 	if data == nil {
 		return js.Null()
 	}
 
-	switch v := data.(type) {
-	case string, int, int32, int64, float32, float64, bool:
-		// For simple types, use ValueOf directly
-		return js.ValueOf(v)
-	case map[string]any:
-		// Convert map to JS object
-		obj := js.Global().Get("Object").New()
-		for key, value := range v {
-			obj.Set(key, toJS(value))
-		}
-		return obj
-	case []any:
-		// Convert slice to JS array
-		arr := js.Global().Get("Array").New(len(v))
-		for i, value := range v {
-			arr.SetIndex(i, toJS(value))
-		}
-		return arr
-	default:
-		// For complex types, serialize through JSON
-		jsonBytes, err := json.Marshal(data)
-		if err != nil {
-			return js.ValueOf("error: " + err.Error())
-		}
-		// Parse as JavaScript object
-		return js.Global().Get("JSON").Call("parse", string(jsonBytes))
+	b, err := json.Marshal(data)
+	if err != nil {
+		return js.ValueOf("error: " + err.Error())
 	}
+
+	return js.Global().Get("JSON").Call("parse", string(b))
 }
 
-// main registers the WASM functions, exposes build metadata, and signals readiness to JavaScript.
+// main registers WASM functions, exposes metadata, and signals readiness.
 func main() {
 	env = blobl.NewBloblangEnvironment()
 
