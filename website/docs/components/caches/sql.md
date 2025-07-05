@@ -40,6 +40,8 @@ sql:
   key_column: foo # No default (required)
   value_column: bar # No default (required)
   set_suffix: ON DUPLICATE KEY UPDATE bar=VALUES(bar) # No default (optional)
+  azure:
+    token_request_options: {}
 ```
 
 </TabItem>
@@ -70,6 +72,13 @@ sql:
   conn_max_open: 0 # No default (optional)
   secret_name: "" # No default (optional)
   iam_enabled: false
+  azure:
+    entra_enabled: false
+    token_request_options:
+      claims: ""
+      enable_cae: false
+      scopes: []
+      tenant_id: ""
   region: ""
   endpoint: ""
   credentials:
@@ -317,6 +326,65 @@ An optional field used to generate an IAM authentication token to connect to an 
 Type: `bool`  
 Default: `false`  
 Requires version 1.8.0 or newer  
+
+### `azure`
+
+Sorry! This field is missing documentation.
+
+
+Type: `object`  
+
+### `azure.entra_enabled`
+
+Sorry! This field is missing documentation.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options`
+
+Sorry! This field is missing documentation.
+
+
+Type: `object`  
+
+### `azure.token_request_options.claims`
+
+Sorry! This field is missing documentation.
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options.enable_cae`
+
+Sorry! This field is missing documentation.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options.scopes`
+
+Sorry! This field is missing documentation.
+
+
+Type: `array`  
+Default: `[]`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options.tenant_id`
+
+Sorry! This field is missing documentation.
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
 
 ### `region`
 

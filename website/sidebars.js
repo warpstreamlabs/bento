@@ -116,6 +116,7 @@ module.exports = {
           items: [
             'guides/cloud/aws',
             'guides/cloud/gcp',
+            'guides/cloud/azure',
           ],
         },
         {
