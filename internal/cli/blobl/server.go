@@ -262,7 +262,7 @@ func runServer(c *cli.Context) error {
 		openBrowserAt(u.String())
 	}
 
-	log.Printf("Serving at: http://%s?mode=server", bindAddress)
+	log.Printf("Serving at: http://%s", bindAddress)
 
 	server := http.Server{
 		Addr:    bindAddress,
