@@ -85,56 +85,56 @@ body {
 /* Enhanced sizing for embedded iframe */
 body.embedded {
   height: 100vh;
-  min-height: auto; /* Remove fixed minimum that causes scrolling */
+  min-height: auto;
   overflow: hidden; /* No scrolling - fit to container */
 }
 
 body.embedded .container {
   height: 100vh;
-  min-height: auto; /* Remove fixed minimum that causes scrolling */
-  padding: 6px; /* Further reduced padding for more space */
-  gap: 6px; /* Further reduced gap for more space */
+  min-height: auto;
+  padding: 6px;
+  gap: 6px;
 }
 
 /* Compact panels for embedded mode */
 body.embedded .panel-header {
-  padding: 4px 8px; /* Further reduced for more space */
-  font-size: 12px; /* Further reduced from 13px */
+  padding: 4px 8px;
+  font-size: 12px;
 }
 
 body.embedded .formatter-section {
-  padding: 4px 8px; /* Further reduced for more space */
-  font-size: 10px; /* Further reduced from 11px */
+  padding: 4px 8px;
+  font-size: 10px;
 }
 
 body.embedded .action-btn {
-  padding: 2px 6px; /* Further reduced for more space */
-  font-size: 9px; /* Further reduced from 10px */
-  margin-left: 2px; /* Reduced spacing between buttons */
+  padding: 2px 6px;
+  font-size: 9px;
+  margin-left: 2px;
 }
 
 body.embedded .format-btn {
-  padding: 2px 4px; /* Further reduced for more space */
-  font-size: 9px; /* Further reduced from 10px */
+  padding: 2px 4px;
+  font-size: 9px;
 }
 
 /* Responsive adjustments for embedded mode */
 @media (max-width: 768px) {
   body.embedded {
-    min-height: auto; /* No fixed height on mobile either */
+    min-height: auto; /* No fixed height on mobile */
   }
-  
+
   body.embedded .container {
-    min-height: auto; /* No fixed height on mobile either */
-    padding: 4px; /* Even more compact on mobile */
+    min-height: auto; /* No fixed height on mobile */
+    padding: 4px;
     gap: 4px;
   }
-  
+
   body.embedded .panel-header {
     padding: 3px 6px;
     font-size: 11px;
   }
-  
+
   body.embedded .formatter-section {
     padding: 3px 6px;
     font-size: 9px;

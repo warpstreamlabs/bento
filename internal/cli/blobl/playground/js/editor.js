@@ -12,7 +12,10 @@ const DOM_IDS = {
 };
 
 class EditorManager {
-  constructor(defaultInput = null, defaultMapping = null) {
+  constructor(
+    defaultInput = '{"name": "bento", "stars": 1500}',
+    defaultMapping = 'root.project = "%s 🍱".format(this.name.capitalize())\nroot.rating = "★".repeat((this.stars / 300))'
+  ) {
     this.callbacks = {};
     this.aceInputEditor = null;
     this.aceMappingEditor = null;
@@ -21,12 +24,8 @@ class EditorManager {
     this.bloblangSyntax = null;
     this.syntaxLoaded = false;
 
-    this.defaultMapping =
-      defaultMapping ||
-      "root.greeting = this.message.uppercase()\nroot.doubled = this.number * 2";
-
-    this.defaultInput =
-      defaultInput || '{"message": "hello world", "number": 42}';
+    this.defaultInput = defaultInput || window.DEFAULT_INPUT;
+    this.defaultMapping = defaultMapping || window.DEFAULT_MAPPING;
 
     // Future-proof event listeners
     this.inputChangeListeners = [];
@@ -80,38 +79,33 @@ class EditorManager {
       return;
     }
 
-    // Try WASM function (WASM mode)
-    if (typeof window.getBloblangSyntax === "function") {
-      try {
-        const syntaxData = window.getBloblangSyntax();
-        if (syntaxData && !syntaxData.error) {
-          this.bloblangSyntax = syntaxData;
-          this.syntaxLoaded = true;
-          return;
-        } else {
-          console.warn(
-            "WASM syntax function returned error:",
-            syntaxData?.error
-          );
+    // Try WASM function (WASM mode) - with retry for ready state
+    const tryWasmSyntax = () => {
+      if (typeof window.generateBloblangSyntax === "function") {
+        try {
+          const syntaxData = window.generateBloblangSyntax();
+          if (syntaxData && !syntaxData.error) {
+            this.bloblangSyntax = syntaxData;
+            this.syntaxLoaded = true;
+            return true;
+          } else {
+            console.warn(
+              "WASM syntax function returned error:",
+              syntaxData?.error
+            );
+          }
+        } catch (error) {
+          console.warn("Failed to get syntax from WASM:", error);
         }
-      } catch (error) {
-        console.warn("Failed to get syntax from WASM:", error);
       }
-    }
+      return false;
+    };
 
-    // Wait for WASM to be ready if not available yet
-    if (window.wasmReady && typeof window.getBloblangSyntax === "function") {
-      try {
-        const syntaxData = window.getBloblangSyntax();
-        if (syntaxData && !syntaxData.error) {
-          this.bloblangSyntax = syntaxData;
-          this.syntaxLoaded = true;
-          return;
-        }
-      } catch (error) {
-        console.warn("Failed to get syntax from WASM after ready:", error);
-      }
-    }
+    // Try WASM function immediately
+    if (tryWasmSyntax()) return;
+
+    // Try again if WASM is ready
+    if (window.wasmReady && tryWasmSyntax()) return;
 
     const timeoutExceeded =
       Date.now() - this.syntaxLoadingStartTime > SYNTAX_TIMEOUT;
@@ -199,23 +193,10 @@ class EditorManager {
   }
 
   configureMappingEditor() {
-    const mappingEl = this.getElement(DOM_IDS.aceMapping);
-    if (!mappingEl) return;
-
-    this.aceMappingEditor = ace.edit(mappingEl);
-    const contentWithNewline = this.defaultMapping.trimEnd() + "\n"; // Trailing newline
-    this.aceMappingEditor.setValue(contentWithNewline, 1);
+    this.configureMappingEditorBasic();
     this.aceMappingEditor.session.setMode(
       this.currentBloblangMode || MODE_BLOBLANG
     );
-    this.aceMappingEditor.setTheme(THEME_BENTO);
-    this.aceMappingEditor.commands.addCommand({
-      name: "formatBloblang",
-      bindKey: { mac: "Cmd-Shift-F", win: "Ctrl-Shift-F" },
-      exec: () => formatBloblang(),
-    });
-    this.overrideCommentShortcut(this.aceMappingEditor);
-    this.configureEditorOptions(this.aceMappingEditor);
     this.configureAutocompletion();
   }
 
@@ -230,13 +211,17 @@ class EditorManager {
     // Use coffee mode initially for basic syntax highlighting
     this.aceMappingEditor.session.setMode("ace/mode/coffee");
     this.aceMappingEditor.setTheme(THEME_BENTO);
-    this.aceMappingEditor.commands.addCommand({
+    this.addMappingEditorCommands(this.aceMappingEditor);
+    this.configureEditorOptions(this.aceMappingEditor);
+  }
+
+  addMappingEditorCommands(editor) {
+    editor.commands.addCommand({
       name: "formatBloblang",
       bindKey: { mac: "Cmd-Shift-F", win: "Ctrl-Shift-F" },
       exec: () => formatBloblang(),
     });
-    this.overrideCommentShortcut(this.aceMappingEditor);
-    this.configureEditorOptions(this.aceMappingEditor);
+    this.overrideCommentShortcut(editor);
   }
 
   enhanceMappingEditor() {
@@ -264,57 +249,46 @@ class EditorManager {
   }
 
   configureFallbackEditors() {
-    const aceInput = this.getElement(DOM_IDS.aceInput);
-    const aceMapping = this.getElement(DOM_IDS.aceMapping);
-    const fallbackInput = this.getElement(DOM_IDS.fallbackInput);
-    const fallbackMapping = this.getElement(DOM_IDS.fallbackMapping);
-
     // Show fallback textareas
-    if (aceInput) aceInput.style.display = "none";
-    if (fallbackInput) fallbackInput.style.display = "block";
-    if (aceMapping) aceMapping.style.display = "none";
-    if (fallbackMapping) fallbackMapping.style.display = "block";
+    this.toggleEditorDisplay(DOM_IDS.aceInput, DOM_IDS.fallbackInput);
+    this.toggleEditorDisplay(DOM_IDS.aceMapping, DOM_IDS.fallbackMapping);
 
     // Set up fallback listeners
-    fallbackInput?.addEventListener("input", () => {
-      this.inputChangeListeners.forEach((fn) => fn());
-      this.callbacks.onInputChange?.();
+    this.getElement(DOM_IDS.fallbackInput)?.addEventListener("input", () =>
+      this.handleInputChange()
+    );
+    this.getElement(DOM_IDS.fallbackMapping)?.addEventListener("input", () =>
+      this.handleMappingChange()
+    );
+  }
 
-      // Save state with debounce
-      clearTimeout(this.saveStateTimeout);
-      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
-    });
-
-    fallbackMapping?.addEventListener("input", () => {
-      this.mappingChangeListeners.forEach((fn) => fn());
-      this.callbacks.onMappingChange?.();
-
-      // Save state with debounce
-      clearTimeout(this.saveStateTimeout);
-      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
-    });
+  toggleEditorDisplay(hideId, showId) {
+    const hideEl = this.getElement(hideId);
+    const showEl = this.getElement(showId);
+    if (hideEl) hideEl.style.display = "none";
+    if (showEl) showEl.style.display = "block";
   }
 
   registerEditorChangeHandlers() {
-    this.aceInputEditor.on("change", () => {
-      if (this.callbacks.onInputChange) {
-        this.callbacks.onInputChange();
-      }
+    this.aceInputEditor.on("change", () => this.handleInputChange());
+    this.aceMappingEditor.on("change", () => this.handleMappingChange());
+  }
 
-      // Save state with debounce
-      clearTimeout(this.saveStateTimeout);
-      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
-    });
+  handleInputChange() {
+    this.inputChangeListeners.forEach((fn) => fn());
+    this.callbacks.onInputChange?.();
+    this.debouncedSaveState();
+  }
 
-    this.aceMappingEditor.on("change", () => {
-      if (this.callbacks.onMappingChange) {
-        this.callbacks.onMappingChange();
-      }
+  handleMappingChange() {
+    this.mappingChangeListeners.forEach((fn) => fn());
+    this.callbacks.onMappingChange?.();
+    this.debouncedSaveState();
+  }
 
-      // Save state with debounce
-      clearTimeout(this.saveStateTimeout);
-      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
-    });
+  debouncedSaveState() {
+    clearTimeout(this.saveStateTimeout);
+    this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
   }
   /**
    * Modifies ACE Editor's "toggleComment" command to insert a trailing newline
@@ -644,9 +618,7 @@ class EditorManager {
    * @returns {string}
    */
   getInput() {
-    return this.aceInputEditor
-      ? this.aceInputEditor.getValue()
-      : this.getElement(DOM_IDS.fallbackInput)?.value || "";
+    return this.getEditorValue(this.aceInputEditor, DOM_IDS.fallbackInput);
   }
 
   /**
@@ -654,9 +626,7 @@ class EditorManager {
    * @returns {string}
    */
   getMapping() {
-    return this.aceMappingEditor
-      ? this.aceMappingEditor.getValue()
-      : this.getElement(DOM_IDS.fallbackMapping)?.value || "";
+    return this.getEditorValue(this.aceMappingEditor, DOM_IDS.fallbackMapping);
   }
 
   /**
@@ -664,12 +634,7 @@ class EditorManager {
    * @param {string} content
    */
   setInput(content) {
-    if (this.aceInputEditor) {
-      this.aceInputEditor.setValue(content, 1);
-    } else {
-      const fallback = this.getElement(DOM_IDS.fallbackInput);
-      if (fallback) fallback.value = content;
-    }
+    this.setEditorValue(this.aceInputEditor, DOM_IDS.fallbackInput, content);
   }
 
   /**
@@ -677,10 +642,24 @@ class EditorManager {
    * @param {string} content
    */
   setMapping(content) {
-    if (this.aceMappingEditor) {
-      this.aceMappingEditor.setValue(content, 1);
+    this.setEditorValue(
+      this.aceMappingEditor,
+      DOM_IDS.fallbackMapping,
+      content
+    );
+  }
+
+  getEditorValue(aceEditor, fallbackId) {
+    return aceEditor
+      ? aceEditor.getValue()
+      : this.getElement(fallbackId)?.value || "";
+  }
+
+  setEditorValue(aceEditor, fallbackId, content) {
+    if (aceEditor) {
+      aceEditor.setValue(content, 1);
     } else {
-      const fallback = this.getElement(DOM_IDS.fallbackMapping);
+      const fallback = this.getElement(fallbackId);
       if (fallback) fallback.value = content;
     }
   }

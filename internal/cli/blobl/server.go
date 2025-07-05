@@ -1,3 +1,5 @@
+//go:build !wasm
+
 package blobl
 
 import (
@@ -21,8 +23,14 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+)
+
+// Default playground values
+const (
+	defaultPlaygroundInput   = `{"name": "bento", "type": "stream_processor", "features": ["fast", "fancy"], "stars": 1500}`
+	defaultPlaygroundMapping = `root.about = "%s 🍱 is a %s %s".format(this.name.capitalize(), this.features.join(" & "), this.type.split("_").join(" "))
+root.stars = "★".repeat((this.stars / 300))`
 )
 
 type fileSync struct {
@@ -63,7 +71,7 @@ func openBrowserAt(url string) {
 
 // Generates and marshals the Bloblang syntax spec as template.JS for HTML templates
 func generateBloblangSyntaxTemplate() (template.JS, error) {
-	syntax, err := GenerateBloblangSyntax(bloblang.GlobalEnvironment())
+	syntax, err := generateBloblangSyntax()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
 	}
@@ -78,8 +86,8 @@ func generateBloblangSyntaxTemplate() (template.JS, error) {
 
 func newFileSync(inputFile, mappingFile string, writeBack bool) *fileSync {
 	f := &fileSync{
-		inputString:   `{"message":"hello world"}`,
-		mappingString: "root = this",
+		inputString:   defaultPlaygroundInput,
+		mappingString: defaultPlaygroundMapping,
 		writeBack:     writeBack,
 		inputFile:     inputFile,
 		mappingFile:   mappingFile,
@@ -163,11 +171,10 @@ func (f *fileSync) mapping() string {
 	return f.mappingString
 }
 
-func runServer(c *cli.Context) error {
+func runPlayground(c *cli.Context) error {
 	fSync := newFileSync(c.String("input-file"), c.String("mapping-file"), c.Bool("write"))
 	defer fSync.write()
 
-	env := NewBloblangEnvironment()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/execute", func(w http.ResponseWriter, r *http.Request) {
@@ -180,26 +187,19 @@ func runServer(c *cli.Context) error {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
 		fSync.update(req.Input, req.Mapping)
 
-		result, err := env.ExecuteMapping(req.Input, req.Mapping)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
+		result := evaluateMapping(req.Input, req.Mapping)
 
-		res := struct {
+		resBytes, err := json.Marshal(struct {
+			Result       any `json:"result"`
 			ParseError   any `json:"parse_error"`
 			MappingError any `json:"mapping_error"`
-			Result       any `json:"result"`
 		}{
+			Result:       result.Result,
 			ParseError:   result.ParseError,
 			MappingError: result.MappingError,
-			Result:       result.Result,
-		}
-
-		resBytes, err := json.Marshal(res)
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -226,13 +226,19 @@ func runServer(c *cli.Context) error {
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Convert strings to JSON for safe template injection
+		initialInputJSON, _ := json.Marshal(fSync.input())
+		initialMappingJSON, _ := json.Marshal(fSync.mapping())
+
 		err := indexTemplate.Execute(w, struct {
-			InitialInput   string
-			InitialMapping string
+			WasmMode       bool
+			InitialInput   template.JS
+			InitialMapping template.JS
 			BloblangSyntax template.JS
 		}{
-			fSync.input(),
-			fSync.mapping(),
+			false, // WASM not available in server mode
+			template.JS(initialInputJSON),
+			template.JS(initialMappingJSON),
 			bloblangSyntaxTemplate,
 		})
 
@@ -253,7 +259,7 @@ func runServer(c *cli.Context) error {
 		openBrowserAt(u.String())
 	}
 
-	log.Printf("Serving at: http://%s", bindAddress)
+	fmt.Printf("✓ Playground serving at: http://%s\n", bindAddress)
 
 	server := http.Server{
 		Addr:    bindAddress,

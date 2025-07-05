@@ -27,9 +27,12 @@ class BloblangPlayground {
       toggleFormatOutputBtn: document.getElementById("toggleFormatOutputBtn"),
     };
 
-    this.editor = new EditorManager();
+    this.editor = new EditorManager(
+      window.INITIAL_INPUT,
+      window.INITIAL_MAPPING
+    );
     this.ui = new UIManager();
-    this.wasm = new WasmManager();
+    this.wasm = typeof WasmManager !== "undefined" ? new WasmManager() : null;
     this.bindEvents();
 
     // Check if playground is in an iframe to sync light/dark mode with parent window (Docusaurus)
@@ -90,7 +93,7 @@ class BloblangPlayground {
   }
 
   async initializeWasm() {
-    if (this.state.executionMode === "server") {
+    if (this.state.executionMode === "server" || !this.wasm) {
       return;
     }
 
@@ -179,8 +182,12 @@ class BloblangPlayground {
       let result;
       switch (this.state.executionMode) {
         case "wasm":
-          result = this.wasm.execute(input, mapping);
-          this.handleExecution(result);
+          if (this.wasm) {
+            result = this.wasm.execute(input, mapping);
+            this.handleExecution(result);
+          } else {
+            throw new Error("WASM not available");
+          }
           break;
         case "server":
           const response = await fetch("/execute", {
@@ -316,10 +323,10 @@ class BloblangPlayground {
   }
 
   handleConnectionError(error) {
-    const timeSinceFirstExecution = this.state.firstExecutionStartTime 
-      ? Date.now() - this.state.firstExecutionStartTime 
+    const timeSinceFirstExecution = this.state.firstExecutionStartTime
+      ? Date.now() - this.state.firstExecutionStartTime
       : 0;
-    
+
     // Only show connection error if we've been trying for a while or this isn't the first execution
     if (timeSinceFirstExecution > this.state.CONNECTION_ERROR_DELAY) {
       this.handleError(
@@ -329,7 +336,8 @@ class BloblangPlayground {
       );
     } else {
       // Show a brief loading message instead
-      this.elements.outputArea.textContent = "Initializing Bloblang execution...";
+      this.elements.outputArea.textContent =
+        "Initializing Bloblang execution...";
       this.ui.updateStatus("outputStatus", "executing", "Initializing...");
     }
   }

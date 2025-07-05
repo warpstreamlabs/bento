@@ -18,22 +18,6 @@ func noReread(err error) error {
 	return &ErrNoReread{wrapped: err}
 }
 
-// ShouldReread returns true if the error returned from an update trigger is non
-// nil and also temporal, and therefore it is worth trying the update again even
-// if the content has not changed.
-func ShouldReread(err error) bool {
-	if err == nil {
-		return false
-	}
-	var nr *ErrNoReread
-	return !errors.As(err, &nr)
-}
-
-// Unwrap the underlying error.
-func (e *ErrNoReread) Unwrap() error {
-	return e.wrapped
-}
-
 // Error returns a human readable error string.
 func (e *ErrNoReread) Error() string {
 	return e.wrapped.Error()

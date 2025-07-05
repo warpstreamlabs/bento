@@ -9,6 +9,19 @@
   flex-direction: column;
 }
 
+/* Compact styles for embedded display */
+@media (max-width: 768px) {
+  .panel-header {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .panel {
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
 /* Dark mode panel styles */
 [data-theme="dark"] .panel {
   background: var(--bento-bg-alt);

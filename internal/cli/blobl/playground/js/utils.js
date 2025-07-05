@@ -186,7 +186,19 @@ function formatBloblang() {
         }
 
         // Format the line content
-        let formattedLine = trimmed
+        let formattedLine = trimmed;
+        
+        // First, protect string literals from formatting
+        const stringLiterals = [];
+        let stringIndex = 0;
+        formattedLine = formattedLine.replace(/"([^"\\]|\\.)*"/g, (match) => {
+          const placeholder = `__STRING_${stringIndex++}__`;
+          stringLiterals.push(match);
+          return placeholder;
+        });
+        
+        // Now format operators safely (strings are protected)
+        formattedLine = formattedLine
           // Normalize spacing around function args
           .replace(/\s*\(\s*/g, "(")
           .replace(/\s*\)\s*/g, ")")
@@ -214,6 +226,11 @@ function formatBloblang() {
           // Collapse multiple spaces
           .replace(/\s{2,}/g, " ")
           .trim();
+        
+        // Restore string literals
+        stringLiterals.forEach((literal, index) => {
+          formattedLine = formattedLine.replace(`__STRING_${index}__`, literal);
+        });
 
         // Apply indentation
         const indent = " ".repeat(indentLevel * indentSize);

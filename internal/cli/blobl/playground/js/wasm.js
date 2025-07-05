@@ -27,32 +27,21 @@ class WasmManager {
       return;
     }
 
-    const wasmPaths = [
-      "playground.wasm.gz",
-      "./playground.wasm.gz",
-      "playground.wasm",
-      "./playground.wasm",
-    ];
+    try {
+      const wasmPath = ["playground.wasm"];
+      const result = await this.loadWasmFromPath(wasmPath);
+      this.go.run(result.instance);
 
-    for (const path of wasmPaths) {
-      try {
-        const result = await this.loadWasmFromPath(path);
-        this.go.run(result.instance);
+      // Wait for WASM module to signal readiness
+      await this.waitForWasmReady();
 
-        // Wait for WASM module to signal readiness
-        await this.waitForWasmReady();
-
-        this.available = true;
-        return;
-      } catch (error) {
-        console.warn("Failed to load WASM from", path, ":", error.message);
-      }
+      this.available = true;
+      return;
+    } catch (error) {
+      console.warn("Failed to load WASM from", wasmPath, ":", error.message);
     }
 
     console.warn("WASM failed to load from all paths");
-    console.warn(
-      "Note: This browser may not support gzip decompression."
-    );
     this.failed = true;
     this.available = false;
   }
@@ -63,59 +52,9 @@ class WasmManager {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Check if the file is gzip compressed
-    const isGzip = path.endsWith(".gz");
-
-    if (isGzip) {
-      // For compressed files, we need to decompress them first
-      const compressedBuffer = await response.arrayBuffer();
-      const decompressedBuffer = await this.decompressGzipWasm(
-        compressedBuffer
-      );
-      return await WebAssembly.instantiate(
-        decompressedBuffer,
-        this.go.importObject
-      );
-    } else {
-      // For uncompressed files, use streaming (more efficient)
-      return await WebAssembly.instantiateStreaming(
-        response,
-        this.go.importObject
-      );
-    }
-  }
-
-  async decompressGzipWasm(compressedBuffer) {
-    // Try DecompressionStream first (modern browsers)
-    if (typeof DecompressionStream !== "undefined") {
-      try {
-        const ds = new DecompressionStream("gzip");
-        const decompressedStream = new Response(
-          compressedBuffer
-        ).body.pipeThrough(ds);
-        return await new Response(decompressedStream).arrayBuffer();
-      } catch (error) {
-        console.warn(
-          "DecompressionStream failed, trying pako fallback:",
-          error.message
-        );
-      }
-    }
-
-    // Fallback to pako library (broader browser support)
-    if (typeof pako !== "undefined") {
-      try {
-        const decompressed = pako.inflate(new Uint8Array(compressedBuffer));
-        return decompressed.buffer;
-      } catch (error) {
-        throw new Error(
-          `Gzip decompression with pako failed: ${error.message}`
-        );
-      }
-    }
-
-    throw new Error(
-      "Gzip decompression not supported (DecompressionStream and pako not available)"
+    return await WebAssembly.instantiateStreaming(
+      response,
+      this.go.importObject
     );
   }
 
@@ -149,8 +88,8 @@ class WasmManager {
       throw new Error("WASM not available. Please wait for initialization.");
     }
 
-    if (window.executeBloblang) {
-      return window.executeBloblang(input, mapping);
+    if (window.executeBloblangMapping) {
+      return window.executeBloblangMapping(input, mapping);
     } else {
       throw new Error("Bloblang functionality not available in WASM context.");
     }
@@ -165,8 +104,8 @@ class WasmManager {
       throw new Error("WASM not available. Please wait for initialization.");
     }
 
-    if (window.getBloblangSyntax) {
-      return window.getBloblangSyntax();
+    if (window.generateBloblangSyntax) {
+      return window.generateBloblangSyntax();
     } else {
       throw new Error("Syntax functionality not available in WASM context.");
     }
