@@ -262,7 +262,7 @@ root.doubled = this.number * 2
 
     <!-- Inject the Bloblang syntax into the global JS context -->
     <script>
-      window.BLOBLANG_SYNTAX = {{.BloblangSyntax}};
+      window.BLOBLANG_SYNTAX = undefined; // Will be loaded via WASM getBloblangSyntax()
     </script>
 
     <!-- Application scripts -->

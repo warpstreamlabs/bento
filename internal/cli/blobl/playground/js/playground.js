@@ -1,6 +1,6 @@
 class BloblangPlayground {
   constructor() {
-    // If BLOBLANG_SYNTAX is defined, we're running through the Go server
+    // If BLOBLANG_SYNTAX is defined in index.html, we're running through the Go server
     const isServerMode =
       typeof window.BLOBLANG_SYNTAX !== "undefined" ||
       window.location.search.includes("server=true");
@@ -12,6 +12,8 @@ class BloblangPlayground {
       executionTimeout: null,
       inputFormatMode: "format", // "format" or "minify"
       outputFormatMode: "minify", // "format" or "minify"
+      firstExecutionStartTime: null,
+      CONNECTION_ERROR_DELAY: 3000, // 3 seconds before showing connection errors
     };
 
     this.elements = {
@@ -33,6 +35,8 @@ class BloblangPlayground {
     // Check if playground is in an iframe to sync light/dark mode with parent window (Docusaurus)
     if (window.parent !== window) {
       this.setupDocusaurusThemeSync();
+      // Add embedded class for enhanced sizing
+      document.body.classList.add("embedded");
     }
 
     this.init();
@@ -40,6 +44,7 @@ class BloblangPlayground {
 
   async init() {
     try {
+      // Initialize basic editor
       this.editor.init({
         onInputChange: () => {
           this.updateLinters();
@@ -50,15 +55,29 @@ class BloblangPlayground {
           this.debouncedExecute("mapping");
         },
       });
+
+      // Show basic editor
       this.ui.init();
       this.editor.setupDocumentationClickHandlers();
-
-      // Initialize WASM
-      await this.initializeWasm();
-
       this.updateLinters();
       this.execute();
       this.hideLoading();
+
+      // Initialize WASM and enhanced features asynchronously
+      await this.initializeWasm();
+
+      // Re-initialize editor if WASM syntax is now available
+      if (this.state.executionMode === "wasm" && !this.editor.syntaxLoaded) {
+        await this.editor.loadBloblangSyntax();
+        // Re-setup theme with new syntax rules
+        this.editor.setupTheme();
+        this.editor.configureAutocompletion();
+        // Refresh the mapping editor to apply new highlighting
+        this.editor.refreshSyntaxHighlighting();
+      }
+
+      // Re-execute with enhanced features
+      this.execute();
     } catch (error) {
       console.error("Application error:", error);
       this.elements.loadingOverlay.innerHTML = `
@@ -148,6 +167,11 @@ class BloblangPlayground {
     if (this.state.isExecuting) return;
     this.state.isExecuting = true;
 
+    // Track first execution time for delayed error handling
+    if (!this.state.firstExecutionStartTime) {
+      this.state.firstExecutionStartTime = Date.now();
+    }
+
     try {
       const input = this.editor.getInput();
       const mapping = this.editor.getMapping();
@@ -176,11 +200,7 @@ class BloblangPlayground {
           throw new Error("Unknown execution mode");
       }
     } catch (error) {
-      this.handleError(
-        "Connection Error",
-        "Ensure Bloblang server is running and try again",
-        error.message
-      );
+      this.handleConnectionError(error);
     } finally {
       this.state.isExecuting = false;
     }
@@ -293,6 +313,25 @@ class BloblangPlayground {
     inputPanel.classList.remove("error");
     mappingPanel.classList.remove("error");
     outputArea.classList.remove("error", "success", "json-formatted");
+  }
+
+  handleConnectionError(error) {
+    const timeSinceFirstExecution = this.state.firstExecutionStartTime 
+      ? Date.now() - this.state.firstExecutionStartTime 
+      : 0;
+    
+    // Only show connection error if we've been trying for a while or this isn't the first execution
+    if (timeSinceFirstExecution > this.state.CONNECTION_ERROR_DELAY) {
+      this.handleError(
+        "Connection Error",
+        "Ensure Bloblang server is running and try again",
+        error.message
+      );
+    } else {
+      // Show a brief loading message instead
+      this.elements.outputArea.textContent = "Initializing Bloblang execution...";
+      this.ui.updateStatus("outputStatus", "executing", "Initializing...");
+    }
   }
 
   handleError(

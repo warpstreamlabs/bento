@@ -22,7 +22,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
-	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
@@ -168,6 +167,7 @@ func runServer(c *cli.Context) error {
 	fSync := newFileSync(c.String("input-file"), c.String("mapping-file"), c.Bool("write"))
 	defer fSync.write()
 
+	env := NewBloblangEnvironment()
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/execute", func(w http.ResponseWriter, r *http.Request) {
@@ -183,37 +183,28 @@ func runServer(c *cli.Context) error {
 
 		fSync.update(req.Input, req.Mapping)
 
-		res := struct {
-			ParseError   string `json:"parse_error"`
-			MappingError string `json:"mapping_error"`
-			Result       string `json:"result"`
-		}{}
-		defer func() {
-			resBytes, err := json.Marshal(res)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadGateway)
-				return
-			}
-			_, _ = w.Write(resBytes)
-		}()
-
-		exec, err := bloblang.GlobalEnvironment().NewMapping(req.Mapping)
+		result, err := env.ExecuteMapping(req.Input, req.Mapping)
 		if err != nil {
-			if perr, ok := err.(*parser.Error); ok {
-				res.ParseError = fmt.Sprintf("failed to parse mapping: %v\n", perr.ErrorAtPositionStructured("", []rune(req.Mapping)))
-			} else {
-				res.ParseError = err.Error()
-			}
+			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
 
-		execCache := newExecCache()
-		output, err := execCache.executeMapping(exec, false, true, []byte(req.Input))
-		if err != nil {
-			res.MappingError = err.Error()
-		} else {
-			res.Result = output
+		res := struct {
+			ParseError   any `json:"parse_error"`
+			MappingError any `json:"mapping_error"`
+			Result       any `json:"result"`
+		}{
+			ParseError:   result.ParseError,
+			MappingError: result.MappingError,
+			Result:       result.Result,
 		}
+
+		resBytes, err := json.Marshal(res)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write(resBytes)
 	})
 
 	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")

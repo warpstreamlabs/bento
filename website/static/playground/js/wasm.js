@@ -93,4 +93,20 @@ class WasmManager {
       throw new Error("Bloblang functionality not available in WASM context.");
     }
   }
+
+  getSyntax() {
+    if (this.failed) {
+      throw new Error("WASM not loaded. Syntax data is unavailable.");
+    }
+
+    if (!this.available) {
+      throw new Error("WASM not available. Please wait for initialization.");
+    }
+
+    if (window.getBloblangSyntax) {
+      return window.getBloblangSyntax();
+    } else {
+      throw new Error("Syntax functionality not available in WASM context.");
+    }
+  }
 }

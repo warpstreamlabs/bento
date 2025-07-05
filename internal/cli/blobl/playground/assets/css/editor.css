@@ -187,26 +187,33 @@
   border: none;
   background-image: none;
   white-space: normal;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
   overflow: visible;
   z-index: 10000;
-  max-width: min(480px, 85vw);
-  max-height: min(450px, 75vh);
+  max-width: min(400px, 85vw); /* Reduced from 520px/90vw */
+  max-height: min(350px, 70vh); /* Reduced from 500px/80vh */
+}
+
+/* Smaller tooltips for embedded mode */
+body.embedded .ace_tooltip {
+  max-width: min(320px, 80vw); /* Even smaller for embedded */
+  max-height: min(280px, 60vh);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
 .ace-doc {
   max-width: 100%;
   width: 100%;
-  max-height: min(450px, 75vh);
-  padding: 16px;
+  max-height: min(350px, 70vh); /* Reduced from 500px/80vh */
+  padding: 14px; /* Reduced from 18px */
   background: white;
   font-family: var(--bento-font-family);
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 12px; /* Reduced back to 12px */
+  line-height: 1.5; /* Reduced from 1.6 */
   color: var(--bento-text-body);
-  border: 2px solid var(--bento-bg-highlight);
-  border-radius: 10px;
+  border: 1px solid var(--bento-bg-highlight); /* Reduced from 2px */
+  border-radius: 8px; /* Reduced from 10px */
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
@@ -218,6 +225,15 @@
   /* Hide scrollbar */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Compact tooltips for embedded mode */
+body.embedded .ace-doc {
+  max-height: min(280px, 60vh);
+  padding: 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 6px;
 }
 
 .ace-doc::-webkit-scrollbar {
@@ -249,15 +265,21 @@
 
 .ace-doc-signature {
   font-family: var(--bento-font-mono);
-  font-size: 12px;
+  font-size: 11px; /* Reduced for better fit */
   color: var(--bento-text-heading);
-  padding: 10px 12px;
+  padding: 8px 10px; /* Reduced for compact design */
   background-color: var(--bento-bg-alt);
-  border-radius: 6px;
+  border-radius: 4px; /* Reduced from 6px */
   border: 1px solid rgba(235, 135, 136, 0.2);
   flex: 1;
   min-width: 0;
   transition: all 0.2s ease;
+}
+
+/* Even more compact signature for embedded mode */
+body.embedded .ace-doc-signature {
+  font-size: 10px;
+  padding: 6px 8px;
 }
 
 .ace-doc-header:hover .ace-doc-signature {
@@ -300,9 +322,16 @@
 .ace-doc-examples strong,
 .ace-doc-parameters strong {
   color: var(--bento-text-heading);
-  font-size: 11px;
-  margin-bottom: 4px;
+  font-size: 11px; /* Reduced back to 11px */
+  margin-bottom: 3px; /* Reduced from 4px */
   display: block;
+}
+
+/* Compact text for embedded mode */
+body.embedded .ace-doc-examples strong,
+body.embedded .ace-doc-parameters strong {
+  font-size: 10px;
+  margin-bottom: 2px;
 }
 
 .ace-doc-parameters strong {
@@ -313,11 +342,18 @@
 .ace-doc-param code {
   display: block;
   font-family: var(--bento-font-mono);
-  font-size: 11px;
+  font-size: 11px; /* Reduced back to 11px */
   background-color: var(--bento-bg-alt);
-  padding: 2px 4px;
-  border-radius: 2px;
+  padding: 2px 4px; /* Reduced back to original */
+  border-radius: 2px; /* Reduced back to 2px */
   color: var(--bento-text-heading);
+}
+
+/* Compact code blocks for embedded mode */
+body.embedded .ace-doc-examples code,
+body.embedded .ace-doc-param code {
+  font-size: 10px;
+  padding: 1px 3px;
 }
 
 .ace-doc-examples code {
@@ -336,10 +372,17 @@
 }
 
 .ace-doc-param-desc {
-  font-size: 11px;
+  font-size: 11px; /* Reduced back to 11px */
   color: var(--bento-text-body);
   margin-left: 4px;
-  line-height: 1.3;
+  line-height: 1.3; /* Reduced back to 1.3 */
+}
+
+/* Compact descriptions for embedded mode */
+body.embedded .ace-doc-param-desc {
+  font-size: 10px;
+  line-height: 1.2;
+  margin-left: 2px;
 }
 
 .ace-doc a {

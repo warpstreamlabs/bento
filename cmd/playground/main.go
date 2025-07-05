@@ -1,136 +1,142 @@
 //go:build js && wasm
 
 // This file provides a WebAssembly (WASM) entry point for executing Bloblang mappings from JavaScript.
-// It exposes a single function, `executeBloblang`, to the JavaScript environment, allowing users to:
-//   1. Parse a Bloblang mapping string.
-//   2. Apply the mapping to a JSON input string.
-//   3. Return the result or any errors encountered during parsing or execution.
-//
-// The main exported function, `executeBloblang`, expects two string arguments from JavaScript:
-//   - The JSON input string.
-//   - The Bloblang mapping string.
-//
-// The function returns a JavaScript object containing:
-//   - "result":        The resulting JSON string if successful.
-//   - "input_error":   Error message if the mapping could not be parsed.
-//   - "mapping_error": Error message if the mapping failed during execution.
+// It exposes two main functions to the JavaScript environment:
+//   1. executeBloblang(input: string, mapping: string): object
+//      - Parses and executes a Bloblang mapping on a JSON input string.
+//      - Returns an object with "result", "parse_error", and "mapping_error" fields.
+//   2. getBloblangSyntax(): object
+//      - Returns Bloblang syntax information for editor tooling.
 //
 // The WASM module signals readiness by setting `wasmReady` to true in the global JavaScript context.
-// The Go program remains running indefinitely to serve JavaScript calls.
+// Build metadata is exposed via `wasmMetadata`.
+// The Go program runs indefinitely to serve JavaScript calls.
 
 package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"syscall/js"
 	"time"
 
-	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/public/bloblang"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl"
 )
 
-type wasmResponse struct {
-	Result       any `json:"result"`
-	MappingError any `json:"mapping_error"`
-	ParseError   any `json:"parse_error"`
-}
+var env *blobl.BloblangEnvironment
 
-// Function exposed to JavaScript
+// executeBloblang is exposed to JavaScript.
+// It expects two string arguments: input JSON and Bloblang mapping.
+// Returns an object with "result", "parse_error", and "mapping_error".
 func executeBloblang(this js.Value, args []js.Value) any {
-	res := wasmResponse{
-		Result:       nil,
-		MappingError: nil,
-		ParseError:   nil,
+	if len(args) != 2 {
+		return toJS(map[string]any{
+			"mapping_error": "Invalid arguments: expected exactly two string parameters (input, mapping)",
+			"parse_error":   nil,
+			"result":        nil,
+		})
 	}
 
-	if len(args) != 2 {
-		res.MappingError = "Invalid arguments: expected exactly two string parameters (input, mapping)"
-		return toJS(res)
+	if args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
+		return toJS(map[string]any{
+			"mapping_error": "Arguments must be strings (input, mapping)",
+			"parse_error":   nil,
+			"result":        nil,
+		})
 	}
 
 	input := args[0].String()
-	if input == "" {
-		res.MappingError = "Input JSON string cannot be empty"
-		return toJS(res)
-	}
-
 	mapping := args[1].String()
-	if mapping == "" {
-		res.ParseError = "Mapping string cannot be empty"
-		return toJS(res)
+
+	result, err := env.ExecuteMapping(input, mapping)
+	if err != nil {
+		return toJS(map[string]any{
+			"mapping_error": err.Error(),
+			"parse_error":   nil,
+			"result":        nil,
+		})
 	}
 
-	// Parse Bloblang mapping
-	exec, err := bloblang.Parse(mapping)
+	return toJS(map[string]any{
+		"mapping_error": result.MappingError,
+		"parse_error":   result.ParseError,
+		"result":        result.Result,
+	})
+}
+
+// getBloblangSyntax is exposed to JavaScript.
+// Returns Bloblang syntax information as an object, or an error.
+func getBloblangSyntax(this js.Value, args []js.Value) any {
+	syntax, err := env.GetSyntax()
 	if err != nil {
-		if perr, ok := err.(*parser.Error); ok {
-			res.ParseError = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
-		} else {
-			res.ParseError = fmt.Sprintf("mapping error: %v", err.Error())
+		return toJS(map[string]any{
+			"error": err.Error(),
+		})
+	}
+
+	// Convert to JSON and back to ensure compatibility with JS
+	jsonBytes, err := json.Marshal(syntax)
+	if err != nil {
+		return toJS(map[string]any{
+			"error": "Failed to serialize syntax data: " + err.Error(),
+		})
+	}
+	var result map[string]any
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		return toJS(map[string]any{
+			"error": "Failed to deserialize syntax data: " + err.Error(),
+		})
+	}
+
+	return toJS(result)
+}
+
+// toJS converts Go data structures to JavaScript values for WASM compatibility.
+func toJS(data any) any {
+	if data == nil {
+		return js.Null()
+	}
+
+	switch v := data.(type) {
+	case string, int, int32, int64, float32, float64, bool:
+		// For simple types, use ValueOf directly
+		return js.ValueOf(v)
+	case map[string]any:
+		// Convert map to JS object
+		obj := js.Global().Get("Object").New()
+		for key, value := range v {
+			obj.Set(key, toJS(value))
 		}
-		return toJS(res)
-	}
-
-	// Apply mapping
-	output, err := executeMapping(exec, input)
-	if err != nil {
-		res.MappingError = fmt.Sprintf("execution error: %v", err.Error())
-		return toJS(res)
-	}
-
-	res.Result = output
-	return toJS(res)
-}
-
-// Execute Bloblang mapping against a JSON input string and returns the JSON-encoded result
-func executeMapping(exec *bloblang.Executor, input string) (string, error) {
-	var inputData any
-	if err := json.Unmarshal([]byte(input), &inputData); err != nil {
-		return "", fmt.Errorf("failed to parse input as JSON: %w", err)
-	}
-
-	result, err := exec.Query(inputData)
-	if err != nil {
-		return "", err
-	}
-
-	outputBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal result: %w", err)
-	}
-
-	return string(outputBytes), nil
-}
-
-func toJS(res wasmResponse) map[string]any {
-	return map[string]any{
-		"mapping_error": res.MappingError,
-		"parse_error":   res.ParseError,
-		"result":        res.Result,
+		return obj
+	case []any:
+		// Convert slice to JS array
+		arr := js.Global().Get("Array").New(len(v))
+		for i, value := range v {
+			arr.SetIndex(i, toJS(value))
+		}
+		return arr
+	default:
+		// For complex types, serialize through JSON
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			return js.ValueOf("error: " + err.Error())
+		}
+		// Parse as JavaScript object
+		return js.Global().Get("JSON").Call("parse", string(jsonBytes))
 	}
 }
 
-// Register Bloblang execution function to the JavaScript global scope,
-// signal readiness, expose build metadata, and keep the
-// Go runtime alive to handle JavaScript calls.
-//
-// Exposed JavaScript globals:
-//   - executeBloblang(mapping: string, input: string): object
-//   - wasmReady: boolean
-//   - wasmMetadata: { built: string }
+// main registers the WASM functions, exposes build metadata, and signals readiness to JavaScript.
 func main() {
-	// Register the Bloblang execution function for JavaScript
+	env = blobl.NewBloblangEnvironment()
+
+	// Expose JavaScript globals
 	js.Global().Set("executeBloblang", js.FuncOf(executeBloblang))
-
-	// Signal to JavaScript that the WASM module is ready
+	js.Global().Set("getBloblangSyntax", js.FuncOf(getBloblangSyntax))
 	js.Global().Set("wasmReady", js.ValueOf(true))
-
-	// Expose build metadata
 	js.Global().Set("wasmMetadata", map[string]any{
 		"built": time.Now().UTC().Format(time.RFC3339),
 	})
 
-	// Prevent the Go program from exiting, so it can continue serving JS calls.
+	// Keep the Go runtime alive to handle JS calls
 	select {}
 }

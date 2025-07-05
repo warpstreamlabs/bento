@@ -1,6 +1,8 @@
 const THEME_BENTO = "ace/theme/bento";
 const MODE_JSON = "ace/mode/json";
 const MODE_BLOBLANG = "ace/mode/bloblang";
+const STORAGE_KEY = "bloblang-playground-state";
+const SYNTAX_TIMEOUT = 5000; // 5 seconds before showing warning
 
 const DOM_IDS = {
   aceInput: "aceInput",
@@ -15,8 +17,9 @@ class EditorManager {
     this.aceInputEditor = null;
     this.aceMappingEditor = null;
 
-    // Uses the injected syntax from the HTML template (set in `server.go`)
-    this.bloblangSyntax = window.BLOBLANG_SYNTAX;
+    // Uses the injected syntax from the HTML template (server mode) or WASM function
+    this.bloblangSyntax = null;
+    this.syntaxLoaded = false;
 
     this.defaultMapping =
       defaultMapping ||
@@ -28,6 +31,12 @@ class EditorManager {
     // Future-proof event listeners
     this.inputChangeListeners = [];
     this.mappingChangeListeners = [];
+
+    // State persistence
+    this.stateStored = true;
+
+    // Syntax loading state
+    this.syntaxLoadingStartTime = null;
   }
 
   // ─────────────────────────────────────────────────────
@@ -42,26 +51,110 @@ class EditorManager {
 
     this.callbacks = callbacks;
 
+    this.loadState();
+
+    // Initialize basic ACE theme
     ace.define(THEME_BENTO, function (require, exports, module) {
       exports.cssClass = "ace-bento";
     });
 
-    this.setupTheme();
-
     try {
+      // Initialize plain editors
       this.configureInputEditor();
-      this.configureMappingEditor();
+      this.configureMappingEditorBasic();
       this.registerEditorChangeHandlers();
+
+      // Load Bloblang syntax asynchronously
+      this.loadBloblangSyntaxAsync();
     } catch (error) {
       console.warn("ACE editor failed to load, falling back to textarea");
       this.configureFallbackEditors();
     }
   }
 
+  async loadBloblangSyntax() {
+    // Try injected syntax first (server mode)
+    if (typeof window.BLOBLANG_SYNTAX !== "undefined") {
+      this.bloblangSyntax = window.BLOBLANG_SYNTAX;
+      this.syntaxLoaded = true;
+      return;
+    }
+
+    // Try WASM function (WASM mode)
+    if (typeof window.getBloblangSyntax === "function") {
+      try {
+        const syntaxData = window.getBloblangSyntax();
+        if (syntaxData && !syntaxData.error) {
+          this.bloblangSyntax = syntaxData;
+          this.syntaxLoaded = true;
+          return;
+        } else {
+          console.warn(
+            "WASM syntax function returned error:",
+            syntaxData?.error
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to get syntax from WASM:", error);
+      }
+    }
+
+    // Wait for WASM to be ready if not available yet
+    if (window.wasmReady && typeof window.getBloblangSyntax === "function") {
+      try {
+        const syntaxData = window.getBloblangSyntax();
+        if (syntaxData && !syntaxData.error) {
+          this.bloblangSyntax = syntaxData;
+          this.syntaxLoaded = true;
+          return;
+        }
+      } catch (error) {
+        console.warn("Failed to get syntax from WASM after ready:", error);
+      }
+    }
+
+    const timeoutExceeded =
+      Date.now() - this.syntaxLoadingStartTime > SYNTAX_TIMEOUT;
+    if (!this.syntaxLoadingStartTime || timeoutExceeded) {
+      console.warn(
+        "Bloblang syntax not available - autocomplete and highlighting will be limited"
+      );
+    }
+    this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
+  }
+
+  async loadBloblangSyntaxAsync() {
+    // Start timer for delayed warning
+    this.syntaxLoadingStartTime = Date.now();
+
+    // Schedule delayed warning
+    setTimeout(() => {
+      if (!this.syntaxLoaded && this.syntaxLoadingStartTime) {
+        console.warn(
+          "Bloblang syntax taking longer than expected to load - autocomplete and highlighting will be limited"
+        );
+      }
+    }, SYNTAX_TIMEOUT);
+
+    // Load syntax data asynchronously
+    await this.loadBloblangSyntax();
+
+    if (this.syntaxLoaded) {
+      this.setupTheme();
+      this.enhanceMappingEditor();
+      this.configureAutocompletion();
+      this.refreshSyntaxHighlighting();
+      this.syntaxLoadingStartTime = null; // Clear timer
+    }
+  }
+
   setupTheme() {
     const rules = this.bloblangSyntax?.rules || [];
 
-    ace.define(MODE_BLOBLANG, function (require, exports, module) {
+    // Force reload the mode by using a unique ID each time
+    const modeId = MODE_BLOBLANG + "_" + Date.now();
+
+    ace.define(modeId, function (require, exports, module) {
       const oop = require("../lib/oop");
       const CoffeeMode = require("./coffee").Mode;
       const CoffeeHighlightRules =
@@ -79,12 +172,15 @@ class EditorManager {
       const BloblangMode = function () {
         CoffeeMode.call(this);
         this.HighlightRules = BloblangHighlightRules;
-        this.$id = MODE_BLOBLANG;
+        this.$id = modeId;
       };
       oop.inherits(BloblangMode, CoffeeMode);
 
       exports.Mode = BloblangMode;
     });
+
+    // Update the mode constant to the new ID
+    this.currentBloblangMode = modeId;
   }
 
   // ─────────────────────────────────────────────────────
@@ -109,7 +205,9 @@ class EditorManager {
     this.aceMappingEditor = ace.edit(mappingEl);
     const contentWithNewline = this.defaultMapping.trimEnd() + "\n"; // Trailing newline
     this.aceMappingEditor.setValue(contentWithNewline, 1);
-    this.aceMappingEditor.session.setMode(MODE_BLOBLANG);
+    this.aceMappingEditor.session.setMode(
+      this.currentBloblangMode || MODE_BLOBLANG
+    );
     this.aceMappingEditor.setTheme(THEME_BENTO);
     this.aceMappingEditor.commands.addCommand({
       name: "formatBloblang",
@@ -119,6 +217,42 @@ class EditorManager {
     this.overrideCommentShortcut(this.aceMappingEditor);
     this.configureEditorOptions(this.aceMappingEditor);
     this.configureAutocompletion();
+  }
+
+  configureMappingEditorBasic() {
+    const mappingEl = this.getElement(DOM_IDS.aceMapping);
+    if (!mappingEl) return;
+
+    this.aceMappingEditor = ace.edit(mappingEl);
+    const contentWithNewline = this.defaultMapping.trimEnd() + "\n"; // Trailing newline
+    this.aceMappingEditor.setValue(contentWithNewline, 1);
+
+    // Use coffee mode initially for basic syntax highlighting
+    this.aceMappingEditor.session.setMode("ace/mode/coffee");
+    this.aceMappingEditor.setTheme(THEME_BENTO);
+    this.aceMappingEditor.commands.addCommand({
+      name: "formatBloblang",
+      bindKey: { mac: "Cmd-Shift-F", win: "Ctrl-Shift-F" },
+      exec: () => formatBloblang(),
+    });
+    this.overrideCommentShortcut(this.aceMappingEditor);
+    this.configureEditorOptions(this.aceMappingEditor);
+  }
+
+  enhanceMappingEditor() {
+    if (!this.aceMappingEditor) return;
+
+    // Apply enhanced Bloblang mode
+    this.aceMappingEditor.session.setMode(
+      this.currentBloblangMode || MODE_BLOBLANG
+    );
+  }
+
+  // Method to refresh syntax highlighting with new rules
+  refreshSyntaxHighlighting() {
+    if (this.aceMappingEditor && this.currentBloblangMode) {
+      this.aceMappingEditor.session.setMode(this.currentBloblangMode);
+    }
   }
 
   configureEditorOptions(editor) {
@@ -145,11 +279,19 @@ class EditorManager {
     fallbackInput?.addEventListener("input", () => {
       this.inputChangeListeners.forEach((fn) => fn());
       this.callbacks.onInputChange?.();
+
+      // Save state with debounce
+      clearTimeout(this.saveStateTimeout);
+      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
     });
 
     fallbackMapping?.addEventListener("input", () => {
       this.mappingChangeListeners.forEach((fn) => fn());
       this.callbacks.onMappingChange?.();
+
+      // Save state with debounce
+      clearTimeout(this.saveStateTimeout);
+      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
     });
   }
 
@@ -158,12 +300,20 @@ class EditorManager {
       if (this.callbacks.onInputChange) {
         this.callbacks.onInputChange();
       }
+
+      // Save state with debounce
+      clearTimeout(this.saveStateTimeout);
+      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
     });
 
     this.aceMappingEditor.on("change", () => {
       if (this.callbacks.onMappingChange) {
         this.callbacks.onMappingChange();
       }
+
+      // Save state with debounce
+      clearTimeout(this.saveStateTimeout);
+      this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
     });
   }
   /**
@@ -210,7 +360,16 @@ class EditorManager {
   ];
 
   configureAutocompletion() {
-    if (!this.aceMappingEditor || !this.bloblangSyntax) return;
+    if (!this.aceMappingEditor) return;
+
+    if (!this.syntaxLoaded || !this.bloblangSyntax) {
+      const timeoutExceeded =
+        Date.now() - this.syntaxLoadingStartTime > SYNTAX_TIMEOUT;
+      if (!this.syntaxLoadingStartTime || timeoutExceeded) {
+        console.warn("Autocompletion disabled - syntax data not available");
+      }
+      return;
+    }
 
     try {
       const completer = this.createBloblangCompleter();
@@ -533,5 +692,49 @@ class EditorManager {
    */
   getElement(id) {
     return document.getElementById(id);
+  }
+
+  // ─────────────────────────────────────────────────────
+  // State Persistence
+  // ─────────────────────────────────────────────────────
+
+  loadState() {
+    if (!this.stateStored) return;
+
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const state = JSON.parse(stored);
+        if (state.input) this.defaultInput = state.input;
+        if (state.mapping) this.defaultMapping = state.mapping;
+      }
+    } catch (error) {
+      console.warn("Failed to load persisted state:", error);
+    }
+  }
+
+  saveState() {
+    if (!this.stateStored) return;
+
+    try {
+      const state = {
+        input: this.getInput(),
+        mapping: this.getMapping(),
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn("Failed to save state:", error);
+    }
+  }
+
+  clearState() {
+    if (!this.stateStored) return;
+
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn("Failed to clear persisted state:", error);
+    }
   }
 }
