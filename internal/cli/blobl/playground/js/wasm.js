@@ -28,23 +28,20 @@ class WasmManager {
     }
 
     const wasmPaths = [
+      "playground.wasm.gz",
+      "./playground.wasm.gz",
       "playground.wasm",
       "./playground.wasm",
-      "/wasm/playground.wasm",
     ];
 
     for (const path of wasmPaths) {
       try {
-        const result = await WebAssembly.instantiateStreaming(
-          fetch(path),
-          this.go.importObject
-        );
-
+        const result = await this.loadWasmFromPath(path);
         this.go.run(result.instance);
-        
+
         // Wait for WASM module to signal readiness
         await this.waitForWasmReady();
-        
+
         this.available = true;
         return;
       } catch (error) {
@@ -52,9 +49,74 @@ class WasmManager {
       }
     }
 
-    console.warn("WASM failed to load");
+    console.warn("WASM failed to load from all paths");
+    console.warn(
+      "Note: This browser may not support gzip decompression."
+    );
     this.failed = true;
     this.available = false;
+  }
+
+  async loadWasmFromPath(path) {
+    const response = await fetch(path);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    // Check if the file is gzip compressed
+    const isGzip = path.endsWith(".gz");
+
+    if (isGzip) {
+      // For compressed files, we need to decompress them first
+      const compressedBuffer = await response.arrayBuffer();
+      const decompressedBuffer = await this.decompressGzipWasm(
+        compressedBuffer
+      );
+      return await WebAssembly.instantiate(
+        decompressedBuffer,
+        this.go.importObject
+      );
+    } else {
+      // For uncompressed files, use streaming (more efficient)
+      return await WebAssembly.instantiateStreaming(
+        response,
+        this.go.importObject
+      );
+    }
+  }
+
+  async decompressGzipWasm(compressedBuffer) {
+    // Try DecompressionStream first (modern browsers)
+    if (typeof DecompressionStream !== "undefined") {
+      try {
+        const ds = new DecompressionStream("gzip");
+        const decompressedStream = new Response(
+          compressedBuffer
+        ).body.pipeThrough(ds);
+        return await new Response(decompressedStream).arrayBuffer();
+      } catch (error) {
+        console.warn(
+          "DecompressionStream failed, trying pako fallback:",
+          error.message
+        );
+      }
+    }
+
+    // Fallback to pako library (broader browser support)
+    if (typeof pako !== "undefined") {
+      try {
+        const decompressed = pako.inflate(new Uint8Array(compressedBuffer));
+        return decompressed.buffer;
+      } catch (error) {
+        throw new Error(
+          `Gzip decompression with pako failed: ${error.message}`
+        );
+      }
+    }
+
+    throw new Error(
+      "Gzip decompression not supported (DecompressionStream and pako not available)"
+    );
   }
 
   async waitForWasmReady() {

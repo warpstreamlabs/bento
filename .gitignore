@@ -12,3 +12,7 @@ release_notes.md
 .opp
 go.work*
 *.env
+
+# Playground WASM artifacts
+internal/cli/blobl/playground/playground.wasm*
+internal/cli/blobl/playground/js/wasm_exec.js
