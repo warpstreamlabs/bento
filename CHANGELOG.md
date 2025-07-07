@@ -3,6 +3,21 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.9.0 - 2025-07-07
+
+- update `parquet-go` dependency from `0.23.0` to `0.24.0` @gregfurman
+
+### Added 
+
+- `create` added to `opensearch`'s `action` field to support write to data streams @arnitolog
+- `message_format` to `gcp_bigquery_write_api` enabling protobuf messages to be sent without need for marshalling to json @gregfurman
+- `use_parquet_list_format` flag to `parquet_decode` allowing a `LIST` column to return as either a Parquet logical type or Go slice @gregfurman
+
+### Changed 
+
+- Full rework of local bloblang editor/playground to be shinier, prettier, and more interactive @iamramtin
+- metadata `gcp_pubsub_message_id` & `gcp_pubsub_ordering_key` added to `gcp_pubsub` input @anicoll
+
 ## 1.8.2 - 2025-06-25
 
 ### Fixed 
