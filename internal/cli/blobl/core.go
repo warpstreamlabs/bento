@@ -173,7 +173,7 @@ func evaluateMapping(input, mapping string) *executionResult {
 		return result
 	}
 
-	exec, err := bloblang.GlobalEnvironment().NewMapping(mapping)
+	exec, err := bloblang.GlobalEnvironment().WithoutFunctions("env", "file").NewMapping(mapping)
 	if err != nil {
 		if perr, ok := err.(*parser.Error); ok {
 			result.ParseError = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
@@ -196,7 +196,7 @@ func evaluateMapping(input, mapping string) *executionResult {
 
 // generateBloblangSyntax returns Bloblang syntax metadata for editor tooling.
 func generateBloblangSyntax() (bloblangSyntax, error) {
-	var env = bloblang.GlobalEnvironment()
+	var env = bloblang.GlobalEnvironment().WithoutFunctions("env", "file")
 	var functionNames, methodNames []string
 	functions := make(map[string]query.FunctionSpec)
 	methods := make(map[string]query.MethodSpec)
