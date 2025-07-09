@@ -156,7 +156,7 @@ func (e *execCache) executeBloblangMapping(exec *mapping.Executor, rawInput, pre
 
 // evaluateMapping compiles and executes a Bloblang mapping string against a JSON input string.
 // Returns an executionResult containing with the output or error details.
-func evaluateMapping(input, mapping string) *executionResult {
+func evaluateMapping(env *bloblang.Environment, input, mapping string) *executionResult {
 	result := &executionResult{
 		Result:       nil,
 		ParseError:   nil,
@@ -173,7 +173,7 @@ func evaluateMapping(input, mapping string) *executionResult {
 		return result
 	}
 
-	exec, err := bloblang.GlobalEnvironment().NewMapping(mapping)
+	exec, err := env.WithoutFunctions("env", "file").NewMapping(mapping)
 	if err != nil {
 		if perr, ok := err.(*parser.Error); ok {
 			result.ParseError = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
@@ -195,13 +195,12 @@ func evaluateMapping(input, mapping string) *executionResult {
 }
 
 // generateBloblangSyntax returns Bloblang syntax metadata for editor tooling.
-func generateBloblangSyntax() (bloblangSyntax, error) {
-	var env = bloblang.GlobalEnvironment()
+func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	var functionNames, methodNames []string
 	functions := make(map[string]query.FunctionSpec)
 	methods := make(map[string]query.MethodSpec)
 
-	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
+	env.WithoutFunctions("env", "file").WalkFunctions(func(name string, spec query.FunctionSpec) {
 		functions[name] = spec
 		functionNames = append(functionNames, name)
 	})

@@ -21,6 +21,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
@@ -69,7 +70,7 @@ func openBrowserAt(url string) {
 
 // Generates and marshals the Bloblang syntax spec as template.JS for HTML templates
 func generateBloblangSyntaxTemplate() (template.JS, error) {
-	syntax, err := generateBloblangSyntax()
+	syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
 	if err != nil {
 		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
 	}
@@ -187,7 +188,7 @@ func runPlayground(c *cli.Context) error {
 		}
 		fSync.update(req.Input, req.Mapping)
 
-		result := evaluateMapping(req.Input, req.Mapping)
+		result := evaluateMapping(bloblang.GlobalEnvironment(), req.Input, req.Mapping)
 
 		resBytes, err := json.Marshal(struct {
 			Result       any `json:"result"`
