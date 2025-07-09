@@ -12,7 +12,9 @@ import (
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/stream"
 
+	_ "github.com/warpstreamlabs/bento/public/components/amqp1"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/sql"
 )
 
 func TestStreamsLints(t *testing.T) {
@@ -50,13 +52,15 @@ cache_resources:
 
 	rdr := config.NewReader(generalConfPath, nil, config.OptSetStreamPaths(streamOnePath, streamTwoPath))
 
-	_, _, lints, err := rdr.Read()
+	_, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	streamConfs := map[string]stream.Config{}
-	lints, err = rdr.ReadStreams(streamConfs)
+	lints, lintWarns, err = rdr.ReadStreams(streamConfs)
 	require.NoError(t, err)
+	require.Empty(t, lintWarns)
 
 	require.Len(t, lints, 2)
 	assert.Contains(t, lints[0], "/first.yaml(3,1) field meow1 ")
@@ -68,6 +72,49 @@ cache_resources:
 
 	assert.Equal(t, "generate", streamConfs["first"].Input.Type)
 	assert.Equal(t, `root = "meow"`, firstAny.S("input", "generate", "mapping").Data())
+}
+
+func TestStreamsLintWarnings(t *testing.T) {
+	dir := t.TempDir()
+
+	generalConfPath := filepath.Join(dir, "main.yaml")
+	require.NoError(t, os.WriteFile(generalConfPath, []byte(`
+logger:
+  level: ALL
+`), 0o644))
+
+	streamOnePath := filepath.Join(dir, "first.yaml")
+	require.NoError(t, os.WriteFile(streamOnePath, []byte(`
+input:
+  amqp_1:
+    url: amqp://guest:guest@localhost:5672/
+    source_address: foo
+
+output:
+  sql:
+    driver: postgres
+    data_source_name: postgresql://user:password@postgres:5432/db?sslmode=disable
+    query: INSERT INTO table (foo, bar, baz) VALUES (?, ?, ?);
+    args_mapping: root = [ "neo", "cypher", "trinity" ]
+`), 0o644))
+
+	opts := []config.OptFunc{config.OptSetStreamPaths(streamOnePath), config.OptSetLintConfigWarnDeprecated()}
+
+	rdr := config.NewReader(generalConfPath, nil, opts...)
+
+	_, _, lints, lintWarns, err := rdr.Read()
+	require.NoError(t, err)
+	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
+
+	streamConfs := map[string]stream.Config{}
+	lints, lintWarns, err = rdr.ReadStreams(streamConfs)
+	require.NoError(t, err)
+	require.Empty(t, lints)
+
+	require.Len(t, lintWarns, 2)
+	assert.Contains(t, lintWarns[0], "field url is deprecated")
+	assert.Contains(t, lintWarns[1], "component sql is deprecated")
 }
 
 func TestStreamsDirectoryWalk(t *testing.T) {
@@ -98,14 +145,16 @@ pipeline:
 
 	rdr := config.NewReader("", nil, config.OptSetStreamPaths(streamOnePath, filepath.Join(dir, "nested")))
 
-	_, _, lints, err := rdr.Read()
+	_, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	streamConfs := map[string]stream.Config{}
-	lints, err = rdr.ReadStreams(streamConfs)
+	lints, lintWarns, err = rdr.ReadStreams(streamConfs)
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	require.Len(t, streamConfs, 3)
 	require.Contains(t, streamConfs, "first")

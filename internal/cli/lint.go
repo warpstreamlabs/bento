@@ -190,6 +190,7 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 
 	lConf := docs.NewLintConfig(bundle.GlobalEnvironment)
 	lConf.RejectDeprecated = c.Bool("deprecated")
+	lConf.WarnDeprecated = !lConf.RejectDeprecated
 	lConf.RequireLabels = c.Bool("labels")
 	skipEnvVarCheck := c.Bool("skip-env-var-check")
 
@@ -226,7 +227,18 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 	}
 	wg.Wait()
 
-	if len(pathLints) == 0 {
+	// filter out deprecated warnings and other lints
+	var lintErrors []pathLint
+
+	for _, lint := range pathLints {
+		if lint.lint.Level == docs.LintWarning && lint.lint.Type == docs.LintDeprecated {
+			fmt.Print(yellow(fmt.Sprintf("%v%v\n", lint.source, lint.lint.Error())))
+		} else {
+			lintErrors = append(lintErrors, lint)
+		}
+	}
+
+	if len(lintErrors) == 0 {
 		return 0
 	}
 

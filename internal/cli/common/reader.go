@@ -26,6 +26,7 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 		config.OptSetFullSpec(cliOpts.MainConfigSpecCtor),
 		config.OptAddOverrides(c.StringSlice("set")...),
 		config.OptTestSuffix("_bento_test"),
+		config.OptSetLintConfigWarnDeprecated(),
 	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))
