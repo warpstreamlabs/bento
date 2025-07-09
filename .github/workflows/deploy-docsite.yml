@@ -35,17 +35,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.23"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
       - name: Build Docsite with Playground
-        run: |
-          make playground
-          cd ./website
-          yarn install
-          yarn build
+        run: make playground && yarn --cwd ./website install && yarn --cwd ./website build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,5 +1,3 @@
-//go:build !wasm
-
 package blobl
 
 import (
@@ -63,8 +61,9 @@ Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1
 		Action: run,
 		Subcommands: []*cli.Command{
 			{
-				Name:  "playground",
-				Usage: "Run an interactive Bloblang playground with live editing and testing",
+				Name:    "server",
+				Aliases: []string{"playground"},
+				Usage:   "Run an interactive Bloblang playground with live editing and testing.",
 				Description: `Run a web server that provides an interactive Bloblang playground for writing and testing Bloblang mappings in real time.
 
 Example: bento blobl playground -m mapping.blobl -i input.json`,
@@ -73,37 +72,37 @@ Example: bento blobl playground -m mapping.blobl -i input.json`,
 					&cli.StringFlag{
 						Name:  "host",
 						Value: "localhost",
-						Usage: "host address to bind the playground server to",
+						Usage: "host address to bind the playground server to.",
 					},
 					&cli.StringFlag{
 						Name:    "port",
 						Value:   "4195",
 						Aliases: []string{"p"},
-						Usage:   "port number for the playground server (default: 4195)",
+						Usage:   "port number for the playground server (default: 4195).",
 					},
 					&cli.BoolFlag{
 						Name:    "no-open",
 						Value:   false,
 						Aliases: []string{"n"},
-						Usage:   "prevent automatic browser opening when starting the playground",
+						Usage:   "prevent automatic browser opening when starting the playground.",
 					},
 					&cli.StringFlag{
 						Name:    "input-file",
 						Value:   "",
 						Aliases: []string{"i"},
-						Usage:   "preload sample input data into the playground",
+						Usage:   "preload sample input data into the playground.",
 					},
 					&cli.StringFlag{
 						Name:    "mapping-file",
 						Value:   "",
 						Aliases: []string{"m"},
-						Usage:   "preload a Bloblang mapping file into the playground editor",
+						Usage:   "preload a Bloblang mapping file into the playground editor.",
 					},
 					&cli.BoolFlag{
 						Name:    "write",
 						Value:   false,
 						Aliases: []string{"w"},
-						Usage:   "auto-save playground changes back to the source files",
+						Usage:   "auto-save playground changes back to the source files.",
 					},
 				},
 			},

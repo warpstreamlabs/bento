@@ -107,6 +107,7 @@ clean:
 	rm -rf $(DEST_DIR)/tools
 	rm -rf $(DEST_DIR)/serverless
 	rm -rf $(PATHINSTDOCKER)
+	rm -rf $(WEBSITE_DIR)/static/playground
 
 docs: $(APPS) $(TOOLS)
 	@$(PATHINSTTOOLS)/bento_docs_gen $(DOCS_FLAGS)

@@ -264,7 +264,7 @@
     {{if .WasmMode}}
     <script src="./js/wasm.js" defer></script>
     <script src="./js/wasm_exec.js"></script>
-    {{end}}
+    {{else}}
     <!-- BEGIN SERVER MODE -->
     <!-- Go server injects the Bloblang syntax and initial values into the global JS context -->
     <script>
@@ -272,6 +272,7 @@
       window.INITIAL_INPUT = {{.InitialInput}};
       window.INITIAL_MAPPING = {{.InitialMapping}};
     </script>
+    {{end}}
     <!-- END SERVER MODE -->
   </body>
 </html>

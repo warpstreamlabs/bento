@@ -6,6 +6,7 @@ import (
 	"syscall/js"
 
 	"github.com/warpstreamlabs/bento/internal/cli/blobl"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
 // main initializes and exposes Bloblang playground functions to JavaScript via WebAssembly
