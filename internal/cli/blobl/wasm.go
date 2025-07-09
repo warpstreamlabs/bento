@@ -5,6 +5,8 @@ package blobl
 import (
 	"encoding/json"
 	"syscall/js"
+
+	"github.com/warpstreamlabs/bento/internal/bloblang"
 )
 
 // ExecuteBloblangMapping returns a js.Func that executes the Bloblang mapping functionality on input JSON.
@@ -29,7 +31,7 @@ func ExecuteBloblangMapping() js.Func {
 		}
 
 		input, mapping := args[0].String(), args[1].String()
-		result := evaluateMapping(input, mapping)
+		result := evaluateMapping(bloblang.GlobalEnvironment(), input, mapping)
 
 		return toJS(map[string]any{
 			"mapping_error": result.MappingError,
@@ -45,7 +47,7 @@ func ExecuteBloblangMapping() js.Func {
 // Returns a JS object with syntax info, or an "error" field if retrieval fails.
 func GenerateBloblangSyntax() js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
-		syntax, err := generateBloblangSyntax()
+		syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
 		if err != nil {
 			return toJS(map[string]any{
 				"error": err.Error(),
