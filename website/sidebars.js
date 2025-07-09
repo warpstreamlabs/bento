@@ -101,6 +101,7 @@ module.exports = {
           items: [
             'guides/bloblang/about',
             'guides/bloblang/walkthrough',
+            'guides/bloblang/playground',
             'guides/bloblang/functions',
             'guides/bloblang/methods',
             'guides/bloblang/arithmetic',

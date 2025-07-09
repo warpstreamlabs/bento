@@ -1,10 +1,19 @@
 class BloblangPlayground {
   constructor() {
+    // If BLOBLANG_SYNTAX is defined in index.html, we're running through the Go server
+    const isServerMode =
+      typeof window.BLOBLANG_SYNTAX !== "undefined" ||
+      window.location.search.includes("server=true");
+
     this.state = {
+      wasmAvailable: false,
+      executionMode: isServerMode ? "server" : "wasm",
       isExecuting: false,
       executionTimeout: null,
-      inputFormatMode: "format",
-      outputFormatMode: "minify",
+      inputFormatMode: "format", // "format" or "minify"
+      outputFormatMode: "minify", // "format" or "minify"
+      firstExecutionStartTime: null,
+      CONNECTION_ERROR_DELAY: 3000, // 3 seconds before showing connection errors
     };
 
     this.elements = {
@@ -18,14 +27,27 @@ class BloblangPlayground {
       toggleFormatOutputBtn: document.getElementById("toggleFormatOutputBtn"),
     };
 
-    this.editor = new EditorManager();
+    this.editor = new EditorManager(
+      window.INITIAL_INPUT,
+      window.INITIAL_MAPPING
+    );
     this.ui = new UIManager();
+    this.wasm = typeof WasmManager !== "undefined" ? new WasmManager() : null;
     this.bindEvents();
+
+    // Check if playground is in an iframe to sync light/dark mode with parent window (Docusaurus)
+    if (window.parent !== window) {
+      this.setupDocusaurusThemeSync();
+      // Add embedded class for enhanced sizing
+      document.body.classList.add("embedded");
+    }
+
     this.init();
   }
 
   async init() {
     try {
+      // Initialize basic editor
       this.editor.init({
         onInputChange: () => {
           this.updateLinters();
@@ -36,11 +58,29 @@ class BloblangPlayground {
           this.debouncedExecute("mapping");
         },
       });
+
+      // Show basic editor
       this.ui.init();
       this.editor.setupDocumentationClickHandlers();
       this.updateLinters();
       this.execute();
       this.hideLoading();
+
+      // Initialize WASM and enhanced features asynchronously
+      await this.initializeWasm();
+
+      // Re-initialize editor if WASM syntax is now available
+      if (this.state.executionMode === "wasm" && !this.editor.syntaxLoaded) {
+        await this.editor.loadBloblangSyntax();
+        // Re-setup theme with new syntax rules
+        this.editor.setupTheme();
+        this.editor.configureAutocompletion();
+        // Refresh the mapping editor to apply new highlighting
+        this.editor.refreshSyntaxHighlighting();
+      }
+
+      // Re-execute with enhanced features
+      this.execute();
     } catch (error) {
       console.error("Application error:", error);
       this.elements.loadingOverlay.innerHTML = `
@@ -50,6 +90,49 @@ class BloblangPlayground {
         </div>
       `;
     }
+  }
+
+  async initializeWasm() {
+    if (this.state.executionMode === "server" || !this.wasm) {
+      return;
+    }
+
+    try {
+      await this.wasm.load();
+
+      if (this.wasm.available) {
+        this.state.wasmAvailable = true;
+      } else {
+        this.state.executionMode = "server";
+      }
+    } catch (error) {
+      console.warn("WASM initialization failed:", error);
+      this.state.executionMode = "server";
+    }
+  }
+
+  setupDocusaurusThemeSync() {
+    // Hide the theme toggle since parent handles theming
+    const themeToggle = document.getElementById("themeToggle");
+    if (themeToggle) {
+      themeToggle.style.display = "none";
+    }
+
+    // Listen for theme changes from parent window
+    window.addEventListener("message", (event) => {
+      if (event.data.type === "docusaurus-theme-change") {
+        const isDark = event.data.theme === "dark";
+
+        // Set data-theme attribute on document element
+        document.documentElement.setAttribute(
+          "data-theme",
+          isDark ? "dark" : "light"
+        );
+      }
+    });
+
+    // Request theme from parent
+    window.parent.postMessage({ type: "request-theme" }, "*");
   }
 
   bindEvents() {
@@ -87,27 +170,44 @@ class BloblangPlayground {
     if (this.state.isExecuting) return;
     this.state.isExecuting = true;
 
+    // Track first execution time for delayed error handling
+    if (!this.state.firstExecutionStartTime) {
+      this.state.firstExecutionStartTime = Date.now();
+    }
+
     try {
       const input = this.editor.getInput();
       const mapping = this.editor.getMapping();
-      const response = await fetch("/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input, mapping }),
-      });
 
-      if (response.ok) {
-        const result = await response.json();
-        this.handleExecution(result);
-      } else {
-        throw new Error(`Server error: ${response.status}`);
+      let result;
+      switch (this.state.executionMode) {
+        case "wasm":
+          if (this.wasm) {
+            result = this.wasm.execute(input, mapping);
+            this.handleExecution(result);
+          } else {
+            throw new Error("WASM not available");
+          }
+          break;
+        case "server":
+          const response = await fetch("/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input, mapping }),
+          });
+
+          if (response.ok) {
+            result = await response.json();
+            this.handleExecution(result);
+          } else {
+            throw new Error(`Server error: ${response.status}`);
+          }
+          break;
+        default:
+          throw new Error("Unknown execution mode");
       }
     } catch (error) {
-      this.handleError(
-        "Connection Error",
-        "Ensure Bloblang server is running and try again",
-        error.message
-      );
+      this.handleConnectionError(error);
     } finally {
       this.state.isExecuting = false;
     }
@@ -220,6 +320,26 @@ class BloblangPlayground {
     inputPanel.classList.remove("error");
     mappingPanel.classList.remove("error");
     outputArea.classList.remove("error", "success", "json-formatted");
+  }
+
+  handleConnectionError(error) {
+    const timeSinceFirstExecution = this.state.firstExecutionStartTime
+      ? Date.now() - this.state.firstExecutionStartTime
+      : 0;
+
+    // Only show connection error if we've been trying for a while or this isn't the first execution
+    if (timeSinceFirstExecution > this.state.CONNECTION_ERROR_DELAY) {
+      this.handleError(
+        "Connection Error",
+        "Ensure Bloblang server is running and try again",
+        error.message
+      );
+    } else {
+      // Show a brief loading message instead
+      this.elements.outputArea.textContent =
+        "Initializing Bloblang execution...";
+      this.ui.updateStatus("outputStatus", "executing", "Initializing...");
+    }
   }
 
   handleError(

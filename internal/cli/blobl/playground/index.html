@@ -74,9 +74,7 @@
             class="editor fallback-editor"
             placeholder="Enter your JSON input here..."
             aria-label="JSON input editor (fallback)"
-          >
-{"message": "hello world", "number": 42}
-          </textarea>
+          ></textarea>
         </div>
         <footer class="formatter-section">
           <div class="formatter-left">
@@ -134,10 +132,7 @@
             class="editor fallback-editor"
             placeholder="Enter your Bloblang mapping here..."
             aria-label="Bloblang mapping editor (fallback)"
-          >
-root.greeting = this.message.uppercase()
-root.doubled = this.number * 2
-          </textarea>
+          ></textarea>
         </div>
         <footer class="formatter-section">
           <div class="formatter-left">
@@ -260,15 +255,24 @@ root.doubled = this.number * 2
       defer
     ></script>
 
-    <!-- Inject the Bloblang syntax into the global JS context -->
-    <script>
-      window.BLOBLANG_SYNTAX = {{.BloblangSyntax}};
-    </script>
-
     <!-- Application scripts -->
     <script src="./js/utils.js" defer></script>
     <script src="./js/editor.js" defer></script>
     <script src="./js/ui.js" defer></script>
     <script src="./js/playground.js" defer></script>
+
+    {{if .WasmMode}}
+    <script src="./js/wasm.js" defer></script>
+    <script src="./js/wasm_exec.js"></script>
+    {{else}}
+    <!-- BEGIN SERVER MODE -->
+    <!-- Go server injects the Bloblang syntax and initial values into the global JS context -->
+    <script>
+      window.BLOBLANG_SYNTAX = {{.BloblangSyntax}};
+      window.INITIAL_INPUT = {{.InitialInput}};
+      window.INITIAL_MAPPING = {{.InitialMapping}};
+    </script>
+    {{end}}
+    <!-- END SERVER MODE -->
   </body>
 </html>

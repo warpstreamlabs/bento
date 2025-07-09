@@ -1,4 +1,4 @@
-.PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs
+.PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs playground
 
 TAGS ?=
 
@@ -107,6 +107,7 @@ clean:
 	rm -rf $(DEST_DIR)/tools
 	rm -rf $(DEST_DIR)/serverless
 	rm -rf $(PATHINSTDOCKER)
+	rm -rf $(WEBSITE_DIR)/static/playground
 
 docs: $(APPS) $(TOOLS)
 	@$(PATHINSTTOOLS)/bento_docs_gen $(DOCS_FLAGS)
@@ -114,3 +115,9 @@ docs: $(APPS) $(TOOLS)
 		"$(WEBSITE_DIR)/cookbooks/**/*.md" \
 		"$(WEBSITE_DIR)/docs/**/*.md"
 	@$(PATHINSTBIN)/bento template lint "./config/template_examples/*.yaml"
+
+playground:
+	@cp -r "internal/cli/blobl/playground" "$(WEBSITE_DIR)/static/playground"
+	@sed -i.bak '/<!-- BEGIN SERVER MODE -->/,/<!-- END SERVER MODE -->/d' "$(WEBSITE_DIR)/static/playground/index.html"
+	@mkdir -p "$(WEBSITE_DIR)/static/playground/js" && cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" "$(WEBSITE_DIR)/static/playground/js/wasm_exec.js"
+	@GOOS=js GOARCH=wasm go build -o "$(WEBSITE_DIR)/static/playground/playground.wasm" "cmd/tools/playground/main.go"

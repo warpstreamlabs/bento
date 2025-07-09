@@ -9,6 +9,19 @@
   flex-direction: column;
 }
 
+/* Compact styles for embedded display */
+@media (max-width: 768px) {
+  .panel-header {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .panel {
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
 /* Dark mode panel styles */
 [data-theme="dark"] .panel {
   background: var(--bento-bg-alt);
@@ -50,10 +63,16 @@
   color: var(--bento-text-heading);
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 11px;
   font-weight: 500;
   opacity: 0;
   transition: opacity 0.3s ease;
+}
+
+body.embedded .status-badge {
+  padding: 2px 6px 3px 6px;
+  font-size: 8px;
+  margin-right: 2px;
+  font-weight: 400;
 }
 
 .status-badge.show {
@@ -484,7 +503,6 @@
   text-align: center;
   line-height: 1;
 }
-
 
 /* Toast Notifications */
 .notification {
