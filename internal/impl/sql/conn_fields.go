@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS some_table (
 					Version("1.10.0").
 					Advanced(),
 				service.NewStringField("tenant_id").
-					Description("").
+					Description("tenant_id identifies the tenant from which to request the token. azure credentials authenticate in their configured default tenants when this field isn't set.").
 					Optional().
 					Default("").
 					Version("1.10.0").
