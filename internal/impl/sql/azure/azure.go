@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -13,11 +14,11 @@ import (
 )
 
 func init() {
-	var noop sql.AzureDSNBuiler = func(dsn, driver string) (builtDSN string, err error) {
+	var noop sql.AzureDSNBuilder = func(dsn, driver string) (builtDSN string, err error) {
 		return dsn, nil
 	}
 
-	sql.AzureGetCredentialsGeneratorFn = func(pConf *service.ParsedConfig) (sql.AzureDSNBuiler, error) {
+	sql.AzureGetCredentialsGeneratorFn = func(pConf *service.ParsedConfig) (sql.AzureDSNBuilder, error) {
 		nsConf := pConf.Namespace("azure")
 		entraEnabled, err := nsConf.FieldBool("entra_enabled")
 		if err != nil {
@@ -52,7 +53,7 @@ func BuildEntraDsn(dsn, driver string, getTokenOptions func() (policy.TokenReque
 
 	username := parsedDSN.User.Username()
 	host := parsedDSN.Hostname()
-	path := parsedDSN.Path[1:]
+	database := strings.TrimPrefix(parsedDSN.Path, "/")
 
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
@@ -69,7 +70,7 @@ func BuildEntraDsn(dsn, driver string, getTokenOptions func() (policy.TokenReque
 		return "", err
 	}
 
-	connectionString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=require", host, username, token.Token, path)
+	connectionString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=require", host, username, token.Token, database)
 
 	return connectionString, nil
 }

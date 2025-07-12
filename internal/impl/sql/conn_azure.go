@@ -6,9 +6,9 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-type AzureDSNBuiler func(dsn, driver string) (builtDSN string, err error)
+type AzureDSNBuilder func(dsn, driver string) (builtDSN string, err error)
 
-var AzureGetCredentialsGeneratorFn = func(pConf *service.ParsedConfig) (fn AzureDSNBuiler, err error) {
+var AzureGetCredentialsGeneratorFn = func(pConf *service.ParsedConfig) (fn AzureDSNBuilder, err error) {
 	entraEnabled, err := pConf.FieldBool("azure", "entra_enabled")
 	if err != nil {
 		return nil, err
