@@ -377,7 +377,7 @@ Requires version 1.10.0 or newer
 
 ### `azure.token_request_options.tenant_id`
 
-Sorry! This field is missing documentation.
+tenant_id identifies the tenant from which to request the token. azure credentials authenticate in their configured default tenants when this field isn't set.
 
 
 Type: `string`  
