@@ -38,8 +38,6 @@ output:
     columns: [] # No default (required)
     args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (required)
     max_in_flight: 64
-    azure:
-      token_request_options: {}
     batching:
       count: 0
       byte_size: 0
@@ -84,7 +82,8 @@ output:
       token_request_options:
         claims: ""
         enable_cae: false
-        scopes: []
+        scopes:
+          - https://ossrdbms-aad.database.windows.net/.default
         tenant_id: ""
     region: ""
     endpoint: ""
@@ -365,14 +364,15 @@ Requires version 1.8.0 or newer
 
 ### `azure`
 
-Sorry! This field is missing documentation.
+Optional Fields that can be set to use Azure based authentication for Azure Postgres SQL
 
 
 Type: `object`  
+Requires version 1.10.0 or newer  
 
 ### `azure.entra_enabled`
 
-Sorry! This field is missing documentation.
+An optional field used to generate an entra token to connect to 'Azure Database for PostgreSQL flexible server', This will create a new connection string with the host, user and database from the DSN field - you may need to URL encode the dsn! The [Default Azure Credential Chain](https://learn.microsoft.com/en-gb/azure/developer/go/sdk/authentication/authentication-overview#defaultazurecredential) is used from the Azure SDK.
 
 
 Type: `bool`  
@@ -388,7 +388,7 @@ Type: `object`
 
 ### `azure.token_request_options.claims`
 
-Sorry! This field is missing documentation.
+Set additional claims for the token.
 
 
 Type: `string`  
@@ -397,7 +397,7 @@ Requires version 1.10.0 or newer
 
 ### `azure.token_request_options.enable_cae`
 
-Sorry! This field is missing documentation.
+Indicates whether to enable Continuous Access Evaluation (CAE) for the requested token
 
 
 Type: `bool`  
@@ -406,11 +406,11 @@ Requires version 1.10.0 or newer
 
 ### `azure.token_request_options.scopes`
 
-Sorry! This field is missing documentation.
+Scopes contains the list of permission scopes required for the token.
 
 
 Type: `array`  
-Default: `[]`  
+Default: `["https://ossrdbms-aad.database.windows.net/.default"]`  
 Requires version 1.10.0 or newer  
 
 ### `azure.token_request_options.tenant_id`
