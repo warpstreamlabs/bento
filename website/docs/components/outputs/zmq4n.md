@@ -48,6 +48,10 @@ output:
     socket_type: "" # No default (required)
     high_water_mark: 0
     poll_timeout: 5s
+    socket_auto_reconnect: true
+    dial_retry_delay: 250ms
+    dial_timeout: 5m
+    dial_max_retries: 10
 ```
 
 </TabItem>
@@ -104,5 +108,40 @@ The poll timeout to use.
 
 Type: `string`  
 Default: `"5s"`  
+
+### `socket_auto_reconnect`
+
+Whether to automatically attempt internal reconnection on connection loss.
+:::warning Important
+Since this is an internal retry, the zmq4n component will silently attempt reconnection until failure. This means that while retrying, no metric will indicate the component is in a retrying state until attempts have been exhausted.
+:::
+
+
+Type: `bool`  
+Default: `true`  
+
+### `dial_retry_delay`
+
+The time to wait between failed dial attempts.
+
+
+Type: `string`  
+Default: `"250ms"`  
+
+### `dial_timeout`
+
+The maximum time to wait for a dial to complete.
+
+
+Type: `string`  
+Default: `"5m"`  
+
+### `dial_max_retries`
+
+The maximum number of dial retries (-1 for infinite retries).
+
+
+Type: `int`  
+Default: `10`  
 
 
