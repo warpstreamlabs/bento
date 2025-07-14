@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"io/fs"
+	"log/slog"
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
@@ -13,6 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/output"
 	"github.com/warpstreamlabs/bento/internal/component/ratelimit"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 )
 
@@ -46,6 +48,14 @@ func MockResourcesOptUseLogger(l *Logger) MockResourcesOptFn {
 	return func(m *mock.Manager) {
 		if l != nil {
 			m.L = l.m
+		}
+	}
+}
+
+func MockResourcesOptUseSlogger(l *slog.Logger) MockResourcesOptFn {
+	return func(m *mock.Manager) {
+		if l != nil {
+			m.L = log.NewBentoLogAdapter(l)
 		}
 	}
 }
