@@ -52,6 +52,8 @@ func MockResourcesOptUseLogger(l *Logger) MockResourcesOptFn {
 	}
 }
 
+// MockResourcesOptUseSlogger sets the logger by converting the provided
+// slog.Logger to comply with Bento's log.Modular interface
 func MockResourcesOptUseSlogger(l *slog.Logger) MockResourcesOptFn {
 	return func(m *mock.Manager) {
 		if l != nil {
