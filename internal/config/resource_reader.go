@@ -173,18 +173,20 @@ func (r *Reader) resourcePathsExpanded() ([]string, error) {
 	return resourcePaths, nil
 }
 
-func (r *Reader) readResources(conf *manager.ResourceConfig) (lints []string, err error) {
+func (r *Reader) readResources(conf *manager.ResourceConfig) (lints []string, lintWarns []string, err error) {
 	resourcesPaths, err := r.resourcePathsExpanded()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, path := range resourcesPaths {
 		var rconf manager.ResourceConfig
 		var rLints []string
-		if rconf, rLints, err = r.readResource(path); err != nil {
+		var rLintWarns []string
+		if rconf, rLints, rLintWarns, err = r.readResource(path); err != nil {
 			return
 		}
 		lints = append(lints, rLints...)
+		lintWarns = append(lintWarns, rLintWarns...)
 
 		resInfo := resInfoFromConfig(&rconf)
 		r.resourceFileInfo[path] = resInfo
@@ -198,7 +200,7 @@ func (r *Reader) readResources(conf *manager.ResourceConfig) (lints []string, er
 	return
 }
 
-func (r *Reader) readResource(path string) (conf manager.ResourceConfig, lints []string, err error) {
+func (r *Reader) readResource(path string) (conf manager.ResourceConfig, lints []string, lintWarns []string, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("%v: %w", path, err)
@@ -226,7 +228,12 @@ func (r *Reader) readResource(path string) (conf manager.ResourceConfig, lints [
 	}, r.specResources...)
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		for _, lint := range spec.LintYAML(r.lintCtx(), rawNode) {
-			lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
+			switch lint.Level {
+			case docs.LintWarning:
+				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", path, lint.Error()))
+			default:
+				lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
+			}
 		}
 	}
 
@@ -242,7 +249,7 @@ func (r *Reader) readResource(path string) (conf manager.ResourceConfig, lints [
 // TriggerResourceUpdate attempts to re-read a resource configuration file and
 // apply changes to the provided manager as appropriate.
 func (r *Reader) TriggerResourceUpdate(mgr bundle.NewManagement, strict bool, path string) error {
-	newResConf, lints, err := r.readResource(path)
+	newResConf, lints, lintWarns, err := r.readResource(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return r.TriggerResourceDelete(mgr, path)
 	}
@@ -266,6 +273,10 @@ func (r *Reader) TriggerResourceUpdate(mgr bundle.NewManagement, strict bool, pa
 	if strict && len(lints) > 0 {
 		mgr.Logger().Error("Rejecting updated resource config due to linter errors, to allow linting errors run Bento with --chilled")
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
+	}
+
+	for _, lintWarn := range lintWarns {
+		lintlog.Warn(lintWarn)
 	}
 
 	newInfo := resInfoFromConfig(&newResConf)

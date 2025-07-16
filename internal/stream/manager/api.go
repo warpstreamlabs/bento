@@ -68,12 +68,18 @@ type lintErrors struct {
 func (m *Type) lintCtx() docs.LintContext {
 	lConf := docs.NewLintConfig(m.manager.Environment())
 	lConf.BloblangEnv = bloblang.XWrapEnvironment(m.manager.BloblEnvironment()).Deactivated()
+	lConf.WarnDeprecated = true
 	return docs.NewLintContext(lConf)
 }
 
-func (m *Type) lintStreamConfigNode(node *yaml.Node) (lints []string) {
+func (m *Type) lintStreamConfigNode(node *yaml.Node) (lints []string, lintWarns []string) {
 	for _, dLint := range stream.Spec().LintYAML(m.lintCtx(), node) {
-		lints = append(lints, dLint.Error())
+		if dLint.Level == docs.LintError {
+			lints = append(lints, dLint.Error())
+		}
+		if dLint.Level == docs.LintWarning {
+			lintWarns = append(lintWarns, dLint.Error())
+		}
 	}
 	return
 }
@@ -143,10 +149,17 @@ func (m *Type) HandleStreamsCRUD(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("chilled") != "true" {
 		var lints []string
 		for k, n := range nodeSet {
-			for _, l := range m.lintStreamConfigNode(&n) {
+			sLints, sLintWarns := m.lintStreamConfigNode(&n)
+
+			for _, l := range sLints {
 				keyLint := fmt.Sprintf("stream '%v': %v", k, l)
 				lints = append(lints, keyLint)
 				m.manager.Logger().Debug("Streams request linting error: %v\n", keyLint)
+			}
+
+			for _, lw := range sLintWarns {
+				keyLintWarn := fmt.Sprintf("stream '%v': %v", k, lw)
+				m.manager.Logger().Warn("Streams request linting warning: %v\n", keyLintWarn)
 			}
 		}
 		if len(lints) > 0 {
@@ -306,10 +319,14 @@ func (m *Type) HandleStreamCRUD(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		var lintWarns []string
 		if !ignoreLints {
-			lints = m.lintStreamConfigNode(node)
+			lints, lintWarns = m.lintStreamConfigNode(node)
 			for _, l := range lints {
 				m.manager.Logger().Info("Stream '%v' config: %v\n", id, l)
+			}
+			for _, lw := range lintWarns {
+				m.manager.Logger().Warn("Stream '%v' config: %v\n", id, lw)
 			}
 		}
 
@@ -548,7 +565,12 @@ func (m *Type) HandleResourceCRUD(w http.ResponseWriter, r *http.Request) {
 		if !ignoreLints {
 			for _, l := range docs.LintYAML(m.lintCtx(), docType, &node) {
 				lints = append(lints, l.Error())
-				m.manager.Logger().Info("Resource '%v' config: %v\n", id, l)
+				if l.Level == docs.LintError {
+					m.manager.Logger().Info("Resource '%v' config: %v\n", id, l)
+				}
+				if l.Level == docs.LintWarning {
+					m.manager.Logger().Warn("Resource '%v' config: %v\n", id, l)
+				}
 			}
 		}
 	}

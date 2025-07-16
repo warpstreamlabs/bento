@@ -538,6 +538,8 @@ func LintYAML(ctx LintContext, cType Type, node *yaml.Node) []Lint {
 
 	if ctx.conf.RejectDeprecated && cSpec.Status == StatusDeprecated {
 		lints = append(lints, NewLintError(node.Line, LintDeprecated, fmt.Errorf("component %v is deprecated", cSpec.Name)))
+	} else if ctx.conf.WarnDeprecated && cSpec.Status == StatusDeprecated {
+		lints = append(lints, NewLintWarning(node.Line, LintDeprecated, fmt.Sprintf("component %v is deprecated", cSpec.Name)))
 	}
 
 	nameFound := false
@@ -594,6 +596,8 @@ func (f FieldSpec) LintYAML(ctx LintContext, node *yaml.Node) []Lint {
 
 	if ctx.conf.RejectDeprecated && f.IsDeprecated {
 		lints = append(lints, NewLintError(node.Line, LintDeprecated, fmt.Errorf("field %v is deprecated", f.Name)))
+	} else if ctx.conf.WarnDeprecated && f.IsDeprecated {
+		lints = append(lints, NewLintWarning(node.Line, LintDeprecated, fmt.Sprintf("field %v is deprecated", f.Name)))
 	}
 
 	// Execute custom linters, if the kind is non-scalar this means we execute
