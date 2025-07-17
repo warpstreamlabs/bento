@@ -3,7 +3,9 @@ package zeromq
 import (
 	"context"
 	"errors"
+	"net"
 	"strings"
+	"sync"
 	"time"
 
 	gzmq4 "github.com/go-zeromq/zmq4"
@@ -35,6 +37,24 @@ There is a specific docker tag postfix ` + "`-cgo`" + ` for C builds containing 
 		Field(service.NewDurationField("poll_timeout").
 			Description("The poll timeout to use.").
 			Default("5s").
+			Advanced()).
+		Field(service.NewBoolField("socket_auto_reconnect").
+			Description(`Whether to automatically attempt internal reconnection on connection loss.
+:::warning Important
+Since this is an internal retry, the zmq4n component will silently attempt reconnection until failure. This means that while retrying, no metric will indicate the component is in a retrying state until attempts have been exhausted.
+:::`).Default(true).
+			Advanced()).
+		Field(service.NewDurationField("dial_retry_delay").
+			Description("The time to wait between failed dial attempts.").
+			Default("250ms").
+			Advanced()).
+		Field(service.NewDurationField("dial_timeout").
+			Description("The maximum time to wait for a dial to complete.").
+			Default("5m").
+			Advanced()).
+		Field(service.NewIntField("dial_max_retries").
+			Description("The maximum number of dial retries (-1 for infinite retries).").
+			Default(10).
 			Advanced())
 }
 
@@ -60,12 +80,19 @@ type zmqOutputN struct {
 	bind        bool
 	pollTimeout time.Duration
 
+	socketAutoReconnect  bool
+	socketDialRetryDelay time.Duration
+	socketDialTimeout    time.Duration
+	sockerDialMaxRetries int
+
 	socket gzmq4.Socket
+	mutex  *sync.RWMutex
 }
 
 func zmqOutputNFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*zmqOutputN, error) {
 	z := zmqOutputN{
-		log: mgr.Logger(),
+		log:   mgr.Logger(),
+		mutex: &sync.RWMutex{},
 	}
 
 	urlStrs, err := conf.FieldStringList("urls")
@@ -99,6 +126,22 @@ func zmqOutputNFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*
 		return nil, err
 	}
 
+	if z.socketAutoReconnect, err = conf.FieldBool("socket_auto_reconnect"); err != nil {
+		return nil, err
+	}
+
+	if z.socketDialRetryDelay, err = conf.FieldDuration("dial_retry_delay"); err != nil {
+		return nil, err
+	}
+
+	if z.socketDialTimeout, err = conf.FieldDuration("dial_timeout"); err != nil {
+		return nil, err
+	}
+
+	if z.sockerDialMaxRetries, err = conf.FieldInt("dial_max_retries"); err != nil {
+		return nil, err
+	}
+
 	return &z, nil
 }
 
@@ -126,12 +169,20 @@ func (z *zmqOutputN) Connect(ctx context.Context) (err error) {
 		return err
 	}
 
+	opts := []gzmq4.Option{
+		gzmq4.WithTimeout(z.pollTimeout),
+		gzmq4.WithAutomaticReconnect(z.socketAutoReconnect),
+		gzmq4.WithDialerRetry(z.socketDialRetryDelay),
+		gzmq4.WithDialerTimeout(z.socketDialTimeout),
+		gzmq4.WithDialerMaxRetries(z.sockerDialMaxRetries),
+	}
+
 	var socket gzmq4.Socket
 	switch t {
 	case gzmq4.Pub:
-		socket = gzmq4.NewPub(ctx, gzmq4.WithTimeout(z.pollTimeout))
+		socket = gzmq4.NewPub(ctx, opts...)
 	case gzmq4.Push:
-		socket = gzmq4.NewPush(ctx, gzmq4.WithTimeout(z.pollTimeout))
+		socket = gzmq4.NewPush(ctx, opts...)
 	}
 
 	defer func() {
@@ -160,7 +211,7 @@ func (z *zmqOutputN) Connect(ctx context.Context) (err error) {
 	return nil
 }
 
-func (z *zmqOutputN) WriteBatch(_ context.Context, batch service.MessageBatch) error {
+func (z *zmqOutputN) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
 	if z.socket == nil {
 		return service.ErrNotConnected
 	}
@@ -177,10 +228,20 @@ func (z *zmqOutputN) WriteBatch(_ context.Context, batch service.MessageBatch) e
 	msg := gzmq4.NewMsgFrom(parts...)
 	err := z.socket.Send(msg)
 
+	if err != nil {
+		var netErr *net.OpError
+		if errors.As(err, &netErr) && !netErr.Temporary() && !netErr.Timeout() {
+			z.Close(ctx)
+			return errors.Join(netErr.Err, service.ErrNotConnected)
+		}
+	}
+
 	return err
 }
 
 func (z *zmqOutputN) Close(ctx context.Context) error {
+	z.mutex.Lock()
+	defer z.mutex.Unlock()
 	if z.socket != nil {
 		z.socket.Close()
 		z.socket = nil

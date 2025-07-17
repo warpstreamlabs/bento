@@ -19,7 +19,7 @@ require (
 	github.com/Azure/go-amqp v1.0.5
 	github.com/ClickHouse/clickhouse-go/v2 v2.21.1
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.21.0
-	github.com/IBM/sarama v1.42.2
+	github.com/IBM/sarama v1.45.2
 	github.com/Jeffail/checkpoint v1.0.1
 	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/Jeffail/grok v1.1.0
@@ -32,8 +32,8 @@ require (
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
 	github.com/aws/aws-sdk-go-v2 v1.36.3
-	github.com/aws/aws-sdk-go-v2/config v1.28.5
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.46
+	github.com/aws/aws-sdk-go-v2/config v1.29.14
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.67
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.6.17
 	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.4.23
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.41
@@ -46,7 +46,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.69.0
 	github.com/aws/aws-sdk-go-v2/service/sns v1.27.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.29.7
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.1
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19
 	github.com/beanstalkd/go-beanstalk v0.2.0
 	github.com/benhoyt/goawk v1.25.0
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
@@ -89,7 +89,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/klauspost/compress v1.17.11
+	github.com/klauspost/compress v1.18.0
 	github.com/klauspost/pgzip v1.2.6
 	github.com/knights-analytics/hugot v0.4.1
 	github.com/lib/pq v1.10.9
@@ -105,7 +105,7 @@ require (
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/oklog/ulid v1.3.1
 	github.com/olivere/elastic/v7 v7.0.32
-	github.com/opensearch-project/opensearch-go/v4 v4.3.0
+	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/oschwald/geoip2-golang v1.9.0
 	github.com/parquet-go/parquet-go v0.24.0
@@ -237,10 +237,10 @@ require (
 	github.com/armon/go-metrics v0.3.4 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.7 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.12.17 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.20 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.24 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.18.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.3 // indirect
@@ -251,8 +251,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/rds v1.94.1
 	github.com/aws/aws-sdk-go-v2/service/redshift v1.54.1
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.5
-	github.com/aws/aws-sdk-go-v2/service/sso v1.24.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.25.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.1 // indirect
 	github.com/aws/smithy-go v1.22.2
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -285,7 +285,7 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
-	github.com/eapache/go-resiliency v1.5.0 // indirect
+	github.com/eapache/go-resiliency v1.7.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.13.1 // indirect

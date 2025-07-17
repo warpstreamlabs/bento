@@ -48,9 +48,10 @@ processor_resources:
 	rdr.changeDelayPeriod = 1 * time.Millisecond
 	rdr.changeFlushPeriod = 1 * time.Millisecond
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	require.NoError(t, rdr.SubscribeConfigChanges(func(conf *Type) error {
 		return nil
@@ -164,9 +165,10 @@ processor_resources:
 	rdr.changeDelayPeriod = 1 * time.Millisecond
 	rdr.changeFlushPeriod = 1 * time.Millisecond
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
 
 	require.NoError(t, rdr.SubscribeConfigChanges(func(conf *Type) error {
 		return nil
