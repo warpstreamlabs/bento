@@ -91,7 +91,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/klauspost/compress v1.17.11
 	github.com/klauspost/pgzip v1.2.6
-	github.com/knights-analytics/hugot v0.4.1
+	github.com/knights-analytics/hugot v0.4.2
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
@@ -136,7 +136,7 @@ require (
 	github.com/twmb/franz-go v1.18.1
 	github.com/twmb/franz-go/pkg/kadm v1.16.0
 	github.com/twmb/franz-go/pkg/kmsg v1.9.0
-	github.com/urfave/cli/v2 v2.27.6
+	github.com/urfave/cli/v2 v2.27.7
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/xdg-go/scram v1.1.2
 	github.com/xeipuuv/gojsonschema v1.2.0
@@ -155,11 +155,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0
 	go.opentelemetry.io/otel/trace v1.32.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.38.0
-	golang.org/x/net v0.40.0
+	golang.org/x/crypto v0.39.0
+	golang.org/x/net v0.41.0
 	golang.org/x/oauth2 v0.27.0
-	golang.org/x/sync v0.14.0
-	golang.org/x/text v0.25.0
+	golang.org/x/sync v0.15.0
+	golang.org/x/text v0.26.0
 	google.golang.org/api v0.203.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.6
@@ -178,10 +178,10 @@ require (
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gomlx/exceptions v0.0.3 // indirect
-	github.com/gomlx/go-huggingface v0.2.1 // indirect
-	github.com/gomlx/gomlx v0.20.0 // indirect
+	github.com/gomlx/go-huggingface v0.2.2-0.20250626134208-e515b14550f3 // indirect
+	github.com/gomlx/gomlx v0.20.1 // indirect
 	github.com/gomlx/gopjrt v0.7.3 // indirect
-	github.com/gomlx/onnx-gomlx v0.2.4-0.20250603072118-d222391b57d4 // indirect
+	github.com/gomlx/onnx-gomlx v0.2.4 // indirect
 	github.com/hamba/avro/v2 v2.26.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -190,7 +190,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/yalue/onnxruntime_go v1.20.0 // indirect
-	golang.org/x/exp v0.0.0-20250531010427-b6e5de432a8b // indirect
+	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 )
@@ -397,11 +397,11 @@ require (
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	golang.org/x/tools v0.33.0 // indirect
+	golang.org/x/tools v0.34.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20241104194629-dd2ea8efbc28 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241202173237-19429a94021a // indirect
