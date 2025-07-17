@@ -20,8 +20,10 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/stream"
 
+	_ "github.com/warpstreamlabs/bento/public/components/amqp1"
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	_ "github.com/warpstreamlabs/bento/public/components/sql"
 )
 
 func testConfToAny(t testing.TB, conf any) any {
@@ -47,9 +49,10 @@ func TestSetOverridesOnNothing(t *testing.T) {
 		"output.type=drop",
 	))
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	assert.Empty(t, lints)
+	assert.Empty(t, lintWarns)
 
 	v := gabs.Wrap(testConfToAny(t, conf))
 
@@ -88,7 +91,7 @@ func TestSetOverrideErrors(t *testing.T) {
 	for _, test := range tests {
 		rdr := config.NewReader("", nil, config.OptAddOverrides(test.input))
 
-		_, _, _, err := rdr.Read()
+		_, _, _, _, err := rdr.Read()
 		assert.Contains(t, err.Error(), test.err)
 	}
 }
@@ -110,9 +113,10 @@ input:
 		"output.type=drop",
 	))
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	assert.Empty(t, lints)
+	assert.Empty(t, lintWarns)
 
 	v := gabs.Wrap(testConfToAny(t, conf))
 
@@ -166,9 +170,10 @@ tests:
 
 	rdr := config.NewReader(fullPath, []string{resourceOnePath, resourceTwoPath, resourceThreePath})
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	assert.Empty(t, lints)
+	assert.Empty(t, lintWarns)
 
 	v := gabs.Wrap(testConfToAny(t, conf))
 
@@ -218,12 +223,13 @@ cache_resources:
 
 	rdr := config.NewReader(fullPath, []string{resourceOnePath, resourceTwoPath})
 
-	conf, _, lints, err := rdr.Read()
+	conf, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Len(t, lints, 3)
 	assert.Contains(t, lints[0], "/main.yaml(3,1) field meow1 ")
 	assert.Contains(t, lints[1], "/res1.yaml(5,1) field meow2 ")
 	assert.Contains(t, lints[2], "/res2.yaml(5,1) field meow3 ")
+	require.Empty(t, lintWarns)
 
 	v := gabs.Wrap(testConfToAny(t, conf))
 
@@ -236,6 +242,47 @@ cache_resources:
 
 	assert.Equal(t, "bar", v.S("cache_resources", "1", "label").Data())
 	assert.Equal(t, "13s", v.S("cache_resources", "1", "memory", "default_ttl").Data())
+}
+
+func TestLintWarns(t *testing.T) {
+	dir := t.TempDir()
+
+	fullPath := filepath.Join(dir, "main.yaml")
+	require.NoError(t, os.WriteFile(fullPath, []byte(`
+input:
+  stdin: {}
+  
+output:
+  stdout: {}`), 0o644))
+
+	resourceOnePath := filepath.Join(dir, "res1.yaml")
+	require.NoError(t, os.WriteFile(resourceOnePath, []byte(`
+input_resources:
+  - label: foo
+    amqp_1:
+      url: amqp://guest:guest@localhost:5672/
+      source_address: foo
+`), 0o644))
+
+	resourceTwoPath := filepath.Join(dir, "res2.yaml")
+	require.NoError(t, os.WriteFile(resourceTwoPath, []byte(`
+output_resources:
+  - label: bar
+    sql:
+      driver: postgres
+      data_source_name: postgresql://user:password@postgres:5432/db?sslmode=disable
+      query: INSERT INTO table (foo, bar, baz) VALUES (?, ?, ?);
+      args_mapping: root = [ "neo", "cypher", "trinity" ]
+`), 0o644))
+
+	rdr := config.NewReader(fullPath, []string{resourceOnePath, resourceTwoPath}, config.OptSetLintConfigWarnDeprecated())
+
+	_, _, lints, lintWarns, err := rdr.Read()
+	require.NoError(t, err)
+	require.Len(t, lintWarns, 2)
+	assert.Contains(t, lintWarns[0], "field url is deprecated")
+	assert.Contains(t, lintWarns[1], "component sql is deprecated")
+	require.Empty(t, lints)
 }
 
 func TestDefaultBasedOverridesWithYAML(t *testing.T) {

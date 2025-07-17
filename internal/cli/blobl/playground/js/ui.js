@@ -3,10 +3,74 @@ class UIManager {
     this.isResizing = false;
     this.container = document.getElementById("container");
     this.horizontalResizer = document.getElementById("horizontalResizer");
+    this.themeToggle = document.getElementById("themeToggle");
+    this.currentTheme = this.getInitialTheme();
+    this.rotationAngle = 0; // Track current rotation for smooth animations
   }
 
   init() {
     this.setupResizer();
+    this.setupTheme();
+  }
+
+  getStoredTheme() {
+    return localStorage.getItem("bloblang-theme");
+  }
+
+  getSystemTheme() {
+    return window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  getInitialTheme() {
+    // Priority: localStorage > system preference
+    return this.getStoredTheme() || this.getSystemTheme();
+  }
+
+  setTheme(theme) {
+    this.currentTheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("bloblang-theme", theme);
+  }
+
+  toggleTheme() {
+    // Smooth rotation using CSS transforms
+    if (this.themeToggle) {
+      const icon = this.themeToggle.querySelector(".theme-icon");
+
+      if (icon) {
+        this.rotationAngle += 360; // Add 360 degrees to current rotation
+        icon.style.transform = `rotate(${this.rotationAngle}deg)`;
+      }
+    }
+
+    const newTheme = this.currentTheme === "dark" ? "light" : "dark";
+    this.setTheme(newTheme);
+  }
+
+  setupTheme() {
+    // Apply initial theme
+    this.setTheme(this.currentTheme);
+
+    // Setup dark mode toggle button
+    if (this.themeToggle) {
+      this.themeToggle.addEventListener("click", () => {
+        this.toggleTheme();
+      });
+    }
+
+    // Listen for system theme changes when no stored preference
+    if (!this.getStoredTheme()) {
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          if (!this.getStoredTheme()) {
+            this.setTheme(e.matches ? "dark" : "light");
+          }
+        });
+    }
   }
 
   setupResizer() {

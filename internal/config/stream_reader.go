@@ -43,7 +43,7 @@ func inferStreamID(dir, path string) (string, error) {
 	return id, nil
 }
 
-func (r *Reader) readStreamFileConfig(path string) (conf stream.Config, lints []string, err error) {
+func (r *Reader) readStreamFileConfig(path string) (conf stream.Config, lints []string, lintWarns []string, err error) {
 	var confBytes []byte
 	var dLints []docs.Lint
 	var modTime time.Time
@@ -68,7 +68,12 @@ func (r *Reader) readStreamFileConfig(path string) (conf stream.Config, lints []
 
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {
 		for _, lint := range confSpec.LintYAML(r.lintCtx(), rawNode) {
-			lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
+			switch lint.Level {
+			case docs.LintWarning:
+				lintWarns = append(lintWarns, fmt.Sprintf("%v%v", path, lint.Error()))
+			default:
+				lints = append(lints, fmt.Sprintf("%v%v", path, lint.Error()))
+			}
 		}
 	}
 
@@ -81,21 +86,21 @@ func (r *Reader) readStreamFileConfig(path string) (conf stream.Config, lints []
 	return
 }
 
-func (r *Reader) readStreamFile(id, path string, confs map[string]stream.Config) ([]string, error) {
+func (r *Reader) readStreamFile(id, path string, confs map[string]stream.Config) ([]string, []string, error) {
 	if id == "" {
-		return nil, fmt.Errorf("stream id could not be inferred from file: %v", path)
+		return nil, nil, fmt.Errorf("stream id could not be inferred from file: %v", path)
 	}
 	if _, exists := confs[id]; exists {
-		return nil, fmt.Errorf("stream id (%v) collision from file: %v", id, path)
+		return nil, nil, fmt.Errorf("stream id (%v) collision from file: %v", id, path)
 	}
 
-	conf, lints, err := r.readStreamFileConfig(path)
+	conf, lints, lintWarns, err := r.readStreamFileConfig(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	confs[id] = conf
-	return lints, nil
+	return lints, lintWarns, nil
 }
 
 func (r *Reader) streamPathsExpanded() ([]string, error) {
@@ -157,18 +162,19 @@ func (r *Reader) streamPathsExpanded() ([]string, error) {
 	return paths, nil
 }
 
-func (r *Reader) readStreamFiles(streamMap map[string]stream.Config) (pathLints []string, err error) {
+func (r *Reader) readStreamFiles(streamMap map[string]stream.Config) (pathLints []string, pathLintWarns []string, err error) {
 	var streamsPaths []string
 	if streamsPaths, err = r.streamPathsExpanded(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, target := range streamsPaths {
-		tmpPathLints, err := r.readStreamFile(r.streamFileInfo[target].id, target, streamMap)
+		tmpPathLints, tmpPathLintWarns, err := r.readStreamFile(r.streamFileInfo[target].id, target, streamMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load config '%v': %v", target, err)
+			return nil, nil, fmt.Errorf("failed to load config '%v': %v", target, err)
 		}
 		pathLints = append(pathLints, tmpPathLints...)
+		pathLintWarns = append(pathLintWarns, tmpPathLintWarns...)
 	}
 	return
 }
@@ -189,7 +195,7 @@ func (r *Reader) TriggerStreamUpdate(mgr bundle.NewManagement, strict bool, path
 		return nil
 	}
 
-	conf, lints, err := r.readStreamFileConfig(path)
+	conf, lints, lintWarns, err := r.readStreamFileConfig(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		info, exists := r.streamFileInfo[path]
 		if !exists {
@@ -229,6 +235,9 @@ func (r *Reader) TriggerStreamUpdate(mgr bundle.NewManagement, strict bool, path
 	if strict && len(lints) > 0 {
 		mgr.Logger().Error("Rejecting updated stream %v config due to linter errors, to allow linting errors run Bento with --chilled.", info.id)
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
+	}
+	for _, lintWarn := range lintWarns {
+		lintlog.Warn(lintWarn)
 	}
 
 	if err := r.streamUpdateFn(info.id, &conf); err != nil {
