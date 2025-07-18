@@ -1,0 +1,778 @@
+{
+  "test-snapshot-text-classifier": {
+    "results": [
+      {
+        "input": "I love this amazing product!",
+        "result": [
+          {
+            "Label": "POSITIVE",
+            "Score": 0.99988955
+          }
+        ]
+      },
+      {
+        "input": "This is absolutely terrible.",
+        "result": [
+          {
+            "Label": "NEGATIVE",
+            "Score": 0.99951386
+          }
+        ]
+      },
+      {
+        "input": "The service was okay, nothing special.",
+        "result": [
+          {
+            "Label": "NEGATIVE",
+            "Score": 0.98624027
+          }
+        ]
+      },
+      {
+        "input": "Best experience ever, highly recommend!",
+        "result": [
+          {
+            "Label": "POSITIVE",
+            "Score": 0.99987423
+          }
+        ]
+      }
+    ],
+    "tokenizer_stats": {
+      "total_duration": 2352750,
+      "total_calls": 4
+    },
+    "pipeline_stats": {
+      "total_duration": 13882052708,
+      "total_calls": 4
+    },
+    "metadata": {
+      "created_at": "2025-05-30T13:44:32.741505+02:00",
+      "model_name": "KnightsAnalytics/distilbert-base-uncased-finetuned-sst-2-english",
+      "go_version": "go1.24.2",
+      "platform": "darwin/arm64",
+      "test_name": "test-snapshot-text-classifier"
+    }
+  },
+  "test-snapshot-text-multi-classifier": {
+    "results": [
+      {
+        "input": "Bento boxes taste amazing!",
+        "result": [
+          {
+            "Label": "admiration",
+            "Score": 0.99192876
+          },
+          {
+            "Label": "amusement",
+            "Score": 0.00015103888
+          },
+          {
+            "Label": "anger",
+            "Score": 0.000101217585
+          },
+          {
+            "Label": "annoyance",
+            "Score": 0.00021161769
+          },
+          {
+            "Label": "approval",
+            "Score": 0.0019604522
+          },
+          {
+            "Label": "caring",
+            "Score": 0.000060396913
+          },
+          {
+            "Label": "confusion",
+            "Score": 0.00008276319
+          },
+          {
+            "Label": "curiosity",
+            "Score": 0.00018682054
+          },
+          {
+            "Label": "desire",
+            "Score": 0.00007611643
+          },
+          {
+            "Label": "disappointment",
+            "Score": 0.00012850498
+          },
+          {
+            "Label": "disapproval",
+            "Score": 0.00016024886
+          },
+          {
+            "Label": "disgust",
+            "Score": 0.0000525156
+          },
+          {
+            "Label": "embarrassment",
+            "Score": 0.000019788216
+          },
+          {
+            "Label": "excitement",
+            "Score": 0.0013218276
+          },
+          {
+            "Label": "fear",
+            "Score": 0.000032677377
+          },
+          {
+            "Label": "gratitude",
+            "Score": 0.00017549378
+          },
+          {
+            "Label": "grief",
+            "Score": 0.000019954832
+          },
+          {
+            "Label": "joy",
+            "Score": 0.00065214734
+          },
+          {
+            "Label": "love",
+            "Score": 0.00032762208
+          },
+          {
+            "Label": "nervousness",
+            "Score": 0.000012636673
+          },
+          {
+            "Label": "optimism",
+            "Score": 0.00019574797
+          },
+          {
+            "Label": "pride",
+            "Score": 0.00022121916
+          },
+          {
+            "Label": "realization",
+            "Score": 0.00025940753
+          },
+          {
+            "Label": "relief",
+            "Score": 0.00004079806
+          },
+          {
+            "Label": "remorse",
+            "Score": 0.000010580592
+          },
+          {
+            "Label": "sadness",
+            "Score": 0.0000647259
+          },
+          {
+            "Label": "surprise",
+            "Score": 0.00033724416
+          },
+          {
+            "Label": "neutral",
+            "Score": 0.0012076538
+          }
+        ]
+      },
+      {
+        "input": "Meow meow meow... meow meow.",
+        "result": [
+          {
+            "Label": "admiration",
+            "Score": 0.00014915405
+          },
+          {
+            "Label": "amusement",
+            "Score": 0.00021473964
+          },
+          {
+            "Label": "anger",
+            "Score": 0.0003424527
+          },
+          {
+            "Label": "annoyance",
+            "Score": 0.001025356
+          },
+          {
+            "Label": "approval",
+            "Score": 0.00036116288
+          },
+          {
+            "Label": "caring",
+            "Score": 0.000054947373
+          },
+          {
+            "Label": "confusion",
+            "Score": 0.00008623545
+          },
+          {
+            "Label": "curiosity",
+            "Score": 0.000070307855
+          },
+          {
+            "Label": "desire",
+            "Score": 0.000090798756
+          },
+          {
+            "Label": "disappointment",
+            "Score": 0.00030927963
+          },
+          {
+            "Label": "disapproval",
+            "Score": 0.00016711664
+          },
+          {
+            "Label": "disgust",
+            "Score": 0.00048385334
+          },
+          {
+            "Label": "embarrassment",
+            "Score": 0.00009319857
+          },
+          {
+            "Label": "excitement",
+            "Score": 0.00016381493
+          },
+          {
+            "Label": "fear",
+            "Score": 0.00017069346
+          },
+          {
+            "Label": "gratitude",
+            "Score": 0.00004593657
+          },
+          {
+            "Label": "grief",
+            "Score": 0.000040071594
+          },
+          {
+            "Label": "joy",
+            "Score": 0.00014652088
+          },
+          {
+            "Label": "love",
+            "Score": 0.00008338617
+          },
+          {
+            "Label": "nervousness",
+            "Score": 0.00003651303
+          },
+          {
+            "Label": "optimism",
+            "Score": 0.00005913433
+          },
+          {
+            "Label": "pride",
+            "Score": 0.00002795384
+          },
+          {
+            "Label": "realization",
+            "Score": 0.00026981303
+          },
+          {
+            "Label": "relief",
+            "Score": 0.000024942456
+          },
+          {
+            "Label": "remorse",
+            "Score": 0.000024347197
+          },
+          {
+            "Label": "sadness",
+            "Score": 0.00026318306
+          },
+          {
+            "Label": "surprise",
+            "Score": 0.0000842538
+          },
+          {
+            "Label": "neutral",
+            "Score": 0.9951108
+          }
+        ]
+      },
+      {
+        "input": "Why does the blobfish look so sad? :(",
+        "result": [
+          {
+            "Label": "admiration",
+            "Score": 0.0010153248
+          },
+          {
+            "Label": "amusement",
+            "Score": 0.0012002813
+          },
+          {
+            "Label": "anger",
+            "Score": 0.001323087
+          },
+          {
+            "Label": "annoyance",
+            "Score": 0.0030187375
+          },
+          {
+            "Label": "approval",
+            "Score": 0.0015287293
+          },
+          {
+            "Label": "caring",
+            "Score": 0.002533357
+          },
+          {
+            "Label": "confusion",
+            "Score": 0.013571305
+          },
+          {
+            "Label": "curiosity",
+            "Score": 0.0627029
+          },
+          {
+            "Label": "desire",
+            "Score": 0.00078335084
+          },
+          {
+            "Label": "disappointment",
+            "Score": 0.025407959
+          },
+          {
+            "Label": "disapproval",
+            "Score": 0.0024558704
+          },
+          {
+            "Label": "disgust",
+            "Score": 0.0006396566
+          },
+          {
+            "Label": "embarrassment",
+            "Score": 0.0006454779
+          },
+          {
+            "Label": "excitement",
+            "Score": 0.00043404553
+          },
+          {
+            "Label": "fear",
+            "Score": 0.0008775552
+          },
+          {
+            "Label": "gratitude",
+            "Score": 0.0002749681
+          },
+          {
+            "Label": "grief",
+            "Score": 0.004231232
+          },
+          {
+            "Label": "joy",
+            "Score": 0.00066654733
+          },
+          {
+            "Label": "love",
+            "Score": 0.0014420832
+          },
+          {
+            "Label": "nervousness",
+            "Score": 0.0021617492
+          },
+          {
+            "Label": "optimism",
+            "Score": 0.0006138871
+          },
+          {
+            "Label": "pride",
+            "Score": 0.00003953162
+          },
+          {
+            "Label": "realization",
+            "Score": 0.0019301181
+          },
+          {
+            "Label": "relief",
+            "Score": 0.000255051
+          },
+          {
+            "Label": "remorse",
+            "Score": 0.00530823
+          },
+          {
+            "Label": "sadness",
+            "Score": 0.85427165
+          },
+          {
+            "Label": "surprise",
+            "Score": 0.001177648
+          },
+          {
+            "Label": "neutral",
+            "Score": 0.00948967
+          }
+        ]
+      },
+      {
+        "input": "Sir, are you aware of the magnificent octopus on your head?",
+        "result": [
+          {
+            "Label": "admiration",
+            "Score": 0.015738677
+          },
+          {
+            "Label": "amusement",
+            "Score": 0.00045209163
+          },
+          {
+            "Label": "anger",
+            "Score": 0.0006108006
+          },
+          {
+            "Label": "annoyance",
+            "Score": 0.0016552485
+          },
+          {
+            "Label": "approval",
+            "Score": 0.0066130394
+          },
+          {
+            "Label": "caring",
+            "Score": 0.0009602596
+          },
+          {
+            "Label": "confusion",
+            "Score": 0.031911653
+          },
+          {
+            "Label": "curiosity",
+            "Score": 0.86863375
+          },
+          {
+            "Label": "desire",
+            "Score": 0.00055940123
+          },
+          {
+            "Label": "disappointment",
+            "Score": 0.00049614446
+          },
+          {
+            "Label": "disapproval",
+            "Score": 0.0007303232
+          },
+          {
+            "Label": "disgust",
+            "Score": 0.00033509335
+          },
+          {
+            "Label": "embarrassment",
+            "Score": 0.00021106137
+          },
+          {
+            "Label": "excitement",
+            "Score": 0.002739829
+          },
+          {
+            "Label": "fear",
+            "Score": 0.0005696799
+          },
+          {
+            "Label": "gratitude",
+            "Score": 0.0005476654
+          },
+          {
+            "Label": "grief",
+            "Score": 0.000116571944
+          },
+          {
+            "Label": "joy",
+            "Score": 0.0007062373
+          },
+          {
+            "Label": "love",
+            "Score": 0.0011834842
+          },
+          {
+            "Label": "nervousness",
+            "Score": 0.000280246
+          },
+          {
+            "Label": "optimism",
+            "Score": 0.0011876336
+          },
+          {
+            "Label": "pride",
+            "Score": 0.000060756
+          },
+          {
+            "Label": "realization",
+            "Score": 0.0019168303
+          },
+          {
+            "Label": "relief",
+            "Score": 0.00010683968
+          },
+          {
+            "Label": "remorse",
+            "Score": 0.00016028705
+          },
+          {
+            "Label": "sadness",
+            "Score": 0.0004165286
+          },
+          {
+            "Label": "surprise",
+            "Score": 0.0040810797
+          },
+          {
+            "Label": "neutral",
+            "Score": 0.057018813
+          }
+        ]
+      },
+      {
+        "input": "Streaming data is my favourite pastime.",
+        "result": [
+          {
+            "Label": "admiration",
+            "Score": 0.16699317
+          },
+          {
+            "Label": "amusement",
+            "Score": 0.002217953
+          },
+          {
+            "Label": "anger",
+            "Score": 0.0006649831
+          },
+          {
+            "Label": "annoyance",
+            "Score": 0.0016785697
+          },
+          {
+            "Label": "approval",
+            "Score": 0.046120938
+          },
+          {
+            "Label": "caring",
+            "Score": 0.0007957523
+          },
+          {
+            "Label": "confusion",
+            "Score": 0.00044672878
+          },
+          {
+            "Label": "curiosity",
+            "Score": 0.00040249882
+          },
+          {
+            "Label": "desire",
+            "Score": 0.00079955504
+          },
+          {
+            "Label": "disappointment",
+            "Score": 0.00073078135
+          },
+          {
+            "Label": "disapproval",
+            "Score": 0.0012362628
+          },
+          {
+            "Label": "disgust",
+            "Score": 0.00036721647
+          },
+          {
+            "Label": "embarrassment",
+            "Score": 0.00013691995
+          },
+          {
+            "Label": "excitement",
+            "Score": 0.0071492284
+          },
+          {
+            "Label": "fear",
+            "Score": 0.00013374386
+          },
+          {
+            "Label": "gratitude",
+            "Score": 0.000795401
+          },
+          {
+            "Label": "grief",
+            "Score": 0.00009749905
+          },
+          {
+            "Label": "joy",
+            "Score": 0.059741076
+          },
+          {
+            "Label": "love",
+            "Score": 0.6904033
+          },
+          {
+            "Label": "nervousness",
+            "Score": 0.00009395915
+          },
+          {
+            "Label": "optimism",
+            "Score": 0.0013116422
+          },
+          {
+            "Label": "pride",
+            "Score": 0.00087411044
+          },
+          {
+            "Label": "realization",
+            "Score": 0.0022564565
+          },
+          {
+            "Label": "relief",
+            "Score": 0.00051919045
+          },
+          {
+            "Label": "remorse",
+            "Score": 0.00011602428
+          },
+          {
+            "Label": "sadness",
+            "Score": 0.00032998258
+          },
+          {
+            "Label": "surprise",
+            "Score": 0.00046769425
+          },
+          {
+            "Label": "neutral",
+            "Score": 0.013119353
+          }
+        ]
+      },
+      {
+        "input": "You are wearing a silly hat.",
+        "result": [
+          {
+            "Label": "admiration",
+            "Score": 0.0017882254
+          },
+          {
+            "Label": "amusement",
+            "Score": 0.06779263
+          },
+          {
+            "Label": "anger",
+            "Score": 0.0027309796
+          },
+          {
+            "Label": "annoyance",
+            "Score": 0.045808867
+          },
+          {
+            "Label": "approval",
+            "Score": 0.0034868754
+          },
+          {
+            "Label": "caring",
+            "Score": 0.0007662045
+          },
+          {
+            "Label": "confusion",
+            "Score": 0.0012498704
+          },
+          {
+            "Label": "curiosity",
+            "Score": 0.0007398686
+          },
+          {
+            "Label": "desire",
+            "Score": 0.0004522006
+          },
+          {
+            "Label": "disappointment",
+            "Score": 0.0033703595
+          },
+          {
+            "Label": "disapproval",
+            "Score": 0.0045484714
+          },
+          {
+            "Label": "disgust",
+            "Score": 0.0015874839
+          },
+          {
+            "Label": "embarrassment",
+            "Score": 0.0018761113
+          },
+          {
+            "Label": "excitement",
+            "Score": 0.0030047337
+          },
+          {
+            "Label": "fear",
+            "Score": 0.0003277849
+          },
+          {
+            "Label": "gratitude",
+            "Score": 0.00027549133
+          },
+          {
+            "Label": "grief",
+            "Score": 0.00016498698
+          },
+          {
+            "Label": "joy",
+            "Score": 0.009976536
+          },
+          {
+            "Label": "love",
+            "Score": 0.00030898853
+          },
+          {
+            "Label": "nervousness",
+            "Score": 0.00035467104
+          },
+          {
+            "Label": "optimism",
+            "Score": 0.001041582
+          },
+          {
+            "Label": "pride",
+            "Score": 0.00043226013
+          },
+          {
+            "Label": "realization",
+            "Score": 0.005374826
+          },
+          {
+            "Label": "relief",
+            "Score": 0.00059342745
+          },
+          {
+            "Label": "remorse",
+            "Score": 0.00016449805
+          },
+          {
+            "Label": "sadness",
+            "Score": 0.0006985199
+          },
+          {
+            "Label": "surprise",
+            "Score": 0.0013229412
+          },
+          {
+            "Label": "neutral",
+            "Score": 0.8397606
+          }
+        ]
+      }
+    ],
+    "tokenizer_stats": {
+      "total_duration": 9966875,
+      "total_calls": 3
+    },
+    "pipeline_stats": {
+      "total_duration": 28076000626,
+      "total_calls": 3
+    },
+    "metadata": {
+      "created_at": "2025-05-30T13:45:04.995533+02:00",
+      "model_name": "KnightsAnalytics/roberta-base-go_emotions",
+      "go_version": "go1.24.2",
+      "platform": "darwin/arm64",
+      "test_name": "test-snapshot-text-multi-classifier"
+    }
+  }
+}
