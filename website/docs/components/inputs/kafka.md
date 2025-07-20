@@ -83,6 +83,7 @@ input:
     commit_period: 1s
     max_processing_period: 100ms
     extract_tracing_map: root = @ # No default (optional)
+    new_root_span_with_link: false # No default (optional)
     group:
       session_timeout: 10s
       heartbeat_interval: 3s
@@ -598,6 +599,14 @@ extract_tracing_map: root = @
 
 extract_tracing_map: root = this.meta.span
 ```
+
+### `new_root_span_with_link`
+
+EXPERIMENTAL: Starts a new root span with link to parent.
+
+
+Type: `bool`  
+Requires version 1.0.0 or newer  
 
 ### `group`
 
