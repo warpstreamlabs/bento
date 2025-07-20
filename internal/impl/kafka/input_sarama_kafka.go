@@ -126,6 +126,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 				Description("A maximum estimate for the time taken to process a message, this is used for tuning consumer group synchronization.").
 				Advanced().Default("100ms"),
 			service.NewExtractTracingSpanMappingField(),
+			service.NewRootSpanWithLinkField(),
 			service.NewObjectField(iskFieldGroup,
 				service.NewDurationField(iskFieldGroupSessionTimeout).
 					Description("A period after which a consumer of the group is kicked after no heartbeats.").

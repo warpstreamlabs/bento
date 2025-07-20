@@ -80,7 +80,7 @@ You can access these metadata fields using
 			Advanced().
 			Default(1024)).
 		Fields(connectionTailFields()...).
-		Field(inputTracingDocs())
+		Fields(inputTracingDocs()...)
 }
 
 func init() {

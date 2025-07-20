@@ -135,7 +135,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Default("30s"),
 		).
 		Fields(connectionTailFields()...).
-		Field(inputTracingDocs())
+		Fields(inputTracingDocs()...)
 }
 
 func init() {
