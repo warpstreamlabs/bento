@@ -88,6 +88,13 @@ func csvScannerFromParsed(conf *service.ParsedConfig) (l *csvScannerCreator, err
 			return
 		}
 	}
+	// disallow expected_headers when header‐parsing is off
+	if !l.parseHeaderRow && len(l.expectedHeaders) > 0 {
+		return nil, errors.New(
+			"parse_header_row=false but expected_headers is set; " +
+				"headers won’t be checked. Either set parse_header_row=true or remove expected_headers",
+		)
+	}
 	if conf.Contains(scsvFieldExpectedNumberOfFields) {
 		if l.expectedNumberOfFields, err = conf.FieldInt(scsvFieldExpectedNumberOfFields); err != nil {
 			return
