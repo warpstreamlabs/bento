@@ -209,7 +209,7 @@ test:
 `, nil)
 	require.NoError(t, err, "YAML with parse_header_row=false & expected_headers should parse")
 
-	// Attempt to build the scanner — this should hit your runtime check
+	// Attempt to build the scanner — this should hit the runtime check
 	_, err = pConf.FieldScanner("test")
 
 	require.ErrorContains(
