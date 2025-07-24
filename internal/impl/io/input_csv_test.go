@@ -677,3 +677,33 @@ func TestCSVScannerExpectedNumberOfErr(t *testing.T) {
 	_, _, err = f.ReadBatch(context.Background())
 	require.ErrorContains(t, err, "wrong number of fields")
 }
+
+func TestCSVScannerExpectedHeadersLintRuleErr(t *testing.T) {
+	builder := service.NewStreamBuilder()
+
+	err := builder.SetYAML(`
+input:
+    csv:
+      paths: ["./data.csv"]
+      parse_header_row: false
+      expected_headers: ["one", "two", "three"]
+output:
+  stdout: {}
+`)
+	require.ErrorContains(t, err, "expected_headers is set but parse_header_row is false")
+}
+
+func TestCSVScannerExpectedHeadersLintRuleHappy(t *testing.T) {
+	builder := service.NewStreamBuilder()
+
+	err := builder.SetYAML(`
+input:
+    csv:
+      paths: ["./data.csv"]
+      parse_header_row: true
+      expected_headers: ["one", "two", "three"]
+output:
+  stdout: {}
+`)
+	require.NoError(t, err)
+}
