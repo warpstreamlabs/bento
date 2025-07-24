@@ -54,7 +54,11 @@ This scanner adds the following metadata to each message:
 				Version("1.6.0").
 				LintRule(`root = if this < 1 { [ "`+scsvFieldExpectedNumberOfFields+` must be at least 1" ] }`).
 				Optional(),
-		)
+		).LintRule(`
+root = if this.parse_header_row == false && this.expected_headers.or([]).length() > 0 {
+  "expected_headers is set but parse_header_row is false; headers won’t be checked"
+}
+`)
 }
 
 func init() {

@@ -193,9 +193,10 @@ a4,b4,c4
 	require.ErrorContains(t, err, "wrong number of fields")
 }
 
-// Ensures CSV scanner fails when header parsing is disabled but expected_headers is set.
-func TestCSVScannerError_HeaderDisabledWithExpectedHeaders(t *testing.T) {
-	confSpec := service.NewConfigSpec().Field(service.NewScannerField("test"))
+func TestCSVScannerRejectsExpectedHeadersWhenHeaderParsingDisabled(t *testing.T) {
+	confSpec := service.NewConfigSpec().
+		Field(service.NewScannerField("test"))
+
 	pConf, err := confSpec.ParseYAML(`
 test:
   csv:
@@ -204,12 +205,19 @@ test:
       - a
       - b
       - c
+      - d
 `, nil)
-	require.NoError(t, err, "parsing YAML itself should succeed")
+	require.NoError(t, err, "YAML with parse_header_row=false & expected_headers should parse")
 
-	// Now building the scanner must fail
+	// Attempt to build the scanner — this should hit your runtime check
 	_, err = pConf.FieldScanner("test")
-	require.ErrorContains(t, err, "parse_header_row=false but expected_headers is set")
+
+	require.ErrorContains(
+		t,
+		err,
+		"parse_header_row=false but expected_headers is set; headers won’t be checked",
+		"Expected an error when header parsing is disabled but expected_headers is set",
+	)
 }
 
 // Ensures CSV scanner succeeds when header parsing is enabled and expected headers match.
@@ -224,6 +232,7 @@ test:
       - b
       - c
 `, nil)
+
 	require.NoError(t, err, "YAML with parse_header_row=true & expected_headers should parse")
 
 	rdr, err := pConf.FieldScanner("test")
