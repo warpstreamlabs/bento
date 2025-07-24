@@ -251,7 +251,6 @@ foo2,bar2,baz2
 func TestCSVScannerExpectedHeadersLintRuleErr(t *testing.T) {
 	builder := service.NewStreamBuilder()
 
-	// Set the full Bento configuration of the stream.
 	err := builder.SetYAML(`
 input:
   file:
@@ -269,7 +268,6 @@ output:
 func TestCSVScannerExpectedHeadersLintRuleHappy(t *testing.T) {
 	builder := service.NewStreamBuilder()
 
-	// Set the full Bento configuration of the stream.
 	err := builder.SetYAML(`
 input:
   file:

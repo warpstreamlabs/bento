@@ -681,7 +681,6 @@ func TestCSVScannerExpectedNumberOfErr(t *testing.T) {
 func TestCSVScannerExpectedHeadersLintRuleErr(t *testing.T) {
 	builder := service.NewStreamBuilder()
 
-	// Set the full Bento configuration of the stream.
 	err := builder.SetYAML(`
 input:
     csv:
@@ -697,7 +696,6 @@ output:
 func TestCSVScannerExpectedHeadersLintRuleHappy(t *testing.T) {
 	builder := service.NewStreamBuilder()
 
-	// Set the full Bento configuration of the stream.
 	err := builder.SetYAML(`
 input:
     csv:
