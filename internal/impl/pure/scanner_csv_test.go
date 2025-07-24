@@ -247,3 +247,39 @@ foo2,bar2,baz2
 		`{"a":"foo2","b":"bar2","c":"baz2"}`,
 	)
 }
+
+func TestCSVScannerExpectedHeadersLintRuleErr(t *testing.T) {
+	builder := service.NewStreamBuilder()
+
+	// Set the full Bento configuration of the stream.
+	err := builder.SetYAML(`
+input:
+  file:
+    paths: ["./data.csv"]
+    scanner:
+      csv:
+        parse_header_row: false
+        expected_headers: ["one", "two", "three"]
+output:
+  stdout: {}
+`)
+	require.ErrorContains(t, err, "expected_headers is set but parse_header_row is false")
+}
+
+func TestCSVScannerExpectedHeadersLintRuleHappy(t *testing.T) {
+	builder := service.NewStreamBuilder()
+
+	// Set the full Bento configuration of the stream.
+	err := builder.SetYAML(`
+input:
+  file:
+    paths: ["./data.csv"]
+    scanner:
+      csv:
+        parse_header_row: true
+        expected_headers: ["one", "two", "three"]
+output:
+  stdout: {}
+`)
+	require.NoError(t, err)
+}
