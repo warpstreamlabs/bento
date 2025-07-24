@@ -16,8 +16,9 @@ import (
 
 type mockDynamoDB struct {
 	dynamoDBAPI
-	fn      func(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
-	batchFn func(*dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error)
+	fn       func(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
+	batchFn  func(*dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error)
+	deleteFn func(*dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error)
 }
 
 func (m *mockDynamoDB) PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
@@ -26,6 +27,13 @@ func (m *mockDynamoDB) PutItem(ctx context.Context, params *dynamodb.PutItemInpu
 
 func (m *mockDynamoDB) BatchWriteItem(ctx context.Context, params *dynamodb.BatchWriteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error) {
 	return m.batchFn(params)
+}
+
+func (m *mockDynamoDB) DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	if m.deleteFn != nil {
+		return m.deleteFn(params)
+	}
+	return &dynamodb.DeleteItemOutput{}, nil
 }
 
 func testDDBOWriter(t *testing.T, conf string) *dynamoDBWriter {
@@ -494,4 +502,93 @@ string_columns:
 	}
 
 	assert.Equal(t, expected, requests)
+}
+
+func TestDynamoDBDeleteRequest(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+partition_key: id
+sort_key: type
+string_columns:
+  id: ${!json("id")}
+  type: ${!json("type")}
+is_delete: ${!meta("operation") == "delete"}`)
+
+	var receivedKey map[string]types.AttributeValue
+
+	db.client = &mockDynamoDB{
+		deleteFn: func(input *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error) {
+			receivedKey = input.Key
+			return &dynamodb.DeleteItemOutput{}, nil
+		},
+	}
+
+	msg := service.NewMessage([]byte(`{"id":"foo","type":"bar"}`))
+	msg.MetaSet("operation", "delete")
+
+	require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{msg}))
+
+	expectedKey := map[string]types.AttributeValue{
+		"id":   &types.AttributeValueMemberS{Value: "foo"},
+		"type": &types.AttributeValueMemberS{Value: "bar"},
+	}
+
+	assert.Equal(t, expectedKey, receivedKey)
+}
+
+func TestDynamoDBMixedDeleteAndPut(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+partition_key: id
+sort_key: type
+string_columns:
+  id: ${!json("id")}
+  type: ${!json("type")}
+  content: ${!json("content")}
+is_delete: ${!meta("operation") == "delete"}
+`)
+
+	var deletedKey map[string]types.AttributeValue
+	var putRequests []map[string]types.AttributeValue
+
+	db.client = &mockDynamoDB{
+		// DeleteItem
+		deleteFn: func(input *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error) {
+			deletedKey = input.Key
+			return &dynamodb.DeleteItemOutput{}, nil
+		},
+		// PutItem
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			for _, wr := range input.RequestItems["FooTable"] {
+				if pr := wr.PutRequest; pr != nil {
+					putRequests = append(putRequests, pr.Item)
+				}
+			}
+			return &dynamodb.BatchWriteItemOutput{}, nil
+		},
+	}
+
+	// Delete Message
+	msgDel := service.NewMessage([]byte(`{"id":"foo","type":"bar","content":"should be ignored"}`))
+	msgDel.MetaSet("operation", "delete")
+	// Put Message
+	msgPut := service.NewMessage([]byte(`{"id":"baz","type":"qux","content":"hello world"}`))
+
+	err := db.WriteBatch(context.Background(), service.MessageBatch{msgDel, msgPut})
+	require.NoError(t, err)
+
+	// Assert DeleteItem when saw the correct key
+	assert.Equal(t, map[string]types.AttributeValue{
+		"id":   &types.AttributeValueMemberS{Value: "foo"},
+		"type": &types.AttributeValueMemberS{Value: "bar"},
+	}, deletedKey)
+
+	// Assert PutItem saw exactly one request with the remaining message
+	expectedPut := map[string]types.AttributeValue{
+		"id":      &types.AttributeValueMemberS{Value: "baz"},
+		"type":    &types.AttributeValueMemberS{Value: "qux"},
+		"content": &types.AttributeValueMemberS{Value: "hello world"},
+	}
+	require.Len(t, putRequests, 1)
+	assert.Equal(t, expectedPut, putRequests[0])
 }

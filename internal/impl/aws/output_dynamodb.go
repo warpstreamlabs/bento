@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	_ "strings"
 	"sync"
 	"time"
 
@@ -22,21 +23,26 @@ import (
 
 const (
 	// DynamoDB Output Fields
-	ddboField               = "namespace"
 	ddboFieldTable          = "table"
 	ddboFieldStringColumns  = "string_columns"
 	ddboFieldJSONMapColumns = "json_map_columns"
 	ddboFieldTTL            = "ttl"
 	ddboFieldTTLKey         = "ttl_key"
+	ddboFieldIsDelete       = "is_delete"
+	ddboFieldPartitionKey   = "partition_key"
+	ddboFieldSortKey        = "sort_key"
 	ddboFieldBatching       = "batching"
 )
 
 type ddboConfig struct {
-	Table          string
-	StringColumns  map[string]*service.InterpolatedString
-	JSONMapColumns map[string]string
-	TTL            string
-	TTLKey         string
+	Table             string
+	StringColumns     map[string]*service.InterpolatedString
+	JSONMapColumns    map[string]string
+	TTL               string
+	TTLKey            string
+	IsDelete          *service.InterpolatedString
+	PartitionKeyField string
+	SortKeyField      string
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -56,6 +62,15 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 		return
 	}
 	if conf.TTLKey, err = pConf.FieldString(ddboFieldTTLKey); err != nil {
+		return
+	}
+	if conf.IsDelete, err = pConf.FieldInterpolatedString(ddboFieldIsDelete); err != nil {
+		return
+	}
+	if conf.PartitionKeyField, err = pConf.FieldString(ddboFieldPartitionKey); err != nil {
+		return
+	}
+	if conf.SortKeyField, err = pConf.FieldString(ddboFieldSortKey); err != nil {
 		return
 	}
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
@@ -141,6 +156,16 @@ This output benefits from sending messages as a batch for improved performance. 
 				Description("The column key to place the TTL value within.").
 				Default("").
 				Advanced(),
+			service.NewInterpolatedStringField(ddboFieldIsDelete).
+				Description("Whether to perform a DeleteItem instead of PutItem.").
+				Default("false").
+				Advanced(),
+			service.NewStringField(ddboFieldPartitionKey).
+				Description("The partition key for DeleteItem requests. Required when `is_delete` is true.").
+				Advanced(),
+			service.NewStringField(ddboFieldSortKey).
+				Description("The sort key for DeleteItem requests. Optional.").
+				Advanced(),
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(ddboFieldBatching),
 		).
@@ -195,8 +220,9 @@ func newDynamoDBWriter(conf ddboConfig, mgr *service.Resources) (*dynamoDBWriter
 		log:   mgr.Logger(),
 		table: aws.String(conf.Table),
 	}
-	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 {
-		return nil, errors.New("you must provide at least one column")
+
+	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 && conf.IsDelete == nil {
+		return nil, errors.New("you must provide either columns to write or 'is_delete' field")
 	}
 	for k, v := range conf.JSONMapColumns {
 		if v == "." {
@@ -244,48 +270,29 @@ func anyToAttributeValue(root any) types.AttributeValue {
 		for k, v2 := range v {
 			m[k] = anyToAttributeValue(v2)
 		}
-		return &types.AttributeValueMemberM{
-			Value: m,
-		}
+		return &types.AttributeValueMemberM{Value: m}
 	case []any:
 		l := make([]types.AttributeValue, len(v))
 		for i, v2 := range v {
 			l[i] = anyToAttributeValue(v2)
 		}
-		return &types.AttributeValueMemberL{
-			Value: l,
-		}
+		return &types.AttributeValueMemberL{Value: l}
 	case string:
-		return &types.AttributeValueMemberS{
-			Value: v,
-		}
+		return &types.AttributeValueMemberS{Value: v}
 	case json.Number:
-		return &types.AttributeValueMemberS{
-			Value: v.String(),
-		}
+		return &types.AttributeValueMemberS{Value: v.String()}
 	case float64:
-		return &types.AttributeValueMemberN{
-			Value: strconv.FormatFloat(v, 'f', -1, 64),
-		}
+		return &types.AttributeValueMemberN{Value: strconv.FormatFloat(v, 'f', -1, 64)}
 	case int:
-		return &types.AttributeValueMemberN{
-			Value: strconv.Itoa(v),
-		}
+		return &types.AttributeValueMemberN{Value: strconv.Itoa(v)}
 	case int64:
-		return &types.AttributeValueMemberN{
-			Value: strconv.Itoa(int(v)),
-		}
+		return &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)}
 	case bool:
-		return &types.AttributeValueMemberBOOL{
-			Value: v,
-		}
+		return &types.AttributeValueMemberBOOL{Value: v}
 	case nil:
-		return &types.AttributeValueMemberNULL{
-			Value: true,
-		}
-	}
-	return &types.AttributeValueMemberS{
-		Value: fmt.Sprintf("%v", root),
+		return &types.AttributeValueMemberNULL{Value: true}
+	default:
+		return &types.AttributeValueMemberS{Value: fmt.Sprintf("%v", root)}
 	}
 }
 
@@ -309,21 +316,72 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	}()
 
 	writeReqs := []types.WriteRequest{}
+	deleteIndices := map[int]bool{}
+	deleteKeys := map[int]map[string]types.AttributeValue{}
+
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
+
+		mapString := fmt.Sprint(d.conf.StringColumns)
+		fmt.Println("Conf string -> ", mapString)
+		isDel := false
+		if d.conf.IsDelete != nil {
+			var err error
+			isDelStr, err := b.TryInterpolatedString(i, d.conf.IsDelete)
+			if err != nil {
+				return fmt.Errorf("is_delete interpolation error: %w", err)
+			}
+			isDel = isDelStr == "true"
+			if err != nil {
+				return fmt.Errorf("is_delete interpolation error: %w", err)
+			}
+		}
+
+		if isDel {
+			// build key using the names in PartitionKeyField/SortKeyField
+			key := map[string]types.AttributeValue{}
+
+			// pull the value expression from string_columns:
+			exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyField]
+			if !ok {
+				return fmt.Errorf("partition key '%s' not in string_columns", d.conf.PartitionKeyField)
+			}
+			pk, err := b.TryInterpolatedString(i, exprPK)
+			if err != nil {
+				return fmt.Errorf("partition key error: %w", err)
+			}
+			key[d.conf.PartitionKeyField] = &types.AttributeValueMemberS{Value: pk}
+
+			// sort key if set
+			if d.conf.SortKeyField != "" {
+				exprSK, ok := d.conf.StringColumns[d.conf.SortKeyField]
+				if !ok {
+					return fmt.Errorf("sort key '%s' not in string_columns", d.conf.SortKeyField)
+				}
+				sk, err := b.TryInterpolatedString(i, exprSK)
+				if err != nil {
+					return fmt.Errorf("sort key error: %w", err)
+				}
+				key[d.conf.SortKeyField] = &types.AttributeValueMemberS{Value: sk}
+			}
+
+			deleteKeys[i] = key
+			deleteIndices[i] = true
+			return nil
+		}
+
 		items := map[string]types.AttributeValue{}
 		if d.ttl != 0 && d.conf.TTLKey != "" {
 			items[d.conf.TTLKey] = &types.AttributeValueMemberN{
 				Value: strconv.FormatInt(time.Now().Add(d.ttl).Unix(), 10),
 			}
 		}
+
 		for k, v := range d.conf.StringColumns {
 			s, err := b.TryInterpolatedString(i, v)
 			if err != nil {
 				return fmt.Errorf("string column %v interpolation error: %w", k, err)
 			}
-			items[k] = &types.AttributeValueMemberS{
-				Value: s,
-			}
+			items[k] = &types.AttributeValueMemberS{Value: s}
 		}
 		if len(d.conf.JSONMapColumns) > 0 {
 			jRoot, err := p.AsStructured()
@@ -350,6 +408,7 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				}
 			}
 		}
+
 		writeReqs = append(writeReqs, types.WriteRequest{
 			PutRequest: &types.PutRequest{
 				Item: items,
@@ -360,6 +419,20 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		return err
 	}
 
+	// Execute deletes first
+	for i, key := range deleteKeys {
+		if _, err := d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+			TableName: d.table,
+			Key:       key,
+		}); err != nil {
+			return fmt.Errorf("delete error at index %d: %w", i, err)
+		}
+	}
+
+	if len(writeReqs) == 0 {
+		return nil
+	}
+
 	batchResult, err := d.client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
 		RequestItems: map[string][]types.WriteRequest{
 			*d.table: writeReqs,
@@ -368,12 +441,17 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	if err != nil {
 		headlineErr := err
 
-		// None of the messages were successful, attempt to send individually
 	individualRequestsLoop:
 		for err != nil {
 			batchErr := service.NewBatchError(b, headlineErr)
-			for i, req := range writeReqs {
+			writeIdx := 0
+			for i := 0; i < len(b); i++ {
+				if deleteIndices[i] {
+					continue
+				}
+				req := writeReqs[writeIdx]
 				if req.PutRequest == nil {
+					writeIdx++
 					continue
 				}
 				if _, iErr := d.client.PutItem(ctx, &dynamodb.PutItemInput{
@@ -392,8 +470,9 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 					}
 					batchErr.Failed(i, iErr)
 				} else {
-					writeReqs[i].PutRequest = nil
+					writeReqs[writeIdx].PutRequest = nil
 				}
+				writeIdx++
 			}
 			if batchErr.IndexedErrors() == 0 {
 				err = nil
@@ -411,7 +490,6 @@ unprocessedLoop:
 		if wait == backoff.Stop {
 			break unprocessedLoop
 		}
-
 		select {
 		case <-time.After(wait):
 		case <-ctx.Done():
