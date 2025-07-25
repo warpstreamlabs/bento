@@ -49,7 +49,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Default(nats.DefaultSubPendingMsgsLimit).
 			LintRule(`root = if this < 0 { ["prefetch count must be greater than or equal to zero"] }`)).
 		Fields(connectionTailFields()...).
-		Field(inputTracingDocs())
+		Fields(inputTracingDocs()...)
 }
 
 func init() {
