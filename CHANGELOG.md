@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.9.1 - 2025-07-29
+
+### Fixed 
+
+- multipart s3 uploads for `aws_s3` output destination @Towerthousand
+
 ## 1.9.0 - 2025-07-07
 
 - update `parquet-go` dependency from `0.23.0` to `0.24.0` @gregfurman
