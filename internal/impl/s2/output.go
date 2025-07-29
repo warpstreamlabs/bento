@@ -200,11 +200,13 @@ func newOutputConfig(conf *service.ParsedConfig) (*s2bentobox.OutputConfig, erro
 		}
 	}
 
+	fencingTokenString := string(fencingToken)
+
 	return &s2bentobox.OutputConfig{
 		Config:       config,
 		Stream:       stream,
 		MaxInFlight:  maxInFlight,
-		FencingToken: fencingToken,
+		FencingToken: &fencingTokenString,
 	}, nil
 }
 

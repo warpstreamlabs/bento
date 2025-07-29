@@ -243,9 +243,9 @@ func (i *Input) ReadBatch(ctx context.Context) (service.MessageBatch, service.Ac
 		return nil, nil, err
 	}
 
-	messages := make([]*service.Message, 0, len(batch.Records))
+	messages := make([]*service.Message, 0, len(batch))
 
-	for _, record := range batch.Records {
+	for _, record := range batch {
 		msg := service.NewMessage(record.Body)
 
 		if len(record.Headers) == 1 && len(record.Headers[0].Name) == 0 {
