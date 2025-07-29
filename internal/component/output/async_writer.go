@@ -89,14 +89,13 @@ func (w *AsyncWriter) latencyMeasuringWrite(ctx context.Context, msg message.Bat
 func (w *AsyncWriter) loop() {
 	// Metrics paths
 	var (
-		mSent           = w.stats.GetCounter("output_sent")
-		mBatchSent      = w.stats.GetCounter("output_batch_sent")
-		mError          = w.stats.GetCounter("output_error")
-		mLatency        = w.stats.GetTimer("output_latency_ns")
-		mConn           = w.stats.GetCounter("output_connection_up")
-		mFailedConn     = w.stats.GetCounter("output_connection_failed")
-		mLostConn       = w.stats.GetCounter("output_connection_lost")
-		mReconnectError = w.stats.GetCounter("output_reconnect_error")
+		mSent       = w.stats.GetCounter("output_sent")
+		mBatchSent  = w.stats.GetCounter("output_batch_sent")
+		mError      = w.stats.GetCounter("output_error")
+		mLatency    = w.stats.GetTimer("output_latency_ns")
+		mConn       = w.stats.GetCounter("output_connection_up")
+		mFailedConn = w.stats.GetCounter("output_connection_failed")
+		mLostConn   = w.stats.GetCounter("output_connection_lost")
 
 		traceName = "output_" + w.typeStr
 	)
@@ -190,7 +189,6 @@ func (w *AsyncWriter) loop() {
 				mConn.Incr(1)
 				return
 			} else if err != nil {
-				mReconnectError.Incr(1)
 				mError.Incr(1)
 			}
 		}
