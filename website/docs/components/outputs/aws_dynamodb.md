@@ -57,6 +57,9 @@ output:
     json_map_columns: {}
     ttl: ""
     ttl_key: ""
+    is_delete: "false"
+    partition_key: ""
+    sort_key: ""
     max_in_flight: 64
     batching:
       count: 0
@@ -181,6 +184,31 @@ Default: `""`
 ### `ttl_key`
 
 The column key to place the TTL value within.
+
+
+Type: `string`  
+Default: `""`  
+
+### `is_delete`
+
+Whether to perform a DeleteItem instead of PutItem.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+Default: `"false"`  
+
+### `partition_key`
+
+The partition key for DeleteItem requests. Required when `is_delete` is true.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sort_key`
+
+The sort key for DeleteItem requests.
 
 
 Type: `string`  

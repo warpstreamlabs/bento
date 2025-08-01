@@ -162,9 +162,11 @@ This output benefits from sending messages as a batch for improved performance. 
 				Advanced(),
 			service.NewStringField(ddboFieldPartitionKey).
 				Description("The partition key for DeleteItem requests. Required when `is_delete` is true.").
+				Default("").
 				Advanced(),
 			service.NewStringField(ddboFieldSortKey).
-				Description("The sort key for DeleteItem requests. Optional.").
+				Description("The sort key for DeleteItem requests.").
+				Default("").
 				Advanced(),
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(ddboFieldBatching),
