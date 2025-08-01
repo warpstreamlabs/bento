@@ -1,6 +1,7 @@
 package sentry
 
 import (
+	"context"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -19,10 +20,20 @@ func (t *mockTransport) Flush(timeout time.Duration) bool {
 	return args.Bool(0)
 }
 
+func (t *mockTransport) FlushWithContext(ctx context.Context) bool {
+	args := t.Called(ctx)
+
+	return args.Bool(0)
+}
+
 func (t *mockTransport) Configure(options sentry.ClientOptions) {
 	t.Called(options)
 }
 
 func (t *mockTransport) SendEvent(event *sentry.Event) {
 	t.Called(event)
+}
+
+func (t *mockTransport) Close() {
+	t.Called()
 }
