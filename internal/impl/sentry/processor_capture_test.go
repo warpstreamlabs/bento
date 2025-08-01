@@ -37,6 +37,7 @@ func TestCaptureProcessor(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -84,6 +85,7 @@ func TestCaptureProcessor_Sync(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -120,6 +122,7 @@ func TestCaptureProcessor_InvalidMessage(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return(true)
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -155,6 +158,7 @@ func TestCaptureProcessor_NoSampling(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -192,6 +196,7 @@ func TestCaptureProcessor_FlushOnClose(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", d).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
