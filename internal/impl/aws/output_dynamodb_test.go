@@ -512,7 +512,10 @@ sort_key: type
 string_columns:
   id: ${!json("id")}
   type: ${!json("type")}
-is_delete: ${!meta("operation") == "delete"}`)
+delete:
+  condition: meta("operation") == "delete"
+  partition_key: id
+  sort_key: type`)
 
 	var receivedKey map[string]types.AttributeValue
 
@@ -539,13 +542,14 @@ is_delete: ${!meta("operation") == "delete"}`)
 func TestDynamoDBMixedDeleteAndPut(t *testing.T) {
 	db := testDDBOWriter(t, `
 table: FooTable
-partition_key: id
-sort_key: type
 string_columns:
   id: ${!json("id")}
   type: ${!json("type")}
   content: ${!json("content")}
-is_delete: ${!meta("operation") == "delete"}
+delete:
+  condition: meta("operation") == "delete"
+  partition_key: id
+  sort_key: type
 `)
 
 	var deletedKey map[string]types.AttributeValue

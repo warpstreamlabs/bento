@@ -17,32 +17,34 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/internal/retries"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (
 	// DynamoDB Output Fields
-	ddboField               = "namespace"
-	ddboFieldTable          = "table"
-	ddboFieldStringColumns  = "string_columns"
-	ddboFieldJSONMapColumns = "json_map_columns"
-	ddboFieldTTL            = "ttl"
-	ddboFieldTTLKey         = "ttl_key"
-	ddboFieldIsDelete       = "is_delete"
-	ddboFieldPartitionKey   = "partition_key"
-	ddboFieldSortKey        = "sort_key"
-	ddboFieldBatching       = "batching"
+	ddboField                   = "namespace"
+	ddboFieldTable              = "table"
+	ddboFieldStringColumns      = "string_columns"
+	ddboFieldJSONMapColumns     = "json_map_columns"
+	ddboFieldTTL                = "ttl"
+	ddboFieldTTLKey             = "ttl_key"
+	ddboFieldDelete             = "delete"
+	ddboFieldDeleteCondition    = "condition"
+	ddboFieldDeletePartitionKey = "partition_key"
+	ddboFieldDeleteSortKey      = "sort_key"
+	ddboFieldBatching           = "batching"
 )
 
 type ddboConfig struct {
-	Table             string
-	StringColumns     map[string]*service.InterpolatedString
-	JSONMapColumns    map[string]string
-	TTL               string
-	TTLKey            string
-	IsDelete          *service.InterpolatedString
-	PartitionKeyField string
-	SortKeyField      string
+	Table               string
+	StringColumns       map[string]*service.InterpolatedString
+	JSONMapColumns      map[string]string
+	TTL                 string
+	TTLKey              string
+	DeleteConditionExec *bloblang.Executor
+	PartitionKeyField   string
+	SortKeyField        string
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -64,19 +66,21 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 	if conf.TTLKey, err = pConf.FieldString(ddboFieldTTLKey); err != nil {
 		return
 	}
-	if conf.IsDelete, err = pConf.FieldInterpolatedString(ddboFieldIsDelete); err != nil {
-		return
-	}
-	if conf.PartitionKeyField, err = pConf.FieldString(ddboFieldPartitionKey); err != nil {
-		return
-	}
-	if conf.SortKeyField, err = pConf.FieldString(ddboFieldSortKey); err != nil {
-		return
-	}
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
 	}
 	if conf.backoffCtor, err = retries.CommonRetryBackOffCtorFromParsed(pConf); err != nil {
+		return
+	}
+	deleteConf := pConf.Namespace(ddboFieldDelete)
+	if conf.DeleteConditionExec, err = deleteConf.FieldBloblang(ddboFieldDeleteCondition); err != nil {
+		return
+	}
+
+	if conf.PartitionKeyField, err = deleteConf.FieldString(ddboFieldDeletePartitionKey); err != nil {
+		return
+	}
+	if conf.SortKeyField, err = deleteConf.FieldString(ddboFieldDeleteSortKey); err != nil {
 		return
 	}
 	return
@@ -156,17 +160,26 @@ This output benefits from sending messages as a batch for improved performance. 
 				Description("The column key to place the TTL value within.").
 				Default("").
 				Advanced(),
-			service.NewInterpolatedStringField(ddboFieldIsDelete).
-				Description("Whether to perform a DeleteItem instead of PutItem.").
-				Default("false").
-				Advanced(),
-			service.NewStringField(ddboFieldPartitionKey).
-				Description("The partition key for DeleteItem requests. Required when `is_delete` is true.").
-				Default("").
-				Advanced(),
-			service.NewStringField(ddboFieldSortKey).
-				Description("The sort key for DeleteItem requests.").
-				Default("").
+			service.NewObjectField(ddboFieldDelete,
+				service.NewBloblangField(ddboFieldDeleteCondition).
+					Description("A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put"). // TODO
+					Version("1.10.0").
+					Advanced().
+					Optional(),
+				service.NewStringField(ddboFieldDeletePartitionKey).
+					Description("The partition key for DeleteItem requests. Required when `is_delete` is true."). // TODO
+					Version("1.10.0").
+					Advanced().
+					Optional(),
+				service.NewStringField(ddboFieldDeleteSortKey).
+					Description("The sort key for DeleteItem requests."). // TODO
+					Version("1.10.0").
+					Advanced().
+					Optional(),
+			).
+				Description("Config fields enabling Delete"). // TODO
+				Version("1.10.0").
+				Optional().
 				Advanced(),
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(ddboFieldBatching),
@@ -223,7 +236,7 @@ func newDynamoDBWriter(conf ddboConfig, mgr *service.Resources) (*dynamoDBWriter
 		table: aws.String(conf.Table),
 	}
 
-	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 && conf.IsDelete == nil {
+	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 && conf.DeleteConditionExec == nil {
 		return nil, errors.New("you must provide either columns to write or 'is_delete' field")
 	}
 	for k, v := range conf.JSONMapColumns {
@@ -342,14 +355,25 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	deleteKeys := map[int]map[string]types.AttributeValue{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-		isDel := false
-		if d.conf.IsDelete != nil {
+		var isDel bool
+		if d.conf.DeleteConditionExec != nil {
 			var err error
-			isDelStr, err := b.TryInterpolatedString(i, d.conf.IsDelete)
+
+			result, err := p.BloblangQuery(d.conf.DeleteConditionExec)
 			if err != nil {
-				return fmt.Errorf("is_delete interpolation error: %w", err)
+				return fmt.Errorf("delete condition exec error: %w", err)
 			}
-			isDel = isDelStr == "true"
+
+			resultMsgBytes, err := result.AsBytes()
+			if err != nil {
+				return fmt.Errorf("delete condition result parse error: %w", err)
+			}
+
+			isDel, err = strconv.ParseBool(string(resultMsgBytes))
+			if err != nil {
+				return fmt.Errorf("delete condition result parse error: %w", err)
+			}
+
 		}
 
 		if isDel {
