@@ -19,8 +19,8 @@ func (c *mockPubSubClient) Publisher(id string, settings *pubsub.PublishSettings
 	return args.Get(0).(pubsubPublisher)
 }
 
-func (mt *mockPubSubClient) Exists(context.Context, string) (bool, error) {
-	args := mt.Called()
+func (c *mockPubSubClient) Exists(ctx context.Context, id string) (bool, error) {
+	args := c.Called(id)
 	return args.Bool(0), args.Error(1)
 }
 
