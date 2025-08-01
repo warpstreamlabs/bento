@@ -49,7 +49,7 @@ input:
     queue: "" # No default (optional)
     auto_replay_nacks: true
     nak_delay: 1m # No default (optional)
-    prefetch_count: 524288
+    prefetch_count: 500000
     tls:
       enabled: false
       skip_cert_verify: false
@@ -190,7 +190,7 @@ The maximum number of messages to pull at a time.
 
 
 Type: `int`  
-Default: `524288`  
+Default: `500000`  
 
 ### `tls`
 
