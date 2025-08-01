@@ -1,9 +1,10 @@
 package protobuf
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/jhump/protoreflect/desc/protoparse"
+	"github.com/bufbuild/protocompile"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
@@ -13,31 +14,40 @@ import (
 // protobuf types. These registries can then be used as a mechanism for
 // dynamically (un)marshalling the definitions within.
 func RegistriesFromMap(filesMap map[string]string) (*protoregistry.Files, *protoregistry.Types, error) {
-	var parser protoparse.Parser
-	parser.Accessor = protoparse.FileContentsFromMap(filesMap)
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(
+			&protocompile.SourceResolver{
+				Accessor: protocompile.SourceAccessorFromMap(filesMap),
+			},
+		),
+	}
 
 	names := make([]string, 0, len(filesMap))
 	for k := range filesMap {
 		names = append(names, k)
 	}
 
-	fds, err := parser.ParseFiles(names...)
+	fds, err := compiler.Compile(context.Background(), names...)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	files, types := &protoregistry.Files{}, &protoregistry.Types{}
 	for _, v := range fds {
-		if err := files.RegisterFile(v.UnwrapFile()); err != nil {
-			return nil, nil, fmt.Errorf("failed to register file '%v': %w", v.GetName(), err)
+		if err := files.RegisterFile(v); err != nil {
+			return nil, nil, fmt.Errorf("failed to register file '%v': %w", v.Name(), err)
 		}
-		for _, t := range v.GetMessageTypes() {
-			if err := types.RegisterMessage(dynamicpb.NewMessageType(t.UnwrapMessage())); err != nil {
-				return nil, nil, fmt.Errorf("failed to register type '%v': %w", t.GetName(), err)
+		msgs := v.Messages()
+		for mi := range msgs.Len() {
+			t := msgs.Get(mi)
+			if err := types.RegisterMessage(dynamicpb.NewMessageType(t)); err != nil {
+				return nil, nil, fmt.Errorf("failed to register type '%v': %w", t.Name(), err)
 			}
-			for _, nt := range t.GetNestedMessageTypes() {
-				if err := types.RegisterMessage(dynamicpb.NewMessageType(nt.UnwrapMessage())); err != nil {
-					return nil, nil, fmt.Errorf("failed to register type '%v': %w", nt.GetFullyQualifiedName(), err)
+			nested := t.Messages()
+			for ni := range nested.Len() {
+				nt := nested.Get(ni)
+				if err := types.RegisterMessage(dynamicpb.NewMessageType(nt)); err != nil {
+					return nil, nil, fmt.Errorf("failed to register type '%v': %w", nt.FullName(), err)
 				}
 			}
 		}
