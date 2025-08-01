@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/sourcegraph/conc/pool"
 	"google.golang.org/api/option"
 
@@ -95,7 +95,7 @@ pipeline:
 
 type pubsubOutput struct {
 	topicMut sync.Mutex
-	topics   map[string]pubsubTopic
+	topics   map[string]pubsubPublisher
 
 	project         string
 	clientOpts      []option.ClientOption
@@ -183,7 +183,7 @@ func newPubSubOutput(conf *service.ParsedConfig) (*pubsubOutput, error) {
 	}
 
 	return &pubsubOutput{
-		topics:          make(map[string]pubsubTopic),
+		topics:          make(map[string]pubsubPublisher),
 		project:         project,
 		clientOpts:      opt,
 		publishSettings: &settings,
@@ -212,7 +212,7 @@ func (out *pubsubOutput) Connect(_ context.Context) error {
 }
 
 func (out *pubsubOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
-	topics := make(map[string]pubsubTopic)
+	topics := make(map[string]pubsubPublisher)
 	p := pool.NewWithResults[*serverResult]().WithContext(ctx)
 
 	var batchErr *service.BatchError
@@ -274,7 +274,7 @@ func (out *pubsubOutput) Close(_ context.Context) error {
 	return nil
 }
 
-func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[string]pubsubTopic, msg *service.Message) (publishResult, error) {
+func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[string]pubsubPublisher, msg *service.Message) (publishResult, error) {
 	topicName, err := out.topicQ.TryString(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve topic name: %w", err)
@@ -319,7 +319,7 @@ func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[stri
 	}), nil
 }
 
-func (out *pubsubOutput) getTopic(ctx context.Context, name string) (pubsubTopic, error) {
+func (out *pubsubOutput) getTopic(ctx context.Context, name string) (pubsubPublisher, error) {
 	out.topicMut.Lock()
 	defer out.topicMut.Unlock()
 
@@ -327,14 +327,15 @@ func (out *pubsubOutput) getTopic(ctx context.Context, name string) (pubsubTopic
 		return t, nil
 	}
 
-	t := out.client.Topic(name, out.publishSettings)
-	exists, err := t.Exists(ctx)
+	exists, err := out.client.Exists(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate topic '%v': %v", name, err)
 	}
 	if !exists {
 		return nil, fmt.Errorf("topic '%v' does not exist", name)
 	}
+
+	t := out.client.Publisher(name, out.publishSettings)
 
 	if out.orderingKeyQ != nil {
 		t.EnableOrdering()

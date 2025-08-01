@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
@@ -25,11 +25,11 @@ func TestPubSubOutput(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
+	fooTopic := &mockPublisher{}
 	fooTopic.On("Exists").Return(true, nil).Once()
 	fooTopic.On("Stop").Return().Once()
 
-	barTopic := &mockTopic{}
+	barTopic := &mockPublisher{}
 	barTopic.On("Exists").Return(true, nil).Once()
 	barTopic.On("Stop").Return().Once()
 
@@ -90,7 +90,7 @@ func TestPubSubOutput_MessageAttr(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
+	fooTopic := &mockPublisher{}
 	fooTopic.On("Exists").Return(true, nil).Once()
 	fooTopic.On("EnableOrdering").Return().Once()
 	fooTopic.On("Stop").Return().Once()
@@ -147,10 +147,10 @@ func TestPubSubOutput_MissingTopic(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
+	fooTopic := &mockPublisher{}
 	fooTopic.On("Exists").Return(false, nil).Once()
 
-	barTopic := &mockTopic{}
+	barTopic := &mockPublisher{}
 	barTopic.On("Exists").Return(false, errors.New("simulated error")).Once()
 
 	client.On("Topic", "test_foo").Return(fooTopic).Once()
@@ -216,11 +216,11 @@ func TestPubSubOutput_PublishErrors(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
+	fooTopic := &mockPublisher{}
 	fooTopic.On("Exists").Return(true, nil).Once()
 	fooTopic.On("Stop").Return().Once()
 
-	barTopic := &mockTopic{}
+	barTopic := &mockPublisher{}
 	barTopic.On("Exists").Return(true, nil).Once()
 	barTopic.On("Stop").Return().Once()
 

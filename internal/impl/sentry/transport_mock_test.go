@@ -20,8 +20,8 @@ func (t *mockTransport) Flush(timeout time.Duration) bool {
 	return args.Bool(0)
 }
 
-func (t *mockTransport) FlushWithContext(ctx context.Context) bool {
-	args := t.Called(ctx)
+func (t *mockTransport) FlushWithContext(context.Context) bool {
+	args := t.Called()
 
 	return args.Bool(0)
 }

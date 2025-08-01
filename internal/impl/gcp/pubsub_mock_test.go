@@ -3,7 +3,7 @@ package gcp
 import (
 	"context"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -13,34 +13,34 @@ type mockPubSubClient struct {
 
 var _ pubsubClient = &mockPubSubClient{}
 
-func (c *mockPubSubClient) Topic(id string, settings *pubsub.PublishSettings) pubsubTopic {
+func (c *mockPubSubClient) Publisher(id string, settings *pubsub.PublishSettings) pubsubPublisher {
 	args := c.Called(id)
 
-	return args.Get(0).(pubsubTopic)
+	return args.Get(0).(pubsubPublisher)
 }
 
-type mockTopic struct {
-	mock.Mock
-}
-
-var _ pubsubTopic = &mockTopic{}
-
-func (mt *mockTopic) Exists(context.Context) (bool, error) {
+func (mt *mockPubSubClient) Exists(context.Context, string) (bool, error) {
 	args := mt.Called()
 	return args.Bool(0), args.Error(1)
 }
 
-func (mt *mockTopic) Publish(ctx context.Context, msg *pubsub.Message) publishResult {
+type mockPublisher struct {
+	mock.Mock
+}
+
+var _ pubsubPublisher = &mockPublisher{}
+
+func (mt *mockPublisher) Publish(ctx context.Context, msg *pubsub.Message) publishResult {
 	args := mt.Called(string(msg.Data), msg)
 
 	return args.Get(0).(publishResult)
 }
 
-func (mt *mockTopic) EnableOrdering() {
+func (mt *mockPublisher) EnableOrdering() {
 	mt.Called()
 }
 
-func (mt *mockTopic) Stop() {
+func (mt *mockPublisher) Stop() {
 	mt.Called()
 }
 
