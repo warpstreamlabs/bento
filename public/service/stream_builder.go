@@ -168,6 +168,12 @@ func (s *StreamBuilder) SetLogger(l *slog.Logger) {
 	s.customLogger = log.NewBentoLogAdapter(l)
 }
 
+// SetModularLogger sets a customer logger via Bento's standard logging interface,
+// allowing you to replace the default Bento logger with your own.
+func (s *StreamBuilder) SetModularLogger(l log.Modular) {
+	s.customLogger = l
+}
+
 // HTTPMultiplexer is an interface supported by most HTTP multiplexers.
 type HTTPMultiplexer interface {
 	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
