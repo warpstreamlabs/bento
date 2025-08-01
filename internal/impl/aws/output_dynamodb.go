@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	_ "strings"
 	"sync"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 
 const (
 	// DynamoDB Output Fields
+	ddboField               = "namespace"
 	ddboFieldTable          = "table"
 	ddboFieldStringColumns  = "string_columns"
 	ddboFieldJSONMapColumns = "json_map_columns"
@@ -272,30 +272,50 @@ func anyToAttributeValue(root any) types.AttributeValue {
 		for k, v2 := range v {
 			m[k] = anyToAttributeValue(v2)
 		}
-		return &types.AttributeValueMemberM{Value: m}
+		return &types.AttributeValueMemberM{
+			Value: m,
+		}
 	case []any:
 		l := make([]types.AttributeValue, len(v))
 		for i, v2 := range v {
 			l[i] = anyToAttributeValue(v2)
 		}
-		return &types.AttributeValueMemberL{Value: l}
+		return &types.AttributeValueMemberL{
+			Value: l,
+		}
 	case string:
-		return &types.AttributeValueMemberS{Value: v}
+		return &types.AttributeValueMemberS{
+			Value: v,
+		}
 	case json.Number:
-		return &types.AttributeValueMemberS{Value: v.String()}
+		return &types.AttributeValueMemberS{
+			Value: v.String(),
+		}
 	case float64:
-		return &types.AttributeValueMemberN{Value: strconv.FormatFloat(v, 'f', -1, 64)}
+		return &types.AttributeValueMemberN{
+			Value: strconv.FormatFloat(v, 'f', -1, 64),
+		}
 	case int:
-		return &types.AttributeValueMemberN{Value: strconv.Itoa(v)}
+		return &types.AttributeValueMemberN{
+			Value: strconv.Itoa(v),
+		}
 	case int64:
-		return &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)}
+		return &types.AttributeValueMemberN{
+			Value: strconv.Itoa(int(v)),
+		}
 	case bool:
-		return &types.AttributeValueMemberBOOL{Value: v}
+		return &types.AttributeValueMemberBOOL{
+			Value: v,
+		}
 	case nil:
-		return &types.AttributeValueMemberNULL{Value: true}
-	default:
-		return &types.AttributeValueMemberS{Value: fmt.Sprintf("%v", root)}
+		return &types.AttributeValueMemberNULL{
+			Value: true,
+		}
 	}
+	return &types.AttributeValueMemberS{
+		Value: fmt.Sprintf("%v", root),
+	}
+
 }
 
 func jsonToMap(path string, root any) (types.AttributeValue, error) {
@@ -322,9 +342,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	deleteKeys := map[int]map[string]types.AttributeValue{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-
-		mapString := fmt.Sprint(d.conf.StringColumns)
-		fmt.Println("Conf string -> ", mapString)
 		isDel := false
 		if d.conf.IsDelete != nil {
 			var err error
@@ -374,13 +391,14 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				Value: strconv.FormatInt(time.Now().Add(d.ttl).Unix(), 10),
 			}
 		}
-
 		for k, v := range d.conf.StringColumns {
 			s, err := b.TryInterpolatedString(i, v)
 			if err != nil {
 				return fmt.Errorf("string column %v interpolation error: %w", k, err)
 			}
-			items[k] = &types.AttributeValueMemberS{Value: s}
+			items[k] = &types.AttributeValueMemberS{
+				Value: s,
+			}
 		}
 		if len(d.conf.JSONMapColumns) > 0 {
 			jRoot, err := p.AsStructured()
@@ -407,7 +425,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				}
 			}
 		}
-
 		writeReqs = append(writeReqs, types.WriteRequest{
 			PutRequest: &types.PutRequest{
 				Item: items,
@@ -440,17 +457,15 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	if err != nil {
 		headlineErr := err
 
+		// None of the messages were successful, attempt to send individually
 	individualRequestsLoop:
 		for err != nil {
 			batchErr := service.NewBatchError(b, headlineErr)
-			writeIdx := 0
-			for i := 0; i < len(b); i++ {
+			for i, req := range writeReqs {
 				if deleteIndices[i] {
 					continue
 				}
-				req := writeReqs[writeIdx]
 				if req.PutRequest == nil {
-					writeIdx++
 					continue
 				}
 				if _, iErr := d.client.PutItem(ctx, &dynamodb.PutItemInput{
@@ -469,9 +484,8 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 					}
 					batchErr.Failed(i, iErr)
 				} else {
-					writeReqs[writeIdx].PutRequest = nil
+					writeReqs[i].PutRequest = nil
 				}
-				writeIdx++
 			}
 			if batchErr.IndexedErrors() == 0 {
 				err = nil
@@ -489,6 +503,7 @@ unprocessedLoop:
 		if wait == backoff.Stop {
 			break unprocessedLoop
 		}
+
 		select {
 		case <-time.After(wait):
 		case <-ctx.Done():
