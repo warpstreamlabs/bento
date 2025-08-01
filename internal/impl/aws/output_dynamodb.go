@@ -333,9 +333,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				return fmt.Errorf("is_delete interpolation error: %w", err)
 			}
 			isDel = isDelStr == "true"
-			if err != nil {
-				return fmt.Errorf("is_delete interpolation error: %w", err)
-			}
 		}
 
 		if isDel {
