@@ -2,9 +2,115 @@ package service
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/warpstreamlabs/bento/internal/log"
 )
+
+// airGapLogger adapts a LeveledLogger to implement log.Modular for use in Bento streams.
+type airGapLogger struct {
+	l LeveledLogger
+}
+
+func newAirGapLogger(logger LeveledLogger) log.Modular {
+	return &airGapLogger{l: logger}
+}
+
+func (a *airGapLogger) WithFields(fields map[string]string) log.Modular {
+	if a.l == nil {
+		return nil
+	}
+
+	switch t := a.l.(type) {
+	case interface {
+		WithFields(fields map[string]string) log.Modular
+	}:
+		return &airGapLogger{l: t.WithFields(fields)}
+	}
+
+	return a.clone()
+}
+
+func (a *airGapLogger) With(keyValues ...any) log.Modular {
+	if a.l == nil {
+		return nil
+	}
+
+	switch t := a.l.(type) {
+	case interface {
+		With(keyValues ...any) log.Modular
+	}:
+		return &airGapLogger{l: t.With(keyValues...)}
+	}
+
+	return a.clone()
+}
+
+func (a *airGapLogger) Error(format string, v ...any) {
+	if a.l == nil {
+		return
+	}
+	a.l.Error(format, v...)
+}
+func (a *airGapLogger) Warn(format string, v ...any) {
+	if a.l == nil {
+		return
+	}
+	a.l.Warn(format, v...)
+}
+func (a *airGapLogger) Info(format string, v ...any) {
+	if a.l == nil {
+		return
+	}
+	a.l.Info(format, v...)
+}
+func (a *airGapLogger) Debug(format string, v ...any) {
+	if a.l == nil {
+		return
+	}
+	a.l.Debug(format, v...)
+}
+func (a *airGapLogger) Trace(format string, v ...any) {
+	if a.l == nil {
+		return
+	}
+
+	switch fl := a.l.(type) {
+	case interface {
+		Trace(format string, v ...any)
+	}:
+		fl.Trace(format, v...)
+		return
+	}
+	// Logger does not implement Trace, so fallback to Debug.
+	a.l.Debug(format, v...)
+}
+
+func (a *airGapLogger) Fatal(format string, v ...any) {
+	if a.l == nil {
+		return
+	}
+
+	switch fl := a.l.(type) {
+	case interface {
+		Fatal(format string, v ...any)
+	}:
+		fl.Fatal(format, v...)
+		return
+	}
+	// Logger does not implement Fatal, so fallback to
+	// Error and exit with a status code 1.
+	a.l.Error(format, v...)
+	os.Exit(1)
+}
+
+func (a *airGapLogger) clone() *airGapLogger {
+	if a.l == nil {
+		return nil
+	}
+	l := *a
+	return &l
+}
 
 // Logger allows plugin authors to write custom logs from components that are
 // exported the same way as native Bento logs. It's safe to pass around a nil
