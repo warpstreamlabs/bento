@@ -358,7 +358,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	writeReqs := []types.WriteRequest{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-		var isDel bool
 		if d.conf.DeleteConditionExec != nil {
 			var err error
 
@@ -372,94 +371,20 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				return fmt.Errorf("delete condition result parse error: %w", err)
 			}
 
-			isDel, err = strconv.ParseBool(string(resultMsgBytes))
+			isDel, err := strconv.ParseBool(string(resultMsgBytes))
 			if err != nil {
 				return fmt.Errorf("delete condition result parse error: %w", err)
 			}
+
+			if isDel {
+				d.addDeleteRequest(i, &b, &writeReqs)
+				return nil
+			}
 		}
 
-		if isDel {
-			// build key using the names in PartitionKeyField/SortKeyField
-			key := map[string]types.AttributeValue{}
-
-			// pull the value expression from string_columns:
-			exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyField]
-			if !ok {
-				return fmt.Errorf("partition key '%s' not in string_columns", d.conf.PartitionKeyField)
-			}
-			pk, err := b.TryInterpolatedString(i, exprPK)
-			if err != nil {
-				return fmt.Errorf("partition key error: %w", err)
-			}
-			key[d.conf.PartitionKeyField] = &types.AttributeValueMemberS{Value: pk}
-
-			// sort key if set
-			if d.conf.SortKeyField != "" {
-				exprSK, ok := d.conf.StringColumns[d.conf.SortKeyField]
-				if !ok {
-					return fmt.Errorf("sort key '%s' not in string_columns", d.conf.SortKeyField)
-				}
-				sk, err := b.TryInterpolatedString(i, exprSK)
-				if err != nil {
-					return fmt.Errorf("sort key error: %w", err)
-				}
-				key[d.conf.SortKeyField] = &types.AttributeValueMemberS{Value: sk}
-			}
-
-			writeReqs = append(writeReqs, types.WriteRequest{
-				DeleteRequest: &types.DeleteRequest{
-					Key: key,
-				},
-			})
-			return nil
-		}
-
-		items := map[string]types.AttributeValue{}
-		if d.ttl != 0 && d.conf.TTLKey != "" {
-			items[d.conf.TTLKey] = &types.AttributeValueMemberN{
-				Value: strconv.FormatInt(time.Now().Add(d.ttl).Unix(), 10),
-			}
-		}
-		for k, v := range d.conf.StringColumns {
-			s, err := b.TryInterpolatedString(i, v)
-			if err != nil {
-				return fmt.Errorf("string column %v interpolation error: %w", k, err)
-			}
-			items[k] = &types.AttributeValueMemberS{
-				Value: s,
-			}
-		}
-		if len(d.conf.JSONMapColumns) > 0 {
-			jRoot, err := p.AsStructured()
-			if err != nil {
-				d.log.Errorf("Failed to extract JSON maps from document: %v", err)
-				return err
-			}
-			for k, v := range d.conf.JSONMapColumns {
-				if attr, err := jsonToMap(v, jRoot); err == nil {
-					if k == "" {
-						if mv, ok := attr.(*types.AttributeValueMemberM); ok {
-							for ak, av := range mv.Value {
-								items[ak] = av
-							}
-						} else {
-							items[k] = attr
-						}
-					} else {
-						items[k] = attr
-					}
-				} else {
-					d.log.Warnf("Unable to extract JSON map path '%v' from document: %v", v, err)
-					return err
-				}
-			}
-		}
-		writeReqs = append(writeReqs, types.WriteRequest{
-			PutRequest: &types.PutRequest{
-				Item: items,
-			},
-		})
+		d.addPutRequest(i, &b, &writeReqs, p)
 		return nil
+
 	}); err != nil {
 		return err
 	}
@@ -551,5 +476,90 @@ unprocessedLoop:
 }
 
 func (d *dynamoDBWriter) Close(context.Context) error {
+	return nil
+}
+
+//------------------------------------------------------------------------------
+
+func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeReqs *[]types.WriteRequest) error {
+
+	key := map[string]types.AttributeValue{}
+
+	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyField] // TODO use the json_map_columns as well
+	if !ok {
+		return fmt.Errorf("partition key '%s' not in string_columns", d.conf.PartitionKeyField)
+	}
+	pk, err := b.TryInterpolatedString(i, exprPK)
+	if err != nil {
+		return fmt.Errorf("partition key error: %w", err)
+	}
+	key[d.conf.PartitionKeyField] = &types.AttributeValueMemberS{Value: pk}
+
+	if d.conf.SortKeyField != "" {
+		exprSK, ok := d.conf.StringColumns[d.conf.SortKeyField]
+		if !ok {
+			return fmt.Errorf("sort key '%s' not in string_columns", d.conf.SortKeyField)
+		}
+		sk, err := b.TryInterpolatedString(i, exprSK)
+		if err != nil {
+			return fmt.Errorf("sort key error: %w", err)
+		}
+		key[d.conf.SortKeyField] = &types.AttributeValueMemberS{Value: sk}
+	}
+
+	*writeReqs = append(*writeReqs, types.WriteRequest{
+		DeleteRequest: &types.DeleteRequest{
+			Key: key,
+		},
+	})
+	return nil
+}
+
+func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs *[]types.WriteRequest, p *service.Message) error {
+	items := map[string]types.AttributeValue{}
+	if d.ttl != 0 && d.conf.TTLKey != "" {
+		items[d.conf.TTLKey] = &types.AttributeValueMemberN{
+			Value: strconv.FormatInt(time.Now().Add(d.ttl).Unix(), 10),
+		}
+	}
+	for k, v := range d.conf.StringColumns {
+		s, err := b.TryInterpolatedString(i, v)
+		if err != nil {
+			return fmt.Errorf("string column %v interpolation error: %w", k, err)
+		}
+		items[k] = &types.AttributeValueMemberS{
+			Value: s,
+		}
+	}
+	if len(d.conf.JSONMapColumns) > 0 {
+		jRoot, err := p.AsStructured()
+		if err != nil {
+			d.log.Errorf("Failed to extract JSON maps from document: %v", err)
+			return err
+		}
+		for k, v := range d.conf.JSONMapColumns {
+			if attr, err := jsonToMap(v, jRoot); err == nil {
+				if k == "" {
+					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
+						for ak, av := range mv.Value {
+							items[ak] = av
+						}
+					} else {
+						items[k] = attr
+					}
+				} else {
+					items[k] = attr
+				}
+			} else {
+				d.log.Warnf("Unable to extract JSON map path '%v' from document: %v", v, err)
+				return err
+			}
+		}
+	}
+	*writeReqs = append(*writeReqs, types.WriteRequest{
+		PutRequest: &types.PutRequest{
+			Item: items,
+		},
+	})
 	return nil
 }
