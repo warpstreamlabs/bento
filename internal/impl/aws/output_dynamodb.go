@@ -73,10 +73,15 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 		return
 	}
 	deleteConf := pConf.Namespace(ddboFieldDelete)
-	if conf.DeleteConditionExec, err = deleteConf.FieldBloblang(ddboFieldDeleteCondition); err != nil {
-		return
+	var deleteConditionStr string
+	if deleteConditionStr, err = deleteConf.FieldString(ddboFieldDeleteCondition); deleteConditionStr != "" {
+		if err != nil {
+			return
+		}
+		if conf.DeleteConditionExec, err = deleteConf.FieldBloblang(ddboFieldDeleteCondition); err != nil {
+			return
+		}
 	}
-
 	if conf.PartitionKeyField, err = deleteConf.FieldString(ddboFieldDeletePartitionKey); err != nil {
 		return
 	}
@@ -165,17 +170,17 @@ This output benefits from sending messages as a batch for improved performance. 
 					Description("A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put"). // TODO
 					Version("1.10.0").
 					Advanced().
-					Optional(),
+					Default(""),
 				service.NewStringField(ddboFieldDeletePartitionKey).
 					Description("The partition key for DeleteItem requests. Required when `is_delete` is true."). // TODO
 					Version("1.10.0").
 					Advanced().
-					Optional(),
+					Default(""),
 				service.NewStringField(ddboFieldDeleteSortKey).
 					Description("The sort key for DeleteItem requests."). // TODO
 					Version("1.10.0").
 					Advanced().
-					Optional(),
+					Default(""),
 			).
 				Description("Config fields enabling Delete"). // TODO
 				Version("1.10.0").
@@ -351,8 +356,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	}()
 
 	writeReqs := []types.WriteRequest{}
-	deleteIndices := map[int]bool{}
-	deleteKeys := map[int]map[string]types.AttributeValue{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
 		var isDel bool
@@ -373,7 +376,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			if err != nil {
 				return fmt.Errorf("delete condition result parse error: %w", err)
 			}
-
 		}
 
 		if isDel {
@@ -404,8 +406,11 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				key[d.conf.SortKeyField] = &types.AttributeValueMemberS{Value: sk}
 			}
 
-			deleteKeys[i] = key
-			deleteIndices[i] = true
+			writeReqs = append(writeReqs, types.WriteRequest{
+				DeleteRequest: &types.DeleteRequest{
+					Key: key,
+				},
+			})
 			return nil
 		}
 
@@ -459,16 +464,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		return err
 	}
 
-	// Execute deletes first
-	for i, key := range deleteKeys {
-		if _, err := d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-			TableName: d.table,
-			Key:       key,
-		}); err != nil {
-			return fmt.Errorf("delete error at index %d: %w", i, err)
-		}
-	}
-
 	if len(writeReqs) == 0 {
 		return nil
 	}
@@ -486,7 +481,8 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		for err != nil {
 			batchErr := service.NewBatchError(b, headlineErr)
 			for i, req := range writeReqs {
-				if deleteIndices[i] {
+				if req.DeleteRequest != nil {
+					// TODO make an individual Delete request here
 					continue
 				}
 				if req.PutRequest == nil {

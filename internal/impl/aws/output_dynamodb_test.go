@@ -504,7 +504,7 @@ string_columns:
 	assert.Equal(t, expected, requests)
 }
 
-func TestDynamoDBDeleteRequest(t *testing.T) {
+func TestDynamoDBDelete(t *testing.T) {
 	db := testDDBOWriter(t, `
 table: FooTable
 partition_key: id
@@ -517,12 +517,12 @@ delete:
   partition_key: id
   sort_key: type`)
 
-	var receivedKey map[string]types.AttributeValue
+	var request map[string][]types.WriteRequest
 
 	db.client = &mockDynamoDB{
-		deleteFn: func(input *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error) {
-			receivedKey = input.Key
-			return &dynamodb.DeleteItemOutput{}, nil
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			request = input.RequestItems
+			return &dynamodb.BatchWriteItemOutput{}, nil
 		},
 	}
 
@@ -531,12 +531,20 @@ delete:
 
 	require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{msg}))
 
-	expectedKey := map[string]types.AttributeValue{
-		"id":   &types.AttributeValueMemberS{Value: "foo"},
-		"type": &types.AttributeValueMemberS{Value: "bar"},
+	expected := map[string][]types.WriteRequest{
+		"FooTable": {
+			types.WriteRequest{
+				DeleteRequest: &types.DeleteRequest{
+					Key: map[string]types.AttributeValue{
+						"id":   &types.AttributeValueMemberS{Value: "foo"},
+						"type": &types.AttributeValueMemberS{Value: "bar"},
+					},
+				},
+			},
+		},
 	}
 
-	assert.Equal(t, expectedKey, receivedKey)
+	assert.Equal(t, expected, request)
 }
 
 func TestDynamoDBMixedDeleteAndPut(t *testing.T) {
@@ -552,47 +560,42 @@ delete:
   sort_key: type
 `)
 
-	var deletedKey map[string]types.AttributeValue
-	var putRequests []map[string]types.AttributeValue
+	var request map[string][]types.WriteRequest
 
 	db.client = &mockDynamoDB{
-		// DeleteItem
-		deleteFn: func(input *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error) {
-			deletedKey = input.Key
-			return &dynamodb.DeleteItemOutput{}, nil
-		},
-		// PutItem
 		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
-			for _, wr := range input.RequestItems["FooTable"] {
-				if pr := wr.PutRequest; pr != nil {
-					putRequests = append(putRequests, pr.Item)
-				}
-			}
+			request = input.RequestItems
 			return &dynamodb.BatchWriteItemOutput{}, nil
 		},
 	}
 
-	// Delete Message
 	msgDel := service.NewMessage([]byte(`{"id":"foo","type":"bar","content":"should be ignored"}`))
 	msgDel.MetaSet("operation", "delete")
-	// Put Message
 	msgPut := service.NewMessage([]byte(`{"id":"baz","type":"qux","content":"hello world"}`))
 
-	err := db.WriteBatch(context.Background(), service.MessageBatch{msgDel, msgPut})
-	require.NoError(t, err)
+	require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{msgDel, msgPut}))
 
-	// Assert DeleteItem when saw the correct key
-	assert.Equal(t, map[string]types.AttributeValue{
-		"id":   &types.AttributeValueMemberS{Value: "foo"},
-		"type": &types.AttributeValueMemberS{Value: "bar"},
-	}, deletedKey)
-
-	// Assert PutItem saw exactly one request with the remaining message
-	expectedPut := map[string]types.AttributeValue{
-		"id":      &types.AttributeValueMemberS{Value: "baz"},
-		"type":    &types.AttributeValueMemberS{Value: "qux"},
-		"content": &types.AttributeValueMemberS{Value: "hello world"},
+	expected := map[string][]types.WriteRequest{
+		"FooTable": {
+			types.WriteRequest{
+				DeleteRequest: &types.DeleteRequest{
+					Key: map[string]types.AttributeValue{
+						"id":   &types.AttributeValueMemberS{Value: "foo"},
+						"type": &types.AttributeValueMemberS{Value: "bar"},
+					},
+				},
+			},
+			types.WriteRequest{
+				PutRequest: &types.PutRequest{
+					Item: map[string]types.AttributeValue{
+						"id":      &types.AttributeValueMemberS{Value: "baz"},
+						"type":    &types.AttributeValueMemberS{Value: "qux"},
+						"content": &types.AttributeValueMemberS{Value: "hello world"},
+					},
+				},
+			},
+		},
 	}
-	require.Len(t, putRequests, 1)
-	assert.Equal(t, expectedPut, putRequests[0])
+
+	assert.Equal(t, expected, request)
 }
