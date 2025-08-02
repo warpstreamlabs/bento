@@ -37,14 +37,14 @@ const (
 )
 
 type ddboConfig struct {
-	Table               string
-	StringColumns       map[string]*service.InterpolatedString
-	JSONMapColumns      map[string]string
-	TTL                 string
-	TTLKey              string
-	DeleteConditionExec *bloblang.Executor
-	PartitionKeyField   string
-	SortKeyField        string
+	Table                   string
+	StringColumns           map[string]*service.InterpolatedString
+	JSONMapColumns          map[string]string
+	TTL                     string
+	TTLKey                  string
+	DeleteConditionExec     *bloblang.Executor
+	PartitionKeyDeleteField string
+	SortKeyDeleteField      string
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -82,10 +82,10 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 			return
 		}
 	}
-	if conf.PartitionKeyField, err = deleteConf.FieldString(ddboFieldDeletePartitionKey); err != nil {
+	if conf.PartitionKeyDeleteField, err = deleteConf.FieldString(ddboFieldDeletePartitionKey); err != nil {
 		return
 	}
-	if conf.SortKeyField, err = deleteConf.FieldString(ddboFieldDeleteSortKey); err != nil {
+	if conf.SortKeyDeleteField, err = deleteConf.FieldString(ddboFieldDeleteSortKey); err != nil {
 		return
 	}
 	return
@@ -485,26 +485,26 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 
 	key := map[string]types.AttributeValue{}
 
-	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyField] // TODO use the json_map_columns as well
+	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyDeleteField] // TODO use the json_map_columns as well
 	if !ok {
-		return fmt.Errorf("partition key '%s' not in string_columns", d.conf.PartitionKeyField)
+		return fmt.Errorf("partition key '%s' not in string_columns", d.conf.PartitionKeyDeleteField)
 	}
 	pk, err := b.TryInterpolatedString(i, exprPK)
 	if err != nil {
 		return fmt.Errorf("partition key error: %w", err)
 	}
-	key[d.conf.PartitionKeyField] = &types.AttributeValueMemberS{Value: pk}
+	key[d.conf.PartitionKeyDeleteField] = &types.AttributeValueMemberS{Value: pk}
 
-	if d.conf.SortKeyField != "" {
-		exprSK, ok := d.conf.StringColumns[d.conf.SortKeyField]
+	if d.conf.SortKeyDeleteField != "" {
+		exprSK, ok := d.conf.StringColumns[d.conf.SortKeyDeleteField]
 		if !ok {
-			return fmt.Errorf("sort key '%s' not in string_columns", d.conf.SortKeyField)
+			return fmt.Errorf("sort key '%s' not in string_columns", d.conf.SortKeyDeleteField)
 		}
 		sk, err := b.TryInterpolatedString(i, exprSK)
 		if err != nil {
 			return fmt.Errorf("sort key error: %w", err)
 		}
-		key[d.conf.SortKeyField] = &types.AttributeValueMemberS{Value: sk}
+		key[d.conf.SortKeyDeleteField] = &types.AttributeValueMemberS{Value: sk}
 	}
 
 	*writeReqs = append(*writeReqs, types.WriteRequest{
