@@ -16,9 +16,8 @@ import (
 
 type mockDynamoDB struct {
 	dynamoDBAPI
-	fn       func(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
-	batchFn  func(*dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error)
-	deleteFn func(*dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error)
+	fn      func(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
+	batchFn func(*dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error)
 }
 
 func (m *mockDynamoDB) PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
@@ -27,13 +26,6 @@ func (m *mockDynamoDB) PutItem(ctx context.Context, params *dynamodb.PutItemInpu
 
 func (m *mockDynamoDB) BatchWriteItem(ctx context.Context, params *dynamodb.BatchWriteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error) {
 	return m.batchFn(params)
-}
-
-func (m *mockDynamoDB) DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
-	if m.deleteFn != nil {
-		return m.deleteFn(params)
-	}
-	return &dynamodb.DeleteItemOutput{}, nil
 }
 
 func testDDBOWriter(t *testing.T, conf string) *dynamoDBWriter {

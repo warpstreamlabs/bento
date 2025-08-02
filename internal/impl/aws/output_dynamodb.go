@@ -241,8 +241,8 @@ func newDynamoDBWriter(conf ddboConfig, mgr *service.Resources) (*dynamoDBWriter
 		table: aws.String(conf.Table),
 	}
 
-	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 && conf.DeleteConditionExec == nil {
-		return nil, errors.New("you must provide either columns to write or 'is_delete' field")
+	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 {
+		return nil, errors.New("you must provide at least one column")
 	}
 	for k, v := range conf.JSONMapColumns {
 		if v == "." {
@@ -413,7 +413,24 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			batchErr := service.NewBatchError(b, headlineErr)
 			for i, req := range writeReqs {
 				if req.DeleteRequest != nil {
-					// TODO make an individual Delete request here
+					if _, iErr := d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+						TableName: d.table,
+						Key:       req.DeleteRequest.Key,
+					}); iErr != nil {
+						d.log.Errorf("Put error: %v\n", iErr)
+						wait := boff.NextBackOff()
+						if wait == backoff.Stop {
+							break individualRequestsLoop
+						}
+						select {
+						case <-time.After(wait):
+						case <-ctx.Done():
+							break individualRequestsLoop
+						}
+						batchErr.Failed(i, iErr)
+					} else {
+						writeReqs[i].DeleteRequest = nil
+					}
 					continue
 				}
 				if req.PutRequest == nil {
