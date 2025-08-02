@@ -376,7 +376,7 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			}
 
 			if isDel {
-				err = d.addDeleteRequest(i, &b, &writeReqs)
+				err = d.addDeleteRequest(i, &b, &writeReqs, p)
 				if err != nil {
 					return err
 				}
@@ -487,30 +487,50 @@ func (d *dynamoDBWriter) Close(context.Context) error {
 
 //------------------------------------------------------------------------------
 
-func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeReqs *[]types.WriteRequest) error {
+func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeReqs *[]types.WriteRequest, p *service.Message) error {
 
 	key := map[string]types.AttributeValue{}
 
-	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyDeleteField] // TODO use the json_map_columns as well
+	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyDeleteField]
 	if !ok {
-		return fmt.Errorf("partition key '%s' not in string_columns", d.conf.PartitionKeyDeleteField)
+		// let's have a look in json_map_columns then;
+		jRoot, err := p.AsStructured()
+		if err != nil {
+			return err
+		}
+		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot)
+		if err != nil {
+			return err
+		}
+		key[d.conf.PartitionKeyDeleteField] = attr
+	} else {
+		pk, err := b.TryInterpolatedString(i, exprPK)
+		if err != nil {
+			return fmt.Errorf("partition key error: %w", err)
+		}
+		key[d.conf.PartitionKeyDeleteField] = &types.AttributeValueMemberS{Value: pk}
 	}
-	pk, err := b.TryInterpolatedString(i, exprPK)
-	if err != nil {
-		return fmt.Errorf("partition key error: %w", err)
-	}
-	key[d.conf.PartitionKeyDeleteField] = &types.AttributeValueMemberS{Value: pk}
 
 	if d.conf.SortKeyDeleteField != "" {
+
 		exprSK, ok := d.conf.StringColumns[d.conf.SortKeyDeleteField]
 		if !ok {
-			return fmt.Errorf("sort key '%s' not in string_columns", d.conf.SortKeyDeleteField)
+			jRoot, err := p.AsStructured()
+			if err != nil {
+				return err
+			}
+			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot)
+			if err != nil {
+				return err
+			}
+			key[d.conf.SortKeyDeleteField] = attr
+		} else {
+			sk, err := b.TryInterpolatedString(i, exprSK)
+			if err != nil {
+				return fmt.Errorf("sort key error: %w", err)
+			}
+			key[d.conf.SortKeyDeleteField] = &types.AttributeValueMemberS{Value: sk}
 		}
-		sk, err := b.TryInterpolatedString(i, exprSK)
-		if err != nil {
-			return fmt.Errorf("sort key error: %w", err)
-		}
-		key[d.conf.SortKeyDeleteField] = &types.AttributeValueMemberS{Value: sk}
 	}
 
 	*writeReqs = append(*writeReqs, types.WriteRequest{

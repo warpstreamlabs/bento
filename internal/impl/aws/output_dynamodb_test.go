@@ -599,3 +599,89 @@ delete:
 
 	assert.Equal(t, expected, request)
 }
+
+func TestDynamoDBDeleteJSONMapColumns(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+partition_key: id
+sort_key: type
+json_map_columns:
+  id: id
+  type: type
+delete:
+  condition: meta("operation") == "delete"
+  partition_key: id
+  sort_key: type`)
+
+	var request map[string][]types.WriteRequest
+
+	db.client = &mockDynamoDB{
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			request = input.RequestItems
+			return &dynamodb.BatchWriteItemOutput{}, nil
+		},
+	}
+
+	msg := service.NewMessage([]byte(`{"id":"foo","type":"bar"}`))
+	msg.MetaSet("operation", "delete")
+
+	require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{msg}))
+
+	expected := map[string][]types.WriteRequest{
+		"FooTable": {
+			types.WriteRequest{
+				DeleteRequest: &types.DeleteRequest{
+					Key: map[string]types.AttributeValue{
+						"id":   &types.AttributeValueMemberS{Value: "foo"},
+						"type": &types.AttributeValueMemberS{Value: "bar"},
+					},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, expected, request)
+}
+
+func TestDynamoDBDeleteMixedJSONMapColumns(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+partition_key: id
+sort_key: type
+json_map_columns:
+  id: id
+  type: type
+delete:
+  condition: meta("operation") == "delete"
+  partition_key: id
+  sort_key: type`)
+
+	var request map[string][]types.WriteRequest
+
+	db.client = &mockDynamoDB{
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			request = input.RequestItems
+			return &dynamodb.BatchWriteItemOutput{}, nil
+		},
+	}
+
+	msg := service.NewMessage([]byte(`{"id":"foo","type":"bar"}`))
+	msg.MetaSet("operation", "delete")
+
+	require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{msg}))
+
+	expected := map[string][]types.WriteRequest{
+		"FooTable": {
+			types.WriteRequest{
+				DeleteRequest: &types.DeleteRequest{
+					Key: map[string]types.AttributeValue{
+						"id":   &types.AttributeValueMemberS{Value: "foo"},
+						"type": &types.AttributeValueMemberS{Value: "bar"},
+					},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, expected, request)
+}
