@@ -358,9 +358,8 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	writeReqs := []types.WriteRequest{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
+		var err error
 		if d.conf.DeleteConditionExec != nil {
-			var err error
-
 			result, err := p.BloblangQuery(d.conf.DeleteConditionExec)
 			if err != nil {
 				return fmt.Errorf("delete condition exec error: %w", err)
@@ -377,12 +376,19 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			}
 
 			if isDel {
-				d.addDeleteRequest(i, &b, &writeReqs)
+				err = d.addDeleteRequest(i, &b, &writeReqs)
+				if err != nil {
+					return err
+				}
 				return nil
 			}
 		}
 
-		d.addPutRequest(i, &b, &writeReqs, p)
+		err = d.addPutRequest(i, &b, &writeReqs, p)
+		if err != nil {
+			return err
+		}
+
 		return nil
 
 	}); err != nil {

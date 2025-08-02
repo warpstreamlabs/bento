@@ -58,9 +58,9 @@ output:
     ttl: ""
     ttl_key: ""
     delete:
-      condition: "" # No default (optional)
-      partition_key: "" # No default (optional)
-      sort_key: "" # No default (optional)
+      condition: ""
+      partition_key: ""
+      sort_key: ""
     max_in_flight: 64
     batching:
       count: 0
@@ -204,6 +204,7 @@ A bloblang mapping that should return a bool, that will determine if the message
 
 
 Type: `string`  
+Default: `""`  
 Requires version 1.10.0 or newer  
 
 ### `delete.partition_key`
@@ -212,6 +213,7 @@ The partition key for DeleteItem requests. Required when `is_delete` is true.
 
 
 Type: `string`  
+Default: `""`  
 Requires version 1.10.0 or newer  
 
 ### `delete.sort_key`
@@ -220,6 +222,7 @@ The sort key for DeleteItem requests.
 
 
 Type: `string`  
+Default: `""`  
 Requires version 1.10.0 or newer  
 
 ### `max_in_flight`
