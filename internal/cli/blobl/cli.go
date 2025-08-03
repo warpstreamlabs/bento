@@ -2,12 +2,13 @@ package blobl
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
@@ -59,7 +60,7 @@ Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1
 			},
 		},
 		Action: run,
-		Subcommands: []*cli.Command{
+		Commands: []*cli.Command{
 			{
 				Name:    "server",
 				Aliases: []string{"playground"},
@@ -110,7 +111,7 @@ Example: bento blobl playground -m mapping.blobl -i input.json`,
 	}
 }
 
-func run(c *cli.Context) error {
+func run(ctx context.Context, c *cli.Command) error {
 	t := max(c.Int("threads"), 1)
 	raw := c.Bool("raw")
 	pretty := c.Bool("pretty")

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"reflect"
 	"testing"
@@ -713,9 +714,17 @@ func TestParquetEncodeProcessor(t *testing.T) {
 			require.NoError(t, err)
 
 			outRows := make([]any, 1)
-			_, err = pRdr.Read(outRows)
-			require.NoError(t, err)
-			require.NoError(t, err)
+			n, err := pRdr.Read(outRows)
+
+			if !errors.Is(err, io.EOF) {
+				require.NoError(t, err)
+			}
+
+			if n == 0 {
+				if err != nil {
+					require.ErrorIs(t, err, io.EOF)
+				}
+			}
 
 			require.NoError(t, pRdr.Close())
 
@@ -764,9 +773,15 @@ func TestParquetEncodeProcessor(t *testing.T) {
 		var outRows []any
 		for {
 			outRowsTmp := make([]any, 1)
-			_, err := pRdr.Read(outRowsTmp)
-			if err != nil {
-				require.ErrorIs(t, err, io.EOF)
+			n, err := pRdr.Read(outRowsTmp)
+			if !errors.Is(err, io.EOF) {
+				require.NoError(t, err)
+			}
+
+			if n == 0 {
+				if err != nil {
+					require.ErrorIs(t, err, io.EOF)
+				}
 				break
 			}
 			outRows = append(outRows, outRowsTmp[0])

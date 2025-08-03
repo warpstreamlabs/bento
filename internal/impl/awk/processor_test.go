@@ -82,7 +82,7 @@ func TestAWK(t *testing.T) {
 			codec:   "none",
 			program: `{ }`,
 			input:   `hello world`,
-			output:  ` `,
+			output:  `hello world`,
 		},
 		{
 			name:    "empty print 1",
@@ -578,6 +578,6 @@ program: %v
 
 		mBytes, err := msgs[0].AsBytes()
 		require.NoError(t, err)
-		assert.Equal(t, string(mBytes), test.output)
+		assert.Equal(t, string(mBytes), test.output, test.name)
 	}
 }

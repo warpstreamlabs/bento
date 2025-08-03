@@ -13,7 +13,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/go-faker/faker/v4"
 	"github.com/gosimple/slug"
-	"github.com/oklog/ulid"
+	"github.com/oklog/ulid/v2"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
 )

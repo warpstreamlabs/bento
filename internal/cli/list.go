@@ -1,12 +1,13 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
@@ -38,7 +39,7 @@ components will be shown.
 				Usage: "Filter the component list to only those matching the given status. Options are stable, beta or experimental.",
 			},
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			listComponents(c, opts)
 			os.Exit(0)
 			return nil
@@ -46,7 +47,7 @@ components will be shown.
 	}
 }
 
-func listComponents(c *cli.Context, opts *common.CLIOpts) {
+func listComponents(c *cli.Command, opts *common.CLIOpts) {
 	ofTypes := map[string]struct{}{}
 	for _, k := range c.Args().Slice() {
 		ofTypes[k] = struct{}{}

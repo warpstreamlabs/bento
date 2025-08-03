@@ -1,12 +1,13 @@
 package template
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/docs"
@@ -74,7 +75,7 @@ Exits with a status code 1 if any linting errors are detected:
 
 If a path ends with '...' then {{.ProductName}} will walk the target and lint any
 files with the .yaml or .yml extension.`)[1:],
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			targets, err := ifilepath.GlobsAndSuperPaths(ifs.OS(), c.Args().Slice(), "yaml", "yml")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Lint paths error: %v\n", err)
