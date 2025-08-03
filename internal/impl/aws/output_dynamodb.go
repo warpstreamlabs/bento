@@ -365,7 +365,7 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			}
 			isDelete, ok := result.(bool)
 			if !ok {
-				return fmt.Errorf("delete.condition bloblang mapping should evaluate to a bool")
+				return errors.New("delete.condition bloblang mapping should evaluate to a bool")
 			}
 
 			if isDelete {
