@@ -15,7 +15,7 @@ categories: ["Services","AWS"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Inserts items into a DynamoDB table.
+Inserts items into or deletes items from a DynamoDB table.
 
 Introduced in version 1.0.0.
 
@@ -192,7 +192,7 @@ Default: `""`
 
 ### `delete`
 
-Config fields enabling Delete
+Optional config fields that enable creating Delete requests from messages. If the bloblang mapping provided in `delete.condition` resolves to true, a delete request for the corresponding partition key will be made.
 
 
 Type: `object`  
@@ -209,7 +209,7 @@ Requires version 1.10.0 or newer
 
 ### `delete.partition_key`
 
-The partition key for DeleteItem requests. Required when `is_delete` is true.
+The partition key for DeleteItem requests. Required when `delete.condition` is true. The value of the key will be resolved from either `string_columns or json_map_columns`
 
 
 Type: `string`  

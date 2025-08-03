@@ -96,7 +96,7 @@ func ddboOutputSpec() *service.ConfigSpec {
 		Stable().
 		Version("1.0.0").
 		Categories("Services", "AWS").
-		Summary(`Inserts items into a DynamoDB table.`).
+		Summary(`Inserts items into or deletes items from a DynamoDB table.`).
 		Description(`
 The field `+"`string_columns`"+` is a map of column names to string values, where the values are [function interpolated](/docs/configuration/interpolation#bloblang-queries) per message of a batch. This allows you to populate string columns of an item by extracting fields within the document payload or metadata like follows:
 
@@ -167,22 +167,22 @@ This output benefits from sending messages as a batch for improved performance. 
 				Advanced(),
 			service.NewObjectField(ddboFieldDelete,
 				service.NewBloblangField(ddboFieldDeleteCondition).
-					Description("A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put"). // TODO
+					Description("A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put").
 					Version("1.10.0").
 					Advanced().
 					Default(""),
 				service.NewStringField(ddboFieldDeletePartitionKey).
-					Description("The partition key for DeleteItem requests. Required when `is_delete` is true."). // TODO
+					Description("The partition key for DeleteItem requests. Required when `"+ddboFieldDelete+"."+ddboFieldDeleteCondition+"` is true. The value of the key will be resolved from either `"+ddboFieldStringColumns+" or "+ddboFieldJSONMapColumns+"`").
 					Version("1.10.0").
 					Advanced().
 					Default(""),
 				service.NewStringField(ddboFieldDeleteSortKey).
-					Description("The sort key for DeleteItem requests."). // TODO
+					Description("The sort key for DeleteItem requests.").
 					Version("1.10.0").
 					Advanced().
 					Default(""),
 			).
-				Description("Config fields enabling Delete"). // TODO
+				Description("Optional config fields that enable creating Delete requests from messages. If the bloblang mapping provided in `"+ddboFieldDelete+"."+ddboFieldDeleteCondition+"` resolves to true, a delete request for the corresponding partition key will be made.").
 				Version("1.10.0").
 				Optional().
 				Advanced(),
