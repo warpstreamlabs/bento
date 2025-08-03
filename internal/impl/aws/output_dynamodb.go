@@ -401,7 +401,7 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 						TableName: d.table,
 						Key:       req.DeleteRequest.Key,
 					}); iErr != nil {
-						d.log.Errorf("Put error: %v\n", iErr)
+						d.log.Errorf("Delete error: %v\n", iErr)
 						wait := boff.NextBackOff()
 						if wait == backoff.Stop {
 							break individualRequestsLoop
