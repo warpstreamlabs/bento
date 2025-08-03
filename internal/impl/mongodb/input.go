@@ -181,13 +181,15 @@ func (m *mongoInput) Connect(ctx context.Context) error {
 	collection := m.database.Collection(m.collection)
 	switch m.operation {
 	case "find":
-		findOptions, err := m.getFindOptions()
+		var findOptions *options.FindOptionsBuilder
+		findOptions, err = m.getFindOptions()
 		if err != nil {
 			return fmt.Errorf("error parsing 'find' options: %v", err)
 		}
 		m.cursor, err = collection.Find(ctx, m.query, findOptions)
 	case "aggregate":
-		aggregateOptions, err := m.getAggregateOptions()
+		var aggregateOptions *options.AggregateOptionsBuilder
+		aggregateOptions, err = m.getAggregateOptions()
 		if err != nil {
 			return fmt.Errorf("error parsing 'aggregate' options: %v", err)
 		}
