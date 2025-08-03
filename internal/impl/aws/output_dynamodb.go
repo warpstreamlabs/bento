@@ -358,7 +358,6 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	writeReqs := []types.WriteRequest{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-		var err error
 		if d.conf.DeleteConditionExec != nil {
 			result, err := p.BloblangQueryValue(d.conf.DeleteConditionExec)
 			if err != nil {
