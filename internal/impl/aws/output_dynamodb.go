@@ -358,19 +358,21 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	writeReqs := []types.WriteRequest{}
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-		if d.conf.DeleteConditionExec != nil {
-			result, err := p.BloblangQueryValue(d.conf.DeleteConditionExec)
-			if err != nil {
-				return fmt.Errorf("delete condition exec error: %w", err)
-			}
-			isDelete, ok := result.(bool)
-			if !ok {
-				return errors.New("delete.condition bloblang mapping should evaluate to a bool")
-			}
+		if d.conf.DeleteConditionExec == nil {
+			return d.addPutRequest(i, &b, &writeReqs, p)
+		}
 
-			if isDelete {
-				return d.addDeleteRequest(i, &b, &writeReqs, p)
-			}
+		result, err := p.BloblangQueryValue(d.conf.DeleteConditionExec)
+		if err != nil {
+			return fmt.Errorf("delete condition exec error: %w", err)
+		}
+		isDelete, ok := result.(bool)
+		if !ok {
+			return errors.New("delete.condition bloblang mapping should evaluate to a bool")
+		}
+
+		if isDelete {
+			return d.addDeleteRequest(i, &b, &writeReqs, p)
 		}
 
 		return d.addPutRequest(i, &b, &writeReqs, p)
