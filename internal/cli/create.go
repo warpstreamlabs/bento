@@ -1,12 +1,13 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
@@ -130,7 +131,7 @@ If the expression is omitted a default config is created.`)[1:],
 				Usage:   cliOpts.ExecTemplate("Print only the main components of a {{.ProductName}} config (input, pipeline, output) and omit all fields marked as advanced."),
 			},
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			conf := map[string]any{
 				"input": map[string]any{
 					"stdin": map[string]any{},

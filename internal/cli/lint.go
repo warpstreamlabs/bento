@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/cli/common"
@@ -166,7 +167,7 @@ files with the .yaml or .yml extension.`)[1:],
 				Usage: "Do not produce lint errors when environment interpolations exist without defaults within configs but aren't defined.",
 			},
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			if code := LintAction(c, cliOpts, os.Stderr); code != 0 {
 				os.Exit(code)
 			}
@@ -177,7 +178,7 @@ files with the .yaml or .yml extension.`)[1:],
 
 // LintAction performs the bento lint subcommand and returns the appropriate
 // exit code. This function is exported for testing purposes only.
-func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
+func LintAction(c *cli.Command, opts *common.CLIOpts, stderr io.Writer) int {
 	targets, err := ifilepath.GlobsAndSuperPaths(ifs.OS(), c.Args().Slice(), "yaml", "yml")
 	if err != nil {
 		fmt.Fprintf(stderr, "Lint paths error: %v\n", err)

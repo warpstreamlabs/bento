@@ -1,13 +1,14 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"runtime/debug"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
@@ -85,7 +86,7 @@ func traverseHelp(cmd *cli.Command, pieces []string) []pluginHelp {
 		Long:  cmd.Description,
 		Args:  args,
 	}}
-	for _, cmd := range cmd.Subcommands {
+	for _, cmd := range cmd.Commands {
 		if cmd.Hidden {
 			continue
 		}
@@ -125,7 +126,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 		&cli.StringSliceFlag{
 			Name:    "env-file",
 			Aliases: []string{"e"},
-			Value:   cli.NewStringSlice(),
+			Value:   []string{},
 			Usage:   "import environment variables from a dotenv file",
 		},
 		&cli.StringSliceFlag{
@@ -136,7 +137,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 	}
 }
 
-func preRun(c *cli.Context, opts *common.CLIOpts) error {
+func preRun(c *cli.Command, opts *common.CLIOpts) (context.Context, error) {
 	dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
 	if err != nil {
 		fmt.Printf("Failed to resolve env file glob pattern: %v\n", err)
@@ -178,12 +179,12 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 		fmt.Println(opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
 		os.Exit(1)
 	}
-	return nil
+	return nil, nil
 }
 
 // App returns the full CLI app definition, this is useful for writing unit
 // tests around the CLI.
-func App(opts *common.CLIOpts) *cli.App {
+func App(opts *common.CLIOpts) *cli.Command {
 	flags := []cli.Flag{
 		&cli.BoolFlag{
 			Name:    "version",
@@ -206,7 +207,7 @@ func App(opts *common.CLIOpts) *cli.App {
 	}
 	flags = append(flags, runFlags(opts)...)
 
-	app := &cli.App{
+	app := &cli.Command{
 		Name:  opts.BinaryName,
 		Usage: opts.ExecTemplate("A stream processor for mundane tasks - {{.DocumentationURL}}/about"),
 		Description: opts.ExecTemplate(`
@@ -217,16 +218,16 @@ Either run {{.ProductName}} as a stream processor or choose a command:
   {{.BinaryName}} -c ./config.yaml
   {{.BinaryName}} -r "./production/*.yaml" -c ./config.yaml`)[1:],
 		Flags: flags,
-		Before: func(c *cli.Context) error {
+		Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
 			return preRun(c, opts)
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.Bool("version") {
 				fmt.Printf("Version: %v\nDate: %v\n", opts.Version, opts.DateBuilt)
 				os.Exit(0)
 			}
 			if c.Bool("help-autocomplete") {
-				_ = json.NewEncoder(os.Stdout).Encode(traverseHelp(c.Command, nil))
+				_ = json.NewEncoder(os.Stdout).Encode(traverseHelp(c, nil))
 				os.Exit(0)
 			}
 			if c.Args().Len() > 0 {
@@ -235,7 +236,7 @@ Either run {{.ProductName}} as a stream processor or choose a command:
 				os.Exit(1)
 			}
 
-			if code := common.RunService(c, opts, false); code != 0 {
+			if code := common.RunService(ctx, c, opts, false); code != 0 {
 				os.Exit(code)
 			}
 			return nil
@@ -250,7 +251,7 @@ behaving as expected, as it shows you a normalised version after environment
 variables have been resolved:
 
   {{.BinaryName}} -c ./config.yaml echo | less`)[1:],
-				Action: func(c *cli.Context) error {
+				Action: func(ctx context.Context, c *cli.Command) error {
 					_, _, confReader := common.ReadConfig(c, opts, false)
 					_, pConf, _, _, err := confReader.Read()
 					if err != nil {
@@ -282,7 +283,7 @@ variables have been resolved:
 				Name:   "run",
 				Hidden: !opts.ShowRunCommand,
 				Usage:  opts.ExecTemplate("Run {{.ProductName}} in normal mode against a specified config file"),
-				Before: func(c *cli.Context) error {
+				Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
 					return preRun(c, opts)
 				},
 				Description: opts.ExecTemplate(`
@@ -290,7 +291,7 @@ Run a {{.ProductName}} config.
 
   {{.BinaryName}} run ./foo.yaml`)[1:],
 				Flags: runFlags(opts),
-				Action: func(c *cli.Context) error {
+				Action: func(ctx context.Context, c *cli.Command) error {
 					if c.Args().Len() > 0 {
 						if c.Args().Len() > 1 {
 							fmt.Fprintln(os.Stderr, "A maximum of one config must be specified with the run command")
@@ -298,7 +299,7 @@ Run a {{.ProductName}} config.
 						}
 						_ = c.Set("config", c.Args().First())
 					}
-					os.Exit(common.RunService(c, opts, false))
+					os.Exit(common.RunService(ctx, c, opts, false))
 					return nil
 				},
 			},
@@ -333,8 +334,8 @@ For more information check out the docs at:
 						Usage: "Whether HTTP endpoints registered by stream configs should be prefixed with the stream ID",
 					},
 				},
-				Action: func(c *cli.Context) error {
-					os.Exit(common.RunService(c, opts, true))
+				Action: func(ctx context.Context, c *cli.Command) error {
+					os.Exit(common.RunService(ctx, c, opts, true))
 					return nil
 				},
 			},
@@ -346,9 +347,9 @@ For more information check out the docs at:
 		},
 	}
 
-	app.OnUsageError = func(context *cli.Context, err error, isSubcommand bool) error {
+	app.OnUsageError = func(ctx context.Context, c *cli.Command, err error, isSubcommand bool) error {
 		fmt.Printf("Usage error: %v\n", err)
-		_ = cli.ShowAppHelp(context)
+		_ = cli.ShowAppHelp(c)
 		return err
 	}
 	return app

@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/warpstreamlabs/bento/internal/retries"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -71,7 +70,7 @@ type outputWriter struct {
 	client                       *mongo.Client
 	database                     *mongo.Database
 	collection                   *service.InterpolatedString
-	writeConcernCollectionOption *options.CollectionOptions
+	writeConcernCollectionOption *writeConcernCollectionOption
 	operation                    Operation
 	writeMaps                    writeMaps
 
@@ -185,9 +184,15 @@ func (m *outputWriter) WriteBatch(ctx context.Context, batch service.MessageBatc
 	// Dispatch any documents which WalkWithBatchedErrors managed to process successfully
 	if len(writeModelsMap) > 0 {
 		for collectionStr, writeModels := range writeModelsMap {
+			ctx, cancel := context.WithTimeout(ctx, m.writeConcernCollectionOption.wTimeout)
+
 			// We should have at least one write model in the slice
-			collection := m.database.Collection(collectionStr, m.writeConcernCollectionOption)
-			if _, err := collection.BulkWrite(ctx, writeModels); err != nil {
+			collection := m.database.Collection(collectionStr, m.writeConcernCollectionOption.options)
+			_, err := collection.BulkWrite(ctx, writeModels)
+
+			cancel()
+
+			if err != nil {
 				return err
 			}
 		}

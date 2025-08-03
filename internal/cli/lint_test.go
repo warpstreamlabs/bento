@@ -2,13 +2,14 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	icli "github.com/warpstreamlabs/bento/internal/cli"
 	"github.com/warpstreamlabs/bento/internal/cli/common"
@@ -22,15 +23,15 @@ func executeLintSubcmd(t *testing.T, args []string) (exitCode int, printedErr st
 	cliApp := icli.App(opts)
 	for _, c := range cliApp.Commands {
 		if c.Name == "lint" {
-			c.Action = func(ctx *cli.Context) error {
+			c.Action = func(ctx context.Context, c *cli.Command) error {
 				var buf bytes.Buffer
-				exitCode = icli.LintAction(ctx, opts, &buf)
+				exitCode = icli.LintAction(c, opts, &buf)
 				printedErr = buf.String()
 				return nil
 			}
 		}
 	}
-	require.NoError(t, cliApp.Run(args))
+	require.NoError(t, cliApp.Run(t.Context(), args))
 	return
 }
 

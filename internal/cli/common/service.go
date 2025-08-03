@@ -15,12 +15,12 @@ import (
 	"github.com/warpstreamlabs/bento/internal/stream"
 	strmmgr "github.com/warpstreamlabs/bento/internal/stream/manager"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 // RunService runs a service command (either the default or the streams
 // subcommand).
-func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
+func RunService(ctx context.Context, c *cli.Command, cliOpts *CLIOpts, streamsMode bool) int {
 	mainPath, inferredMainPath, confReader := ReadConfig(c, cliOpts, streamsMode)
 
 	conf, pConf, lints, lintWarns, err := confReader.Read()
@@ -29,7 +29,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 		return 1
 	}
 	defer func() {
-		_ = confReader.Close(c.Context)
+		_ = confReader.Close(ctx)
 	}()
 
 	logger, err := CreateLogger(c, cliOpts, conf, streamsMode)
@@ -64,7 +64,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 		logger.With("lint", lintWarn).Warn("Config lint warning")
 	}
 
-	stoppableManager, err := CreateManager(c, cliOpts, logger, streamsMode, conf)
+	stoppableManager, err := CreateManager(ctx, c, cliOpts, logger, streamsMode, conf)
 	if err != nil {
 		logger.Error(err.Error())
 		return 1
@@ -87,7 +87,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 		stoppableStream, dataStreamClosedChan = initNormalMode(cliOpts, conf, strict, watching, confReader, stoppableManager.Manager())
 	}
 
-	return RunManagerUntilStopped(c, conf, stoppableManager, stoppableStream, dataStreamClosedChan)
+	return RunManagerUntilStopped(ctx, c, conf, stoppableManager, stoppableStream, dataStreamClosedChan)
 }
 
 // DelayShutdown attempts to block until either:

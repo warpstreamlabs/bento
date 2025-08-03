@@ -1,10 +1,11 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/filepath"
@@ -34,7 +35,7 @@ For more information check out the docs at:
 				Usage: "allow components to write logs at a provided level to stdout.",
 			},
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			if len(c.StringSlice("set")) > 0 {
 				fmt.Fprintln(os.Stderr, "Cannot override fields with --set (-s) during unit tests")
 				os.Exit(1)
