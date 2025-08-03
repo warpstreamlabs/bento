@@ -190,7 +190,12 @@ This output benefits from sending messages as a batch for improved performance. 
 			service.NewBatchPolicyField(ddboFieldBatching),
 		).
 		Fields(config.SessionFields()...).
-		Fields(retries.CommonRetryBackOffFields(3, "1s", "5s", "30s")...)
+		Fields(retries.CommonRetryBackOffFields(3, "1s", "5s", "30s")...).
+		LintRule(`root = match {
+this.` + ddboFieldStringColumns + `.length() == 0 && this.` + ddboFieldJSONMapColumns + `.length() == 0 => ["at least one of: ` + ddboFieldStringColumns + ` or ` + ddboFieldJSONMapColumns + ` must be specified"],
+this.` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + ` != "" && this.` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + ` == "" => ["If you provide a ` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + ` you must also provide a ` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + `"]
+this.` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + ` != "" && this.` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + ` == "" => ["If you provide a ` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + ` you must also provide a ` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + `"]
+}`)
 }
 
 func init() {
@@ -241,9 +246,6 @@ func newDynamoDBWriter(conf ddboConfig, mgr *service.Resources) (*dynamoDBWriter
 		table: aws.String(conf.Table),
 	}
 
-	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 {
-		return nil, errors.New("you must provide at least one column")
-	}
 	for k, v := range conf.JSONMapColumns {
 		if v == "." {
 			conf.JSONMapColumns[k] = ""
