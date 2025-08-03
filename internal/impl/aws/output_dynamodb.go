@@ -370,20 +370,11 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			}
 
 			if isDelete {
-				err = d.addDeleteRequest(i, &b, &writeReqs, p)
-				if err != nil {
-					return err
-				}
-				return nil
+				return d.addDeleteRequest(i, &b, &writeReqs, p)
 			}
 		}
 
-		err = d.addPutRequest(i, &b, &writeReqs, p)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return d.addPutRequest(i, &b, &writeReqs, p)
 
 	}); err != nil {
 		return err
@@ -504,7 +495,6 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 
 	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyDeleteField]
 	if !ok {
-		// let's have a look in json_map_columns then;
 		jRoot, err := p.AsStructured()
 		if err != nil {
 			return err
