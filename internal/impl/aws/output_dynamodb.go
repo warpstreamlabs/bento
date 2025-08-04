@@ -170,6 +170,7 @@ This output benefits from sending messages as a batch for improved performance. 
 					Description("A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put").
 					Version("1.10.0").
 					Advanced().
+					Example(`root = this.isDelete == "true"`).
 					Default(""),
 				service.NewStringField(ddboFieldDeletePartitionKey).
 					Description("The partition key for DeleteItem requests. Required when `"+ddboFieldDelete+"."+ddboFieldDeleteCondition+"` is true. The value of the key will be resolved from either `"+ddboFieldStringColumns+" or "+ddboFieldJSONMapColumns+"`").
@@ -177,7 +178,7 @@ This output benefits from sending messages as a batch for improved performance. 
 					Advanced().
 					Default(""),
 				service.NewStringField(ddboFieldDeleteSortKey).
-					Description("The sort key for DeleteItem requests.").
+					Description("The sort key for DeleteItem requests. The value of the key will be resolved from either `"+ddboFieldStringColumns+" or "+ddboFieldJSONMapColumns+"`").
 					Version("1.10.0").
 					Advanced().
 					Default(""),
@@ -192,10 +193,26 @@ This output benefits from sending messages as a batch for improved performance. 
 		Fields(config.SessionFields()...).
 		Fields(retries.CommonRetryBackOffFields(3, "1s", "5s", "30s")...).
 		LintRule(`root = match {
-this.` + ddboFieldStringColumns + `.length() == 0 && this.` + ddboFieldJSONMapColumns + `.length() == 0 => ["at least one of: ` + ddboFieldStringColumns + ` or ` + ddboFieldJSONMapColumns + ` must be specified"],
-this.` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + ` != "" && this.` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + ` == "" => ["If you provide a ` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + ` you must also provide a ` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + `"]
-this.` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + ` != "" && this.` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + ` == "" => ["If you provide a ` + ddboFieldDelete + `.` + ddboFieldDeletePartitionKey + ` you must also provide a ` + ddboFieldDelete + `.` + ddboFieldDeleteCondition + `"]
-}`)
+this.`+ddboFieldStringColumns+`.length() == 0 && this.`+ddboFieldJSONMapColumns+`.length() == 0 => ["at least one of: `+ddboFieldStringColumns+` or `+ddboFieldJSONMapColumns+` must be specified"],
+this.`+ddboFieldDelete+`.`+ddboFieldDeleteCondition+` != "" && this.`+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+` == "" => ["If you provide a `+ddboFieldDelete+`.`+ddboFieldDeleteCondition+` you must also provide a `+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+`"]
+this.`+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+` != "" && this.`+ddboFieldDelete+`.`+ddboFieldDeleteCondition+` == "" => ["If you provide a `+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+` you must also provide a `+ddboFieldDelete+`.`+ddboFieldDeleteCondition+`"]
+}`).Example(
+		"Delete Requests",
+		"In the following example, we will be inserting messages to the table `Music` if the bloblang mapping `root = this.isDelete == true` resolves to `false`, if the bloblang mapping resolves to `true` we will make a delete request for items with the `delete.partition_key` and/or `delete.sort_key`, the values for the `partition_key` and `sort_key` will be found using either the `string_columns` or `json_map_columns`",
+		`
+output:
+  aws_dynamodb:
+    table: Music
+    json_map_columns:
+      uuid: uuid
+      title: title
+      year: year
+    delete:
+      condition: |
+        root = this.isDelete == true
+      partition_key: uuid
+`,
+	)
 }
 
 func init() {

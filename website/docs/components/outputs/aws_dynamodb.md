@@ -127,6 +127,33 @@ This output benefits from sending multiple messages in flight in parallel for im
 This output benefits from sending messages as a batch for improved performance. Batches can be formed at both the input and output level. You can find out more [in this doc](/docs/configuration/batching).
 
 
+## Examples
+
+<Tabs defaultValue="Delete Requests" values={[
+{ label: 'Delete Requests', value: 'Delete Requests', },
+]}>
+
+<TabItem value="Delete Requests">
+
+In the following example, we will be inserting messages to the table `Music` if the bloblang mapping `root = this.isDelete == true` resolves to `false`, if the bloblang mapping resolves to `true` we will make a delete request for items with the `delete.partition_key` and/or `delete.sort_key`, the values for the `partition_key` and `sort_key` will be found using either the `string_columns` or `json_map_columns`
+
+```yaml
+output:
+  aws_dynamodb:
+    table: Music
+    json_map_columns:
+      uuid: uuid
+      title: title
+      year: year
+    delete:
+      condition: |
+        root = this.isDelete == true
+      partition_key: uuid
+```
+
+</TabItem>
+</Tabs>
+
 ## Fields
 
 ### `table`
@@ -207,6 +234,12 @@ Type: `string`
 Default: `""`  
 Requires version 1.10.0 or newer  
 
+```yml
+# Examples
+
+condition: root = this.isDelete == "true"
+```
+
 ### `delete.partition_key`
 
 The partition key for DeleteItem requests. Required when `delete.condition` is true. The value of the key will be resolved from either `string_columns or json_map_columns`
@@ -218,7 +251,7 @@ Requires version 1.10.0 or newer
 
 ### `delete.sort_key`
 
-The sort key for DeleteItem requests.
+The sort key for DeleteItem requests. The value of the key will be resolved from either `string_columns or json_map_columns`
 
 
 Type: `string`  
