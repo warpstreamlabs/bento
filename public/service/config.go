@@ -118,6 +118,13 @@ func NewIntField(name string) *ConfigField {
 	}
 }
 
+// NewUIntField describes a new int type config field.
+func NewUIntField(name string) *ConfigField {
+	return &ConfigField{
+		field: docs.FieldUint(name, ""),
+	}
+}
+
 // NewIntListField describes a new config field consisting of a list of
 // integers.
 func NewIntListField(name string) *ConfigField {
@@ -659,6 +666,12 @@ func (p *ParsedConfig) FieldStringMap(path ...string) (map[string]string, error)
 // the value. Returns an error if the field is not found or is not an int.
 func (p *ParsedConfig) FieldInt(path ...string) (int, error) {
 	return p.i.FieldInt(path...)
+}
+
+// FieldUInt accesses an int field from the parsed config by its name and returns
+// the value. Returns an error if the field is not found or is not an int.
+func (p *ParsedConfig) FieldUInt(path ...string) (uint, error) {
+	return p.i.FieldUInt(path...)
 }
 
 // FieldIntList accesses a field that is a list of integers from the parsed

@@ -82,6 +82,9 @@ func (f FieldSpec) AnyToValue(v any, conf ToValueConfig) (any, error) {
 	case FieldTypeInt:
 		i64, err := value.IGetInt(v)
 		return int(i64), err
+	case FieldTypeUint:
+		u64, err := value.IGetUInt(v)
+		return uint(u64), err
 	case FieldTypeFloat:
 		return value.IGetNumber(v)
 	case FieldTypeBool:

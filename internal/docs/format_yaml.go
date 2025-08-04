@@ -81,6 +81,12 @@ func FieldFromYAML(name string, node *yaml.Node) FieldSpec {
 
 				var defaultI any = defaultArray
 				field.Default = &defaultI
+			case FieldTypeUint:
+				var defaultArray []uint64
+				_ = node.Decode(&defaultArray)
+
+				var defaultI any = defaultArray
+				field.Default = &defaultI
 			}
 		} else {
 			var defaultI any = []any{}
@@ -104,6 +110,14 @@ func FieldFromYAML(name string, node *yaml.Node) FieldSpec {
 
 			var defaultI any = defaultInt
 			field.Default = &defaultI
+		case "!!uint":
+			field.Type = FieldTypeUint
+
+			var defaultUInt uint64
+			_ = node.Decode(&defaultUInt)
+
+			var defaultUI any = defaultUInt
+			field.Default = &defaultUI
 		case "!!float":
 			field.Type = FieldTypeFloat
 
@@ -645,7 +659,7 @@ func (f FieldSpec) LintYAML(ctx LintContext, node *yaml.Node) []Lint {
 	// Otherwise we're a leaf node, so do basic type checking
 	switch f.Type {
 	// TODO: Do proper checking for bool and number types.
-	case FieldTypeBool, FieldTypeString, FieldTypeInt, FieldTypeFloat:
+	case FieldTypeBool, FieldTypeString, FieldTypeInt, FieldTypeUint, FieldTypeFloat:
 		if node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode {
 			lints = append(lints, NewLintError(node.Line, LintExpectedScalar, fmt.Errorf("expected %v value", f.Type)))
 		}
@@ -756,6 +770,10 @@ func (f FieldSpec) ToYAML(recurse bool) (*yaml.Node, error) {
 					return nil, err
 				}
 			case FieldTypeInt:
+				if err := node.Encode(0); err != nil {
+					return nil, err
+				}
+			case FieldTypeUint:
 				if err := node.Encode(0); err != nil {
 					return nil, err
 				}
@@ -877,6 +895,12 @@ func (f FieldSpec) YAMLToValue(node *yaml.Node, conf ToValueConfig) (any, error)
 		return s, nil
 	case FieldTypeInt:
 		var i int
+		if err := node.Decode(&i); err != nil {
+			return nil, err
+		}
+		return i, nil
+	case FieldTypeUint:
+		var i uint
 		if err := node.Decode(&i); err != nil {
 			return nil, err
 		}

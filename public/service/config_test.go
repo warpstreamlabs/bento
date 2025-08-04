@@ -432,3 +432,49 @@ func TestConfigFields(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "evalue", e)
 }
+
+func TestConfigUIntFields(t *testing.T) {
+	spec := NewConfigSpec().
+		Fields(
+			NewStringField("a"),
+			NewIntField("b").Default(11),
+			NewUIntField("f").Default(101),
+			NewObjectField("c",
+				NewBoolField("d").Default(true),
+				NewStringField("e").Default("evalue"),
+			),
+		)
+
+	parsed, err := spec.ParseYAML(`
+      a: sample value
+      c:
+        d: false
+    `, nil)
+	require.NoError(t, err)
+
+	// existing string field
+	a, err := parsed.FieldString("a")
+	require.NoError(t, err)
+	assert.Equal(t, "sample value", a)
+
+	// existing int with default
+	b, err := parsed.FieldInt("b")
+	require.NoError(t, err)
+	assert.Equal(t, 11, b)
+
+	// new uint with default
+	f, err := parsed.FieldUInt("f")
+	require.NoError(t, err)
+	assert.Equal(t, uint(101), f)
+
+	// nested object
+	c := parsed.Namespace("c")
+
+	d, err := c.FieldBool("d")
+	require.NoError(t, err)
+	assert.False(t, d)
+
+	e, err := c.FieldString("e")
+	require.NoError(t, err)
+	assert.Equal(t, "evalue", e)
+}
