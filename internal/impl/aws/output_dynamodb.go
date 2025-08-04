@@ -357,11 +357,11 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		d.boffPool.Put(boff)
 	}()
 
-	writeReqs := []types.WriteRequest{}
+	writeReqs := make([]types.WriteRequest, len(b))
 
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
 		if d.conf.DeleteConditionExec == nil {
-			return d.addPutRequest(i, &b, &writeReqs, p)
+			return d.addPutRequest(i, &b, writeReqs, p)
 		}
 
 		result, err := p.BloblangQueryValue(d.conf.DeleteConditionExec)
@@ -374,17 +374,13 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		}
 
 		if isDelete {
-			return d.addDeleteRequest(i, &b, &writeReqs, p)
+			return d.addDeleteRequest(i, &b, writeReqs, p)
 		}
 
-		return d.addPutRequest(i, &b, &writeReqs, p)
+		return d.addPutRequest(i, &b, writeReqs, p)
 
 	}); err != nil {
 		return err
-	}
-
-	if len(writeReqs) == 0 {
-		return nil
 	}
 
 	batchResult, err := d.client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
@@ -492,7 +488,7 @@ func (d *dynamoDBWriter) Close(context.Context) error {
 
 //------------------------------------------------------------------------------
 
-func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeReqs *[]types.WriteRequest, p *service.Message) error {
+func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeReqs []types.WriteRequest, p *service.Message) error {
 
 	key := map[string]types.AttributeValue{}
 
@@ -537,15 +533,15 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 		}
 	}
 
-	*writeReqs = append(*writeReqs, types.WriteRequest{
+	writeReqs[i] = types.WriteRequest{
 		DeleteRequest: &types.DeleteRequest{
 			Key: key,
 		},
-	})
+	}
 	return nil
 }
 
-func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs *[]types.WriteRequest, p *service.Message) error {
+func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs []types.WriteRequest, p *service.Message) error {
 	items := map[string]types.AttributeValue{}
 	if d.ttl != 0 && d.conf.TTLKey != "" {
 		items[d.conf.TTLKey] = &types.AttributeValueMemberN{
@@ -586,10 +582,10 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			}
 		}
 	}
-	*writeReqs = append(*writeReqs, types.WriteRequest{
+	writeReqs[i] = types.WriteRequest{
 		PutRequest: &types.PutRequest{
 			Item: items,
 		},
-	})
+	}
 	return nil
 }
