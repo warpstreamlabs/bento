@@ -113,6 +113,8 @@ func doScalarField(spec docs.FieldSpec) (*ast.Field, error) {
 		val = ast.NewIdent("string")
 	case docs.FieldTypeInt:
 		val = ast.NewIdent("int")
+	case docs.FieldTypeUint:
+		val = ast.NewIdent("uint")
 	case docs.FieldTypeFloat:
 		val = ast.NewIdent("float")
 	case docs.FieldTypeBool:

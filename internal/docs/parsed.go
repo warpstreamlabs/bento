@@ -271,6 +271,29 @@ func (p *ParsedConfig) FieldInt(path ...string) (int, error) {
 	return int(i), nil
 }
 
+// FieldUInt accesses an unsigned‐int field from the parsed config by its name and returns
+// the value as uint64. Returns an error if the field is not found or is not an unsigned integer.
+func (p *ParsedConfig) FieldUInt(path ...string) (uint, error) {
+	v, exists := p.Field(path...)
+	if !exists {
+		return 0, fmt.Errorf(
+			"field '%v' was not found in the config",
+			p.FullDotPath(path...),
+		)
+	}
+
+	u, err := value.IGetUInt(v)
+	if err != nil {
+		return 0, fmt.Errorf(
+			"expected field '%v' to be an unsigned integer, got %T (%v)",
+			p.FullDotPath(path...),
+			v, v,
+		)
+	}
+
+	return uint(u), nil
+}
+
 // FieldIntList accesses a field that is a list of integers from the parsed
 // config by its name and returns the value. Returns an error if the field is
 // not found, or is not a list of integers.
