@@ -669,7 +669,7 @@ func (p *ParsedConfig) FieldInt(path ...string) (int, error) {
 }
 
 // FieldUInt accesses an int field from the parsed config by its name and returns
-// the value. Returns an error if the field is not found or is not an int.
+// the value. Returns an error if the field is not found or is not an unsigned int.
 func (p *ParsedConfig) FieldUInt(path ...string) (uint, error) {
 	return p.i.FieldUInt(path...)
 }
