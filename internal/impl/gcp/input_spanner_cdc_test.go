@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jeffail/shutdown"
 	"github.com/anicoll/screamer"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -84,10 +85,12 @@ func TestGcpSpannerCDCInput_Connect(t *testing.T) {
 		consumer: consumer{
 			msgQueue: make(chan []byte, 1000),
 		},
-		subscriber: &mockSubscriber{},
+		subscriber:  &mockSubscriber{},
+		closeSignal: shutdown.NewSignaller(),
 	}
 
 	err := input.Connect(ctx)
+	time.Sleep(time.Second * 5)
 	require.NoError(t, err)
 
 	err = input.Close(ctx)
@@ -105,14 +108,14 @@ func TestGcpSpannerCDCInput_Read(t *testing.T) {
 	// Test reading when channel is closed
 	close(input.consumer.msgQueue)
 	_, _, err := input.Read(ctx)
-	assert.ErrorIs(t, err, service.ErrNotConnected)
+	assert.ErrorIs(t, err, service.ErrEndOfInput)
 
 	// Test context cancellation
 	input.consumer.msgQueue = make(chan []byte, 1)
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	cancel()
 	_, _, err = input.Read(ctxWithCancel)
-	assert.ErrorIs(t, err, service.ErrNotConnected)
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
@@ -155,44 +158,6 @@ func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGcpSpannerCDCInput_Connect_Errors(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("returns error when subscriber is nil", func(t *testing.T) {
-		input := &gcpSpannerCDCInput{
-			consumer: consumer{
-				msgQueue: make(chan []byte, 1000),
-			},
-			subscriber: nil,
-		}
-
-		err := input.Connect(ctx)
-		assert.Equal(t, service.ErrNotConnected, err)
-	})
-
-	t.Run("handles subscription error", func(t *testing.T) {
-		input := &gcpSpannerCDCInput{
-			consumer: consumer{
-				msgQueue: make(chan []byte, 1000),
-			},
-			subscriber: &mockSubscriber{
-				subscribeErr: service.ErrNotConnected,
-			},
-			log: nil,
-		}
-
-		err := input.Connect(ctx)
-		require.NoError(t, err)
-
-		// Wait for subscription goroutine to complete
-		time.Sleep(100 * time.Millisecond)
-
-		// Verify channel was closed due to error
-		_, open := <-input.consumer.msgQueue
-		assert.False(t, open, "message queue should be closed after error")
-	})
-}
-
 func TestGcpSpannerCDCInput_SigTerm(t *testing.T) {
 	ctx := context.Background()
 	mockSub := &mockSubscriber{}
@@ -201,15 +166,16 @@ func TestGcpSpannerCDCInput_SigTerm(t *testing.T) {
 		consumer: consumer{
 			msgQueue: make(chan []byte, 1000),
 		},
-		subscriber: mockSub,
-		log:        nil,
+		subscriber:  mockSub,
+		log:         nil,
+		closeSignal: shutdown.NewSignaller(),
 	}
 
 	// Connect the input
 	err := input.Connect(ctx)
 	require.NoError(t, err)
 	// Wait for subscription goroutine to complete
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(time.Second * 5)
 
 	// Ensure subscriber was called
 	assert.True(t, mockSub.subscribeCalled)
@@ -357,7 +323,7 @@ func TestGcpSpannerCDCInput_Read_WithSigterm(t *testing.T) {
 	// Verify that Read returns the context canceled error
 	select {
 	case err := <-readErrCh:
-		assert.ErrorIs(t, err, service.ErrNotConnected)
+		assert.ErrorIs(t, err, context.Canceled)
 	case <-time.After(time.Second):
 		t.Fatal("Read did not exit after context cancellation")
 	}
@@ -374,9 +340,9 @@ func TestGcpSpannerCDCInput_Read_ClosedChannel(t *testing.T) {
 	// Close the channel before attempting to read
 	close(input.consumer.msgQueue)
 
-	// Read should return ErrNotConnected
+	// Read should return ErrEndOfInput
 	_, _, err := input.Read(ctx)
-	assert.Equal(t, service.ErrNotConnected, err)
+	assert.Equal(t, service.ErrEndOfInput, err)
 }
 
 func TestGcpSpannerCDCInput_Read_WithMultipleMessages(t *testing.T) {

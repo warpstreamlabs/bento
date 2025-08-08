@@ -338,6 +338,6 @@ stream_name: %[3]s
 		_, _, err = input.Read(readCtx)
 
 		// Verify we got a context cancellation error
-		s.ErrorIs(err, service.ErrNotConnected, "Expected context.Canceled error, got: %v", err)
+		s.ErrorIs(err, context.Canceled, "Expected context.Canceled error, got: %v", err)
 	})
 }
