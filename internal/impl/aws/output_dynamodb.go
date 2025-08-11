@@ -262,7 +262,6 @@ func newDynamoDBWriter(conf ddboConfig, mgr *service.Resources) (*dynamoDBWriter
 		log:   mgr.Logger(),
 		table: aws.String(conf.Table),
 	}
-
 	for k, v := range conf.JSONMapColumns {
 		if v == "." {
 			conf.JSONMapColumns[k] = ""
