@@ -42,7 +42,7 @@ func RunCLI(ctx context.Context, optFuncs ...CLIOptFunc) {
 		}
 		return l, nil
 	}
-	_ = cli.App(cliOpts.opts).RunContext(ctx, os.Args)
+	_ = cli.App(cliOpts.opts).Run(ctx, os.Args)
 }
 
 type CLIOptBuilder struct {

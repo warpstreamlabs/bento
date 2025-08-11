@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/warpstreamlabs/bento/internal/retries"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -69,7 +69,7 @@ type Processor struct {
 	client                       *mongo.Client
 	database                     *mongo.Database
 	collection                   *service.InterpolatedString
-	writeConcernCollectionOption *options.CollectionOptions
+	writeConcernCollectionOption *writeConcernCollectionOption
 	operation                    Operation
 	writeMaps                    writeMaps
 
@@ -130,9 +130,9 @@ func (m *Processor) ProcessBatch(ctx context.Context, batch service.MessageBatch
 			return err
 		}
 
-		findOptions := &options.FindOneOptions{}
+		findOptions := options.FindOne()
 		if hintJSON != nil {
-			findOptions.Hint = hintJSON
+			findOptions.SetHint(hintJSON)
 		}
 
 		collectionStr, err := batch.TryInterpolatedString(i, m.collection)
@@ -171,10 +171,16 @@ func (m *Processor) ProcessBatch(ctx context.Context, batch service.MessageBatch
 				Hint:   hintJSON,
 			}
 		case OperationFindOne:
-			collection := m.database.Collection(collectionStr, m.writeConcernCollectionOption)
+			ctx, cancel := context.WithTimeout(context.Background(), m.writeConcernCollectionOption.wTimeout)
+
+			collection := m.database.Collection(collectionStr, m.writeConcernCollectionOption.options)
 
 			var decoded any
-			if err = collection.FindOne(context.Background(), filterJSON, findOptions).Decode(&decoded); err != nil {
+			err = collection.FindOne(ctx, filterJSON, findOptions).Decode(&decoded)
+
+			cancel()
+
+			if err != nil {
 				if errors.Is(err, mongo.ErrNoDocuments) {
 					return err
 				}
@@ -202,10 +208,16 @@ func (m *Processor) ProcessBatch(ctx context.Context, batch service.MessageBatch
 
 	if len(writeModelsMap) > 0 {
 		for collectionStr, msAndMs := range writeModelsMap {
-			collection := m.database.Collection(collectionStr, m.writeConcernCollectionOption)
+			ctx, cancel := context.WithTimeout(ctx, m.writeConcernCollectionOption.wTimeout)
+
+			collection := m.database.Collection(collectionStr, m.writeConcernCollectionOption.options)
+
+			_, err := collection.BulkWrite(ctx, msAndMs.ws)
+
+			cancel()
 
 			// We should have at least one write model in the slice
-			if _, err := collection.BulkWrite(ctx, msAndMs.ws); err != nil {
+			if err != nil {
 				m.log.Errorf("Bulk write failed in mongodb processor: %v", err)
 				for _, msg := range msAndMs.msgs {
 					msg.SetError(err)

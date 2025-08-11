@@ -1,16 +1,15 @@
 package mongodb
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -69,7 +68,7 @@ func getClient(parsedConf *service.ParsedConfig) (client *mongo.Client, database
 
 	opt := options.Client().
 		SetConnectTimeout(10 * time.Second).
-		SetSocketTimeout(30 * time.Second).
+		SetTimeout(30 * time.Second).
 		SetServerSelectionTimeout(30 * time.Second).
 		ApplyURI(url)
 
@@ -81,10 +80,7 @@ func getClient(parsedConf *service.ParsedConfig) (client *mongo.Client, database
 		opt.SetAuth(creds)
 	}
 
-	ctx, done := context.WithTimeout(context.Background(), time.Minute)
-	defer done()
-
-	if client, err = mongo.Connect(ctx, opt); err != nil {
+	if client, err = mongo.Connect(opt); err != nil {
 		return
 	}
 
@@ -250,7 +246,12 @@ func writeConcernDocs() *service.ConfigField {
 	).Description("The write concern settings for the mongo connection.")
 }
 
-func writeConcernCollectionOptionFromParsed(pConf *service.ParsedConfig) (opt *options.CollectionOptions, err error) {
+type writeConcernCollectionOption struct {
+	options  *options.CollectionOptionsBuilder
+	wTimeout time.Duration
+}
+
+func writeConcernCollectionOptionFromParsed(pConf *service.ParsedConfig) (opt *writeConcernCollectionOption, err error) {
 	pConf = pConf.Namespace(commonFieldWriteConcern)
 
 	var w string
@@ -271,8 +272,7 @@ func writeConcernCollectionOptionFromParsed(pConf *service.ParsedConfig) (opt *o
 	}
 
 	writeConcern := &writeconcern.WriteConcern{
-		Journal:  &j,
-		WTimeout: wTimeout,
+		Journal: &j,
 	}
 	if wInt, err := strconv.Atoi(w); err != nil {
 		writeConcern.W = w
@@ -280,7 +280,10 @@ func writeConcernCollectionOptionFromParsed(pConf *service.ParsedConfig) (opt *o
 		writeConcern.W = wInt
 	}
 
-	return options.Collection().SetWriteConcern(writeConcern), nil
+	return &writeConcernCollectionOption{
+		options:  options.Collection().SetWriteConcern(writeConcern),
+		wTimeout: wTimeout,
+	}, nil
 }
 
 //------------------------------------------------------------------------------

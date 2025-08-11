@@ -37,6 +37,7 @@ func TestCaptureProcessor(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -84,6 +85,7 @@ func TestCaptureProcessor_Sync(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -120,6 +122,7 @@ func TestCaptureProcessor_InvalidMessage(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return(true)
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -155,6 +158,7 @@ func TestCaptureProcessor_NoSampling(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -192,6 +196,7 @@ func TestCaptureProcessor_FlushOnClose(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", d).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -246,6 +251,7 @@ func TestCaptureProcessor_EmptyContext(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -267,8 +273,8 @@ func TestCaptureProcessor_EmptyContext(t *testing.T) {
 	for k := range event.Contexts {
 		contextKeys = append(contextKeys, k)
 	}
-	require.Len(t, contextKeys, 3, "wrong number of context keys found")
-	require.ElementsMatch(t, []string{"device", "os", "runtime"}, contextKeys)
+	require.Len(t, contextKeys, 4, "wrong number of context keys found")
+	require.ElementsMatch(t, []string{"device", "os", "runtime", "trace"}, contextKeys)
 }
 
 // TestCaptureProcessor_NoContext checks that leaving context config unset
@@ -290,6 +296,7 @@ func TestCaptureProcessor_NoContext(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -311,8 +318,8 @@ func TestCaptureProcessor_NoContext(t *testing.T) {
 	for k := range event.Contexts {
 		contextKeys = append(contextKeys, k)
 	}
-	require.Len(t, contextKeys, 3, "wrong number of context keys found")
-	require.ElementsMatch(t, []string{"device", "os", "runtime"}, contextKeys)
+	require.Len(t, contextKeys, 4, "wrong number of context keys found")
+	require.ElementsMatch(t, []string{"device", "os", "runtime", "trace"}, contextKeys)
 }
 
 func TestCaptureProcessor_NilContextValue(t *testing.T) {
@@ -334,6 +341,7 @@ func TestCaptureProcessor_NilContextValue(t *testing.T) {
 	})
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -355,8 +363,8 @@ func TestCaptureProcessor_NilContextValue(t *testing.T) {
 	for k := range event.Contexts {
 		contextKeys = append(contextKeys, k)
 	}
-	require.Len(t, contextKeys, 3, "wrong number of context keys found")
-	require.ElementsMatch(t, []string{"device", "os", "runtime"}, contextKeys)
+	require.Len(t, contextKeys, 4, "wrong number of context keys found")
+	require.ElementsMatch(t, []string{"device", "os", "runtime", "trace"}, contextKeys)
 }
 
 func TestCaptureProcessor_InvalidContext(t *testing.T) {
@@ -374,6 +382,7 @@ func TestCaptureProcessor_InvalidContext(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -403,6 +412,7 @@ func TestCaptureProcessor_ContextNotStructured(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -432,6 +442,7 @@ func TestCaptureProcessor_ContextNotMap(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -461,6 +472,7 @@ func TestCaptureProcessor_ContextValueNotMap(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))
@@ -490,6 +502,7 @@ func TestCaptureProcessor_InvalidTag(t *testing.T) {
 	transport := &mockTransport{}
 	transport.On("Configure", mock.Anything).Return()
 	transport.On("Flush", mock.Anything).Return(true)
+	transport.On("Close", mock.Anything).Return()
 	t.Cleanup(func() { transport.AssertExpectations(t) })
 
 	proc, err := newCaptureProcessor(conf, service.MockResources(), withTransport(transport))

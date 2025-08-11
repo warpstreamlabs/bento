@@ -1,7 +1,7 @@
 package template
 
 import (
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/warpstreamlabs/bento/internal/cli/common"
 )
@@ -21,7 +21,7 @@ Allows linting and generating {{.ProductName}} templates.
 
 For more information check out the docs at:
 {{.DocumentationURL}}/configuration/templating`)[1:],
-		Subcommands: []*cli.Command{
+		Commands: []*cli.Command{
 			lintCliCommand(opts),
 		},
 	}

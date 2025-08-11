@@ -4,13 +4,13 @@ import (
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 // ReadConfig attempts to read a general service wide config via a returned
 // config.Reader based on input CLI flags. This includes applying any config
 // overrides expressed by the --set flag.
-func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath string, inferred bool, conf *config.Reader) {
+func ReadConfig(c *cli.Command, cliOpts *CLIOpts, streamsMode bool) (mainPath string, inferred bool, conf *config.Reader) {
 	path := c.String("config")
 	if path == "" {
 		// Iterate default config paths

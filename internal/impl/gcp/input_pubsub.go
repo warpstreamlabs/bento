@@ -6,8 +6,11 @@ import (
 	"strings"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -19,7 +22,7 @@ const (
 	pbiFieldEndpoint               = "endpoint"
 	pbiFieldMaxOutstandingMessages = "max_outstanding_messages"
 	pbiFieldMaxOutstandingBytes    = "max_outstanding_bytes"
-	pbiFieldSync                   = "sync"
+	pbiFieldDeprecatedSync         = "sync"
 	pbiFieldCreateSub              = "create_subscription"
 	pbiFieldCreateSubEnabled       = "enabled"
 	pbiFieldCreateSubTopicID       = "topic"
@@ -52,7 +55,7 @@ func pbiConfigFromParsed(pConf *service.ParsedConfig) (conf pbiConfig, err error
 	if conf.MaxOutstandingBytes, err = pConf.FieldInt(pbiFieldMaxOutstandingBytes); err != nil {
 		return
 	}
-	if conf.Sync, err = pConf.FieldBool(pbiFieldSync); err != nil {
+	if conf.Sync, err = pConf.FieldBool(pbiFieldDeprecatedSync); err != nil {
 		return
 	}
 	if pConf.Contains(pbiFieldCreateSub) {
@@ -99,8 +102,9 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Example("us-central1-pubsub.googleapis.com:443").
 				Example("us-west3-pubsub.googleapis.com:443").
 				Default(""),
-			service.NewBoolField(pbiFieldSync).
-				Description("Enable synchronous pull mode.").
+			service.NewBoolField(pbiFieldDeprecatedSync).
+				Description("Enable synchronous pull mode. Deprecated.").
+				Deprecated().
 				Default(false),
 			service.NewIntField(pbiFieldMaxOutstandingMessages).
 				Description("The maximum number of outstanding pending messages to be consumed at a given time.").
@@ -135,33 +139,31 @@ func init() {
 }
 
 func createSubscription(conf pbiConfig, client *pubsub.Client, log *service.Logger) {
-	subsExists, err := client.Subscription(conf.SubscriptionID).Exists(context.Background())
-	if err != nil {
-		log.Errorf("Error checking if subscription exists", err)
-		return
-	}
-
-	if subsExists {
-		log.Infof("Subscription '%v' already exists", conf.SubscriptionID)
-		return
-	}
-
 	if conf.CreateTopicID == "" {
 		log.Infof("Subscription won't be created because TopicID is not defined")
 		return
 	}
 
 	log.Infof("Creating subscription '%v' on topic '%v'\n", conf.SubscriptionID, conf.CreateTopicID)
-	_, err = client.CreateSubscription(context.Background(), conf.SubscriptionID, pubsub.SubscriptionConfig{Topic: client.Topic(conf.CreateTopicID)})
+	_, err := client.SubscriptionAdminClient.CreateSubscription(context.Background(), &pubsubpb.Subscription{
+		Name:  conf.SubscriptionID,
+		Topic: conf.CreateTopicID,
+	})
 	if err != nil {
-		log.Errorf("Error creating subscription %v", err)
+		st, ok := status.FromError(err)
+		if ok && st.Code() == codes.AlreadyExists {
+			log.Infof("Subscription '%v' already exists", conf.SubscriptionID)
+			return
+		} else {
+			log.Errorf("Error creating subscription %v", err)
+		}
 	}
 }
 
 type gcpPubSubReader struct {
 	conf pbiConfig
 
-	subscription *pubsub.Subscription
+	subscription *pubsub.Subscriber
 	msgsChan     chan *pubsub.Message
 	closeFunc    context.CancelFunc
 	subMut       sync.Mutex
@@ -203,10 +205,10 @@ func (c *gcpPubSubReader) Connect(ignored context.Context) error {
 		return nil
 	}
 
-	sub := c.client.Subscription(c.conf.SubscriptionID)
+	sub := c.client.Subscriber(c.conf.SubscriptionID)
 	sub.ReceiveSettings.MaxOutstandingMessages = c.conf.MaxOutstandingMessages
 	sub.ReceiveSettings.MaxOutstandingBytes = c.conf.MaxOutstandingBytes
-	sub.ReceiveSettings.Synchronous = c.conf.Sync
+	//sub.ReceiveSettings.Synchronous = c.conf.Sync
 
 	subCtx, cancel := context.WithCancel(context.Background())
 	msgsChan := make(chan *pubsub.Message, 1)

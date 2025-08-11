@@ -8,9 +8,9 @@ import (
 
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/stretchr/testify/require"
 
@@ -71,15 +71,15 @@ func TestInputIntegration(t *testing.T) {
 	dbName := "TestDB"
 	collName := "TestCollection"
 	require.NoError(t, pool.Retry(func() error {
-		if mongoClient, err = mongo.Connect(context.Background(), options.Client().
-			SetConnectTimeout(10*time.Second).
-			SetSocketTimeout(30*time.Second).
-			SetServerSelectionTimeout(30*time.Second).
+		if mongoClient, err = mongo.Connect(options.Client().
+			SetConnectTimeout(10 * time.Second).
+			SetTimeout(30 * time.Second).
+			SetServerSelectionTimeout(30 * time.Second).
 			SetAuth(options.Credential{
 				Username: "mongoadmin",
 				Password: "secret",
 			}).
-			ApplyURI("mongodb://localhost:"+resource.GetPort("27017/tcp"))); err != nil {
+			ApplyURI("mongodb://localhost:" + resource.GetPort("27017/tcp"))); err != nil {
 			return err
 		}
 		if err := mongoClient.Database(dbName).CreateCollection(context.Background(), collName); err != nil {
@@ -137,12 +137,9 @@ func TestInputIntegration(t *testing.T) {
 					"age": bson.M{
 						"$gte": 18,
 					},
-				}, &options.FindOptions{
-					Sort: bson.M{
-						"name": 1,
-					},
-					Limit: &limit,
-				})
+				}, options.Find().SetSort(bson.M{
+					"name": 1,
+				}).SetLimit(limit))
 			},
 			placeholderConf: `
 url: "mongodb://localhost:%s"
@@ -229,14 +226,13 @@ func testInput(
 ) {
 	t.Helper()
 
-	controlCtx := context.Background()
-	controlConn, err := mongo.Connect(controlCtx, options.Client().ApplyURI("mongodb://mongoadmin:secret@localhost:"+port))
+	controlConn, err := mongo.Connect(options.Client().ApplyURI("mongodb://mongoadmin:secret@localhost:" + port))
 	require.NoError(t, err)
 	controlColl := controlConn.Database("TestDB").Collection("TestCollection")
 	controlCur, err := controlQuery(controlColl)
 	require.NoError(t, err)
 	var wantResults []map[string]any
-	err = controlCur.All(controlCtx, &wantResults)
+	err = controlCur.All(context.Background(), &wantResults)
 	require.NoError(t, err)
 	var wantMsgs [][]byte
 	for _, res := range wantResults {

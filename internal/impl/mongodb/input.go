@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -181,14 +181,14 @@ func (m *mongoInput) Connect(ctx context.Context) error {
 	collection := m.database.Collection(m.collection)
 	switch m.operation {
 	case "find":
-		var findOptions *options.FindOptions
+		var findOptions *options.FindOptionsBuilder
 		findOptions, err = m.getFindOptions()
 		if err != nil {
 			return fmt.Errorf("error parsing 'find' options: %v", err)
 		}
 		m.cursor, err = collection.Find(ctx, m.query, findOptions)
 	case "aggregate":
-		var aggregateOptions *options.AggregateOptions
+		var aggregateOptions *options.AggregateOptionsBuilder
 		aggregateOptions, err = m.getAggregateOptions()
 		if err != nil {
 			return fmt.Errorf("error parsing 'aggregate' options: %v", err)
@@ -246,7 +246,7 @@ func (m *mongoInput) Close(ctx context.Context) error {
 	return nil
 }
 
-func (m *mongoInput) getFindOptions() (*options.FindOptions, error) {
+func (m *mongoInput) getFindOptions() (*options.FindOptionsBuilder, error) {
 	findOptions := options.Find()
 	if m.batchSize > 0 {
 		findOptions.SetBatchSize(m.batchSize)
@@ -260,7 +260,7 @@ func (m *mongoInput) getFindOptions() (*options.FindOptions, error) {
 	return findOptions, nil
 }
 
-func (m *mongoInput) getAggregateOptions() (*options.AggregateOptions, error) {
+func (m *mongoInput) getAggregateOptions() (*options.AggregateOptionsBuilder, error) {
 	aggregateOptions := options.Aggregate()
 	if m.batchSize > 0 {
 		aggregateOptions.SetBatchSize(m.batchSize)

@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
@@ -170,7 +170,7 @@ func (f *fileSync) mapping() string {
 	return f.mappingString
 }
 
-func runPlayground(c *cli.Context) error {
+func runPlayground(ctx context.Context, c *cli.Command) error {
 	fSync := newFileSync(c.String("input-file"), c.String("mapping-file"), c.Bool("write"))
 	defer fSync.write()
 
