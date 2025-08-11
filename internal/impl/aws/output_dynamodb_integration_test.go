@@ -47,7 +47,6 @@ func TestIntegrationDynamoDBOutput(t *testing.T) {
 		return createMusicTable(context.Background(), t, resource.GetPort("8000/tcp"))
 	}))
 
-
 	// use bento to populate the table
 	builder := service.NewStreamBuilder()
 
