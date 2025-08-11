@@ -352,7 +352,6 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	return &types.AttributeValueMemberS{
 		Value: fmt.Sprintf("%v", root),
 	}
-
 }
 
 func jsonToMap(path string, root any) (types.AttributeValue, error) {
