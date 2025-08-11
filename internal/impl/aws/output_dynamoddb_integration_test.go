@@ -198,7 +198,6 @@ func createMusicTable(ctx context.Context, t testing.TB, dynamoPort string) erro
 		return nil
 	}
 
-	t.Logf("Creating table: %v\n", tableName)
 	_, err = client.CreateTable(ctx, &dynamodb.CreateTableInput{AttributeDefinitions: []types.AttributeDefinition{{
 		AttributeName: aws.String("uuid"),
 		AttributeType: types.ScalarAttributeTypeS,
