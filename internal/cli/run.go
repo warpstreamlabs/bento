@@ -133,6 +133,16 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Aliases: []string{"t"},
 			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
+		&cli.BoolFlag{
+			Name:  "allow-experimental",
+			Value: false,
+			Usage: "allow use of experimental components",
+		},
+		&cli.BoolFlag{
+			Name:  "allow-beta",
+			Value: false,
+			Usage: "allow use of beta components",
+		},
 	}
 }
 

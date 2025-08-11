@@ -62,13 +62,13 @@ func CreateManager(
 	tmpMgr.Version = cliOpts.Version
 
 	// Create our metrics type.
-	if stats, err = bundle.AllMetrics.Init(conf.Metrics, tmpMgr); err != nil {
+	if stats, err = bundle.GlobalEnvironment.MetricsInit(conf.Metrics, tmpMgr); err != nil {
 		err = fmt.Errorf("failed to connect to metrics aggregator: %w", err)
 		return
 	}
 
 	// Create our tracer type.
-	if trac, err = bundle.AllTracers.Init(conf.Tracer, tmpMgr); err != nil {
+	if trac, err = bundle.GlobalEnvironment.TracersInit(conf.Tracer, tmpMgr); err != nil {
 		err = fmt.Errorf("failed to initialise tracer: %w", err)
 		return
 	}

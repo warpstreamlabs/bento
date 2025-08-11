@@ -26,7 +26,14 @@ func (e *Environment) TracersAdd(constructor TracerConstructor, spec docs.Compon
 
 // TracersInit attempts to initialise a tracers exporter from a config.
 func (e *Environment) TracersInit(conf tracer.Config, nm NewManagement) (trace.TracerProvider, error) {
-	return e.tracers.Init(conf, nm)
+	spec, exists := e.tracers.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("tracer", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(nm, "tracer", err)
+	}
+	return spec.constructor(conf, nm)
 }
 
 // TracersDocs returns a slice of tracers exporter specs.

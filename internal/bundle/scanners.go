@@ -24,7 +24,14 @@ func (e *Environment) ScannerAdd(constructor ScannerConstructor, spec docs.Compo
 
 // ScannerInit attempts to initialise a scanner creator from a config.
 func (e *Environment) ScannerInit(conf scanner.Config, nm NewManagement) (scanner.Creator, error) {
-	return e.scanners.Init(conf, nm)
+	spec, exists := e.scanners.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("scanner", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(nm, "scanner", err)
+	}
+	return spec.constructor(conf, nm)
 }
 
 // ScannerDocs returns a slice of scanner specs.

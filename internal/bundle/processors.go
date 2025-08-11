@@ -25,7 +25,16 @@ func (e *Environment) ProcessorAdd(constructor ProcessorConstructor, spec docs.C
 
 // ProcessorInit attempts to initialise a processor from a config.
 func (e *Environment) ProcessorInit(conf processor.Config, mgr NewManagement) (processor.V1, error) {
-	return e.processors.Init(conf, mgr)
+	spec, exists := e.processors.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("processor", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(mgr, "processor", err)
+	}
+	c, err := spec.constructor(conf, mgr)
+	err = wrapComponentErr(mgr, "processor", err)
+	return c, err
 }
 
 // ProcessorDocs returns a slice of processor specs, which document each method.

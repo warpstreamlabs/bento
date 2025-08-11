@@ -39,21 +39,23 @@ func TestJSONSchemaExternalSchemaRelativePath(t *testing.T) {
   }
 }`
 
-	tmpDir := t.TempDir()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	tmpDir, err := os.MkdirTemp(cwd, "jschema")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	sFileName := filepath.Join(tmpDir, "foo")
 	require.NoError(t, os.WriteFile(sFileName, []byte(schema), 0o777))
 
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-
-	sFileName, err = filepath.Rel(cwd, sFileName)
+	relPath, err := filepath.Rel(cwd, sFileName)
 	require.NoError(t, err)
 
 	conf, err := testutil.ProcessorFromYAML(fmt.Sprintf(`
 json_schema:
   schema_path: file://%v
-`, sFileName))
+`, relPath))
 	require.NoError(t, err)
 
 	c, err := mock.NewManager().NewProcessor(conf)

@@ -24,7 +24,26 @@ func (e *Environment) MetricsAdd(constructor MetricConstructor, spec docs.Compon
 
 // MetricsInit attempts to initialise a metrics exporter from a config.
 func (e *Environment) MetricsInit(conf metrics.Config, nm NewManagement) (*metrics.Namespaced, error) {
-	return e.metrics.Init(conf, nm)
+	spec, exists := e.metrics.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("metric", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(nm, "metric", err)
+	}
+	m, err := spec.constructor(conf, nm)
+	if err != nil {
+		return nil, err
+	}
+	ns := metrics.NewNamespaced(m)
+	if conf.Mapping != "" {
+		mmap, err := metrics.NewMapping(conf.Mapping, nm.Logger())
+		if err != nil {
+			return nil, err
+		}
+		ns = ns.WithMapping(mmap)
+	}
+	return ns, nil
 }
 
 // MetricsDocs returns a slice of metrics exporter specs.

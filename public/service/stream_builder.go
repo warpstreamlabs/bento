@@ -72,17 +72,37 @@ type StreamBuilder struct {
 	env             *Environment
 	lintingDisabled bool
 	envVarLookupFn  func(string) (string, bool)
+
+	allowBeta         bool
+	allowExperimental bool
+}
+
+// StreamBuilderOpt configures a StreamBuilder during construction.
+type StreamBuilderOpt func(*StreamBuilder)
+
+// OptAllowExperimental enables experimental components in the built stream.
+func OptAllowExperimental() StreamBuilderOpt {
+	return func(sb *StreamBuilder) {
+		sb.allowExperimental = true
+	}
+}
+
+// OptAllowBeta enables beta components in the built stream.
+func OptAllowBeta() StreamBuilderOpt {
+	return func(sb *StreamBuilder) {
+		sb.allowBeta = true
+	}
 }
 
 // NewStreamBuilder creates a new StreamBuilder.
-func NewStreamBuilder() *StreamBuilder {
+func NewStreamBuilder(opts ...StreamBuilderOpt) *StreamBuilder {
 	httpConf := api.NewConfig()
 	httpConf.Enabled = false
 
 	tmpSpec := config.Spec()
 	tmpSpec.SetDefault(false, "http", "enabled")
 
-	return &StreamBuilder{
+	sb := &StreamBuilder{
 		http:           httpConf,
 		buffer:         buffer.NewConfig(),
 		resources:      manager.NewResourceConfig(),
@@ -94,6 +114,10 @@ func NewStreamBuilder() *StreamBuilder {
 		env:            globalEnvironment,
 		envVarLookupFn: os.LookupEnv,
 	}
+	for _, opt := range opts {
+		opt(sb)
+	}
+	return sb
 }
 
 func (s *StreamBuilder) getLintContext() docs.LintContext {
@@ -860,6 +884,12 @@ func (s *StreamBuilder) BuildStrict() (*Stream, error) {
 }
 
 func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool, opts ...manager.OptFunc) (*Stream, error) {
+	if s.allowExperimental {
+		env.AllowExperimental()
+	}
+	if s.allowBeta {
+		env.AllowBeta()
+	}
 	conf := s.buildConfig()
 
 	logger := s.customLogger

@@ -20,6 +20,7 @@ import (
 
 func TestOtelTracingPlugin(t *testing.T) {
 	env := service.NewEnvironment()
+	env.AllowExperimental()
 	confSpec := service.NewConfigSpec().Field(service.NewStringField("foo"))
 
 	var testValue string

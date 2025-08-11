@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/stream"
@@ -21,6 +22,12 @@ import (
 // RunService runs a service command (either the default or the streams
 // subcommand).
 func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
+	if c.Bool("allow-experimental") {
+		bundle.GlobalEnvironment.AllowExperimental()
+	}
+	if c.Bool("allow-beta") {
+		bundle.GlobalEnvironment.AllowBeta()
+	}
 	mainPath, inferredMainPath, confReader := ReadConfig(c, cliOpts, streamsMode)
 
 	conf, pConf, lints, lintWarns, err := confReader.Read()
