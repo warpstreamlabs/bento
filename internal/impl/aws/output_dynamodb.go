@@ -262,6 +262,9 @@ func newDynamoDBWriter(conf ddboConfig, mgr *service.Resources) (*dynamoDBWriter
 		log:   mgr.Logger(),
 		table: aws.String(conf.Table),
 	}
+	if len(conf.StringColumns) == 0 && len(conf.JSONMapColumns) == 0 {
+		return nil, errors.New("you must provide at least one column")
+	}
 	for k, v := range conf.JSONMapColumns {
 		if v == "." {
 			conf.JSONMapColumns[k] = ""
