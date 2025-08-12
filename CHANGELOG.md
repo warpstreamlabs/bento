@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `azure` fields added to SQL components enabling using Azure based auth for Azure Postgres SQL @jem-davies
+- `aws_dynamodb` output also supports deleting items from a dynamodb table @rohankumardubey & @jem-davies
 - WASM bloblang playground to doc site @iamramtin
 - reconnect config options to `zmq4n` output @gregfurman
 - MockResourcesOptUseSlogger function to enable setting a logger on MockResources @jem-davies
