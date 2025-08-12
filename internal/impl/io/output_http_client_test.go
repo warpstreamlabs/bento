@@ -330,7 +330,7 @@ http_client:
 		resMsg := resMsgs[0]
 		require.Equal(t, 1, resMsg.Len())
 		assert.Equal(t, "echo: "+testStr, string(resMsg.Get(0).AsBytes()))
-		assert.Equal(t, "", resMsg.Get(0).MetaGetStr("fooheader"))
+		assert.Empty(t, resMsg.Get(0).MetaGetStr("fooheader"))
 	}
 
 	h.TriggerCloseNow()
