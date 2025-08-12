@@ -62,8 +62,7 @@ logger:
 	defer cancel()
 
 	err = stream.Run(ctx)
-	// Context timeout is expected for generate input
-	require.NotEqual(t, err, context.DeadlineExceeded, "Stream should complete before timeout")
+	require.NoError(t, err)
 }
 
 func TestSharedMetricsEmission(t *testing.T) {
