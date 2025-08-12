@@ -1,5 +1,5 @@
 .PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs playground
-
+.DEFAULT_GOAL := help
 TAGS ?=
 
 GOMAXPROCS         ?= 1
@@ -29,12 +29,15 @@ DOCS_FLAGS ?=
 APPS = bento
 all: $(APPS)
 
-install: $(APPS)
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+install: $(APPS) ## Install binaries to $(INSTALL_DIR)
 	@install -d $(INSTALL_DIR)
 	@rm -f $(INSTALL_DIR)/bento
 	@cp $(PATHINSTBIN)/* $(INSTALL_DIR)/
 
-deps:
+deps: ## Go mod tidy
 	@go mod tidy
 
 SOURCE_FILES = $(shell find internal public cmd -type f)
@@ -85,17 +88,17 @@ fmt:
 	@go list -f {{.Dir}} ./... | xargs -I{} goimports -w -local github.com/warpstreamlabs/bento {}
 	@go mod tidy
 
-lint:
+lint: ## Run Go linter
 	@go vet $(GO_FLAGS) ./...
 	@golangci-lint -j $(GOMAXPROCS) run --timeout 5m cmd/... internal/... public/...
 
-test: $(APPS)
+test: $(APPS) ## Run tests
 	@go test $(GO_FLAGS) -ldflags "$(LD_FLAGS)" -timeout 3m ./...
 	@$(PATHINSTBIN)/bento template lint $(TEMPLATE_FILES)
 	@$(PATHINSTBIN)/bento test ./config/test/...
 
-test-race: $(APPS)
-	@go test $(GO_FLAGS) -ldflags "$(LD_FLAGS)" -timeout 3m -race ./...
+test-race: $(APPS) ## Run tests with -race
+	@go test $(GO_FLAGS) -ldflags "$(LD_FLAGS)" -timeout 3m -v -race ./...
 
 test-integration:
 	$(warning WARNING! Running the integration tests in their entirety consumes a huge amount of computing resources and is likely to time out on most machines. It's recommended that you instead run the integration suite for connectors you are working selectively with `go test -run 'TestIntegration/kafka' ./...` and so on.)

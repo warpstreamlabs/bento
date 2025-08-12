@@ -32,7 +32,7 @@ jobs:
       run: make docs && git diff-index --quiet HEAD || { >&2 echo "Stale docs detected. This can be fixed with 'make docs'."; exit 1; }
 
     - name: Test
-      run: make test
+      run: make test-race
 
   golangci-lint:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
