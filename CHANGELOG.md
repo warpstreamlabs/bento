@@ -3,6 +3,22 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.10.0 - TBD
+
+### Added
+
+- `SharedMetricsSetup` added to service package enabling multiple streams created with StreamBuilder to share the same metric registry @ecordell
+- `azure` fields added to SQL components enabling using Azure based auth for Azure Postgres SQL @jem-davies
+- `aws_dynamodb` output also supports deleting items from a dynamodb table @rohankumardubey & @jem-davies
+- WASM bloblang playground to doc site @iamramtin
+- reconnect config options to `zmq4n` output @gregfurman
+- `MockResourcesOptUseSlogger` function to enable setting a logger on MockResources @jem-davies
+
+### Changed
+
+- Bento will emit warning logs if a config is using a deprecated component/field @jem-davies
+- CSV scanner & input will now error if a config sets `parse_header_row` is false & `expected_headers` is non-empty @rohankumardubey
+
 ## 1.9.1 - 2025-07-29
 
 ### Fixed 
