@@ -70,7 +70,7 @@ func TestGRPCOutput_Publish(t *testing.T) {
 	addr, cleanup := startTestGRPCServer(t)
 	defer cleanup()
 
-	out, err := newGRPCOutput(addr, nil, clientOpts{}, nil)
+	out, err := newGRPCOutput(addr, nil, clientOpts{}, service.MockResources())
 	if err != nil {
 		t.Fatalf("newGRPCOutput: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestGRPCInput_Subscribe(t *testing.T) {
 	addr, cleanup := startTestGRPCServer(t)
 	defer cleanup()
 
-	in, err := newGRPCInput(addr, "tester", nil, clientOpts{}, nil)
+	in, err := newGRPCInput(addr, "tester", nil, clientOpts{}, service.MockResources())
 	if err != nil {
 		t.Fatalf("newGRPCInput: %v", err)
 	}
