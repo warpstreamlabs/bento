@@ -1733,3 +1733,204 @@ func mapWithout(m map[string]any, paths [][]string) map[string]any {
 	}
 	return newMap
 }
+
+//------------------------------------------------------------------------------
+
+var _ = registerSimpleMethod(
+	NewMethodSpec(
+		"split",
+		"Splits a string or array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.",
+	).InCategory(
+		MethodCategoryObjectAndArray,
+		"",
+		NewExampleSpec("Split string on delimiter",
+			`root = this.split(",")`,
+			`"foo,bar,baz"`,
+			`["foo","bar","baz"]`,
+		),
+		NewExampleSpec("Split array on value",
+			`root = this.villains.split("Kraven The Hunter")`,
+			`{"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"]}`,
+			`[["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]`,
+		),
+	).Param(ParamString("delimiter", "The delimiter to split on.")),
+	func(args *ParsedParams) (simpleMethod, error) {
+		delim, err := args.FieldString("delimiter")
+		if err != nil {
+			return nil, err
+		}
+
+		return func(v any, ctx FunctionContext) (any, error) {
+			switch t := v.(type) {
+			case string:
+				parts := strings.Split(t, delim)
+				vals := make([]any, 0, len(parts))
+				for _, b := range parts {
+					vals = append(vals, b)
+				}
+				return vals, nil
+
+			case []byte:
+				parts := bytes.Split(t, []byte(delim))
+				vals := make([]any, 0, len(parts))
+				for _, b := range parts {
+					vals = append(vals, b)
+				}
+				return vals, nil
+
+			case []any:
+				if len(t) == 0 {
+					return []any{[]any{}}, nil
+				}
+
+				var segments []any
+				var currentSegment []any
+
+				for _, elem := range t {
+					if !value.ICompare(delim, elem) {
+						currentSegment = append(currentSegment, elem)
+						continue
+					}
+
+					segments = append(segments, currentSegment)
+					currentSegment = []any{}
+				}
+
+				segments = append(segments, currentSegment)
+				return segments, nil
+			}
+
+			return nil, value.NewTypeError(v, value.TString, value.TArray, value.TBytes)
+		}, nil
+	},
+)
+
+//------------------------------------------------------------------------------
+
+var _ = registerSimpleMethod(
+	NewMethodSpec(
+		"split_by",
+		"Splits a string or array into segments where a query resolves to true. Returns an array of segments with matching elements excluded.",
+	).InCategory(
+		MethodCategoryObjectAndArray,
+		"",
+		NewExampleSpec("Split string using character predicate",
+			`root = this.split_by(c -> c == " ")`,
+			`"hello world"`,
+			`["hello","world"]`,
+		),
+		NewExampleSpec("Split array using element predicate",
+			`root = this.split_by(x -> x.contains("Kafka"))`,
+			`["George Orwell", "Franz Kafka", "Anton Chekhov"]`,
+			`[["George Orwell"],["Anton Chekhov"]]`,
+		),
+		NewExampleSpec("Split array using numeric predicate",
+			`root = this.split_by(x -> x > 5)`,
+			`[1, 2, 10, 3, 4, 20, 7]`,
+			`[[1,2],[3,4],[],[]]`,
+		),
+	).Param(ParamQuery("predicate", "A query that returns true where splits should occur.", false)),
+	func(args *ParsedParams) (simpleMethod, error) {
+		queryFn, err := args.FieldQuery("predicate")
+		if err != nil {
+			return nil, err
+		}
+
+		return func(v any, ctx FunctionContext) (any, error) {
+			switch t := v.(type) {
+			case string:
+				if t == "" {
+					return []any{""}, nil
+				}
+
+				var segments []any
+				runes := []rune(t)
+				start := 0
+
+				for i, r := range runes {
+					result, err := queryFn.Exec(ctx.WithValue(string(r)))
+					if err != nil {
+						return nil, fmt.Errorf("predicate returned an error for character at position %v: %w", i, err)
+					}
+
+					if found, ok := result.(bool); !ok || !found {
+						continue
+					}
+
+					segment := ""
+					if i > start {
+						segment = string(runes[start:i])
+					}
+					segments = append(segments, segment)
+					start = i + 1
+				}
+
+				finalSegment := ""
+				if start < len(runes) {
+					finalSegment = string(runes[start:])
+				}
+				return append(segments, finalSegment), nil
+
+			case []byte:
+				if len(t) == 0 {
+					return []any{[]byte{}}, nil
+				}
+
+				var segments []any
+				start := 0
+
+				for i, b := range t {
+					result, err := queryFn.Exec(ctx.WithValue(b))
+					if err != nil {
+						return nil, fmt.Errorf("predicate returned an error for byte at position %v: %w", i, err)
+					}
+
+					if found, ok := result.(bool); !ok || !found {
+						continue
+					}
+
+					segment := []byte{}
+					if i > start {
+						segment = t[start:i]
+					}
+					segments = append(segments, segment)
+					start = i + 1
+				}
+
+				finalSegment := []byte{}
+				if start < len(t) {
+					finalSegment = t[start:]
+				}
+				return append(segments, finalSegment), nil
+
+			case []any:
+				if len(t) == 0 {
+					return []any{[]any{}}, nil
+				}
+
+				var segments []any
+				var currentSegment []any
+
+				for i, elem := range t {
+					result, err := queryFn.Exec(ctx.WithValue(elem))
+					if err != nil {
+						return nil, fmt.Errorf("predicate returned an error for index %v: %w", i, err)
+					}
+
+					if found, ok := result.(bool); !ok || !found {
+						currentSegment = append(currentSegment, elem)
+						continue
+					}
+
+					segments = append(segments, currentSegment)
+					currentSegment = []any{}
+				}
+
+				return append(segments, currentSegment), nil
+
+			}
+
+			return nil, value.NewTypeError(v, value.TString, value.TArray, value.TBytes)
+		}, nil
+	},
+)

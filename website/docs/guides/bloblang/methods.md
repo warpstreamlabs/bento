@@ -591,24 +591,6 @@ root.slug = this.value.slug("fr")
 # Out: {"slug":"gaufre-et-poisson-deau-profonde"}
 ```
 
-### `split`
-
-Split a string value into an array of strings by splitting it on a string separator.
-
-#### Parameters
-
-**`delimiter`** &lt;string&gt; The delimiter to split with.  
-
-#### Examples
-
-
-```coffee
-root.new_value = this.value.split(",")
-
-# In:  {"value":"foo,bar,baz"}
-# Out: {"new_value":["foo","bar","baz"]}
-```
-
 ### `strip_html`
 
 Attempts to remove all HTML tags from a target string.
@@ -2693,6 +2675,73 @@ root.sorted = this.foo.sort_by(ele -> ele.id)
 
 # In:  {"foo":[{"id":"bbb","message":"bar"},{"id":"aaa","message":"foo"},{"id":"ccc","message":"baz"}]}
 # Out: {"sorted":[{"id":"aaa","message":"foo"},{"id":"bbb","message":"bar"},{"id":"ccc","message":"baz"}]}
+```
+
+### `split`
+
+Splits a string or array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.
+
+#### Parameters
+
+**`delimiter`** &lt;string&gt; The delimiter to split on.  
+
+#### Examples
+
+
+Split string on delimiter
+
+```coffee
+root = this.split(",")
+
+# In:  "foo,bar,baz"
+# Out: ["foo","bar","baz"]
+```
+
+Split array on value
+
+```coffee
+root = this.villains.split("Kraven The Hunter")
+
+# In:  {"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"]}
+# Out: [["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]
+```
+
+### `split_by`
+
+Splits a string or array into segments where a query resolves to true. Returns an array of segments with matching elements excluded.
+
+#### Parameters
+
+**`predicate`** &lt;query expression&gt; A query that returns true where splits should occur.  
+
+#### Examples
+
+
+Split string using character predicate
+
+```coffee
+root = this.split_by(c -> c == " ")
+
+# In:  "hello world"
+# Out: ["hello","world"]
+```
+
+Split array using element predicate
+
+```coffee
+root = this.split_by(x -> x.contains("Kafka"))
+
+# In:  ["George Orwell", "Franz Kafka", "Anton Chekhov"]
+# Out: [["George Orwell"],["Anton Chekhov"]]
+```
+
+Split array using numeric predicate
+
+```coffee
+root = this.split_by(x -> x > 5)
+
+# In:  [1, 2, 10, 3, 4, 20, 7]
+# Out: [[1,2],[3,4],[],[]]
 ```
 
 ### `squash`
