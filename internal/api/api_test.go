@@ -74,7 +74,7 @@ func TestAPIEnableCORSOrigins(t *testing.T) {
 	handler.ServeHTTP(response, request)
 
 	assert.Equal(t, http.StatusOK, response.Code)
-	assert.Equal(t, "", response.Header().Get("Access-Control-Allow-Origin"))
+	assert.Empty(t, response.Header().Get("Access-Control-Allow-Origin"))
 }
 
 func TestAPIEnableCORSNoHeaders(t *testing.T) {
@@ -165,7 +165,7 @@ func TestAPIBasicAuth(t *testing.T) {
 				conf.BasicAuth.Salt = "EzrwNJYw2wkErVVV1P36FQ=="
 
 				s, err := api.New("", "", conf, nil, log.Noop(), metrics.Noop())
-				if ok := tc.expectedErr(t, err); !(ok && err == nil) {
+				if ok := tc.expectedErr(t, err); !ok || err != nil {
 					return
 				}
 

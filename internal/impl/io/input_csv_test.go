@@ -141,7 +141,7 @@ func TestCSVReaderGroupCount(t *testing.T) {
 		resMsg, _, err = f.ReadBatch(context.Background())
 		require.NoError(t, err)
 
-		require.Equal(t, len(exp), len(resMsg))
+		require.Len(t, resMsg, len(exp))
 		for i := 0; i < len(exp); i++ {
 			mBytes, err := resMsg[i].AsBytes()
 			require.NoError(t, err)

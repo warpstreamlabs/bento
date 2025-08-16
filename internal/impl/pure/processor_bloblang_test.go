@@ -56,12 +56,12 @@ func TestBloblangCrossfire(t *testing.T) {
 	assert.Equal(t, `{"foo":{"bar":{"baz":"original value","qux":"dont change"}}}`, string(inputPartOne.AsBytes()))
 	assert.Equal(t, "orig1", inputPartOne.MetaGetStr("foo"))
 	assert.Equal(t, "orig2", inputPartOne.MetaGetStr("bar"))
-	assert.Equal(t, "", inputPartOne.MetaGetStr("baz"))
+	assert.Empty(t, inputPartOne.MetaGetStr("baz"))
 
 	assert.Equal(t, `{}`, string(inputPartTwo.AsBytes()))
-	assert.Equal(t, "", inputPartTwo.MetaGetStr("foo"))
-	assert.Equal(t, "", inputPartTwo.MetaGetStr("bar"))
-	assert.Equal(t, "", inputPartTwo.MetaGetStr("baz"))
+	assert.Empty(t, inputPartTwo.MetaGetStr("foo"))
+	assert.Empty(t, inputPartTwo.MetaGetStr("bar"))
+	assert.Empty(t, inputPartTwo.MetaGetStr("baz"))
 
 	assert.Equal(t, `{"foo":{"bar":{"baz":"and this changed","qux":"dont change"},"bar_new":"this is swapped now"}}`, string(resPartOne.AsBytes()))
 	assert.Equal(t, "orig1", resPartOne.MetaGetStr("foo"))

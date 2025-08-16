@@ -191,7 +191,8 @@ sql_select:
 
 func mockGetSecretFromAWS(secretName string) (secretString string, err error) {
 	var secret map[string]interface{}
-	if secretName == "validFullSecret" {
+	switch secretName {
+	case "validFullSecret":
 		secret = map[string]interface{}{
 			"username": "testUser",
 			"password": "testPassword",
@@ -199,12 +200,12 @@ func mockGetSecretFromAWS(secretName string) (secretString string, err error) {
 			"port":     5432,
 			"dbName":   "testDB",
 		}
-	} else if secretName == "validUserPassSecret" {
+	case "validUserPassSecret":
 		secret = map[string]interface{}{
 			"username": "testUser",
 			"password": "testPassword",
 		}
-	} else if secretName == "SecretDoesNotExist" {
+	case "SecretDoesNotExist":
 		return "", errors.New("ResourceNotFoundException: Secrets Manager can't find the specified secret.")
 	}
 	secretBytes, _ := json.Marshal(secret)

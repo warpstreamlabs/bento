@@ -229,11 +229,12 @@ func (c *ComponentSpec) AsMarkdown(prov Provider, nest bool, fullConfigExample a
 
 	flattenedFields := c.Config.FlattenChildrenForDocs()
 	for _, v := range flattenedFields {
-		if v.Spec.Kind == KindMap {
+		switch v.Spec.Kind {
+		case KindMap:
 			v.Spec.Type = "object"
-		} else if v.Spec.Kind == KindArray {
+		case KindArray:
 			v.Spec.Type = "array"
-		} else if v.Spec.Kind == Kind2DArray {
+		case Kind2DArray:
 			v.Spec.Type = "two-dimensional array"
 		}
 		v.Spec.Kind = KindScalar

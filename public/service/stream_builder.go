@@ -995,9 +995,10 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 	// Let's read the strategy from the config, but ONLY IF we are not already in a strict build mode
 	// (because in a strict build, we don't want to override the strategy from the config).
 	if !isStrictBuild {
-		if s.errHandler.Strategy == "reject" {
+		switch s.errHandler.Strategy {
+		case "reject":
 			managerOpts = append(managerOpts, strict.OptSetStrictModeFromManager()...)
-		} else if s.errHandler.Strategy == "retry" {
+		case "retry":
 			managerOpts = append(managerOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
 			managerOpts = append(managerOpts, strict.OptSetRetryModeFromManager()...)
 		}

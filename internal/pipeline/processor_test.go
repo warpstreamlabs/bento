@@ -446,7 +446,7 @@ func TestProcessorMultiMsgsBatchUnknownError(t *testing.T) {
 		require.EqualError(t, err, "oh no")
 
 		var batchErr *batch.Error
-		require.False(t, errors.As(err, &batchErr))
+		require.NotErrorAs(t, err, &batchErr)
 	case <-time.After(time.Second):
 		t.Error("Timed out")
 	}
