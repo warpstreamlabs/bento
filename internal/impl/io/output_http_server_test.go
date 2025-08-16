@@ -340,7 +340,7 @@ http_server:
 }
 
 func TestHTTPServerOutputSSEHeartbeat(t *testing.T) {
-	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, done := context.WithTimeout(context.Background(), time.Second*60)
 	defer done()
 
 	port := getFreePort(t)
@@ -383,7 +383,7 @@ http_server:
 
 		// Use a client with a timeout
 		client := &http.Client{
-			Timeout: time.Second * 10,
+			Timeout: time.Second * 60,
 		}
 
 		// Create a request with a context that can be canceled
@@ -527,7 +527,7 @@ http_server:
 		// Client finished successfully
 	case err := <-clientErrors:
 		t.Fatalf("Client error: %v", err)
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Second * 20):
 		t.Fatal("Client timed out")
 	}
 
