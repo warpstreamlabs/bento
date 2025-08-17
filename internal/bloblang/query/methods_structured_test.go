@@ -204,7 +204,7 @@ func TestSplitMethod(t *testing.T) {
 			expected: []any{"a", "", "b"},
 		},
 
-		// Array splitting
+		// Array splitting with string delimiters
 		{
 			name:     "array split with string delimiter",
 			input:    []any{"apple", "banana", "SPLIT", "orange", "grape"},
@@ -234,6 +234,44 @@ func TestSplitMethod(t *testing.T) {
 			input:    []any{"x", 1, 2, "x"},
 			param:    "x",
 			expected: []any{[]any(nil), []any{1, 2}, []any{}},
+		},
+
+		// Array splitting with non-string delimiters
+		{
+			name:     "array split with numeric delimiter",
+			input:    []any{"foo", 42, "bar", 42, "baz"},
+			param:    42,
+			expected: []any{[]any{"foo"}, []any{"bar"}, []any{"baz"}},
+		},
+		{
+			name:     "array split with float delimiter",
+			input:    []any{1, 2.5, 3, 2.5, 4},
+			param:    2.5,
+			expected: []any{[]any{1}, []any{3}, []any{4}},
+		},
+		{
+			name:     "array split with boolean delimiter",
+			input:    []any{"a", true, "b", true, "c"},
+			param:    true,
+			expected: []any{[]any{"a"}, []any{"b"}, []any{"c"}},
+		},
+		{
+			name:     "array split with object delimiter",
+			input:    []any{map[string]any{"id": 1}, map[string]any{"type": "separator"}, map[string]any{"id": 2}},
+			param:    map[string]any{"type": "separator"},
+			expected: []any{[]any{map[string]any{"id": 1}}, []any{map[string]any{"id": 2}}},
+		},
+		{
+			name:     "array split with null delimiter",
+			input:    []any{"a", nil, "b", nil, "c"},
+			param:    nil,
+			expected: []any{[]any{"a"}, []any{"b"}, []any{"c"}},
+		},
+		{
+			name:     "array split with array delimiter",
+			input:    []any{1, []any{"sep"}, 2, []any{"sep"}, 3},
+			param:    []any{"sep"},
+			expected: []any{[]any{1}, []any{2}, []any{3}},
 		},
 
 		// Byte array splitting
@@ -268,12 +306,38 @@ func TestSplitMethod(t *testing.T) {
 			expected: []any{[]any(nil), []any{}, []any{}, []any{}},
 		},
 
-		// Error cases
+		// Error cases - Invalid input types
 		{
 			name:   "invalid input type",
 			input:  123,
 			param:  ",",
 			errMsg: "expected string, array or bytes value",
+		},
+
+		// Error cases - Type mismatch between input and delimiter
+		{
+			name:   "string with non-string delimiter",
+			input:  "hello,world",
+			param:  42,
+			errMsg: "delimiter type: int must match type of list elements: string",
+		},
+		{
+			name:   "string with boolean delimiter",
+			input:  "hello,world",
+			param:  true,
+			errMsg: "delimiter type: bool must match type of list elements: string",
+		},
+		{
+			name:   "string with object delimiter",
+			input:  "hello,world",
+			param:  map[string]any{"type": "separator"},
+			errMsg: "delimiter type: map[string]interface {} must match type of list elements: string",
+		},
+		{
+			name:   "bytes with non-string delimiter",
+			input:  []byte("hello,world"),
+			param:  42,
+			errMsg: "delimiter type: int must match type of list elements: []uint8",
 		},
 	}
 
@@ -358,6 +422,26 @@ func TestSplitByMethod(t *testing.T) {
 				ArithmeticEq,
 			),
 			expected: []any{"hello", "world", "test"},
+		},
+		{
+			name:  "string with emoji split by emoji char",
+			input: "❤️ 🧡 💛 💚 💙 💜",
+			predicate: arithmetic(
+				NewFieldFunction(""),
+				literalFn("💛"),
+				ArithmeticEq,
+			),
+			expected: []any{"❤️ 🧡 ", " 💚 💙 💜"},
+		},
+		{
+			name:  "chinese split by space characters",
+			input: "你好 世界",
+			predicate: arithmetic(
+				NewFieldFunction(""),
+				literalFn(" "),
+				ArithmeticEq,
+			),
+			expected: []any{"你好", "世界"},
 		},
 		{
 			name:  "string split by vowels",

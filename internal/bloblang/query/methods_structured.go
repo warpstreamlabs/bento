@@ -1742,20 +1742,37 @@ var _ = registerSimpleMethod(
 		"Splits a string or array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.",
 	).InCategory(
 		MethodCategoryObjectAndArray,
-		"",
-		NewExampleSpec("Split string on delimiter",
-			`root = this.split(",")`,
-			`"foo,bar,baz"`,
-			`["foo","bar","baz"]`,
-		),
+		"Splits an array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.",
 		NewExampleSpec("Split array on value",
-			`root = this.villains.split("Kraven The Hunter")`,
+			`root.segments = this.villains.split("Kraven The Hunter")`,
 			`{"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"]}`,
-			`[["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]`,
+			`{"segments":[["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]}`,
 		),
-	).Param(ParamString("delimiter", "The delimiter to split on.")),
-	func(args *ParsedParams) (simpleMethod, error) {
-		delim, err := args.FieldString("delimiter")
+		NewExampleSpec("Split an array of mixed types",
+			`root.parts = this.mixed.split(0)`,
+			`{"mixed": [1, "a", 2, "b", 3, "c", 4, "d", 0, "e", 5, "f", 6, "g", 7, "h", 0, "i", 8, "j", 9]}`,
+			`{"parts":[[1,"a",2,"b",3,"c",4,"d"],["e",5,"f",6,"g",7,"h"],["i",8,"j",9]]}`,
+		),
+		NewExampleSpec("Split array of objects by object separator",
+			`root.groups = this.objects.split({"type": "separator"})`,
+			`{"objects": [{"id": 1, "name": "Spider-Man"}, {"type": "separator"}, {"id": 2, "name": "Daredevil"}]}`,
+			`{"groups":[[{"id":1,"name":"Spider-Man"}],[{"id":2,"name":"Daredevil"}]]}`,
+		),
+	).InCategory(
+		MethodCategoryStrings,
+		"Splits a string into segments by splitting on all occurrences of a delimiter string. Returns an array of string segments with delimiters excluded.",
+		NewExampleSpec("Split on space",
+			`root.words = this.sentence.split(" ")`,
+			`{"sentence":"Hello Bento!"}`,
+			`{"words":["Hello","Bento!"]}`,
+		),
+		NewExampleSpec("Split string on delimiter",
+			`root.words = this.value.split(",")`,
+			`{"value":"foo,bar,baz"}`,
+			`{"words":["foo","bar","baz"]}`,
+		),
+	).Param(ParamAny("delimiter", "The delimiter to split with.")), func(args *ParsedParams) (simpleMethod, error) {
+		delim, err := args.Field("delimiter")
 		if err != nil {
 			return nil, err
 		}
@@ -1763,7 +1780,12 @@ var _ = registerSimpleMethod(
 		return func(v any, ctx FunctionContext) (any, error) {
 			switch t := v.(type) {
 			case string:
-				parts := strings.Split(t, delim)
+				delimStr, ok := delim.(string)
+				if !ok {
+					return nil, fmt.Errorf("delimiter type: %T must match type of list elements: %T", delim, v)
+				}
+
+				parts := strings.Split(t, delimStr)
 				vals := make([]any, 0, len(parts))
 				for _, b := range parts {
 					vals = append(vals, b)
@@ -1771,7 +1793,12 @@ var _ = registerSimpleMethod(
 				return vals, nil
 
 			case []byte:
-				parts := bytes.Split(t, []byte(delim))
+				delimStr, ok := delim.(string)
+				if !ok {
+					return nil, fmt.Errorf("delimiter type: %T must match type of list elements: %T", delim, v)
+				}
+
+				parts := bytes.Split(t, []byte(delimStr))
 				vals := make([]any, 0, len(parts))
 				for _, b := range parts {
 					vals = append(vals, b)
@@ -1813,23 +1840,36 @@ var _ = registerSimpleMethod(
 		"Splits a string or array into segments where a query resolves to true. Returns an array of segments with matching elements excluded.",
 	).InCategory(
 		MethodCategoryObjectAndArray,
-		"",
-		NewExampleSpec("Split string using character predicate",
-			`root = this.split_by(c -> c == " ")`,
-			`"hello world"`,
-			`["hello","world"]`,
-		),
+		"Splits an array into segments where a query applied to each element resolves to true. Returns an array of segments with matching elements excluded.",
 		NewExampleSpec("Split array using element predicate",
-			`root = this.split_by(x -> x.contains("Kafka"))`,
-			`["George Orwell", "Franz Kafka", "Anton Chekhov"]`,
-			`[["George Orwell"],["Anton Chekhov"]]`,
+			`root.authors = this.writers.split_by(x -> x.contains("Kafka"))`,
+			`{"writers": ["George Orwell", "Franz Kafka", "Anton Chekhov"]}`,
+			`{"authors":[["George Orwell"],["Anton Chekhov"]]}`,
 		),
 		NewExampleSpec("Split array using numeric predicate",
-			`root = this.split_by(x -> x > 5)`,
-			`[1, 2, 10, 3, 4, 20, 7]`,
-			`[[1,2],[3,4],[],[]]`,
+			`root.segments = this.numbers.split_by(x -> x > 50)`,
+			`{"numbers": [1, 2, 100, 3, 4, 200, 5]}`,
+			`{"segments":[[1,2],[3,4],[5]]}`,
 		),
-	).Param(ParamQuery("predicate", "A query that returns true where splits should occur.", false)),
+		NewExampleSpec("Split array of objects using predicate",
+			`root.groups = this.items.split_by(item -> item.type == "separator")`,
+			`{"items": [{"id": 1, "type": "data"}, {"id": 2, "type": "separator"}, {"id": 3, "type": "data"}]}`,
+			`{"groups":[[{"id":1,"type":"data"}],[{"id":3,"type":"data"}]]}`,
+		),
+	).InCategory(
+		MethodCategoryStrings,
+		"Splits a string into segments where a query applied to each character resolves to true. Returns an array of string segments with matching characters excluded.",
+		NewExampleSpec("Split string using character predicate",
+			`root.words = this.sentence.split_by(c -> c == " ")`,
+			`{"sentence": "Hello Bento!"}`,
+			`{"words":["Hello","Bento!"]}`,
+		),
+		NewExampleSpec("Split on punctuation",
+			`root.tokens = this.text.split_by(c -> c == "," || c == ".")`,
+			`{"text": "foo,bar.baz"}`,
+			`{"tokens":["foo","bar","baz"]}`,
+		),
+	).Param(ParamQuery("predicate", "A query that returns true where splits should occur.", false)).Experimental().AtVersion("1.11.0"),
 	func(args *ParsedParams) (simpleMethod, error) {
 		queryFn, err := args.FieldQuery("predicate")
 		if err != nil {
