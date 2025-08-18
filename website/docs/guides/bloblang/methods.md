@@ -526,36 +526,6 @@ root = content().reverse()
 # Out: }"sdrawkcab":"gniht"{
 ```
 
-### `slice`
-
-Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.
-
-#### Parameters
-
-**`low`** &lt;integer&gt; The low bound, which is the first element of the selection, or if negative selects from the end.  
-**`high`** &lt;(optional) integer&gt; An optional high bound.  
-
-#### Examples
-
-
-```coffee
-root.beginning = this.value.slice(0, 2)
-root.end = this.value.slice(4)
-
-# In:  {"value":"foo bar"}
-# Out: {"beginning":"fo","end":"bar"}
-```
-
-A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.
-
-```coffee
-root.last_chunk = this.value.slice(-4)
-root.the_rest = this.value.slice(0, -4)
-
-# In:  {"value":"foo bar"}
-# Out: {"last_chunk":" bar","the_rest":"foo"}
-```
-
 ### `slug`
 
 :::caution BETA
@@ -2620,36 +2590,6 @@ Introduced in version 1.0.0.
 
 **`changelog`** &lt;unknown&gt; The changelog to apply.  
 
-### `slice`
-
-Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.
-
-#### Parameters
-
-**`low`** &lt;integer&gt; The low bound, which is the first element of the selection, or if negative selects from the end.  
-**`high`** &lt;(optional) integer&gt; An optional high bound.  
-
-#### Examples
-
-
-```coffee
-root.beginning = this.value.slice(0, 2)
-root.end = this.value.slice(4)
-
-# In:  {"value":["foo","bar","baz","buz","bev"]}
-# Out: {"beginning":["foo","bar"],"end":["bev"]}
-```
-
-A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.
-
-```coffee
-root.last_chunk = this.value.slice(-2)
-root.the_rest = this.value.slice(0, -2)
-
-# In:  {"value":["foo","bar","baz","buz","bev"]}
-# Out: {"last_chunk":["buz","bev"],"the_rest":["foo","bar","baz"]}
-```
-
 ### `sort`
 
 Attempts to sort the values of an array in increasing order. The type of all values must match in order for the ordering to succeed. Supports string and number values.
@@ -3973,6 +3913,46 @@ Attempts to parse a string as a timestamp following a specified strptime-compati
 #### Parameters
 
 **`format`** &lt;string&gt; The format of the target string.  
+
+### `slice`
+
+Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
+
+#### Parameters
+
+**`low`** &lt;integer&gt; The low bound, which is the first element of the selection, or if negative selects from the end.  
+**`high`** &lt;(optional) integer&gt; An optional high bound.  
+
+#### Examples
+
+
+```coffee
+# Deprecated - use bracket syntax instead
+root.beginning = this.value.slice(0, 2)
+root.end = this.value.slice(4)
+
+# New bracket syntax (recommended)
+root.beginning = this.value[0:2]  
+root.end = this.value[4:]
+
+# In:  {"value":"foo bar"}
+# Out: {"beginning":"fo","end":"bar"}
+```
+
+A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Use bracket syntax: `this.value[-4:]` instead of `this.value.slice(-4)`.**
+
+```coffee
+# Deprecated - use bracket syntax instead
+root.last_chunk = this.value.slice(-4)
+root.the_rest = this.value.slice(0, -4)
+
+# New bracket syntax (recommended)
+root.last_chunk = this.value[-4:]
+root.the_rest = this.value[:-4]
+
+# In:  {"value":"foo bar"}
+# Out: {"last_chunk":" bar","the_rest":"foo"}
+```
 
 [field_paths]: /docs/configuration/field_paths
 [methods.encode]: #encode
