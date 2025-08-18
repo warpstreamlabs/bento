@@ -110,10 +110,7 @@ type linesReaderStream struct {
 }
 
 func (l *linesReaderStream) NextBatch(ctx context.Context) (service.MessageBatch, error) {
-	for {
-		if !l.buf.Scan() {
-			break
-		}
+	for l.buf.Scan() {
 
 		if l.omitEmpty && len(l.buf.Bytes()) == 0 {
 			continue

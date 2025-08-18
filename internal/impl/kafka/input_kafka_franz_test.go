@@ -300,9 +300,10 @@ kafka_franz:
 	require.NoError(t, inBuilder.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
 		recordBytes, err := m.AsBytes()
 		require.NoError(t, err)
-		if messageCount == 0 {
+		switch messageCount {
+		case 0:
 			require.Equal(t, "before_recreate_topic", string(recordBytes))
-		} else if messageCount == 1 {
+		case 1:
 			require.Equal(t, "after_recreate_topic", string(recordBytes))
 		}
 
