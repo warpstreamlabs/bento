@@ -3,6 +3,20 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.11.0 - TBD
+
+### Added
+
+- 
+
+### Changed
+
+- `golangci-lint` upgraded to V2 @miparnisari
+
+### Fixed
+
+- 
+
 ## 1.10.0 - 2025-08-14
 
 ### Added
