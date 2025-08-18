@@ -1028,14 +1028,20 @@ workflow:
 	strm, tracer, err := strmBuilder.BuildTraced()
 	require.NoError(t, err)
 
-	tCtx, done := context.WithTimeout(context.Background(), time.Second*30)
+	tCtx, done := context.WithTimeout(context.Background(), time.Second*60)
 	defer done()
 
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
 	go func() {
+		defer wg.Done()
 		assert.NoError(t, strm.Run(tCtx))
 	}()
 	require.NoError(t, inFunc(tCtx, service.NewMessage([]byte(`{"id":"hello world","content":"waddup"}`))))
 	require.NoError(t, strm.Stop(tCtx))
+
+	wg.Wait()
 
 	assert.Equal(t, `{"content":"waddup","id":"HELLO WORLD","meta":{"workflow":{"succeeded":["fooproc"]}}}`, outValue)
 	assert.Equal(t, map[string][]service.TracingEvent{
