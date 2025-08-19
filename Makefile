@@ -1,7 +1,8 @@
-.PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs playground
+.PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs playground proto install-protoc-plugins
 
 TAGS ?=
-
+GO ?= go
+GOPATH_BIN := $(shell $(GO) env GOPATH)/bin
 GOMAXPROCS         ?= 1
 INSTALL_DIR        ?= $(GOPATH)/bin
 WEBSITE_DIR        ?= ./website
@@ -12,7 +13,7 @@ PATHINSTSERVERLESS = $(DEST_DIR)/serverless
 PATHINSTDOCKER     = $(DEST_DIR)/docker
 DOCKER_IMAGE       ?= ghcr.io/warpstreamlabs/bento
 
-VERSION   := $(shell git describe --tags || echo "v0.0.0")
+VERSION   := $(shell git describe --tags 2>/dev/null || echo "v0.0.0")
 VER_CUT   := $(shell echo $(VERSION) | cut -c2-)
 VER_MAJOR := $(shell echo $(VER_CUT) | cut -f1 -d.)
 VER_MINOR := $(shell echo $(VER_CUT) | cut -f2 -d.)
@@ -25,6 +26,11 @@ VER_FLAGS = -X main.Version=$(VERSION) -X main.DateBuilt=$(DATE)
 LD_FLAGS   ?= -w -s
 GO_FLAGS   ?=
 DOCS_FLAGS ?=
+
+# Protobuf generation
+PROTOC           ?= protoc
+PROTO_SRC_DIR    := internal/impl/grpc/proto
+PROTO_GO_OUT_DIR := internal/impl/grpc/pb/proto
 
 APPS = bento
 all: $(APPS)
@@ -115,6 +121,23 @@ docs: $(APPS) $(TOOLS)
 		"$(WEBSITE_DIR)/cookbooks/**/*.md" \
 		"$(WEBSITE_DIR)/docs/**/*.md"
 	@$(PATHINSTBIN)/bento template lint "./config/template_examples/*.yaml"
+
+# -----------------------------------------------------------------------------
+# Protobufs for gRPC plugin
+# -----------------------------------------------------------------------------
+install-protoc-plugins:
+	@echo "Installing protoc plugins..."
+	@GOBIN=$(GOPATH_BIN) $(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@GOBIN=$(GOPATH_BIN) $(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+proto: install-protoc-plugins
+	@mkdir -p $(PROTO_GO_OUT_DIR)
+	@PATH="$(GOPATH_BIN):$$PATH" $(PROTOC) \
+		-I $(PROTO_SRC_DIR) \
+		--go_out=$(PROTO_GO_OUT_DIR) --go_opt=paths=source_relative \
+		--go-grpc_out=$(PROTO_GO_OUT_DIR) --go-grpc_opt=paths=source_relative \
+		$(PROTO_SRC_DIR)/ingest.proto
+
 
 # HACK:(gregfurman): Change misc/wasm/wasm_exec.js => lib/wasm/wasm_exec.js when using Go 1.24
 playground:

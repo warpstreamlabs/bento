@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package bento.grpc;
+
+option go_package = "github.com/warpstreamlabs/bento/internal/impl/grpc/pb/proto;pb";
+
+message Frame {
+  bytes data = 1;
+  map<string, string> metadata = 2;
+}
+
+message PublishResponse {
+  uint64 accepted = 1;
+}
+
+service BentoIngress {
+  // Client-side streaming of frames into Bento (used by an output component)
+  rpc Publish(stream Frame) returns (PublishResponse);
+
+  // Server-side streaming of frames out of Bento (used by an input component)
+  rpc Subscribe(SubscribeRequest) returns (stream Frame);
+}
+
+message SubscribeRequest {
+  string consumer_id = 1;
+}
+
+

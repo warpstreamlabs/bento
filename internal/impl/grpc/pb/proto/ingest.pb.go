@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.7
 // 	protoc        v3.19.4
-// source: proto/ingest.proto
+// source: ingest.proto
 
 package pb
 
@@ -31,7 +31,7 @@ type Frame struct {
 
 func (x *Frame) Reset() {
 	*x = Frame{}
-	mi := &file_proto_ingest_proto_msgTypes[0]
+	mi := &file_ingest_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *Frame) String() string {
 func (*Frame) ProtoMessage() {}
 
 func (x *Frame) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_proto_msgTypes[0]
+	mi := &file_ingest_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *Frame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Frame.ProtoReflect.Descriptor instead.
 func (*Frame) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_proto_rawDescGZIP(), []int{0}
+	return file_ingest_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Frame) GetData() []byte {
@@ -82,7 +82,7 @@ type PublishResponse struct {
 
 func (x *PublishResponse) Reset() {
 	*x = PublishResponse{}
-	mi := &file_proto_ingest_proto_msgTypes[1]
+	mi := &file_ingest_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *PublishResponse) String() string {
 func (*PublishResponse) ProtoMessage() {}
 
 func (x *PublishResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_proto_msgTypes[1]
+	mi := &file_ingest_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *PublishResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishResponse.ProtoReflect.Descriptor instead.
 func (*PublishResponse) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_proto_rawDescGZIP(), []int{1}
+	return file_ingest_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PublishResponse) GetAccepted() uint64 {
@@ -126,7 +126,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_proto_ingest_proto_msgTypes[2]
+	mi := &file_ingest_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -138,7 +138,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ingest_proto_msgTypes[2]
+	mi := &file_ingest_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,7 +151,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_proto_ingest_proto_rawDescGZIP(), []int{2}
+	return file_ingest_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SubscribeRequest) GetConsumerId() string {
@@ -161,11 +161,11 @@ func (x *SubscribeRequest) GetConsumerId() string {
 	return ""
 }
 
-var File_proto_ingest_proto protoreflect.FileDescriptor
+var File_ingest_proto protoreflect.FileDescriptor
 
-const file_proto_ingest_proto_rawDesc = "" +
+const file_ingest_proto_rawDesc = "" +
 	"\n" +
-	"\x12proto/ingest.proto\x12\n" +
+	"\fingest.proto\x12\n" +
 	"bento.grpc\"\x95\x01\n" +
 	"\x05Frame\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\x12;\n" +
@@ -180,28 +180,28 @@ const file_proto_ingest_proto_rawDesc = "" +
 	"consumerId2\x8b\x01\n" +
 	"\fBentoIngress\x12;\n" +
 	"\aPublish\x12\x11.bento.grpc.Frame\x1a\x1b.bento.grpc.PublishResponse(\x01\x12>\n" +
-	"\tSubscribe\x12\x1c.bento.grpc.SubscribeRequest\x1a\x11.bento.grpc.Frame0\x01B2Z0github.com/akoserwal/bento-grpc-plugin/pkg/pb;pbb\x06proto3"
+	"\tSubscribe\x12\x1c.bento.grpc.SubscribeRequest\x1a\x11.bento.grpc.Frame0\x01B@Z>github.com/warpstreamlabs/bento/internal/impl/grpc/pb/proto;pbb\x06proto3"
 
 var (
-	file_proto_ingest_proto_rawDescOnce sync.Once
-	file_proto_ingest_proto_rawDescData []byte
+	file_ingest_proto_rawDescOnce sync.Once
+	file_ingest_proto_rawDescData []byte
 )
 
-func file_proto_ingest_proto_rawDescGZIP() []byte {
-	file_proto_ingest_proto_rawDescOnce.Do(func() {
-		file_proto_ingest_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_ingest_proto_rawDesc), len(file_proto_ingest_proto_rawDesc)))
+func file_ingest_proto_rawDescGZIP() []byte {
+	file_ingest_proto_rawDescOnce.Do(func() {
+		file_ingest_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_ingest_proto_rawDesc), len(file_ingest_proto_rawDesc)))
 	})
-	return file_proto_ingest_proto_rawDescData
+	return file_ingest_proto_rawDescData
 }
 
-var file_proto_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_proto_ingest_proto_goTypes = []any{
+var file_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_ingest_proto_goTypes = []any{
 	(*Frame)(nil),            // 0: bento.grpc.Frame
 	(*PublishResponse)(nil),  // 1: bento.grpc.PublishResponse
 	(*SubscribeRequest)(nil), // 2: bento.grpc.SubscribeRequest
 	nil,                      // 3: bento.grpc.Frame.MetadataEntry
 }
-var file_proto_ingest_proto_depIdxs = []int32{
+var file_ingest_proto_depIdxs = []int32{
 	3, // 0: bento.grpc.Frame.metadata:type_name -> bento.grpc.Frame.MetadataEntry
 	0, // 1: bento.grpc.BentoIngress.Publish:input_type -> bento.grpc.Frame
 	2, // 2: bento.grpc.BentoIngress.Subscribe:input_type -> bento.grpc.SubscribeRequest
@@ -214,26 +214,26 @@ var file_proto_ingest_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_proto_ingest_proto_init() }
-func file_proto_ingest_proto_init() {
-	if File_proto_ingest_proto != nil {
+func init() { file_ingest_proto_init() }
+func file_ingest_proto_init() {
+	if File_ingest_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_ingest_proto_rawDesc), len(file_proto_ingest_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingest_proto_rawDesc), len(file_ingest_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_ingest_proto_goTypes,
-		DependencyIndexes: file_proto_ingest_proto_depIdxs,
-		MessageInfos:      file_proto_ingest_proto_msgTypes,
+		GoTypes:           file_ingest_proto_goTypes,
+		DependencyIndexes: file_ingest_proto_depIdxs,
+		MessageInfos:      file_ingest_proto_msgTypes,
 	}.Build()
-	File_proto_ingest_proto = out.File
-	file_proto_ingest_proto_goTypes = nil
-	file_proto_ingest_proto_depIdxs = nil
+	File_ingest_proto = out.File
+	file_ingest_proto_goTypes = nil
+	file_ingest_proto_depIdxs = nil
 }

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.19.4
-// source: proto/ingest.proto
+// source: ingest.proto
 
 package pb
 
@@ -155,5 +155,5 @@ var BentoIngress_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "proto/ingest.proto",
+	Metadata: "ingest.proto",
 }
