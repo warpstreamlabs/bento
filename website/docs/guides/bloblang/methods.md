@@ -593,20 +593,66 @@ root.slug = this.value.slug("fr")
 
 ### `split`
 
-Split a string value into an array of strings by splitting it on a string separator.
+Splits a string into segments by splitting on all occurrences of a delimiter string. Returns an array of string segments with delimiters excluded.
 
 #### Parameters
 
-**`delimiter`** &lt;string&gt; The delimiter to split with.  
+**`delimiter`** &lt;unknown&gt; The delimiter to split with.  
 
 #### Examples
 
 
+Split on space
+
 ```coffee
-root.new_value = this.value.split(",")
+root.words = this.sentence.split(" ")
+
+# In:  {"sentence":"Hello Bento!"}
+# Out: {"words":["Hello","Bento!"]}
+```
+
+Split string on delimiter
+
+```coffee
+root.words = this.value.split(",")
 
 # In:  {"value":"foo,bar,baz"}
-# Out: {"new_value":["foo","bar","baz"]}
+# Out: {"words":["foo","bar","baz"]}
+```
+
+### `split_by`
+
+:::caution EXPERIMENTAL
+This method is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Splits a string into segments where a query applied to each character resolves to true. Returns an array of string segments with matching characters excluded.
+
+Introduced in version 1.11.0.
+
+
+#### Parameters
+
+**`predicate`** &lt;query expression&gt; A query that returns true where splits should occur.  
+
+#### Examples
+
+
+Split string using character predicate
+
+```coffee
+root.words = this.sentence.split_by(c -> c == " ")
+
+# In:  {"sentence": "Hello Bento!"}
+# Out: {"words":["Hello","Bento!"]}
+```
+
+Split on punctuation
+
+```coffee
+root.tokens = this.text.split_by(c -> c == "," || c == ".")
+
+# In:  {"text": "foo,bar.baz"}
+# Out: {"tokens":["foo","bar","baz"]}
 ```
 
 ### `strip_html`
@@ -2693,6 +2739,88 @@ root.sorted = this.foo.sort_by(ele -> ele.id)
 
 # In:  {"foo":[{"id":"bbb","message":"bar"},{"id":"aaa","message":"foo"},{"id":"ccc","message":"baz"}]}
 # Out: {"sorted":[{"id":"aaa","message":"foo"},{"id":"bbb","message":"bar"},{"id":"ccc","message":"baz"}]}
+```
+
+### `split`
+
+Splits an array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.
+
+#### Parameters
+
+**`delimiter`** &lt;unknown&gt; The delimiter to split with.  
+
+#### Examples
+
+
+Split array on value
+
+```coffee
+root.segments = this.villains.split("Kraven The Hunter")
+
+# In:  {"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"]}
+# Out: {"segments":[["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]}
+```
+
+Split an array of mixed types
+
+```coffee
+root.parts = this.mixed.split(0)
+
+# In:  {"mixed": [1, "a", 2, "b", 3, "c", 4, "d", 0, "e", 5, "f", 6, "g", 7, "h", 0, "i", 8, "j", 9]}
+# Out: {"parts":[[1,"a",2,"b",3,"c",4,"d"],["e",5,"f",6,"g",7,"h"],["i",8,"j",9]]}
+```
+
+Split array of objects by object separator
+
+```coffee
+root.groups = this.objects.split({"type": "separator"})
+
+# In:  {"objects": [{"id": 1, "name": "Spider-Man"}, {"type": "separator"}, {"id": 2, "name": "Daredevil"}]}
+# Out: {"groups":[[{"id":1,"name":"Spider-Man"}],[{"id":2,"name":"Daredevil"}]]}
+```
+
+### `split_by`
+
+:::caution EXPERIMENTAL
+This method is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Splits an array into segments where a query applied to each element resolves to true. Returns an array of segments with matching elements excluded.
+
+Introduced in version 1.11.0.
+
+
+#### Parameters
+
+**`predicate`** &lt;query expression&gt; A query that returns true where splits should occur.  
+
+#### Examples
+
+
+Split array using element predicate
+
+```coffee
+root.authors = this.writers.split_by(x -> x.contains("Kafka"))
+
+# In:  {"writers": ["George Orwell", "Franz Kafka", "Anton Chekhov"]}
+# Out: {"authors":[["George Orwell"],["Anton Chekhov"]]}
+```
+
+Split array using numeric predicate
+
+```coffee
+root.segments = this.numbers.split_by(x -> x > 50)
+
+# In:  {"numbers": [1, 2, 100, 3, 4, 200, 5]}
+# Out: {"segments":[[1,2],[3,4],[5]]}
+```
+
+Split array of objects using predicate
+
+```coffee
+root.groups = this.items.split_by(item -> item.type == "separator")
+
+# In:  {"items": [{"id": 1, "type": "data"}, {"id": 2, "type": "separator"}, {"id": 3, "type": "data"}]}
+# Out: {"groups":[[{"id":1,"type":"data"}],[{"id":3,"type":"data"}]]}
 ```
 
 ### `squash`
