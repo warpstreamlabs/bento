@@ -7,11 +7,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- 
+- new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
 
 ### Changed
 
 - `golangci-lint` upgraded to V2 @miparnisari
+- bloblang method `split` can now operate on arrays as well as strings @iamramtin
 
 ### Fixed
 
