@@ -97,7 +97,7 @@ require (
 	github.com/microsoft/gocosmos v1.1.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nats-io/nats.go v1.32.0
-	github.com/nats-io/nkeys v0.4.7
+	github.com/nats-io/nkeys v0.4.11
 	github.com/nats-io/stan.go v0.10.4
 	github.com/nsf/jsondiff v0.0.0-20230430225905-43f6cf3098c1
 	github.com/nsqio/go-nsq v1.1.0
@@ -171,11 +171,15 @@ require (
 	github.com/apache/arrow-go/v18 v18.0.0 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/hamba/avro/v2 v2.26.0 // indirect
+	github.com/hashicorp/go-hclog v1.6.3 // indirect
+	github.com/hashicorp/raft v1.7.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nats-io/jwt/v2 v2.8.0 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
@@ -220,7 +224,6 @@ require (
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/apache/thrift v0.21.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
-	github.com/armon/go-metrics v0.3.4 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.6 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.12.17
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30 // indirect
