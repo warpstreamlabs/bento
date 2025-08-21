@@ -13,7 +13,7 @@ jobs:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     env:
-      CGO_ENABLED: 0
+      CGO_ENABLED: 1
     steps:
 
     - name: Checkout code
