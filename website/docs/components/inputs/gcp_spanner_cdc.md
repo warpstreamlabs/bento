@@ -28,8 +28,6 @@ input:
   label: ""
   gcp_spanner_cdc:
     spanner_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName} # No default (required)
-    spanner_metadata_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName} # No default (required)
-    metadata_table: table_metadata # No default (required)
     stream_name: "" # No default (required)
     heartbeat_interval: 3s
     start_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
@@ -38,14 +36,9 @@ input:
 
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
-This input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within Spanner.
-Currently, it does not support PostgreSQL Dialect for the Spanner CDC.
-It supports multiple runners using a distributed lock to ensure that only one runner reads from a given partition at a time.
-
 ### Event Data Structure
 The data structure of the events emitted by this input can be found here:
 * [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records)
-* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord)
 
 ### Metadata
 
@@ -74,34 +67,6 @@ Type: `string`
 # Examples
 
 spanner_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName}
-```
-
-### `spanner_metadata_dsn`
-
-The dsn for the metadata table to track partition reads. (can be same as spanner_dsn)
-
-
-Type: `string`  
-
-```yml
-# Examples
-
-spanner_metadata_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName}
-```
-
-### `metadata_table`
-
-The table name you want to use for tracking partition metadata.
-
-
-Type: `string`  
-
-```yml
-# Examples
-
-metadata_table: table_metadata
-
-metadata_table: stream_metadata
 ```
 
 ### `stream_name`
