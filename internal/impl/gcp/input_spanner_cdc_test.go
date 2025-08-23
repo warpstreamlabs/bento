@@ -92,6 +92,8 @@ func setupTestSpanner(t *testing.T) (*spanner.Client, string, func()) {
 	srv, err := spannertest.NewServer("localhost:0")
 	require.NoError(t, err)
 
+	t.Setenv("SPANNER_EMULATOR_HOST", srv.Addr)
+
 	database := "projects/test-project/instances/test-instance/databases/test-database"
 
 	conn, err := grpc.NewClient(srv.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
