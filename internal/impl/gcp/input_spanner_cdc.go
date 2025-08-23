@@ -5,29 +5,26 @@ package gcp
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
+	"fmt"
 	"sync"
 	"time"
 
-	spanner "cloud.google.com/go/spanner"
-	"github.com/anicoll/screamer"
-	"github.com/anicoll/screamer/pkg/partitionstorage"
-	"github.com/google/uuid"
-	"github.com/googleapis/gax-go/v2/apierror"
+	"cloud.google.com/go/spanner"
+	"github.com/Jeffail/shutdown"
+	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
 	"github.com/warpstreamlabs/bento/public/service"
-	"google.golang.org/grpc/codes"
+	"golang.org/x/sync/errgroup"
 )
+
+// TODO(gregfurman): Implement caching and checkpointing mechanism
 
 const (
 	// Spanner CDC Input Fields
-	cdcFieldSpannerDSN           = "spanner_dsn"
-	cdcFieldSpannerMetadataTable = "metadata_table"
-	cdcFieldSpannerMetadataDSN   = "spanner_metadata_dsn"
-	cdcFieldStreamName           = "stream_name"
-	cdcFieldStartTime            = "start_time"
-	cdcFieldEndTime              = "end_time"
-	cdcFieldHeartbeatInterval    = "heartbeat_interval"
+	cdcFieldSpannerDSN        = "spanner_dsn"
+	cdcFieldStreamName        = "stream_name"
+	cdcFieldStartTime         = "start_time"
+	cdcFieldEndTime           = "end_time"
+	cdcFieldHeartbeatInterval = "heartbeat_interval"
 
 	metadataTimestamp   = "gcp_spanner_commit_timestamp"
 	metadataModType     = "gcp_spanner_cdc_mod_type"
@@ -51,15 +48,16 @@ func cdcConfigFromParsed(pConf *service.ParsedConfig) (conf cdcConfig, err error
 	if conf.SpannerDSN, err = pConf.FieldString(cdcFieldSpannerDSN); err != nil {
 		return
 	}
-	if conf.SpannerMetadataTable, err = pConf.FieldString(cdcFieldSpannerMetadataTable); err != nil {
-		return
-	}
-	if conf.SpannerMetadataDSN, err = pConf.FieldString(cdcFieldSpannerMetadataDSN); err != nil {
-		return
-	}
+
 	if conf.StreamName, err = pConf.FieldString(cdcFieldStreamName); err != nil {
 		return
 	}
+
+	toPtr := func(in time.Time) *time.Time {
+		return &in
+	}
+
+	conf.StartTime = toPtr(time.Now())
 	if pConf.Contains(cdcFieldStartTime) {
 		var startTimeString string
 		if startTimeString, err = pConf.FieldString(cdcFieldStartTime); err != nil {
@@ -69,10 +67,9 @@ func cdcConfigFromParsed(pConf *service.ParsedConfig) (conf cdcConfig, err error
 		if startTime, err = time.Parse(time.RFC3339, startTimeString); err != nil {
 			return
 		}
-		conf.StartTime = func(in time.Time) *time.Time {
-			return &in
-		}(startTime)
+		conf.StartTime = toPtr(startTime)
 	}
+
 	if pConf.Contains(cdcFieldEndTime) {
 		var endTimeString string
 		if endTimeString, err = pConf.FieldString(cdcFieldEndTime); err != nil {
@@ -83,9 +80,7 @@ func cdcConfigFromParsed(pConf *service.ParsedConfig) (conf cdcConfig, err error
 		if endTime, err = time.Parse(time.RFC3339, endTimeString); err != nil {
 			return
 		}
-		conf.EndTime = func(in time.Time) *time.Time {
-			return &in
-		}(endTime)
+		conf.EndTime = &endTime
 	}
 
 	if conf.HeartbeatInterval, err = pConf.FieldDuration(cdcFieldHeartbeatInterval); err != nil {
@@ -104,14 +99,9 @@ func spannerCdcSpec() *service.ConfigSpec {
 		Description(`
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
-This input uses [screamer](https://github.com/anicoll/screamer) for the reading and tracking of partitions within Spanner.
-Currently, it does not support PostgreSQL Dialect for the Spanner CDC.
-It supports multiple runners using a distributed lock to ensure that only one runner reads from a given partition at a time.
-
 ### Event Data Structure
 The data structure of the events emitted by this input can be found here:
 * [google](https://cloud.google.com/spanner/docs/change-streams/details#data-change-records)
-* [go structure](https://pkg.go.dev/github.com/anicoll/screamer#DataChangeRecord)
 
 ### Metadata
 
@@ -130,13 +120,6 @@ This input adds the following metadata fields to each message:
 			service.NewStringField(cdcFieldSpannerDSN).
 				Description("The dsn for spanner from where to read the changestream.").
 				Example("projects/{projectId}/instances/{instanceId}/databases/{databaseName}"),
-			service.NewStringField(cdcFieldSpannerMetadataDSN).
-				Description("The dsn for the metadata table to track partition reads. (can be same as spanner_dsn)").
-				Example("projects/{projectId}/instances/{instanceId}/databases/{databaseName}"),
-			service.NewStringField(cdcFieldSpannerMetadataTable).
-				Description("The table name you want to use for tracking partition metadata.").
-				Example("table_metadata").
-				Example("stream_metadata"),
 			service.NewStringField(cdcFieldStreamName).
 				Description("The name of the stream to track changes on."),
 			service.NewDurationField(cdcFieldHeartbeatInterval).
@@ -168,75 +151,35 @@ func init() {
 	}
 }
 
-type subscriber interface {
-	Subscribe(ctx context.Context, consumer screamer.Consumer) error
-}
-
 // gcpSpannerCDCInput implements a Bento input component that reads from Spanner change streams
 type gcpSpannerCDCInput struct {
-	conf           cdcConfig          // Configuration for this input
-	runnerID       string             // Unique ID for this consumer instance
-	streamClient   *spanner.Client    // Client for reading change stream data
-	metadataClient *spanner.Client    // Client for metadata operations
-	closeFunc      context.CancelFunc // Function to cancel ongoing operations
-	cdcMut         sync.Mutex         // Mutex for thread-safe operations
-	subscriber     subscriber         // Change stream subscriber
-	log            *service.Logger    // Logger instance
-	consumer       consumer           // Message consumer implementation
+	conf         cdcConfig       // Configuration for this input
+	streamClient *spanner.Client // Client for reading change stream data
+	cdcMut       sync.RWMutex    // RWMutex for thread-safe operations
+	log          *service.Logger // Logger instance
+
+	recordsCh chan changeRecord // Channel that holds all records
+
+	partitionTokens map[string]struct{} // Track processed partition tokens
+	partitionLock   sync.RWMutex        // Mutex for thread-safe operations
+
+	shutdownSig *shutdown.Signaller // Signals to begin shutting down components
 }
 
-// consumer implements the message consumption interface
-type consumer struct {
-	msgQueue chan []byte // Channel for queuing received messages
-}
-
-// Consume implements the message consumption callback
-func (c consumer) Consume(data []byte) error {
-	c.msgQueue <- data
-	return nil
+type changeRecord struct {
+	data    *types.DataChangeRecord
+	mod     *types.Mod
+	modType string
 }
 
 // newGcpSpannerCDCInput creates a new Spanner CDC input instance
 func newGcpSpannerCDCInput(conf cdcConfig, res *service.Resources) (*gcpSpannerCDCInput, error) {
-	ctx := context.Background()
-	metadataClient, err := spanner.NewClient(ctx, conf.SpannerMetadataDSN)
-	if err != nil {
-		return nil, err
-	}
-	streamClient, err := spanner.NewClient(ctx, conf.SpannerDSN)
-	if err != nil {
-		return nil, err
-	}
-
-	runnerID := uuid.NewString()
-
-	ps := partitionstorage.NewSpanner(metadataClient, conf.SpannerMetadataTable)
-	if err := ps.RunMigrations(ctx); err != nil {
-		return nil, err
-	}
-	if err := ps.RegisterRunner(ctx, runnerID); err != nil {
-		return nil, err
-	}
-
-	opts := []screamer.Option{}
-	if conf.StartTime != nil {
-		opts = append(opts, screamer.WithStartTimestamp(*conf.StartTime))
-	}
-	if conf.EndTime != nil {
-		opts = append(opts, screamer.WithEndTimestamp(*conf.EndTime))
-	}
-	subscriber := screamer.NewSubscriber(streamClient, conf.StreamName, runnerID, ps, opts...)
-
 	return &gcpSpannerCDCInput{
-		conf:           conf,
-		log:            res.Logger(),
-		runnerID:       runnerID,
-		subscriber:     subscriber,
-		metadataClient: metadataClient,
-		streamClient:   streamClient,
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1000),
-		},
+		conf:            conf,
+		log:             res.Logger(),
+		shutdownSig:     shutdown.NewSignaller(),
+		recordsCh:       make(chan changeRecord),
+		partitionTokens: make(map[string]struct{}),
 	}, nil
 }
 
@@ -244,86 +187,225 @@ func newGcpSpannerCDCInput(conf cdcConfig, res *service.Resources) (*gcpSpannerC
 func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	c.cdcMut.Lock()
 	defer c.cdcMut.Unlock()
-	if c.subscriber == nil {
-		return service.ErrNotConnected
+
+	if c.streamClient != nil {
+		return nil
 	}
 
-	subCtx, cancel := context.WithCancel(context.Background())
-	c.closeFunc = cancel
+	select {
+	case <-c.shutdownSig.HasStoppedChan():
+		return service.ErrNotConnected
+	default:
+	}
 
-	go func() {
-		rerr := c.subscriber.Subscribe(subCtx, c.consumer)
+	var err error
+	c.streamClient, err = spanner.NewClient(ctx, c.conf.SpannerDSN)
+	if err != nil {
+		return err
+	}
 
-		var apiErr *apierror.APIError
-		if errors.As(rerr, &apiErr) {
-			if apiErr.GRPCStatus().Code() == codes.Canceled {
-				c.log.Infof("Subscription cancelled: %v\n", apiErr)
-			} else {
-				c.log.Errorf("API error during subscription: %v\n", apiErr)
-			}
-		} else {
-			c.log.Errorf("Subscription error: %v\n", rerr)
-		}
+	if c.recordsCh == nil {
+		c.recordsCh = make(chan changeRecord)
+	}
 
-		c.cdcMut.Lock()
-		close(c.consumer.msgQueue)
-		c.closeFunc = nil
-		c.cdcMut.Unlock()
-	}()
+	go c.loop()
+
 	return nil
 }
 
 // Read retrieves the next message from the change stream
 func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
-	var data []byte
-	var open bool
+	c.cdcMut.RLock()
+	if c.streamClient == nil || c.recordsCh == nil {
+		c.cdcMut.RUnlock()
+		return nil, nil, service.ErrNotConnected
+	}
+	recordsCh := c.recordsCh
+	c.cdcMut.RUnlock()
+
+	var (
+		record changeRecord
+		open   bool
+	)
+
 	select {
-	case data, open = <-c.consumer.msgQueue:
-	case <-ctx.Done():
-		// If context is cancelled, ensure we call closeFunc to clean up resources
-		c.cdcMut.Lock()
-		if c.closeFunc != nil {
-			c.closeFunc()
+	case record, open = <-recordsCh:
+		if !open {
+			return nil, nil, service.ErrEndOfInput
 		}
-		c.cdcMut.Unlock()
-		c.log.Error("Context cancelled while waiting for data :" + ctx.Err().Error())
-		return nil, nil, service.ErrNotConnected
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case <-c.shutdownSig.HardStopChan():
+		return nil, nil, service.ErrEndOfInput
 	}
-	if !open {
-		return nil, nil, service.ErrNotConnected
-	}
-	dcr := screamer.DataChangeRecord{}
-	err := json.Unmarshal(data, &dcr)
+
+	out, err := record.mod.ToMap()
 	if err != nil {
 		return nil, nil, err
 	}
-	msg := service.NewMessage(data)
 
-	msg.MetaSetMut(metadataTimestamp, dcr.CommitTimestamp.Format(time.RFC3339Nano))
-	msg.MetaSetMut(metadataModType, string(dcr.ModType))
-	msg.MetaSetMut(metadataTableName, dcr.TableName)
-	msg.MetaSetMut(metadataServerTxnID, dcr.ServerTransactionID)
-	msg.MetaSetMut(metadataRecordSeq, dcr.RecordSequence)
+	msg := service.NewMessage(nil)
+
+	msg.SetStructuredMut(out)
+	msg.MetaSetMut(metadataTimestamp, time.Time(record.data.CommitTimestamp).Format(time.RFC3339Nano))
+	msg.MetaSetMut(metadataModType, record.modType)
+	msg.MetaSetMut(metadataTableName, record.data.TableName)
+	msg.MetaSetMut(metadataServerTxnID, record.data.ServerTransactionId)
+	msg.MetaSetMut(metadataRecordSeq, record.data.RecordSequence)
 
 	return msg, func(ctx context.Context, res error) error {
 		return nil
 	}, nil
 }
 
-// Close cleanly shuts down the input component
 func (c *gcpSpannerCDCInput) Close(ctx context.Context) error {
+	c.shutdownSig.TriggerHardStop()
+
 	c.cdcMut.Lock()
 	defer c.cdcMut.Unlock()
 
-	if c.closeFunc != nil {
-		c.closeFunc()
-		c.closeFunc = nil
+	if c.shutdownSig.IsHardStopSignalled() {
+		return nil
 	}
-	if c.metadataClient != nil {
-		c.metadataClient.Close()
+
+	if c.recordsCh != nil {
+		close(c.recordsCh)
+		c.recordsCh = nil
 	}
+
 	if c.streamClient != nil {
 		c.streamClient.Close()
+		c.streamClient = nil
 	}
 	return nil
+}
+
+func (c *gcpSpannerCDCInput) loop() {
+	ctx, cancel := c.shutdownSig.HardStopCtx(context.Background())
+	defer cancel()
+
+	errgrp, errCtx := errgroup.WithContext(ctx)
+	errgrp.Go(func() error {
+		return c.readPartition(errCtx, errgrp, nil, c.conf.StartTime)
+	})
+
+	if err := errgrp.Wait(); err != nil && err != context.Canceled {
+		c.log.Errorf("Error in readPartition: %v", err)
+	}
+}
+
+func (c *gcpSpannerCDCInput) readPartition(ctx context.Context, errgrp *errgroup.Group, partitionToken *string, startTimestamp *time.Time) error {
+	if partitionToken != nil {
+		token := *partitionToken
+		if c.isPartitionTracked(token) {
+			defer func() {
+				c.removePartition(token)
+			}()
+		}
+	}
+
+	if startTimestamp == nil {
+		now := time.Now()
+		startTimestamp = &now
+	}
+
+	stmt := spanner.Statement{
+		SQL: fmt.Sprintf(`
+SELECT ChangeRecord
+FROM READ_%s (
+    @start_timestamp,
+    @end_timestamp,
+    @partition_token,
+    @heartbeat_milliseconds
+)`, c.conf.StreamName),
+		Params: map[string]interface{}{
+			"start_timestamp":        startTimestamp.UTC(),
+			"end_timestamp":          c.conf.EndTime,
+			"partition_token":        partitionToken,
+			"heartbeat_milliseconds": c.conf.HeartbeatInterval.Milliseconds(),
+		},
+	}
+
+	txn := c.streamClient.Single()
+	defer txn.Close()
+
+	return txn.Query(ctx, stmt).Do(func(row *spanner.Row) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		var records []*types.ChangeStreamRecord
+		if err := row.ColumnByName("ChangeRecord", &records); err != nil {
+			return err
+		}
+
+		for _, record := range records {
+			for _, dataChange := range record.DataChangeRecord {
+				for _, mod := range dataChange.Mods {
+					changeRec := changeRecord{
+						data:    dataChange,
+						mod:     mod,
+						modType: dataChange.ModType,
+					}
+
+					select {
+					case c.recordsCh <- changeRec:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+
+				}
+			}
+
+			for _, childPartitionsRecord := range record.ChildPartitionsRecord {
+				for _, childPartition := range childPartitionsRecord.ChildPartitions {
+					childStartTime := time.Time(childPartitionsRecord.StartTimestamp)
+					childToken := childPartition.Token
+
+					if isTracked := c.trackPartition(childToken); isTracked {
+						continue
+					}
+
+					errgrp.Go(func() error {
+						return c.readPartition(ctx, errgrp, &childToken, &childStartTime)
+					})
+				}
+			}
+		}
+		return nil
+	})
+}
+
+func (c *gcpSpannerCDCInput) isPartitionTracked(token string) bool {
+	c.partitionLock.RLock()
+	defer c.partitionLock.RUnlock()
+	_, exists := c.partitionTokens[token]
+	return exists
+}
+
+func (c *gcpSpannerCDCInput) trackPartition(token string) bool {
+	if c.isPartitionTracked(token) {
+		return true
+	}
+
+	c.partitionLock.Lock()
+	defer c.partitionLock.Unlock()
+	if _, ok := c.partitionTokens[token]; ok {
+		return true
+	}
+
+	c.partitionTokens[token] = struct{}{}
+	return false
+}
+
+func (c *gcpSpannerCDCInput) removePartition(token string) {
+	if !c.isPartitionTracked(token) {
+		return
+	}
+
+	c.partitionLock.Lock()
+	defer c.partitionLock.Unlock()
+	delete(c.partitionTokens, token)
 }

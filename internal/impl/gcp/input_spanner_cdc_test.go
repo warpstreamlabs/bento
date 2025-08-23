@@ -2,16 +2,21 @@ package gcp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/anicoll/screamer"
+	"cloud.google.com/go/spanner"
+	"cloud.google.com/go/spanner/spannertest"
+	"github.com/Jeffail/shutdown"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
 	"github.com/warpstreamlabs/bento/public/service"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestCDCConfigFromParsed(t *testing.T) {
@@ -25,35 +30,27 @@ func TestCDCConfigFromParsed(t *testing.T) {
 			name: "valid basic config",
 			config: `
 spanner_dsn: projects/test/instances/test/databases/test
-metadata_table: test_table
-spanner_metadata_dsn: projects/test/instances/test/databases/metadata
 stream_name: test_stream`,
 			want: cdcConfig{
-				SpannerDSN:           "projects/test/instances/test/databases/test",
-				SpannerMetadataTable: "test_table",
-				SpannerMetadataDSN:   "projects/test/instances/test/databases/metadata",
-				StreamName:           "test_stream",
-				HeartbeatInterval:    3 * time.Second,
+				SpannerDSN:        "projects/test/instances/test/databases/test",
+				StreamName:        "test_stream",
+				HeartbeatInterval: 3 * time.Second,
 			},
 		},
 		{
 			name: "config with start and end times",
 			config: `
 spanner_dsn: projects/test/instances/test/databases/test
-metadata_table: test_table
-spanner_metadata_dsn: projects/test/instances/test/databases/metadata
 stream_name: test_stream
 heartbeat_interval: 3s
 start_time: 2025-01-01T00:00:00Z
 end_time: 2025-12-31T23:59:59Z`,
 			want: cdcConfig{
-				SpannerDSN:           "projects/test/instances/test/databases/test",
-				SpannerMetadataTable: "test_table",
-				SpannerMetadataDSN:   "projects/test/instances/test/databases/metadata",
-				StreamName:           "test_stream",
-				HeartbeatInterval:    3 * time.Second,
-				StartTime:            parseTimePtr(t, "2025-01-01T00:00:00Z"),
-				EndTime:              parseTimePtr(t, "2025-12-31T23:59:59Z"),
+				SpannerDSN:        "projects/test/instances/test/databases/test",
+				StreamName:        "test_stream",
+				HeartbeatInterval: 3 * time.Second,
+				StartTime:         parseTimePtr(t, "2025-01-01T00:00:00Z"),
+				EndTime:           parseTimePtr(t, "2025-12-31T23:59:59Z"),
 			},
 		},
 		{
@@ -73,18 +70,57 @@ end_time: 2025-12-31T23:59:59Z`,
 			}
 			got, err := cdcConfigFromParsed(parsed)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
+
+			// For the "valid basic config" test, StartTime is set to time.Now()
+			// so we need to check it separately
+			if tt.name == "valid basic config" {
+				assert.Equal(t, tt.want.SpannerDSN, got.SpannerDSN)
+				assert.Equal(t, tt.want.StreamName, got.StreamName)
+				assert.Equal(t, tt.want.HeartbeatInterval, got.HeartbeatInterval)
+				assert.NotNil(t, got.StartTime)
+				assert.Nil(t, got.EndTime)
+			} else {
+				assert.Equal(t, tt.want, got)
+			}
 		})
 	}
 }
 
+func setupTestSpanner(t *testing.T) (*spanner.Client, string, func()) {
+	t.Helper()
+
+	srv, err := spannertest.NewServer("localhost:0")
+	require.NoError(t, err)
+
+	database := "projects/test-project/instances/test-instance/databases/test-database"
+
+	conn, err := grpc.NewClient(srv.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	client, err := spanner.NewClient(context.Background(), database, option.WithGRPCConn(conn))
+	require.NoError(t, err)
+
+	cleanup := func() {
+		client.Close()
+		srv.Close()
+	}
+
+	return client, database, cleanup
+}
+
 func TestGcpSpannerCDCInput_Connect(t *testing.T) {
 	ctx := context.Background()
+	_, dsn, cleanup := setupTestSpanner(t)
+	defer cleanup()
+
 	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1000),
+		conf: cdcConfig{
+			SpannerDSN:        dsn,
+			StreamName:        "test_stream",
+			HeartbeatInterval: 3 * time.Second,
 		},
-		subscriber: &mockSubscriber{},
+		recordsCh:   make(chan changeRecord, 1000),
+		shutdownSig: shutdown.NewSignaller(),
 	}
 
 	err := input.Connect(ctx)
@@ -95,210 +131,209 @@ func TestGcpSpannerCDCInput_Connect(t *testing.T) {
 }
 
 func TestGcpSpannerCDCInput_Read(t *testing.T) {
-	ctx := context.Background()
-	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1),
+	tests := []struct {
+		name     string
+		setup    func() *gcpSpannerCDCInput
+		ctx      func() context.Context
+		expected error
+	}{
+		{
+			name: "closed_channel",
+			setup: func() *gcpSpannerCDCInput {
+				client, _ := spanner.NewClient(context.Background(), "projects/test/instances/test/databases/test")
+				input := &gcpSpannerCDCInput{
+					streamClient: client,
+					recordsCh:    make(chan changeRecord, 1),
+					shutdownSig:  shutdown.NewSignaller(),
+				}
+				close(input.recordsCh)
+				return input
+			},
+			ctx:      func() context.Context { return context.Background() },
+			expected: service.ErrEndOfInput,
+		},
+		{
+			name: "canceled_context",
+			setup: func() *gcpSpannerCDCInput {
+				client, _ := spanner.NewClient(context.Background(), "projects/test/instances/test/databases/test")
+				return &gcpSpannerCDCInput{
+					streamClient: client,
+					recordsCh:    make(chan changeRecord, 1),
+					shutdownSig:  shutdown.NewSignaller(),
+				}
+			},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			},
+			expected: context.Canceled,
+		},
+		{
+			name: "nil_channel",
+			setup: func() *gcpSpannerCDCInput {
+				return &gcpSpannerCDCInput{
+					recordsCh:   nil,
+					shutdownSig: shutdown.NewSignaller(),
+				}
+			},
+			ctx:      func() context.Context { return context.Background() },
+			expected: service.ErrNotConnected,
 		},
 	}
 
-	// Test reading when channel is closed
-	close(input.consumer.msgQueue)
-	_, _, err := input.Read(ctx)
-	assert.ErrorIs(t, err, service.ErrNotConnected)
-
-	// Test context cancellation
-	input.consumer.msgQueue = make(chan []byte, 1)
-	ctxWithCancel, cancel := context.WithCancel(ctx)
-	cancel()
-	_, _, err = input.Read(ctxWithCancel)
-	assert.ErrorIs(t, err, service.ErrNotConnected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := tt.setup()
+			ctx := tt.ctx()
+			_, _, err := input.Read(ctx)
+			assert.ErrorIs(t, err, tt.expected)
+		})
+	}
 }
 
-func TestGcpSpannerCDCInput_Read_metadata(t *testing.T) {
+func TestGcpSpannerCDCInput_ReadMetadata(t *testing.T) {
 	ctx := context.Background()
+	_, dsn, cleanup := setupTestSpanner(t)
+	defer cleanup()
+
+	client, err := spanner.NewClient(ctx, dsn)
+	require.NoError(t, err)
+	defer client.Close()
+
 	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1),
+		streamClient: client,
+		recordsCh:    make(chan changeRecord, 1),
+		shutdownSig:  shutdown.NewSignaller(),
+	}
+
+	now := time.Now().UTC()
+	serverTxnID := uuid.NewString()
+	recordSeq := "98989"
+	tableName := "foo_bar"
+
+	inputMsg := changeRecord{
+		data: &types.DataChangeRecord{
+			CommitTimestamp:     types.TimeMills(now),
+			RecordSequence:      recordSeq,
+			ServerTransactionId: serverTxnID,
+			TableName:           tableName,
+			ModType:             "DELETE",
 		},
+		mod: &types.Mod{
+			Keys: spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": "123"}},
+		},
+		modType: "DELETE",
 	}
 
-	inputMsg := screamer.DataChangeRecord{
-		CommitTimestamp:     time.Now(),
-		RecordSequence:      "98989",
-		ServerTransactionID: uuid.NewString(),
-		TableName:           "foo_bar",
-		ModType:             screamer.ModType_DELETE,
-	}
 	expectedMetadata := map[string]any{
-		metadataModType:     string(inputMsg.ModType),
-		metadataRecordSeq:   inputMsg.RecordSequence,
-		metadataServerTxnID: inputMsg.ServerTransactionID,
-		metadataTableName:   inputMsg.TableName,
-		metadataTimestamp:   inputMsg.CommitTimestamp.Format(time.RFC3339Nano),
+		metadataModType:     "DELETE",
+		metadataRecordSeq:   recordSeq,
+		metadataServerTxnID: serverTxnID,
+		metadataTableName:   tableName,
+		metadataTimestamp:   now.Format(time.RFC3339Nano),
 	}
 
-	inputData, err := json.Marshal(inputMsg)
-	require.NoError(t, err)
-
-	err = input.consumer.Consume(inputData)
-	require.NoError(t, err)
+	input.recordsCh <- inputMsg
 
 	msg, _, err := input.Read(ctx)
 	require.NoError(t, err)
 	err = msg.MetaWalkMut(func(key string, value any) error {
 		expectedValue, found := expectedMetadata[key]
-		require.True(t, found)
+		require.True(t, found, "Key %s not found in expected metadata", key)
 		require.Equal(t, expectedValue, value)
 		return nil
 	})
 	require.NoError(t, err)
 }
 
-func TestGcpSpannerCDCInput_Connect_Errors(t *testing.T) {
+func TestGcpSpannerCDCInput_ContextCancellation(t *testing.T) {
 	ctx := context.Background()
-
-	t.Run("returns error when subscriber is nil", func(t *testing.T) {
-		input := &gcpSpannerCDCInput{
-			consumer: consumer{
-				msgQueue: make(chan []byte, 1000),
-			},
-			subscriber: nil,
-		}
-
-		err := input.Connect(ctx)
-		assert.Equal(t, service.ErrNotConnected, err)
-	})
-
-	t.Run("handles subscription error", func(t *testing.T) {
-		input := &gcpSpannerCDCInput{
-			consumer: consumer{
-				msgQueue: make(chan []byte, 1000),
-			},
-			subscriber: &mockSubscriber{
-				subscribeErr: service.ErrNotConnected,
-			},
-			log: nil,
-		}
-
-		err := input.Connect(ctx)
-		require.NoError(t, err)
-
-		// Wait for subscription goroutine to complete
-		time.Sleep(100 * time.Millisecond)
-
-		// Verify channel was closed due to error
-		_, open := <-input.consumer.msgQueue
-		assert.False(t, open, "message queue should be closed after error")
-	})
-}
-
-func TestGcpSpannerCDCInput_SigTerm(t *testing.T) {
-	ctx := context.Background()
-	mockSub := &mockSubscriber{}
+	_, dsn, cleanup := setupTestSpanner(t)
+	defer cleanup()
 
 	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1000),
+		conf: cdcConfig{
+			SpannerDSN:        dsn,
+			StreamName:        "test_stream",
+			HeartbeatInterval: 3 * time.Second,
 		},
-		subscriber: mockSub,
-		log:        nil,
+		recordsCh:   make(chan changeRecord, 1000),
+		shutdownSig: shutdown.NewSignaller(),
 	}
 
-	// Connect the input
 	err := input.Connect(ctx)
 	require.NoError(t, err)
-	// Wait for subscription goroutine to complete
-	time.Sleep(100 * time.Millisecond)
 
-	// Ensure subscriber was called
-	assert.True(t, mockSub.subscribeCalled)
+	sigCtx, cancel := context.WithCancel(context.Background())
 
-	// Verify closeFunc is set
-	input.cdcMut.Lock()
-	assert.NotNil(t, input.closeFunc)
-	input.cdcMut.Unlock()
-
-	// Create a context with cancel to simulate SIGTERM
-	sigCtx, cancel := context.WithCancel(ctx)
-
-	// Start a goroutine that will try to read
-	readDone := make(chan struct{})
+	readErrCh := make(chan error, 1)
 	go func() {
-		_, _, _ = input.Read(sigCtx)
-		close(readDone)
+		_, _, err := input.Read(sigCtx)
+		readErrCh <- err
 	}()
 
-	// Cancel the context to simulate SIGTERM
 	cancel()
 
-	// Wait for read to exit
 	select {
-	case <-readDone:
-		// Expected path
+	case err := <-readErrCh:
+		assert.ErrorIs(t, err, context.Canceled)
 	case <-time.After(time.Second):
 		t.Fatal("Read did not exit after context cancellation")
 	}
 
-	// Clean up
 	err = input.Close(ctx)
 	require.NoError(t, err)
 }
 
-func TestGcpSpannerCDCInput_Read_WithValidMessage(t *testing.T) {
+func TestGcpSpannerCDCInput_ReadValidMessage(t *testing.T) {
 	ctx := context.Background()
-	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1),
-		},
-	}
+	_, dsn, cleanup := setupTestSpanner(t)
+	defer cleanup()
 
-	// Prepare test data
-	changeRecord := screamer.DataChangeRecord{
-		CommitTimestamp:     time.Now(),
-		RecordSequence:      "1234567",
-		ServerTransactionID: uuid.NewString(),
-		TableName:           "users",
-		ModType:             screamer.ModType_INSERT,
-		Mods: []*screamer.Mod{
-			{
-				Keys:      map[string]any{"id": "1"},
-				NewValues: map[string]any{"id": "1", "name": "John Doe"},
-			},
-		},
-	}
-
-	recordBytes, err := json.Marshal(changeRecord)
+	client, err := spanner.NewClient(ctx, dsn)
 	require.NoError(t, err)
+	defer client.Close()
 
-	// Send data to the queue
-	input.consumer.msgQueue <- recordBytes
+	input := &gcpSpannerCDCInput{
+		streamClient: client,
+		recordsCh:    make(chan changeRecord, 1),
+		shutdownSig:  shutdown.NewSignaller(),
+	}
 
-	// Read the message
+	now := time.Now().UTC()
+	serverTxnID := uuid.NewString()
+	recordSeq := "1234567"
+	tableName := "users"
+
+	record := changeRecord{
+		data: &types.DataChangeRecord{
+			CommitTimestamp:     types.TimeMills(now),
+			RecordSequence:      recordSeq,
+			ServerTransactionId: serverTxnID,
+			TableName:           tableName,
+			ModType:             "INSERT",
+		},
+		mod: &types.Mod{
+			Keys:      spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": "1"}},
+			NewValues: spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": "1", "name": "John Doe"}},
+		},
+		modType: "INSERT",
+	}
+
+	input.recordsCh <- record
+
 	msg, ackFunc, err := input.Read(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 	require.NotNil(t, ackFunc)
 
-	// Verify message content
-	var actualRecord screamer.DataChangeRecord
-	bytes, err := msg.AsBytes()
-	require.NoError(t, err)
-
-	err = json.Unmarshal(bytes, &actualRecord)
-	require.NoError(t, err)
-	assert.Equal(t, changeRecord.TableName, actualRecord.TableName)
-	assert.Equal(t, changeRecord.ModType, actualRecord.ModType)
-	assert.Equal(t, changeRecord.RecordSequence, actualRecord.RecordSequence)
-	assert.Equal(t, changeRecord.ServerTransactionID, actualRecord.ServerTransactionID)
-
-	// Verify metadata
 	expectedMetadata := map[string]any{
-		metadataModType:     string(changeRecord.ModType),
-		metadataRecordSeq:   changeRecord.RecordSequence,
-		metadataServerTxnID: changeRecord.ServerTransactionID,
-		metadataTableName:   changeRecord.TableName,
-		metadataTimestamp:   changeRecord.CommitTimestamp.Format(time.RFC3339Nano),
+		metadataModType:     "INSERT",
+		metadataRecordSeq:   recordSeq,
+		metadataServerTxnID: serverTxnID,
+		metadataTableName:   tableName,
+		metadataTimestamp:   now.Format(time.RFC3339Nano),
 	}
 
 	err = msg.MetaWalkMut(func(key string, value any) error {
@@ -309,118 +344,87 @@ func TestGcpSpannerCDCInput_Read_WithValidMessage(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Test the ack function
 	err = ackFunc(ctx, nil)
 	assert.NoError(t, err)
 }
 
-func TestGcpSpannerCDCInput_Read_UnmarshalError(t *testing.T) {
-	ctx := context.Background()
-	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1),
-		},
-	}
-
-	// Send invalid JSON data
-	input.consumer.msgQueue <- []byte(`{"invalid json`)
-
-	// Read should return an error
-	_, _, err := input.Read(ctx)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected end of JSON input")
-}
-
-func TestGcpSpannerCDCInput_Read_WithSigterm(t *testing.T) {
-	// Create a context that can be canceled to simulate SIGTERM
+func TestGcpSpannerCDCInput_ReadContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	_, dsn, cleanup := setupTestSpanner(t)
+	defer cleanup()
+
+	client, err := spanner.NewClient(context.Background(), dsn)
+	require.NoError(t, err)
+	defer client.Close()
+
 	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1),
-		},
+		streamClient: client,
+		recordsCh:    make(chan changeRecord, 1),
+		shutdownSig:  shutdown.NewSignaller(),
 	}
 
-	// Start a goroutine that will read from the input
 	readErrCh := make(chan error, 1)
 	go func() {
 		_, _, err := input.Read(ctx)
 		readErrCh <- err
 	}()
 
-	// Give the goroutine time to start
 	time.Sleep(50 * time.Millisecond)
-
-	// Simulate SIGTERM by canceling the context
 	cancel()
 
-	// Verify that Read returns the context canceled error
 	select {
 	case err := <-readErrCh:
-		assert.ErrorIs(t, err, service.ErrNotConnected)
+		assert.ErrorIs(t, err, context.Canceled)
 	case <-time.After(time.Second):
 		t.Fatal("Read did not exit after context cancellation")
 	}
 }
 
-func TestGcpSpannerCDCInput_Read_ClosedChannel(t *testing.T) {
+func TestGcpSpannerCDCInput_ReadMultipleMessages(t *testing.T) {
 	ctx := context.Background()
+	_, dsn, cleanup := setupTestSpanner(t)
+	defer cleanup()
+
+	client, err := spanner.NewClient(ctx, dsn)
+	require.NoError(t, err)
+	defer client.Close()
+
 	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 1),
-		},
+		streamClient: client,
+		recordsCh:    make(chan changeRecord, 3),
+		shutdownSig:  shutdown.NewSignaller(),
 	}
 
-	// Close the channel before attempting to read
-	close(input.consumer.msgQueue)
-
-	// Read should return ErrNotConnected
-	_, _, err := input.Read(ctx)
-	assert.Equal(t, service.ErrNotConnected, err)
-}
-
-func TestGcpSpannerCDCInput_Read_WithMultipleMessages(t *testing.T) {
-	ctx := context.Background()
-	input := &gcpSpannerCDCInput{
-		consumer: consumer{
-			msgQueue: make(chan []byte, 3),
-		},
-	}
-
-	// Create several different messages
-	for i := 0; i < 3; i++ {
-		record := screamer.DataChangeRecord{
-			CommitTimestamp:     time.Now().Add(time.Duration(i) * time.Second),
-			RecordSequence:      fmt.Sprintf("seq-%d", i),
-			ServerTransactionID: uuid.NewString(),
-			TableName:           fmt.Sprintf("table_%d", i),
-			ModType:             screamer.ModType(fmt.Sprintf("MOD_TYPE_%d", i)),
+	tables := []string{"users", "orders", "products"}
+	for i, tableName := range tables {
+		now := time.Now().UTC().Add(time.Duration(i) * time.Second)
+		record := changeRecord{
+			data: &types.DataChangeRecord{
+				CommitTimestamp:     types.TimeMills(now),
+				RecordSequence:      fmt.Sprintf("seq-%d", i),
+				ServerTransactionId: uuid.NewString(),
+				TableName:           tableName,
+				ModType:             "INSERT",
+			},
+			mod: &types.Mod{
+				Keys: spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": fmt.Sprintf("%d", i)}},
+			},
+			modType: "INSERT",
 		}
-
-		recordBytes, err := json.Marshal(record)
-		require.NoError(t, err)
-		input.consumer.msgQueue <- recordBytes
+		input.recordsCh <- record
 	}
 
-	// Read and verify all three messages
-	for i := 0; i < 3; i++ {
+	for range tables {
 		msg, ackFunc, err := input.Read(ctx)
 		require.NoError(t, err)
-		require.NotNil(t, msg)
-
-		var record screamer.DataChangeRecord
-		bytes, err := msg.AsBytes()
-		require.NoError(t, err)
-		err = json.Unmarshal(bytes, &record)
-		require.NoError(t, err)
-		assert.Contains(t, record.TableName, "table_")
 
 		tableName, found := msg.MetaGetMut(metadataTableName)
-		assert.True(t, found)
-		assert.Equal(t, record.TableName, tableName)
+		require.True(t, found)
+		assert.Contains(t, []string{"users", "orders", "products"}, tableName.(string))
 
 		err = ackFunc(ctx, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -430,21 +434,4 @@ func parseTimePtr(t *testing.T, timeStr string) *time.Time {
 	parsed, err := time.Parse(time.RFC3339, timeStr)
 	require.NoError(t, err)
 	return &parsed
-}
-
-// Mock implementations for testing
-type mockSubscriber struct {
-	subscribeCalled bool
-	subscribeErr    error
-}
-
-func (m *mockSubscriber) Subscribe(ctx context.Context, consumer screamer.Consumer) error {
-	m.subscribeCalled = true
-	if m.subscribeErr != nil {
-		return m.subscribeErr
-	}
-
-	// Keep the subscription running until context is canceled
-	<-ctx.Done()
-	return nil
 }
