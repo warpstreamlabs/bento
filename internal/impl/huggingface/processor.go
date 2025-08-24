@@ -3,7 +3,6 @@ package huggingface
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/knights-analytics/hugot"
@@ -100,7 +99,7 @@ type pipelineProcessor struct {
 func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*pipelineProcessor, error) {
 	p := &pipelineProcessor{log: mgr.Logger()}
 
-	var modelRepo, modelPath, pipelineName string
+	var modelRepo, modelPath string
 	var shouldDownload bool
 
 	var err error
@@ -121,11 +120,11 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	if modelPath, err = conf.FieldString("path"); err != nil {
+	if p.modelPath, err = conf.FieldString("path"); err != nil {
 		return nil, err
 	}
 
-	if pipelineName, err = conf.FieldString("name"); err != nil {
+	if p.pipelineName, err = conf.FieldString("name"); err != nil {
 		return nil, err
 	}
 
@@ -134,15 +133,6 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 	}
 
 	if shouldDownload {
-		info, err := os.Stat(modelPath)
-		if err != nil {
-			return nil, err
-		}
-
-		if !info.IsDir() {
-			return nil, fmt.Errorf("when enable_download is true, path must be a directory, got file path: %s", modelPath)
-		}
-
 		opts := hugot.NewDownloadOptions()
 		opts.Verbose = false
 
@@ -155,16 +145,13 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		}
 
 		start := time.Now()
-		if p.modelPath, err = hugot.DownloadModel(modelRepo, modelPath, opts); err != nil {
+		if p.modelPath, err = hugot.DownloadModel(modelRepo, p.modelPath, opts); err != nil {
 			return nil, fmt.Errorf("failed to download model %s from HuggingFace to %s: %w", modelRepo, modelPath, err)
 		}
 
 		p.log.With("repository", modelRepo).Infof("Completed download (took %d ms)", time.Since(start).Milliseconds())
 
 	}
-
-	p.modelPath = modelPath
-	p.pipelineName = pipelineName
 
 	return p, nil
 }

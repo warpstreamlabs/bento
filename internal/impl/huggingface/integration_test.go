@@ -21,6 +21,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
 func compareResults(t *testing.T, expected, actual any) {
@@ -46,6 +47,8 @@ func compareResults(t *testing.T, expected, actual any) {
 }
 
 func TestIntegration_TextClassifier(t *testing.T) {
+	integration.CheckSkip(t)
+
 	tests := []struct {
 		name string
 
@@ -122,6 +125,8 @@ multi_label: %s
 }
 
 func TestIntegration_TokenClassifier(t *testing.T) {
+	integration.CheckSkip(t)
+
 	snapshot := loadSnapshot(t, "test-snapshot-token-classification", "expected_token_classification.json")
 
 	tmpDir := t.TempDir()
@@ -159,6 +164,8 @@ path: %s
 }
 
 func TestIntegration_FeatureExtractor(t *testing.T) {
+	integration.CheckSkip(t)
+
 	snapshot := loadSnapshot(t, "test-snapshot-feature-extraction", "expected_feature_extraction.json")
 
 	tmpDir := t.TempDir()
@@ -198,6 +205,8 @@ path: %s
 }
 
 func TestIntegration_ZeroShotTextClassifier(t *testing.T) {
+	integration.CheckSkip(t)
+
 	tests := []struct {
 		name         string
 		snapshotID   string
@@ -273,6 +282,8 @@ hypothesis_template: "This example is {}."
 }
 
 func TestIntegration_Download(t *testing.T) {
+	integration.CheckSkip(t)
+
 	snapshot := loadSnapshot(t, "test-snapshot-feature-extraction", "expected_feature_extraction.json")
 
 	tmpDir := t.TempDir()
