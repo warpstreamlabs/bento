@@ -84,8 +84,6 @@ func hugotConfigFields() []*service.ConfigField {
 
 type sessionConstructorKey struct{}
 
-type sessionConstructor func() (*hugot.Session, error)
-
 type pipelineProcessor struct {
 	log *service.Logger
 
