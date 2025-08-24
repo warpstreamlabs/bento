@@ -3,7 +3,7 @@ package huggingface
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"os"
 	"time"
 
 	"github.com/knights-analytics/hugot"
@@ -134,7 +134,12 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 	}
 
 	if shouldDownload {
-		if filepath.Ext(modelPath) != "" {
+		info, err := os.Stat(modelPath)
+		if err != nil {
+			return nil, err
+		}
+
+		if !info.IsDir() {
 			return nil, fmt.Errorf("when enable_download is true, path must be a directory, got file path: %s", modelPath)
 		}
 
@@ -150,11 +155,10 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		}
 
 		start := time.Now()
-		if path, err := hugot.DownloadModel(modelRepo, modelPath, opts); err != nil {
+		if p.modelPath, err = hugot.DownloadModel(modelRepo, modelPath, opts); err != nil {
 			return nil, fmt.Errorf("failed to download model %s from HuggingFace to %s: %w", modelRepo, modelPath, err)
-		} else {
-			modelPath = path
 		}
+
 		p.log.With("repository", modelRepo).Infof("Completed download (took %d ms)", time.Since(start).Milliseconds())
 
 	}
