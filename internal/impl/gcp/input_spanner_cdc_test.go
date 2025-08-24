@@ -142,9 +142,8 @@ func TestGcpSpannerCDCInput_Read(t *testing.T) {
 		{
 			name: "closed_channel",
 			setup: func() *gcpSpannerCDCInput {
-				client, _ := spanner.NewClient(context.Background(), "projects/test/instances/test/databases/test")
 				input := &gcpSpannerCDCInput{
-					streamClient: client,
+					streamClient: &spanner.Client{},
 					recordsCh:    make(chan changeRecord, 1),
 					shutdownSig:  shutdown.NewSignaller(),
 				}
@@ -157,9 +156,8 @@ func TestGcpSpannerCDCInput_Read(t *testing.T) {
 		{
 			name: "canceled_context",
 			setup: func() *gcpSpannerCDCInput {
-				client, _ := spanner.NewClient(context.Background(), "projects/test/instances/test/databases/test")
 				return &gcpSpannerCDCInput{
-					streamClient: client,
+					streamClient: &spanner.Client{},
 					recordsCh:    make(chan changeRecord, 1),
 					shutdownSig:  shutdown.NewSignaller(),
 				}
@@ -175,8 +173,9 @@ func TestGcpSpannerCDCInput_Read(t *testing.T) {
 			name: "nil_channel",
 			setup: func() *gcpSpannerCDCInput {
 				return &gcpSpannerCDCInput{
-					recordsCh:   nil,
-					shutdownSig: shutdown.NewSignaller(),
+					streamClient: &spanner.Client{},
+					recordsCh:    nil,
+					shutdownSig:  shutdown.NewSignaller(),
 				}
 			},
 			ctx:      func() context.Context { return context.Background() },
