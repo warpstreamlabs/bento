@@ -17,26 +17,34 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/internal/retries"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (
 	// DynamoDB Output Fields
-	ddboField               = "namespace"
-	ddboFieldTable          = "table"
-	ddboFieldStringColumns  = "string_columns"
-	ddboFieldJSONMapColumns = "json_map_columns"
-	ddboFieldTTL            = "ttl"
-	ddboFieldTTLKey         = "ttl_key"
-	ddboFieldBatching       = "batching"
+	ddboField                   = "namespace"
+	ddboFieldTable              = "table"
+	ddboFieldStringColumns      = "string_columns"
+	ddboFieldJSONMapColumns     = "json_map_columns"
+	ddboFieldTTL                = "ttl"
+	ddboFieldTTLKey             = "ttl_key"
+	ddboFieldDelete             = "delete"
+	ddboFieldDeleteCondition    = "condition"
+	ddboFieldDeletePartitionKey = "partition_key"
+	ddboFieldDeleteSortKey      = "sort_key"
+	ddboFieldBatching           = "batching"
 )
 
 type ddboConfig struct {
-	Table          string
-	StringColumns  map[string]*service.InterpolatedString
-	JSONMapColumns map[string]string
-	TTL            string
-	TTLKey         string
+	Table                   string
+	StringColumns           map[string]*service.InterpolatedString
+	JSONMapColumns          map[string]string
+	TTL                     string
+	TTLKey                  string
+	DeleteConditionExec     *bloblang.Executor
+	PartitionKeyDeleteField string
+	SortKeyDeleteField      string
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -64,6 +72,22 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 	if conf.backoffCtor, err = retries.CommonRetryBackOffCtorFromParsed(pConf); err != nil {
 		return
 	}
+	deleteConf := pConf.Namespace(ddboFieldDelete)
+	var deleteConditionStr string
+	if deleteConditionStr, err = deleteConf.FieldString(ddboFieldDeleteCondition); deleteConditionStr != "" {
+		if err != nil {
+			return
+		}
+		if conf.DeleteConditionExec, err = deleteConf.FieldBloblang(ddboFieldDeleteCondition); err != nil {
+			return
+		}
+	}
+	if conf.PartitionKeyDeleteField, err = deleteConf.FieldString(ddboFieldDeletePartitionKey); err != nil {
+		return
+	}
+	if conf.SortKeyDeleteField, err = deleteConf.FieldString(ddboFieldDeleteSortKey); err != nil {
+		return
+	}
 	return
 }
 
@@ -72,7 +96,7 @@ func ddboOutputSpec() *service.ConfigSpec {
 		Stable().
 		Version("1.0.0").
 		Categories("Services", "AWS").
-		Summary(`Inserts items into a DynamoDB table.`).
+		Summary(`Inserts items into or deletes items from a DynamoDB table.`).
 		Description(`
 The field `+"`string_columns`"+` is a map of column names to string values, where the values are [function interpolated](/docs/configuration/interpolation#bloblang-queries) per message of a batch. This allows you to populate string columns of an item by extracting fields within the document payload or metadata like follows:
 
@@ -141,11 +165,54 @@ This output benefits from sending messages as a batch for improved performance. 
 				Description("The column key to place the TTL value within.").
 				Default("").
 				Advanced(),
+			service.NewObjectField(ddboFieldDelete,
+				service.NewBloblangField(ddboFieldDeleteCondition).
+					Description("A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put").
+					Version("1.10.0").
+					Advanced().
+					Example(`root = this.isDelete == "true"`).
+					Default(""),
+				service.NewStringField(ddboFieldDeletePartitionKey).
+					Description("The partition key for DeleteItem requests. Required when `"+ddboFieldDelete+"."+ddboFieldDeleteCondition+"` is true. The value of the key will be resolved from either `"+ddboFieldStringColumns+" or "+ddboFieldJSONMapColumns+"`").
+					Version("1.10.0").
+					Advanced().
+					Default(""),
+				service.NewStringField(ddboFieldDeleteSortKey).
+					Description("The sort key for DeleteItem requests. The value of the key will be resolved from either `"+ddboFieldStringColumns+" or "+ddboFieldJSONMapColumns+"`").
+					Version("1.10.0").
+					Advanced().
+					Default(""),
+			).
+				Description("Optional config fields that enable creating Delete requests from messages. If the bloblang mapping provided in `"+ddboFieldDelete+"."+ddboFieldDeleteCondition+"` resolves to true, a delete request for the corresponding partition key will be made.").
+				Version("1.10.0").
+				Optional().
+				Advanced(),
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(ddboFieldBatching),
 		).
 		Fields(config.SessionFields()...).
-		Fields(retries.CommonRetryBackOffFields(3, "1s", "5s", "30s")...)
+		Fields(retries.CommonRetryBackOffFields(3, "1s", "5s", "30s")...).
+		LintRule(`root = match {
+this.`+ddboFieldStringColumns+`.length() == 0 && this.`+ddboFieldJSONMapColumns+`.length() == 0 => ["at least one of: `+ddboFieldStringColumns+` or `+ddboFieldJSONMapColumns+` must be specified"],
+this.`+ddboFieldDelete+`.`+ddboFieldDeleteCondition+` != "" && this.`+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+` == "" => ["If you provide a `+ddboFieldDelete+`.`+ddboFieldDeleteCondition+` you must also provide a `+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+`"]
+this.`+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+` != "" && this.`+ddboFieldDelete+`.`+ddboFieldDeleteCondition+` == "" => ["If you provide a `+ddboFieldDelete+`.`+ddboFieldDeletePartitionKey+` you must also provide a `+ddboFieldDelete+`.`+ddboFieldDeleteCondition+`"]
+}`).Example(
+		"Delete Requests",
+		"In the following example, we will be inserting messages to the table `Music` if the bloblang mapping `root = this.isDelete == true` resolves to `false`, if the bloblang mapping resolves to `true` we will make a delete request for items with the `delete.partition_key` and/or `delete.sort_key`, the values for the `partition_key` and `sort_key` will be found using either the `string_columns` or `json_map_columns`",
+		`
+output:
+  aws_dynamodb:
+    table: Music
+    json_map_columns:
+      uuid: uuid
+      title: title
+      year: year
+    delete:
+      condition: |
+        root = this.isDelete == true
+      partition_key: uuid
+`,
+	)
 }
 
 func init() {
@@ -308,54 +375,36 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		d.boffPool.Put(boff)
 	}()
 
-	writeReqs := []types.WriteRequest{}
+	writeReqs := make([]types.WriteRequest, len(b))
+
 	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-		items := map[string]types.AttributeValue{}
-		if d.ttl != 0 && d.conf.TTLKey != "" {
-			items[d.conf.TTLKey] = &types.AttributeValueMemberN{
-				Value: strconv.FormatInt(time.Now().Add(d.ttl).Unix(), 10),
-			}
+		if d.conf.DeleteConditionExec == nil {
+			return d.addPutRequest(i, &b, writeReqs, p)
 		}
-		for k, v := range d.conf.StringColumns {
-			s, err := b.TryInterpolatedString(i, v)
-			if err != nil {
-				return fmt.Errorf("string column %v interpolation error: %w", k, err)
-			}
-			items[k] = &types.AttributeValueMemberS{
-				Value: s,
-			}
+
+		msgWithContext := p.WithContext(ctx)
+
+		result, err := msgWithContext.BloblangQuery(d.conf.DeleteConditionExec)
+		if err != nil {
+			return fmt.Errorf("delete condition exec error: %w", err)
 		}
-		if len(d.conf.JSONMapColumns) > 0 {
-			jRoot, err := p.AsStructured()
-			if err != nil {
-				d.log.Errorf("Failed to extract JSON maps from document: %v", err)
-				return err
-			}
-			for k, v := range d.conf.JSONMapColumns {
-				if attr, err := jsonToMap(v, jRoot); err == nil {
-					if k == "" {
-						if mv, ok := attr.(*types.AttributeValueMemberM); ok {
-							for ak, av := range mv.Value {
-								items[ak] = av
-							}
-						} else {
-							items[k] = attr
-						}
-					} else {
-						items[k] = attr
-					}
-				} else {
-					d.log.Warnf("Unable to extract JSON map path '%v' from document: %v", v, err)
-					return err
-				}
-			}
+
+		resultMsgBytes, err := result.AsBytes()
+		if err != nil {
+			return fmt.Errorf("delete condition result parse error: %w", err)
 		}
-		writeReqs = append(writeReqs, types.WriteRequest{
-			PutRequest: &types.PutRequest{
-				Item: items,
-			},
-		})
-		return nil
+
+		isDelete, err := strconv.ParseBool(string(resultMsgBytes))
+		if err != nil {
+			return fmt.Errorf("delete condition result parse error: %w", err)
+		}
+
+		if isDelete {
+			return d.addDeleteRequest(i, &b, writeReqs, p)
+		}
+
+		return d.addPutRequest(i, &b, writeReqs, p)
+
 	}); err != nil {
 		return err
 	}
@@ -373,6 +422,27 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 		for err != nil {
 			batchErr := service.NewBatchError(b, headlineErr)
 			for i, req := range writeReqs {
+				if req.DeleteRequest != nil {
+					if _, iErr := d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+						TableName: d.table,
+						Key:       req.DeleteRequest.Key,
+					}); iErr != nil {
+						d.log.Errorf("Delete error: %v\n", iErr)
+						wait := boff.NextBackOff()
+						if wait == backoff.Stop {
+							break individualRequestsLoop
+						}
+						select {
+						case <-time.After(wait):
+						case <-ctx.Done():
+							break individualRequestsLoop
+						}
+						batchErr.Failed(i, iErr)
+					} else {
+						writeReqs[i].DeleteRequest = nil
+					}
+					continue
+				}
 				if req.PutRequest == nil {
 					continue
 				}
@@ -439,5 +509,109 @@ unprocessedLoop:
 }
 
 func (d *dynamoDBWriter) Close(context.Context) error {
+	return nil
+}
+
+//------------------------------------------------------------------------------
+
+func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeReqs []types.WriteRequest, p *service.Message) error {
+
+	key := map[string]types.AttributeValue{}
+
+	exprPK, ok := d.conf.StringColumns[d.conf.PartitionKeyDeleteField]
+	if !ok {
+		jRoot, err := p.AsStructured()
+		if err != nil {
+			return err
+		}
+		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot)
+		if err != nil {
+			return err
+		}
+		key[d.conf.PartitionKeyDeleteField] = attr
+	} else {
+		pk, err := b.TryInterpolatedString(i, exprPK)
+		if err != nil {
+			return fmt.Errorf("partition key error: %w", err)
+		}
+		key[d.conf.PartitionKeyDeleteField] = &types.AttributeValueMemberS{Value: pk}
+	}
+
+	if d.conf.SortKeyDeleteField != "" {
+
+		exprSK, ok := d.conf.StringColumns[d.conf.SortKeyDeleteField]
+		if !ok {
+			jRoot, err := p.AsStructured()
+			if err != nil {
+				return err
+			}
+			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot)
+			if err != nil {
+				return err
+			}
+			key[d.conf.SortKeyDeleteField] = attr
+		} else {
+			sk, err := b.TryInterpolatedString(i, exprSK)
+			if err != nil {
+				return fmt.Errorf("sort key error: %w", err)
+			}
+			key[d.conf.SortKeyDeleteField] = &types.AttributeValueMemberS{Value: sk}
+		}
+	}
+
+	writeReqs[i] = types.WriteRequest{
+		DeleteRequest: &types.DeleteRequest{
+			Key: key,
+		},
+	}
+	return nil
+}
+
+func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs []types.WriteRequest, p *service.Message) error {
+	items := map[string]types.AttributeValue{}
+	if d.ttl != 0 && d.conf.TTLKey != "" {
+		items[d.conf.TTLKey] = &types.AttributeValueMemberN{
+			Value: strconv.FormatInt(time.Now().Add(d.ttl).Unix(), 10),
+		}
+	}
+	for k, v := range d.conf.StringColumns {
+		s, err := b.TryInterpolatedString(i, v)
+		if err != nil {
+			return fmt.Errorf("string column %v interpolation error: %w", k, err)
+		}
+		items[k] = &types.AttributeValueMemberS{
+			Value: s,
+		}
+	}
+	if len(d.conf.JSONMapColumns) > 0 {
+		jRoot, err := p.AsStructured()
+		if err != nil {
+			d.log.Errorf("Failed to extract JSON maps from document: %v", err)
+			return err
+		}
+		for k, v := range d.conf.JSONMapColumns {
+			if attr, err := jsonToMap(v, jRoot); err == nil {
+				if k == "" {
+					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
+						for ak, av := range mv.Value {
+							items[ak] = av
+						}
+					} else {
+						items[k] = attr
+					}
+				} else {
+					items[k] = attr
+				}
+			} else {
+				d.log.Warnf("Unable to extract JSON map path '%v' from document: %v", v, err)
+				return err
+			}
+		}
+	}
+	writeReqs[i] = types.WriteRequest{
+		PutRequest: &types.PutRequest{
+			Item: items,
+		},
+	}
 	return nil
 }

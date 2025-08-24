@@ -65,8 +65,10 @@ type StreamBuilder struct {
 	consumerFunc MessageBatchHandlerFunc
 	consumerID   string
 
-	apiMut       manager.APIReg
-	customLogger log.Modular
+	apiMut        manager.APIReg
+	customLogger  log.Modular
+	sharedMetrics *metrics.Namespaced
+	streamName    string
 
 	configSpec      docs.FieldSpecs
 	env             *Environment
@@ -669,6 +671,56 @@ func (s *StreamBuilder) SetMetricsYAML(conf string) error {
 	return nil
 }
 
+// SetStreamName sets a name for this stream that will be used as a label
+// in metrics when using shared metrics. This follows the same pattern as
+// Bento's streams mode, where each stream gets a "stream" label with its name.
+//
+// This is particularly useful when multiple StreamBuilders share the same
+// metrics registry via SharedMetricsSetup, as it allows you to distinguish
+// metrics from different streams.
+//
+// Example usage:
+//
+//	builder := service.NewStreamBuilder()
+//	builder.SetStreamName("orders-processor")
+//	sharedMetrics.ConfigureStreamBuilder(builder)
+//	// All metrics will have label "stream": "orders-processor"
+func (s *StreamBuilder) SetStreamName(name string) {
+	s.streamName = name
+}
+
+// SetSharedMetrics configures this stream to use a shared metrics instance
+// in addition to its own metrics. This allows multiple streams to aggregate
+// metrics to the same destination (e.g., shared Prometheus registry).
+//
+// When shared metrics are set, this stream will emit metrics to both its own
+// metrics registry and the shared one. This is typically used with
+// SharedMetricsSetup.ConfigureStreamBuilder() to enable multiple streams to
+// share a single metrics endpoint, avoiding port conflicts.
+//
+// Example usage:
+//
+//	sharedMetrics, _ := service.NewSharedMetricsSetup("prometheus: {}", 9090)
+//	builder := service.NewStreamBuilder()
+//	builder.SetSharedMetrics(sharedMetrics.GetMetrics())
+func (s *StreamBuilder) SetSharedMetrics(shared *metrics.Namespaced) {
+	s.sharedMetrics = shared
+}
+
+// GetMetricsHandler returns an HTTP handler for metrics if available from
+// the shared metrics instance, or nil if no shared metrics are configured.
+//
+// This handler can be used to expose metrics from a custom HTTP server if
+// you're not using SharedMetricsSetup's built-in server. The handler will
+// serve metrics in the format configured in the shared metrics setup
+// (e.g., Prometheus format).
+func (s *StreamBuilder) GetMetricsHandler() http.HandlerFunc {
+	if s.sharedMetrics != nil {
+		return s.sharedMetrics.Child().HandlerFunc()
+	}
+	return nil
+}
+
 // SetTracerYAML parses a tracer YAML configuration and adds it to the builder
 // such that all stream components emit tracing spans through it.
 func (s *StreamBuilder) SetTracerYAML(conf string) error {
@@ -908,6 +960,11 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 		return nil, err
 	}
 
+	// Use shared metrics as primary if provided (preserving labels)
+	if s.sharedMetrics != nil {
+		stats = s.sharedMetrics
+	}
+
 	apiMut := s.apiMut
 	var apiType *api.Type
 	if apiMut == nil {
@@ -938,9 +995,10 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 	// Let's read the strategy from the config, but ONLY IF we are not already in a strict build mode
 	// (because in a strict build, we don't want to override the strategy from the config).
 	if !isStrictBuild {
-		if s.errHandler.Strategy == "reject" {
+		switch s.errHandler.Strategy {
+		case "reject":
 			managerOpts = append(managerOpts, strict.OptSetStrictModeFromManager()...)
-		} else if s.errHandler.Strategy == "retry" {
+		case "retry":
 			managerOpts = append(managerOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
 			managerOpts = append(managerOpts, strict.OptSetRetryModeFromManager()...)
 		}

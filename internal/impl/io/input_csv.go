@@ -142,7 +142,11 @@ output:
 				Version("1.8.0").
 				LintRule(`root = if this < 1 { [ "`+csviFieldExpectedNumberOfFields+` must be at least 1" ] }`).
 				Optional(),
-		)
+		).LintRule(`
+		root = if this.parse_header_row == false && this.expected_headers.or([]).length() > 0 {
+		  "expected_headers is set but parse_header_row is false"
+		}
+		`)
 }
 
 type csvScannerInfo struct {

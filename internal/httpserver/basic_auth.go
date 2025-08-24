@@ -64,7 +64,7 @@ func (b BasicAuthConfig) Validate() error {
 		return errors.New("both username and password_hash are required")
 	}
 
-	if !(b.Algorithm == "md5" || b.Algorithm == "sha256" || b.Algorithm == "bcrypt" || b.Algorithm == "scrypt") {
+	if b.Algorithm != "md5" && b.Algorithm != "sha256" && b.Algorithm != "bcrypt" && b.Algorithm != "scrypt" {
 		return errors.New("algorithm should be one of md5, sha256, bcrypt, or scrypt")
 	}
 

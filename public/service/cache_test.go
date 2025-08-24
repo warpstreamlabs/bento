@@ -78,8 +78,8 @@ type closableCacheMulti struct {
 }
 
 func (c *closableCacheMulti) SetMulti(ctx context.Context, keyValues ...CacheItem) error {
-	if c.closableCache.err != nil {
-		return c.closableCache.err
+	if c.err != nil {
+		return c.err
 	}
 	for _, kv := range keyValues {
 		c.multiItems[kv.Key] = testCacheItem{

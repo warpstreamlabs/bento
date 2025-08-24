@@ -31,6 +31,6 @@ var AWSGetCredentialsGeneratorFn = func(c *service.ParsedConfig) (fn func(dsn, d
 	return
 }
 
-var BuildAwsDsn = func(dsn, driver string) (password string, err error) {
+var BuildAwsDsn = func(dsn, driver string) (newDsn string, err error) {
 	return dsn, nil
 }

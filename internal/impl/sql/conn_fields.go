@@ -115,6 +115,43 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Default(false).
 			Version("1.8.0").
 			Advanced(),
+		service.NewObjectField("azure",
+			service.NewBoolField("entra_enabled").
+				Description("An optional field used to generate an entra token to connect to 'Azure Database for PostgreSQL flexible server', This will create a new connection string with the host, user and database from the DSN field - you may need to URL encode the dsn! The [Default Azure Credential Chain](https://learn.microsoft.com/en-gb/azure/developer/go/sdk/authentication/authentication-overview#defaultazurecredential) is used from the Azure SDK.").
+				Optional().
+				Default(false).
+				Version("1.10.0").
+				Advanced(),
+			service.NewObjectField("token_request_options",
+				service.NewStringField("claims").
+					Description("Set additional claims for the token.").
+					Optional().
+					Default("").
+					Version("1.10.0").
+					Advanced(),
+				service.NewBoolField("enable_cae").
+					Description("Indicates whether to enable Continuous Access Evaluation (CAE) for the requested token").
+					Optional().
+					Default(false).
+					Version("1.10.0").
+					Advanced(),
+				service.NewStringListField("scopes").
+					Description("Scopes contains the list of permission scopes required for the token.").
+					Optional().
+					Default([]string{"https://ossrdbms-aad.database.windows.net/.default"}).
+					Version("1.10.0").
+					Advanced(),
+				service.NewStringField("tenant_id").
+					Description("tenant_id identifies the tenant from which to request the token. azure credentials authenticate in their configured default tenants when this field isn't set.").
+					Optional().
+					Default("").
+					Version("1.10.0").
+					Advanced(),
+			)).
+			Description("Optional Fields that can be set to use Azure based authentication for Azure Postgres SQL").
+			Optional().
+			Version("1.10.0").
+			Advanced(),
 	}
 
 	connFields = append(connFields, config.SessionFields()...)
@@ -250,6 +287,12 @@ func connSettingsFromParsed(
 		}
 	}
 
+	if conf.Contains("azure", "entra_enabled") {
+		if BuildAzureDsn, err = AzureGetCredentialsGeneratorFn(conf); err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -302,6 +345,15 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 
 	if updatedDSN != dsn {
 		logger.Info("Updated dsn with info from AWS")
+	}
+
+	updatedDSN, err = BuildAzureDsn(dsn, driver)
+	if err != nil {
+		return nil, err
+	}
+
+	if updatedDSN != dsn {
+		logger.Info("Updated dsn with info from Azure")
 	}
 
 	db, err := sql.Open(driver, updatedDSN)

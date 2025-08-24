@@ -15,7 +15,7 @@ categories: ["Services","AWS"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Inserts items into a DynamoDB table.
+Inserts items into or deletes items from a DynamoDB table.
 
 Introduced in version 1.0.0.
 
@@ -57,6 +57,10 @@ output:
     json_map_columns: {}
     ttl: ""
     ttl_key: ""
+    delete:
+      condition: ""
+      partition_key: ""
+      sort_key: ""
     max_in_flight: 64
     batching:
       count: 0
@@ -123,6 +127,33 @@ This output benefits from sending multiple messages in flight in parallel for im
 This output benefits from sending messages as a batch for improved performance. Batches can be formed at both the input and output level. You can find out more [in this doc](/docs/configuration/batching).
 
 
+## Examples
+
+<Tabs defaultValue="Delete Requests" values={[
+{ label: 'Delete Requests', value: 'Delete Requests', },
+]}>
+
+<TabItem value="Delete Requests">
+
+In the following example, we will be inserting messages to the table `Music` if the bloblang mapping `root = this.isDelete == true` resolves to `false`, if the bloblang mapping resolves to `true` we will make a delete request for items with the `delete.partition_key` and/or `delete.sort_key`, the values for the `partition_key` and `sort_key` will be found using either the `string_columns` or `json_map_columns`
+
+```yaml
+output:
+  aws_dynamodb:
+    table: Music
+    json_map_columns:
+      uuid: uuid
+      title: title
+      year: year
+    delete:
+      condition: |
+        root = this.isDelete == true
+      partition_key: uuid
+```
+
+</TabItem>
+</Tabs>
+
 ## Fields
 
 ### `table`
@@ -185,6 +216,47 @@ The column key to place the TTL value within.
 
 Type: `string`  
 Default: `""`  
+
+### `delete`
+
+Optional config fields that enable creating Delete requests from messages. If the bloblang mapping provided in `delete.condition` resolves to true, a delete request for the corresponding partition key will be made.
+
+
+Type: `object`  
+Requires version 1.10.0 or newer  
+
+### `delete.condition`
+
+A bloblang mapping that should return a bool, that will determine if the message will be used to create a Delete rather than Put
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
+
+```yml
+# Examples
+
+condition: root = this.isDelete == "true"
+```
+
+### `delete.partition_key`
+
+The partition key for DeleteItem requests. Required when `delete.condition` is true. The value of the key will be resolved from either `string_columns or json_map_columns`
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
+
+### `delete.sort_key`
+
+The sort key for DeleteItem requests. The value of the key will be resolved from either `string_columns or json_map_columns`
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
 
 ### `max_in_flight`
 

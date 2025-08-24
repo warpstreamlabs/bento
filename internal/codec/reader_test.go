@@ -428,9 +428,10 @@ func TestCsvSafeReaderMetadata(t *testing.T) {
 		assert.Equal(t, exp, string(p[0].AsBytes()))
 		assertPartMetadataEqual(t, p[0], "row_number", int32(i+2)) // header row is row 1, and compensate for index-0 range
 		allReads[string(p[0].AsBytes())] = p[0].AsBytes()
-		if i == 1 { // empty row
+		switch i {
+		case 1: // empty row
 			assertPartMetadataEqual(t, p[0], "row_empty", true)
-		} else if i == 2 { // row with missing column
+		case 2: // row with missing column
 			assertPartMetadataEqual(t, p[0], "row_parse_error", "record on line 4: wrong number of fields")
 		}
 	}
