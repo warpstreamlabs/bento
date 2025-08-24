@@ -194,7 +194,7 @@ func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 
 	select {
 	case <-c.shutdownSig.HasStoppedChan():
-		return service.ErrNotConnected
+		return service.ErrEndOfInput
 	default:
 	}
 
@@ -230,12 +230,13 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 
 	select {
 	case record, open = <-recordsCh:
-		if !open {
-			return nil, nil, service.ErrEndOfInput
-		}
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
-	case <-c.shutdownSig.HardStopChan():
+	case <-c.shutdownSig.HasStoppedChan():
+		return nil, nil, service.ErrEndOfInput
+	}
+
+	if !open {
 		return nil, nil, service.ErrEndOfInput
 	}
 
@@ -261,26 +262,33 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 func (c *gcpSpannerCDCInput) Close(ctx context.Context) error {
 	c.shutdownSig.TriggerHardStop()
 
-	c.cdcMut.Lock()
-	defer c.cdcMut.Unlock()
+	go func() {
+		c.cdcMut.Lock()
+		defer c.cdcMut.Unlock()
 
-	if c.shutdownSig.IsHardStopSignalled() {
-		return nil
+		if c.recordsCh != nil {
+			close(c.recordsCh)
+			c.recordsCh = nil
+		}
+
+		if c.streamClient != nil {
+			c.streamClient.Close()
+			c.streamClient = nil
+		}
+	}()
+
+	select {
+	case <-c.shutdownSig.HasStoppedChan():
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
-	if c.recordsCh != nil {
-		close(c.recordsCh)
-		c.recordsCh = nil
-	}
-
-	if c.streamClient != nil {
-		c.streamClient.Close()
-		c.streamClient = nil
-	}
 	return nil
 }
 
 func (c *gcpSpannerCDCInput) loop() {
+	defer c.shutdownSig.TriggerHasStopped()
+
 	ctx, cancel := c.shutdownSig.HardStopCtx(context.Background())
 	defer cancel()
 
