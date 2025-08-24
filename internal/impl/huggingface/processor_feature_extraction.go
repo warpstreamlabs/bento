@@ -10,8 +10,8 @@ import (
 
 func HugotFeatureExtractionConfigSpec() *service.ConfigSpec {
 	featureExtractionDescription := "### Feature Extraction" + "\n" +
-		"Feature extraction is the task of extracting features learnt in a model." +
-		"This processor runs a feature extraction model against batches of text data, returning a model's multidimensional representation of said features" +
+		"Feature extraction is the task of extracting features learnt in a model. " +
+		"This processor runs a feature extraction model against batches of text data, returning a model's multidimensional representation of said features " +
 		"in tensor/float64 format." + "\n" + description
 
 	spec := hugotConfigSpec().
@@ -84,10 +84,9 @@ func NewFeatureExtractionPipeline(conf *service.ParsedConfig, mgr *service.Resou
 	}
 
 	cfg := hugot.FeatureExtractionConfig{
-		Name:         p.pipelineName,
-		OnnxFilename: p.onnxFilename,
-		ModelPath:    p.modelPath,
-		Options:      opts,
+		Name:      p.pipelineName,
+		ModelPath: p.modelPath,
+		Options:   opts,
 	}
 
 	if p.pipeline, err = hugot.NewPipeline(p.session, cfg); err != nil {

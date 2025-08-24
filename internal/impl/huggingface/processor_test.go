@@ -52,7 +52,7 @@ enable_download: true
 			require.NoError(t, err)
 
 			mockResources := service.MockResources()
-			mockResources.SetGeneric(SessionConstructorKey{}, func() (*hugot.Session, error) {
+			mockResources.SetGeneric(sessionConstructorKey{}, func() (*hugot.Session, error) {
 				return &hugot.Session{}, nil
 			})
 			_, err = newPipelineProcessor(conf, mockResources)

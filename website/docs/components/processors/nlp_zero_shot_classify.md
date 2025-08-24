@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Performs zero-shot text classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.
 
-Introduced in version v1.9.0.
+Introduced in version v1.11.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -129,7 +129,7 @@ pipeline:
 
 ### `name`
 
-Name of the pipeline. Defaults to a random UUID if not set.
+Name of the hugot pipeline. Defaults to a random UUID if not set.
 
 
 Type: `string`  

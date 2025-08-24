@@ -10,7 +10,7 @@ import (
 
 func HugotTextClassificationConfigSpec() *service.ConfigSpec {
 	textClassificationDescription := "### Text Classification" + "\n" +
-		"Text Classification is the task of assigning a label or class to a given text." +
+		"Text Classification is the task of assigning a label or class to a given text. " +
 		"Some use cases are sentiment analysis, natural language inference, and assessing grammatical correctness." + "\n" +
 		"This processor runs text-classification inference against batches of text data, returning labelled classification corresponding to each input." + "\n" +
 		description
@@ -18,10 +18,8 @@ func HugotTextClassificationConfigSpec() *service.ConfigSpec {
 	spec := hugotConfigSpec().
 		Summary("Performs text classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.").
 		Description(textClassificationDescription).
-		Field(service.NewStringEnumField("aggregation_function",
-			"SOFTMAX",
-			"SIGMOID",
-		).Description("The aggregation function to use for the text classification pipeline.").Default("SOFTMAX")).
+		Field(service.NewStringEnumField("aggregation_function", "SOFTMAX", "SIGMOID").
+			Description("The aggregation function to use for the text classification pipeline.").Default("SOFTMAX")).
 		Field(service.NewBoolField("multi_label").Description("Whether a text classification pipeline should return multiple labels. If false, only the label-pair with the highest score is returned.").Default(false)).
 		Example("Emotion Scoring (Local Model)", "Here, we load the [Cohee/distilbert-base-uncased-go-emotions-onnx](https://huggingface.co/Cohee/distilbert-base-uncased-go-emotions-onnx) model from the local directory at `models/coheedistilbert_base_uncased_go_emotions_onnx`."+
 			"The processor returns a single-label output with the highest emotion score for the text. ",
@@ -106,18 +104,15 @@ func NewTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Reso
 	}
 
 	cfg := hugot.TextClassificationConfig{
-		Name:         p.pipelineName,
-		OnnxFilename: p.onnxFilename,
-		ModelPath:    p.modelPath,
-		Options:      opts,
+		Name:      p.pipelineName,
+		ModelPath: p.modelPath,
+		Options:   opts,
 	}
 
-	pipeline, err := hugot.NewPipeline(p.session, cfg)
+	p.pipeline, err = hugot.NewPipeline(p.session, cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	p.pipeline = pipeline
 
 	if err := p.pipeline.Validate(); err != nil {
 		return nil, err

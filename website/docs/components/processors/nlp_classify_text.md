@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Performs text classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.
 
-Introduced in version v1.9.0.
+Introduced in version v1.11.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -61,7 +61,7 @@ nlp_classify_text:
 </Tabs>
 
 ### Text Classification
-Text Classification is the task of assigning a label or class to a given text.Some use cases are sentiment analysis, natural language inference, and assessing grammatical correctness.
+Text Classification is the task of assigning a label or class to a given text. Some use cases are sentiment analysis, natural language inference, and assessing grammatical correctness.
 This processor runs text-classification inference against batches of text data, returning labelled classification corresponding to each input.
 This component uses [Hugot](https://github.com/knights-analytics/hugot), a library that provides an interface for running [Open Neural Network Exchange (ONNX) models](https://onnx.ai/onnx/intro/) and transformer pipelines, with a focus on NLP tasks.
 
@@ -132,7 +132,7 @@ pipeline:
 
 ### `name`
 
-Name of the pipeline. Defaults to a random UUID if not set.
+Name of the hugot pipeline. Defaults to a random UUID if not set.
 
 
 Type: `string`  

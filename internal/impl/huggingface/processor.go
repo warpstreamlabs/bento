@@ -36,7 +36,7 @@ func hugotConfigSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Beta().
 		Categories("Machine Learning", "NLP").
-		Version("v1.9.0").
+		Version("v1.11.0").
 		Fields(hugotConfigFields()...)
 
 	return spec
@@ -45,7 +45,7 @@ func hugotConfigSpec() *service.ConfigSpec {
 func hugotConfigFields() []*service.ConfigField {
 	return []*service.ConfigField{
 		service.NewStringField("name").
-			Description("Name of the pipeline. Defaults to a random UUID if not set.").
+			Description("Name of the hugot pipeline. Defaults to a random UUID if not set.").
 			Optional(),
 		service.NewStringField("path").
 			Description("Path to the ONNX model file, or directory containing the model. When downloading (`enable_download: true`), this becomes the destination and must be a directory.").
@@ -82,9 +82,9 @@ func hugotConfigFields() []*service.ConfigField {
 
 //------------------------------------------------------------------------------
 
-type SessionConstructorKey struct{}
+type sessionConstructorKey struct{}
 
-type SessionConstructor func() (*hugot.Session, error)
+type sessionConstructor func() (*hugot.Session, error)
 
 type pipelineProcessor struct {
 	log *service.Logger
@@ -94,7 +94,6 @@ type pipelineProcessor struct {
 
 	pipelineName string
 	modelPath    string
-	onnxFilename string
 
 	metaOutputType     string
 	metaOutputLayerDim []int64
@@ -110,7 +109,7 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 
 	// To prevent multiple sessions being created at once, rather store the constructor and allow it
 	// to be atomically retrieved.
-	ctorValue, _ := mgr.GetOrSetGeneric(SessionConstructorKey{}, func() (*hugot.Session, error) {
+	ctorValue, _ := mgr.GetOrSetGeneric(sessionConstructorKey{}, func() (*hugot.Session, error) {
 		return hugot.NewGoSession()
 	})
 

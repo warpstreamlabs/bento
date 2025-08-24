@@ -9,18 +9,16 @@ import (
 )
 
 func HugotTokenClassificationConfigSpec() *service.ConfigSpec {
-	tokenClassificaitionDescription := "### Token Classification" + "\n" +
-		"Token classification assigns a label to individual tokens in a sentence." +
+	tokenClassificationDescription := "### Token Classification" + "\n" +
+		"Token classification assigns a label to individual tokens in a sentence." + "\n" +
 		"This processor runs token classification inference against batches of text data, returning a set of Entities classification corresponding to each input." + "\n" +
 		description
 
 	spec := hugotConfigSpec().
 		Summary("Performs token classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.").
-		Description(tokenClassificaitionDescription).
-		Field(service.NewStringEnumField("aggregation_strategy",
-			"SIMPLE",
-			"NONE",
-		).Description("The aggregation strategy to use for the token classification pipeline.").Default("SIMPLE")).
+		Description(tokenClassificationDescription).
+		Field(service.NewStringEnumField("aggregation_strategy", "SIMPLE", "NONE").
+			Description("The aggregation strategy to use for the token classification pipeline.").Default("SIMPLE")).
 		Field(service.NewStringListField("ignore_labels").
 			Description("Labels to ignore in the token classification pipeline.").
 			Default([]string{}).
@@ -108,10 +106,9 @@ func NewTokenClassificationPipeline(conf *service.ParsedConfig, mgr *service.Res
 	}
 
 	cfg := hugot.TokenClassificationConfig{
-		Name:         p.pipelineName,
-		OnnxFilename: p.onnxFilename,
-		ModelPath:    p.modelPath,
-		Options:      opts,
+		Name:      p.pipelineName,
+		ModelPath: p.modelPath,
+		Options:   opts,
 	}
 
 	if p.pipeline, err = hugot.NewPipeline(p.session, cfg); err != nil {

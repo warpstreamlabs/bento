@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Performs feature extraction using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.
 
-Introduced in version v1.9.0.
+Introduced in version v1.11.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -59,7 +59,7 @@ nlp_extract_features:
 </Tabs>
 
 ### Feature Extraction
-Feature extraction is the task of extracting features learnt in a model.This processor runs a feature extraction model against batches of text data, returning a model's multidimensional representation of said featuresin tensor/float64 format.
+Feature extraction is the task of extracting features learnt in a model. This processor runs a feature extraction model against batches of text data, returning a model's multidimensional representation of said features in tensor/float64 format.
 This component uses [Hugot](https://github.com/knights-analytics/hugot), a library that provides an interface for running [Open Neural Network Exchange (ONNX) models](https://onnx.ai/onnx/intro/) and transformer pipelines, with a focus on NLP tasks.
 
 Currently, [Bento only implements](https://github.com/knights-analytics/hugot/tree/main?tab=readme-ov-file#implemented-pipelines):
@@ -125,7 +125,7 @@ pipeline:
 
 ### `name`
 
-Name of the pipeline. Defaults to a random UUID if not set.
+Name of the hugot pipeline. Defaults to a random UUID if not set.
 
 
 Type: `string`  

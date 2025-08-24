@@ -19,11 +19,12 @@ func HugotZeroShotTextClassificationConfigSpec() *service.ConfigSpec {
 	spec := hugotConfigSpec().
 		Summary("Performs zero-shot text classification using a Hugging Face 🤗 NLP pipeline with an ONNX Runtime model.").
 		Description(textClassificationDescription).
-		Field(service.NewStringListField("labels").Description("The set of possible class labels to classify each sequence into.").Example([]string{"positive", "negative", "neutral"})).
-		Field(service.NewBoolField("multi_label").Description("Whether multiple labels can be true. If false, scores sum to 1. If true, each label is scored independently.").Default(false)).
-		Field(service.NewStringField("hypothesis_template").Description("Template to turn each label into an NLI-style hypothesis. Must include {} where the label will be inserted.").Default("This example is {}.")).
-		Example("Emotion Classification", "Classify text emotions using zero-shot approach with any custom labels.",
-			`
+		Fields(
+			service.NewStringListField("labels").Description("The set of possible class labels to classify each sequence into.").Example([]string{"positive", "negative", "neutral"}),
+			service.NewBoolField("multi_label").Description("Whether multiple labels can be true. If false, scores sum to 1. If true, each label is scored independently.").Default(false),
+			service.NewStringField("hypothesis_template").Description("Template to turn each label into an NLI-style hypothesis. Must include {} where the label will be inserted.").Default("This example is {}."),
+		).Example("Emotion Classification", "Classify text emotions using zero-shot approach with any custom labels.",
+		`
 pipeline:
   processors:
     - nlp_zero_shot_classify:
@@ -74,12 +75,9 @@ func getZeroShotTextClassificationOptions(conf *service.ParsedConfig) ([]pipelin
 	}
 	options = append(options, pipelines.WithLabels(candidateLabels))
 
-	multiLabel := false
-	if conf.Contains("multi_label") {
-		multiLabel, err = conf.FieldBool("multi_label")
-		if err != nil {
-			return nil, err
-		}
+	multiLabel, err := conf.FieldBool("multi_label")
+	if err != nil {
+		return nil, err
 	}
 	options = append(options, pipelines.WithMultilabel(multiLabel))
 
@@ -100,18 +98,15 @@ func NewZeroShotTextClassificationPipeline(conf *service.ParsedConfig, mgr *serv
 	}
 
 	cfg := hugot.ZeroShotClassificationConfig{
-		Name:         p.pipelineName,
-		OnnxFilename: p.onnxFilename,
-		ModelPath:    p.modelPath,
-		Options:      opts,
+		Name:      p.pipelineName,
+		ModelPath: p.modelPath,
+		Options:   opts,
 	}
 
-	pipeline, err := hugot.NewPipeline(p.session, cfg)
+	p.pipeline, err = hugot.NewPipeline(p.session, cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	p.pipeline = pipeline
 
 	if err := p.pipeline.Validate(); err != nil {
 		return nil, err
