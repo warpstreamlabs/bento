@@ -93,7 +93,7 @@ func cdcConfigFromParsed(pConf *service.ParsedConfig) (conf cdcConfig, err error
 func spannerCdcSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("1.8.0").
+		Version("1.11.0").
 		Categories("Services", "GCP").
 		Summary(`Consumes Spanner Change Stream Events from a GCP Spanner instance.`).
 		Description(`

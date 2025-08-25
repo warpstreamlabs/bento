@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Consumes Spanner Change Stream Events from a GCP Spanner instance.
 
-Introduced in version 1.8.0.
+Introduced in version 1.11.0.
 
 ```yml
 # Config fields, showing default values
