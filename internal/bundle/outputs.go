@@ -29,7 +29,16 @@ func (e *Environment) OutputInit(
 	mgr NewManagement,
 	pipelines ...processor.PipelineConstructorFunc,
 ) (output.Streamed, error) {
-	return e.outputs.Init(conf, mgr, pipelines...)
+	spec, exists := e.outputs.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("output", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(mgr, "output", err)
+	}
+	c, err := spec.constructor(conf, mgr, pipelines...)
+	err = wrapComponentErr(mgr, "output", err)
+	return c, err
 }
 
 // OutputDocs returns a slice of output specs, which document each method.

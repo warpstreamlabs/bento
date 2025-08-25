@@ -99,11 +99,21 @@ func (e *Environment) UseFS(fs *FS) {
 	})
 }
 
+// AllowExperimental enables experimental components within this environment.
+func (e *Environment) AllowExperimental() {
+	e.internal.AllowExperimental()
+}
+
+// AllowBeta enables beta components within this environment.
+func (e *Environment) AllowBeta() {
+	e.internal.AllowBeta()
+}
+
 // NewStreamBuilder creates a new StreamBuilder upon the defined environment,
 // only components known to this environment will be available to the stream
 // builder.
-func (e *Environment) NewStreamBuilder() *StreamBuilder {
-	sb := NewStreamBuilder()
+func (e *Environment) NewStreamBuilder(opts ...StreamBuilderOpt) *StreamBuilder {
+	sb := NewStreamBuilder(opts...)
 	sb.env = e
 	return sb
 }
