@@ -1,0 +1,188 @@
+{
+  "test-snapshot-zero-shot-classification": {
+    "results": [
+      {
+        "input": "BUY ONE GET ONE FREE",
+        "result": {
+          "Sequence": "BUY ONE GET ONE FREE",
+          "SortedValues": [
+            {
+              "Key": "spam",
+              "Value": 0.028851577929774
+            }
+          ]
+        }
+      },
+      {
+        "input": "hi do yuo have time for a job meetign?",
+        "result": {
+          "Sequence": "hi do yuo have time for a job meetign?",
+          "SortedValues": [
+            {
+              "Key": "spam",
+              "Value": 0.0324882146916225
+            }
+          ]
+        }
+      },
+      {
+        "input": "Sir, this parrot is dead.",
+        "result": {
+          "Sequence": "Sir, this parrot is dead.",
+          "SortedValues": [
+            {
+              "Key": "spam",
+              "Value": 0.014449275052658635
+            }
+          ]
+        }
+      },
+      {
+        "input": "I thought /r/TheDoors was about doors?!",
+        "result": {
+          "Sequence": "I thought /r/TheDoors was about doors?!",
+          "SortedValues": [
+            {
+              "Key": "spam",
+              "Value": 0.042457475321978154
+            }
+          ]
+        }
+      }
+    ],
+    "tokenizer_stats": {
+      "total_duration": 2240333,
+      "total_calls": 4
+    },
+    "pipeline_stats": {
+      "total_duration": 3163340500,
+      "total_calls": 4
+    },
+    "metadata": {
+      "created_at": "2025-05-31T15:41:43.960912+02:00",
+      "model_name": "MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33",
+      "go_version": "go1.24.2",
+      "platform": "darwin/arm64",
+      "test_name": "test-snapshot-zero-shot-classification"
+    }
+  },
+  "test-snapshot-zero-shot-classification-multi": {
+    "results": [
+      {
+        "input": "I love this new restaurant, the food was amazing!",
+        "result": {
+          "Sequence": "I love this new restaurant, the food was amazing!",
+          "SortedValues": [
+            {
+              "Key": "positive",
+              "Value": 0.8903168934198944
+            },
+            {
+              "Key": "neutral",
+              "Value": 0.14775452543877787
+            },
+            {
+              "Key": "negative",
+              "Value": 0.018513107983169488
+            }
+          ]
+        }
+      },
+      {
+        "input": "This movie was terrible and boring.",
+        "result": {
+          "Sequence": "This movie was terrible and boring.",
+          "SortedValues": [
+            {
+              "Key": "negative",
+              "Value": 0.8508945568518561
+            },
+            {
+              "Key": "neutral",
+              "Value": 0.059812719061625025
+            },
+            {
+              "Key": "positive",
+              "Value": 0.00196499946489996
+            }
+          ]
+        }
+      },
+      {
+        "input": "The weather is okay today.",
+        "result": {
+          "Sequence": "The weather is okay today.",
+          "SortedValues": [
+            {
+              "Key": "negative",
+              "Value": 0.24709709199138283
+            },
+            {
+              "Key": "positive",
+              "Value": 0.1384001562579162
+            },
+            {
+              "Key": "neutral",
+              "Value": 0.08324746023898597
+            }
+          ]
+        }
+      },
+      {
+        "input": "Best purchase I've ever made!",
+        "result": {
+          "Sequence": "Best purchase I've ever made!",
+          "SortedValues": [
+            {
+              "Key": "positive",
+              "Value": 0.8500470689823508
+            },
+            {
+              "Key": "neutral",
+              "Value": 0.16484705097754276
+            },
+            {
+              "Key": "negative",
+              "Value": 0.01355296946378964
+            }
+          ]
+        }
+      },
+      {
+        "input": "I hate waiting in long lines.",
+        "result": {
+          "Sequence": "I hate waiting in long lines.",
+          "SortedValues": [
+            {
+              "Key": "negative",
+              "Value": 0.8060497431330212
+            },
+            {
+              "Key": "neutral",
+              "Value": 0.20205630439897232
+            },
+            {
+              "Key": "positive",
+              "Value": 0.012988994036178755
+            }
+          ]
+        }
+      }
+    ],
+    "tokenizer_stats": {
+      "total_duration": 7758540,
+      "total_calls": 15
+    },
+    "pipeline_stats": {
+      "total_duration": 11649252123,
+      "total_calls": 15
+    },
+    "metadata": {
+      "created_at": "2025-05-31T15:41:56.004786+02:00",
+      "model_name": "MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33",
+      "go_version": "go1.24.2",
+      "platform": "darwin/arm64",
+      "test_name": "test-snapshot-zero-shot-classification-multi"
+    }
+  }
+}

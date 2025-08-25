@@ -9,14 +9,6 @@ which runs Amazon Linux on the `x86_64` architecture.
 The `bento-lambda-al2` distribution supports the `provided.al2` runtime,
 which runs Amazon Linux 2 on either the `x86_64` or `arm64` architecture.
 
-:::info Looking for something less manual?
-Rather than bundle the distribution and configs yourself,
-check out [makenew/serverless-bento], which makes quick work of deploying 
-a Bento serverless project on AWS Lambda.
-For building and deploying distributions with custom plugins,
-look at [makenew/bento-plugin].
-:::
-
 It uses the same configuration format as a regular Bento instance, which can be
 provided in 1 of 2 ways:
 
