@@ -5,6 +5,7 @@ package gcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
 	"github.com/warpstreamlabs/bento/public/service"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
 )
 
 // TODO(gregfurman): Implement caching and checkpointing mechanism
@@ -262,25 +264,23 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 func (c *gcpSpannerCDCInput) Close(ctx context.Context) error {
 	c.shutdownSig.TriggerHardStop()
 
-	go func() {
-		c.cdcMut.Lock()
-		defer c.cdcMut.Unlock()
-
-		if c.recordsCh != nil {
-			close(c.recordsCh)
-			c.recordsCh = nil
-		}
-
-		if c.streamClient != nil {
-			c.streamClient.Close()
-			c.streamClient = nil
-		}
-	}()
-
 	select {
 	case <-c.shutdownSig.HasStoppedChan():
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+
+	c.cdcMut.Lock()
+	defer c.cdcMut.Unlock()
+
+	if c.recordsCh != nil {
+		close(c.recordsCh)
+		c.recordsCh = nil
+	}
+
+	if c.streamClient != nil {
+		c.streamClient.Close()
+		c.streamClient = nil
 	}
 
 	return nil
@@ -292,13 +292,15 @@ func (c *gcpSpannerCDCInput) loop() {
 	ctx, cancel := c.shutdownSig.HardStopCtx(context.Background())
 	defer cancel()
 
-	errgrp, errCtx := errgroup.WithContext(ctx)
+	errgrp, _ := errgroup.WithContext(ctx)
 	errgrp.Go(func() error {
-		return c.readPartition(errCtx, errgrp, nil, c.conf.StartTime)
+		return c.readPartition(ctx, errgrp, nil, c.conf.StartTime)
 	})
 
-	if err := errgrp.Wait(); err != nil && err != context.Canceled {
-		c.log.Errorf("Error in readPartition: %v", err)
+	if err := errgrp.Wait(); err != nil {
+		if !errors.Is(err, context.Canceled) && spanner.ErrCode(err) != codes.Canceled {
+			c.log.Errorf("Error readin partition: %v", err)
+		}
 	}
 }
 
@@ -335,7 +337,6 @@ FROM READ_%s (
 	}
 
 	txn := c.streamClient.Single()
-	defer txn.Close()
 
 	return txn.Query(ctx, stmt).Do(func(row *spanner.Row) error {
 		select {
@@ -363,7 +364,6 @@ FROM READ_%s (
 					case <-ctx.Done():
 						return ctx.Err()
 					}
-
 				}
 			}
 
@@ -376,8 +376,11 @@ FROM READ_%s (
 						continue
 					}
 
+					token := childToken
+					startTime := childStartTime
+
 					errgrp.Go(func() error {
-						return c.readPartition(ctx, errgrp, &childToken, &childStartTime)
+						return c.readPartition(ctx, errgrp, &token, &startTime)
 					})
 				}
 			}
