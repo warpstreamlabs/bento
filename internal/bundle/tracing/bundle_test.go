@@ -540,7 +540,14 @@ meta bar = "new bar value"
 
 	type tMap = map[string]any
 
-	assert.Equal(t, []tracing.NodeEvent{
+	// Check that all events have flow IDs and timestamps
+	for i, event := range events {
+		assert.NotEmpty(t, event.FlowID, "Event %d should have a flow ID", i)
+		assert.False(t, event.Timestamp.IsZero(), "Event %d should have a timestamp", i)
+	}
+
+	// Check the event types and content (ignoring FlowID and Timestamp for exact comparison)
+	expectedEvents := []tracing.NodeEvent{
 		{Type: "CONSUME", Content: "0", Meta: tMap{"foo": "foo value 0"}},
 		{Type: "PRODUCE", Content: "0", Meta: tMap{"foo": "foo value 0"}},
 		{Type: "ERROR", Content: "failed assignment (line 3): nah 0"},
@@ -566,7 +573,21 @@ meta bar = "new bar value"
 		{Type: "ERROR", Content: "failed assignment (line 3): nah 8"},
 		{Type: "CONSUME", Content: "9", Meta: tMap{"foo": "foo value 9"}},
 		{Type: "PRODUCE", Content: "{\"count\":9}", Meta: tMap{"bar": "new bar value", "foo": "foo value 9"}},
-	}, events)
+	}
+
+	require.Len(t, expectedEvents, len(events))
+	for i, expected := range expectedEvents {
+		actual := events[i]
+		assert.Equal(t, expected.Type, actual.Type, "Event %d type mismatch", i)
+		assert.Equal(t, expected.Content, actual.Content, "Event %d content mismatch", i)
+
+		// For metadata comparison, we need to account for the flow ID that gets added
+		if expected.Meta != nil {
+			for key, value := range expected.Meta {
+				assert.Equal(t, value, actual.Meta[key], "Event %d meta[%s] mismatch", i, key)
+			}
+		}
+	}
 }
 
 func TestBundleProcessorTracingError(t *testing.T) {

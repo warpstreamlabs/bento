@@ -1,7 +1,9 @@
 package service
 
 import (
+	"sort"
 	"sync/atomic"
+	"time"
 
 	"github.com/warpstreamlabs/bento/internal/bundle/tracing"
 )
@@ -42,9 +44,11 @@ func convertTracingEventType(t tracing.EventType) TracingEventType {
 //
 // Experimental: This type may change outside of major version releases.
 type TracingEvent struct {
-	Type    TracingEventType
-	Content string
-	Meta    map[string]any
+	Type      TracingEventType
+	Content   string
+	Meta      map[string]any
+	FlowID    string
+	Timestamp time.Time
 }
 
 // TracingSummary is a high level description of all traced events. When tracing
@@ -86,9 +90,11 @@ func (s *TracingSummary) InputEvents(flush bool) map[string][]TracingEvent {
 		events := make([]TracingEvent, len(v))
 		for i, e := range v {
 			events[i] = TracingEvent{
-				Type:    convertTracingEventType(e.Type),
-				Content: e.Content,
-				Meta:    e.Meta,
+				Type:      convertTracingEventType(e.Type),
+				Content:   e.Content,
+				Meta:      e.Meta,
+				FlowID:    e.FlowID,
+				Timestamp: e.Timestamp,
 			}
 		}
 		m[k] = events
@@ -106,9 +112,11 @@ func (s *TracingSummary) ProcessorEvents(flush bool) map[string][]TracingEvent {
 		events := make([]TracingEvent, len(v))
 		for i, e := range v {
 			events[i] = TracingEvent{
-				Type:    convertTracingEventType(e.Type),
-				Content: e.Content,
-				Meta:    e.Meta,
+				Type:      convertTracingEventType(e.Type),
+				Content:   e.Content,
+				Meta:      e.Meta,
+				FlowID:    e.FlowID,
+				Timestamp: e.Timestamp,
 			}
 		}
 		m[k] = events
@@ -126,12 +134,58 @@ func (s *TracingSummary) OutputEvents(flush bool) map[string][]TracingEvent {
 		events := make([]TracingEvent, len(v))
 		for i, e := range v {
 			events[i] = TracingEvent{
-				Type:    convertTracingEventType(e.Type),
-				Content: e.Content,
-				Meta:    e.Meta,
+				Type:      convertTracingEventType(e.Type),
+				Content:   e.Content,
+				Meta:      e.Meta,
+				FlowID:    e.FlowID,
+				Timestamp: e.Timestamp,
 			}
 		}
 		m[k] = events
 	}
 	return m
+}
+
+// EventsByFlowID returns all events grouped by flow ID, allowing you to trace
+// the complete journey of each message through the pipeline. Events are sorted
+// by timestamp within each flow.
+//
+// Experimental: This method may change outside of major version releases.
+func (s *TracingSummary) EventsByFlowID(flush bool) map[string][]TracingEvent {
+	flowEvents := map[string][]TracingEvent{}
+
+	// Collect events from all sources
+	for _, events := range s.InputEvents(flush) {
+		for _, event := range events {
+			if event.FlowID != "" {
+				flowEvents[event.FlowID] = append(flowEvents[event.FlowID], event)
+			}
+		}
+	}
+
+	for _, events := range s.ProcessorEvents(flush) {
+		for _, event := range events {
+			if event.FlowID != "" {
+				flowEvents[event.FlowID] = append(flowEvents[event.FlowID], event)
+			}
+		}
+	}
+
+	for _, events := range s.OutputEvents(flush) {
+		for _, event := range events {
+			if event.FlowID != "" {
+				flowEvents[event.FlowID] = append(flowEvents[event.FlowID], event)
+			}
+		}
+	}
+
+	// Sort events by timestamp within each flow
+	for flowID, events := range flowEvents {
+		sort.Slice(events, func(i, j int) bool {
+			return events[i].Timestamp.Before(events[j].Timestamp)
+		})
+		flowEvents[flowID] = events
+	}
+
+	return flowEvents
 }
