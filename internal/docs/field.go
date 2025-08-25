@@ -16,6 +16,7 @@ type FieldType string
 var (
 	FieldTypeString  FieldType = "string"
 	FieldTypeInt     FieldType = "int"
+	FieldTypeUint    FieldType = "uint"
 	FieldTypeFloat   FieldType = "float"
 	FieldTypeBool    FieldType = "bool"
 	FieldTypeObject  FieldType = "object"
@@ -493,6 +494,11 @@ func FieldBloblang(name, description string, examples ...any) FieldSpec {
 // FieldInt returns a field spec for a common int typed field.
 func FieldInt(name, description string, examples ...any) FieldSpec {
 	return newField(name, description, examples...).HasType(FieldTypeInt)
+}
+
+// FieldUInt returns a field spec for a common int typed field.
+func FieldUint(name, description string, examples ...any) FieldSpec {
+	return newField(name, description, examples...).HasType(FieldTypeUint)
 }
 
 // FieldFloat returns a field spec for a common float typed field.
