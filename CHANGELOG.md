@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
+- `nlp_classify_text`, `nlp_classify_tokens`, `nlp_extract_features` & `nlp_zero_shot_classify` processors enable use of ONNX NLP models @gregfurman
 
 ### Changed
 
@@ -16,7 +17,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- 
+- fix data-race in config/schema.go @miparnisari
 
 ## 1.10.0 - 2025-08-14
 
