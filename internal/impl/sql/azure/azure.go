@@ -14,11 +14,11 @@ import (
 )
 
 func init() {
-	var noop sql.AzureDSNBuilder = func(dsn, driver string) (builtDSN string, err error) {
+	noop := func(dsn, driver string) (builtDSN string, err error) {
 		return dsn, nil
 	}
 
-	sql.AzureGetCredentialsGeneratorFn = func(pConf *service.ParsedConfig) (sql.AzureDSNBuilder, error) {
+	fn := func(pConf *service.ParsedConfig) (sql.DSNBuilder, error) {
 		nsConf := pConf.Namespace("azure")
 		entraEnabled, err := nsConf.FieldBool("entra_enabled")
 		if err != nil {
@@ -39,6 +39,8 @@ func init() {
 
 		return wrapDsnBuilder, nil
 	}
+
+	sql.SetAzureGetCredentialsGeneratorFn(fn)
 }
 
 func BuildEntraDsn(dsn, driver string, getTokenOptions func() (policy.TokenRequestOptions, error)) (builtDsn string, err error) {
