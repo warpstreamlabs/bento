@@ -20,6 +20,8 @@ Publishes messages into an Elasticsearch index. If the index does not exist then
 This component makes use of the [BulkIndexer](https://pkg.go.dev/github.com/elastic/go-elasticsearch/v9@v9.0.0/esutil#BulkIndexer) - this will error if an attempt is made to update the same document twice - therefore it is recommended that you ensure each message in the batch has a unique id.
 :::
 
+Introduced in version 1.11.0.
+
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -137,7 +139,6 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 Type: `string`  
 Default: `"index"`  
-Options: `create`, `delete`, `index`, `update`, `upsert`.
 
 ### `pipeline`
 

@@ -57,6 +57,7 @@ func init() {
 func OutputSpecV2() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
+		Version("1.11.0").
 		Categories("Services").
 		Summary(`Publishes messages into an Elasticsearch index. If the index does not exist then it is created with a dynamic mapping.
 :::warning UNIQUE MESSAGES PER BATCH
