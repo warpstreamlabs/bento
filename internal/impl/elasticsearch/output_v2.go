@@ -71,7 +71,7 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 				Example([]string{"http://localhost:9200"}),
 			service.NewInterpolatedStringField(esoV2FieldIndex).
 				Description("The index to place messages."),
-			service.NewInterpolatedStringEnumField(esoV2FieldAction, "create", "delete", "index", "update", "upsert").
+			service.NewInterpolatedStringField(esoV2FieldAction).
 				Default("index").
 				Description("The action to take on the document. This field must resolve to one of the following action types: `create`, `index`, `update`, `upsert` or `delete`.").
 				Advanced(),
@@ -290,14 +290,12 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	for i, msg := range batch {
 		index, action, id, routing, err := batchInterpolator.exec(i)
 		if err != nil {
-			eso.log.Errorf("Failed to execute bloblang interpolation: %v\n", err)
 			batchErrFailed(i, err)
 			continue
 		}
 
 		msgBytes, err := msg.AsBytes()
 		if err != nil {
-			eso.log.Errorf("Failed to get message bytes: %v\n", err)
 			batchErrFailed(i, err)
 			continue
 		}
@@ -310,7 +308,6 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 			}
 			updateBodyBytes, err := json.Marshal(updateBody)
 			if err != nil {
-				eso.log.Errorf("Failed to marshal update/upsert doc: %v\n", err)
 				batchErrFailed(i, err)
 				continue
 			}
@@ -321,10 +318,9 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				Routing:    routing,
 				Body:       bytes.NewReader(updateBodyBytes),
 				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(eso, i, batchErrFailed),
+				OnFailure:  onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
-				eso.log.Errorf("Failed to add message to elasticsearch indexer: %v\n", err)
 				batchErrFailed(i, err)
 			}
 		case "delete":
@@ -334,10 +330,9 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				DocumentID: id,
 				Routing:    routing,
 				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(eso, i, batchErrFailed),
+				OnFailure:  onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
-				eso.log.Errorf("Failed to add message to elasticsearch indexer: %v\n", err)
 				batchErrFailed(i, err)
 			}
 		case "index", "create":
@@ -348,10 +343,9 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				Routing:    routing,
 				Body:       bytes.NewReader(msgBytes),
 				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(eso, i, batchErrFailed),
+				OnFailure:  onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
-				eso.log.Errorf("Failed to add message to elasticsearch indexer: %v\n", err)
 				batchErrFailed(i, err)
 			}
 		default:
@@ -420,15 +414,13 @@ func onSuccessHandler(eso *EsOutput) func(ctx context.Context, item esutil.BulkI
 	}
 }
 
-func onFailureHandler(eso *EsOutput, i int, batchErrFailed func(i int, err error)) func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
+func onFailureHandler(i int, batchErrFailed func(i int, err error)) func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
 	return func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
 		if err != nil {
-			eso.log.Errorf("%s", err)
 			batchErrFailed(i, err)
 		} else {
 			if res.Error.Type != "" {
 				err := errors.New(res.Error.Type + " " + res.Error.Reason)
-				eso.log.Errorf("%s", err)
 				batchErrFailed(i, err)
 			}
 		}
