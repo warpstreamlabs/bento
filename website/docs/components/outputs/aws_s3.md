@@ -157,6 +157,32 @@ output:
 
 This output benefits from sending multiple messages in flight in parallel for improved performance. You can tune the max number of in flight messages (or message batches) with the field `max_in_flight`.
 
+## Examples
+
+<Tabs defaultValue="Connection to S3 API-Compatable services" values={[
+{ label: 'Connection to S3 API-Compatable services', value: 'Connection to S3 API-Compatable services', },
+]}>
+
+<TabItem value="Connection to S3 API-Compatable services">
+
+This example shows how to connect to "S3 API-Compatable services" - for instance minio.
+
+```yaml
+output:
+  aws_s3: 
+    bucket: mybucket
+    path: "events-json-stream/${!timestamp_unix_nano()}.json"
+    endpoint: http://localhost:9000
+    force_path_style_urls: true
+    region: us-east-1
+    credentials:
+      id: minioadmin
+      secret: minioadmin
+```
+
+</TabItem>
+</Tabs>
+
 ## Fields
 
 ### `bucket`

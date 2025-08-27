@@ -79,20 +79,37 @@ input:
             - aws_s3:
                 bucket: ${! this.1.s3BucketName }
                 key: ${! this.1.s3Key }
-`).Fields(
-		service.NewInterpolatedStringField(s3pFieldBucket).
-			Description("The bucket to perform the GetObject operation on."),
-		service.NewInterpolatedStringField(s3pFieldKey).
-			Description("The key of the object you wish to retrive."),
-		service.NewBoolField(s3pFieldForcePathStyleURLs).
-			Description("Forces the client API to use path style URLs for downloading keys, which is often required when connecting to custom endpoints.").
-			Default(false),
-		service.NewBoolField(s3iFieldDeleteObjects).
-			Description("Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.").
-			Version("1.5.0").
-			Default(false).
-			Advanced(),
-	).
+`).
+		Example(
+			"Connection to S3 API-Compatable services",
+			`This example shows how to connect to "S3 API-Compatable services" - for instance minio.`,
+			`
+pipeline:
+  processors: 
+    - aws_s3: 
+        bucket: mybucket
+        key: events-json-stream/1756305057033860000.json
+        endpoint: http://localhost:9000
+        force_path_style_urls: true
+        region: us-east-1
+        credentials:
+          id: minioadmin
+          secret: minioadmin
+`).
+		Fields(
+			service.NewInterpolatedStringField(s3pFieldBucket).
+				Description("The bucket to perform the GetObject operation on."),
+			service.NewInterpolatedStringField(s3pFieldKey).
+				Description("The key of the object you wish to retrive."),
+			service.NewBoolField(s3pFieldForcePathStyleURLs).
+				Description("Forces the client API to use path style URLs for downloading keys, which is often required when connecting to custom endpoints.").
+				Default(false),
+			service.NewBoolField(s3iFieldDeleteObjects).
+				Description("Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.").
+				Version("1.5.0").
+				Default(false).
+				Advanced(),
+		).
 		Fields(config.SessionFields()...).
 		Fields(service.NewScannerField("scanner").
 			Description("The [scanner](/docs/components/scanners/about) by which the stream of bytes consumed will be broken out into individual messages. Scanners are useful for processing large sources of data without holding the entirety of it within memory. For example, the `csv` scanner allows you to process individual CSV rows without loading the entire CSV file in memory at once.").
