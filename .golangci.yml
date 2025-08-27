@@ -1,6 +1,6 @@
 version: "2"
 run:
-  timeout: 5m
+  timeout: 10m
 linters:
   default: none
   enable:
