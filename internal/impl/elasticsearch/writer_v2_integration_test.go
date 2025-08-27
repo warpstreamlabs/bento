@@ -30,7 +30,7 @@ func outputFromConfV2(t testing.TB, conf string, args ...any) *elasticsearch.EsO
 
 	return o
 }
-func TestIntegtationWriterV2(t *testing.T) {
+func TestIntegrationWriterV2(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
