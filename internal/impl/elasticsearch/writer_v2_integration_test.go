@@ -458,7 +458,7 @@ action: ${! @elastic_action }
 		partAction, _ := testBatch[i].MetaGet("elastic_action")
 		if partAction == "deleted" && get.StatusCode == 200 {
 			t.Errorf("document %v found when it should have been deleted", i)
-		} else if partAction != "deleted" && !(get.StatusCode == 200) {
+		} else if partAction != "deleted" && (get.StatusCode != 200) {
 			t.Errorf("document %v was not found", i)
 		}
 	}
