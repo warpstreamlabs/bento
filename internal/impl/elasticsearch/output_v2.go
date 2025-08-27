@@ -275,7 +275,7 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 		batchErr.Failed(i, err)
 	}
 
-	batchInterpolator := eso.newInterpolationExecutor(&batch)
+	batchInterpolator := eso.newInterpolationExecutor(batch)
 
 	indexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Client: eso.client,
@@ -372,7 +372,7 @@ func (eso *EsOutput) Close(context.Context) error {
 
 //------------------------------------------------------------------------------
 
-func (eso *EsOutput) newInterpolationExecutor(batch *service.MessageBatch) (ie interpolationExecutor) {
+func (eso *EsOutput) newInterpolationExecutor(batch service.MessageBatch) (ie interpolationExecutor) {
 	ie.indexExecutor = batch.InterpolationExecutor(eso.conf.indexExpr)
 	ie.actionExecutor = batch.InterpolationExecutor(eso.conf.actionExpr)
 	ie.idExecutor = batch.InterpolationExecutor(eso.conf.idExpr)
