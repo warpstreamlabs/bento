@@ -114,6 +114,32 @@ This input adds the following metadata fields to each message:
 
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries). Note that user defined metadata is case insensitive within AWS, and it is likely that the keys will be received in a capitalized form, if you wish to make them consistent you can map all metadata keys to lower or uppercase using a Bloblang mapping such as `meta = meta().map_each_key(key -> key.lowercase())`.
 
+## Examples
+
+<Tabs defaultValue="Connection to S3 API-Compatable services" values={[
+{ label: 'Connection to S3 API-Compatable services', value: 'Connection to S3 API-Compatable services', },
+]}>
+
+<TabItem value="Connection to S3 API-Compatable services">
+
+This example shows how to connect to "S3 API-Compatable services" - for instance minio.
+
+```yaml
+input:
+  aws_s3: 
+    bucket: mybucket
+    prefix: "events-json-stream"
+    endpoint: http://localhost:9000
+    force_path_style_urls: true
+    region: us-east-1
+    credentials:
+      id: minioadmin
+      secret: minioadmin
+```
+
+</TabItem>
+</Tabs>
+
 ## Fields
 
 ### `bucket`

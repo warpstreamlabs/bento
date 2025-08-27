@@ -203,6 +203,21 @@ output:
         - archive:
             format: json_array
 `+"```"+``+service.OutputPerformanceDocs(true, false)).
+		Example(
+			"Connection to S3 API-Compatable services",
+			`This example shows how to connect to "S3 API-Compatable services" - for instance minio.`,
+			`
+output:
+  aws_s3: 
+    bucket: mybucket
+    path: "events-json-stream/${!timestamp_unix_nano()}.json"
+    endpoint: http://localhost:9000
+    force_path_style_urls: true
+    region: us-east-1
+    credentials:
+      id: minioadmin
+      secret: minioadmin
+`).
 		Fields(
 			service.NewStringField(s3oFieldBucket).
 				Description("The bucket to upload messages to."),
