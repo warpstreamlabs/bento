@@ -1,0 +1,8 @@
+syntax = "proto3";
+package echo;
+
+import "google/protobuf/struct.proto";
+
+service Echo {
+  rpc Stream(google.protobuf.Struct) returns (stream google.protobuf.Struct);
+}

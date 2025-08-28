@@ -1,0 +1,26 @@
+input:
+  label: ""
+  grpc_client:
+    address: "127.0.0.1:50051"
+    method: "/echo.Echo/Stream"
+    rpc_type: "server_stream"
+    request_json: "{}"
+    proto_files:
+      - echo.proto
+      - google/protobuf/struct.proto
+    include_paths:
+      - cmd/tools/grpc_test_server/pb
+    call_timeout: "10s"
+    connect_timeout: "2s"
+    retry_max_attempts: 2
+    retry_initial_backoff: "100ms"
+    retry_max_backoff: "1s"
+    retry_backoff_multiplier: 2
+
+pipeline:
+  processors: []
+
+output:
+  label: ""
+  stdout: {}
+

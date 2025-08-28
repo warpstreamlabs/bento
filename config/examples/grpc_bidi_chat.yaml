@@ -1,0 +1,38 @@
+input:
+  label: ""
+  generate:
+    interval: 1s
+    mapping: |
+      root = {
+        "session_id": "demo",
+        "message": "hello"
+      }
+
+pipeline:
+  processors: []
+
+output:
+  label: ""
+  grpc_client:
+    # minimal required fields
+    address: "127.0.0.1:50051"
+    method: "/chat.Chat/Stream"
+    rpc_type: "bidi"
+    proto_files:
+      - chat.proto
+      - google/protobuf/struct.proto
+    include_paths:
+      - cmd/tools/grpc_test_server/pb
+    # optional timeouts
+    call_timeout: "30s"
+    connect_timeout: "2s"
+    # optional retries
+    retry_max_attempts: 3
+    retry_initial_backoff: "200ms"
+    retry_max_backoff: "2s"
+    retry_backoff_multiplier: 2
+    # optional auth headers
+    # bearer_token: "your-token-here"
+    # auth_headers:
+    #   x-api-key: "demo"
+

@@ -1,0 +1,25 @@
+input:
+  label: ""
+  generate:
+    count: 1
+    mapping: "root = {}"
+
+pipeline:
+  processors: []
+
+output:
+  label: ""
+  grpc_client:
+    address: "127.0.0.1:50051"
+    method: "/grpc.health.v1.Health/Check"
+    rpc_type: "unary"
+    proto_files:
+      - grpc/health/v1/health.proto
+    include_paths:
+      - cmd/tools/grpc_test_server/pb
+    # For unary requests set the input.request_json
+    # request_json here is not supported for outputs in minimal mode
+    
+    call_timeout: "5s"
+    connect_timeout: "2s"
+

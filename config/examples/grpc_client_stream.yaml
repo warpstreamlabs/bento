@@ -1,0 +1,29 @@
+input:
+  label: ""
+  generate:
+    count: 3
+    interval: 200ms
+    mapping: |
+      root = {}
+
+pipeline:
+  processors: []
+
+output:
+  label: ""
+  grpc_client:
+    address: "127.0.0.1:50051"
+    method: "/ingest.Ingest/Stream"
+    rpc_type: "client_stream"
+    proto_files:
+      - ingest.proto
+      - google/protobuf/struct.proto
+    include_paths:
+      - cmd/tools/grpc_test_server/pb
+    call_timeout: "30s"
+    connect_timeout: "2s"
+    retry_max_attempts: 2
+    retry_initial_backoff: "100ms"
+    retry_max_backoff: "1s"
+    retry_backoff_multiplier: 2
+
