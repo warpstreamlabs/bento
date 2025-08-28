@@ -175,6 +175,10 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
 	}
 
+	if len(f.seedBrokers) == 0 {
+		return nil, errInvalidSeedBrokerCount
+	}
+
 	if f.topic, err = conf.FieldInterpolatedString("topic"); err != nil {
 		return nil, err
 	}
