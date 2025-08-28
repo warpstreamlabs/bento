@@ -3,6 +3,22 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.11.0 - TBD
+
+### Added
+
+- new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
+- `nlp_classify_text`, `nlp_classify_tokens`, `nlp_extract_features` & `nlp_zero_shot_classify` processors enable use of ONNX NLP models @gregfurman
+
+### Changed
+
+- `golangci-lint` upgraded to V2 @miparnisari
+- bloblang method `split` can now operate on arrays as well as strings @iamramtin
+
+### Fixed
+
+- fix data-race in config/schema.go @miparnisari
+
 ## 1.10.0 - 2025-08-14
 
 ### Added
