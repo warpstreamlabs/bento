@@ -184,33 +184,39 @@ type changeRecord struct {
 }
 
 func newGcpSpannerCDCInput(conf cdcConfig, res *service.Resources) (*gcpSpannerCDCInput, error) {
-	return &gcpSpannerCDCInput{
+	client, err := spanner.NewClient(context.Background(), conf.SpannerDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := &gcpSpannerCDCInput{
 		conf:            conf,
 		log:             res.Logger(),
 		shutdownSig:     shutdown.NewSignaller(),
 		recordsCh:       make(chan changeRecord, conf.prefetchCount),
 		partitionTokens: make(map[string]struct{}),
-	}, nil
+		streamClient:    client,
+	}
+
+	return reader, nil
 }
 
 func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	c.cdcMut.Lock()
 	defer c.cdcMut.Unlock()
 
-	if c.streamClient != nil {
-		return nil
+	if c.streamClient == nil {
+		client, err := spanner.NewClient(ctx, c.conf.SpannerDSN)
+		if err != nil {
+			return err
+		}
+		c.streamClient = client
 	}
 
 	select {
 	case <-c.shutdownSig.HasStoppedChan():
 		return service.ErrEndOfInput
 	default:
-	}
-
-	var err error
-	c.streamClient, err = spanner.NewClient(ctx, c.conf.SpannerDSN)
-	if err != nil {
-		return err
 	}
 
 	if c.recordsCh == nil {
