@@ -44,6 +44,8 @@ func (f FieldSpec) JSONSchema() any {
 			spec["type"] = "string"
 		case FieldTypeInt:
 			spec["type"] = "number"
+		case FieldTypeUint:
+			spec["type"] = "number"
 		case FieldTypeFloat:
 			spec["type"] = "number"
 		case FieldTypeObject:
