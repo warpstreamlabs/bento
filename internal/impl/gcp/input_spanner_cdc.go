@@ -28,6 +28,8 @@ const (
 	cdcFieldEndTime           = "end_time"
 	cdcFieldHeartbeatInterval = "heartbeat_interval"
 
+	cdcFieldPrefetchCount = "prefetch_count"
+
 	metadataTimestamp   = "gcp_spanner_commit_timestamp"
 	metadataModType     = "gcp_spanner_cdc_mod_type"
 	metadataTableName   = "gcp_spanner_table_name"
@@ -37,13 +39,15 @@ const (
 
 // cdcConfig holds the configuration for the Spanner CDC input component
 type cdcConfig struct {
-	SpannerDSN           string        // DSN for the source Spanner database
-	SpannerMetadataDSN   string        // DSN for the metadata tracking database
-	SpannerMetadataTable string        // Table name for storing partition metadata
-	StreamName           string        // Name of the change stream to consume
-	StartTime            *time.Time    // Optional start time for reading changes
-	EndTime              *time.Time    // Optional end time for reading changes
-	HeartbeatInterval    time.Duration // Interval between partition heartbeats
+	SpannerDSN           string
+	SpannerMetadataDSN   string
+	SpannerMetadataTable string
+	StreamName           string
+	StartTime            *time.Time
+	EndTime              *time.Time
+	HeartbeatInterval    time.Duration
+
+	prefetchCount int
 }
 
 func cdcConfigFromParsed(pConf *service.ParsedConfig) (conf cdcConfig, err error) {
@@ -136,6 +140,11 @@ This input adds the following metadata fields to each message:
 				Description("An optional field to define the end time to read from the changestreams, timestamp format should conform to RFC3339").
 				Example(time.RFC3339).
 				Optional(),
+			service.NewIntField(cdcFieldPrefetchCount).
+				Description("The maximum number of messages to have pulled in.").
+				Example(1024).
+				Default(1024).
+				LintRule(`root = if this < 0 { ["prefetch count must be greater than or equal to zero"] }`),
 		)
 }
 
@@ -155,17 +164,17 @@ func init() {
 
 // gcpSpannerCDCInput implements a Bento input component that reads from Spanner change streams
 type gcpSpannerCDCInput struct {
-	conf         cdcConfig       // Configuration for this input
-	streamClient *spanner.Client // Client for reading change stream data
-	cdcMut       sync.RWMutex    // RWMutex for thread-safe operations
-	log          *service.Logger // Logger instance
+	conf         cdcConfig
+	streamClient *spanner.Client
+	cdcMut       sync.RWMutex
+	log          *service.Logger
 
-	recordsCh chan changeRecord // Channel that holds all records
+	recordsCh chan changeRecord
 
-	partitionTokens map[string]struct{} // Track processed partition tokens
-	partitionLock   sync.RWMutex        // Mutex for thread-safe operations
+	partitionTokens map[string]struct{}
+	partitionLock   sync.RWMutex
 
-	shutdownSig *shutdown.Signaller // Signals to begin shutting down components
+	shutdownSig *shutdown.Signaller
 }
 
 type changeRecord struct {
@@ -174,18 +183,16 @@ type changeRecord struct {
 	modType string
 }
 
-// newGcpSpannerCDCInput creates a new Spanner CDC input instance
 func newGcpSpannerCDCInput(conf cdcConfig, res *service.Resources) (*gcpSpannerCDCInput, error) {
 	return &gcpSpannerCDCInput{
 		conf:            conf,
 		log:             res.Logger(),
 		shutdownSig:     shutdown.NewSignaller(),
-		recordsCh:       make(chan changeRecord),
+		recordsCh:       make(chan changeRecord, conf.prefetchCount),
 		partitionTokens: make(map[string]struct{}),
 	}, nil
 }
 
-// Connect initializes the connection to the Spanner change stream
 func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	c.cdcMut.Lock()
 	defer c.cdcMut.Unlock()
@@ -207,7 +214,7 @@ func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	}
 
 	if c.recordsCh == nil {
-		c.recordsCh = make(chan changeRecord)
+		c.recordsCh = make(chan changeRecord, c.conf.prefetchCount)
 	}
 
 	go c.loop()
@@ -215,7 +222,6 @@ func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	return nil
 }
 
-// Read retrieves the next message from the change stream
 func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
 	c.cdcMut.RLock()
 	if c.streamClient == nil || c.recordsCh == nil {
@@ -285,6 +291,8 @@ func (c *gcpSpannerCDCInput) Close(ctx context.Context) error {
 
 	return nil
 }
+
+//------------------------------------------------------------------------------
 
 func (c *gcpSpannerCDCInput) loop() {
 	defer c.shutdownSig.TriggerHasStopped()

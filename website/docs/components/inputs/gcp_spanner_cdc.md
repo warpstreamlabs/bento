@@ -32,6 +32,7 @@ input:
     heartbeat_interval: 3s
     start_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
     end_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
+    prefetch_count: 1024
 ```
 
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
@@ -108,6 +109,20 @@ Type: `string`
 # Examples
 
 end_time: 2006-01-02T15:04:05Z07:00
+```
+
+### `prefetch_count`
+
+The maximum number of messages to have pulled in.
+
+
+Type: `int`  
+Default: `1024`  
+
+```yml
+# Examples
+
+prefetch_count: 1024
 ```
 
 
