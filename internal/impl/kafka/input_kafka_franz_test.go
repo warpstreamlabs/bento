@@ -20,6 +20,72 @@ import (
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
+func TestInputKafkaFranzConfig(t *testing.T) {
+	testCases := []struct {
+		name        string
+		conf        string
+		errContains string
+	}{
+		{
+			name: "single broker",
+			conf: `
+seed_brokers: [ broker_1 ]
+topics: [ test ]
+consumer_group: test
+`,
+		},
+		{
+			name: "multiple brokers",
+			conf: `
+seed_brokers: [ broker_1, broker_2 ]
+topics: [ test ]
+consumer_group: test
+`,
+		},
+		{
+			name: "multiple nested brokers",
+			conf: `
+seed_brokers: [ "broker_1,broker_2", "broker_3" ]
+topics: [ test ]
+consumer_group: test
+`,
+		},
+		{
+			name: "fail no brokers",
+			conf: `
+seed_brokers: [ ]
+topics: [ test ]
+consumer_group: test
+`,
+			errContains: "you must provide at least one address in 'seed_brokers'",
+		},
+		{
+			name: "no seed broker should be empty string",
+			conf: `
+seed_brokers: [ "", "broker_1" ]
+topic: foo
+`,
+			errContains: "seed broker address cannot be empty",
+		},
+	}
+
+	for _, test := range testCases {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			conf, err := franzKafkaInputConfig().ParseYAML(test.conf, nil)
+			require.NoError(t, err)
+
+			_, err = newFranzKafkaReaderFromConfig(conf, service.MockResources())
+			if test.errContains == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), test.errContains)
+			}
+		})
+	}
+}
+
 func TestInputKafkaFranzRetriableError(t *testing.T) {
 	conf, err := franzKafkaInputConfig().ParseYAML(`
 seed_brokers: [ localhost:9092 ]
