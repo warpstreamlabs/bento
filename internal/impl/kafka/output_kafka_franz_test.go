@@ -83,6 +83,14 @@ topic: foo
 `,
 			errContains: "you must provide at least one address in 'seed_brokers'",
 		},
+		{
+			name: "no seed broker should be empty string",
+			conf: `
+seed_brokers: [ "", "broker_1" ]
+topic: foo
+`,
+			errContains: "seed broker address cannot be empty",
+		},
 	}
 
 	for _, test := range testCases {
