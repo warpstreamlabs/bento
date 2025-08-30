@@ -221,7 +221,10 @@ func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logge
 	})
 }
 
-func getDsnBuilder(conf *service.ParsedConfig) (DSNBuilder, error) {
+func getDsnBuilder(
+	conf *service.ParsedConfig,
+	logger interface{ Info(string) },
+) (DSNBuilder, error) {
 	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
@@ -236,8 +239,10 @@ func getDsnBuilder(conf *service.ParsedConfig) (DSNBuilder, error) {
 	case awsEnabled && azureEnabled:
 		return nil, errors.New("cannot enable both AWS and Azure authentication")
 	case awsEnabled:
+		logger.Info("Updated dsn with info from AWS")
 		return AWSGetCredentialsGeneratorFn(conf)
 	case azureEnabled:
+		logger.Info("Updated dsn with info from Azure")
 		return AzureGetCredentialsGeneratorFn(conf)
 	default:
 		return func(dsn, driver string) (string, error) { return dsn, nil }, nil
@@ -306,7 +311,7 @@ func connSettingsFromParsed(
 		}
 	}
 
-	if c.getCredentials, err = getDsnBuilder(conf); err != nil {
+	if c.getCredentials, err = getDsnBuilder(conf, mgr.Logger()); err != nil {
 		return
 	}
 
@@ -358,10 +363,6 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 	updatedDSN, err = connSettings.getCredentials(dsn, driver)
 	if err != nil {
 		return nil, err
-	}
-
-	if updatedDSN != dsn {
-		logger.Info("Updated dsn with info from AWS")
 	}
 
 	db, err := sql.Open(driver, updatedDSN)
