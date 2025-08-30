@@ -1,6 +1,6 @@
 ---
-title: elasticsearch
-slug: elasticsearch
+title: elasticsearch_v2
+slug: elasticsearch_v2
 type: output
 status: stable
 categories: ["Services"]
@@ -15,10 +15,12 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::warning TO BE DEPRECATED
-This component will be deprecated in the next minor release - and removed in the next major release. Please consider using [elasticsearch_v2](/docs/components/outputs/elasticsearch_v2).
-:::
 Publishes messages into an Elasticsearch index. If the index does not exist then it is created with a dynamic mapping.
+:::warning UNIQUE MESSAGES PER BATCH
+This component makes use of the [BulkIndexer](https://pkg.go.dev/github.com/elastic/go-elasticsearch/v9@v9.0.0/esutil#BulkIndexer) - this will error if an attempt is made to update the same document twice - therefore it is recommended that you ensure each message in the batch has a unique id.
+:::
+
+Introduced in version 1.11.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -32,11 +34,12 @@ Publishes messages into an Elasticsearch index. If the index does not exist then
 # Common config fields, showing default values
 output:
   label: ""
-  elasticsearch:
+  elasticsearch_v2:
     urls: [] # No default (required)
     index: "" # No default (required)
     id: ${!count("elastic_ids")}-${!timestamp_unix()}
-    type: ""
+    discover_nodes_on_start: false
+    discover_nodes_interval: 0s
     max_in_flight: 64
     batching:
       count: 0
@@ -44,6 +47,10 @@ output:
       period: ""
       jitter: 0
       check: ""
+    retry_on_status:
+      - 502
+      - 503
+      - 504
 ```
 
 </TabItem>
@@ -53,16 +60,15 @@ output:
 # All config fields, showing default values
 output:
   label: ""
-  elasticsearch:
+  elasticsearch_v2:
     urls: [] # No default (required)
     index: "" # No default (required)
     action: index
     pipeline: ""
     id: ${!count("elastic_ids")}-${!timestamp_unix()}
-    type: ""
     routing: ""
-    sniff: true
-    healthcheck: true
+    discover_nodes_on_start: false
+    discover_nodes_interval: 0s
     timeout: 5s
     tls:
       enabled: false
@@ -72,11 +78,6 @@ output:
       root_cas_file: ""
       client_certs: []
     max_in_flight: 64
-    max_retries: 0
-    backoff:
-      initial_interval: 1s
-      max_interval: 5s
-      max_elapsed_time: 30s
     basic_auth:
       enabled: false
       username: ""
@@ -88,19 +89,16 @@ output:
       jitter: 0
       check: ""
       processors: [] # No default (optional)
-    aws:
-      enabled: false
-      region: ""
-      endpoint: ""
-      credentials:
-        profile: ""
-        id: ""
-        secret: ""
-        token: ""
-        from_ec2_role: false
-        role: ""
-        role_external_id: ""
-    gzip_compression: false
+    compress_request_body: false
+    retry_on_status:
+      - 502
+      - 503
+      - 504
+    max_retries: 0
+    backoff:
+      initial_interval: 1s
+      max_interval: 5s
+      max_elapsed_time: 30s
 ```
 
 </TabItem>
@@ -108,15 +106,6 @@ output:
 
 Both the `id` and `index` fields can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries). When sending batched messages these interpolations are performed per message part.
 
-### AWS
-
-It's possible to enable AWS connectivity with this output using the `aws` fields. However, you may need to set `sniff` and `healthcheck` to false for connections to succeed.
-
-## Performance
-
-This output benefits from sending multiple messages in flight in parallel for improved performance. You can tune the max number of in flight messages (or message batches) with the field `max_in_flight`.
-
-This output benefits from sending messages as a batch for improved performance. Batches can be formed at both the input and output level. You can find out more [in this doc](/docs/configuration/batching).
 
 ## Fields
 
@@ -154,7 +143,6 @@ Default: `"index"`
 ### `pipeline`
 
 An optional pipeline id to preprocess incoming documents.
-This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -169,15 +157,6 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 Type: `string`  
 Default: `"${!count(\"elastic_ids\")}-${!timestamp_unix()}"`  
 
-### `type`
-
-The document mapping type. This field is required for versions of elasticsearch earlier than 6.0.0, but are invalid for versions 7.0.0 or later.
-This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
-
-
-Type: `string`  
-Default: `""`  
-
 ### `routing`
 
 The routing key to use for the document.
@@ -187,21 +166,21 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 Type: `string`  
 Default: `""`  
 
-### `sniff`
+### `discover_nodes_on_start`
 
-Prompts Bento to sniff for brokers to connect to when establishing a connection.
-
-
-Type: `bool`  
-Default: `true`  
-
-### `healthcheck`
-
-Whether to enable healthchecks.
+Discover nodes when initializing the client.
 
 
 Type: `bool`  
-Default: `true`  
+Default: `false`  
+
+### `discover_nodes_interval`
+
+Discover nodes periodically.
+
+
+Type: `string`  
+Default: `"0s"`  
 
 ### `timeout`
 
@@ -359,45 +338,6 @@ The maximum number of messages to have in flight at a given time. Increase this 
 Type: `int`  
 Default: `64`  
 
-### `max_retries`
-
-The maximum number of retries before giving up on the request. If set to zero there is no discrete limit.
-
-
-Type: `int`  
-Default: `0`  
-
-### `backoff`
-
-Control time intervals between retry attempts.
-
-
-Type: `object`  
-
-### `backoff.initial_interval`
-
-The initial period to wait between retry attempts.
-
-
-Type: `string`  
-Default: `"1s"`  
-
-### `backoff.max_interval`
-
-The maximum period to wait between retry attempts.
-
-
-Type: `string`  
-Default: `"5s"`  
-
-### `backoff.max_elapsed_time`
-
-The maximum period to wait before retry attempts are abandoned. If zero then no limit is used.
-
-
-Type: `string`  
-Default: `"30s"`  
-
 ### `basic_auth`
 
 Allows you to specify basic authentication.
@@ -551,110 +491,59 @@ processors:
       format: json_array
 ```
 
-### `aws`
-
-Enables and customises connectivity to Amazon Elastic Service.
-
-
-Type: `object`  
-
-### `aws.enabled`
-
-Whether to connect to Amazon Elastic Service.
-
-
-Type: `bool`  
-Default: `false`  
-
-### `aws.region`
-
-The AWS region to target.
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.endpoint`
-
-Allows you to specify a custom endpoint for the AWS API.
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.credentials`
-
-Optional manual configuration of AWS credentials to use. More information can be found [in this document](/docs/guides/cloud/aws).
-
-
-Type: `object`  
-
-### `aws.credentials.profile`
-
-A profile from `~/.aws/credentials` to use.
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.credentials.id`
-
-The ID of credentials to use.
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.credentials.secret`
-
-The secret for the credentials being used.
-:::warning Secret
-This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
-:::
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.credentials.token`
-
-The token for the credentials being used, required when using short term credentials.
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.credentials.from_ec2_role`
-
-Use the credentials of a host EC2 machine configured to assume [an IAM role associated with the instance](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html).
-
-
-Type: `bool`  
-Default: `false`  
-Requires version 1.0.0 or newer  
-
-### `aws.credentials.role`
-
-A role ARN to assume.
-
-
-Type: `string`  
-Default: `""`  
-
-### `aws.credentials.role_external_id`
-
-An external ID to provide when assuming a role.
-
-
-Type: `string`  
-Default: `""`  
-
-### `gzip_compression`
+### `compress_request_body`
 
 Enable gzip compression on the request side.
 
 
 Type: `bool`  
 Default: `false`  
+
+### `retry_on_status`
+
+HTTP Status codes that should be retried.
+
+
+Type: `array`  
+Default: `[502,503,504]`  
+
+### `max_retries`
+
+The maximum number of retries before giving up on the request. If set to zero there is no discrete limit.
+
+
+Type: `int`  
+Default: `0`  
+
+### `backoff`
+
+Control time intervals between retry attempts.
+
+
+Type: `object`  
+
+### `backoff.initial_interval`
+
+The initial period to wait between retry attempts.
+
+
+Type: `string`  
+Default: `"1s"`  
+
+### `backoff.max_interval`
+
+The maximum period to wait between retry attempts.
+
+
+Type: `string`  
+Default: `"5s"`  
+
+### `backoff.max_elapsed_time`
+
+The maximum period to wait before retry attempts are abandoned. If zero then no limit is used.
+
+
+Type: `string`  
+Default: `"30s"`  
 
 
