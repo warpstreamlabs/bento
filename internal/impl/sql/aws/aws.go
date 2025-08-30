@@ -21,7 +21,7 @@ func init() {
 		return "", nil
 	}
 
-	sql.AWSGetCredentialsGeneratorFn = func(conf *service.ParsedConfig) (func(dsn, driver string) (password string, err error), error) {
+	fn := func(conf *service.ParsedConfig) (sql.DSNBuilder, error) {
 
 		awsEnabled, err := sql.IsAWSEnabled(conf)
 		if err != nil {
@@ -78,6 +78,8 @@ func init() {
 
 		return noop, nil
 	}
+
+	sql.SetAWSGetCredentialsGeneratorFn(fn)
 }
 
 //------------------------------------------------------------------------------
