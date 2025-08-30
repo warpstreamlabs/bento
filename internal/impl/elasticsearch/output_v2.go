@@ -413,7 +413,7 @@ func (ie *interpolationExecutor) exec(i int) (index, action, id, routing string,
 
 func onSuccessHandler(eso *EsOutput) func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
 	return func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-		eso.log.Trace(fmt.Sprintf("Indexed %s/%s", res.Index, res.DocumentID))
+		eso.log.Tracef("Processed %s/%s", res.Index, res.DocumentID)
 	}
 }
 
