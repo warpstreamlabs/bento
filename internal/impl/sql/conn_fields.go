@@ -193,7 +193,7 @@ type connSettings struct {
 	initStatement      string
 	initVerifyConn     bool
 
-	getCredentials func(string, string) (string, error)
+	getCredentials func(string, string) (string, string, error)
 }
 
 func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logger) {
@@ -223,8 +223,7 @@ func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logge
 
 func getDsnBuilder(
 	conf *service.ParsedConfig,
-	logger interface{ Info(string) },
-) (DSNBuilder, error) {
+) (func(dsn, driver string) (builtDSN, provider string, err error), error) {
 	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
@@ -239,13 +238,27 @@ func getDsnBuilder(
 	case awsEnabled && azureEnabled:
 		return nil, errors.New("cannot enable both AWS and Azure authentication")
 	case awsEnabled:
-		logger.Info("Updated dsn with info from AWS")
-		return AWSGetCredentialsGeneratorFn(conf)
+		builder, err := AWSGetCredentialsGeneratorFn(conf)
+		if err != nil {
+			return nil, err
+		}
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			result, err := builder(dsn, driver)
+			return result, "AWS", err
+		}, nil
 	case azureEnabled:
-		logger.Info("Updated dsn with info from Azure")
-		return AzureGetCredentialsGeneratorFn(conf)
+		builder, err := AzureGetCredentialsGeneratorFn(conf)
+		if err != nil {
+			return nil, err
+		}
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			result, err := builder(dsn, driver)
+			return result, "Azure", err
+		}, nil
 	default:
-		return func(dsn, driver string) (string, error) { return dsn, nil }, nil
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			return dsn, "", nil
+		}, nil
 	}
 }
 
@@ -311,7 +324,7 @@ func connSettingsFromParsed(
 		}
 	}
 
-	if c.getCredentials, err = getDsnBuilder(conf, mgr.Logger()); err != nil {
+	if c.getCredentials, err = getDsnBuilder(conf); err != nil {
 		return
 	}
 
@@ -360,9 +373,13 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = connSettings.getCredentials(dsn, driver)
+	updatedDSN, provider, err := connSettings.getCredentials(updatedDSN, driver)
 	if err != nil {
 		return nil, err
+	}
+
+	if provider != "" {
+		logger.Infof("Updated DSN with info from %s", provider)
 	}
 
 	db, err := sql.Open(driver, updatedDSN)
