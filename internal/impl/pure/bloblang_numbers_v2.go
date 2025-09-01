@@ -24,12 +24,12 @@ func init() {
 		Example(
 			"Calculate similarity between vectors",
 			`root.similarity = cosine_similarity([1, 2, 3], [2, 4, 6])`,
-			[2]string{`{}`, `{"similarity": 1.0}`},
+			[2]string{`{}`, `{"similarity": 1}`},
 		).
 		Example(
 			"Orthogonal vectors have zero similarity",
 			`root.similarity = cosine_similarity([1, 0], [0, 1])`,
-			[2]string{`{}`, `{"similarity": 0.0}`},
+			[2]string{`{}`, `{"similarity": 0}`},
 		)
 
 	if err := bloblang.RegisterFunctionV2(
