@@ -87,7 +87,7 @@ Default: `"3s"`
 
 ### `start_time`
 
-An optional field to define the start point to read from the changestreams, timestamp format should conform to RFC3339, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)
+An optional field to define the start point to read from the changestreams. If not set then the current time is used. The timestamp format should conform to RFC3339, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)
 
 
 Type: `string`  
