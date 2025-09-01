@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+type DSNBuilder func(dsn, driver string) (builtDSN string, err error)
 
 var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner").
 	Description("A database [driver](#drivers) to use.")
@@ -189,6 +192,8 @@ type connSettings struct {
 	initFileStatements [][2]string // (path,statement)
 	initStatement      string
 	initVerifyConn     bool
+
+	getCredentials func(string, string) (string, string, error)
 }
 
 func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logger) {
@@ -212,7 +217,49 @@ func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logge
 				log.Debug("Successfully ran init_statement")
 			}
 		}
+
 	})
+}
+
+func getDsnBuilder(
+	conf *service.ParsedConfig,
+) (func(dsn, driver string) (builtDSN, provider string, err error), error) {
+	awsEnabled, err := IsAWSEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	azureEnabled, err := IsAzureEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case awsEnabled && azureEnabled:
+		return nil, errors.New("cannot enable both AWS and Azure authentication")
+	case awsEnabled:
+		builder, err := AWSGetCredentialsGeneratorFn(conf)
+		if err != nil {
+			return nil, err
+		}
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			result, err := builder(dsn, driver)
+			return result, "AWS", err
+		}, nil
+	case azureEnabled:
+		builder, err := AzureGetCredentialsGeneratorFn(conf)
+		if err != nil {
+			return nil, err
+		}
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			result, err := builder(dsn, driver)
+			return result, "Azure", err
+		}, nil
+	default:
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			return dsn, "", nil
+		}, nil
+	}
 }
 
 func connSettingsFromParsed(
@@ -277,20 +324,8 @@ func connSettingsFromParsed(
 		}
 	}
 
-	awsEnabled, err := IsAWSEnabled(conf)
-	if err != nil {
+	if c.getCredentials, err = getDsnBuilder(conf); err != nil {
 		return
-	}
-	if awsEnabled {
-		if BuildAwsDsn, err = AWSGetCredentialsGeneratorFn(conf); err != nil {
-			return
-		}
-	}
-
-	if conf.Contains("azure", "entra_enabled") {
-		if BuildAzureDsn, err = AzureGetCredentialsGeneratorFn(conf); err != nil {
-			return
-		}
 	}
 
 	return
@@ -338,22 +373,13 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = BuildAwsDsn(dsn, driver)
+	updatedDSN, provider, err := connSettings.getCredentials(updatedDSN, driver)
 	if err != nil {
 		return nil, err
 	}
 
-	if updatedDSN != dsn {
-		logger.Info("Updated dsn with info from AWS")
-	}
-
-	updatedDSN, err = BuildAzureDsn(dsn, driver)
-	if err != nil {
-		return nil, err
-	}
-
-	if updatedDSN != dsn {
-		logger.Info("Updated dsn with info from Azure")
+	if provider != "" {
+		logger.Infof("Updated DSN with info from %s", provider)
 	}
 
 	db, err := sql.Open(driver, updatedDSN)

@@ -107,6 +107,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 
 <Tabs defaultValue="Amazon SQS Extended Client Library" values={[
 { label: 'Amazon SQS Extended Client Library', value: 'Amazon SQS Extended Client Library', },
+{ label: 'Connection to S3 API-Compatable services', value: 'Connection to S3 API-Compatable services', },
 ]}>
 
 <TabItem value="Amazon SQS Extended Client Library">
@@ -129,6 +130,25 @@ input:
             - aws_s3:
                 bucket: ${! this.1.s3BucketName }
                 key: ${! this.1.s3Key }
+```
+
+</TabItem>
+<TabItem value="Connection to S3 API-Compatable services">
+
+This example shows how to connect to "S3 API-Compatable services" - for instance minio.
+
+```yaml
+pipeline:
+  processors: 
+    - aws_s3: 
+        bucket: mybucket
+        key: events-json-stream/1756305057033860000.json
+        endpoint: http://localhost:9000
+        force_path_style_urls: true
+        region: us-east-1
+        credentials:
+          id: minioadmin
+          secret: minioadmin
 ```
 
 </TabItem>

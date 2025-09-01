@@ -153,6 +153,21 @@ This input adds the following metadata fields to each message:
 `+"```"+`
 
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries). Note that user defined metadata is case insensitive within AWS, and it is likely that the keys will be received in a capitalized form, if you wish to make them consistent you can map all metadata keys to lower or uppercase using a Bloblang mapping such as `+"`meta = meta().map_each_key(key -> key.lowercase())`"+`.`).
+		Example(
+			"Connection to S3 API-Compatable services",
+			`This example shows how to connect to "S3 API-Compatable services" - for instance minio.`,
+			`
+input:
+  aws_s3: 
+    bucket: mybucket
+    prefix: "events-json-stream"
+    endpoint: http://localhost:9000
+    force_path_style_urls: true
+    region: us-east-1
+    credentials:
+      id: minioadmin
+      secret: minioadmin
+`).
 		Fields(
 			service.NewStringField(s3iFieldBucket).
 				Description("The bucket to consume from. If the field `sqs.url` is specified this field is optional.").
