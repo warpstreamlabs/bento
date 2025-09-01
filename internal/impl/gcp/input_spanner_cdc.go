@@ -133,7 +133,7 @@ This input adds the following metadata fields to each message:
 				Default((time.Second * 3).String()).
 				Optional(),
 			service.NewStringField(cdcFieldStartTime).
-				Description("An optional field to define the start point to read from the changestreams, timestamp format should conform to RFC3339, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)").
+				Description("An optional field to define the start point to read from the changestreams. If not set then the current time is used. The timestamp format should conform to RFC3339, for details on valid start times please see [this document](https://cloud.google.com/spanner/docs/change-streams#data-retention)").
 				Example(time.RFC3339).
 				Optional(),
 			service.NewStringField(cdcFieldEndTime).
@@ -193,7 +193,6 @@ func newGcpSpannerCDCInput(conf cdcConfig, res *service.Resources) (*gcpSpannerC
 		conf:            conf,
 		log:             res.Logger(),
 		shutdownSig:     shutdown.NewSignaller(),
-		recordsCh:       make(chan changeRecord, conf.prefetchCount),
 		partitionTokens: make(map[string]struct{}),
 		streamClient:    client,
 	}
@@ -205,6 +204,12 @@ func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 	c.cdcMut.Lock()
 	defer c.cdcMut.Unlock()
 
+	select {
+	case <-c.shutdownSig.HasStoppedChan():
+		return service.ErrEndOfInput
+	default:
+	}
+
 	if c.streamClient == nil {
 		client, err := spanner.NewClient(ctx, c.conf.SpannerDSN)
 		if err != nil {
@@ -213,10 +218,23 @@ func (c *gcpSpannerCDCInput) Connect(ctx context.Context) error {
 		c.streamClient = client
 	}
 
-	select {
-	case <-c.shutdownSig.HasStoppedChan():
-		return service.ErrEndOfInput
-	default:
+	healthCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	defer cancel()
+	healthRows := c.streamClient.Single().Query(healthCtx, spanner.NewStatement("SELECT 1"))
+	defer healthRows.Stop()
+	_, err := healthRows.Next()
+	if err != nil {
+		if spanner.ErrCode(err) == codes.Canceled {
+			c.shutdownSig.TriggerHardStop()
+			return service.ErrEndOfInput
+		}
+		if spanner.ErrCode(err) == codes.DeadlineExceeded {
+			c.streamClient.Close()
+			c.streamClient = nil
+
+			return service.ErrNotConnected
+		}
+		return err
 	}
 
 	if c.recordsCh == nil {
@@ -276,10 +294,12 @@ func (c *gcpSpannerCDCInput) Read(ctx context.Context) (*service.Message, servic
 func (c *gcpSpannerCDCInput) Close(ctx context.Context) error {
 	c.shutdownSig.TriggerHardStop()
 
-	select {
-	case <-c.shutdownSig.HasStoppedChan():
-	case <-ctx.Done():
-		return ctx.Err()
+	if c.recordsCh != nil {
+		select {
+		case <-c.shutdownSig.HasStoppedChan():
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 
 	c.cdcMut.Lock()
@@ -313,7 +333,7 @@ func (c *gcpSpannerCDCInput) loop() {
 
 	if err := errgrp.Wait(); err != nil {
 		if !errors.Is(err, context.Canceled) && spanner.ErrCode(err) != codes.Canceled {
-			c.log.Errorf("Error readin partition: %v", err)
+			c.log.Errorf("Error reading partition: %v", err)
 		}
 	}
 }
