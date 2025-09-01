@@ -50,7 +50,7 @@ Calculate similarity between vectors
 root.similarity = cosine_similarity([1, 2, 3], [2, 4, 6])
 
 # In:  {}
-# Out: {"similarity": 1.0}
+# Out: {"similarity":1}
 ```
 
 Orthogonal vectors have zero similarity
@@ -59,7 +59,7 @@ Orthogonal vectors have zero similarity
 root.similarity = cosine_similarity([1, 0], [0, 1])
 
 # In:  {}
-# Out: {"similarity": 0.0}
+# Out: {"similarity":0}
 ```
 
 ### `counter`
