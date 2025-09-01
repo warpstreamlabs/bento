@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 - new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
 - `nlp_classify_text`, `nlp_classify_tokens`, `nlp_extract_features` & `nlp_zero_shot_classify` processors enable use of ONNX NLP models @gregfurman
+- `elasticsearch_v2` output component, uses official elasticsearch go client, `elasticsearch` output depreciated @jem-davies
 
 ### Changed
 
@@ -18,6 +19,8 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - fix data-race in config/schema.go @miparnisari
+- fix data-race in sql dsn building @gregfurman
+- fix validation for the seed_brokers config field in `kafka_franz` @gregfurman
 
 ## 1.10.0 - 2025-08-14
 
