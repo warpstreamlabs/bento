@@ -1,0 +1,44 @@
+input:
+  grpc_client:
+    address: 127.0.0.1:50051
+    method: /echo.Echo/Stream
+    rpc_type: server_stream
+    request_json: '{"message":"enhanced-test"}'
+    proto_files: [ "echo.proto", "google/protobuf/struct.proto" ]
+    include_paths: [ "cmd/tools/grpc_test_server/pb" ]
+    # TLS disabled in this example
+    
+    # Test enhanced performance features
+    max_connection_pool_size: 1
+    connection_idle_timeout: 5m
+    enable_message_pool: true
+    
+    # Test gRPC best practices
+    enable_interceptors: true
+    propagate_deadlines: true
+    load_balancing_policy: pick_first
+    
+    # Test retry policy
+    retry_max_attempts: 2
+    retry_initial_backoff: 100ms
+    retry_max_backoff: 1s
+    retry_backoff_multiplier: 2.0
+    
+    # Test metadata features
+    default_metadata:
+      client-type: bento-enhanced-test
+      test-run: "performance-validation"
+      connection-pool: "enabled"
+    
+    # Test message limits
+    max_send_msg_bytes: 1024
+    max_recv_msg_bytes: 1024
+    call_timeout: 5s
+    
+    # Test keep-alive (more conservative settings)
+    keepalive_time: 30s
+    keepalive_timeout: 5s
+    keepalive_permit_without_stream: false
+
+output:
+  stdout: {}

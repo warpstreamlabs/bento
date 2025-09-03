@@ -1,0 +1,39 @@
+input:
+  grpc_client:
+    address: 127.0.0.1:50051
+    method: /echo.Echo/Stream
+    rpc_type: server_stream
+    request_json: '{"message":"health probe"}'
+    proto_files: [ "echo.proto", "google/protobuf/struct.proto" ]
+    include_paths: [ "cmd/tools/grpc_test_server/pb" ]
+    # TLS disabled in this example
+    
+    # Server streaming configuration
+    call_timeout: 0s
+    max_send_msg_bytes: 1024
+    max_recv_msg_bytes: 1024
+    
+    # Performance settings
+    max_connection_pool_size: 1
+    connection_idle_timeout: 10m
+    enable_message_pool: true
+    
+    # gRPC options
+    enable_interceptors: true
+    propagate_deadlines: true
+    load_balancing_policy: pick_first
+    
+    # Retry policy
+    retry_max_attempts: 3
+    retry_initial_backoff: 500ms
+    retry_max_backoff: 5s
+    retry_backoff_multiplier: 2.0
+    
+    # Metadata
+    default_metadata:
+      client-type: bento-health-checker
+      check-interval: "5s"
+
+output:
+  stdout: {}
+

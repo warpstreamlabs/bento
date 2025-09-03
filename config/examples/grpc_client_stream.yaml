@@ -1,0 +1,44 @@
+input:
+  generate:
+    count: 5
+    interval: 200ms
+    mapping: 'root = {"n": count("gen") }'
+
+output:
+  type: grpc_client
+  grpc_client:
+    rpc_type: client_stream
+    address: 127.0.0.1:50051
+    method: /ingest.Ingest/Stream
+    proto_files: [ "ingest.proto", "google/protobuf/struct.proto" ]
+    include_paths: [ "cmd/tools/grpc_test_server/pb" ]
+    # TLS disabled in this example
+    
+    # Client streaming configuration
+    call_timeout: 30s
+    max_send_msg_bytes: 1048576  # 1MB per message
+    max_recv_msg_bytes: 1048576  # 1MB response
+    
+    # Performance settings for batch ingestion
+    max_connection_pool_size: 1  # Single connection for client stream
+    connection_idle_timeout: 10m
+    enable_message_pool: true
+    
+    # gRPC optimizations
+    enable_interceptors: true
+    propagate_deadlines: true
+    keepalive_time: 30s
+    keepalive_timeout: 5s
+    keepalive_permit_without_stream: false
+    
+    # Retry configuration for failed streams
+    retry_max_attempts: 2
+    retry_initial_backoff: 500ms
+    retry_max_backoff: 10s
+    retry_backoff_multiplier: 2.0
+    
+    # Metadata for tracking ingestion
+    default_metadata:
+      client-type: bento-ingest
+      batch-size: "5"
+

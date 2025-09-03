@@ -1,0 +1,52 @@
+input:
+  generate:
+    count: 5
+    interval: 1s
+    mapping: |
+      root = { "message": "hello from bento" }
+  processors:
+    - bloblang: |
+        meta session_id = "bidi-1"
+
+output:
+  type: grpc_client
+  grpc_client:
+    rpc_type: bidi
+    address: 127.0.0.1:50051
+    method: /chat.Chat/Stream
+    proto_files: [ "chat.proto", "google/protobuf/struct.proto" ]
+    include_paths: [ "cmd/tools/grpc_test_server/pb" ]
+    # TLS disabled in this example
+    
+    # Session management for bidirectional streaming
+    session_key_meta: session_id
+    session_idle_timeout: 30s
+    session_max_lifetime: 5m
+    log_responses: true
+    
+    # Timeouts and message limits
+    call_timeout: 10s
+    max_send_msg_bytes: 4194304  # 4MB
+    max_recv_msg_bytes: 4194304  # 4MB
+    
+    # Performance optimizations
+    max_connection_pool_size: 2
+    connection_idle_timeout: 30m
+    enable_message_pool: true
+    
+    # gRPC best practices
+    enable_interceptors: true
+    propagate_deadlines: true
+    load_balancing_policy: pick_first
+    
+    # Retry policy for robust streaming
+    retry_max_attempts: 3
+    retry_initial_backoff: 100ms
+    retry_max_backoff: 5s
+    retry_backoff_multiplier: 2.0
+    
+    # Default metadata for all calls
+    default_metadata:
+      client-type: bento-chat-example
+      version: "1.0"
+

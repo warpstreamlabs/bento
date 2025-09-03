@@ -1,0 +1,42 @@
+input:
+  grpc_client:
+    address: 127.0.0.1:50051
+    method: /echo.Echo/Stream
+    rpc_type: server_stream
+    request_json: '{"message":"hi"}'
+    proto_files: [ "echo.proto", "google/protobuf/struct.proto" ]
+    include_paths: [ "cmd/tools/grpc_test_server/pb" ]
+    # TLS disabled in this example
+    
+    # Server streaming configuration
+    call_timeout: 0s  # No timeout for long-running streams
+    max_send_msg_bytes: 65536   # 64KB request
+    max_recv_msg_bytes: 1048576 # 1MB responses
+    
+    # Performance settings for streaming input
+    max_connection_pool_size: 1
+    connection_idle_timeout: 60m  # Long timeout for streaming
+    enable_message_pool: true
+    
+    # gRPC streaming optimizations
+    enable_interceptors: true
+    propagate_deadlines: true
+    keepalive_time: 60s
+    keepalive_timeout: 10s
+    keepalive_permit_without_stream: true
+    load_balancing_policy: pick_first
+    
+    # Retry policy for stream failures
+    retry_max_attempts: 5
+    retry_initial_backoff: 1s
+    retry_max_backoff: 30s
+    retry_backoff_multiplier: 2.0
+    
+    # Metadata for stream identification
+    default_metadata:
+      client-type: bento-stream-consumer
+      stream-id: echo-stream
+
+output:
+  stdout: {}
+

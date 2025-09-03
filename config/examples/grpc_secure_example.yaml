@@ -1,0 +1,52 @@
+input:
+  generate:
+    count: 3
+    interval: 2s
+    mapping: 'root = { "request_id": uuid_v4(), "timestamp": now() }'
+
+output:
+  type: grpc_client
+  grpc_client:
+    rpc_type: client_stream
+    address: 127.0.0.1:50051
+    method: /ingest.Ingest/Stream
+    
+    # TLS removed in this example set; using insecure transport for local testing
+    proto_files: [ "ingest.proto", "google/protobuf/struct.proto" ]
+    include_paths: [ "cmd/tools/grpc_test_server/pb" ]
+    
+    # Connection settings
+    authority: ""
+    user_agent: bento-secure-client/1.0
+    load_balancing_policy: pick_first
+    
+    # Timeouts and limits
+    call_timeout: 10s
+    max_send_msg_bytes: 1048576   # 1MB
+    max_recv_msg_bytes: 1048576   # 1MB
+    
+    # Performance optimizations
+    max_connection_pool_size: 2
+    connection_idle_timeout: 15m
+    enable_message_pool: true
+    
+    # Keep-alive for long-lived connections
+    keepalive_time: 60s
+    keepalive_timeout: 10s
+    keepalive_permit_without_stream: true
+    
+    # gRPC best practices
+    enable_interceptors: true
+    propagate_deadlines: true
+    
+    # Robust retry policy
+    retry_max_attempts: 3
+    retry_initial_backoff: 1s
+    retry_max_backoff: 10s
+    retry_backoff_multiplier: 2.0
+    
+    # Request metadata
+    default_metadata:
+      client-type: bento-secure
+      environment: local
+      trace-enabled: "true"
