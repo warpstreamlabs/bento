@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -101,7 +102,7 @@ func StreamBenchSendReportThroughput(batchSize, payloadSize, parallelism int) St
 			totalBytes := 0
 			for j := range sends {
 				for i := range batchSize {
-					payload := strings.Repeat("X", payloadSize) + fmt.Sprintf("%v", j*sends+i)
+					payload := strings.Repeat("X", payloadSize) + strconv.Itoa(j*sends+i)
 					set[payload] = nil
 					totalBytes += len(payload)
 				}
@@ -137,7 +138,7 @@ func StreamBenchSendReportThroughput(batchSize, payloadSize, parallelism int) St
 			for j := range sends {
 				payloads := []string{}
 				for i := range batchSize {
-					payload := strings.Repeat("X", payloadSize) + fmt.Sprintf("%v", j*sends+i)
+					payload := strings.Repeat("X", payloadSize) + strconv.Itoa(j*sends+i)
 					payloads = append(payloads, payload)
 				}
 				batchChan <- payloads
