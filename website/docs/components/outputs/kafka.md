@@ -97,7 +97,7 @@ output:
     static_headers: {} # No default (optional)
     metadata:
       exclude_prefixes: []
-    inject_tracing_map: meta = @.merge(this) # No default (optional)
+    inject_tracing_map: meta = @.assign(this) # No default (optional)
     max_in_flight: 64
     idempotent_write: false
     ack_replicas: false
@@ -629,7 +629,7 @@ Requires version 1.0.0 or newer
 ```yml
 # Examples
 
-inject_tracing_map: meta = @.merge(this)
+inject_tracing_map: meta = @.assign(this)
 
 inject_tracing_map: root.meta.span = this
 ```
