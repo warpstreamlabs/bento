@@ -506,6 +506,8 @@ func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int
 func addSQSMetadata(p *service.Message, sqsMsg types.Message) {
 	p.MetaSetMut("sqs_message_id", *sqsMsg.MessageId)
 	p.MetaSetMut("sqs_receipt_handle", *sqsMsg.ReceiptHandle)
+	p.MetaSetMut("sqs_md5_of_body", *sqsMsg.MD5OfBody)
+	p.MetaSetMut("sqs_md5_of_message_attributes", *sqsMsg.MD5OfMessageAttributes)
 	for k, v := range sqsMsg.Attributes {
 		p.MetaSetMut(awsFieldToMetadataKey(k, "sqs", ""), v)
 	}
