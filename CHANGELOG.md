@@ -3,13 +3,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.11.0 - TBD
+## 1.11.0 - TBD !! DEPRECATE ELASTICSEARCH OUTPUT COMP.
 
 ### Added
 
 - new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
 - `nlp_classify_text`, `nlp_classify_tokens`, `nlp_extract_features` & `nlp_zero_shot_classify` processors enable use of ONNX NLP models @gregfurman
 - `elasticsearch_v2` output component, uses official elasticsearch go client, `elasticsearch` output depreciated @jem-davies
+- `gcp_spanner_cdc` consumes Spanner Change Stream Events from a GCP Spanner instance @anicoll & @gregfurman
 
 ### Changed
 
