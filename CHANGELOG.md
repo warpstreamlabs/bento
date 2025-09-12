@@ -3,6 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.10.1 - 2025-09-10
+
+### Fixed 
+
+ - fix data-race in sql dsn building @gregfurman
+ - fix issue connecting to RDS via IAM Auth @gregfurman
+
 ## 1.10.0 - 2025-08-14
 
 ### Added
