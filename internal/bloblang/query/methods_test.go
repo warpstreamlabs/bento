@@ -2210,3 +2210,446 @@ func TestMethodNoArgsTargets(t *testing.T) {
 		assert.Contains(t, targets, exp, "method: %v", k)
 	}
 }
+
+func TestNewIndexMethod(t *testing.T) {
+	literalFn := func(val any) Function {
+		return NewLiteralFunction("", val)
+	}
+
+	tests := []struct {
+		name     string
+		target   any
+		index    any
+		expected any
+		wantErr  bool
+		errMsg   string
+	}{
+		// String indexing
+		{
+			name:     "string positive index",
+			target:   "hello",
+			index:    1,
+			expected: "e",
+		},
+		{
+			name:     "string negative index",
+			target:   "hello",
+			index:    -1,
+			expected: "o",
+		},
+		{
+			name:     "string negative index middle",
+			target:   "hello",
+			index:    -3,
+			expected: "l",
+		},
+		{
+			name:    "string index out of bounds positive",
+			target:  "hello",
+			index:   10,
+			wantErr: true,
+			errMsg:  "index 10 out of bounds for length 5",
+		},
+		{
+			name:    "string index out of bounds negative",
+			target:  "hello",
+			index:   -10,
+			wantErr: true,
+			errMsg:  "index -5 out of bounds for length 5",
+		},
+
+		// Array indexing
+		{
+			name:     "array positive index",
+			target:   []any{"a", "b", "c"},
+			index:    0,
+			expected: "a",
+		},
+		{
+			name:     "array negative index",
+			target:   []any{"a", "b", "c"},
+			index:    -1,
+			expected: "c",
+		},
+		{
+			name:    "array index out of bounds",
+			target:  []any{"a", "b", "c"},
+			index:   5,
+			wantErr: true,
+			errMsg:  "index 5 out of bounds for length 3",
+		},
+
+		// Byte array indexing
+		{
+			name:     "byte array positive index",
+			target:   []byte("hello"),
+			index:    1,
+			expected: byte('e'),
+		},
+		{
+			name:     "byte array negative index",
+			target:   []byte("hello"),
+			index:    -1,
+			expected: byte('o'),
+		},
+
+		// Error cases
+		{
+			name:    "invalid target type",
+			target:  42,
+			index:   0,
+			wantErr: true,
+			errMsg:  "expected array or string value, got number",
+		},
+		{
+			name:    "invalid index type",
+			target:  "hello",
+			index:   "not a number",
+			wantErr: true,
+			errMsg:  "index:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targetFn := literalFn(tt.target)
+			indexFn := literalFn(tt.index)
+
+			method, err := NewIndexMethod(targetFn, indexFn)
+			require.NoError(t, err)
+
+			ctx := FunctionContext{}
+			result, err := method.Exec(ctx)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestNewSliceMethod(t *testing.T) {
+	literalFn := func(val any) Function {
+		return NewLiteralFunction("", val)
+	}
+
+	tests := []struct {
+		name     string
+		target   any
+		start    any
+		end      any
+		step     any
+		expected any
+		wantErr  bool
+		errMsg   string
+	}{
+		// String slicing
+		{
+			name:     "string basic slice",
+			target:   "hello world",
+			start:    1,
+			end:      5,
+			step:     nil,
+			expected: "ello",
+		},
+		{
+			name:     "string slice with step",
+			target:   "hello world",
+			start:    0,
+			end:      10,
+			step:     2,
+			expected: "hlowr",
+		},
+		{
+			name:     "string slice start only",
+			target:   "hello world",
+			start:    6,
+			end:      nil,
+			step:     nil,
+			expected: "world",
+		},
+		{
+			name:     "string slice end only",
+			target:   "hello world",
+			start:    nil,
+			end:      5,
+			step:     nil,
+			expected: "hello",
+		},
+		{
+			name:     "string slice step only",
+			target:   "hello world",
+			start:    nil,
+			end:      nil,
+			step:     2,
+			expected: "hlowrd",
+		},
+		{
+			name:     "string negative start",
+			target:   "hello world",
+			start:    -5,
+			end:      nil,
+			step:     nil,
+			expected: "world",
+		},
+		{
+			name:     "string negative end",
+			target:   "hello world",
+			start:    nil,
+			end:      -6,
+			step:     nil,
+			expected: "hello",
+		},
+		{
+			name:     "string negative step",
+			target:   "hello",
+			start:    nil,
+			end:      nil,
+			step:     -1,
+			expected: "olleh",
+		},
+
+		// Array slicing
+		{
+			name:     "array basic slice",
+			target:   []any{"a", "b", "c", "d", "e"},
+			start:    1,
+			end:      4,
+			step:     nil,
+			expected: []any{"b", "c", "d"},
+		},
+		{
+			name:     "array with step",
+			target:   []any{"a", "b", "c", "d", "e"},
+			start:    0,
+			end:      nil,
+			step:     2,
+			expected: []any{"a", "c", "e"},
+		},
+		{
+			name:     "array negative indices",
+			target:   []any{"a", "b", "c", "d", "e"},
+			start:    -3,
+			end:      -1,
+			step:     nil,
+			expected: []any{"c", "d"},
+		},
+		{
+			name:    "array out of bounds indices",
+			target:  []any{"a", "b", "c", "d", "e"},
+			start:   3,
+			end:     1,
+			step:    nil,
+			wantErr: true,
+			errMsg:  "lower slice bound (3) must be lower than upper (1)",
+		},
+
+		// Byte array slicing
+		{
+			name:     "bytes basic slice",
+			target:   []byte("hello"),
+			start:    1,
+			end:      4,
+			step:     nil,
+			expected: []byte("ell"),
+		},
+		{
+			name:     "bytes with step",
+			target:   []byte("hello"),
+			start:    0,
+			end:      nil,
+			step:     2,
+			expected: []byte("hlo"),
+		},
+
+		// Edge cases
+		{
+			name:     "empty slice",
+			target:   "hello",
+			start:    2,
+			end:      2,
+			step:     nil,
+			expected: "",
+		},
+		{
+			name:     "full slice",
+			target:   "hello",
+			start:    nil,
+			end:      nil,
+			step:     nil,
+			expected: "hello",
+		},
+
+		// Error cases
+		{
+			name:    "invalid target type",
+			target:  42,
+			start:   0,
+			end:     2,
+			step:    nil,
+			wantErr: true,
+			errMsg:  "expected array or string value, got number",
+		},
+		{
+			name:    "zero step",
+			target:  "hello",
+			start:   0,
+			end:     2,
+			step:    0,
+			wantErr: true,
+			errMsg:  "slice step cannot be zero",
+		},
+		{
+			name:    "invalid start type",
+			target:  "hello",
+			start:   "not a number",
+			end:     2,
+			step:    nil,
+			wantErr: true,
+			errMsg:  "slice start bound:",
+		},
+		{
+			name:    "invalid end type",
+			target:  "hello",
+			start:   0,
+			end:     "not a number",
+			step:    nil,
+			wantErr: true,
+			errMsg:  "slice end bound:",
+		},
+		{
+			name:    "invalid step type",
+			target:  "hello",
+			start:   0,
+			end:     2,
+			step:    "not a number",
+			wantErr: true,
+			errMsg:  "slice step:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targetFn := literalFn(tt.target)
+
+			var startFn, endFn, stepFn Function
+			if tt.start != nil {
+				startFn = literalFn(tt.start)
+			}
+			if tt.end != nil {
+				endFn = literalFn(tt.end)
+			}
+			if tt.step != nil {
+				stepFn = literalFn(tt.step)
+			}
+
+			method, err := NewSliceMethod(targetFn, startFn, endFn, stepFn)
+			require.NoError(t, err)
+
+			ctx := FunctionContext{}
+			result, err := method.Exec(ctx)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestSliceHelperFunctions(t *testing.T) {
+	t.Run("normalizeSliceBounds", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			length    int64
+			start     *int64
+			end       *int64
+			step      *int64
+			wantStart int64
+			wantEnd   int64
+			wantStep  int64
+		}{
+			{
+				name:      "default values",
+				length:    10,
+				start:     nil,
+				end:       nil,
+				step:      nil,
+				wantStart: 0,
+				wantEnd:   10,
+				wantStep:  1,
+			},
+			{
+				name:      "negative step defaults",
+				length:    10,
+				start:     nil,
+				end:       nil,
+				step:      ptr(int64(-1)),
+				wantStart: 9,
+				wantEnd:   -1,
+				wantStep:  -1,
+			},
+			{
+				name:      "negative indices",
+				length:    10,
+				start:     ptr(int64(-3)),
+				end:       ptr(int64(-1)),
+				step:      nil,
+				wantStart: 7,
+				wantEnd:   9,
+				wantStep:  1,
+			},
+			{
+				name:      "out of bounds clamping",
+				length:    5,
+				start:     ptr(int64(-10)),
+				end:       ptr(int64(10)),
+				step:      nil,
+				wantStart: 0,
+				wantEnd:   5,
+				wantStep:  1,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				gotStart, gotEnd, gotStep := normalizeSliceBounds(tt.length, tt.start, tt.end, tt.step)
+				assert.Equal(t, tt.wantStart, gotStart)
+				assert.Equal(t, tt.wantEnd, gotEnd)
+				assert.Equal(t, tt.wantStep, gotStep)
+			})
+		}
+	})
+
+	t.Run("sliceString", func(t *testing.T) {
+		result, err := sliceString("hello world", ptr(int64(0)), ptr(int64(5)), ptr(int64(2)))
+		require.NoError(t, err)
+		assert.Equal(t, "hlo", result)
+	})
+
+	t.Run("sliceBytes", func(t *testing.T) {
+		result, err := sliceBytes([]byte("hello"), ptr(int64(1)), ptr(int64(4)), nil)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("ell"), result)
+	})
+
+	t.Run("sliceArray", func(t *testing.T) {
+		result, err := sliceArray([]any{"a", "b", "c", "d"}, ptr(int64(1)), ptr(int64(3)), nil)
+		require.NoError(t, err)
+		assert.Equal(t, []any{"b", "c"}, result)
+	})
+}
+
+// Helper function to create pointers to int64 values
+func ptr(i int64) *int64 {
+	return &i
+}
