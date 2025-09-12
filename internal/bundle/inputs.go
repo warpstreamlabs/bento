@@ -24,7 +24,16 @@ func (e *Environment) InputAdd(constructor InputConstructor, spec docs.Component
 
 // InputInit attempts to initialise an input from a config.
 func (e *Environment) InputInit(conf input.Config, mgr NewManagement) (input.Streamed, error) {
-	return e.inputs.Init(conf, mgr)
+	spec, exists := e.inputs.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("input", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(mgr, "input", err)
+	}
+	c, err := spec.constructor(conf, mgr)
+	err = wrapComponentErr(mgr, "input", err)
+	return c, err
 }
 
 // InputDocs returns a slice of input specs, which document each method.
