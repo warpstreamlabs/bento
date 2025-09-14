@@ -127,20 +127,18 @@ func parseIndexExpression(fn query.Function, pCtx Context) Func[query.Function] 
 
 func parseSliceExpression(fn query.Function, pCtx Context) Func[query.Function] {
 	return func(input []rune) Result[query.Function] {
-		remaining := input
-
 		// Parse start bound
 		var startBound query.Function
-		colonRes := charColon(remaining)
+		colonRes := charColon(input)
 		if colonRes.Err != nil {
 			// Not colon -> parse start expression
-			startRes := queryParser(pCtx)(remaining)
+			startRes := queryParser(pCtx)(input)
 			if startRes.Err != nil {
 				return Fail[query.Function](startRes.Err, input)
 			}
 
 			startBound = startRes.Payload
-			remaining = DiscardedWhitespaceNewlineComments(startRes.Remaining).Remaining
+			remaining := DiscardedWhitespaceNewlineComments(startRes.Remaining).Remaining
 
 			colonRes = charColon(remaining)
 			if colonRes.Err != nil {
@@ -149,7 +147,7 @@ func parseSliceExpression(fn query.Function, pCtx Context) Func[query.Function] 
 			}
 		}
 
-		remaining = DiscardedWhitespaceNewlineComments(colonRes.Remaining).Remaining
+		remaining := DiscardedWhitespaceNewlineComments(colonRes.Remaining).Remaining
 
 		// Parse end bound
 		var endBound query.Function

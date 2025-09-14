@@ -451,7 +451,7 @@ It's possible to execute unit tests for your Bloblang mappings using the standar
 
 1. I'm seeing `unable to reference message as structured (with 'this')` when I try to run mappings with `bento blobl`.
 
-That particular error message means the mapping is failing to parse what's being fed in as a JSON document. Make sure that the data you are feeding in is valid JSON, and also that the documents _do not_ contain line breaks as `bento blobl` will parse each line individually.
+That particular error message means the mapping is failing to parse what's being fed in as a JSON document. Make sure that the data you are feeding in is valid JSON, and also that the documents *do not* contain line breaks as `bento blobl` will parse each line individually.
 
 Why? That's a good question. Bloblang supports non-JSON formats too, so it can't delimit documents with a streaming JSON parser like tools such as `jq`, so instead it uses line breaks to determine the boundaries of each message.
 

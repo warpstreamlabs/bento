@@ -1391,28 +1391,28 @@ func sortByMethod(target Function, args *ParsedParams) (Function, error) {
 //------------------------------------------------------------------------------
 
 var _ = registerSimpleMethod(
-	NewDeprecatedMethodSpec(
-		"slice", "use bracket syntax: this.value[0:2] instead of this.value.slice(0, 2)",
+	NewMethodSpec(
+		"slice", "consider bracket syntax for more functionality: this.value[0:2] instead of this.value.slice(0, 2)",
 	).InCategory(
 		MethodCategoryStrings,
-		"Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**",
+		"Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **Consider using bracket syntax for more functionality: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**",
 		NewExampleSpec("",
-			`# Deprecated - use bracket syntax instead
+			`# Method syntax
 root.beginning = this.value.slice(0, 2)
 root.end = this.value.slice(4)
 
-# New bracket syntax (recommended)
+# Bracket syntax (recommended)
 root.beginning = this.value[0:2]  
 root.end = this.value[4:]`,
 			`{"value":"foo bar"}`,
 			`{"beginning":"fo","end":"bar"}`,
 		),
-		NewExampleSpec("A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Use bracket syntax: `this.value[-4:]` instead of `this.value.slice(-4)`.**",
-			`# Deprecated - use bracket syntax instead
+		NewExampleSpec("A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Consider bracket syntax for consistency: `this.value[-4:]` instead of `this.value.slice(-4)`.**",
+			`# Method syntax
 root.last_chunk = this.value.slice(-4)
 root.the_rest = this.value.slice(0, -4)
 
-# New bracket syntax (recommended)
+# Bracket syntax (recommended)
 root.last_chunk = this.value[-4:]
 root.the_rest = this.value[:-4]`,
 			`{"value":"foo bar"}`,
@@ -1426,7 +1426,7 @@ root.the_rest = this.value[:-4]`,
 root.beginning = this.value.slice(0, 2)
 root.end = this.value.slice(4)
 
-# New bracket syntax (recommended)
+# Bracket syntax (recommended)
 root.beginning = this.value[0:2]
 root.end = this.value[4:]`,
 			`{"value":["foo","bar","baz","buz","bev"]}`,
