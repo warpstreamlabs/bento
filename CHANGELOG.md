@@ -14,11 +14,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- deprecated `parquet` processor removed @jem-davies
 - `golangci-lint` upgraded to V2 @miparnisari
 - bloblang method `split` can now operate on arrays as well as strings @iamramtin
 
 ### Fixed
 
+- fix `inject_tracing_map` config examples @eastnine90
 - fix data-race in config/schema.go @miparnisari
 - fix data-race in sql dsn building @gregfurman
 - fix validation for the seed_brokers config field in `kafka_franz` @gregfurman
