@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -155,4 +156,37 @@ func TestInterpolationExecutor(t *testing.T) {
 	b, err = exec.TryBytes(1)
 	require.NoError(t, err)
 	assert.Equal(t, "FOObar", string(b))
+}
+
+func BenchmarkMessageBatchTryInterpolatedString(b *testing.B) {
+	batch := make(MessageBatch, 1000)
+	for i := range batch {
+		msg := NewMessage(nil)
+		msg.SetStructured(map[string]any{
+			"content": "hello world",
+		})
+		msg.MetaSet("id", fmt.Sprintf("%d", i))
+		batch[i] = msg
+	}
+
+	expressions := []struct {
+		name string
+		expr string
+	}{
+		{"Simple", "${! content() }"},
+		{"WithMeta", "${! content() } - ${! meta(\"id\") }"},
+		{"Complex", "${! \"ID: \" + meta(\"id\") + \" Content: \" + content() }"},
+	}
+
+	for _, expr := range expressions {
+		b.Run(expr.name, func(b *testing.B) {
+			interp, err := NewInterpolatedString(expr.expr)
+			if err != nil {
+				b.Fatalf("Failed to create interpolated string: %v", err)
+			}
+			for b.Loop() {
+				_, _ = batch.TryInterpolatedString(500, interp)
+			}
+		})
+	}
 }
