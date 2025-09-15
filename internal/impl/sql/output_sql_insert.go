@@ -232,6 +232,13 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	if s.driver != "trino" {
+		if err := s.db.PingContext(ctx); err != nil {
+			s.db = nil
+			return service.ErrNotConnected
+		}
+	}
+
 	insertBuilder := s.builder
 
 	var tx *sql.Tx
