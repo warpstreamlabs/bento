@@ -379,14 +379,10 @@ func (f *franzKafkaWriter) WriteBatch(ctx context.Context, b service.MessageBatc
 
 	records := make([]*kgo.Record, 0, len(b))
 	for i, msg := range b {
-		var topic string
-		var key []byte
-		var partition int32
-		var hasPartition bool
 
-		topic, key, partition, hasPartition, err = batchInterpolator.exec(i)
-		if err != nil {
-			return err
+		topic, key, partition, hasPartition, execErr := batchInterpolator.exec(i)
+		if execErr != nil {
+			return execErr
 		}
 
 		record := &kgo.Record{Topic: topic}
