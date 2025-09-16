@@ -397,13 +397,15 @@ func (f *franzKafkaWriter) WriteBatch(ctx context.Context, b service.MessageBatc
 			Partition: partition,
 		}
 
-		_ = f.metaFilter.Walk(msg, func(key, value string) error {
-			record.Headers = append(record.Headers, kgo.RecordHeader{
-				Key:   key,
-				Value: []byte(value),
+		if !f.metaFilter.IsEmpty() {
+			_ = f.metaFilter.Walk(msg, func(key, value string) error {
+				record.Headers = append(record.Headers, kgo.RecordHeader{
+					Key:   key,
+					Value: []byte(value),
+				})
+				return nil
 			})
-			return nil
-		})
+		}
 		records = append(records, record)
 	}
 
