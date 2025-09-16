@@ -380,21 +380,23 @@ func (f *franzKafkaWriter) WriteBatch(ctx context.Context, b service.MessageBatc
 	records := make([]*kgo.Record, 0, len(b))
 	for i, msg := range b {
 
-		topic, key, partition, hasPartition, execErr := batchInterpolator.exec(i)
+		topic, key, partition, execErr := batchInterpolator.exec(i)
 		if execErr != nil {
 			return execErr
 		}
 
-		record := &kgo.Record{Topic: topic}
-		if record.Value, err = msg.AsBytes(); err != nil {
-			return
+		value, berr := msg.AsBytes()
+		if berr != nil {
+			return berr
 		}
-		if key != nil {
-			record.Key = key
+
+		record := &kgo.Record{
+			Value:     value,
+			Topic:     topic,
+			Key:       key,
+			Partition: partition,
 		}
-		if hasPartition {
-			record.Partition = partition
-		}
+
 		_ = f.metaFilter.Walk(msg, func(key, value string) error {
 			record.Headers = append(record.Headers, kgo.RecordHeader{
 				Key:   key,
@@ -443,7 +445,7 @@ type interpolationExecutor struct {
 	partitionExecutor *service.MessageBatchInterpolationExecutor
 }
 
-func (ie *interpolationExecutor) exec(i int) (topic string, key []byte, partition int32, hasPartition bool, err error) {
+func (ie *interpolationExecutor) exec(i int) (topic string, key []byte, partition int32, err error) {
 	topic, err = ie.topicExecutor.TryString(i)
 	if err != nil {
 		err = fmt.Errorf("topic interpolation error: %w", err)
@@ -458,7 +460,6 @@ func (ie *interpolationExecutor) exec(i int) (topic string, key []byte, partitio
 	}
 	if ie.partitionExecutor != nil {
 		var partStr string
-		hasPartition = true
 		partStr, err = ie.partitionExecutor.TryString(i)
 		if err != nil {
 			err = fmt.Errorf("partition interpolation error: %w", err)
