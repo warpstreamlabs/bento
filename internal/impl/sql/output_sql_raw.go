@@ -208,6 +208,13 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	if s.driver != "trino" {
+		if err := s.db.PingContext(ctx); err != nil {
+			s.db = nil
+			return service.ErrNotConnected
+		}
+	}
+
 	var executor *service.MessageBatchBloblangExecutor
 	if s.argsMapping != nil {
 		executor = batch.BloblangExecutor(s.argsMapping)
