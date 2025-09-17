@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 - fix data-race in config/schema.go @miparnisari
 - fix data-race in sql dsn building @gregfurman
 - fix validation for the seed_brokers config field in `kafka_franz` @gregfurman
+- fix oracle integration tests @jem-davies
 
 ## 1.10.2 - 2025-09-15
 
