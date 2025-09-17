@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.10.2 - 2025-09-15
+
+### Fixed 
+
+- `sql_insert` & `sql_raw` output components check connection, and will attempt reconnection via Components' Connect() func @jem-davies
+
 ## 1.10.1 - 2025-09-10
 
 ### Fixed 
