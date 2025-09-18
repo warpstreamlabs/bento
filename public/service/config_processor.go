@@ -91,3 +91,44 @@ func (p *ParsedConfig) FieldProcessorList(path ...string) ([]*OwnedProcessor, er
 
 	return procs, nil
 }
+
+// NewProcessorMapField defines a new processor map field, it is then possible to
+// extract a map of OwnedProcessor from the resulting parsed config with the
+// method FieldProcessorMap.
+func NewProcessorMapField(name string) *ConfigField {
+	return &ConfigField{
+		field: docs.FieldProcessor(name, "").Map(),
+	}
+}
+
+// FieldProcessorMap accesses a field from a parsed config that was defined
+// with NewProcessorMapField and returns a map of OwnedProcessor, or an error if the
+// configuration was invalid.
+func (p *ParsedConfig) FieldProcessorMap(path ...string) (map[string]*OwnedProcessor, error) {
+	field, exists := p.i.Field(path...)
+	if !exists {
+		return nil, fmt.Errorf("field '%v' was not found in the config", strings.Join(path, "."))
+	}
+
+	fieldMap, ok := field.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("unexpected value, expected object, got %T", field)
+	}
+
+	tmpMgr := p.mgr.IntoPath(path...)
+	procs := make(map[string]*OwnedProcessor, len(fieldMap))
+	for k, v := range fieldMap {
+		conf, err := processor.FromAny(p.mgr.Environment(), v)
+		if err != nil {
+			return nil, fmt.Errorf("value %v: %w", k, err)
+		}
+
+		iproc, err := tmpMgr.IntoPath(k).NewProcessor(conf)
+		if err != nil {
+			return nil, fmt.Errorf("processor %v: %w", k, err)
+		}
+		procs[k] = &OwnedProcessor{iproc}
+	}
+
+	return procs, nil
+}

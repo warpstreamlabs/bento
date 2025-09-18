@@ -93,6 +93,10 @@ func (r *Resources) Label() string {
 	return r.mgr.Label()
 }
 
+func (r *Resources) Path() []string {
+	return r.mgr.Path()
+}
+
 // Logger returns a logger preset with context about the component the resources
 // were provided to.
 func (r *Resources) Logger() *Logger {
