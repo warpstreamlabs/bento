@@ -375,40 +375,37 @@ func (f *franzKafkaWriter) WriteBatch(ctx context.Context, b service.MessageBatc
 		return service.ErrNotConnected
 	}
 
+	batchInterpolator := f.newInterpolationExecutor(b)
+
 	records := make([]*kgo.Record, 0, len(b))
 	for i, msg := range b {
-		var topic string
-		if topic, err = b.TryInterpolatedString(i, f.topic); err != nil {
-			return fmt.Errorf("topic interpolation error: %w", err)
+
+		topic, key, partition, execErr := batchInterpolator.exec(i)
+		if execErr != nil {
+			return execErr
 		}
 
-		record := &kgo.Record{Topic: topic}
-		if record.Value, err = msg.AsBytes(); err != nil {
-			return
+		value, berr := msg.AsBytes()
+		if berr != nil {
+			return berr
 		}
-		if f.key != nil {
-			if record.Key, err = b.TryInterpolatedBytes(i, f.key); err != nil {
-				return fmt.Errorf("key interpolation error: %w", err)
-			}
+
+		record := &kgo.Record{
+			Value:     value,
+			Topic:     topic,
+			Key:       key,
+			Partition: partition,
 		}
-		if f.partition != nil {
-			partStr, err := b.TryInterpolatedString(i, f.partition)
-			if err != nil {
-				return fmt.Errorf("partition interpolation error: %w", err)
-			}
-			partInt, err := strconv.Atoi(partStr)
-			if err != nil {
-				return fmt.Errorf("partition parse error: %w", err)
-			}
-			record.Partition = int32(partInt)
-		}
-		_ = f.metaFilter.Walk(msg, func(key, value string) error {
-			record.Headers = append(record.Headers, kgo.RecordHeader{
-				Key:   key,
-				Value: []byte(value),
+
+		if !f.metaFilter.IsEmpty() {
+			_ = f.metaFilter.Walk(msg, func(key, value string) error {
+				record.Headers = append(record.Headers, kgo.RecordHeader{
+					Key:   key,
+					Value: []byte(value),
+				})
+				return nil
 			})
-			return nil
-		})
+		}
 		records = append(records, record)
 	}
 
@@ -429,4 +426,54 @@ func (f *franzKafkaWriter) disconnect() {
 func (f *franzKafkaWriter) Close(ctx context.Context) error {
 	f.disconnect()
 	return nil
+}
+
+//------------------------------------------------------------------------------
+
+func (f *franzKafkaWriter) newInterpolationExecutor(batch service.MessageBatch) (ie interpolationExecutor) {
+	ie.topicExecutor = batch.InterpolationExecutor(f.topic)
+	if f.key != nil {
+		ie.keyExecutor = batch.InterpolationExecutor(f.key)
+	}
+	if f.partition != nil {
+		ie.partitionExecutor = batch.InterpolationExecutor(f.partition)
+	}
+	return ie
+}
+
+type interpolationExecutor struct {
+	topicExecutor     *service.MessageBatchInterpolationExecutor
+	keyExecutor       *service.MessageBatchInterpolationExecutor
+	partitionExecutor *service.MessageBatchInterpolationExecutor
+}
+
+func (ie *interpolationExecutor) exec(i int) (topic string, key []byte, partition int32, err error) {
+	topic, err = ie.topicExecutor.TryString(i)
+	if err != nil {
+		err = fmt.Errorf("topic interpolation error: %w", err)
+		return
+	}
+	if ie.keyExecutor != nil {
+		key, err = ie.keyExecutor.TryBytes(i)
+		if err != nil {
+			err = fmt.Errorf("key interpolation error: %w", err)
+			return
+		}
+	}
+	if ie.partitionExecutor != nil {
+		var partStr string
+		partStr, err = ie.partitionExecutor.TryString(i)
+		if err != nil {
+			err = fmt.Errorf("partition interpolation error: %w", err)
+			return
+		}
+		var partitionInt int
+		partitionInt, err = strconv.Atoi(partStr)
+		if err != nil {
+			err = fmt.Errorf("partition parse error: %w", err)
+			return
+		}
+		partition = int32(partitionInt)
+	}
+	return
 }
