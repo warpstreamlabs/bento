@@ -10,6 +10,7 @@ PATHINSTTOOLS      = $(DEST_DIR)/tools
 PATHINSTSERVERLESS = $(DEST_DIR)/serverless
 PATHINSTDOCKER     = $(DEST_DIR)/docker
 DOCKER_IMAGE       ?= ghcr.io/warpstreamlabs/bento
+GOEXE              ?= $(shell go env GOEXE)
 
 VERSION   := $(shell git describe --tags || echo "v0.0.0")
 VER_CUT   := $(shell echo $(VERSION) | cut -c2-)
@@ -42,10 +43,10 @@ deps: ## Go mod tidy
 SOURCE_FILES = $(shell find internal public cmd -type f)
 TEMPLATE_FILES = $(shell find internal/impl -type f -name "template_*.yaml")
 
-$(PATHINSTBIN)/%: $(SOURCE_FILES)
-	@go build $(GO_FLAGS) -tags "$(TAGS)" -ldflags "$(LD_FLAGS) $(VER_FLAGS)" -o $@ ./cmd/$*
+$(PATHINSTBIN)/%$(GOEXE): $(SOURCE_FILES)
+	@go build $(GO_FLAGS) -tags "$(TAGS)" -ldflags "$(LD_FLAGS) $(VER_FLAGS)" -o $@ ./cmd/$(subst $(GOEXE),,$*)
 
-$(APPS): %: $(PATHINSTBIN)/%
+$(APPS): %: $(PATHINSTBIN)/%$(GOEXE)
 
 TOOLS = bento_docs_gen
 tools: $(TOOLS)
