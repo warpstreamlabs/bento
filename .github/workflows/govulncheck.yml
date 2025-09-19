@@ -1,0 +1,35 @@
+name: govulncheck
+on:
+  schedule:
+    # Mondays at 0000
+    - cron: "0 0 * * 1"
+
+  workflow_dispatch:
+
+jobs:
+  check-for-vulnerabilities:
+    name: Check for vulnerabilities using `govulncheck`
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: golang/govulncheck-action@v1.0.4
+        with:
+          output-format: sarif
+          output-file: govulncheck.sarif
+
+      # Clean up duplicate stacks in SARIF file
+      - name: Clean SARIF file
+        run: |
+          if [ -f govulncheck.sarif ]; then
+            # Use jq to remove duplicate stacks while preserving the rest of the SARIF structure
+            jq '.runs[].results[]?.stacks |= if type == "array" then unique else . end' govulncheck.sarif > govulncheck_clean.sarif
+            mv govulncheck_clean.sarif govulncheck.sarif
+          fi
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3.30.3
+        with:
+          sarif_file: govulncheck.sarif
+          category: govulncheck
