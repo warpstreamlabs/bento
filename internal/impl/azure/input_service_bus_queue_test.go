@@ -35,7 +35,7 @@ nack_reject_patterns: ["^reject.*"]
 	assert.Equal(t, "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test", config.connectionString)
 	assert.Equal(t, "my-queue", config.queueName)
 	assert.Equal(t, 5, config.maxInFlight)
-	assert.Equal(t, true, config.autoAck)
+	assert.True(t, config.autoAck)
 	require.Len(t, config.nackRejectPatterns, 1)
 	assert.True(t, config.nackRejectPatterns[0].MatchString("reject this"))
 }
@@ -59,7 +59,7 @@ queue: "my-queue"
 	config, err := sbqConfigFromParsed(parsed)
 	require.NoError(t, err)
 
-	assert.Equal(t, "", config.connectionString)
+	assert.Empty(t, config.connectionString)
 	assert.Equal(t, "test.servicebus.windows.net", config.namespace)
 	assert.Equal(t, "my-queue", config.queueName)
 }
