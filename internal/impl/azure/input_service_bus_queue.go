@@ -134,6 +134,7 @@ type azureServiceBusQueueReader struct {
 	conf *sbqConfig
 	log  *service.Logger
 
+	m        sync.RWMutex
 	client   *azservicebus.Client
 	receiver *azservicebus.Receiver
 
@@ -141,8 +142,6 @@ type azureServiceBusQueueReader struct {
 	ackMessagesChan  chan *azservicebus.ReceivedMessage
 	nackMessagesChan chan *azservicebus.ReceivedMessage
 	closeSignal      *shutdown.Signaller
-
-	m sync.RWMutex
 }
 
 func newAzureServiceBusQueueReader(conf *sbqConfig, mgr *service.Resources) (*azureServiceBusQueueReader, error) {
