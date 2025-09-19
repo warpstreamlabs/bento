@@ -14,6 +14,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
