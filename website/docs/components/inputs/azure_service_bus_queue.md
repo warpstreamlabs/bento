@@ -112,6 +112,12 @@ The Service Bus namespace. Required when connection_string is not provided.
 Type: `string`  
 Default: `""`  
 
+```yml
+# Examples
+
+namespace: myservicebus.servicebus.windows.net
+```
+
 ### `queue`
 
 The name of the Service Bus queue to consume from.
