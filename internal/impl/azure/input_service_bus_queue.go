@@ -113,6 +113,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Default(""),
 			service.NewStringField(sbqFieldNamespace).
 				Description("The Service Bus namespace. Required when connection_string is not provided.").
+				Example("myservicebus.servicebus.windows.net").
 				Default(""),
 			service.NewStringField(sbqFieldQueueName).
 				Description("The name of the Service Bus queue to consume from."),
