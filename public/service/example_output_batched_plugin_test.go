@@ -66,7 +66,7 @@ func Example_outputBatchedPlugin() {
 
 	// Use the stream builder API to create a Bento stream that uses our new
 	// output type.
-	builder := service.NewStreamBuilder()
+	builder := service.NewStreamBuilder(service.OptAllowExperimental())
 
 	// Set the full Bento configuration of the stream.
 	err = builder.SetYAML(`

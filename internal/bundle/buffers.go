@@ -24,7 +24,16 @@ func (e *Environment) BufferAdd(constructor BufferConstructor, spec docs.Compone
 
 // BufferInit attempts to initialise a buffer from a config.
 func (e *Environment) BufferInit(conf buffer.Config, mgr NewManagement) (buffer.Streamed, error) {
-	return e.buffers.Init(conf, mgr)
+	spec, exists := e.buffers.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("buffer", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(mgr, "buffer", err)
+	}
+	c, err := spec.constructor(conf, mgr)
+	err = wrapComponentErr(mgr, "buffer", err)
+	return c, err
 }
 
 // BufferDocs returns a slice of buffer specs, which document each method.

@@ -24,7 +24,16 @@ func (e *Environment) CacheAdd(constructor CacheConstructor, spec docs.Component
 
 // CacheInit attempts to initialise a cache from a config.
 func (e *Environment) CacheInit(conf cache.Config, mgr NewManagement) (cache.V1, error) {
-	return e.caches.Init(conf, mgr)
+	spec, exists := e.caches.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("cache", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(mgr, "cache", err)
+	}
+	c, err := spec.constructor(conf, mgr)
+	err = wrapComponentErr(mgr, "cache", err)
+	return c, err
 }
 
 // CacheDocs returns a slice of cache specs, which document each method.
