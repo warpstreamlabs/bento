@@ -232,6 +232,7 @@ func newAzureTargetReader(ctx context.Context, logger *service.Logger, conf bsiC
 	return &azureTargetStreamReader{
 		input: conf.FileReader,
 		log:   logger,
+		conf:  conf,
 	}, nil
 }
 
@@ -241,6 +242,7 @@ type azureTargetStreamReader struct {
 	pending []*azureObjectTarget
 	input   *service.OwnedInput
 	log     *service.Logger
+	conf    bsiConfig
 }
 
 func (a *azureTargetStreamReader) Pop(ctx context.Context) (*azureObjectTarget, error) {
@@ -277,6 +279,7 @@ func (a *azureTargetStreamReader) Pop(ctx context.Context) (*azureObjectTarget, 
 			pendingAcks++
 
 			var ackOnce sync.Once
+			deleteAckFn := deleteAzureObjectAckFn(a.conf.client, a.conf.Container, name, a.conf.DeleteObjects, nil)
 			a.pending = append(a.pending, &azureObjectTarget{
 				key: name,
 				ackFn: func(ctx context.Context, err error) (aerr error) {
@@ -295,6 +298,12 @@ func (a *azureTargetStreamReader) Pop(ctx context.Context) (*azureObjectTarget, 
 					} else {
 						ackOnce.Do(func() {
 							if atomic.AddInt32(&pendingAcks, -1) == 0 {
+								// First call the delete function if configured
+								if deleteErr := deleteAckFn(ctx, nil); deleteErr != nil {
+									aerr = deleteErr
+									return
+								}
+								// Then ack the original message
 								aerr = ackFn(ctx, nil)
 							}
 						})
