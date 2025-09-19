@@ -531,3 +531,69 @@ input:
 		integration.StreamTestOptVarSet("VAR1", ""),
 	)
 }
+
+func BenchmarkIntegrationKafka(b *testing.B) {
+	integration.CheckSkip(b)
+
+	pool, err := dockertest.NewPool("")
+	require.NoError(b, err)
+
+	kafkaPort, err := integration.GetFreePort()
+	require.NoError(b, err)
+
+	kafkaPortStr := strconv.Itoa(kafkaPort)
+
+	options := &dockertest.RunOptions{
+		Repository:   "redpandadata/redpanda",
+		Tag:          "v25.2.2",
+		Hostname:     "redpanda",
+		ExposedPorts: []string{"9092"},
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
+		},
+		Cmd: []string{
+			"redpanda", "start", "--smp 1", "--overprovisioned",
+			"--kafka-addr 0.0.0.0:9092",
+			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
+		},
+	}
+
+	pool.MaxWait = time.Minute
+	resource, err := pool.RunWithOptions(options)
+	require.NoError(b, err)
+	b.Cleanup(func() {
+		assert.NoError(b, pool.Purge(resource))
+	})
+
+	_ = resource.Expire(900)
+	require.NoError(b, pool.Retry(func() error {
+		return createKafkaTopic(context.Background(), "localhost:"+kafkaPortStr, "testingconnection", 1)
+	}))
+
+	b.Run("kafka_bench", func(b *testing.B) {
+
+		template := `
+output:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topic: topic-$ID
+
+input:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topics: [ topic-$ID ]
+    consumer_group: group-$ID
+`
+
+		suite := integration.StreamBenchs(
+			integration.StreamBenchSendReportThroughput(12000, 12000, 10),
+		)
+		suite.Run(
+			b, template,
+			integration.StreamTestOptPreTest(func(b testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+				require.NoError(b, createKafkaTopic(ctx, "localhost:"+kafkaPortStr, "topic-"+vars.ID, 4))
+			}),
+			integration.StreamTestOptPort(kafkaPortStr),
+		)
+	})
+}

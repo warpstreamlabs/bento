@@ -12,3 +12,4 @@ release_notes.md
 .opp
 go.work*
 *.env
+*.prof
