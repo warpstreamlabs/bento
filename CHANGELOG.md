@@ -3,6 +3,31 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.11.0 - 2025-09-19
+
+### Added
+
+- new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
+- `nlp_classify_text`, `nlp_classify_tokens`, `nlp_extract_features` & `nlp_zero_shot_classify` processors enable use of ONNX NLP models @gregfurman
+- `elasticsearch_v2` output component, uses official elasticsearch go client @jem-davies
+- `gcp_spanner_cdc` consumes Spanner Change Stream Events from a GCP Spanner instance @anicoll & @gregfurman
+
+### Changed
+
+- deprecated `elasticsearch` output @jem-davies
+- deprecated `parquet` processor removed @jem-davies
+- `golangci-lint` upgraded to V2 @miparnisari
+- bloblang method `split` can now operate on arrays as well as strings @iamramtin
+
+### Fixed
+
+- fix input `azure_blob_storage` failing to delete blobs when using `targets_input` & `delete_object: true` @adrianhag
+- fix `inject_tracing_map` config examples @eastnine90
+- fix data-race in config/schema.go @miparnisari
+- fix data-race in sql dsn building @gregfurman
+- fix validation for the seed_brokers config field in `kafka_franz` @gregfurman
+- fix oracle integration tests @jem-davies
+
 ## 1.10.2 - 2025-09-15
 
 ### Fixed 
