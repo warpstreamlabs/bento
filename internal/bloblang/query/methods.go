@@ -364,6 +364,242 @@ func mapMethod(target Function, args *ParsedParams) (Function, error) {
 
 //------------------------------------------------------------------------------
 
+// NewIndexMethod creates a new index method for single element access.
+func NewIndexMethod(target, indexExpr Function) (Function, error) {
+	return ClosureFunction("index", func(ctx FunctionContext) (any, error) {
+		targetVal, err := target.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		indexVal, err := indexExpr.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		index, err := value.IGetInt(indexVal)
+		if err != nil {
+			return nil, fmt.Errorf("index: %w", err)
+		}
+
+		var length int64
+		switch t := targetVal.(type) {
+		case string:
+			length = int64(len(t))
+		case []byte:
+			length = int64(len(t))
+		case []any:
+			length = int64(len(t))
+		default:
+			return nil, value.NewTypeError(targetVal, value.TArray, value.TString)
+		}
+
+		if index < 0 {
+			index += length
+		}
+
+		if index < 0 || index >= length {
+			return nil, fmt.Errorf("index %v out of bounds for length %v", index, length)
+		}
+
+		switch t := targetVal.(type) {
+		case string:
+			return string(t[index]), nil
+		case []byte:
+			return t[index], nil
+		case []any:
+			return t[index], nil
+		}
+
+		return nil, nil
+
+	}, func(ctx TargetsContext) (TargetsContext, []TargetPath) {
+		targetCtx, targets := target.QueryTargets(ctx)
+		indexCtx, indexTargets := indexExpr.QueryTargets(targetCtx)
+
+		allTargets := append(targets, indexTargets...)
+		return indexCtx, allTargets
+	}), nil
+}
+
+//------------------------------------------------------------------------------
+
+// NewSliceMethod creates a new slice method with optional step support.
+func NewSliceMethod(target, startBound, endBound, stepBound Function) (Function, error) {
+	execFunc := func(ctx FunctionContext) (any, error) {
+		targetVal, err := target.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var start, end, step *int64
+
+		if startBound != nil {
+			startVal, err := startBound.Exec(ctx)
+			if err != nil {
+				return nil, err
+			}
+			startInt, err := value.IGetInt(startVal)
+			if err != nil {
+				return nil, fmt.Errorf("slice start bound: %w", err)
+			}
+			start = &startInt
+		}
+
+		if endBound != nil {
+			endVal, err := endBound.Exec(ctx)
+			if err != nil {
+				return nil, err
+			}
+			endInt, err := value.IGetInt(endVal)
+			if err != nil {
+				return nil, fmt.Errorf("slice end bound: %w", err)
+			}
+			end = &endInt
+		}
+
+		if stepBound != nil {
+			stepVal, err := stepBound.Exec(ctx)
+			if err != nil {
+				return nil, err
+			}
+			stepInt, err := value.IGetInt(stepVal)
+			if err != nil {
+				return nil, fmt.Errorf("slice step: %w", err)
+			}
+			if stepInt == 0 {
+				return nil, errors.New("slice step cannot be zero")
+			}
+			step = &stepInt
+		}
+
+		// Validate bounds when step is nil
+		if start != nil && end != nil && step == nil {
+			if *start > *end {
+				return nil, fmt.Errorf("lower slice bound (%v) must be lower than upper (%v)", *start, *end)
+			}
+		}
+
+		switch t := targetVal.(type) {
+		case string:
+			return sliceString(t, start, end, step)
+		case []byte:
+			return sliceBytes(t, start, end, step)
+		case []any:
+			return sliceArray(t, start, end, step)
+		default:
+			return nil, value.NewTypeError(targetVal, value.TArray, value.TString)
+		}
+	}
+	queryFunc := func(ctx TargetsContext) (TargetsContext, []TargetPath) {
+		var allTargets []TargetPath
+		currentCtx := ctx
+
+		for _, fn := range []Function{target, startBound, endBound, stepBound} {
+			if fn == nil {
+				continue
+			}
+			var targets []TargetPath
+			currentCtx, targets = fn.QueryTargets(currentCtx)
+			allTargets = append(allTargets, targets...)
+		}
+
+		return currentCtx, allTargets
+	}
+
+	return ClosureFunction("slice", execFunc, queryFunc), nil
+}
+
+// slice slices any slice-like input (string, []byte, []any).
+func slice[T any](data []T, start, end, step *int64) ([]T, error) {
+	length := int64(len(data))
+	startIdx, endIdx, stepVal := normalizeSliceBounds(length, start, end, step)
+
+	if stepVal == 1 {
+		return data[startIdx:endIdx], nil
+	}
+
+	// Out of range - return empty slice
+	if (stepVal > 0 && startIdx >= endIdx) || (stepVal < 0 && startIdx <= endIdx) {
+		return []T{}, nil
+	}
+
+	var result []T
+	if stepVal > 0 {
+		for i := startIdx; i < endIdx; i += stepVal {
+			result = append(result, data[i])
+		}
+	} else {
+		for i := startIdx; i > endIdx; i += stepVal {
+			result = append(result, data[i])
+		}
+	}
+	return result, nil
+}
+
+// sliceString slices any string input.
+func sliceString(s string, start, end, step *int64) (string, error) {
+	runes := []rune(s)
+	result, err := slice(runes, start, end, step)
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
+}
+
+// sliceString slices any byte array input.
+func sliceBytes(b []byte, start, end, step *int64) ([]byte, error) {
+	return slice(b, start, end, step)
+}
+
+// sliceString slices any array input.
+func sliceArray(arr []any, start, end, step *int64) ([]any, error) {
+	return slice(arr, start, end, step)
+}
+
+func normalizeSliceBounds(length int64, start, end, step *int64) (startIdx, endIdx, stepVal int64) {
+	stepVal = 1 // default
+	if step != nil {
+		stepVal = *step
+	}
+
+	if start == nil {
+		if stepVal > 0 {
+			startIdx = 0
+		} else {
+			startIdx = length - 1
+		}
+	} else {
+		startIdx = *start
+		if startIdx < 0 {
+			startIdx = max(length+startIdx, 0)
+		}
+		if stepVal > 0 {
+			startIdx = min(startIdx, length)
+		}
+	}
+
+	if end == nil {
+		if stepVal > 0 {
+			endIdx = length
+		} else {
+			endIdx = -1
+		}
+	} else {
+		endIdx = *end
+		if endIdx < 0 {
+			endIdx = max(length+endIdx, -1)
+		}
+		if stepVal > 0 {
+			endIdx = min(endIdx, length)
+		}
+	}
+
+	return startIdx, endIdx, stepVal
+}
+
+//------------------------------------------------------------------------------
+
 var _ = registerMethod(NewHiddenMethodSpec("not"), notMethodCtor)
 
 type notMethod struct {

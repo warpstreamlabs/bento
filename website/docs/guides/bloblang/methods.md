@@ -528,7 +528,7 @@ root = content().reverse()
 
 ### `slice`
 
-Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.
+Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **Consider using bracket syntax for more functionality: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
 
 #### Parameters
 
@@ -539,18 +539,28 @@ Extract a slice from a string by specifying two indices, a low and high bound, w
 
 
 ```coffee
+# Method syntax
 root.beginning = this.value.slice(0, 2)
 root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]  
+root.end = this.value[4:]
 
 # In:  {"value":"foo bar"}
 # Out: {"beginning":"fo","end":"bar"}
 ```
 
-A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.
+A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Consider bracket syntax for consistency: `this.value[-4:]` instead of `this.value.slice(-4)`.**
 
 ```coffee
+# Method syntax
 root.last_chunk = this.value.slice(-4)
 root.the_rest = this.value.slice(0, -4)
+
+# Bracket syntax (recommended)
+root.last_chunk = this.value[-4:]
+root.the_rest = this.value[:-4]
 
 # In:  {"value":"foo bar"}
 # Out: {"last_chunk":" bar","the_rest":"foo"}
@@ -2668,7 +2678,7 @@ Introduced in version 1.0.0.
 
 ### `slice`
 
-Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.
+Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
 
 #### Parameters
 
@@ -2679,18 +2689,28 @@ Extract a slice from an array by specifying two indices, a low and high bound, w
 
 
 ```coffee
+# Deprecated - use bracket syntax instead
 root.beginning = this.value.slice(0, 2)
 root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]
+root.end = this.value[4:]
 
 # In:  {"value":["foo","bar","baz","buz","bev"]}
 # Out: {"beginning":["foo","bar"],"end":["bev"]}
 ```
 
-A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.
+A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Use bracket syntax: `this.value[-2:]` instead of `this.value.slice(-2)`.**
 
 ```coffee
+# Deprecated - use bracket syntax instead
 root.last_chunk = this.value.slice(-2)
 root.the_rest = this.value.slice(0, -2)
+
+# New bracket syntax (recommended)
+root.last_chunk = this.value[-2:]
+root.the_rest = this.value[:-2]
 
 # In:  {"value":["foo","bar","baz","buz","bev"]}
 # Out: {"last_chunk":["buz","bev"],"the_rest":["foo","bar","baz"]}
