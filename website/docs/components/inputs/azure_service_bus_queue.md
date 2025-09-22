@@ -54,6 +54,7 @@ input:
     max_in_flight: 10
     auto_ack: false
     nack_reject_patterns: []
+    renew_lock: true
 ```
 
 </TabItem>
@@ -155,5 +156,13 @@ Default: `[]`
 nack_reject_patterns:
   - ^reject me please:.+$
 ```
+
+### `renew_lock`
+
+Automatically renew message locks to prevent lock expiration during processing. Useful for long-running message processing.
+
+
+Type: `bool`  
+Default: `true`  
 
 
