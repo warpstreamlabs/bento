@@ -1,5 +1,4 @@
 .PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs playground
-.DEFAULT_GOAL := help
 TAGS ?=
 
 GOMAXPROCS         ?= 1
