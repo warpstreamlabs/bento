@@ -18,7 +18,8 @@ func TestServiceBusQueueConfig(t *testing.T) {
 		Field(service.NewStringField("queue").Default("test-queue")).
 		Field(service.NewInputMaxInFlightField().Default(10)).
 		Field(service.NewBoolField("auto_ack").Default(false)).
-		Field(service.NewStringListField("nack_reject_patterns").Default([]any{}))
+		Field(service.NewStringListField("nack_reject_patterns").Default([]any{})).
+		Field(service.NewBoolField("renew_lock").Default(true))
 
 	parsed, err := conf.ParseYAML(`
 connection_string: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test"
@@ -26,6 +27,7 @@ queue: "my-queue"
 max_in_flight: 5
 auto_ack: true
 nack_reject_patterns: ["^reject.*"]
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 
@@ -48,11 +50,13 @@ func TestServiceBusQueueConfigFromNamespace(t *testing.T) {
 		Field(service.NewStringField("queue").Default("test-queue")).
 		Field(service.NewInputMaxInFlightField().Default(10)).
 		Field(service.NewBoolField("auto_ack").Default(false)).
-		Field(service.NewStringListField("nack_reject_patterns").Default([]any{}))
+		Field(service.NewStringListField("nack_reject_patterns").Default([]any{})).
+		Field(service.NewBoolField("renew_lock").Default(true))
 
 	parsed, err := conf.ParseYAML(`
 namespace: "test.servicebus.windows.net"
 queue: "my-queue"
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 
@@ -72,10 +76,12 @@ func TestServiceBusQueueConfigValidation(t *testing.T) {
 		Field(service.NewStringField("queue").Default("test-queue")).
 		Field(service.NewInputMaxInFlightField().Default(10)).
 		Field(service.NewBoolField("auto_ack").Default(false)).
-		Field(service.NewStringListField("nack_reject_patterns").Default([]any{}))
+		Field(service.NewStringListField("nack_reject_patterns").Default([]any{})).
+		Field(service.NewBoolField("renew_lock").Default(true))
 
 	parsed, err := conf.ParseYAML(`
 queue: "my-queue"
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 
@@ -101,12 +107,14 @@ func TestServiceBusQueueNackRejectPatterns(t *testing.T) {
 		Field(service.NewStringField("queue").Default("test-queue")).
 		Field(service.NewInputMaxInFlightField().Default(10)).
 		Field(service.NewBoolField("auto_ack").Default(false)).
-		Field(service.NewStringListField("nack_reject_patterns").Default([]any{}))
+		Field(service.NewStringListField("nack_reject_patterns").Default([]any{})).
+		Field(service.NewBoolField("renew_lock").Default(true))
 
 	parsed, err := conf.ParseYAML(`
 connection_string: "test"
 queue: "test-queue"
 nack_reject_patterns: ["^reject.*", ".*error$"]
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 
@@ -132,12 +140,14 @@ func TestServiceBusQueueInvalidRegexPattern(t *testing.T) {
 		Field(service.NewStringField("queue").Default("test-queue")).
 		Field(service.NewInputMaxInFlightField().Default(10)).
 		Field(service.NewBoolField("auto_ack").Default(false)).
-		Field(service.NewStringListField("nack_reject_patterns").Default([]any{}))
+		Field(service.NewStringListField("nack_reject_patterns").Default([]any{})).
+		Field(service.NewBoolField("renew_lock").Default(true))
 
 	parsed, err := conf.ParseYAML(`
 connection_string: "test"
 queue: "test-queue"
 nack_reject_patterns: ["[invalid"]
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 
@@ -158,6 +168,7 @@ queue: "test-queue"
 max_in_flight: 10
 auto_ack: false
 nack_reject_patterns: []
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 }
@@ -234,6 +245,7 @@ func TestServiceBusQueueInit(t *testing.T) {
 	parsed, err := spec.ParseYAML(`
 connection_string: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test"
 queue: "test-queue"
+renew_lock: true
 `, nil)
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
