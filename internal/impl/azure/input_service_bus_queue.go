@@ -24,6 +24,7 @@ const (
 	sbqFieldQueueName          = "queue"
 	sbqFieldAutoAck            = "auto_ack"
 	sbqFieldNackRejectPatterns = "nack_reject_patterns"
+	sbqFieldRenewLock          = "renew_lock"
 )
 
 type sbqConfig struct {
@@ -33,6 +34,7 @@ type sbqConfig struct {
 	maxInFlight        int
 	autoAck            bool
 	nackRejectPatterns []*regexp.Regexp
+	renewLock          bool
 }
 
 func sbqConfigFromParsed(pConf *service.ParsedConfig) (*sbqConfig, error) {
@@ -52,6 +54,9 @@ func sbqConfigFromParsed(pConf *service.ParsedConfig) (*sbqConfig, error) {
 		return nil, err
 	}
 	if conf.autoAck, err = pConf.FieldBool(sbqFieldAutoAck); err != nil {
+		return nil, err
+	}
+	if conf.renewLock, err = pConf.FieldBool(sbqFieldRenewLock); err != nil {
 		return nil, err
 	}
 	if pConf.Contains(sbqFieldNackRejectPatterns) {
@@ -129,6 +134,10 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Example([]string{"^reject me please:.+$"}).
 				Advanced().
 				Default([]any{}),
+			service.NewBoolField(sbqFieldRenewLock).
+				Description("Automatically renew message locks to prevent lock expiration during processing. Useful for long-running message processing.").
+				Default(true).
+				Advanced(),
 		)
 }
 
@@ -144,6 +153,10 @@ type azureServiceBusQueueReader struct {
 	ackMessagesChan  chan *azservicebus.ReceivedMessage
 	nackMessagesChan chan *azservicebus.ReceivedMessage
 	closeSignal      *shutdown.Signaller
+
+	// Lock renewal tracking
+	locksMutex  sync.Mutex
+	activeLocks map[string]chan struct{} // Map of lock token -> stop channel
 }
 
 func newAzureServiceBusQueueReader(conf *sbqConfig, mgr *service.Resources) (*azureServiceBusQueueReader, error) {
@@ -154,6 +167,7 @@ func newAzureServiceBusQueueReader(conf *sbqConfig, mgr *service.Resources) (*az
 		ackMessagesChan:  make(chan *azservicebus.ReceivedMessage),
 		nackMessagesChan: make(chan *azservicebus.ReceivedMessage),
 		closeSignal:      shutdown.NewSignaller(),
+		activeLocks:      make(map[string]chan struct{}),
 	}, nil
 }
 
@@ -273,8 +287,10 @@ func (a *azureServiceBusQueueReader) readLoop(wg *sync.WaitGroup) {
 func (a *azureServiceBusQueueReader) ackLoop(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	closeNowCtx, done := a.closeSignal.HardStopCtx(context.Background())
-	defer done()
+	closeAtLeisureCtx, doneLeisure := a.closeSignal.SoftStopCtx(context.Background())
+	defer doneLeisure()
+	closeNowCtx, doneNow := a.closeSignal.HardStopCtx(context.Background())
+	defer doneNow()
 
 	for {
 		select {
@@ -284,8 +300,21 @@ func (a *azureServiceBusQueueReader) ackLoop(wg *sync.WaitGroup) {
 			a.m.RUnlock()
 
 			if receiver != nil {
-				if err := receiver.CompleteMessage(closeNowCtx, msg, nil); err != nil {
-					a.log.Errorf("Failed to complete message: %v", err)
+				// Use the leisure context first, fall back to hard stop context if cancelled
+				ctx := closeAtLeisureCtx
+				select {
+				case <-closeAtLeisureCtx.Done():
+					ctx = closeNowCtx
+				default:
+				}
+				if err := receiver.CompleteMessage(ctx, msg, nil); err != nil {
+					// Only log error if not due to shutdown
+					select {
+					case <-a.closeSignal.SoftStopChan():
+						// Shutting down, don't log errors
+					default:
+						a.log.Errorf("Failed to complete message: %v", err)
+					}
 				}
 			}
 		case msg := <-a.nackMessagesChan:
@@ -294,8 +323,21 @@ func (a *azureServiceBusQueueReader) ackLoop(wg *sync.WaitGroup) {
 			a.m.RUnlock()
 
 			if receiver != nil {
-				if err := receiver.AbandonMessage(closeNowCtx, msg, nil); err != nil {
-					a.log.Errorf("Failed to abandon message: %v", err)
+				// Use the leisure context first, fall back to hard stop context if cancelled
+				ctx := closeAtLeisureCtx
+				select {
+				case <-closeAtLeisureCtx.Done():
+					ctx = closeNowCtx
+				default:
+				}
+				if err := receiver.AbandonMessage(ctx, msg, nil); err != nil {
+					// Only log error if not due to shutdown
+					select {
+					case <-a.closeSignal.SoftStopChan():
+						// Shutting down, don't log errors
+					default:
+						a.log.Errorf("Failed to abandon message: %v", err)
+					}
 				}
 			}
 		case <-a.closeSignal.SoftStopChan():
@@ -361,7 +403,18 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 		part.MetaSetMut("service_bus_"+k, v)
 	}
 
+	// Start lock renewal if enabled
+	var lockStopChan chan struct{}
+	if a.conf.renewLock && !a.conf.autoAck {
+		lockStopChan = a.startLockRenewal(msg)
+	}
+
 	ackFunc := func(actx context.Context, res error) error {
+		// Stop lock renewal when message is acknowledged
+		if lockStopChan != nil {
+			a.stopLockRenewal(fmt.Sprintf("%x", msg.LockToken), lockStopChan)
+		}
+
 		if a.conf.autoAck {
 			return nil
 		}
@@ -374,7 +427,16 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 					receiver := a.receiver
 					a.m.RUnlock()
 					if receiver != nil {
-						return receiver.DeadLetterMessage(actx, msg, nil)
+						if err := receiver.DeadLetterMessage(actx, msg, nil); err != nil {
+							// If dead lettering fails, abandon the message instead
+							select {
+							case a.nackMessagesChan <- msg:
+							case <-actx.Done():
+								return actx.Err()
+							case <-a.closeSignal.SoftStopChan():
+							}
+						}
+						return nil
 					}
 					select {
 					case a.nackMessagesChan <- msg:
@@ -438,6 +500,9 @@ func (a *azureServiceBusQueueReader) disconnect() error {
 	a.m.Lock()
 	defer a.m.Unlock()
 
+	// Stop all active lock renewals
+	a.stopAllLockRenewals()
+
 	if a.receiver != nil {
 		if err := a.receiver.Close(context.Background()); err != nil {
 			a.log.Errorf("Failed to close Service Bus receiver: %v", err)
@@ -451,6 +516,83 @@ func (a *azureServiceBusQueueReader) disconnect() error {
 		a.client = nil
 	}
 	return nil
+}
+
+func (a *azureServiceBusQueueReader) startLockRenewal(msg *azservicebus.ReceivedMessage) chan struct{} {
+	lockToken := fmt.Sprintf("%x", msg.LockToken)
+	stopChan := make(chan struct{})
+
+	a.locksMutex.Lock()
+	a.activeLocks[lockToken] = stopChan
+	a.locksMutex.Unlock()
+
+	go func() {
+		defer func() {
+			a.locksMutex.Lock()
+			delete(a.activeLocks, lockToken)
+			a.locksMutex.Unlock()
+		}()
+
+		// Renew the lock every 30 seconds (assuming default lock duration is 60s)
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stopChan:
+				return
+			case <-a.closeSignal.SoftStopChan():
+				return
+			case <-ticker.C:
+				a.m.RLock()
+				receiver := a.receiver
+				a.m.RUnlock()
+
+				if receiver == nil {
+					return
+				}
+
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				if err := receiver.RenewMessageLock(ctx, msg, nil); err != nil {
+					a.log.Debugf("Failed to renew lock for message %s: %v", lockToken, err)
+					cancel()
+					return
+				}
+				cancel()
+				a.log.Tracef("Successfully renewed lock for message %s", lockToken)
+			}
+		}
+	}()
+
+	return stopChan
+}
+
+func (a *azureServiceBusQueueReader) stopLockRenewal(lockToken string, stopChan chan struct{}) {
+	select {
+	case <-stopChan:
+		// Already stopped
+	default:
+		close(stopChan)
+	}
+
+	a.locksMutex.Lock()
+	delete(a.activeLocks, lockToken)
+	a.locksMutex.Unlock()
+}
+
+func (a *azureServiceBusQueueReader) stopAllLockRenewals() {
+	a.locksMutex.Lock()
+	defer a.locksMutex.Unlock()
+
+	for _, stopChan := range a.activeLocks {
+		select {
+		case <-stopChan:
+			// Already stopped
+		default:
+			close(stopChan)
+		}
+	}
+	a.activeLocks = make(map[string]chan struct{})
 }
 
 func init() {
