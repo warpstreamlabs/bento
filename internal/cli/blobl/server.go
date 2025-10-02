@@ -110,6 +110,26 @@ func serveFormatMapping() http.HandlerFunc {
 	}
 }
 
+// serveAutocompletion handles autocompletion requests for server mode
+func serveAutocompletion() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var request AutocompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		response := GenerateAutocompletion(bloblang.GlobalEnvironment(), request)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
 func init() {
 	page, err := playgroundFS.ReadFile("playground/index.html")
 	if err != nil {
@@ -239,6 +259,7 @@ func runPlayground(c *cli.Context) error {
 
 	mux.HandleFunc("/execute", serveExecuteMapping(fSync))
 	mux.HandleFunc("/format", serveFormatMapping())
+	mux.HandleFunc("/autocomplete", serveAutocompletion())
 
 	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")
 	if err != nil {

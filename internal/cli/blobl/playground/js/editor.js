@@ -2,7 +2,6 @@ const THEME_BENTO = "ace/theme/bento";
 const MODE_JSON = "ace/mode/json";
 const MODE_BLOBLANG = "ace/mode/bloblang";
 const STORAGE_KEY = "bloblang-playground-state";
-const SYNTAX_TIMEOUT = 5000; // 5 seconds before showing warning
 
 const DOM_IDS = {
   aceInput: "aceInput",
@@ -33,9 +32,6 @@ class EditorManager {
 
     // State persistence
     this.stateStored = true;
-
-    // Syntax loading state
-    this.syntaxLoadingStartTime = null;
   }
 
   // ─────────────────────────────────────────────────────
@@ -72,77 +68,64 @@ class EditorManager {
   }
 
   async loadBloblangSyntax() {
-    // Try injected syntax first (server mode)
-    if (typeof window.BLOBLANG_SYNTAX !== "undefined") {
-      this.bloblangSyntax = window.BLOBLANG_SYNTAX;
-      this.syntaxLoaded = true;
-      return;
-    }
-
-    // Try WASM function (WASM mode) - with retry for ready state
-    const tryWasmSyntax = () => {
-      if (
-        window.bloblangApi &&
-        typeof window.bloblangApi.syntax === "function"
-      ) {
-        try {
-          const syntaxData = window.bloblangApi.syntax();
-          if (syntaxData && !syntaxData.error) {
-            this.bloblangSyntax = syntaxData;
-            this.syntaxLoaded = true;
-            return true;
-          } else {
-            console.warn(
-              "WASM syntax function returned error:",
-              syntaxData?.error
-            );
-          }
-        } catch (error) {
-          console.warn("Failed to get syntax from WASM:", error);
-        }
+    try {
+      // First, try direct injection (server mode fallback)
+      if (typeof window.BLOBLANG_SYNTAX !== "undefined") {
+        this.bloblangSyntax = window.BLOBLANG_SYNTAX;
+        this.syntaxLoaded = true;
+        return;
       }
-      return false;
-    };
 
-    // Try WASM function immediately
-    if (tryWasmSyntax()) return;
+      // Then check playground-based modes
+      if (window.playground && window.playground.state) {
+        switch (window.playground.state.executionMode) {
+          case "wasm":
+            if (window.playground.wasm) {
+              const syntaxData = window.playground.wasm.getSyntax();
+              if (syntaxData && !syntaxData.error) {
+                this.bloblangSyntax = syntaxData;
+                this.syntaxLoaded = true;
+              } else {
+                console.warn(
+                  "WASM syntax function returned error:",
+                  syntaxData?.error
+                );
+                this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
+              }
+            } else {
+              console.warn("WASM mode but wasm manager not available");
+              this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
+            }
+            break;
 
-    // Try again if WASM is ready
-    if (window.wasmReady && tryWasmSyntax()) return;
-
-    const timeoutExceeded =
-      Date.now() - this.syntaxLoadingStartTime > SYNTAX_TIMEOUT;
-    if (!this.syntaxLoadingStartTime || timeoutExceeded) {
-      console.warn(
-        "Bloblang syntax not available - autocomplete and highlighting will be limited"
-      );
+          default:
+            console.warn("Unknown execution mode, using fallback syntax");
+            this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
+        }
+      } else {
+        this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
+      }
+    } catch (error) {
+      console.warn("Failed to load syntax:", error);
+      this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
     }
-    this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
   }
 
   async loadBloblangSyntaxAsync() {
-    // Start timer for delayed warning
-    this.syntaxLoadingStartTime = Date.now();
-
-    // Schedule delayed warning
-    setTimeout(() => {
-      if (!this.syntaxLoaded && this.syntaxLoadingStartTime) {
-        console.warn(
-          "Bloblang syntax taking longer than expected to load - autocomplete and highlighting will be limited"
-        );
-      }
-    }, SYNTAX_TIMEOUT);
-
-    // Load syntax data asynchronously
+    // Try loading syntax immediately
     await this.loadBloblangSyntax();
 
-    if (this.syntaxLoaded) {
-      this.setupTheme();
-      this.enhanceMappingEditor();
-      this.configureAutocompletion();
-      this.refreshSyntaxHighlighting();
-      this.syntaxLoadingStartTime = null; // Clear timer
+    // If WASM mode and not loaded, retry with a delay (WASM might still be initializing)
+    if (!this.syntaxLoaded && typeof window.BLOBLANG_SYNTAX === "undefined") {
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
+      await this.loadBloblangSyntax();
     }
+
+    // Setup editor features once syntax is available
+    this.setupTheme();
+    this.enhanceMappingEditor();
+    this.configureAutocompletion();
+    this.refreshSyntaxHighlighting();
   }
 
   setupTheme() {
@@ -340,16 +323,92 @@ class EditorManager {
     if (!this.aceMappingEditor) return;
 
     if (!this.syntaxLoaded || !this.bloblangSyntax) {
-      const timeoutExceeded =
-        Date.now() - this.syntaxLoadingStartTime > SYNTAX_TIMEOUT;
-      if (!this.syntaxLoadingStartTime || timeoutExceeded) {
-        console.warn("Autocompletion disabled - syntax data not available");
-      }
+      console.warn("Autocompletion disabled - syntax data not available");
       return;
     }
 
     try {
-      const completer = this.createBloblangCompleter();
+      const completer = {
+        getCompletions: async (editor, session, pos, prefix, callback) => {
+          const line = session.getLine(pos.row);
+          const beforeCursor = line.substring(0, pos.column).trim();
+
+          const request = {
+            line,
+            column: pos.column,
+            prefix,
+            beforeCursor,
+          };
+
+          try {
+            if (!window.playground || !window.playground.editor) {
+              return callback(null, []);
+            }
+
+            let result;
+            switch (window.playground.state.executionMode) {
+              case "server":
+                const response = await fetch("/autocomplete", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(request),
+                });
+
+                if (!response.ok) {
+                  throw new Error(`Server error: ${response.status}`);
+                }
+
+                result = await response.json();
+                break;
+
+              case "wasm":
+                if (
+                  window.playground.wasm &&
+                  typeof window.playground.wasm.getAutocompletion === "function"
+                ) {
+                  result = window.playground.wasm.getAutocompletion(
+                    JSON.stringify(request)
+                  );
+                  if (!result.success) {
+                    return callback(null, []);
+                  }
+                } else {
+                  console.warn("WASM autocompletion not available");
+                  return callback(null, []);
+                }
+                break;
+
+              default:
+                console.warn(
+                  "Unknown execution mode, autocompletion unavailable"
+                );
+                return callback(null, []);
+            }
+
+            if (result && result.success && result.completions) {
+              // Convert Go completion format to ACE editor format
+              const aceCompletions = result.completions.map((item) => ({
+                caption: item.caption,
+                value: item.value || item.caption,
+                snippet: item.snippet,
+                meta: item.meta,
+                type: item.type,
+                score: item.score,
+                docHTML: item.docHTML,
+              }));
+
+              callback(null, aceCompletions);
+            } else {
+              console.warn("Autocompletion failed:", result?.error);
+              callback(null, []);
+            }
+          } catch (error) {
+            console.error("Autocompletion error:", error);
+            callback(null, []);
+          }
+        },
+      };
+
       this.aceMappingEditor.setOptions({
         enableBasicAutocompletion: [completer],
         enableLiveAutocompletion: true,
@@ -358,105 +417,6 @@ class EditorManager {
     } catch (error) {
       console.warn("Autocompletion disabled:", error);
     }
-  }
-
-  createBloblangCompleter() {
-    return {
-      getCompletions: (editor, session, pos, prefix, callback) => {
-        const completions = [];
-        const line = session.getLine(pos.row);
-        const beforeCursor = line.substring(0, pos.column).trim();
-
-        // Don't suggest completions on comments
-        if (beforeCursor.includes("#")) {
-          return callback(null, []);
-        }
-
-        const pushSpecCompletion = (spec, isMethod) => {
-          const entry = {
-            caption: spec.name,
-            meta: this.getMetaCategory(spec),
-            type: isMethod ? "method" : "function",
-            score: this.getCompletionScore(spec),
-            docHTML: this.createDocumentationHTML(spec, { isMethod }),
-          };
-
-          // If spec has parameters, place cursor inside parentheses
-          if (spec.params?.named?.length > 0 || spec.params?.variadic) {
-            entry.snippet = `${spec.name}($1)`;
-          } else {
-            entry.value = `${spec.name}()`;
-          }
-
-          completions.push(entry);
-        };
-
-        const isMethodContext = /\.\w*$/.test(beforeCursor);
-
-        if (isMethodContext) {
-          Object.values(this.bloblangSyntax.methods || {}).forEach((spec) =>
-            pushSpecCompletion(spec, true)
-          );
-        } else {
-          Object.values(this.bloblangSyntax.functions || {}).forEach((spec) =>
-            pushSpecCompletion(spec, false)
-          );
-
-          for (const keyword of EditorManager.BLOBLANG_KEYWORDS) {
-            if (keyword.name.startsWith(prefix.toLowerCase())) {
-              completions.push({
-                caption: keyword.name,
-                value: keyword.name,
-                meta: "keyword",
-                type: "keyword",
-                score: 900,
-                docHTML: `
-                <div class="ace-doc">
-                  <strong>${keyword.name}</strong><br/>
-                  ${keyword.description}
-                </div>`,
-              });
-            }
-          }
-        }
-
-        callback(null, completions);
-      },
-    };
-  }
-
-  // Prioritize by status
-  getCompletionScore({ status }) {
-    return (
-      {
-        stable: 1000,
-        beta: 800,
-        experimental: 600,
-        deprecated: 200,
-      }[status] || 700
-    );
-  }
-
-  // Categorize by name patterns
-  getMetaCategory({ name, status }) {
-    if (status === "deprecated") return "Deprecated";
-    if (status === "experimental") return "Experimental";
-
-    const patterns = {
-      JSON: /json/,
-      String: /string|case$/,
-      Time: /time|date/,
-      Math: /math|calc/,
-      Crypto: /crypto|hash/,
-      Environment: /env|hostname/,
-      "ID Generation": /uuid|nanoid/,
-      Random: /random/,
-    };
-
-    return (
-      Object.entries(patterns).find(([_, regex]) => regex.test(name))?.[0] ||
-      "General"
-    );
   }
 
   stripAdmonitions(text) {

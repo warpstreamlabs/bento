@@ -70,15 +70,53 @@ func ExportSyntax() js.Func {
 func ExportFormat() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return ToJS(map[string]any{
-				"error":     "Invalid arguments: expected one string (mapping)",
-				"formatted": "",
-				"success":   false,
+			return ToJS(FormatMappingResponse{
+				Error:     "Invalid arguments: expected one string (mapping)",
+				Formatted: "",
+				Success:   false,
 			})
 		}
 
 		mapping := args[0].String()
 		response := FormatBloblangMapping(mapping)
+		return ToJS(response)
+	})
+}
+
+// ExportAutocomplete returns a js.Func that provides autocompletion suggestions for Bloblang code.
+// This function is intended to be exposed to JavaScript via WebAssembly.
+//
+// Arguments:
+//   - args[0]: JSON string containing AutocompletionRequest with line, column, prefix, beforeCursor
+//
+// Returns a JS object with:
+//   - "completions": array of completion items with caption, value, meta, type, score, docHTML
+//   - "success":     true if autocompletion succeeded, false otherwise
+//   - "error":       error message if autocompletion failed, else nil
+func ExportAutocomplete() js.Func {
+	return js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) != 1 || args[0].Type() != js.TypeString {
+			return ToJS(AutocompletionResponse{
+				Error:       "Invalid arguments: expected one string (request JSON)",
+				Completions: []CompletionItem{},
+				Success:     false,
+			})
+		}
+
+		requestJSON := args[0].String()
+
+		// Parse the request JSON
+		var req AutocompletionRequest
+		if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+			return ToJS(AutocompletionResponse{
+				Error:       "Failed to parse request JSON: " + err.Error(),
+				Completions: []CompletionItem{},
+				Success:     false,
+			})
+		}
+
+		// Generate autocompletion using the Bloblang environment
+		response := GenerateAutocompletion(bloblang.GlobalEnvironment(), req)
 		return ToJS(response)
 	})
 }

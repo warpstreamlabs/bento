@@ -10,6 +10,7 @@ class WasmManager {
       execute: false,
       syntax: false,
       format: false,
+      autocomplete: false,
     };
 
     // Check if Go WASM support is available
@@ -96,62 +97,68 @@ class WasmManager {
       this.functions.execute = typeof this.api.execute === "function";
       this.functions.syntax = typeof this.api.syntax === "function";
       this.functions.format = typeof this.api.format === "function";
+      this.functions.autocomplete = typeof this.api.autocomplete === "function";
     } else {
       console.warn("window.bloblangApi API not available");
     }
   }
 
-  // Check if a specific function is available
+  // Check availability of a specific function
   isAvailable(functionName) {
-    return this.available && !this.failed && this.functions[functionName];
-  }
-
-  // Check WASM and specific function availability
-  assertAvailable(functionKey, errorMsg) {
     if (this.failed) {
-      throw new Error(
-        "WASM not loaded. Bloblang functionality is unavailable."
-      );
+      console.warn("WASM not loaded. Bloblang functionality is unavailable.");
+      return false;
     }
+
     if (!this.available) {
-      throw new Error("WASM not available. Please wait for initialization.");
+      return false;
     }
-    if (!this.functions[functionKey]) {
-      throw new Error(
-        errorMsg || `${functionKey} not available in WASM context.`
-      );
+
+    if (!this.functions[functionName]) {
+      console.warn(`${functionName} not available in WASM context.`);
+      return false;
     }
+
+    return true;
   }
 
-  // Get all available functions
+  // Registered Go functions
+
   getAvailableFunctions() {
     return Object.entries(this.functions)
       .filter(([, available]) => available)
       .map(([name]) => name);
   }
 
-  // Registered Go functions
   execute(input, mapping) {
-    this.assertAvailable(
-      "execute",
-      "Bloblang functionality not available in WASM context."
-    );
+    if (!this.isAvailable("execute")) {
+      throw new Error("Execute functionality not available");
+    }
     return this.api.execute(input, mapping);
   }
 
   getSyntax() {
-    this.assertAvailable(
-      "syntax",
-      "Syntax functionality not available in WASM context."
-    );
+    if (!this.isAvailable("syntax")) {
+      return null;
+    }
     return this.api.syntax();
   }
 
   formatMapping(mapping) {
-    this.assertAvailable(
-      "format",
-      "Formatter functionality not available in WASM context."
-    );
+    if (!this.isAvailable("format")) {
+      return null;
+    }
     return this.api.format(mapping);
+  }
+
+  getAutocompletion(request) {
+    if (!this.isAvailable("autocomplete")) {
+      return {
+        success: false,
+        error: "Autocompletion not available",
+        completions: [],
+      };
+    }
+    return this.api.autocomplete(request);
   }
 }

@@ -1,3 +1,5 @@
+// Package blobl provides core functionality for the Bloblang language playground,
+// including code execution, syntax highlighting, autocompletion, and formatting.
 package blobl
 
 import (
@@ -234,6 +236,411 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	return syntax, nil
 }
 
+// CompletionItem represents an autocompletion suggestion
+type CompletionItem struct {
+	Caption     string `json:"caption"`     // Display name
+	Value       string `json:"value"`       // Insert value
+	Snippet     string `json:"snippet"`     // Insert with cursor positioning
+	Meta        string `json:"meta"`        // Category/type description
+	Type        string `json:"type"`        // "function", "method", "keyword"
+	Score       int    `json:"score"`       // Priority score (higher = more important)
+	DocHTML     string `json:"docHTML"`     // Documentation HTML
+	Description string `json:"description"` // Simple description
+}
+
+// AutocompletionRequest represents a request for autocompletion
+type AutocompletionRequest struct {
+	Line         string `json:"line"`         // The current line text
+	Column       int    `json:"column"`       // Cursor column position
+	BeforeCursor string `json:"beforeCursor"` // Text before cursor position
+}
+
+// AutocompletionResponse represents the response with completion suggestions
+type AutocompletionResponse struct {
+	Completions []CompletionItem `json:"completions"`
+	Success     bool             `json:"success"`
+	Error       string           `json:"error,omitempty"`
+}
+
+// Spec represents a unified interface for function and method specs
+type Spec interface {
+	GetDescription() string
+	GetStatus() query.Status
+	GetVersion() string
+	GetParams() query.Params
+}
+
+// FunctionSpecWrapper wraps query.FunctionSpec to implement Spec interface
+type FunctionSpecWrapper struct {
+	query.FunctionSpec
+}
+
+func (f FunctionSpecWrapper) GetDescription() string  { return f.Description }
+func (f FunctionSpecWrapper) GetStatus() query.Status { return f.Status }
+func (f FunctionSpecWrapper) GetVersion() string      { return f.Version }
+func (f FunctionSpecWrapper) GetParams() query.Params { return f.Params }
+
+// MethodSpecWrapper wraps query.MethodSpec to implement Spec interface
+type MethodSpecWrapper struct {
+	query.MethodSpec
+}
+
+func (m MethodSpecWrapper) GetDescription() string  { return m.Description }
+func (m MethodSpecWrapper) GetStatus() query.Status { return m.Status }
+func (m MethodSpecWrapper) GetVersion() string      { return m.Version }
+func (m MethodSpecWrapper) GetParams() query.Params { return m.Params }
+
+// completionCache holds cached syntax data to avoid repeated environment walks
+type completionCache struct {
+	syntax *bloblangSyntax
+	env    *bloblang.Environment
+}
+
+var globalCompletionCache *completionCache
+
+// getSyntaxData returns cached syntax data or generates it if needed
+func getSyntaxData(env *bloblang.Environment) (*bloblangSyntax, error) {
+	if globalCompletionCache == nil || globalCompletionCache.env != env {
+		syntax, err := generateBloblangSyntax(env)
+		if err != nil {
+			return nil, err
+		}
+		globalCompletionCache = &completionCache{
+			syntax: &syntax,
+			env:    env,
+		}
+	}
+	return globalCompletionCache.syntax, nil
+}
+
+// generateAutocompletion provides context-aware autocompletion for Bloblang
+func GenerateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) AutocompletionResponse {
+	// Validate input
+	if err := validateAutocompletionRequest(req); err != nil {
+		return AutocompletionResponse{
+			Completions: []CompletionItem{},
+			Success:     false,
+			Error:       err.Error(),
+		}
+	}
+
+	// Don't suggest completions inside comments
+	if strings.Contains(req.BeforeCursor, "#") {
+		return AutocompletionResponse{
+			Completions: []CompletionItem{},
+			Success:     true,
+		}
+	}
+
+	// Get cached syntax data
+	syntaxData, err := getSyntaxData(env)
+	if err != nil {
+		return AutocompletionResponse{
+			Completions: []CompletionItem{},
+			Success:     false,
+			Error:       fmt.Sprintf("Failed to get syntax data: %v", err),
+		}
+	}
+
+	var completions []CompletionItem
+
+	// Determine context: method vs function/keyword context
+	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
+
+	if isMethodContext {
+		// Add method completions
+		completions = append(completions, getCompletions(syntaxData.Methods)...)
+	} else {
+		// Add function and keyword completions
+		completions = append(completions, getCompletions(syntaxData.Functions)...)
+		completions = append(completions, getKeywordCompletions()...)
+	}
+
+	return AutocompletionResponse{
+		Completions: completions,
+		Success:     true,
+	}
+}
+
+// validateAutocompletionRequest validates the autocompletion request
+func validateAutocompletionRequest(req AutocompletionRequest) error {
+	if req.Column < 0 {
+		return fmt.Errorf("column position cannot be negative: %d", req.Column)
+	}
+	if len(req.Line) > 0 && req.Column > len(req.Line) {
+		return fmt.Errorf("column position %d exceeds line length %d", req.Column, len(req.Line))
+	}
+	if len(req.BeforeCursor) > 1000 {
+		return fmt.Errorf("before cursor text too long: %d characters (max 1000)", len(req.BeforeCursor))
+	}
+	return nil
+}
+
+// getKeywordCompletions returns Bloblang keyword completions
+func getKeywordCompletions() []CompletionItem {
+	keywords := []struct {
+		name        string
+		description string
+		score       int
+		category    string
+	}{
+		{"root", "The root of the output document", 950, "core"},
+		{"this", "The current context value", 950, "core"},
+		{"if", "Conditional expression", 900, "control"},
+		{"match", "Pattern matching expression", 900, "control"},
+		{"let", "Variable assignment", 880, "variable"},
+		{"map", "Create named mapping", 870, "mapping"},
+		{"else", "Alternative branch", 850, "control"},
+		{"import", "Import external mapping", 800, "mapping"},
+		{"meta", "Access message metadata", 820, "metadata"},
+		{"deleted", "Delete the current field", 750, "mutation"},
+	}
+
+	var completions []CompletionItem
+
+	for _, keyword := range keywords {
+		docHTML := fmt.Sprintf(`
+			<div class="ace-doc">
+				<div class="ace-doc-header">
+					<div class="ace-doc-signature">
+						<strong>%s</strong>
+						<span class="ace-keyword-category">%s</span>
+					</div>
+				</div>
+				<div class="ace-doc-description">%s</div>
+			</div>`, keyword.name, keyword.category, keyword.description)
+
+		completions = append(completions, CompletionItem{
+			Caption:     keyword.name,
+			Value:       keyword.name,
+			Meta:        keyword.category,
+			Type:        "keyword",
+			Score:       keyword.score,
+			Description: keyword.description,
+			DocHTML:     docHTML,
+		})
+	}
+
+	return completions
+}
+
+// getCompletions returns completions for functions or methods
+func getCompletions(specs any) []CompletionItem {
+	var completions []CompletionItem
+
+	switch s := specs.(type) {
+	case map[string]query.FunctionSpec:
+		for name, spec := range s {
+			wrapper := FunctionSpecWrapper{spec}
+			completion := CompletionItem{
+				Caption:     name,
+				Meta:        spec.Category,
+				Type:        "function",
+				Score:       getSpecScore(wrapper),
+				Description: wrapper.GetDescription(),
+				DocHTML:     createSpecDocHTML(name, wrapper, false),
+			}
+
+			// Check if spec has parameters for snippet vs value
+			if hasSpecParameters(wrapper) {
+				completion.Snippet = fmt.Sprintf("%s($1)", name)
+			} else {
+				completion.Value = fmt.Sprintf("%s()", name)
+			}
+
+			completions = append(completions, completion)
+		}
+
+	case map[string]query.MethodSpec:
+		for name, spec := range s {
+			wrapper := MethodSpecWrapper{spec}
+			category := "general"
+			if len(spec.Categories) > 0 {
+				category = spec.Categories[0].Category
+			}
+
+			completion := CompletionItem{
+				Caption:     name,
+				Meta:        category,
+				Type:        "method",
+				Score:       getSpecScore(wrapper),
+				Description: wrapper.GetDescription(),
+				DocHTML:     createSpecDocHTML(name, wrapper, true),
+			}
+
+			// Check if spec has parameters for snippet vs value
+			if hasSpecParameters(wrapper) {
+				completion.Snippet = fmt.Sprintf("%s($1)", name)
+			} else {
+				completion.Value = fmt.Sprintf("%s()", name)
+			}
+
+			completions = append(completions, completion)
+		}
+	}
+
+	return completions
+}
+
+func getSpecScore(spec Spec) int {
+	// Prioritize by status (stable > beta > experimental)
+	switch spec.GetStatus() {
+	case query.StatusStable:
+		return 1000
+	case query.StatusBeta:
+		return 800
+	case query.StatusExperimental:
+		return 600
+	}
+	return 500
+}
+
+func hasSpecParameters(spec Spec) bool {
+	params := spec.GetParams()
+	return len(params.Definitions) > 0 || params.Variadic
+}
+
+// createSpecDocHTML creates HTML documentation for Bloblang functions and methods
+func createSpecDocHTML(name string, spec Spec, isMethod bool) string {
+	// Build signature with parameters
+	signature := buildSpecSignature(name, spec, isMethod)
+	status := strings.ToLower(string(spec.GetStatus()))
+
+	// Generate documentation URL
+	docUrl := generateDocumentationLink(name, isMethod)
+
+	var html strings.Builder
+	html.WriteString(fmt.Sprintf(`<div class="ace-doc" data-docs-url="%s" data-function-name="%s" data-is-method="%t">`, docUrl, name, isMethod))
+
+	// Header with signature and status
+	html.WriteString(fmt.Sprintf(`
+		<div class="ace-doc-header clickable-header" title="Click to view documentation">
+			<div class="ace-doc-signature">
+				<strong>%s</strong>
+				<span class="ace-status-%s">%s</span>
+			</div>
+		</div>`, signature, status, status))
+
+	// Version information
+	if spec.GetVersion() != "" {
+		html.WriteString(fmt.Sprintf(`
+		<div class="ace-doc-version">Since: v%s</div>`, spec.GetVersion()))
+	}
+
+	// Parameters section
+	params := spec.GetParams()
+	if len(params.Definitions) > 0 {
+		html.WriteString(`
+		<div class="ace-doc-parameters">
+			<strong>Parameters:</strong>`)
+
+		for _, param := range params.Definitions {
+			paramType := getParamTypeString(param)
+			html.WriteString(fmt.Sprintf(`
+			<div class="ace-doc-param">
+				<code>%s [%s]</code><br/>`, param.Name, paramType))
+
+			if param.Description != "" {
+				processedDesc := processMarkdownDescription(param.Description)
+				html.WriteString(fmt.Sprintf(`
+				<span class="ace-doc-param-desc">%s</span>`, processedDesc))
+			}
+			html.WriteString(`</div>`)
+		}
+		html.WriteString(`</div>`)
+	}
+
+	html.WriteString(`</div>`)
+	return html.String()
+}
+
+// buildSpecSignature creates the signature with parameters for functions and methods
+func buildSpecSignature(name string, spec Spec, isMethod bool) string {
+	var sig strings.Builder
+
+	if isMethod {
+		sig.WriteString(".")
+	}
+	sig.WriteString(name)
+
+	params := spec.GetParams()
+	if len(params.Definitions) > 0 {
+		sig.WriteString("(")
+		for i, param := range params.Definitions {
+			if i > 0 {
+				sig.WriteString(", ")
+			}
+			paramType := getParamTypeString(param)
+			sig.WriteString(fmt.Sprintf("%s: %s", param.Name, paramType))
+		}
+		if params.Variadic {
+			if len(params.Definitions) > 0 {
+				sig.WriteString(", ")
+			}
+			sig.WriteString("...")
+		}
+		sig.WriteString(")")
+	} else if params.Variadic {
+		sig.WriteString("(...)")
+	} else {
+		sig.WriteString("()")
+	}
+
+	return sig.String()
+}
+
+// getParamTypeString converts Bloblang parameter type to string
+func getParamTypeString(param query.ParamDefinition) string {
+	switch param.ValueType {
+	case value.TString:
+		return "string"
+	case value.TInt:
+		return "integer"
+	case value.TFloat:
+		return "number"
+	case value.TBool:
+		return "boolean"
+	case value.TArray:
+		return "array"
+	case value.TObject:
+		return "object"
+	case value.TTimestamp:
+		return "timestamp"
+	default:
+		return "any"
+	}
+}
+
+// processMarkdownDescription processes markdown in descriptions
+func processMarkdownDescription(description string) string {
+	if description == "" {
+		return ""
+	}
+
+	// Strip admonitions (:::warning:::, etc.)
+	re := regexp.MustCompile(`:::([a-zA-Z]+)[\s\S]*?:::`)
+	processed := re.ReplaceAllString(description, "")
+
+	// Process inline code (backticks)
+	re = regexp.MustCompile("`([^`]+)`")
+	processed = re.ReplaceAllString(processed, "<code>$1</code>")
+
+	// Process markdown links [text](url)
+	re = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+	processed = re.ReplaceAllString(processed, `<a href="$2" target="_blank">$1</a>`)
+
+	return strings.TrimSpace(processed)
+}
+
+// generateDocumentationLink creates the documentation URL
+func generateDocumentationLink(name string, isMethod bool) string {
+	baseURL := "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
+	if isMethod {
+		return fmt.Sprintf("%s/methods#%s", baseURL, name)
+	}
+	return fmt.Sprintf("%s/functions#%s", baseURL, name)
+}
+
 func formatBloblangMapping(originalMapping string) (string, error) {
 	lines := strings.Split(originalMapping, "\n")
 	formatted := make([]string, 0, len(lines))
@@ -291,11 +698,11 @@ func formatLineContent(line string) string {
 	// Protect string literals first to prevent formatting inside strings
 	protected, literals := protectStringLiterals(line)
 
+	// Protect lambda expressions to prevent operator formatting inside them
+	protected, lambdas := protectLambdaExpressions(protected)
+
 	// Format operators with proper spacing
 	protected = formatOperators(protected)
-
-	// Format lambda expressions correctly (preserve ->)
-	protected = formatLambdaExpressions(protected)
 
 	// Format function calls and method chains
 	protected = formatFunctionCalls(protected)
@@ -306,6 +713,9 @@ func formatLineContent(line string) string {
 	// Clean up spacing
 	protected = regexp.MustCompile(`\s{2,}`).ReplaceAllString(protected, " ")
 	protected = strings.TrimSpace(protected)
+
+	// Restore lambda expressions with proper formatting
+	protected = restoreLambdaExpressions(protected, lambdas)
 
 	// Restore string literals
 	return restoreStringLiterals(protected, literals)
@@ -365,6 +775,62 @@ func restoreStringLiterals(content string, literals []string) string {
 	for i, literal := range literals {
 		placeholderStr := placeholder + fmt.Sprintf("%d", i)
 		content = strings.ReplaceAll(content, placeholderStr, literal)
+	}
+
+	return content
+}
+
+// formatLambdaOperators formats operators specifically within lambda expressions
+func formatLambdaOperators(content string) string {
+	// Logical operators
+	content = regexp.MustCompile(`\s*&&\s*`).ReplaceAllString(content, " && ")
+	content = regexp.MustCompile(`\s*\|\|\s*`).ReplaceAllString(content, " || ")
+
+	// Comparison operators
+	content = regexp.MustCompile(`\s*==\s*`).ReplaceAllString(content, " == ")
+	content = regexp.MustCompile(`\s*!=\s*`).ReplaceAllString(content, " != ")
+	content = regexp.MustCompile(`\s*>=\s*`).ReplaceAllString(content, " >= ")
+	content = regexp.MustCompile(`\s*<=\s*`).ReplaceAllString(content, " <= ")
+	content = regexp.MustCompile(`\s*>\s*`).ReplaceAllString(content, " > ")
+	content = regexp.MustCompile(`\s*<\s*`).ReplaceAllString(content, " < ")
+
+	return content
+}
+
+// protectLambdaExpressions replaces lambda expressions with placeholders to prevent operator formatting inside them
+func protectLambdaExpressions(content string) (string, []string) {
+	placeholder := "BLOBLANG_LAMBDA_"
+	var lambdas []string
+
+	// Match lambda expressions like: c -> c == "," || c == " "
+	// This captures the parameter(s), arrow, and expression
+	lambdaRegex := regexp.MustCompile(`(\w+)\s*->\s*([^,)}\]]+(?:\([^)]*\)[^,)}\]]*)*)\s*`)
+
+	content = lambdaRegex.ReplaceAllStringFunc(content, func(match string) string {
+		formattedLambda := match
+		// Apply lambda-specific operator formatting
+		formattedLambda = formatLambdaOperators(formattedLambda)
+		// Ensure proper lambda arrow spacing
+		formattedLambda = formatLambdaExpressions(formattedLambda)
+		// Remove excessive whitespace
+		formattedLambda = regexp.MustCompile(`\s{2,}`).ReplaceAllString(formattedLambda, " ")
+		formattedLambda = strings.TrimSpace(formattedLambda)
+
+		lambdas = append(lambdas, formattedLambda)
+		return placeholder + fmt.Sprintf("%d", len(lambdas)-1)
+	})
+
+	return content, lambdas
+}
+
+// restoreLambdaExpressions restores lambda expressions (already formatted during protection)
+func restoreLambdaExpressions(content string, lambdas []string) string {
+	placeholder := "BLOBLANG_LAMBDA_"
+
+	for i, lambda := range lambdas {
+		placeholderStr := placeholder + fmt.Sprintf("%d", i)
+		// Lambda is already properly formatted, just restore it
+		content = strings.ReplaceAll(content, placeholderStr, lambda)
 	}
 
 	return content
@@ -445,17 +911,17 @@ func formatNamedParameters(content string) string {
 	return content
 }
 
-// formatMappingResponse represents the standardized response for mapping formatting
-type formatMappingResponse struct {
+// FormatMappingResponse represents the standardized response for mapping formatting
+type FormatMappingResponse struct {
 	Success   bool   `json:"success"`
 	Formatted string `json:"formatted"`
 	Error     string `json:"error,omitempty"`
 }
 
 // FormatBloblangMapping formats Bloblang mappings
-func FormatBloblangMapping(mapping string) formatMappingResponse {
+func FormatBloblangMapping(mapping string) FormatMappingResponse {
 	if mapping == "" {
-		return formatMappingResponse{
+		return FormatMappingResponse{
 			Success:   false,
 			Error:     "Mapping cannot be empty",
 			Formatted: "",
@@ -466,7 +932,7 @@ func FormatBloblangMapping(mapping string) formatMappingResponse {
 	env := bloblang.GlobalEnvironment().WithoutFunctions("env", "file")
 	_, err := env.NewMapping(mapping)
 	if err != nil {
-		return formatMappingResponse{
+		return FormatMappingResponse{
 			Success:   false,
 			Error:     fmt.Sprintf("Parse error: %v", err),
 			Formatted: mapping, // Return original on error
@@ -476,14 +942,14 @@ func FormatBloblangMapping(mapping string) formatMappingResponse {
 	// Format using AST structure
 	formatted, formatErr := formatBloblangMapping(mapping)
 	if formatErr != nil {
-		return formatMappingResponse{
+		return FormatMappingResponse{
 			Success:   false,
 			Error:     formatErr.Error(),
 			Formatted: mapping, // Return original on error
 		}
 	}
 
-	return formatMappingResponse{
+	return FormatMappingResponse{
 		Success:   true,
 		Formatted: formatted,
 		Error:     "",
