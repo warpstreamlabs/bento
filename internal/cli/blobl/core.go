@@ -3,6 +3,7 @@ package blobl
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Jeffail/gabs/v2"
@@ -231,4 +232,260 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	}
 
 	return syntax, nil
+}
+
+func formatBloblangMapping(originalMapping string) (string, error) {
+	lines := strings.Split(originalMapping, "\n")
+	formatted := make([]string, 0, len(lines))
+	indentLevel := 0
+	const indentSize = 2
+	inMapBlock := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Handle empty lines
+		if trimmed == "" {
+			formatted = append(formatted, "")
+			continue
+		}
+
+		// Handle comments
+		if strings.HasPrefix(trimmed, "#") {
+			indent := strings.Repeat(" ", indentLevel*indentSize)
+			formatted = append(formatted, indent+trimmed)
+			continue
+		}
+
+		// Handle map blocks (map create_foo {...)
+		if strings.HasPrefix(trimmed, "map ") && strings.HasSuffix(trimmed, " {") {
+			inMapBlock = true
+		}
+
+		// Handle closing braces
+		if countClosingBraces(trimmed) > countOpeningBraces(trimmed) {
+			indentLevel -= (countClosingBraces(trimmed) - countOpeningBraces(trimmed))
+			if indentLevel < 0 {
+				indentLevel = 0
+			}
+			if trimmed == "}" && inMapBlock {
+				inMapBlock = false
+			}
+		}
+
+		// Apply indentation and format content
+		indent := strings.Repeat(" ", indentLevel*indentSize)
+		formattedLine := formatLineContent(trimmed)
+		formatted = append(formatted, indent+formattedLine)
+
+		// Handle opening braces
+		if countOpeningBraces(trimmed) > countClosingBraces(trimmed) {
+			indentLevel += (countOpeningBraces(trimmed) - countClosingBraces(trimmed))
+		}
+	}
+
+	return strings.Join(formatted, "\n"), nil
+}
+
+func formatLineContent(line string) string {
+	// Protect string literals first to prevent formatting inside strings
+	protected, literals := protectStringLiterals(line)
+
+	// Format operators with proper spacing
+	protected = formatOperators(protected)
+
+	// Format lambda expressions correctly (preserve ->)
+	protected = formatLambdaExpressions(protected)
+
+	// Format function calls and method chains
+	protected = formatFunctionCalls(protected)
+
+	// Handle named parameters in function calls (min:10, max:20)
+	protected = formatNamedParameters(protected)
+
+	// Clean up spacing
+	protected = regexp.MustCompile(`\s{2,}`).ReplaceAllString(protected, " ")
+	protected = strings.TrimSpace(protected)
+
+	// Restore string literals
+	return restoreStringLiterals(protected, literals)
+}
+
+// formatLambdaExpressions preserves lambda arrow spacing
+func formatLambdaExpressions(content string) string {
+	// Preserve lambda arrows: item -> item.trim()
+	lambdaRegex := regexp.MustCompile(`(\w+)\s*-\s*>\s*`)
+	content = lambdaRegex.ReplaceAllString(content, "$1 -> ")
+	return content
+}
+
+// countOpeningBraces counts opening braces and parentheses
+func countOpeningBraces(line string) int {
+	count := 0
+	for _, char := range line {
+		if char == '{' || char == '(' || char == '[' {
+			count++
+		}
+	}
+	return count
+}
+
+// countClosingBraces counts closing braces and parentheses
+func countClosingBraces(line string) int {
+	count := 0
+	for _, char := range line {
+		if char == '}' || char == ')' || char == ']' {
+			count++
+		}
+	}
+	return count
+}
+
+// protectStringLiterals replaces string literals with placeholders to prevent formatting inside strings
+func protectStringLiterals(content string) (string, []string) {
+	var literals []string
+	placeholder := "BLOBLANG_STRING_LITERAL_"
+
+	// Match double-quoted strings (escaped quotes allowed)
+	stringRegex := regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
+
+	protected := stringRegex.ReplaceAllStringFunc(content, func(match string) string {
+		index := len(literals)
+		literals = append(literals, match)
+		return placeholder + fmt.Sprintf("%d", index)
+	})
+
+	return protected, literals
+}
+
+// restoreStringLiterals restores protected string literals
+func restoreStringLiterals(content string, literals []string) string {
+	placeholder := "BLOBLANG_STRING_LITERAL_"
+
+	for i, literal := range literals {
+		placeholderStr := placeholder + fmt.Sprintf("%d", i)
+		content = strings.ReplaceAll(content, placeholderStr, literal)
+	}
+
+	return content
+}
+
+// formatOperators adds proper spacing around operators
+func formatOperators(content string) string {
+	// Handle multi-character operators first to avoid conflicts
+
+	// Logical operators
+	content = regexp.MustCompile(`\s*&&\s*`).ReplaceAllString(content, " && ")
+	content = regexp.MustCompile(`\s*\|\|\s*`).ReplaceAllString(content, " || ")
+
+	// Match arrows (handle before = operator)
+	content = regexp.MustCompile(`\s*=>\s*`).ReplaceAllString(content, " => ")
+
+	// Comparison operators
+	content = regexp.MustCompile(`\s*==\s*`).ReplaceAllString(content, " == ")
+	content = regexp.MustCompile(`\s*!=\s*`).ReplaceAllString(content, " != ")
+	content = regexp.MustCompile(`\s*>=\s*`).ReplaceAllString(content, " >= ")
+	content = regexp.MustCompile(`\s*<=\s*`).ReplaceAllString(content, " <= ")
+
+	// Pipe assignment (handle before single | and =)
+	content = regexp.MustCompile(`\s*\|=\s*`).ReplaceAllString(content, " |= ")
+
+	// Single character operators
+	content = regexp.MustCompile(`\s*>\s*`).ReplaceAllString(content, " > ")
+	content = regexp.MustCompile(`\s*<\s*`).ReplaceAllString(content, " < ")
+
+	// Assignment operator
+	content = regexp.MustCompile(`\s*=\s*`).ReplaceAllString(content, " = ")
+
+	// Arithmetic operators
+	content = regexp.MustCompile(`\s*\+\s*`).ReplaceAllString(content, " + ")
+	content = regexp.MustCompile(`\s*-\s*`).ReplaceAllString(content, " - ")
+	content = regexp.MustCompile(`\s*\*\s*`).ReplaceAllString(content, " * ")
+	content = regexp.MustCompile(`\s*/\s*`).ReplaceAllString(content, " / ")
+	content = regexp.MustCompile(`\s*%\s*`).ReplaceAllString(content, " % ")
+
+	// Pipe operator (for method chaining and data flow)
+	content = regexp.MustCompile(`\s*\|\s*`).ReplaceAllString(content, " | ")
+
+	// Lambda arrows
+	content = regexp.MustCompile(`\s*-\s*>\s*`).ReplaceAllString(content, " -> ")
+
+	// Match arrows
+	content = regexp.MustCompile(`\s*=\s*>\s*`).ReplaceAllString(content, " => ")
+
+	return content
+}
+
+// formatFunctionCalls formats function calls and method chains
+func formatFunctionCalls(content string) string {
+	// Add space after comma in function arguments
+	content = regexp.MustCompile(`,\s*`).ReplaceAllString(content, ", ")
+
+	// Remove space before opening parentheses of function calls
+	content = regexp.MustCompile(`\s+\(`).ReplaceAllString(content, "(")
+
+	// Remove space after opening parentheses and before closing parentheses
+	content = regexp.MustCompile(`\(\s+`).ReplaceAllString(content, "(")
+	content = regexp.MustCompile(`\s+\)`).ReplaceAllString(content, ")")
+
+	// Format method chains with proper spacing around dots
+	content = regexp.MustCompile(`\s*\.\s*`).ReplaceAllString(content, ".")
+
+	return content
+}
+
+// formatNamedParameters handles named parameters in function calls
+func formatNamedParameters(content string) string {
+	// Handle named parameters like min:10, max:20
+	content = regexp.MustCompile(`(\w+)\s*:\s*`).ReplaceAllString(content, "$1: ")
+
+	// Handle named parameters with no value (just the name)
+	content = regexp.MustCompile(`(\w+)\s*:\s*([^,\s)]+)`).ReplaceAllString(content, "$1: $2")
+
+	return content
+}
+
+// formatMappingResponse represents the standardized response for mapping formatting
+type formatMappingResponse struct {
+	Success   bool   `json:"success"`
+	Formatted string `json:"formatted"`
+	Error     string `json:"error,omitempty"`
+}
+
+// FormatBloblangMapping formats Bloblang mappings
+func FormatBloblangMapping(mapping string) formatMappingResponse {
+	if mapping == "" {
+		return formatMappingResponse{
+			Success:   false,
+			Error:     "Mapping cannot be empty",
+			Formatted: "",
+		}
+	}
+
+	// Parse the mapping to validate it
+	env := bloblang.GlobalEnvironment().WithoutFunctions("env", "file")
+	_, err := env.NewMapping(mapping)
+	if err != nil {
+		return formatMappingResponse{
+			Success:   false,
+			Error:     fmt.Sprintf("Parse error: %v", err),
+			Formatted: mapping, // Return original on error
+		}
+	}
+
+	// Format using AST structure
+	formatted, formatErr := formatBloblangMapping(mapping)
+	if formatErr != nil {
+		return formatMappingResponse{
+			Success:   false,
+			Error:     formatErr.Error(),
+			Formatted: mapping, // Return original on error
+		}
+	}
+
+	return formatMappingResponse{
+		Success:   true,
+		Formatted: formatted,
+		Error:     "",
+	}
 }

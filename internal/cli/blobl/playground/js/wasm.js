@@ -3,6 +3,14 @@ class WasmManager {
     this.available = false;
     this.failed = false;
     this.go = null;
+    this.api = null; // Will hold window.bloblangApi
+
+    // Track available WASM functions
+    this.functions = {
+      execute: false,
+      syntax: false,
+      format: false,
+    };
 
     // Check if Go WASM support is available
     if (typeof Go !== "undefined") {
@@ -34,6 +42,9 @@ class WasmManager {
 
       // Wait for WASM module to signal readiness
       await this.waitForWasmReady();
+
+      // Register and validate all WASM functions
+      this.registerFunctions();
 
       this.available = true;
       return;
@@ -77,37 +88,70 @@ class WasmManager {
     });
   }
 
-  execute(input, mapping) {
+  // Register available WASM functions
+  registerFunctions() {
+    // Check if the bloblang API is available
+    if (window.bloblangApi && typeof window.bloblangApi === "object") {
+      this.api = window.bloblangApi;
+      this.functions.execute = typeof this.api.execute === "function";
+      this.functions.syntax = typeof this.api.syntax === "function";
+      this.functions.format = typeof this.api.format === "function";
+    } else {
+      console.warn("window.bloblangApi API not available");
+    }
+  }
+
+  // Check if a specific function is available
+  isAvailable(functionName) {
+    return this.available && !this.failed && this.functions[functionName];
+  }
+
+  // Check WASM and specific function availability
+  assertAvailable(functionKey, errorMsg) {
     if (this.failed) {
       throw new Error(
         "WASM not loaded. Bloblang functionality is unavailable."
       );
     }
-
     if (!this.available) {
       throw new Error("WASM not available. Please wait for initialization.");
     }
-
-    if (window.executeBloblangMapping) {
-      return window.executeBloblangMapping(input, mapping);
-    } else {
-      throw new Error("Bloblang functionality not available in WASM context.");
+    if (!this.functions[functionKey]) {
+      throw new Error(
+        errorMsg || `${functionKey} not available in WASM context.`
+      );
     }
   }
 
+  // Get all available functions
+  getAvailableFunctions() {
+    return Object.entries(this.functions)
+      .filter(([, available]) => available)
+      .map(([name]) => name);
+  }
+
+  // Registered Go functions
+  execute(input, mapping) {
+    this.assertAvailable(
+      "execute",
+      "Bloblang functionality not available in WASM context."
+    );
+    return this.api.execute(input, mapping);
+  }
+
   getSyntax() {
-    if (this.failed) {
-      throw new Error("WASM not loaded. Syntax data is unavailable.");
-    }
+    this.assertAvailable(
+      "syntax",
+      "Syntax functionality not available in WASM context."
+    );
+    return this.api.syntax();
+  }
 
-    if (!this.available) {
-      throw new Error("WASM not available. Please wait for initialization.");
-    }
-
-    if (window.generateBloblangSyntax) {
-      return window.generateBloblangSyntax();
-    } else {
-      throw new Error("Syntax functionality not available in WASM context.");
-    }
+  formatMapping(mapping) {
+    this.assertAvailable(
+      "format",
+      "Formatter functionality not available in WASM context."
+    );
+    return this.api.format(mapping);
   }
 }

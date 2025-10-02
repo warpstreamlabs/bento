@@ -160,93 +160,52 @@ function minifyInput() {
   }
 }
 
-function formatBloblang() {
+async function formatBloblang() {
   if (!window.playground || !window.playground.editor) return;
 
   try {
     const raw = window.playground.editor.getMapping();
     if (!raw || typeof raw !== "string") return;
 
-    const lines = raw.split("\n");
-    let indentLevel = 0;
-    const indentSize = 2; // spaces per indent level
-
-    const formatted = lines
-      .map((line) => {
-        const trimmed = line.trim();
-
-        // Pass through empty lines and comments
-        if (trimmed === "" || trimmed.startsWith("#")) {
-          return trimmed;
-        }
-
-        // Determine if this line should decrease indent (closing braces)
-        if (trimmed.startsWith("}")) {
-          indentLevel = Math.max(0, indentLevel - 1);
-        }
-
-        // Format the line content
-        let formattedLine = trimmed;
-        
-        // First, protect string literals from formatting
-        const stringLiterals = [];
-        let stringIndex = 0;
-        formattedLine = formattedLine.replace(/"([^"\\]|\\.)*"/g, (match) => {
-          const placeholder = `__STRING_${stringIndex++}__`;
-          stringLiterals.push(match);
-          return placeholder;
-        });
-        
-        // Now format operators safely (strings are protected)
-        formattedLine = formattedLine
-          // Normalize spacing around function args
-          .replace(/\s*\(\s*/g, "(")
-          .replace(/\s*\)\s*/g, ")")
-          .replace(/\s*,\s*/g, ", ")
-          // Normalize spacing around dot access
-          .replace(/\s*\.\s*/g, ".")
-          // Normalize spacing around object keys
-          .replace(/\s*:\s*/g, ": ")
-          // Use placeholders for compound operators to protect them
-          .replace(/\s*(<=)\s*/g, " __LE__ ")
-          .replace(/\s*(>=)\s*/g, " __GE__ ")
-          .replace(/\s*(==)\s*/g, " __EQ__ ")
-          .replace(/\s*(!=)\s*/g, " __NE__ ")
-          .replace(/\s*(&&)\s*/g, " __AND__ ")
-          .replace(/\s*(\|\|)\s*/g, " __OR__ ")
-          // Handle single-character operators safely
-          .replace(/\s*([+\-*/%<>=!])\s*/g, " $1 ")
-          // Restore compound operators
-          .replace(/ __LE__ /g, " <= ")
-          .replace(/ __GE__ /g, " >= ")
-          .replace(/ __EQ__ /g, " == ")
-          .replace(/ __NE__ /g, " != ")
-          .replace(/ __AND__ /g, " && ")
-          .replace(/ __OR__ /g, " || ")
-          // Collapse multiple spaces
-          .replace(/\s{2,}/g, " ")
-          .trim();
-        
-        // Restore string literals
-        stringLiterals.forEach((literal, index) => {
-          formattedLine = formattedLine.replace(`__STRING_${index}__`, literal);
+    let result;
+    switch (window.playground.state.executionMode) {
+      case "server":
+        const response = await fetch("/format", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mapping: raw }),
         });
 
-        // Apply indentation
-        const indent = " ".repeat(indentLevel * indentSize);
-        const result = trimmed === "" ? "" : indent + formattedLine;
-
-        // Determine if this line should increase indent (opening braces)
-        if (trimmed.includes("{") && !trimmed.includes("}")) {
-          indentLevel++;
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
         }
 
-        return result;
-      })
-      .join("\n");
+        result = await response.json();
+        break;
 
-    window.playground.editor.setMapping(formatted);
-    updateMappingLinter(formatted);
+      case "wasm":
+        if (
+          window.playground.wasm &&
+          window.playground.wasm.isAvailable("format")
+        ) {
+          result = window.playground.wasm.formatMapping(raw);
+        } else {
+          console.warn("WASM formatter not available");
+          return;
+        }
+        break;
+
+      default:
+        console.warn("No formatter available");
+        return;
+    }
+
+    if (result && result.success && result.formatted) {
+      window.playground.editor.setMapping(result.formatted);
+      updateMappingLinter(result.formatted);
+    } else if (result && result.error) {
+      console.warn("Formatting error:", result.error);
+    }
   } catch (err) {
     console.warn("Formatting error:", err);
   }

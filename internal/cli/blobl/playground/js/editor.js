@@ -81,9 +81,12 @@ class EditorManager {
 
     // Try WASM function (WASM mode) - with retry for ready state
     const tryWasmSyntax = () => {
-      if (typeof window.generateBloblangSyntax === "function") {
+      if (
+        window.bloblangApi &&
+        typeof window.bloblangApi.syntax === "function"
+      ) {
         try {
-          const syntaxData = window.generateBloblangSyntax();
+          const syntaxData = window.bloblangApi.syntax();
           if (syntaxData && !syntaxData.error) {
             this.bloblangSyntax = syntaxData;
             this.syntaxLoaded = true;

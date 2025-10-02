@@ -93,6 +93,7 @@ class BloblangPlayground {
   }
 
   async initializeWasm() {
+    // Skip WASM in server mode
     if (this.state.executionMode === "server" || !this.wasm) {
       return;
     }
@@ -102,6 +103,11 @@ class BloblangPlayground {
 
       if (this.wasm.available) {
         this.state.wasmAvailable = true;
+
+        // Check if formatting is available via WASM
+        if (this.wasm.isAvailable("format")) {
+          this.state.wasmFormattingAvailable = true;
+        }
       } else {
         this.state.executionMode = "server";
       }
@@ -196,12 +202,12 @@ class BloblangPlayground {
             body: JSON.stringify({ input, mapping }),
           });
 
-          if (response.ok) {
-            result = await response.json();
-            this.handleExecution(result);
-          } else {
+          if (!response.ok) {
             throw new Error(`Server error: ${response.status}`);
           }
+
+          result = await response.json();
+          this.handleExecution(result);
           break;
         default:
           throw new Error("Unknown execution mode");
