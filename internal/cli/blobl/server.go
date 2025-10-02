@@ -49,6 +49,67 @@ var playgroundFS embed.FS
 
 var bloblangPlaygroundPage string
 
+// serveExecuteMapping handles mapping execution requests for server mode
+func serveExecuteMapping(fSync *fileSync) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		req := struct {
+			Mapping string `json:"mapping"`
+			Input   string `json:"input"`
+		}{}
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		fSync.update(req.Input, req.Mapping)
+
+		result := evaluateMapping(bloblang.GlobalEnvironment(), req.Input, req.Mapping)
+
+		resBytes, err := json.Marshal(struct {
+			Result       any `json:"result"`
+			ParseError   any `json:"parse_error"`
+			MappingError any `json:"mapping_error"`
+		}{
+			Result:       result.Result,
+			ParseError:   result.ParseError,
+			MappingError: result.MappingError,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write(resBytes)
+	}
+}
+
+// serveFormatMapping handles formatting requests for server mode
+func serveFormatMapping() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var request struct {
+			Mapping string `json:"mapping"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if request.Mapping == "" {
+			http.Error(w, "Mapping cannot be empty", http.StatusBadRequest)
+			return
+		}
+
+		response := FormatBloblangMapping(request.Mapping)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
 func init() {
 	page, err := playgroundFS.ReadFile("playground/index.html")
 	if err != nil {
@@ -176,35 +237,8 @@ func runPlayground(c *cli.Context) error {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/execute", func(w http.ResponseWriter, r *http.Request) {
-		req := struct {
-			Mapping string `json:"mapping"`
-			Input   string `json:"input"`
-		}{}
-		dec := json.NewDecoder(r.Body)
-		if err := dec.Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		fSync.update(req.Input, req.Mapping)
-
-		result := evaluateMapping(bloblang.GlobalEnvironment(), req.Input, req.Mapping)
-
-		resBytes, err := json.Marshal(struct {
-			Result       any `json:"result"`
-			ParseError   any `json:"parse_error"`
-			MappingError any `json:"mapping_error"`
-		}{
-			Result:       result.Result,
-			ParseError:   result.ParseError,
-			MappingError: result.MappingError,
-		})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		_, _ = w.Write(resBytes)
-	})
+	mux.HandleFunc("/execute", serveExecuteMapping(fSync))
+	mux.HandleFunc("/format", serveFormatMapping())
 
 	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")
 	if err != nil {

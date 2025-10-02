@@ -9,7 +9,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 )
 
-// ExecuteBloblangMapping returns a js.Func that executes the Bloblang mapping functionality on input JSON.
+// ExportExecute returns a js.Func that executes the Bloblang mapping functionality on input JSON.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -20,10 +20,10 @@ import (
 //   - "result":        the mapping result (any type, or nil on error)
 //   - "parse_error":   error message if input JSON could not be parsed, else nil
 //   - "mapping_error": error message if mapping failed, else nil
-func ExecuteBloblangMapping() js.Func {
+func ExportExecute() js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) != 2 || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
-			return toJS(map[string]any{
+			return ToJS(map[string]any{
 				"mapping_error": "Invalid arguments: expected two strings (input, mapping)",
 				"parse_error":   nil,
 				"result":        nil,
@@ -33,7 +33,7 @@ func ExecuteBloblangMapping() js.Func {
 		input, mapping := args[0].String(), args[1].String()
 		result := evaluateMapping(bloblang.GlobalEnvironment(), input, mapping)
 
-		return toJS(map[string]any{
+		return ToJS(map[string]any{
 			"mapping_error": result.MappingError,
 			"parse_error":   result.ParseError,
 			"result":        result.Result,
@@ -41,25 +41,51 @@ func ExecuteBloblangMapping() js.Func {
 	})
 }
 
-// GenerateBloblangSyntax returns a js.Func that provides Bloblang syntax metadata for editor tooling.
+// ExportSyntax returns a js.Func that provides Bloblang syntax metadata for editor tooling.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Returns a JS object with syntax info, or an "error" field if retrieval fails.
-func GenerateBloblangSyntax() js.Func {
+func ExportSyntax() js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
 		if err != nil {
-			return toJS(map[string]any{
+			return ToJS(map[string]any{
 				"error": err.Error(),
 			})
 		}
-		return toJS(syntax)
+		return ToJS(syntax)
 	})
 }
 
-// toJS marshals a Go value to a JavaScript value for WASM compatibility.
+// ExportFormat returns a js.Func that provides formatted Bloblang mappings.
+// This function is intended to be exposed to JavaScript via WebAssembly.
+//
+// Arguments:
+//   - args[0]: Bloblang mapping string to format
+//
+// Returns a JS object with:
+//   - "formatted": the formatted mapping string
+//   - "success":   true if formatting succeeded, false otherwise
+//   - "error":     error message if formatting failed, else nil
+func ExportFormat() js.Func {
+	return js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) != 1 || args[0].Type() != js.TypeString {
+			return ToJS(map[string]any{
+				"error":     "Invalid arguments: expected one string (mapping)",
+				"formatted": "",
+				"success":   false,
+			})
+		}
+
+		mapping := args[0].String()
+		response := FormatBloblangMapping(mapping)
+		return ToJS(response)
+	})
+}
+
+// ToJS marshals a Go value to a JavaScript value for WASM compatibility.
 // If marshaling fails, returns a JS string with the error message.
-func toJS(data any) js.Value {
+func ToJS(data any) js.Value {
 	if data == nil {
 		return js.Null()
 	}
