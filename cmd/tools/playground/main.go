@@ -24,6 +24,8 @@ func main() {
 		{"syntax", blobl.ExportSyntax()},
 		// Formats Bloblang mappings
 		{"format", blobl.ExportFormat()},
+		// Provides Bloblang autocompletions
+		{"autocomplete", blobl.ExportAutocomplete()},
 	}
 
 	// Create namespaced object for JS accessibility

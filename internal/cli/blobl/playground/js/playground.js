@@ -100,14 +100,8 @@ class BloblangPlayground {
 
     try {
       await this.wasm.load();
-
       if (this.wasm.available) {
         this.state.wasmAvailable = true;
-
-        // Check if formatting is available via WASM
-        if (this.wasm.isAvailable("format")) {
-          this.state.wasmFormattingAvailable = true;
-        }
       } else {
         this.state.executionMode = "server";
       }

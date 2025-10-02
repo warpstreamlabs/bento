@@ -161,7 +161,9 @@ function minifyInput() {
 }
 
 async function formatBloblang() {
-  if (!window.playground || !window.playground.editor) return;
+  if (!window.playground || !window.playground.editor) {
+    return callback(null, []);
+  }
 
   try {
     const raw = window.playground.editor.getMapping();
@@ -184,27 +186,20 @@ async function formatBloblang() {
         break;
 
       case "wasm":
-        if (
-          window.playground.wasm &&
-          window.playground.wasm.isAvailable("format")
-        ) {
-          result = window.playground.wasm.formatMapping(raw);
-        } else {
-          console.warn("WASM formatter not available");
+        result = window.playground.wasm.formatMapping(raw);
+        if (!result) {
           return;
         }
         break;
 
       default:
-        console.warn("No formatter available");
+        console.warn("Formatter unavailable");
         return;
     }
 
     if (result && result.success && result.formatted) {
       window.playground.editor.setMapping(result.formatted);
       updateMappingLinter(result.formatted);
-    } else if (result && result.error) {
-      console.warn("Formatting error:", result.error);
     }
   } catch (err) {
     console.warn("Formatting error:", err);
