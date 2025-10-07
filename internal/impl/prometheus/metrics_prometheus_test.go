@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -197,6 +198,26 @@ file_output_path: %v
 	assert.NotEmpty(t, file)
 
 	assertContainsTestMetrics(t, string(file))
+}
+
+func TestPrometheusDefaultRegistry(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	prometheus.DefaultRegisterer = reg
+	prometheus.DefaultRegisterer.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "some_other_metric",
+		Help: "a metric not created by bento",
+	}))
+
+	p := promFromYAML(t, `
+use_default_registry: true
+`)
+	applyTestMetrics(p)
+
+	handler := p.HandlerFunc()
+	body := getPage(t, handler)
+
+	assertContainsTestMetrics(t, body)
+	assert.Contains(t, body, "\nsome_other_metric 0")
 }
 
 func applyTestMetrics(nm *Metrics) {
