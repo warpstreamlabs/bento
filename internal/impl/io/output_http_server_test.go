@@ -366,8 +366,10 @@ http_server:
 	clientDone := make(chan struct{})
 	clientErrors := make(chan error, 1)
 	receivedMessages := make(chan string, 10)
-	receivedHeartbeats := make(chan struct{}, 5)
-
+	// Use larger buffer to prevent the client from blocking when sending heartbeats
+	receivedHeartbeats := make(chan struct{}, 50)
+	// Use channel to wait for client ready
+	clientReady := make(chan struct{}, 1)
 	go func() {
 		defer close(clientDone)
 
@@ -408,7 +410,8 @@ http_server:
 			clientErrors <- fmt.Errorf("unexpected content type: %s", contentType)
 			return
 		}
-
+		// Client is ready, close the channel
+		close(clientReady)
 		// Read the SSE stream
 		buffer := make([]byte, 4096)
 		currentData := ""
@@ -498,8 +501,12 @@ http_server:
 		"test message 2",
 	}
 
-	// Wait a bit to allow some heartbeats to be sent before we send any messages
-	time.Sleep(time.Second)
+	// Wait for client to be ready
+	select {
+	case <-clientReady:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Client did not become ready in time")
+	}
 
 	for _, msg := range testMessages {
 		testMsg := message.QuickBatch([][]byte{[]byte(msg)})
