@@ -60,37 +60,37 @@ func TestProcessPageViewJSON(t *testing.T) {
 	// Verify flattened context fields exist with underscore separator
 	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_useragentFamily")
 	assert.Equal(t, "Chrome", jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_useragentFamily"])
-	
+
 	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_osFamily")
 	assert.Equal(t, "Mac OS X", jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_osFamily"])
-	
+
 	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_web_page_1_0_id")
 	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", jsonOutput["contexts_com_snowplowanalytics_snowplow_web_page_1_0_id"])
-	
+
 	assert.Contains(t, jsonOutput, "contexts_com_fingerprintjs_fingerprint_1_0_visitorId")
 	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", jsonOutput["contexts_com_fingerprintjs_fingerprint_1_0_visitorId"])
-	
+
 	// Verify deeply nested fields are flattened with underscore separator
 	assert.Contains(t, jsonOutput, "contexts_com_dbip_location_1_0_city_names_en")
 	assert.Equal(t, "Del Mar", jsonOutput["contexts_com_dbip_location_1_0_city_names_en"])
-	
+
 	assert.Contains(t, jsonOutput, "contexts_com_dbip_location_1_0_country_names_en")
 	assert.Equal(t, "United States", jsonOutput["contexts_com_dbip_location_1_0_country_names_en"])
-	
+
 	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1_0_name")
 	assert.Equal(t, "SnowcatCloud", jsonOutput["contexts_com_clearbit_company_1_0_name"])
-	
+
 	// Verify arrays within contexts are flattened with numeric indices
 	assert.Contains(t, jsonOutput, "contexts_org_ietf_http_cookie_1_0_name")
 	assert.Equal(t, "_gaexp", jsonOutput["contexts_org_ietf_http_cookie_1_0_name"])
-	
+
 	assert.Contains(t, jsonOutput, "contexts_org_ietf_http_cookie_1_1_name")
 	assert.Equal(t, "ajs_user_id", jsonOutput["contexts_org_ietf_http_cookie_1_1_name"])
-	
+
 	// Verify nested arrays are flattened
 	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1_0_tech_0")
 	assert.Equal(t, "google_apps", jsonOutput["contexts_com_clearbit_company_1_0_tech_0"])
-	
+
 	t.Logf("✅ Verified flattened JSON structure with underscore separators and proper deep nesting")
 }
 

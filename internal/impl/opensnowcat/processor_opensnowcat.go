@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	analytics "github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
@@ -181,7 +182,7 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, mgr bundle.Ne
 				for fieldName, criteria := range dropConfig {
 					if criteriaMap, ok := criteria.(map[string]interface{}); ok {
 						fc := &filterCriteria{}
-						
+
 						// Parse "contains" filter
 						if containsList, ok := criteriaMap["contains"]; ok {
 							if containsSlice, ok := containsList.([]interface{}); ok {
@@ -192,7 +193,7 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, mgr bundle.Ne
 								}
 							}
 						}
-						
+
 						// Parse "schemas" filter
 						if schemasList, ok := criteriaMap["schemas"]; ok {
 							if schemasSlice, ok := schemasList.([]interface{}); ok {
@@ -203,7 +204,7 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, mgr bundle.Ne
 								}
 							}
 						}
-						
+
 						// Only add filter if it has criteria
 						if len(fc.contains) > 0 || len(fc.schemas) > 0 {
 							// Normalize field name to lowercase for column matching, but keep schema paths case-sensitive
@@ -284,7 +285,7 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 			}
 			continue
 		}
-		
+
 		// Regular field filter
 		colIndex, exists := o.columnIndexMap[fieldName]
 		if !exists {
@@ -317,21 +318,21 @@ func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPat
 	// Parse the schema path to extract vendor.schema and property path
 	// Example: "com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily"
 	// Need to find where schema ends and property begins
-	
+
 	// Check in contexts, derived_contexts, and unstruct_event fields
 	jsonFields := []string{"contexts", "derived_contexts", "unstruct_event"}
-	
+
 	for _, jsonFieldName := range jsonFields {
 		colIndex, exists := o.columnIndexMap[jsonFieldName]
 		if !exists || colIndex >= len(columns) {
 			continue
 		}
-		
+
 		jsonValue := columns[colIndex]
 		if jsonValue == "" {
 			continue
 		}
-		
+
 		// Try to extract the property value from this JSON field
 		propertyValue := o.extractSchemaPropertyValue(jsonValue, schemaPath)
 		if propertyValue != "" {
@@ -343,7 +344,7 @@ func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPat
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -354,7 +355,7 @@ func (o *opensnowcatProcessor) extractSchemaPropertyValue(jsonValue string, sche
 	if err := json.Unmarshal([]byte(jsonValue), &data); err != nil {
 		return ""
 	}
-	
+
 	// Recursively search for matching schema and extract property
 	return o.searchSchemaProperty(data, schemaPath)
 }
@@ -374,12 +375,12 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 				if len(schemaParts) > 0 {
 					schemaName := schemaParts[0]
 					fullSchema := vendor + "." + schemaName
-					
+
 					// Check if this schema matches the path prefix
 					if strings.HasPrefix(schemaPath, fullSchema+".") {
 						// Extract the property path
 						propertyPath := strings.TrimPrefix(schemaPath, fullSchema+".")
-						
+
 						// Look for the property in the "data" field
 						if dataObj, ok := v["data"].(map[string]interface{}); ok {
 							return o.getNestedProperty(dataObj, propertyPath)
@@ -388,7 +389,7 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 				}
 			}
 		}
-		
+
 		// Recursively search nested maps
 		for _, value := range v {
 			result := o.searchSchemaProperty(value, schemaPath)
@@ -396,7 +397,7 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 				return result
 			}
 		}
-		
+
 	case []interface{}:
 		// Recursively search array elements
 		for _, item := range v {
@@ -406,7 +407,7 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -414,7 +415,7 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 // Example: "geo.country" from {"geo": {"country": "US"}}
 func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, path string) string {
 	parts := strings.Split(path, ".")
-	
+
 	var current interface{} = data
 	for _, part := range parts {
 		if m, ok := current.(map[string]interface{}); ok {
@@ -423,7 +424,7 @@ func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, pa
 			return ""
 		}
 	}
-	
+
 	// Convert the final value to string
 	switch v := current.(type) {
 	case string:
@@ -431,15 +432,13 @@ func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, pa
 	case float64:
 		return fmt.Sprintf("%v", v)
 	case bool:
-		return fmt.Sprintf("%v", v)
+		return strconv.FormatBool(v)
 	case nil:
 		return ""
 	default:
 		return fmt.Sprintf("%v", v)
 	}
 }
-
-
 
 func (o *opensnowcatProcessor) flattenEvent(eventMap map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
@@ -452,7 +451,7 @@ func (o *opensnowcatProcessor) flattenEvent(eventMap map[string]interface{}) map
 				break
 			}
 		}
-		
+
 		if shouldFlatten {
 			// Flatten this field
 			if nestedMap, ok := value.(map[string]interface{}); ok {
