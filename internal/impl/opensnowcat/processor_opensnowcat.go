@@ -131,6 +131,7 @@ type opensnowcatProcessor struct {
 	outputFormat    string
 	columnIndexMap  map[string]int
 	log             *service.Logger
+	mDropped        *service.MetricCounter
 }
 
 func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.Resources) (*opensnowcatProcessor, error) {
@@ -219,6 +220,7 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 		outputFormat:    outputFormat,
 		columnIndexMap:  columnIndexMap,
 		log:             res.Logger(),
+		mDropped:        res.Metrics().NewCounter("dropped"),
 	}, nil
 }
 
@@ -235,7 +237,7 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 	// Check if we have filters to apply
 	if len(o.dropFilters) > 0 {
 		if o.shouldDropEventFromTSV(columns) {
-			o.log.Debugf("Event dropped by filter")
+			o.mDropped.Incr(1)
 			return nil, nil // Drop the event
 		}
 	}
@@ -272,7 +274,6 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 		if strings.Contains(fieldName, ".") && !strings.HasPrefix(fieldName, "geo.") && !strings.HasPrefix(fieldName, "metrics.") && !strings.HasPrefix(fieldName, "site.") {
 			// This is a schema property path
 			if o.matchesSchemaProperty(columns, fieldName, criteria) {
-				o.log.Debugf("Event matched schema property filter: %s", fieldName)
 				return true
 			}
 			continue
@@ -295,7 +296,6 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 		// Check contains criteria
 		for _, containsStr := range criteria.contains {
 			if strings.Contains(strings.ToLower(fieldValue), strings.ToLower(containsStr)) {
-				o.log.Debugf("Event matched drop filter: %s contains %s", fieldName, containsStr)
 				return true
 			}
 		}

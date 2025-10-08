@@ -26,6 +26,7 @@ func TestProcessPageViewJSON(t *testing.T) {
 		columnIndexMap[col] = i
 	}
 
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		flattenFields: map[string]bool{
 			"contexts":         true,
@@ -36,7 +37,8 @@ func TestProcessPageViewJSON(t *testing.T) {
 		outputFormat:    "json",
 		columnIndexMap:  columnIndexMap,
 		dropFilters:     make(map[string]*filterCriteria),
-		log:             service.MockResources().Logger(),
+		log:             res.Logger(),
+		mDropped:        res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -102,6 +104,7 @@ func TestProcessPageViewTSV_FilterByIP(t *testing.T) {
 		columnIndexMap[col] = i
 	}
 
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"user_ipaddress": {
@@ -110,7 +113,8 @@ func TestProcessPageViewTSV_FilterByIP(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -130,6 +134,7 @@ func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
 	}
 
 	// Test filtering by useragentFamily property in derived_contexts
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
@@ -138,7 +143,8 @@ func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -158,6 +164,7 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch(t *testing.T) {
 	}
 
 	// Test filtering by a property value that doesn't match
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
@@ -166,7 +173,8 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -189,6 +197,7 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
 	}
 
 	// Test filtering by osFamily property in derived_contexts
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"com.snowplowanalytics.snowplow.ua_parser_context.osFamily": {
@@ -197,7 +206,8 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -218,6 +228,7 @@ func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T)
 
 	// Test combining regular field filter (useragent) with schema property filter
 	// This matches the exact format from the user's example
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"useragent": {
@@ -229,7 +240,8 @@ func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T)
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -249,6 +261,7 @@ func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
 	}
 
 	// Test with multiple filters - should drop if ANY match (OR logic)
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"user_ipaddress": {
@@ -269,7 +282,8 @@ func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -289,6 +303,7 @@ func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
 	}
 
 	// Test with multiple filters - NONE should match, so event should NOT be dropped
+	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
 			"user_ipaddress": {
@@ -309,7 +324,8 @@ func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            service.MockResources().Logger(),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
