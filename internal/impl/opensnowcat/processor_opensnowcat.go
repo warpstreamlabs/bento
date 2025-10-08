@@ -125,13 +125,11 @@ type filterCriteria struct {
 }
 
 type opensnowcatProcessor struct {
-	flattenFields   map[string]bool
-	prefixSeparator string
-	dropFilters     map[string]*filterCriteria
-	outputFormat    string
-	columnIndexMap  map[string]int
-	log             *service.Logger
-	mDropped        *service.MetricCounter
+	dropFilters    map[string]*filterCriteria
+	outputFormat   string
+	columnIndexMap map[string]int
+	log            *service.Logger
+	mDropped       *service.MetricCounter
 }
 
 func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.Resources) (*opensnowcatProcessor, error) {
@@ -145,14 +143,6 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 		}
 		outputFormat = format
 	}
-
-	// Always flatten these three fields with underscore separator (only used for JSON output)
-	flattenFields := map[string]bool{
-		"contexts":         true,
-		"derived_contexts": true,
-		"unstruct_event":   true,
-	}
-	prefixSeparator := "_"
 
 	// Build column index map for TSV parsing (all lowercase)
 	columnIndexMap := make(map[string]int)
@@ -214,13 +204,11 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 	}
 
 	return &opensnowcatProcessor{
-		flattenFields:   flattenFields,
-		prefixSeparator: prefixSeparator,
-		dropFilters:     dropFilters,
-		outputFormat:    outputFormat,
-		columnIndexMap:  columnIndexMap,
-		log:             res.Logger(),
-		mDropped:        res.Metrics().NewCounter("dropped"),
+		dropFilters:    dropFilters,
+		outputFormat:   outputFormat,
+		columnIndexMap: columnIndexMap,
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}, nil
 }
 
@@ -253,17 +241,14 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 		return nil, fmt.Errorf("failed to parse OpenSnowcat event: %w", err)
 	}
 
-	// Convert to map for flattening
+	// Convert to map - Snowplow SDK already extracts contexts nicely
 	eventMap, err := parsedEvent.ToMap()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert event to map: %w", err)
 	}
 
-	// Flatten specified fields
-	flattenedMap := o.flattenEvent(eventMap)
-
-	// Set the flattened map as structured data
-	msg.SetStructuredMut(flattenedMap)
+	// Set the map as structured data (no extra flattening needed)
+	msg.SetStructuredMut(eventMap)
 
 	return service.MessageBatch{msg}, nil
 }
@@ -429,60 +414,6 @@ func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, pa
 		return ""
 	default:
 		return fmt.Sprintf("%v", v)
-	}
-}
-
-func (o *opensnowcatProcessor) flattenEvent(eventMap map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-
-	for key, value := range eventMap {
-		shouldFlatten := false
-		for prefix := range o.flattenFields {
-			if strings.HasPrefix(key, prefix) {
-				shouldFlatten = true
-				break
-			}
-		}
-
-		if shouldFlatten {
-			// Flatten this field
-			if nestedMap, ok := value.(map[string]interface{}); ok {
-				o.flattenMap(result, key, nestedMap)
-			} else if nestedSlice, ok := value.([]interface{}); ok {
-				// Handle array of objects (like contexts)
-				o.flattenSlice(result, key, nestedSlice)
-			} else {
-				result[key] = value
-			}
-		} else {
-			result[key] = value
-		}
-	}
-
-	return result
-}
-
-func (o *opensnowcatProcessor) flattenMap(target map[string]interface{}, prefix string, source map[string]interface{}) {
-	for key, value := range source {
-		newKey := prefix + o.prefixSeparator + key
-		if nestedMap, ok := value.(map[string]interface{}); ok {
-			o.flattenMap(target, newKey, nestedMap)
-		} else if nestedSlice, ok := value.([]interface{}); ok {
-			o.flattenSlice(target, newKey, nestedSlice)
-		} else {
-			target[newKey] = value
-		}
-	}
-}
-
-func (o *opensnowcatProcessor) flattenSlice(target map[string]interface{}, prefix string, source []interface{}) {
-	for i, item := range source {
-		newKey := fmt.Sprintf("%s%s%d", prefix, o.prefixSeparator, i)
-		if itemMap, ok := item.(map[string]interface{}); ok {
-			o.flattenMap(target, newKey, itemMap)
-		} else {
-			target[newKey] = item
-		}
 	}
 }
 

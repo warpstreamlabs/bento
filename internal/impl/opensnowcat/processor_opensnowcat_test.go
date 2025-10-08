@@ -28,17 +28,11 @@ func TestProcessPageViewJSON(t *testing.T) {
 
 	res := service.MockResources()
 	proc := &opensnowcatProcessor{
-		flattenFields: map[string]bool{
-			"contexts":         true,
-			"derived_contexts": true,
-			"unstruct_event":   true,
-		},
-		prefixSeparator: "_",
-		outputFormat:    "json",
-		columnIndexMap:  columnIndexMap,
-		dropFilters:     make(map[string]*filterCriteria),
-		log:             res.Logger(),
-		mDropped:        res.Metrics().NewCounter("dropped"),
+		outputFormat:   "json",
+		columnIndexMap: columnIndexMap,
+		dropFilters:    make(map[string]*filterCriteria),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
 	}
 
 	msg := service.NewMessage([]byte(testPageViewTSV))
@@ -60,39 +54,54 @@ func TestProcessPageViewJSON(t *testing.T) {
 	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", jsonOutput["event_id"])
 	assert.Equal(t, "joaocorreia", jsonOutput["user_id"])
 
-	// Verify flattened context fields exist with underscore separator
-	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_useragentFamily")
-	assert.Equal(t, "Chrome", jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_useragentFamily"])
+	// Verify contexts are arrays (not over-flattened)
+	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1")
+	uaContexts := jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1"].([]interface{})
+	require.Len(t, uaContexts, 1)
+	uaContext := uaContexts[0].(map[string]interface{})
+	assert.Equal(t, "Chrome", uaContext["useragentFamily"])
+	assert.Equal(t, "Mac OS X", uaContext["osFamily"])
 
-	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_osFamily")
-	assert.Equal(t, "Mac OS X", jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_osFamily"])
+	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_web_page_1")
+	webPageContexts := jsonOutput["contexts_com_snowplowanalytics_snowplow_web_page_1"].([]interface{})
+	require.Len(t, webPageContexts, 1)
+	webPageContext := webPageContexts[0].(map[string]interface{})
+	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", webPageContext["id"])
 
-	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_web_page_1_0_id")
-	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", jsonOutput["contexts_com_snowplowanalytics_snowplow_web_page_1_0_id"])
+	assert.Contains(t, jsonOutput, "contexts_com_fingerprintjs_fingerprint_1")
+	fpContexts := jsonOutput["contexts_com_fingerprintjs_fingerprint_1"].([]interface{})
+	require.Len(t, fpContexts, 1)
+	fpContext := fpContexts[0].(map[string]interface{})
+	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", fpContext["visitorId"])
 
-	assert.Contains(t, jsonOutput, "contexts_com_fingerprintjs_fingerprint_1_0_visitorId")
-	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", jsonOutput["contexts_com_fingerprintjs_fingerprint_1_0_visitorId"])
+	// Verify nested objects are preserved
+	assert.Contains(t, jsonOutput, "contexts_com_dbip_location_1")
+	locationContexts := jsonOutput["contexts_com_dbip_location_1"].([]interface{})
+	require.Len(t, locationContexts, 1)
+	locationContext := locationContexts[0].(map[string]interface{})
+	cityMap := locationContext["city"].(map[string]interface{})
+	namesMap := cityMap["names"].(map[string]interface{})
+	assert.Equal(t, "Del Mar", namesMap["en"])
 
-	// Verify deeply nested fields are flattened with underscore separator
-	assert.Contains(t, jsonOutput, "contexts_com_dbip_location_1_0_city_names_en")
-	assert.Equal(t, "Del Mar", jsonOutput["contexts_com_dbip_location_1_0_city_names_en"])
+	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1")
+	clearbitContexts := jsonOutput["contexts_com_clearbit_company_1"].([]interface{})
+	require.Len(t, clearbitContexts, 1)
+	clearbitContext := clearbitContexts[0].(map[string]interface{})
+	assert.Equal(t, "SnowcatCloud", clearbitContext["name"])
 
-	assert.Contains(t, jsonOutput, "contexts_com_dbip_location_1_0_country_names_en")
-	assert.Equal(t, "United States", jsonOutput["contexts_com_dbip_location_1_0_country_names_en"])
+	// Verify arrays within contexts are preserved
+	assert.Contains(t, jsonOutput, "contexts_org_ietf_http_cookie_1")
+	cookieContexts := jsonOutput["contexts_org_ietf_http_cookie_1"].([]interface{})
+	require.GreaterOrEqual(t, len(cookieContexts), 2)
+	cookie0 := cookieContexts[0].(map[string]interface{})
+	assert.Equal(t, "_gaexp", cookie0["name"])
+	cookie1 := cookieContexts[1].(map[string]interface{})
+	assert.Equal(t, "ajs_user_id", cookie1["name"])
 
-	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1_0_name")
-	assert.Equal(t, "SnowcatCloud", jsonOutput["contexts_com_clearbit_company_1_0_name"])
-
-	// Verify arrays within contexts are flattened with numeric indices
-	assert.Contains(t, jsonOutput, "contexts_org_ietf_http_cookie_1_0_name")
-	assert.Equal(t, "_gaexp", jsonOutput["contexts_org_ietf_http_cookie_1_0_name"])
-
-	assert.Contains(t, jsonOutput, "contexts_org_ietf_http_cookie_1_1_name")
-	assert.Equal(t, "ajs_user_id", jsonOutput["contexts_org_ietf_http_cookie_1_1_name"])
-
-	// Verify nested arrays are flattened
-	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1_0_tech_0")
-	assert.Equal(t, "google_apps", jsonOutput["contexts_com_clearbit_company_1_0_tech_0"])
+	// Verify nested arrays are preserved
+	techArray := clearbitContext["tech"].([]interface{})
+	require.GreaterOrEqual(t, len(techArray), 1)
+	assert.Equal(t, "google_apps", techArray[0])
 
 }
 
