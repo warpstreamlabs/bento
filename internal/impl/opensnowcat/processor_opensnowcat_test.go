@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/warpstreamlabs/bento/internal/manager/mock"
-	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 // Real OpenSnowcat enriched TSV event (page_view with Mac OS)
@@ -17,8 +16,6 @@ const testPageViewTSV = `snwcat	web	2022-03-21 22:12:44.790	2022-03-21 22:12:43.
 
 // TestProcessPageViewJSON tests that a real page_view TSV is converted to flattened JSON
 func TestProcessPageViewJSON(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -35,18 +32,20 @@ func TestProcessPageViewJSON(t *testing.T) {
 		outputFormat:    "json",
 		columnIndexMap:  columnIndexMap,
 		dropFilters:     make(map[string]*filterCriteria),
-		log:             mgr.Logger(),
+		log:             service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
 	require.Len(t, msgs, 1, "Should process one message")
 
 	// Parse JSON output
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
 	var jsonOutput map[string]interface{}
-	err = json.Unmarshal(msgs[0].AsBytes(), &jsonOutput)
+	err = json.Unmarshal(msgBytes, &jsonOutput)
 	require.NoError(t, err)
 
 	// Verify basic fields
@@ -96,8 +95,6 @@ func TestProcessPageViewJSON(t *testing.T) {
 
 // TestProcessPageViewTSV_FilterByIP tests that filtering by IP address drops matching events
 func TestProcessPageViewTSV_FilterByIP(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -112,10 +109,10 @@ func TestProcessPageViewTSV_FilterByIP(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
@@ -126,8 +123,6 @@ func TestProcessPageViewTSV_FilterByIP(t *testing.T) {
 
 // TestProcessPageViewTSV_FilterBySchemaProperty tests filtering by schema property value
 func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -143,10 +138,10 @@ func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
@@ -157,8 +152,6 @@ func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
 
 // TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch tests that events without matching property values are not dropped
 func TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -174,23 +167,23 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
 	require.Len(t, msgs, 1, "Event should NOT be dropped because useragentFamily is not Firefox")
-	assert.Equal(t, testPageViewTSV, string(msgs[0].AsBytes()))
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, testPageViewTSV, string(msgBytes))
 
 	t.Logf("✅ Event with useragentFamily=Chrome (not Firefox) was correctly kept")
 }
 
 // TestProcessPageViewTSV_FilterBySchemaProperty_osFamily tests filtering by osFamily property
 func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -206,10 +199,10 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
@@ -220,8 +213,6 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
 
 // TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty tests combining regular field and schema property filters
 func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -241,10 +232,10 @@ func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T)
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
@@ -255,8 +246,6 @@ func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T)
 
 // TestProcessPageViewTSV_FilterMultipleConditions tests multiple filters with OR logic
 func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -284,10 +273,10 @@ func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
@@ -298,8 +287,6 @@ func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
 
 // TestProcessPageViewTSV_FilterMultipleConditions_NoMatch tests multiple filters where none match
 func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
-	mgr := mock.NewManager()
-
 	// Build column index map
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
@@ -327,15 +314,17 @@ func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
 		},
 		outputFormat:   "tsv",
 		columnIndexMap: columnIndexMap,
-		log:            mgr.Logger(),
+		log:            service.MockResources().Logger(),
 	}
 
-	msg := message.NewPart([]byte(testPageViewTSV))
+	msg := service.NewMessage([]byte(testPageViewTSV))
 	msgs, err := proc.Process(context.Background(), msg)
 
 	require.NoError(t, err)
 	require.Len(t, msgs, 1, "Event should NOT be dropped because none of the filters match")
-	assert.Equal(t, testPageViewTSV, string(msgs[0].AsBytes()))
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, testPageViewTSV, string(msgBytes))
 
 	t.Logf("✅ Event correctly kept when multiple filters don't match (Chrome on Mac OS X, Desktop)")
 }

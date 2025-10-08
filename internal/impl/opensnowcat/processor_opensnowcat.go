@@ -9,11 +9,6 @@ import (
 
 	analytics "github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/warpstreamlabs/bento/internal/bundle"
-	"github.com/warpstreamlabs/bento/internal/component/interop"
-	"github.com/warpstreamlabs/bento/internal/component/processor"
-	"github.com/warpstreamlabs/bento/internal/log"
-	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -112,16 +107,11 @@ pipeline:
 }
 
 func init() {
-	err := service.RegisterBatchProcessor(
+	err := service.RegisterProcessor(
 		"opensnowcat",
 		opensnowcatProcessorConfig(),
-		func(conf *service.ParsedConfig, res *service.Resources) (service.BatchProcessor, error) {
-			mgr := interop.UnwrapManagement(res)
-			p, err := newOpenSnowcatProcessorFromConfig(conf, mgr)
-			if err != nil {
-				return nil, err
-			}
-			return interop.NewUnwrapInternalBatchProcessor(processor.NewAutoObservedProcessor("opensnowcat", p, mgr)), nil
+		func(conf *service.ParsedConfig, res *service.Resources) (service.Processor, error) {
+			return newOpenSnowcatProcessorFromConfig(conf, res)
 		})
 	if err != nil {
 		panic(err)
@@ -139,10 +129,10 @@ type opensnowcatProcessor struct {
 	dropFilters     map[string]*filterCriteria
 	outputFormat    string
 	columnIndexMap  map[string]int
-	log             log.Modular
+	log             *service.Logger
 }
 
-func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, mgr bundle.NewManagement) (*opensnowcatProcessor, error) {
+func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.Resources) (*opensnowcatProcessor, error) {
 	outputFormat := "tsv"
 
 	// Get output format
@@ -227,12 +217,15 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, mgr bundle.Ne
 		dropFilters:     dropFilters,
 		outputFormat:    outputFormat,
 		columnIndexMap:  columnIndexMap,
-		log:             mgr.Logger(),
+		log:             res.Logger(),
 	}, nil
 }
 
-func (o *opensnowcatProcessor) Process(ctx context.Context, msg *message.Part) ([]*message.Part, error) {
-	tsvBytes := msg.AsBytes()
+func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
+	tsvBytes, err := msg.AsBytes()
+	if err != nil {
+		return nil, err
+	}
 	tsvString := string(tsvBytes)
 
 	// Parse TSV into columns
@@ -241,27 +234,27 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *message.Part) (
 	// Check if we have filters to apply
 	if len(o.dropFilters) > 0 {
 		if o.shouldDropEventFromTSV(columns) {
-			o.log.Debug("Event dropped by filter\n")
+			o.log.Debugf("Event dropped by filter")
 			return nil, nil // Drop the event
 		}
 	}
 
 	// If output format is TSV, just return the original (filtered) message
 	if o.outputFormat == "tsv" {
-		return []*message.Part{msg}, nil
+		return service.MessageBatch{msg}, nil
 	}
 
 	// For JSON output, use the Snowplow SDK to parse
 	parsedEvent, err := analytics.ParseEvent(tsvString)
 	if err != nil {
-		o.log.Error("Failed to parse OpenSnowcat event: %v\n", err)
+		o.log.Errorf("Failed to parse OpenSnowcat event: %v", err)
 		return nil, fmt.Errorf("failed to parse OpenSnowcat event: %w", err)
 	}
 
 	// Convert to map for flattening
 	eventMap, err := parsedEvent.ToMap()
 	if err != nil {
-		o.log.Error("Failed to convert event to map: %v\n", err)
+		o.log.Errorf("Failed to convert event to map: %v", err)
 		return nil, fmt.Errorf("failed to convert event to map: %w", err)
 	}
 
@@ -271,7 +264,7 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *message.Part) (
 	// Set the flattened map as structured data
 	msg.SetStructuredMut(flattenedMap)
 
-	return []*message.Part{msg}, nil
+	return service.MessageBatch{msg}, nil
 }
 
 func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
@@ -280,7 +273,7 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 		if strings.Contains(fieldName, ".") && !strings.HasPrefix(fieldName, "geo.") && !strings.HasPrefix(fieldName, "metrics.") && !strings.HasPrefix(fieldName, "site.") {
 			// This is a schema property path
 			if o.matchesSchemaProperty(columns, fieldName, criteria) {
-				o.log.Debug("Event matched schema property filter: %s\n", fieldName)
+				o.log.Debugf("Event matched schema property filter: %s", fieldName)
 				return true
 			}
 			continue
@@ -289,7 +282,7 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 		// Regular field filter
 		colIndex, exists := o.columnIndexMap[fieldName]
 		if !exists {
-			o.log.Warn("Filter field %s not found in column map\n", fieldName)
+			o.log.Warnf("Filter field %s not found in column map", fieldName)
 			continue
 		}
 
@@ -303,7 +296,7 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 		// Check contains criteria
 		for _, containsStr := range criteria.contains {
 			if strings.Contains(strings.ToLower(fieldValue), strings.ToLower(containsStr)) {
-				o.log.Debug("Event matched drop filter: %s contains %s\n", fieldName, containsStr)
+				o.log.Debugf("Event matched drop filter: %s contains %s", fieldName, containsStr)
 				return true
 			}
 		}
