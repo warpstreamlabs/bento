@@ -32,6 +32,36 @@ root.values_two = range(0, this.max, 2)
 
 ## General
 
+### `cosine_similarity`
+
+Calculates the cosine similarity between two vectors a and b. Vectors must be the same length and neither vector can be null (all zeros).
+
+#### Parameters
+
+**`a`** &lt;unknown&gt; Vector of numbers.  
+**`b`** &lt;unknown&gt; Vector of numbers.  
+
+#### Examples
+
+
+Calculate similarity between vectors
+
+```coffee
+root.similarity = cosine_similarity([1, 2, 3], [2, 4, 6])
+
+# In:  {}
+# Out: {"similarity":1}
+```
+
+Orthogonal vectors have zero similarity
+
+```coffee
+root.similarity = cosine_similarity([1, 0], [0, 1])
+
+# In:  {}
+# Out: {"similarity":0}
+```
+
 ### `counter`
 
 :::caution EXPERIMENTAL
