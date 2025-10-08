@@ -129,9 +129,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/smira/go-statsd v1.3.4
 	github.com/snowflakedb/gosnowflake v1.14.0
-	github.com/snowplow/snowplow-golang-analytics-sdk v0.4.0
 	github.com/sourcegraph/conc v0.3.0
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.10.0
 	github.com/tetratelabs/wazero v1.6.0
 	github.com/tilinna/z85 v1.0.0
 	github.com/trinodb/trino-go-client v0.313.0
@@ -419,7 +418,7 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-go 1.25
+go 1.24
 
 // This (indirect) dependency is needed for github.com/AthenZ/athenz but the domain no longer resolves.
 // Remove once upstream issue fixed. See: https://github.com/AthenZ/athenz/issues/2842
