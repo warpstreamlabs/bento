@@ -143,7 +143,7 @@ type opensnowcatProcessor struct {
 }
 
 func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, mgr bundle.NewManagement) (*opensnowcatProcessor, error) {
-	outputFormat := "json"
+	outputFormat := "tsv"
 
 	// Get output format
 	if conf.Contains(oscFieldOutputFormat) {
