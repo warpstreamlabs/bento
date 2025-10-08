@@ -169,7 +169,11 @@ type LeveledLogger interface {
 	Debug(format string, v ...any)
 }
 
-// SetLogger sets a customer logger via Bento's standard logging interface,
+var (
+	_ LeveledLogger = (*slog.Logger)(nil)
+	_ LeveledLogger = (log.Modular)(nil)
+)
+// SetLogger sets a custom logger via Bento's standard logging interface,
 // allowing you to replace the default Bento logger with your own.
 func (s *StreamBuilder) SetLogger(l LeveledLogger) {
 	s.customLogger = newAirGapLogger(l)
