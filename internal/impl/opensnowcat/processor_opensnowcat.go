@@ -247,14 +247,12 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 	// For JSON output, use the Snowplow SDK to parse
 	parsedEvent, err := analytics.ParseEvent(tsvString)
 	if err != nil {
-		o.log.Errorf("Failed to parse OpenSnowcat event: %v", err)
 		return nil, fmt.Errorf("failed to parse OpenSnowcat event: %w", err)
 	}
 
 	// Convert to map for flattening
 	eventMap, err := parsedEvent.ToMap()
 	if err != nil {
-		o.log.Errorf("Failed to convert event to map: %v", err)
 		return nil, fmt.Errorf("failed to convert event to map: %w", err)
 	}
 
