@@ -1392,35 +1392,55 @@ func sortByMethod(target Function, args *ParsedParams) (Function, error) {
 
 var _ = registerSimpleMethod(
 	NewMethodSpec(
-		"slice", "",
+		"slice", "consider bracket syntax for more functionality: this.value[0:2] instead of this.value.slice(0, 2)",
 	).InCategory(
 		MethodCategoryStrings,
-		"Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.",
+		"Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **Consider using bracket syntax for more functionality: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**",
 		NewExampleSpec("",
-			`root.beginning = this.value.slice(0, 2)
-root.end = this.value.slice(4)`,
+			`# Method syntax
+root.beginning = this.value.slice(0, 2)
+root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]  
+root.end = this.value[4:]`,
 			`{"value":"foo bar"}`,
 			`{"beginning":"fo","end":"bar"}`,
 		),
-		NewExampleSpec(`A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.`,
-			`root.last_chunk = this.value.slice(-4)
-root.the_rest = this.value.slice(0, -4)`,
+		NewExampleSpec("A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Consider bracket syntax for consistency: `this.value[-4:]` instead of `this.value.slice(-4)`.**",
+			`# Method syntax
+root.last_chunk = this.value.slice(-4)
+root.the_rest = this.value.slice(0, -4)
+
+# Bracket syntax (recommended)
+root.last_chunk = this.value[-4:]
+root.the_rest = this.value[:-4]`,
 			`{"value":"foo bar"}`,
 			`{"last_chunk":" bar","the_rest":"foo"}`,
 		),
 	).InCategory(
 		MethodCategoryObjectAndArray,
-		"Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.",
+		"Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**",
 		NewExampleSpec("",
-			`root.beginning = this.value.slice(0, 2)
-root.end = this.value.slice(4)`,
+			`# Deprecated - use bracket syntax instead
+root.beginning = this.value.slice(0, 2)
+root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]
+root.end = this.value[4:]`,
 			`{"value":["foo","bar","baz","buz","bev"]}`,
 			`{"beginning":["foo","bar"],"end":["bev"]}`,
 		),
 		NewExampleSpec(
-			`A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.`,
-			`root.last_chunk = this.value.slice(-2)
-root.the_rest = this.value.slice(0, -2)`,
+			"A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Use bracket syntax: `this.value[-2:]` instead of `this.value.slice(-2)`.**",
+			`# Deprecated - use bracket syntax instead
+root.last_chunk = this.value.slice(-2)
+root.the_rest = this.value.slice(0, -2)
+
+# New bracket syntax (recommended)
+root.last_chunk = this.value[-2:]
+root.the_rest = this.value[:-2]`,
 			`{"value":["foo","bar","baz","buz","bev"]}`,
 			`{"last_chunk":["buz","bev"],"the_rest":["foo","bar","baz"]}`,
 		),
