@@ -18,7 +18,7 @@ var (
 func init() {
 	cosineSimilaritySpec := bloblang.NewPluginSpec().
 		Category(query.FunctionCategoryGeneral).
-		Description("Calculates the cosine similarity between two vectors a and b. Vectors must be the same length and not null (all zeros).").
+		Description("Calculates the cosine similarity between two vectors a and b. Vectors must be the same length and neither vector can be null (all zeros).").
 		Param(bloblang.NewAnyParam("a").Description("Vector of numbers.")).
 		Param(bloblang.NewAnyParam("b").Description("Vector of numbers.")).
 		Example(
