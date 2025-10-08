@@ -14,6 +14,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/internal/impl/jsonpath"
 	_ "github.com/warpstreamlabs/bento/internal/impl/lang"
 	_ "github.com/warpstreamlabs/bento/internal/impl/msgpack"
+	_ "github.com/warpstreamlabs/bento/internal/impl/opensnowcat"
 	_ "github.com/warpstreamlabs/bento/internal/impl/parquet"
 	_ "github.com/warpstreamlabs/bento/internal/impl/protobuf"
 	_ "github.com/warpstreamlabs/bento/internal/impl/pure/extended"
