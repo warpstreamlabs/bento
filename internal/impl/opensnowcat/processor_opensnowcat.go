@@ -59,10 +59,10 @@ func opensnowcatProcessorConfig() *service.ConfigSpec {
 		Categories("Parsing").
 		Summary("Processes [OpenSnowcat](https://opensnowcat.io/)/[Snowplow enriched TSV](https://docs.snowplow.io/docs/fundamentals/canonical-event/understanding-the-enriched-tsv-format/) events. Convert enriched TSV to flattened JSON, or filter events based on payload field values.").
 		Version("1.0.0").
-		Field(service.NewStringField(oscFieldOutputFormat).
-			Description("Output format: `json` for flattened JSON, `tsv` to maintain enriched TSV format. When `json` is selected, contexts, derived_contexts, and unstruct_event are automatically flattened into top-level json objects").
-			Default("tsv").
-			Optional()).
+		Field(service.NewStringAnnotatedEnumField(oscFieldOutputFormat, map[string]string{
+			"json": "Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects.",
+			"tsv":  "Maintain enriched TSV format without conversion.",
+		}).Description("Output format for processed events.").Default("tsv")).
 		Field(service.NewObjectField(oscFieldFilters,
 			service.NewAnyMapField(oscFieldFiltersDrop).
 				Description("Map of field names to filter criteria. Events matching ANY criteria will be dropped (OR logic). Supports both regular TSV columns (e.g., `user_ipaddress`, `useragent`) and schema property paths (e.g., `com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily`). Each filter uses 'contains' for substring matching.").
