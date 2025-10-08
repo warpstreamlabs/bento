@@ -58,8 +58,6 @@ func TestProcessPageViewJSON(t *testing.T) {
 	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", jsonOutput["event_id"])
 	assert.Equal(t, "joaocorreia", jsonOutput["user_id"])
 
-	t.Logf("✅ Page view converted to JSON with %d fields", len(jsonOutput))
-
 	// Verify flattened context fields exist with underscore separator
 	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_useragentFamily")
 	assert.Equal(t, "Chrome", jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1_0_useragentFamily"])
@@ -94,7 +92,6 @@ func TestProcessPageViewJSON(t *testing.T) {
 	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1_0_tech_0")
 	assert.Equal(t, "google_apps", jsonOutput["contexts_com_clearbit_company_1_0_tech_0"])
 
-	t.Logf("✅ Verified flattened JSON structure with underscore separators and proper deep nesting")
 }
 
 // TestProcessPageViewTSV_FilterByIP tests that filtering by IP address drops matching events
@@ -122,7 +119,6 @@ func TestProcessPageViewTSV_FilterByIP(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, msgs, "Event should be dropped because IP matches filter")
 
-	t.Logf("✅ Event with IP 75.80.110.186 was correctly dropped")
 }
 
 // TestProcessPageViewTSV_FilterBySchemaProperty tests filtering by schema property value
@@ -151,7 +147,6 @@ func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, msgs, "Event should be dropped because useragentFamily is Chrome")
 
-	t.Logf("✅ Event with useragentFamily=Chrome was correctly dropped")
 }
 
 // TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch tests that events without matching property values are not dropped
@@ -183,7 +178,6 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testPageViewTSV, string(msgBytes))
 
-	t.Logf("✅ Event with useragentFamily=Chrome (not Firefox) was correctly kept")
 }
 
 // TestProcessPageViewTSV_FilterBySchemaProperty_osFamily tests filtering by osFamily property
@@ -212,7 +206,6 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, msgs, "Event should be dropped because osFamily is Mac OS X")
 
-	t.Logf("✅ Event with osFamily='Mac OS X' was correctly dropped")
 }
 
 // TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty tests combining regular field and schema property filters
@@ -245,7 +238,6 @@ func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T)
 	require.NoError(t, err)
 	assert.Nil(t, msgs, "Event should be dropped because useragentFamily contains Chrome")
 
-	t.Logf("✅ Event with useragentFamily containing 'Chrome' was correctly dropped (combined filter test)")
 }
 
 // TestProcessPageViewTSV_FilterMultipleConditions tests multiple filters with OR logic
@@ -286,7 +278,6 @@ func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, msgs, "Event should be dropped because osFamily matches 'Mac OS X' (OR logic)")
 
-	t.Logf("✅ Event correctly dropped with multiple filters using OR logic (osFamily='Mac OS X' matched)")
 }
 
 // TestProcessPageViewTSV_FilterMultipleConditions_NoMatch tests multiple filters where none match
@@ -330,5 +321,4 @@ func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testPageViewTSV, string(msgBytes))
 
-	t.Logf("✅ Event correctly kept when multiple filters don't match (Chrome on Mac OS X, Desktop)")
 }
