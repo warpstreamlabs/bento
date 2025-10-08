@@ -58,7 +58,7 @@ func opensnowcatProcessorConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Parsing").
 		Summary("Processes [OpenSnowcat](https://opensnowcat.io/)/[Snowplow enriched TSV](https://docs.snowplow.io/docs/fundamentals/canonical-event/understanding-the-enriched-tsv-format/) events. Convert enriched TSV to flattened JSON, or filter events based on payload field values.").
-		Version("1.0.0").
+		Version("1.11.0").
 		Field(service.NewStringAnnotatedEnumField(oscFieldOutputFormat, map[string]string{
 			"json": "Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects.",
 			"tsv":  "Maintain enriched TSV format without conversion.",
