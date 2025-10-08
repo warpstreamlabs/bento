@@ -130,7 +130,7 @@ func init() {
 
 type filterCriteria struct {
 	contains []string
-	schemas  []string // Schema patterns like "com.snowplowanalytics.snowplow.ua_parser_context" or "com.wunderflats.request_confirmed"
+	schemas  []string // Schema patterns like "com.snowplowanalytics.snowplow.ua_parser_context" or "com.vendor.request"
 }
 
 type opensnowcatProcessor struct {
