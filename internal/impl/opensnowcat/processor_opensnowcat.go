@@ -18,7 +18,8 @@ const (
 	oscFieldOutputFormat = "output_format"
 )
 
-// OpenSnowcat TSV column names (lowercase, 131 columns)
+// OpenSnowcat/Snowplow Enriched TSV column names (lowercase, 131 columns)
+// Source: https://docs.snowplow.io/docs/fundamentals/canonical-event/understanding-the-enriched-tsv-format/
 var opensnowcatColumns = []string{
 	"app_id", "platform", "etl_tstamp", "collector_tstamp", "dvce_created_tstamp",
 	"event", "event_id", "txn_id", "name_tracker", "v_tracker",
