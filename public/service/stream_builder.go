@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -173,9 +174,16 @@ var (
 	_ LeveledLogger = (*slog.Logger)(nil)
 	_ LeveledLogger = (log.Modular)(nil)
 )
-// SetLogger sets a custom logger via Bento's standard logging interface,
+
+// SetLogger sets a slog logger via Bento's standard logging interface,
 // allowing you to replace the default Bento logger with your own.
-func (s *StreamBuilder) SetLogger(l LeveledLogger) {
+func (s *StreamBuilder) SetLogger(l *slog.Logger) {
+	s.customLogger = log.NewBentoLogAdapter(l)
+}
+
+// SetLeveledLogger sets a custom logger via Bento's standard logging interface,
+// allowing you to replace the default Bento logger with your own.
+func (s *StreamBuilder) SetLeveledLogger(l LeveledLogger) {
 	s.customLogger = newAirGapLogger(l)
 }
 
