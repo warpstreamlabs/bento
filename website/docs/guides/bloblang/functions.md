@@ -34,7 +34,7 @@ root.values_two = range(0, this.max, 2)
 
 ### `cosine_similarity`
 
-Calculates the cosine similarity between two vectors a and b. Vectors must be the same length and not null (all zeros).
+Calculates the cosine similarity between two vectors a and b. Vectors must be the same length and neither vector can be null (all zeros).
 
 #### Parameters
 
