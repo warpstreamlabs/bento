@@ -22,7 +22,7 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.24.x
+        go-version: 1.25.x
         check-latest: true
 
     - name: Deps
@@ -47,13 +47,13 @@ jobs:
     - name: Install Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.24.x
+        go-version: 1.25.x
         check-latest: true
 
     - name: Lint
       uses: golangci/golangci-lint-action@v8
       with:
-        version: v2.3.1
+        version: v2.5.0
 
   build-docsite:
 
@@ -66,11 +66,3 @@ jobs:
       with:
         node-version: 20.x
     - run: yarn --cwd ./website install && yarn --cwd ./website build
-
-    # TODO: Remove this after https://github.com/golangci/golangci-lint/issues/3094 is addressed
-    # Issue: https://github.com/warpstreamlabs/bento/issues/53
-    # - name: Get govulncheck
-    #   run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
-    # - name: Run govulncheck
-    #   run: govulncheck ./...
