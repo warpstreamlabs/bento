@@ -347,3 +347,141 @@ func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
 	assert.Equal(t, testPageViewTSV, string(msgBytes))
 
 }
+
+// TestProcessPageViewTSV_TransformFields tests field transformations
+func TestProcessPageViewTSV_TransformFields(t *testing.T) {
+	// Build column index map
+	columnIndexMap := make(map[string]int)
+	for i, col := range opensnowcatColumns {
+		columnIndexMap[col] = i
+	}
+
+	res := service.MockResources()
+	proc := &opensnowcatProcessor{
+		dropFilters: make(map[string]*filterCriteria),
+		transformConfig: &transformConfig{
+			salt:     "test-salt-12345",
+			hashAlgo: "SHA-256",
+			fields: map[string]*fieldTransform{
+				"user_ipaddress": {
+					strategy:     "anonymize_ip",
+					anonOctets:   2,
+					anonSegments: 4,
+				},
+				"user_id": {
+					strategy: "hash",
+					hashAlgo: "SHA-256",
+					salt:     "test-salt-12345",
+				},
+				"network_userid": {
+					strategy:    "redact",
+					redactValue: "[REDACTED]",
+				},
+			},
+		},
+		outputFormat:   "tsv",
+		columnIndexMap: columnIndexMap,
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
+	}
+
+	msg := service.NewMessage([]byte(testPageViewTSV))
+	msgs, err := proc.Process(context.Background(), msg)
+
+	require.NoError(t, err)
+	require.Len(t, msgs, 1, "Should process one message with transformations applied")
+
+	// Parse TSV output
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
+	columns := strings.Split(string(msgBytes), "\t")
+
+	// Verify user_ipaddress is anonymized (75.80.110.186 -> 75.80.x.x)
+	userIPIndex := columnIndexMap["user_ipaddress"]
+	assert.Equal(t, "75.80.x.x", columns[userIPIndex], "user_ipaddress should have last 2 octets anonymized")
+
+	// Verify user_id is hashed (should not be "joaocorreia" anymore)
+	userIDIndex := columnIndexMap["user_id"]
+	assert.NotEqual(t, "joaocorreia", columns[userIDIndex], "user_id should be hashed")
+	assert.NotEmpty(t, columns[userIDIndex], "user_id should not be empty")
+	// SHA-256 produces 64 character hex string
+	assert.Len(t, columns[userIDIndex], 64, "SHA-256 hash should be 64 characters")
+
+	// Verify network_userid is redacted
+	networkUserIDIndex := columnIndexMap["network_userid"]
+	assert.Equal(t, "[REDACTED]", columns[networkUserIDIndex], "network_userid should be redacted")
+
+	// Verify other fields remain unchanged (spot check a few)
+	assert.Equal(t, "snwcat", columns[columnIndexMap["app_id"]], "app_id should remain unchanged")
+	assert.Equal(t, "page_view", columns[columnIndexMap["event"]], "event should remain unchanged")
+	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", columns[columnIndexMap["event_id"]], "event_id should remain unchanged")
+}
+
+// TestProcessPageViewJSON_TransformFields tests field transformations with JSON output
+func TestProcessPageViewJSON_TransformFields(t *testing.T) {
+	// Build column index map
+	columnIndexMap := make(map[string]int)
+	for i, col := range opensnowcatColumns {
+		columnIndexMap[col] = i
+	}
+
+	res := service.MockResources()
+	proc := &opensnowcatProcessor{
+		dropFilters: make(map[string]*filterCriteria),
+		transformConfig: &transformConfig{
+			salt:     "test-salt-12345",
+			hashAlgo: "SHA-256",
+			fields: map[string]*fieldTransform{
+				"user_ipaddress": {
+					strategy:     "anonymize_ip",
+					anonOctets:   2,
+					anonSegments: 4,
+				},
+				"user_id": {
+					strategy: "hash",
+					hashAlgo: "SHA-256",
+					salt:     "test-salt-12345",
+				},
+				"network_userid": {
+					strategy:    "redact",
+					redactValue: "[REDACTED]",
+				},
+			},
+		},
+		outputFormat:   "json",
+		columnIndexMap: columnIndexMap,
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
+	}
+
+	msg := service.NewMessage([]byte(testPageViewTSV))
+	msgs, err := proc.Process(context.Background(), msg)
+
+	require.NoError(t, err)
+	require.Len(t, msgs, 1, "Should process one message with transformations applied")
+
+	// Parse JSON output
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
+	var jsonOutput map[string]interface{}
+	err = json.Unmarshal(msgBytes, &jsonOutput)
+	require.NoError(t, err)
+
+	// Verify user_ipaddress is anonymized
+	assert.Equal(t, "75.80.x.x", jsonOutput["user_ipaddress"], "user_ipaddress should have last 2 octets anonymized")
+
+	// Verify user_id is hashed
+	assert.NotEqual(t, "joaocorreia", jsonOutput["user_id"], "user_id should be hashed")
+	assert.NotEmpty(t, jsonOutput["user_id"], "user_id should not be empty")
+	userIDStr, ok := jsonOutput["user_id"].(string)
+	require.True(t, ok, "user_id should be a string")
+	assert.Len(t, userIDStr, 64, "SHA-256 hash should be 64 characters")
+
+	// Verify network_userid is redacted
+	assert.Equal(t, "[REDACTED]", jsonOutput["network_userid"], "network_userid should be redacted")
+
+	// Verify other fields remain unchanged
+	assert.Equal(t, "snwcat", jsonOutput["app_id"], "app_id should remain unchanged")
+	assert.Equal(t, "page_view", jsonOutput["event"], "event should remain unchanged")
+	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", jsonOutput["event_id"], "event_id should remain unchanged")
+}
