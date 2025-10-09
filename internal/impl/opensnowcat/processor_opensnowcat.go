@@ -176,7 +176,7 @@ pipeline:
 `,
 		).
 		Example(
-			"Advanced transforms",
+			"Advanced Transforms",
 			"Combines multiple transformation strategies with field-specific configurations. Uses different hash algorithms for different fields and supports both IPv4 and IPv6 anonymization.",
 			`
 pipeline:
