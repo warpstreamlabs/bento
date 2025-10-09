@@ -104,7 +104,15 @@ All transformations support both direct TSV columns and schema property paths.`)
 					Default("SHA-256").
 					Advanced(),
 				service.NewAnyMapField("fields").
-					Description("Map of field names to transformation configurations. Each field can use `strategy` (hash, redact, anonymize_ip) with strategy-specific options. Supports TSV columns (e.g., `user_id`, `user_ipaddress`) and schema property paths.").
+					Description(`Map of field names to transformation configurations. Each field must specify:
+- **strategy** (required): Transformation type - "hash", "redact", or "anonymize_ip"
+- **hash_algo** (optional): Algorithm for hash strategy - "MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512" (overrides global default)
+- **salt** (optional): Salt for hash strategy (overrides global default)
+- **redact_value** (optional): Replacement value for redact strategy (default: "[REDACTED]")
+- **anon_octets** (optional): Number of IPv4 octets to mask for anonymize_ip strategy (default: 0)
+- **anon_segments** (optional): Number of IPv6 segments to mask for anonymize_ip strategy (default: 0)
+
+Supports both TSV columns (e.g., user_id, user_ipaddress) and schema property paths (e.g., com.vendor.schema.field).`).
 					Optional(),
 			).
 				Description("Field transformation configuration for anonymization, hashing, and redaction").
@@ -294,12 +302,15 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 
 	// Parse filter configuration
 	dropFilters := make(map[string]*filterCriteria)
+	var transformCfg *transformConfig
+
 	if conf.Contains(oscFieldFilters) {
 		filtersConf, err := conf.FieldAnyMap(oscFieldFilters)
 		if err != nil {
 			return nil, err
 		}
 
+		// Parse drop filters
 		if dropParsed, exists := filtersConf[oscFieldFiltersDrop]; exists {
 			dropAny, _ := dropParsed.FieldAny()
 			if dropConfig, ok := dropAny.(map[string]interface{}); ok {
@@ -343,11 +354,76 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 				}
 			}
 		}
-	}
 
-	// TODO: Parse transform config from conf
-	// For now, initialize empty to allow tests to set it directly
-	var transformCfg *transformConfig
+		// Parse transform config
+		if transformParsed, exists := filtersConf["transform"]; exists {
+			transformAny, _ := transformParsed.FieldAny()
+			if transformMap, ok := transformAny.(map[string]interface{}); ok {
+				transformCfg = &transformConfig{
+					fields: make(map[string]*fieldTransform),
+				}
+
+				// Parse global salt
+				if salt, ok := transformMap["salt"].(string); ok {
+					transformCfg.salt = salt
+				}
+
+				// Parse global hash_algo
+				if hashAlgo, ok := transformMap["hash_algo"].(string); ok {
+					transformCfg.hashAlgo = hashAlgo
+				} else {
+					transformCfg.hashAlgo = "SHA-256"
+				}
+
+				// Parse fields
+				if fieldsMap, ok := transformMap["fields"].(map[string]interface{}); ok {
+					for fieldName, fieldConfig := range fieldsMap {
+						if fieldCfgMap, ok := fieldConfig.(map[string]interface{}); ok {
+							ft := &fieldTransform{}
+
+							if strategy, ok := fieldCfgMap["strategy"].(string); ok {
+								ft.strategy = strategy
+							}
+
+							if hashAlgo, ok := fieldCfgMap["hash_algo"].(string); ok {
+								ft.hashAlgo = hashAlgo
+							}
+
+							if salt, ok := fieldCfgMap["salt"].(string); ok {
+								ft.salt = salt
+							}
+
+							if redactVal, ok := fieldCfgMap["redact_value"].(string); ok {
+								ft.redactValue = redactVal
+							} else {
+								ft.redactValue = "[REDACTED]"
+							}
+
+							if octets, ok := fieldCfgMap["anon_octets"].(float64); ok {
+								ft.anonOctets = int(octets)
+							} else {
+								ft.anonOctets = 2
+							}
+
+							if segments, ok := fieldCfgMap["anon_segments"].(float64); ok {
+								ft.anonSegments = int(segments)
+							} else {
+								ft.anonSegments = 4
+							}
+
+							// Normalize field name to lowercase for column matching, but keep schema paths case-sensitive
+							normalizedFieldName := fieldName
+							if !strings.Contains(fieldName, ".") || strings.HasPrefix(fieldName, "geo.") || strings.HasPrefix(fieldName, "metrics.") || strings.HasPrefix(fieldName, "site.") {
+								// Regular column name - normalize to lowercase
+								normalizedFieldName = strings.ToLower(fieldName)
+							}
+							transformCfg.fields[normalizedFieldName] = ft
+						}
+					}
+				}
+			}
+		}
+	}
 
 	return &opensnowcatProcessor{
 		dropFilters:     dropFilters,
