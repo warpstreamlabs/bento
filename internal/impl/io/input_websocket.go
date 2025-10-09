@@ -44,11 +44,11 @@ func websocketInputSpec() *service.ConfigSpec {
 				Description("An optional HTTP proxy URL.").
 				Advanced().Optional(),
 			service.NewInterpolatedStringMapField("headers").
-				Description("A map of custom headers to add to the websocket handshake. Header values support interpolation.").
+				Description("A map of custom headers to add to the websocket handshake.").
 				Example(map[string]any{
 					"Sec-WebSocket-Protocol": "graphql-ws",
-					"User-Agent":             '${! uuid_v4() }',
-					"X-Client-ID":            '${CLIENT_ID}',
+					"User-Agent":             `${! uuid_v4() }`,
+					"X-Client-ID":            `${CLIENT_ID}`,
 				}).
 				Advanced().Optional().
 				Default(map[string]any{}),
@@ -189,6 +189,7 @@ func (w *websocketReader) Connect(ctx context.Context) error {
 		}
 		headers.Add(k, value)
 	}
+	// w.log.Info("Configured headers: %v", headers)
 
 	err := w.reqSigner(w.mgr.FS(), &http.Request{
 		URL:    w.urlParsed,
