@@ -62,15 +62,13 @@ generate:
 	strm, err := b.Build()
 	require.NoError(t, err)
 
-	ready, err := strm.IsReady()
-	require.ErrorContains(t, err, "stream has not been run yet")
+	ready := strm.IsReady()
 	require.False(t, ready)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		require.Eventually(t, func() bool {
-			ready, err = strm.IsReady()
-			require.NoError(t, err)
+			ready = strm.IsReady()
 			return ready
 		}, time.Second*5, time.Millisecond*10)
 

@@ -181,14 +181,13 @@ func (s *Stream) Stop(ctx context.Context) (err error) {
 }
 
 // IsReady returns a boolean indicating whether both the input and output layers
-// of the stream are connected. If the stream has not yet been run, an error is
-// returned.
-func (s *Stream) IsReady() (bool, error) {
+// of the stream are connected.
+func (s *Stream) IsReady() bool {
 	s.strmMut.Lock()
 	strm := s.strm
 	s.strmMut.Unlock()
 	if strm == nil {
-		return false, errors.New("stream has not been run yet")
+		return false
 	}
-	return strm.IsReady(), nil
+	return strm.IsReady()
 }
