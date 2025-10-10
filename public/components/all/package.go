@@ -39,6 +39,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/nats"
 	_ "github.com/warpstreamlabs/bento/public/components/nsq"
 	_ "github.com/warpstreamlabs/bento/public/components/opensearch"
+	_ "github.com/warpstreamlabs/bento/public/components/opensnowcat"
 	_ "github.com/warpstreamlabs/bento/public/components/otlp"
 	_ "github.com/warpstreamlabs/bento/public/components/prometheus"
 	_ "github.com/warpstreamlabs/bento/public/components/pulsar"
