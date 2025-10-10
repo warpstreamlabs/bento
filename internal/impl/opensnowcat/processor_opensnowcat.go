@@ -79,9 +79,9 @@ Transform sensitive fields for PII compliance and privacy:
 
 - **hash**: Hash field values using configurable algorithms (MD5, SHA-1, SHA-256, SHA-384, SHA-512) with salt
 - **redact**: Replace field values with a fixed string (e.g., "[REDACTED]")
-- **anonymize_ip**: Mask IP addresses while preserving network information
-  - IPv4: Mask last N octets (e.g., ` + "`75.80.110.186`" + ` → ` + "`75.80.x.x`" + `)
-  - IPv6: Mask last N segments (e.g., ` + "`2001:db8::1`" + ` → ` + "`2001:db8::x:x:x`" + `)
+- **anonymize_ip**: Mask IP addresses while preserving network information (supports both IPv4 and IPv6)
+  - IPv4: Mask last N octets using ` + "`anon_octets`" + ` (e.g., ` + "`75.80.110.186`" + ` → ` + "`75.80.x.x`" + ` with ` + "`anon_octets: 2`" + `)
+  - IPv6: Mask last N segments using ` + "`anon_segments`" + ` (e.g., ` + "`2001:db8::8a2e:370:7334`" + ` → ` + "`2001:db8::x:x:x`" + ` with ` + "`anon_segments: 3`" + `)
 
 All transformations support both direct TSV columns and schema property paths.`).
 		Version("1.11.0").
@@ -178,6 +178,7 @@ pipeline:
               user_ipaddress:
                 strategy: anonymize_ip
                 anon_octets: 2
+                anon_segments: 3
               network_userid:
                 strategy: redact
                 redact_value: "[REDACTED]"
@@ -237,6 +238,7 @@ pipeline:
               user_ipaddress:
                 strategy: anonymize_ip
                 anon_octets: 2
+                anon_segments: 3
 `,
 		)
 }
