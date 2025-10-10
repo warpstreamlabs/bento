@@ -189,7 +189,6 @@ func (w *websocketReader) Connect(ctx context.Context) error {
 		}
 		headers.Add(k, value)
 	}
-	// w.log.Info("Configured headers: %v", headers)
 
 	err := w.reqSigner(w.mgr.FS(), &http.Request{
 		URL:    w.urlParsed,
