@@ -52,6 +52,33 @@ func TestStreamBuilderDefault(t *testing.T) {
 	}
 }
 
+func TestStreamBuilderReadinessCheck(t *testing.T) {
+	b := service.NewStreamBuilder()
+	require.NoError(t, b.AddInputYAML(`
+generate:
+  mapping: 'root = "test"'
+`))
+
+	strm, err := b.Build()
+	require.NoError(t, err)
+
+	ready := strm.IsReady()
+	require.False(t, ready)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		require.Eventually(t, func() bool {
+			ready = strm.IsReady()
+			return ready
+		}, time.Second*5, time.Millisecond*10)
+
+		require.NoError(t, strm.StopWithin(time.Second*5))
+	})
+
+	require.NoError(t, strm.Run(context.Background()))
+	wg.Wait()
+}
+
 func TestStreamBuilderProducerFunc(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -1474,7 +1501,6 @@ error_handling:
 
 	for _, test := range tests {
 		t.Run(test.configYAML, func(t *testing.T) {
-
 			sb := service.NewStreamBuilder()
 
 			mockedPrintLogger := &mockPrintLogger{}
@@ -1536,5 +1562,4 @@ error_handling:
 			}
 		})
 	}
-
 }
