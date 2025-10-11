@@ -1,0 +1,32 @@
+input:
+  label: ""
+  generate:
+    count: 5
+    interval: 500ms
+    mapping: |
+      root = {
+        "value": this.count
+      }
+
+pipeline:
+  processors: []
+
+output:
+  label: ""
+  grpc_client:
+    address: "127.0.0.1:50051"
+    method: "/echo.Echo/Stream"
+    rpc_type: "unary"
+    # For outputs, provide the body via the input/generate mapping
+    proto_files:
+      - echo.proto
+      - google/protobuf/struct.proto
+    include_paths:
+      - cmd/tools/grpc_test_server/pb
+    call_timeout: "5s"
+    connect_timeout: "2s"
+    retry_max_attempts: 3
+    retry_initial_backoff: "200ms"
+    retry_max_backoff: "1s"
+    retry_backoff_multiplier: 2
+
