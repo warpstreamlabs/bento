@@ -15,6 +15,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+func init() {
+	service.GlobalEnvironment().AllowExperimental()
+}
+
 func testSanitConf() docs.SanitiseConfig {
 	sanitConf := docs.NewSanitiseConfig(bundle.GlobalEnvironment)
 	sanitConf.RemoveTypeField = true

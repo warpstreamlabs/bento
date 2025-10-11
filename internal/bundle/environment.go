@@ -1,6 +1,8 @@
 package bundle
 
 import (
+	"fmt"
+
 	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
@@ -17,7 +19,9 @@ type Environment struct {
 	metrics    *MetricsSet
 	tracers    *TracerSet
 
-	scanners *ScannerSet
+	scanners          *ScannerSet
+	allowBeta         bool
+	allowExperimental bool
 }
 
 // NewEnvironment creates an empty environment.
@@ -66,7 +70,33 @@ func (e *Environment) Clone() *Environment {
 	for _, v := range e.scanners.specs {
 		_ = newEnv.scanners.Add(v.constructor, v.spec)
 	}
+	newEnv.allowBeta = e.allowBeta
+	newEnv.allowExperimental = e.allowExperimental
 	return newEnv
+}
+
+func (e *Environment) allowStatus(spec docs.ComponentSpec) error {
+	switch spec.Status {
+	case docs.StatusExperimental:
+		if !e.allowExperimental {
+			return fmt.Errorf("%s component '%s' is experimental and requires --allow-experimental", spec.Type, spec.Name)
+		}
+	case docs.StatusBeta:
+		if !e.allowBeta {
+			return fmt.Errorf("%s component '%s' is beta and requires --allow-beta", spec.Type, spec.Name)
+		}
+	}
+	return nil
+}
+
+// AllowExperimental enables experimental components within the environment.
+func (e *Environment) AllowExperimental() {
+	e.allowExperimental = true
+}
+
+// AllowBeta enables beta components within the environment.
+func (e *Environment) AllowBeta() {
+	e.allowBeta = true
 }
 
 // GetDocs returns a documentation spec for an implementation of a component.

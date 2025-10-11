@@ -24,7 +24,16 @@ func (e *Environment) RateLimitAdd(constructor RateLimitConstructor, spec docs.C
 
 // RateLimitInit attempts to initialise a ratelimit from a config.
 func (e *Environment) RateLimitInit(conf ratelimit.Config, mgr NewManagement) (ratelimit.V1, error) {
-	return e.rateLimits.Init(conf, mgr)
+	spec, exists := e.rateLimits.specs[conf.Type]
+	if !exists {
+		return nil, component.ErrInvalidType("rate_limit", conf.Type)
+	}
+	if err := e.allowStatus(spec.spec); err != nil {
+		return nil, wrapComponentErr(mgr, "rate_limit", err)
+	}
+	c, err := spec.constructor(conf, mgr)
+	err = wrapComponentErr(mgr, "rate_limit", err)
+	return c, err
 }
 
 // RateLimitDocs returns a slice of ratelimit specs, which document each method.
