@@ -43,7 +43,7 @@ jobs:
       - name: Build Docsite with Playground
         run: make playground && yarn --cwd ./website install && yarn --cwd ./website build
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: './website/build'
       - name: Deploy to GitHub Pages
