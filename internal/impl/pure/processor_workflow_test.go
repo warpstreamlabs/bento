@@ -1017,10 +1017,25 @@ workflow:
 	inFunc, err := strmBuilder.AddProducerFunc()
 	require.NoError(t, err)
 
-	var outValue string
+	var (
+		outValue    string
+		consumerErr error
+		streamErr   error
+		mu          sync.Mutex
+	)
+
+	consumerWg := &sync.WaitGroup{}
+	consumerWg.Add(1)
+
 	require.NoError(t, strmBuilder.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
+		defer consumerWg.Done()
 		outBytes, err := m.AsBytes()
-		require.NoError(t, err)
+		if err != nil {
+			mu.Lock()
+			consumerErr = err
+			mu.Unlock()
+			return err
+		}
 		outValue = string(outBytes)
 		return nil
 	}))
@@ -1036,12 +1051,17 @@ workflow:
 
 	go func() {
 		defer wg.Done()
-		assert.NoError(t, strm.Run(tCtx))
+		streamErr = strm.Run(tCtx)
 	}()
 	require.NoError(t, inFunc(tCtx, service.NewMessage([]byte(`{"id":"hello world","content":"waddup"}`))))
 	require.NoError(t, strm.Stop(tCtx))
 
 	wg.Wait()
+	consumerWg.Wait()
+	assert.NoError(t, streamErr, "error from strm.Run()")
+	mu.Lock()
+	require.NoError(t, consumerErr, "error from consumer function")
+	mu.Unlock()
 
 	assert.Equal(t, `{"content":"waddup","id":"HELLO WORLD","meta":{"workflow":{"succeeded":["fooproc"]}}}`, outValue)
 	assert.Equal(t, map[string][]service.TracingEvent{
