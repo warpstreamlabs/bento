@@ -84,7 +84,7 @@ Transform sensitive fields for PII compliance and privacy:
   - IPv6: Mask last N segments using `+"`anon_segments`"+` parameter
 
 All transformations support both direct TSV columns and schema property paths.`).
-		Version("1.11.0").
+		Version("1.12.0").
 		Field(service.NewStringAnnotatedEnumField(oscFieldOutputFormat, map[string]string{
 			"json": "Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects.",
 			"tsv":  "Maintain enriched TSV format without conversion.",
