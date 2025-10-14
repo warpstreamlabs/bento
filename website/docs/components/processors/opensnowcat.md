@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Processes [OpenSnowcat](https://opensnowcat.io/)/[Snowplow enriched TSV](https://docs.snowplow.io/docs/fundamentals/canonical-event/understanding-the-enriched-tsv-format/) events. Convert enriched TSV to flattened JSON, filter events, and transform sensitive fields for privacy compliance.
 
-Introduced in version 1.11.0.
+Introduced in version 1.12.0.
 
 
 <Tabs defaultValue="common" values={[
