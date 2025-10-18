@@ -185,20 +185,20 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
 	options := &dockertest.RunOptions{
-		Repository:   "bitnami/kafka",
+		Repository:   "apache/kafka-native",
 		Tag:          "latest",
 		ExposedPorts: []string{"9092"},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
 		},
 		Env: []string{
-			"KAFKA_CFG_NODE_ID=0",
-			"KAFKA_CFG_PROCESS_ROLES=controller,broker",
-			"KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
-			"KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER",
-			"KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
-			"KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
-			"KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
+			"KAFKA_NODE_ID=0",
+			"KAFKA_PROCESS_ROLES=controller,broker",
+			"KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
+			"KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
+			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
+			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
 		},
 	}
 
@@ -236,6 +236,7 @@ topics: [ foo ]
 consumer_group: test-group
 checkpoint_limit: 100
 commit_period: 1s
+metadata_max_age: 5s
 batching:
   count: 10
 reconnect_on_unknown_topic_or_partition: true
@@ -294,20 +295,20 @@ func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
 	options := &dockertest.RunOptions{
-		Repository:   "bitnami/kafka",
+		Repository:   "apache/kafka-native",
 		Tag:          "latest",
 		ExposedPorts: []string{"9092"},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
 		},
 		Env: []string{
-			"KAFKA_CFG_NODE_ID=0",
-			"KAFKA_CFG_PROCESS_ROLES=controller,broker",
-			"KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
-			"KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER",
-			"KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
-			"KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
-			"KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
+			"KAFKA_NODE_ID=0",
+			"KAFKA_PROCESS_ROLES=controller,broker",
+			"KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
+			"KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
+			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
+			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
 		},
 	}
 	pool.MaxWait = time.Minute
@@ -358,6 +359,7 @@ kafka_franz:
   checkpoint_limit: 100
   reconnect_on_unknown_topic_or_partition: true
   start_from_oldest: true
+  metadata_max_age: 5s
 `, kafkaPortStr))
 	require.NoError(t, err)
 
