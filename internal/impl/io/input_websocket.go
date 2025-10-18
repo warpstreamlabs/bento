@@ -35,7 +35,7 @@ func websocketInputSpec() *service.ConfigSpec {
 		Stable().
 		Categories("Network").
 		Summary("Connects to a websocket server and continuously receives messages.").
-		Description(`It is possible to configure an `+"`open_message`"+`, which when set to a non-empty string will be sent to the websocket server each time a connection is first established.`).
+		Description(`It is possible to configure a list of `+"`open_messages`"+`, which when set will be sent to the websocket server each time a connection is first established.`).
 		Fields(
 			service.NewURLField("url").
 				Description("The URL to connect to.").
@@ -43,6 +43,15 @@ func websocketInputSpec() *service.ConfigSpec {
 			service.NewURLField("proxy_url").
 				Description("An optional HTTP proxy URL.").
 				Advanced().Optional(),
+			service.NewInterpolatedStringMapField("headers").
+				Description("A map of custom headers to add to the websocket handshake.").
+				Example(map[string]any{
+					"Sec-WebSocket-Protocol": "graphql-ws",
+					"User-Agent":             `${! uuid_v4() }`,
+					"X-Client-ID":            `${CLIENT_ID}`,
+				}).
+				Advanced().Optional().
+				Default(map[string]any{}),
 			service.NewStringField("open_message").
 				Description("An optional message to send to the server upon connection.").
 				Advanced().Optional().Deprecated(),
@@ -109,6 +118,7 @@ type websocketReader struct {
 
 	openMsgType wsOpenMsgType
 	openMsg     [][]byte
+	headers     map[string]*service.InterpolatedString
 }
 
 func newWebsocketReaderFromParsed(conf *service.ParsedConfig, mgr bundle.NewManagement) (*websocketReader, error) {
@@ -133,6 +143,9 @@ func newWebsocketReaderFromParsed(conf *service.ParsedConfig, mgr bundle.NewMana
 		return nil, err
 	}
 	if ws.reqSigner, err = conf.HTTPRequestAuthSignerFromParsed(); err != nil {
+		return nil, err
+	}
+	if ws.headers, err = conf.FieldInterpolatedStringMap("headers"); err != nil {
 		return nil, err
 	}
 	var openMsgStr, openMsgTypeStr string
@@ -169,6 +182,13 @@ func (w *websocketReader) Connect(ctx context.Context) error {
 	}
 
 	headers := http.Header{}
+	for k, v := range w.headers {
+		value, err := v.TryString(service.NewMessage(nil))
+		if err != nil {
+			return fmt.Errorf(`failed string interpolation on header %q: %w`, k, err)
+		}
+		headers.Add(k, value)
+	}
 
 	err := w.reqSigner(w.mgr.FS(), &http.Request{
 		URL:    w.urlParsed,
