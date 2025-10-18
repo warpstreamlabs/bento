@@ -104,7 +104,7 @@ pipeline:
 			service.NewBoolField(s3pFieldForcePathStyleURLs).
 				Description("Forces the client API to use path style URLs for downloading keys, which is often required when connecting to custom endpoints.").
 				Default(false),
-			service.NewBoolField(s3iFieldDeleteObjects).
+			service.NewBoolField(s3pFieldDeleteObjects).
 				Description("Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.").
 				Version("1.5.0").
 				Default(false).
