@@ -407,7 +407,7 @@ root.doc.status = if errored() { 400 } else { 200 }
 :::caution EXPERIMENTAL
 This function is experimental and therefore breaking changes could be made to it outside of major version releases.
 :::
-Provides the message flow id used for tracing the journey of a message through the pipeline. If no flow id exists, one will be created and stored in the message metadata.
+Provides the message flow id used for tracing the journey of a message through the pipeline. If no flow ID exists, one will be created and stored in the message context.
 
 #### Examples
 

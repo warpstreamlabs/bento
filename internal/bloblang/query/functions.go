@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/gofrs/uuid"
+	googleuuid "github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/segmentio/ksuid"
 
@@ -266,32 +267,35 @@ var _ = registerSimpleFunction(
 var _ = registerSimpleFunction(
 	NewFunctionSpec(
 		FunctionCategoryMessage, "flow_id",
-		"Provides the message flow id used for tracing the journey of a message through the pipeline. If no flow id exists, one will be created and stored in the message metadata.",
+		"Provides the message flow id used for tracing the journey of a message through the pipeline. If no flow ID exists, one will be created and stored in the message context.",
 		NewExampleSpec("",
 			`meta flow_id = flow_id()`,
 		),
 	).Experimental(),
 	func(fCtx FunctionContext) (any, error) {
 		part := fCtx.MsgBatch.Get(fCtx.Index)
+		ctx := part.GetContext()
 
-		// Check if we already have a flow ID in metadata
-		if flowID, exists := part.MetaGetMut("_bento_flow_id"); exists {
-			if flowIDStr, ok := flowID.(string); ok && flowIDStr != "" {
-				return flowIDStr, nil
-			}
+		// Check if we already have a flow ID in context
+		if flowID := tracing.GetFlowID(ctx); flowID != "" {
+			return flowID, nil
 		}
 
 		// Try to use OpenTelemetry trace ID if available
 		if traceID := tracing.GetTraceID(part); traceID != "" && traceID != "00000000000000000000000000000000" {
-			// Store it in metadata for future use
-			part.MetaSetMut("_bento_flow_id", traceID)
+			// Store it in context for future use
+			ctx = tracing.WithFlowID(ctx, traceID)
+			*part = *part.WithContext(ctx)
 			return traceID, nil
 		}
 
 		// Generate a new flow ID
-		flowID := fmt.Sprintf("%d_%d", time.Now().UnixNano(), rand.Int63())
-		part.MetaSetMut("_bento_flow_id", flowID)
-		return flowID, nil
+		flowID, _ := googleuuid.NewV7()
+		flowIDStr := flowID.String()
+		ctx = tracing.WithFlowID(ctx, flowIDStr)
+		*part = *part.WithContext(ctx)
+
+		return flowIDStr, nil
 	},
 )
 

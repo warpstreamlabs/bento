@@ -1,11 +1,11 @@
 package tracing
 
 import (
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/tracing"
 )
@@ -104,36 +104,30 @@ func EventErrorOfPart(part *message.Part, err error) NodeEvent {
 }
 
 // getOrCreateFlowID retrieves or creates a flow ID for a message part.
-// It first tries to get an existing flow ID from metadata, then from OpenTelemetry trace ID,
+// It first tries to get an existing flow ID from context, then from OpenTelemetry trace ID,
 // and finally generates a new one if neither exists.
 func getOrCreateFlowID(part *message.Part) string {
-	// First, check if we already have a flow ID in metadata
-	if flowID, exists := part.MetaGetMut("_bento_flow_id"); exists {
-		if flowIDStr, ok := flowID.(string); ok && flowIDStr != "" {
-			return flowIDStr
-		}
+	ctx := message.GetContext(part)
+
+	// First, check if we already have a flow ID in context
+	if flowID := tracing.GetFlowID(ctx); flowID != "" {
+		return flowID
 	}
 
 	// Try to use OpenTelemetry trace ID if available
 	if traceID := tracing.GetTraceID(part); traceID != "" && traceID != "00000000000000000000000000000000" {
-		// Store it in metadata for future use
-		part.MetaSetMut("_bento_flow_id", traceID)
+		// Store it in context for future use
+		ctx = tracing.WithFlowID(ctx, traceID)
+		*part = *part.WithContext(ctx)
 		return traceID
 	}
 
-	// Generate a new flow ID using atomic counter for simplicity and performance
-	flowID := generateFlowID()
-	part.MetaSetMut("_bento_flow_id", flowID)
-	return flowID
-}
-
-// Flow ID counter for generating unique IDs
-var flowIDCounter uint64
-
-// generateFlowID creates a new unique flow ID using an atomic counter
-func generateFlowID() string {
-	id := atomic.AddUint64(&flowIDCounter, 1)
-	return strconv.FormatUint(id, 10)
+	// Generate a new flow ID using UUID V7 (time-ordered)
+	flowID, _ := uuid.NewV7()
+	flowIDStr := flowID.String()
+	ctx = tracing.WithFlowID(ctx, flowIDStr)
+	*part = *part.WithContext(ctx)
+	return flowIDStr
 }
 
 type control struct {

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/tracing"
 )
 
 func TestFlowIDGeneration(t *testing.T) {
@@ -16,23 +17,26 @@ func TestFlowIDGeneration(t *testing.T) {
 	// First call should generate a flow ID
 	flowID1 := getOrCreateFlowID(part)
 	assert.NotEmpty(t, flowID1)
-	assert.Regexp(t, `^\d+$`, flowID1) // Should be just a number
+	// UUID V7 format: xxxxxxxx-xxxx-7xxx-xxxx-xxxxxxxxxxxx
+	assert.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, flowID1)
 
-	// Second call should return the same flow ID
+	// Second call should return the same flow ID (since it's now stored in context)
 	flowID2 := getOrCreateFlowID(part)
 	assert.Equal(t, flowID1, flowID2)
 
-	// Check that it's stored in metadata
-	storedFlowID, exists := part.MetaGetMut("_bento_flow_id")
-	assert.True(t, exists)
+	// Check that it's stored in context
+	ctx := message.GetContext(part)
+	storedFlowID := tracing.GetFlowID(ctx)
+	assert.NotEmpty(t, storedFlowID)
 	assert.Equal(t, flowID1, storedFlowID)
 }
 
-func TestFlowIDFromExistingMetadata(t *testing.T) {
-	// Test that existing flow ID in metadata is used
+func TestFlowIDFromExistingContext(t *testing.T) {
+	// Test that existing flow ID in context is used
 	part := message.NewPart([]byte("test message"))
 	expectedFlowID := "existing_flow_123"
-	part.MetaSetMut("_bento_flow_id", expectedFlowID)
+	ctx := tracing.WithFlowID(message.GetContext(part), expectedFlowID)
+	part = part.WithContext(ctx)
 
 	flowID := getOrCreateFlowID(part)
 	assert.Equal(t, expectedFlowID, flowID)
