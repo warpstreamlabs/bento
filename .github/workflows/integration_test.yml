@@ -10,7 +10,7 @@ on:
 jobs:
   integration-test:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
-    name: Integration Test
+    name: Integration Test - ${{ matrix.index }}/${{ matrix.parallel }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -81,7 +81,7 @@ jobs:
         packages: ${{ steps.affected_tests.outputs.packages }}
         list: '^Test.*Integration.*$'
 
-    - name: Integration Tests - ${{ matrix.index }}/${{ matrix.parallel }}
+    - name: Run Integration Test
       run: |
         gotestsum --junitfile shard-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}" -timeout 60m ./...
 
