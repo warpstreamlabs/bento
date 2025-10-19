@@ -1,0 +1,82 @@
+{
+    "tool-permissions": [
+        {
+            "tool-name": "launch-process",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "view",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "codebase-retrieval",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "grep-search",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "github-api",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "str-replace-editor",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "save-file",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "remove-files",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "sequentialthinking_Sequential_thinking",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "add_tasks",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "update_tasks",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "view_tasklist",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "git-commit-retrieval",
+            "permission": {
+                "type": "allow"
+            }
+        }
+    ]
+}
