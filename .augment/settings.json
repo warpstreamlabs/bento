@@ -77,6 +77,30 @@
             "permission": {
                 "type": "allow"
             }
+        },
+        {
+            "tool-name": "read-process",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "write-process",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "kill-process",
+            "permission": {
+                "type": "allow"
+            }
+        },
+        {
+            "tool-name": "list-processes",
+            "permission": {
+                "type": "allow"
+            }
         }
     ]
 }
