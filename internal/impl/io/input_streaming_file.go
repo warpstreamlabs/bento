@@ -31,6 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/warpstreamlabs/bento/public/service"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -57,7 +58,7 @@ type StreamingFileInputConfig struct {
 	StateDir           string        `json:"state_dir"`
 	CheckpointInterval int           `json:"checkpoint_interval"`
 	MaxBufferSize      int           `json:"max_buffer_size"`
-	IdleTimeout        time.Duration `json:"idle_timeout"`
+	MaxLineSize        int           `json:"max_line_size"`
 	ReadTimeout        time.Duration `json:"read_timeout"`
 	ShutdownTimeout    time.Duration `json:"shutdown_timeout"`
 	Debug              bool          `json:"debug"`
@@ -127,6 +128,7 @@ type StreamingFileInput struct {
 	inFlightCount atomic.Int64
 	bufferClosed  atomic.Bool
 	generation    atomic.Uint64
+	watcher       *fsnotify.Watcher
 
 	batchedLinesRead atomic.Int64
 	batchedBytesRead atomic.Int64
@@ -148,8 +150,8 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 	if cfg.MaxBufferSize <= 0 {
 		cfg.MaxBufferSize = 1000
 	}
-	if cfg.IdleTimeout <= 0 {
-		cfg.IdleTimeout = 30 * time.Second
+	if cfg.MaxLineSize <= 0 {
+		cfg.MaxLineSize = 1024 * 1024 // 1MB default
 	}
 	if cfg.ReadTimeout <= 0 {
 		cfg.ReadTimeout = 30 * time.Second
@@ -263,10 +265,10 @@ The input maintains state in a JSON file to enable recovery from the exact posit
 			Description("Maximum number of lines to buffer").
 			Default(1000).
 			Example(1000)).
-		Field(service.NewDurationField("idle_timeout").
-			Description("Timeout waiting for new data before checking for rotation").
-			Default("30s").
-			Example("30s")).
+		Field(service.NewIntField("max_line_size").
+			Description("Maximum line size in bytes to prevent OOM").
+			Default(1048576).
+			Example(1048576)).
 		Field(service.NewBoolField("debug").
 			Description("Enable debug logging").
 			Default(false))
@@ -413,270 +415,408 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	sfi.reader = bufio.NewReader(file)
 	sfi.fileMu.Unlock()
 
+	// Setup the fsnotify watcher
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return fmt.Errorf("failed to create fsnotify watcher: %w", err)
+	}
+
+	// Watch the file for changes
+	if err := watcher.Add(sfi.config.Path); err != nil {
+		watcher.Close()
+		return fmt.Errorf("failed to watch file: %w", err)
+	}
+
+	// Also watch the parent directory for rotation detection
+	parentDir := filepath.Dir(sfi.config.Path)
+	if err := watcher.Add(parentDir); err != nil {
+		sfi.logWarnf("Failed to watch parent directory '%s', rotation detection may be degraded: %v", parentDir, err)
+	}
+
+	sfi.watcher = watcher
 	sfi.connected = true
 
 	sfi.wg.Add(1)
 	go sfi.metricsFlusher()
 
 	sfi.wg.Add(1)
-	go sfi.readLoop(ctx)
+	go sfi.monitorFile(ctx)
 
 	return nil
 }
 
 const maxConsecutivePanics = 10
 
-func (sfi *StreamingFileInput) readLoop(ctx context.Context) {
+// monitorFile is the primary goroutine for watching and reading the file using fsnotify.
+func (sfi *StreamingFileInput) monitorFile(ctx context.Context) {
 	defer sfi.wg.Done()
 	defer close(sfi.readLoopDone)
+	defer sfi.watcher.Close()
 
-	panicCount := 0
-	panicBackoff := 1 * time.Second
-	maxPanicBackoff := 30 * time.Second
+	// Do an initial drain of any existing file content
+	sfi.drainAvailableData()
+
+	// Health check ticker as a fallback for missed events (30 seconds)
+	healthCheck := time.NewTicker(30 * time.Second)
+	defer healthCheck.Stop()
 
 	for {
-		if panicCount >= maxConsecutivePanics {
-			sfi.logErrorf("CRITICAL: Max consecutive panics (%d) reached, stopping read loop", maxConsecutivePanics)
-			sfi.setLastError(fmt.Errorf("read loop stopped after %d consecutive panics", panicCount))
-			return
-		}
-
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					panicCount++
-					sfi.logErrorf("PANIC in readLoop (count: %d/%d): %v", panicCount, maxConsecutivePanics, r)
-					sfi.setLastError(fmt.Errorf("panic: %v", r))
-					sfi.metrics.ErrorsCount.Add(1)
-
-					backoff := time.Duration(panicCount) * panicBackoff
-					if backoff > maxPanicBackoff {
-						backoff = maxPanicBackoff
-					}
-					time.Sleep(backoff)
-				}
-			}()
-			sfi.readLoopIteration(ctx)
-		}()
-
 		select {
-		case <-ctx.Done():
-			return
+		case event, ok := <-sfi.watcher.Events:
+			if !ok {
+				return
+			}
+
+			// A write event means new data is available
+			if event.Has(fsnotify.Write) && event.Name == sfi.config.Path {
+				sfi.drainAvailableData()
+			}
+
+			// A file was created in the directory - check if it's our target (rotation completion)
+			if event.Has(fsnotify.Create) && event.Name == sfi.config.Path {
+				sfi.handleRotation()
+			}
+
+			// Rename/Remove can indicate rotation - re-check the file state
+			if event.Has(fsnotify.Rename) || event.Has(fsnotify.Remove) {
+				// A short delay helps coalesce rapid filesystem events
+				time.Sleep(100 * time.Millisecond)
+				sfi.checkStateAndReact()
+			}
+
+		case <-healthCheck.C:
+			// Infrequent health check to catch edge cases
+			sfi.checkStateAndReact()
+
+		case err, ok := <-sfi.watcher.Errors:
+			if !ok {
+				return
+			}
+			sfi.logErrorf("fsnotify watcher error: %v", err)
+			sfi.incrementErrorsCountWithType("watcher_error")
+
 		case <-sfi.stopCh:
 			return
-		default:
-		}
 
-		if sfi.getLastError() == nil {
-			panicCount = 0
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
-func (sfi *StreamingFileInput) readLoopIteration(ctx context.Context) {
-	ticker := time.NewTicker(sfi.config.IdleTimeout)
-	defer ticker.Stop()
-
-	backoff := 10 * time.Millisecond
-	maxBackoff := 500 * time.Millisecond
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-sfi.stopCh:
-			return
-		case <-ticker.C:
-			sfi.checkFileRotationAndReturn(ctx)
-			sfi.flushBatchedMetrics()
-		default:
-		}
-
-		sfi.fileMu.RLock()
-		file := sfi.file
-		reader := sfi.reader
-		sfi.fileMu.RUnlock()
-
-		if reader == nil || file == nil {
-			return
-		}
-
-		// Set read deadline to allow timeout-based interruption
-		if err := file.SetReadDeadline(time.Now().Add(sfi.config.ReadTimeout)); err != nil {
-			sfi.logWarnf("Failed to set read deadline: %v", err)
-		}
-
-		scanner := bufio.NewScanner(reader)
-		maxScanTokenSize := 100 * 1024 * 1024
-		buf := make([]byte, 0, 64*1024)
-		scanner.Buffer(buf, maxScanTokenSize)
-		scanner.Split(splitKeepNewline)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-sfi.stopCh:
-				return
-			default:
-			}
-
-			if !scanner.Scan() {
-				if err := scanner.Err(); err != nil {
-					if os.IsTimeout(err) {
-						break
-					}
-					if err == bufio.ErrTooLong {
-						sfi.logErrorf("Line exceeds 100MB limit, skipping to next line")
-						sfi.incrementErrorsCountWithType("line_too_long")
-						for {
-							b, e := reader.ReadByte()
-							if e != nil || b == '\n' {
-								break
-							}
-						}
-						scanner = bufio.NewScanner(reader)
-						scanner.Buffer(make([]byte, 0, 64*1024), maxScanTokenSize)
-						scanner.Split(splitKeepNewline)
-						continue
-					}
-					sfi.setLastError(err)
-					return
-				}
-				if !timer.Stop() {
-					<-timer.C
-				}
-				timer.Reset(backoff)
-				select {
-				case <-timer.C:
-					if backoff < maxBackoff {
-						backoff *= 2
-					}
-					break
-				case <-sfi.stopCh:
-					return
-				case <-ctx.Done():
-					return
-				}
-				break
-			}
-
-			backoff = 10 * time.Millisecond
-			lineBytes := scanner.Bytes()
-			if len(lineBytes) == 0 {
-				continue
-			}
-
-			bufPtr := sfi.bufferPool.Get().(*[]byte)
-			*bufPtr = append((*bufPtr)[:0], lineBytes...)
-
-			if sfi.bufferClosed.Load() {
-				sfi.bufferPool.Put(bufPtr)
-				return
-			}
-
-			select {
-			case sfi.buffer <- *bufPtr:
-				if sfi.metrics != nil && sfi.metrics.BufferSaturationGauge != nil {
-					sfi.metrics.BufferSaturationGauge.Add(context.Background(), 1)
-				}
-				sfi.incrementLinesRead()
-				sfi.incrementBytesRead(int64(len(lineBytes)))
-				sfi.setLastReadNow()
-			case <-sfi.stopCh:
-				sfi.bufferPool.Put(bufPtr)
-				return
-			case <-ctx.Done():
-				sfi.bufferPool.Put(bufPtr)
-				return
-			}
-		}
-	}
-}
-
-func (sfi *StreamingFileInput) checkFileRotationAndReturn(_ context.Context) bool {
-	stat, err := os.Stat(sfi.config.Path)
+// checkStateAndReact performs a stat check to detect rotation or truncation
+func (sfi *StreamingFileInput) checkStateAndReact() {
+	rotated, truncated, err := sfi.detectFileChanges()
 	if err != nil {
-		sfi.logWarnf("Failed to stat file for rotation check: %v", err)
-		return false
+		sfi.logWarnf("Error during state check: %v", err)
+		return
+	}
+	if rotated {
+		sfi.handleRotation()
+	} else if truncated {
+		sfi.handleTruncation()
+	}
+}
+
+// detectFileChanges checks for rotation and truncation using inode comparison
+func (sfi *StreamingFileInput) detectFileChanges() (rotated, truncated bool, err error) {
+	currentStat, err := os.Stat(sfi.config.Path)
+	if err != nil {
+		// If the file doesn't exist, it has been rotated/removed
+		if os.IsNotExist(err) {
+			return true, false, nil
+		}
+		return false, false, err
 	}
 
-	rotationDetected := false
-	reason := ""
+	currentInode, _ := inodeOf(currentStat)
+	currentSize := currentStat.Size()
 
-	if stat.Size() < sfi.lastSize.Load() {
-		rotationDetected = true
-		reason = fmt.Sprintf("size decreased from %d to %d bytes", sfi.lastSize.Load(), stat.Size())
+	sfi.positionMutex.RLock()
+	lastInode := sfi.position.Inode
+	lastOffset := sfi.position.ByteOffset.Load()
+	sfi.positionMutex.RUnlock()
+
+	// Rotation is detected if the inode has changed
+	if currentInode != 0 && lastInode != 0 && currentInode != lastInode {
+		return true, false, nil
 	}
 
-	if currentInode, hasInode := inodeOf(stat); hasInode {
-		if sfi.lastInode != 0 && currentInode != sfi.lastInode {
-			rotationDetected = true
-			reason = fmt.Sprintf("inode changed from %d to %d", sfi.lastInode, currentInode)
-		}
-		sfi.lastInode = currentInode
+	// Truncation is detected if the inode is the same but the size is now smaller than our offset
+	if currentInode == lastInode && currentSize < lastOffset {
+		sfi.logWarnf("File truncation detected: current size=%d is less than last offset=%d", currentSize, lastOffset)
+		return false, true, nil
 	}
 
-	if rotationDetected {
-		sfi.logInfof("File rotation detected (%s), reopening file", reason)
-		sfi.incrementFileRotations()
-		sfi.generation.Add(1)
+	return false, false, nil
+}
 
-		file, err := os.Open(sfi.config.Path)
-		if err != nil {
-			sfi.logErrorf("Failed to reopen file after rotation: %v", err)
-			sfi.incrementErrorsCount()
-			return true
+// handleTruncation resets the position for the current file
+func (sfi *StreamingFileInput) handleTruncation() error {
+	sfi.logInfof("Handling file truncation, resetting position to zero")
+
+	sfi.positionMutex.Lock()
+	sfi.position.ByteOffset.Store(0)
+	sfi.position.LineNumber.Store(0)
+	sfi.positionMutex.Unlock()
+
+	// Invalidate in-flight acks for the old file by incrementing a generation counter
+	sfi.generation.Add(1)
+
+	// Clear the buffer to discard any stale data from before truncation
+	sfi.drainBufferChannel()
+
+	// Seek the existing file handle back to the beginning
+	sfi.fileMu.Lock()
+	if sfi.file != nil {
+		if _, err := sfi.file.Seek(0, 0); err != nil {
+			sfi.logErrorf("Failed to seek to start after truncation, will reopen: %v", err)
+			// Fallback to a full restart if seek fails
+			err2 := sfi.reopenFileLocked()
+			sfi.fileMu.Unlock()
+			return err2
 		}
-
-		stat, err := file.Stat()
-		if err != nil {
-			file.Close()
-			sfi.logErrorf("Failed to stat reopened file: %v", err)
-			sfi.incrementErrorsCount()
-			return true
-		}
-
-		newReader := bufio.NewReader(file)
-
-		sfi.fileMu.Lock()
-		oldFile := sfi.file
-		sfi.file = file
-		sfi.reader = newReader
-		sfi.fileMu.Unlock()
-
-		if oldFile != nil {
-			oldFile.Close()
-		}
-
-		sfi.positionMutex.Lock()
-		sfi.position.ByteOffset.Store(0)
-		sfi.position.LineNumber.Store(0)
-		if newInode, hasInode := inodeOf(stat); hasInode {
-			sfi.position.Inode = newInode
-			sfi.lastInode = newInode
-		}
-		sfi.positionMutex.Unlock()
-
-		sfi.lastSize.Store(stat.Size())
-		sfi.logInfof("Successfully reopened file after rotation")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := sfi.savePositionDurable(ctx); err != nil {
-			sfi.logWarnf("Failed to persist rotation marker: %v", err)
-		} else {
-			sfi.setLastSaveNow()
-			sfi.incrementStateWrites()
-		}
-
-		return true
-	} else {
-		sfi.lastSize.Store(stat.Size())
+		sfi.reader.Reset(sfi.file)
 	}
-	return false
+	sfi.fileMu.Unlock()
+
+	sfi.incrementErrorsCountWithType("file_truncated")
+
+	// Persist the new zero offset immediately
+	if err := sfi.savePositionDurable(context.Background()); err != nil {
+		return err
+	}
+
+	// Drain any data from the truncated file
+	sfi.fileMu.RLock()
+	reader := sfi.reader
+	sfi.fileMu.RUnlock()
+	if reader != nil {
+		sfi.drainAvailableDataWithoutRotationCheck(reader)
+	}
+
+	return nil
+}
+
+// handleRotation manages the full file rotation process
+func (sfi *StreamingFileInput) handleRotation() error {
+	sfi.logInfof("File rotation detected, handling transition.")
+
+	sfi.fileMu.Lock()
+	// First, drain and close the old file handle
+	if sfi.file != nil {
+		sfi.logDebugf("Draining remaining data from old file handle before closing.")
+		sfi.drainAvailableDataWithoutRotationCheckLocked()
+		sfi.file.Close()
+		sfi.file = nil
+		sfi.reader = nil
+	}
+	sfi.fileMu.Unlock()
+
+	// Invalidate in-flight acks for the old file by incrementing a generation counter
+	sfi.generation.Add(1)
+
+	// Attempt to open the new file at the path, with retries in case it doesn't exist yet
+	var err error
+	for attempt := 0; attempt < 10; attempt++ {
+		if err = sfi.reopenFile(); err == nil {
+			break
+		}
+		if !os.IsNotExist(err) {
+			// If it's not a "file not found" error, don't retry
+			sfi.logErrorf("Failed to open new file after rotation: %v", err)
+			// Still try to re-add the file to the watcher
+			if sfi.watcher != nil {
+				if err2 := sfi.watcher.Add(sfi.config.Path); err2 != nil {
+					sfi.logWarnf("Failed to re-add file to watcher after rotation: %v", err2)
+				}
+			}
+			return err
+		}
+		// File doesn't exist yet, wait a bit and retry
+		time.Sleep(50 * time.Millisecond)
+	}
+	if err != nil {
+		sfi.logErrorf("Failed to open new file after rotation after retries: %v", err)
+		// Still try to re-add the file to the watcher
+		if sfi.watcher != nil {
+			if err2 := sfi.watcher.Add(sfi.config.Path); err2 != nil {
+				sfi.logWarnf("Failed to re-add file to watcher after rotation: %v", err2)
+			}
+		}
+		return err
+	}
+
+	// Re-add the file to the watcher since it was removed during rotation
+	if sfi.watcher != nil {
+		if err := sfi.watcher.Add(sfi.config.Path); err != nil {
+			sfi.logWarnf("Failed to re-add file to watcher after rotation: %v", err)
+		}
+	}
+
+	// Persist the new "zero" position immediately. This is a critical step.
+	if err := sfi.savePositionDurable(context.Background()); err != nil {
+		sfi.logErrorf("CRITICAL: Failed to persist new position after rotation: %v", err)
+		return err
+	}
+
+	// Drain any existing data from the new file (without rotation detection to avoid recursion)
+	sfi.fileMu.RLock()
+	reader := sfi.reader
+	sfi.fileMu.RUnlock()
+	if reader != nil {
+		sfi.drainAvailableDataWithoutRotationCheck(reader)
+	}
+
+	sfi.incrementFileRotations()
+	sfi.logInfof("Successfully switched to new file after rotation.")
+	return nil
+}
+
+// reopenFile opens the configured path and updates the position
+func (sfi *StreamingFileInput) reopenFile() error {
+	sfi.fileMu.Lock()
+	defer sfi.fileMu.Unlock()
+	return sfi.reopenFileLocked()
+}
+
+// reopenFileLocked opens the configured path (assumes lock is held)
+func (sfi *StreamingFileInput) reopenFileLocked() error {
+	file, err := os.Open(sfi.config.Path)
+	if err != nil {
+		return err
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return err
+	}
+
+	newInode, _ := inodeOf(info)
+
+	sfi.positionMutex.Lock()
+	sfi.position.Inode = newInode
+	sfi.position.ByteOffset.Store(0)
+	sfi.position.LineNumber.Store(0)
+	sfi.positionMutex.Unlock()
+
+	sfi.file = file
+	sfi.reader = bufio.NewReader(file)
+	return nil
+}
+
+// drainAvailableData drains any remaining data from the file
+func (sfi *StreamingFileInput) drainAvailableData() {
+	sfi.fileMu.RLock()
+	file := sfi.file
+	reader := sfi.reader
+	sfi.fileMu.RUnlock()
+
+	if reader == nil || file == nil {
+		return
+	}
+
+	sfi.drainAvailableDataWithReader(reader)
+}
+
+// drainAvailableDataLocked drains data (assumes lock is held)
+func (sfi *StreamingFileInput) drainAvailableDataLocked() {
+	if sfi.reader == nil || sfi.file == nil {
+		return
+	}
+	sfi.drainAvailableDataWithReader(sfi.reader)
+}
+
+// drainAvailableDataWithoutRotationCheckLocked drains data without rotation check (assumes lock is held)
+// This is used to avoid recursive rotation detection
+func (sfi *StreamingFileInput) drainAvailableDataWithoutRotationCheckLocked() {
+	if sfi.reader == nil || sfi.file == nil {
+		return
+	}
+	sfi.drainAvailableDataWithoutRotationCheck(sfi.reader)
+}
+
+// drainAvailableDataWithReader reads and buffers available data from the reader
+func (sfi *StreamingFileInput) drainAvailableDataWithReader(reader *bufio.Reader) {
+	// Check for truncation/rotation before reading
+	rotated, truncated, err := sfi.detectFileChanges()
+	if err != nil {
+		sfi.logErrorf("Error detecting file changes: %v", err)
+	}
+	if rotated {
+		sfi.handleRotation()
+		return
+	}
+	if truncated {
+		sfi.handleTruncation()
+		return
+	}
+
+	sfi.drainAvailableDataWithoutRotationCheck(reader)
+}
+
+// drainBufferChannel drains all pending data from the buffer channel
+// This is used to clear stale data when truncation is detected
+func (sfi *StreamingFileInput) drainBufferChannel() {
+	for {
+		select {
+		case lineBytes, ok := <-sfi.buffer:
+			if !ok {
+				return
+			}
+			// Return the buffer to the pool
+			sfi.bufferPool.Put(&lineBytes)
+			if sfi.metrics != nil && sfi.metrics.BufferSaturationGauge != nil {
+				sfi.metrics.BufferSaturationGauge.Add(context.Background(), -1)
+			}
+		default:
+			// No more data in the buffer
+			return
+		}
+	}
+}
+
+// drainAvailableDataWithoutRotationCheck reads and buffers available data without checking for rotation
+// This is used after rotation to avoid recursive rotation detection
+func (sfi *StreamingFileInput) drainAvailableDataWithoutRotationCheck(reader *bufio.Reader) {
+	scanner := bufio.NewScanner(reader)
+	maxScanTokenSize := sfi.config.MaxLineSize + 1024
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, maxScanTokenSize)
+	scanner.Split(splitKeepNewline)
+
+	for scanner.Scan() {
+		lineBytes := scanner.Bytes()
+		if len(lineBytes) == 0 {
+			continue
+		}
+
+		bufPtr := sfi.bufferPool.Get().(*[]byte)
+		*bufPtr = append((*bufPtr)[:0], lineBytes...)
+
+		if sfi.bufferClosed.Load() {
+			sfi.bufferPool.Put(bufPtr)
+			return
+		}
+
+		select {
+		case sfi.buffer <- *bufPtr:
+			if sfi.metrics != nil && sfi.metrics.BufferSaturationGauge != nil {
+				sfi.metrics.BufferSaturationGauge.Add(context.Background(), 1)
+			}
+			sfi.incrementLinesRead()
+			sfi.incrementBytesRead(int64(len(lineBytes)))
+			sfi.setLastReadNow()
+		case <-sfi.stopCh:
+			sfi.bufferPool.Put(bufPtr)
+			return
+		}
+	}
+
+	if err := scanner.Err(); err != nil && err != bufio.ErrTooLong {
+		sfi.logWarnf("Error while draining data: %v", err)
+	}
 }
 
 func (sfi *StreamingFileInput) updatePositionOnAck(delta int64) {
@@ -847,6 +987,9 @@ func (sfi *StreamingFileInput) Read(ctx context.Context) (*service.Message, serv
 	if !connected {
 		return nil, nil, service.ErrNotConnected
 	}
+
+	// Check for file changes (rotation/truncation) before reading
+	sfi.checkStateAndReact()
 
 	readCtx := ctx
 	var cancel context.CancelFunc
@@ -1171,7 +1314,7 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			idleTimeout, err := pConf.FieldDuration("idle_timeout")
+			maxLineSize, err := pConf.FieldInt("max_line_size")
 			if err != nil {
 				return nil, err
 			}
@@ -1185,7 +1328,7 @@ func init() {
 				StateDir:           stateDir,
 				CheckpointInterval: checkpointInterval,
 				MaxBufferSize:      maxBufferSize,
-				IdleTimeout:        idleTimeout,
+				MaxLineSize:        maxLineSize,
 				Debug:              debug,
 			}
 

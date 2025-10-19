@@ -37,8 +37,7 @@ func TestStreamingFileInput_BasicReading(t *testing.T) {
 		StateDir:           stateDir,
 		CheckpointInterval: 1,
 		MaxBufferSize:      10,
-		IdleTimeout:        50 * time.Millisecond,
-		ReadTimeout:        100 * time.Millisecond,
+		MaxLineSize:        1024 * 1024,
 	}
 
 	input, err := io.NewStreamingFileInput(cfg, nil)
@@ -50,7 +49,7 @@ func TestStreamingFileInput_BasicReading(t *testing.T) {
 	require.NoError(t, input.Connect(ctx))
 	defer input.Close(ctx)
 
-	// Give read loop time to start
+	// Give event loop time to process initial file
 	time.Sleep(100 * time.Millisecond)
 
 	// Read lines
@@ -87,8 +86,7 @@ func TestStreamingFileInput_PositionPersistence(t *testing.T) {
 		StateDir:           stateDir,
 		CheckpointInterval: 2, // Save position every 2 lines
 		MaxBufferSize:      10,
-		IdleTimeout:        50 * time.Millisecond,
-		ReadTimeout:        100 * time.Millisecond,
+		MaxLineSize:        1024 * 1024,
 	}
 
 	// First reader - read first 2 lines
@@ -150,8 +148,7 @@ func TestStreamingFileInput_FileRotation(t *testing.T) {
 		StateDir:           stateDir,
 		CheckpointInterval: 1,
 		MaxBufferSize:      10,
-		IdleTimeout:        50 * time.Millisecond,
-		ReadTimeout:        100 * time.Millisecond,
+		MaxLineSize:        1024 * 1024,
 	}
 
 	input, err := io.NewStreamingFileInput(cfg, nil)
@@ -173,12 +170,25 @@ func TestStreamingFileInput_FileRotation(t *testing.T) {
 	assert.Equal(t, "line1", stripNewline(b1))
 	require.NoError(t, ack1(ctx, nil))
 
-	// Simulate file rotation by replacing the file
+	// Read second line (to consume it from buffer before rotation)
+	msg2, ack2, err := input.Read(ctx)
+	require.NoError(t, err)
+	b2, err := msg2.AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, "line2", stripNewline(b2))
+	require.NoError(t, ack2(ctx, nil))
+
+	// Simulate file rotation by moving the old file and creating a new one
+	// This changes the inode, which is how real log rotation works
+	rotatedPath := filepath.Join(tmpDir, "test.log.1")
+	require.NoError(t, os.Rename(filePath, rotatedPath))
+
+	// Create new file with new content
 	newData := "line3\nline4\n"
 	require.NoError(t, os.WriteFile(filePath, []byte(newData), 0644))
 
-	// Give time for rotation detection
-	time.Sleep(200 * time.Millisecond)
+	// Give time for fsnotify event processing
+	time.Sleep(500 * time.Millisecond)
 
 	// Should read from new file
 	msg3, _, err := input.Read(ctx)
@@ -205,7 +215,7 @@ func TestStreamingFileInput_ConcurrentReads(t *testing.T) {
 		StateDir:           stateDir,
 		CheckpointInterval: 10,
 		MaxBufferSize:      50,
-		IdleTimeout:        50 * time.Millisecond,
+		MaxLineSize:        1024 * 1024,
 	}
 
 	input, err := io.NewStreamingFileInput(cfg, nil)
@@ -265,7 +275,7 @@ func TestStreamingFileInput_StateFileFormat(t *testing.T) {
 		StateDir:           stateDir,
 		CheckpointInterval: 1,
 		MaxBufferSize:      10,
-		IdleTimeout:        50 * time.Millisecond,
+		MaxLineSize:        1024 * 1024,
 	}
 
 	input, err := io.NewStreamingFileInput(cfg, nil)
@@ -299,4 +309,59 @@ func TestStreamingFileInput_StateFileFormat(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &pos))
 	assert.Equal(t, filePath, pos.FilePath)
 	assert.Greater(t, pos.RawOffset, int64(0))
+}
+
+func TestStreamingFileInput_FileTruncation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("File truncation test requires Unix-like system")
+	}
+
+	tmpDir := t.TempDir()
+	stateDir := filepath.Join(tmpDir, "state")
+	filePath := filepath.Join(tmpDir, "test.log")
+
+	// Create initial file with multiple lines
+	testData := "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\n"
+	require.NoError(t, os.WriteFile(filePath, []byte(testData), 0644))
+
+	cfg := io.StreamingFileInputConfig{
+		Path:               filePath,
+		StateDir:           stateDir,
+		CheckpointInterval: 1,
+		MaxBufferSize:      10,
+		MaxLineSize:        1024 * 1024,
+	}
+
+	input, err := io.NewStreamingFileInput(cfg, nil)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	require.NoError(t, input.Connect(ctx))
+	defer input.Close(ctx)
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Read first 7 lines to consume most of the initial content
+	for i := 0; i < 7; i++ {
+		msg, ack, err := input.Read(ctx)
+		require.NoError(t, err)
+		require.NoError(t, ack(ctx, nil))
+		b, _ := msg.AsBytes()
+		assert.Equal(t, fmt.Sprintf("line%d", i+1), stripNewline(b))
+	}
+
+	// Truncate the file (write much fewer lines to ensure size is smaller than current offset)
+	truncatedData := "x\n"
+	require.NoError(t, os.WriteFile(filePath, []byte(truncatedData), 0644))
+
+	// Give time for truncation detection and event processing
+	time.Sleep(500 * time.Millisecond)
+
+	// Should read from the beginning of the truncated file
+	msg, _, err := input.Read(ctx)
+	require.NoError(t, err)
+	b, _ := msg.AsBytes()
+	assert.Equal(t, "x", stripNewline(b))
 }
