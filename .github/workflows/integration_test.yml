@@ -3,7 +3,9 @@ name: Integration Test
 on:
   schedule:
     - cron: '0 1 * * *' # run at 1 AM UTC
-
+  
+  # Allow a subset of actions to run on PR open and push
+  pull_request:
   # Allow to trigger the integration tests manually
   workflow_dispatch:
 
@@ -24,6 +26,8 @@ jobs:
 
     - name: Checkout code
       uses: actions/checkout@v5
+      with:
+        fetch-depth: ${{ github.ref_name == 'main' && 1 || 0 }}
 
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1
@@ -66,7 +70,7 @@ jobs:
           echo "packages=./..." >> $GITHUB_OUTPUT
         else
           # HACK: gets affected directory names of modified files using some sed magic
-          affected_dirs=($(git diff --dirstat=files,0 HEAD~1 | sed 's/^[^%]*% //' | tr '\n' ' '))
+          affected_dirs=($(git diff --dirstat=files,0 main...HEAD | sed 's/^[^%]*% //' | tr '\n' ' '))
           packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sed 's|^|./|' | uniq) 
           echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
         fi
