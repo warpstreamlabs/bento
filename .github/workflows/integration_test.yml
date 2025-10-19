@@ -10,9 +10,64 @@ on:
   workflow_dispatch:
 
 jobs:
+  deps:
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
+    name: Check dependencies
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: 0
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Install Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: 1.25.x
+        check-latest: true
+        cache: true
+
+    - name: Deps
+      run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
+
+  prepare-tests:
+    name: Determine affected tests
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
+    needs: [deps]
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.affected_tests.outputs.packages }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: ${{ github.ref_name == 'main' && 1 || 0 }}
+
+    - name: Determine Affected Tests
+      id: affected_tests
+      run: |
+        BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+        
+        if [ "$BRANCH_NAME" == "main" ]; then
+          echo "packages=./..." >> $GITHUB_OUTPUT
+        else
+          # Fetch main branch for comparison
+          git fetch origin main:main
+          
+          # Get all changes in this branch compared to main
+          packages=$(git diff --name-only main...HEAD | 
+            xargs dirname | sort -u | 
+            grep '^internal/impl/' | 
+            xargs -I {} sh -c 'find {} -maxdepth 1 -name "*_test.go" -quit | grep -q . && echo "./{}"' | 
+            xargs)
+          
+          echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
+        fi
+
   integration-test:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     name: Integration Test - ${{ matrix.index }}/${{ matrix.parallel }}
+    needs: [deps, prepare-tests]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -26,8 +81,6 @@ jobs:
 
     - name: Checkout code
       uses: actions/checkout@v5
-      with:
-        fetch-depth: ${{ github.ref_name == 'main' && 1 || 0 }}
 
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1
@@ -45,9 +98,10 @@ jobs:
       with:
         go-version: 1.25.x
         check-latest: true
+        cache: true
 
     - name: Deps
-      run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
+      run: make deps
 
     - name: Install gotestsum
       run: go install gotest.tools/gotestsum@latest
@@ -60,20 +114,6 @@ jobs:
         workflow_conclusion: success
         name: junit-integration-summary
         if_no_artifact_found: warn
-    
-    - name: Determine Affected Tests
-      id: affected_tests
-      # If running on 'main', ensure we run all int tests.
-      # Otherwise, determine which packages are affected and only run tests for those.
-      run: |
-        if [ "${{ github.ref_name }}" == "main" ]; then
-          echo "packages=./..." >> $GITHUB_OUTPUT
-        else
-          # HACK: gets affected directory names of modified files using some sed magic
-          affected_dirs=($(git diff --dirstat=files,0 main...HEAD | sed 's/^[^%]*% //' | tr '\n' ' '))
-          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sed 's|^|./|' | uniq) 
-          echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
-        fi
 
     - name: Split integration tests
       id: test_split
@@ -82,10 +122,10 @@ jobs:
         index: ${{ matrix.index }}
         total: ${{ matrix.parallel }}
         junit-summary: ./junit-integration-summary.xml
-        packages: ${{ steps.affected_tests.outputs.packages }}
+        packages: ${{ needs.prepare-tests.outputs.packages }}
         list: '^Test.*Integration.*$'
 
-    - name: Run Integration Test
+    - name: Run Integration Test (Shard ${{ matrix.index }})
       run: |
         gotestsum --junitfile shard-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}" -timeout 60m ./...
 
