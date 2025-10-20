@@ -23,7 +23,7 @@ const (
 
 func cosmosDBInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		// Beta().
+		Stable().
 		Categories("Azure").
 		Version("1.0.0").
 		Summary(`Executes a SQL query against [Azure CosmosDB](https://learn.microsoft.com/en-us/azure/cosmos-db/introduction) and creates a batch of messages from each page of items.`).

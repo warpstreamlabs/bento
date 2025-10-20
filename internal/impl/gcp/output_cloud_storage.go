@@ -77,7 +77,7 @@ func csoConfigFromParsed(pConf *service.ParsedConfig) (conf csoConfig, err error
 
 func csoSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Version("1.0.0").
 		Categories("Services", "GCP").
 		Summary(`Sends message parts as objects to a Google Cloud Storage bucket. Each object is uploaded with the path specified with the `+"`path`"+` field.`).

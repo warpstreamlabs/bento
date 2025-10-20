@@ -67,7 +67,7 @@ func bsiConfigFromParsed(pConf *service.ParsedConfig) (conf bsiConfig, err error
 
 func bsiSpec() *service.ConfigSpec {
 	return azureComponentSpec(true).
-		Beta().
+		Stable().
 		Version("1.0.0").
 		Summary(`Downloads objects within an Azure Blob Storage container, optionally filtered by a prefix.`).
 		Description(`

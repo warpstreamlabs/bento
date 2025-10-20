@@ -50,7 +50,7 @@ var kvpOperations = map[string]string{
 
 func natsKVProcessorConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Services").
 		Version("1.0.0").
 		Summary("Perform operations on a NATS key-value bucket.").

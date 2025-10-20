@@ -26,6 +26,7 @@ const (
 
 func sqlCacheConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
+		Stable().
 		Categories("Services").
 		Summary("Uses an SQL database table as a destination for storing cache key/value items.").
 		Version("1.0.0").

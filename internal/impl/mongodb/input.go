@@ -20,7 +20,7 @@ const (
 
 func mongoConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		// Stable(). TODO
+		Stable().
 		Version("1.0.0").
 		Categories("Services").
 		Summary("Executes a query and creates a message for each document received.").

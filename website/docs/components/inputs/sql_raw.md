@@ -2,7 +2,7 @@
 title: sql_raw
 slug: sql_raw
 type: input
-status: beta
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Executes a select query and creates a message for each row received.
 
 Introduced in version 1.0.0.

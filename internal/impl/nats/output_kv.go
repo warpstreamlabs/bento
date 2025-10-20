@@ -18,7 +18,7 @@ const (
 
 func natsKVOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Services").
 		Version("1.0.0").
 		Summary("Put messages in a NATS key-value bucket.").

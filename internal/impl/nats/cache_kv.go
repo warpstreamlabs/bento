@@ -15,6 +15,7 @@ import (
 
 func natsKVCacheConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
+		Stable().
 		Categories("Services").
 		Version("1.0.0").
 		Summary("Cache key/values in a NATS key-value bucket.").
