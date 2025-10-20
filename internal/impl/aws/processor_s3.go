@@ -25,6 +25,7 @@ func s3pSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Summary("Performs an S3 GetObject operation using the `bucket` + `key` provided in the config and replaces the original message parts with the content retrieved from S3.").
 		Version("1.4.0").
+		Stable().
 		Description(`
 This `+"`aws_s3`"+` processor is offered as an alternative to [streaming-objects-on-upload-with-sqs](/docs/components/inputs/aws_s3#streaming-objects-on-upload-with-sqs).
 

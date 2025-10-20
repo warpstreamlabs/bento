@@ -1483,9 +1483,6 @@ root.delay_for_s = this.delay_for.parse_duration() / 1000000000
 
 ### `parse_duration_iso8601`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to parse a string using ISO-8601 rules as a duration and returns an integer of nanoseconds. A duration string is represented by the format "P[n]Y[n]M[n]DT[n]H[n]M[n]S" or "P[n]W". In these representations, the "[n]" is replaced by the value for each of the date and time elements that follow the "[n]". For example, "P3Y6M4DT12H30M5S" represents a duration of "three years, six months, four days, twelve hours, thirty minutes, and five seconds". The last field of the format allows fractions with one decimal place, so "P3.5S" will return 3500000000ns. Any additional decimals will be truncated.
 
 #### Examples
@@ -1520,9 +1517,6 @@ root.delay_for_s = this.delay_for.parse_duration_iso8601() / 1000000000
 
 ### `ts_add_iso8601`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Parse parameter string as ISO 8601 period and add it to value with high precision for units larger than an hour.
 
 #### Parameters
@@ -1531,9 +1525,6 @@ Parse parameter string as ISO 8601 period and add it to value with high precisio
 
 ### `ts_format`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a string according to a specified format, or RFC 3339 by default. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format.
 
 The output format is defined by showing how the reference time, defined to be Mon Jan 2 15:04:05 -0700 MST 2006, would be displayed if it were the value. For an alternative way to specify formats check out the [`ts_strftime`](#ts_strftime) method.
@@ -1582,9 +1573,6 @@ root.something_at = this.created_at.ts_format("2006-Jan-02 15:04:05.999999", "UT
 
 ### `ts_parse`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to parse a string as a timestamp following a specified format and outputs a timestamp, which can then be fed into methods such as [`ts_format`](#ts_format).
 
 The input format is defined by showing how the reference time, defined to be Mon Jan 2 15:04:05 -0700 MST 2006, would be displayed if it were the value. For an alternative way to specify formats check out the [`ts_strptime`](#ts_strptime) method.
@@ -1605,9 +1593,6 @@ root.doc.timestamp = this.doc.timestamp.ts_parse("2006-Jan-02")
 
 ### `ts_round`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 Introduced in version 1.0.0.
@@ -1631,9 +1616,6 @@ root.created_at_hour = this.created_at.ts_round("1h".parse_duration())
 
 ### `ts_strftime`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a string according to a specified strftime-compatible format. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format.
 
 #### Parameters
@@ -1676,9 +1658,6 @@ root.something_at = this.created_at.ts_strftime("%Y-%b-%d %H:%M:%S.%f", "UTC")
 
 ### `ts_strptime`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to parse a string as a timestamp following a specified strptime-compatible format and outputs a timestamp, which can then be fed into [`ts_format`](#ts_format).
 
 #### Parameters
@@ -1708,9 +1687,6 @@ root.doc.timestamp = this.doc.timestamp.ts_strptime("%Y-%b-%d %H:%M:%S.%f")
 
 ### `ts_sub`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 Introduced in version 1.0.0.
@@ -1734,9 +1710,6 @@ root.between = this.started_at.ts_sub("2020-08-14T05:54:23Z").abs()
 
 ### `ts_sub_iso8601`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Parse parameter string as ISO 8601 period and subtract it from value with high precision for units larger than an hour.
 
 #### Parameters
@@ -1745,9 +1718,6 @@ Parse parameter string as ISO 8601 period and subtract it from value with high p
 
 ### `ts_tz`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 Introduced in version 1.0.0.
@@ -1769,9 +1739,6 @@ root.created_at_utc = this.created_at.ts_tz("UTC")
 
 ### `ts_unix`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -1786,9 +1753,6 @@ root.created_at_unix = this.created_at.ts_unix()
 
 ### `ts_unix_micro`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp with microsecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -1803,9 +1767,6 @@ root.created_at_unix = this.created_at.ts_unix_micro()
 
 ### `ts_unix_milli`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp with millisecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -1820,9 +1781,6 @@ root.created_at_unix = this.created_at.ts_unix_milli()
 
 ### `ts_unix_nano`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp with nanosecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -2255,9 +2213,6 @@ root.new_dict = this.dict.filter(item -> item.value.contains("foo"))
 
 ### `find`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the index of the first occurrence of a value in an array. `-1` is returned if there are no matches. Numerical comparisons are made irrespective of the representation type (float versus integer).
 
 #### Parameters
@@ -2283,9 +2238,6 @@ root.index = this.things.find(this.goal)
 
 ### `find_all`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns an array containing the indexes of all occurrences of a value in an array. An empty array is returned if there are no matches. Numerical comparisons are made irrespective of the representation type (float versus integer).
 
 #### Parameters
@@ -2311,9 +2263,6 @@ root.indexes = this.things.find_all(this.goal)
 
 ### `find_all_by`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns an array containing the indexes of all occurrences of an array where the provided query resolves to a boolean `true`. An empty array is returned if there are no matches. Numerical comparisons are made irrespective of the representation type (float versus integer).
 
 #### Parameters
@@ -2332,9 +2281,6 @@ root.index = this.find_all_by(v -> v != "bar")
 
 ### `find_by`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the index of the first occurrence of an array where the provided query resolves to a boolean `true`. `-1` is returned if there are no matches.
 
 #### Parameters
@@ -2502,9 +2448,6 @@ root.text_objects = this.json_path("$.body[?(@.type=='text')]")
 
 ### `json_schema`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Checks a [JSON schema](https://json-schema.org/) against a value and returns the value if it matches or throws and error if it does not.
 
 #### Parameters
@@ -2953,9 +2896,6 @@ root.foo = this.foo.zip(this.bar, this.baz)
 
 ### `bloblang`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Executes an argument Bloblang mapping on the target. This method can be used in order to execute dynamic mappings. Imports and functions that interact with the environment, such as `file` and `env`, or that access message information directly, such as `content` or `json`, are not enabled for dynamic Bloblang mappings.
 
 #### Parameters
@@ -2977,9 +2917,6 @@ root.body = this.body.bloblang(this.mapping)
 
 ### `format_json`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Serializes a target value into a pretty-printed JSON byte array (with 4 space indentation by default).
 
 #### Parameters

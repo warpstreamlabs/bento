@@ -17,7 +17,7 @@ const (
 
 func xmlDocumentScannerSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Summary("Consumes a stream of one or more XML documents and performs a mutation on the data.").
 		Fields(
 			service.NewStringEnumField(pFieldOperator, "to_json").

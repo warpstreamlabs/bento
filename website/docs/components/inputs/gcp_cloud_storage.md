@@ -2,7 +2,7 @@
 title: gcp_cloud_storage
 slug: gcp_cloud_storage
 type: input
-status: beta
+status: stable
 categories: ["Services","GCP"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services","GCP"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Downloads objects within a Google Cloud Storage bucket, optionally filtered by a prefix.
 
 Introduced in version 1.0.0.

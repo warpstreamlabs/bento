@@ -2,7 +2,7 @@
 title: azure_blob_storage
 slug: azure_blob_storage
 type: input
-status: beta
+status: stable
 categories: ["Services","Azure"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services","Azure"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Downloads objects within an Azure Blob Storage container, optionally filtered by a prefix.
 
 Introduced in version 1.0.0.

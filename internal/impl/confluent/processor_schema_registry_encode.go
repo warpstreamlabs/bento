@@ -19,7 +19,7 @@ import (
 
 func schemaRegistryEncoderConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
-		Beta().
+		Stable().
 		Version("1.0.0").
 		Categories("Parsing", "Integration").
 		Summary("Automatically encodes and validates messages with schemas from a Confluent Schema Registry service.").

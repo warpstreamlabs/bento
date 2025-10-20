@@ -29,7 +29,7 @@ import (
 func gcpBigQueryWriteAPIConfig() *service.ConfigSpec {
 
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("GCP", "Services").
 		Version("1.3.0").
 		Summary(`Sends messages as new rows to a Google Cloud BigQuery table using the BigQuery Storage Write API.`).

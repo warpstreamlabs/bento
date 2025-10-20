@@ -22,6 +22,7 @@ const (
 // ProcessorSpec defines the config spec of the mongodb processor.
 func ProcessorSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
+		Stable().
 		Version("1.0.0").
 		Categories("Services").
 		Summary("Performs operations against MongoDB for each message, allowing you to store or retrieve data within message payloads.").
