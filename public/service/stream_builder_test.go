@@ -1644,3 +1644,42 @@ output:
 
 	assert.Contains(t, buffer.String(), `level=WARN msg="(7,1) field foo is deprecated"`)
 }
+
+func TestStreamBuilder_LintWarningDeprecatedMultiComponents(t *testing.T) {
+	err := service.RegisterProcessor(
+		"deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	err = service.RegisterProcessor(
+		"also_deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.AddProcessorYAML(`deprecated: {}`)
+	require.NoError(t, err)
+
+	err = b.AddProcessorYAML(`also_deprecated: {}`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(1,1) component deprecated is deprecated"`)
+	assert.Contains(t, buffer.String(), `level=WARN msg="(1,1) component also_deprecated is deprecated"`)
+}

@@ -1113,7 +1113,8 @@ func (s *StreamBuilder) lintYAMLSpec(spec docs.FieldSpecs, node *yaml.Node) (err
 	if s.lintingDisabled {
 		return nil
 	}
-	s.lintWarns, err = lintsToErr(spec.LintYAML(s.getLintContext(), node))
+	lintWarns, err := lintsToErr(spec.LintYAML(s.getLintContext(), node))
+	s.lintWarns = append(s.lintWarns, lintWarns...)
 	return err
 }
 
@@ -1121,6 +1122,7 @@ func (s *StreamBuilder) lintYAMLComponent(node *yaml.Node, ctype docs.Type) (err
 	if s.lintingDisabled {
 		return nil
 	}
-	s.lintWarns, err = lintsToErr(docs.LintYAML(s.getLintContext(), ctype, node))
+	lintWarns, err := lintsToErr(docs.LintYAML(s.getLintContext(), ctype, node))
+	s.lintWarns = append(s.lintWarns, lintWarns...)
 	return err
 }
