@@ -412,7 +412,7 @@ endpoint:
 
 	err = output.WriteBatch(context.Background(), batch)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to Unmarshal message for item 0")
+	require.Contains(t, err.Error(), "cannot parse invalid wire-format data")
 }
 
 func createTestProtobufDescriptor(t *testing.T) protoreflect.FileDescriptor {
