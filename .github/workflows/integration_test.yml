@@ -54,7 +54,7 @@ jobs:
         else
           # HACK: gets affected directory names of modified files using some sed magic
           affected_dirs=($(git diff --dirstat=files,0 main...HEAD | sed 's/^[^%]*% //' | tr '\n' ' '))
-          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sed 's|^|./|' | uniq) 
+          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sort -u | sed 's|^|./|')
           echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
           echo "Running integration tests for services in the following locations: $packages"
         fi
