@@ -45,23 +45,16 @@ jobs:
 
     - name: Determine Affected Tests
       id: affected_tests
+      # If running on 'main', ensure we run all int tests.
+      # Otherwise, determine which packages are affected and only run tests for those.
       run: |
-        BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
-        
-        if [ "$BRANCH_NAME" == "main" ]; then
+        if [ "${{ github.ref_name }}" == "main" ]; then
           echo "packages=./..." >> $GITHUB_OUTPUT
           echo "Running all tests."
         else
-          # Fetch main branch for comparison
-          git fetch origin main:main
-          
-          # Get all changes in this branch compared to main
-          packages=$(git diff --name-only main...HEAD | 
-            xargs dirname | sort -u | 
-            grep '^internal/impl/' | 
-            xargs -I {} sh -c 'find {} -maxdepth 1 -name "*_test.go" -quit | grep -q . && echo "./{}"' | 
-            xargs)
-          
+          # HACK: gets affected directory names of modified files using some sed magic
+          affected_dirs=($(git diff --dirstat=files,0 main...HEAD | sed 's/^[^%]*% //' | tr '\n' ' '))
+          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sed 's|^|./|' | uniq) 
           echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
           echo "Running integration tests for services in the following locations: $packages"
         fi
