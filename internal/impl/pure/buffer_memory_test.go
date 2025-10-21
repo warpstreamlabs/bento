@@ -524,7 +524,7 @@ spillover: true
 	err := block.WriteBatch(ctx, service.MessageBatch{
 		service.NewMessage([]byte("hello")),
 	}, func(ctx context.Context, err error) error { return nil })
-	require.Equal(t, component.ErrMessageTooLarge, err)
+	require.Equal(t, component.ErrLimitReached, err)
 
 	block.EndOfInput()
 

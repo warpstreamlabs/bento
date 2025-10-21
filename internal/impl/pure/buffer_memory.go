@@ -262,7 +262,7 @@ func (m *memoryBuffer) WriteBatch(ctx context.Context, msgBatch service.MessageB
 
 	for (m.bytes + extraBytes) > m.cap {
 		if m.spilloverEnabled {
-			return component.ErrMessageTooLarge
+			return component.ErrLimitReached
 		}
 
 		m.cond.Wait()
