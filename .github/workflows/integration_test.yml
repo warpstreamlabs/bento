@@ -50,6 +50,7 @@ jobs:
         
         if [ "$BRANCH_NAME" == "main" ]; then
           echo "packages=./..." >> $GITHUB_OUTPUT
+          echo "Running all tests."
         else
           # Fetch main branch for comparison
           git fetch origin main:main
@@ -62,6 +63,7 @@ jobs:
             xargs)
           
           echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
+          echo "Running integration tests for services in the following locations: $packages"
         fi
 
   integration-test:
