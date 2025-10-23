@@ -19,53 +19,53 @@ func testEnvWithPlugins(t testing.TB) *service.Environment {
 
 	env := service.NewEmptyEnvironment()
 
-	require.NoError(t, env.RegisterInput("testinput", service.NewConfigSpec().Field(service.NewStringField("woof").Example("WOOF")),
+	require.NoError(t, env.RegisterInput("testinput", service.NewConfigSpec().Stable().Field(service.NewStringField("woof").Example("WOOF")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterInput("anothertestinput", service.NewConfigSpec().Field(service.NewStringField("moo").Example("MOO")),
+	require.NoError(t, env.RegisterInput("anothertestinput", service.NewConfigSpec().Stable().Field(service.NewStringField("moo").Example("MOO")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterBatchBuffer("testbuffer", service.NewConfigSpec(),
+	require.NoError(t, env.RegisterBatchBuffer("testbuffer", service.NewConfigSpec().Stable(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchBuffer, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterProcessor("testprocessor", service.NewConfigSpec().Field(service.NewBloblangField("mapfield")),
+	require.NoError(t, env.RegisterProcessor("testprocessor", service.NewConfigSpec().Stable().Field(service.NewBloblangField("mapfield")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterOutput("testoutput", service.NewConfigSpec().Field(service.NewStringField("meow").Example("MEOW")),
+	require.NoError(t, env.RegisterOutput("testoutput", service.NewConfigSpec().Stable().Field(service.NewStringField("meow").Example("MEOW")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (out service.Output, maxInFlight int, err error) {
 			err = errors.New("nope")
 			return
 		}))
 
-	require.NoError(t, env.RegisterCache("testcache", service.NewConfigSpec().Field(service.NewStringField("cachefield")),
+	require.NoError(t, env.RegisterCache("testcache", service.NewConfigSpec().Stable().Field(service.NewStringField("cachefield")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Cache, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterRateLimit("testratelimit", service.NewConfigSpec().Field(service.NewStringField("ratelimitfield")),
+	require.NoError(t, env.RegisterRateLimit("testratelimit", service.NewConfigSpec().Stable().Field(service.NewStringField("ratelimitfield")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.RateLimit, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterMetricsExporter("testmetrics", service.NewConfigSpec().Field(service.NewStringField("metricsfield")),
+	require.NoError(t, env.RegisterMetricsExporter("testmetrics", service.NewConfigSpec().Stable().Field(service.NewStringField("metricsfield")),
 		func(conf *service.ParsedConfig, log *service.Logger) (service.MetricsExporter, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterOtelTracerProvider("testtracer", service.NewConfigSpec().Field(service.NewStringField("tracerfield")),
+	require.NoError(t, env.RegisterOtelTracerProvider("testtracer", service.NewConfigSpec().Stable().Field(service.NewStringField("tracerfield")),
 		func(conf *service.ParsedConfig) (trace.TracerProvider, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterBatchScannerCreator("testscanner", service.NewConfigSpec().Field(service.NewStringField("scannerfield")),
+	require.NoError(t, env.RegisterBatchScannerCreator("testscanner", service.NewConfigSpec().Stable().Field(service.NewStringField("scannerfield")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchScannerCreator, error) {
 			return nil, errors.New("nope")
 		}))

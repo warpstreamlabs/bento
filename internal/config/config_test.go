@@ -20,10 +20,9 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/stream"
 
-	_ "github.com/warpstreamlabs/bento/public/components/amqp1"
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
-	_ "github.com/warpstreamlabs/bento/public/components/sql"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func testConfToAny(t testing.TB, conf any) any {
@@ -244,7 +243,53 @@ cache_resources:
 	assert.Equal(t, "13s", v.S("cache_resources", "1", "memory", "default_ttl").Data())
 }
 
-func TestLintWarns(t *testing.T) {
+type deprecatedInputComponent struct{}
+
+func (dic deprecatedInputComponent) Connect(ctx context.Context) error {
+	return nil
+}
+
+func (dic deprecatedInputComponent) Close(ctx context.Context) error {
+	return nil
+}
+
+func (dic deprecatedInputComponent) Read(context.Context) (*service.Message, service.AckFunc, error) {
+	return nil, nil, nil
+}
+
+type outputWithDeprecatedField struct{}
+
+func (odf outputWithDeprecatedField) Connect(ctx context.Context) error {
+	return nil
+}
+
+func (odf outputWithDeprecatedField) Close(ctx context.Context) error {
+	return nil
+}
+
+func (odf outputWithDeprecatedField) Write(context.Context, *service.Message) error {
+	return nil
+}
+
+func TestLintWarnsDeprecatedFieldsAndComponent(t *testing.T) {
+	err := service.RegisterInput(
+		"deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
+			return deprecatedInputComponent{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	err = service.RegisterOutput(
+		"deprecated",
+		service.NewConfigSpec().Stable().Field(service.NewStringField("dep_field").Deprecated()),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Output, int, error) {
+			return outputWithDeprecatedField{}, 0, nil
+		},
+	)
+	require.NoError(t, err)
+
 	dir := t.TempDir()
 
 	fullPath := filepath.Join(dir, "main.yaml")
@@ -259,20 +304,15 @@ output:
 	require.NoError(t, os.WriteFile(resourceOnePath, []byte(`
 input_resources:
   - label: foo
-    amqp_1:
-      url: amqp://guest:guest@localhost:5672/
-      source_address: foo
+    deprecated: {}
 `), 0o644))
 
 	resourceTwoPath := filepath.Join(dir, "res2.yaml")
 	require.NoError(t, os.WriteFile(resourceTwoPath, []byte(`
 output_resources:
   - label: bar
-    sql:
-      driver: postgres
-      data_source_name: postgresql://user:password@postgres:5432/db?sslmode=disable
-      query: INSERT INTO table (foo, bar, baz) VALUES (?, ?, ?);
-      args_mapping: root = [ "neo", "cypher", "trinity" ]
+    deprecated:
+      dep_field: 🔥
 `), 0o644))
 
 	rdr := config.NewReader(fullPath, []string{resourceOnePath, resourceTwoPath}, config.OptSetLintConfigWarnDeprecated())
@@ -280,9 +320,13 @@ output_resources:
 	_, _, lints, lintWarns, err := rdr.Read()
 	require.NoError(t, err)
 	require.Len(t, lintWarns, 2)
-	assert.Contains(t, lintWarns[0], "field url is deprecated")
-	assert.Contains(t, lintWarns[1], "component sql is deprecated")
+	assert.Contains(t, lintWarns[0], "component deprecated is deprecated")
+	assert.Contains(t, lintWarns[1], "field dep_field is deprecated")
 	require.Empty(t, lints)
+}
+
+func TestLintWarnsExperimental(t *testing.T) {
+
 }
 
 func TestDefaultBasedOverridesWithYAML(t *testing.T) {

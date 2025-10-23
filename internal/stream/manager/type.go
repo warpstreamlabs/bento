@@ -12,7 +12,9 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
+	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/stream"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 // StreamStatus tracks a stream along with information regarding its internals.
@@ -89,6 +91,15 @@ type Type struct {
 	apiEnabled bool
 
 	lock sync.Mutex
+
+	lintCtx docs.LintContext
+}
+
+func defaultLintCtx(mgr bundle.NewManagement) docs.LintContext {
+	lConf := docs.NewLintConfig(mgr.Environment())
+	lConf.BloblangEnv = bloblang.XWrapEnvironment(mgr.BloblEnvironment()).Deactivated()
+	lConf.WarnDeprecated = true
+	return docs.NewLintContext(lConf)
 }
 
 // New creates a new stream manager.Type.
@@ -97,6 +108,7 @@ func New(mgr bundle.NewManagement, opts ...func(*Type)) *Type {
 		streams:    map[string]*StreamStatus{},
 		apiEnabled: true,
 		manager:    mgr,
+		lintCtx:    defaultLintCtx(mgr),
 	}
 	for _, opt := range opts {
 		opt(t)
@@ -112,6 +124,14 @@ func New(mgr bundle.NewManagement, opts ...func(*Type)) *Type {
 func OptAPIEnabled(b bool) func(*Type) {
 	return func(t *Type) {
 		t.apiEnabled = b
+	}
+}
+
+// OptSetLintCtx sets a custom LintContext for the stream manager, overriding
+// the default configuration used for linting stream definitions.
+func OptSetLintCtx(lCtx docs.LintContext) func(*Type) {
+	return func(t *Type) {
+		t.lintCtx = lCtx
 	}
 }
 

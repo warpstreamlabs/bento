@@ -26,6 +26,8 @@ func TestComponentExamples(t *testing.T) {
 
 		lConf := docs.NewLintConfig(bundle.GlobalEnvironment)
 		lConf.RejectDeprecated = !deprecated
+		lConf.AllowBeta = true
+		lConf.AllowExperimental = true
 		lints := confSpec.LintYAML(docs.NewLintContext(lConf), node)
 		for _, lint := range lints {
 			t.Errorf("%v %v:%v:%v", lint, componentType, typeName, title)

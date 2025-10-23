@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/warpstreamlabs/bento/internal/config"
+	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/stream"
 	strmmgr "github.com/warpstreamlabs/bento/internal/stream/manager"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 
 	"github.com/urfave/cli/v2"
 )
@@ -82,7 +84,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 	watching := c.Bool("watcher")
 	if streamsMode {
 		enableStreamsAPI := !c.Bool("no-api")
-		stoppableStream = initStreamsMode(cliOpts, strict, watching, enableStreamsAPI, confReader, stoppableManager.Manager())
+		stoppableStream = initStreamsMode(cliOpts, c, watching, enableStreamsAPI, confReader, stoppableManager.Manager())
 	} else {
 		stoppableStream, dataStreamClosedChan = initNormalMode(cliOpts, conf, strict, watching, confReader, stoppableManager.Manager())
 	}
@@ -116,12 +118,23 @@ func DelayShutdown(ctx context.Context, duration time.Duration) error {
 
 func initStreamsMode(
 	opts *CLIOpts,
-	strict, watching, enableAPI bool,
+	c *cli.Context,
+	watching, enableAPI bool,
 	confReader *config.Reader,
 	mgr *manager.Type,
 ) Stoppable {
 	logger := mgr.Logger()
-	streamMgr := strmmgr.New(mgr, strmmgr.OptAPIEnabled(enableAPI))
+
+	strict := !c.Bool("chilled")
+
+	lConf := docs.NewLintConfig(mgr.Environment())
+	lConf.BloblangEnv = bloblang.XWrapEnvironment(mgr.BloblEnvironment()).Deactivated()
+	lConf.WarnDeprecated = true
+	lConf.AllowBeta = c.Bool("allow-beta")
+	lConf.AllowExperimental = c.Bool("allow-experimental")
+	lCtx := docs.NewLintContext(lConf)
+
+	streamMgr := strmmgr.New(mgr, strmmgr.OptAPIEnabled(enableAPI), strmmgr.OptSetLintCtx(lCtx))
 
 	streamConfs := map[string]stream.Config{}
 	lints, lintWarns, err := confReader.ReadStreams(streamConfs)

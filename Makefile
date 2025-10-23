@@ -113,7 +113,7 @@ clean:
 
 docs: $(APPS) $(TOOLS)
 	@$(PATHINSTTOOLS)/bento_docs_gen $(DOCS_FLAGS)
-	@$(PATHINSTBIN)/bento lint --deprecated "./config/examples/*.yaml" \
+	@$(PATHINSTBIN)/bento lint --deprecated --allow-experimental --allow-beta "./config/examples/*.yaml" \
 		"$(WEBSITE_DIR)/cookbooks/**/*.md" \
 		"$(WEBSITE_DIR)/docs/**/*.md"
 	@$(PATHINSTBIN)/bento template lint "./config/template_examples/*.yaml"

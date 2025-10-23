@@ -94,8 +94,40 @@ func traverseHelp(cmd *cli.Command, pieces []string) []pluginHelp {
 	return help
 }
 
-func runFlags(opts *common.CLIOpts) []cli.Flag {
+//------------------------------------------------------------------------------
+
+func disableWarningFlags() []cli.Flag {
 	return []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "allow-experimental",
+			Value: false,
+			Usage: "silence warning logs pertaining to the use of experimental components",
+		},
+		&cli.BoolFlag{
+			Name:  "allow-beta",
+			Value: false,
+			Usage: "silence warning logs pertaining to the use of beta components",
+		}}
+}
+
+func streamModeFlags() []cli.Flag {
+	flags := []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "no-api",
+			Value: false,
+			Usage: "Disable the HTTP API for streams mode",
+		},
+		&cli.BoolFlag{
+			Name:  "prefix-stream-endpoints",
+			Value: true,
+			Usage: "Whether HTTP endpoints registered by stream configs should be prefixed with the stream ID",
+		},
+	}
+	return append(flags, disableWarningFlags()...)
+}
+
+func runFlags(opts *common.CLIOpts) []cli.Flag {
+	flags := []cli.Flag{
 		&cli.StringFlag{
 			Name:  "log.level",
 			Value: "",
@@ -134,6 +166,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
 	}
+	return append(flags, disableWarningFlags()...)
 }
 
 func preRun(c *cli.Context, opts *common.CLIOpts) error {
@@ -321,20 +354,11 @@ loaded streams (resources, metrics, etc).
 
 For more information check out the docs at:
 {{.DocumentationURL}}/guides/streams_mode/about`)[1:],
-				Flags: []cli.Flag{
-					&cli.BoolFlag{
-						Name:  "no-api",
-						Value: false,
-						Usage: "Disable the HTTP API for streams mode",
-					},
-					&cli.BoolFlag{
-						Name:  "prefix-stream-endpoints",
-						Value: true,
-						Usage: "Whether HTTP endpoints registered by stream configs should be prefixed with the stream ID",
-					},
-				},
+				Flags: streamModeFlags(),
 				Action: func(c *cli.Context) error {
-					os.Exit(common.RunService(c, opts, true))
+					if code := common.RunService(c, opts, true); code != 0 {
+						os.Exit(code)
+					}
 					return nil
 				},
 			},

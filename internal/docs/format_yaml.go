@@ -536,6 +536,13 @@ func LintYAML(ctx LintContext, cType Type, node *yaml.Node) []Lint {
 		return lints
 	}
 
+	if !ctx.conf.AllowExperimental && cSpec.Status == StatusExperimental {
+		lints = append(lints, NewLintWarning(node.Line, LintExperimental, fmt.Sprintf("%v %v is experimental; silence warning with --allow-experimental", cSpec.Type, cSpec.Name)))
+	}
+	if !ctx.conf.AllowBeta && cSpec.Status == StatusBeta {
+		lints = append(lints, NewLintWarning(node.Line, LintBeta, fmt.Sprintf("%v %v is beta; silence warning with --allow-beta", cSpec.Type, cSpec.Name)))
+	}
+
 	if ctx.conf.RejectDeprecated && cSpec.Status == StatusDeprecated {
 		lints = append(lints, NewLintError(node.Line, LintDeprecated, fmt.Errorf("component %v is deprecated", cSpec.Name)))
 	} else if ctx.conf.WarnDeprecated && cSpec.Status == StatusDeprecated {

@@ -28,6 +28,12 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 		config.OptTestSuffix("_bento_test"),
 		config.OptSetLintConfigWarnDeprecated(),
 	}
+	if c.Bool("allow-experimental") {
+		opts = append(opts, config.OptSetLintConfigAllowExperimental())
+	}
+	if c.Bool("allow-beta") {
+		opts = append(opts, config.OptSetLintConfigAllowBeta())
+	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))
 	}
