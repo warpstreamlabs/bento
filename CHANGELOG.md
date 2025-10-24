@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.12.1 - 2025-10-24
+
+### Fixed 
+
+- `gcp_bigquery_write_api` now propagates error when failing to acquire a stream
+
 ## 1.12.0 - 2025-10-21
 
 ### Added 
