@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1562,4 +1563,123 @@ error_handling:
 			}
 		})
 	}
+}
+
+// implements a Bento Processor
+type foobar struct{}
+
+func (f foobar) Close(ctx context.Context) error {
+	return nil
+}
+
+func (f foobar) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
+	return nil, nil
+}
+
+func TestStreamBuilder_LintWarningDeprecatedComponent(t *testing.T) {
+	err := service.RegisterProcessor(
+		"deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.SetYAML(`
+input:
+  stdin: {}
+pipeline: 
+  processors: 
+   - deprecated: {}
+output:
+  stdout: {}
+`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(6,1) component deprecated is deprecated"`)
+}
+
+func TestStreamBuilder_LintWarningDeprecatedField(t *testing.T) {
+	err := service.RegisterProcessor(
+		"field_deprecated",
+		service.NewConfigSpec().Field(service.NewStringField("foo").Deprecated()),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.SetYAML(`
+input:
+  stdin: {}
+pipeline: 
+  processors: 
+   - field_deprecated:
+       foo: bar
+output:
+  stdout: {}
+`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(7,1) field foo is deprecated"`)
+}
+
+func TestStreamBuilder_LintWarningDeprecatedMultiComponents(t *testing.T) {
+	err := service.RegisterProcessor(
+		"deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	err = service.RegisterProcessor(
+		"also_deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.AddProcessorYAML(`deprecated: {}`)
+	require.NoError(t, err)
+
+	err = b.AddProcessorYAML(`also_deprecated: {}`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(1,1) component deprecated is deprecated"`)
+	assert.Contains(t, buffer.String(), `level=WARN msg="(1,1) component also_deprecated is deprecated"`)
 }
