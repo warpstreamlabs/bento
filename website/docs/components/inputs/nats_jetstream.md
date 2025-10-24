@@ -441,7 +441,7 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 4.23.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -457,6 +457,6 @@ EXPERIMENTAL: Starts a new root span with link to parent.
 
 
 Type: `bool`  
-Requires version 4.23.0 or newer  
+Requires version 1.13.0 or newer  
 
 

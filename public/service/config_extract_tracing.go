@@ -50,10 +50,7 @@ func (p *ParsedConfig) WrapBatchInputExtractTracingSpanMapping(inputName string,
 		return nil, err
 	}
 
-	newSpan, err := p.FieldBool(nrswlField)
-	if err != nil && !strings.Contains(err.Error(), "was not found in the config") {
-		return nil, err
-	}
+	newSpan, _ := p.FieldBool(nrswlField)
 
 	return &spanInjectBatchInput{inputName: inputName, mgr: p.mgr, mapping: exe, rdr: i, newSpan: newSpan}, nil
 }
@@ -69,11 +66,7 @@ func (p *ParsedConfig) WrapInputExtractTracingSpanMapping(inputName string, i In
 		return nil, err
 	}
 
-	newSpan, err := p.FieldBool(nrswlField)
-	if err != nil && !strings.Contains(err.Error(), "was not found in the config") {
-		return nil, err
-	}
-
+	newSpan, _ := p.FieldBool(nrswlField)
 	return &spanInjectInput{inputName: inputName, mgr: p.mgr, mapping: exe, rdr: i, newSpan: newSpan}, nil
 }
 
