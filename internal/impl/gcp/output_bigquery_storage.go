@@ -256,7 +256,7 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 
 	streamDescriptorPair, err := bq.getManagedStreamForTable(ctx, tableID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	stream := streamDescriptorPair.stream
