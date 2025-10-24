@@ -1,0 +1,8 @@
+syntax = "proto3";
+package ingest;
+
+import "google/protobuf/struct.proto";
+
+service Ingest {
+  rpc Stream(stream google.protobuf.Struct) returns (google.protobuf.Struct);
+}
