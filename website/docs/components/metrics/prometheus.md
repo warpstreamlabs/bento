@@ -56,6 +56,7 @@ metrics:
       username: ""
       password: ""
     file_output_path: ""
+    use_default_registry: false
   mapping: ""
 ```
 
@@ -190,6 +191,14 @@ An optional file path to write all prometheus metrics on service shutdown.
 
 Type: `string`  
 Default: `""`  
+
+### `use_default_registry`
+
+Whether to use the same Prometheus registry as the main process or create a new one. Most useful when using the StreamBuilder API and you want the stream metrics to be scraped from the same port as the metrics of the parent process.
+
+
+Type: `bool`  
+Default: `false`  
 
 ## Push Gateway
 

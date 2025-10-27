@@ -23,7 +23,7 @@ const (
 
 func subprocInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Utility").
 		Summary("Executes a command, runs it as a subprocess, and consumes messages from it over stdout.").
 		Description(`

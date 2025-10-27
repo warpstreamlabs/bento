@@ -2,7 +2,7 @@
 title: azure_blob_storage
 slug: azure_blob_storage
 type: output
-status: beta
+status: stable
 categories: ["Services","Azure"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services","Azure"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Sends message parts as objects to an Azure Blob Storage Account container. Each object is uploaded with the filename specified with the `container` field.
 
 Introduced in version 1.0.0.

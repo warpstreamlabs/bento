@@ -52,6 +52,11 @@ func crdbChangefeedInputConfig() *service.ConfigSpec {
 		)
 }
 
+type crdbChangefeedResult struct {
+	values []any
+	err    error
+}
+
 type crdbChangefeedInput struct {
 	statement          string
 	cursorCache        string
@@ -65,6 +70,8 @@ type crdbChangefeedInput struct {
 	res     *service.Resources
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
+
+	resultChan chan crdbChangefeedResult
 }
 
 const cursorCacheKey = "crdb_changefeed_cursor"
@@ -136,12 +143,6 @@ func newCRDBChangefeedInputFromConfig(conf *service.ParsedConfig, res *service.R
 	c.statement = fmt.Sprintf("EXPERIMENTAL CHANGEFEED FOR %s%s", strings.Join(tables, ", "), changeFeedOptions)
 	res.Logger().Debug("Creating changefeed: " + c.statement)
 
-	go func() {
-		<-c.shutSig.SoftStopChan()
-
-		c.closeConnection()
-		c.shutSig.TriggerHasStopped()
-	}()
 	return c, nil
 }
 
@@ -163,6 +164,10 @@ func init() {
 func (c *crdbChangefeedInput) Connect(ctx context.Context) (err error) {
 	c.dbMut.Lock()
 	defer c.dbMut.Unlock()
+
+	if c.resultChan != nil {
+		return
+	}
 
 	if c.rows != nil {
 		return
@@ -186,6 +191,9 @@ func (c *crdbChangefeedInput) Connect(ctx context.Context) (err error) {
 
 	c.logger.Debug(fmt.Sprintf("Running query '%s'", c.statement))
 	c.rows, err = c.pgPool.Query(ctx, c.statement)
+	c.resultChan = make(chan crdbChangefeedResult, 1)
+
+	go c.loop()
 	return
 }
 
@@ -212,35 +220,61 @@ func (c *crdbChangefeedInput) closeConnection() {
 		c.pgPool.Close()
 		c.pgPool = nil
 	}
+	if c.resultChan != nil {
+		close(c.resultChan)
+		c.resultChan = nil
+	}
+}
+
+func (c *crdbChangefeedInput) loop() {
+	// teardown & close pgx and channel attributes
+	defer c.closeConnection()
+
+	defer c.shutSig.TriggerHasStopped()
+	for {
+		record := crdbChangefeedResult{}
+		if !c.rows.Next() {
+			record.err = c.rows.Err()
+		} else {
+			record.values, record.err = c.rows.Values()
+		}
+
+		select {
+		// This allows us to buffer the input to only read 1 record at a time
+		case c.resultChan <- record:
+		case <-c.shutSig.SoftStopChan():
+			return
+		}
+	}
 }
 
 func (c *crdbChangefeedInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
 	c.dbMut.Lock()
-	rows := c.rows
+	resultChan := c.resultChan
 	c.dbMut.Unlock()
 
-	if rows == nil {
+	if resultChan == nil {
 		return nil, nil, service.ErrNotConnected
 	}
 
-	if !rows.Next() {
-		go c.closeConnection()
-		if c.shutSig.IsSoftStopSignalled() {
+	result := crdbChangefeedResult{}
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case res, ok := <-resultChan:
+		if !ok {
 			return nil, nil, service.ErrNotConnected
 		}
-
-		err := rows.Err()
-		if err == nil {
-			err = service.ErrNotConnected
-		} else {
-			err = fmt.Errorf("row read: %w", err)
-		}
-		return nil, nil, err
+		result = res
 	}
 
-	values, err := rows.Values()
-	if err != nil {
+	values, err := result.values, result.err
+	if result.err != nil {
 		return nil, nil, fmt.Errorf("row values: %w", err)
+	}
+
+	if values == nil {
+		return nil, nil, service.ErrNotConnected
 	}
 
 	var cursorReleaseFn func() *string
@@ -281,6 +315,14 @@ func (c *crdbChangefeedInput) Read(ctx context.Context) (*service.Message, servi
 }
 
 func (c *crdbChangefeedInput) Close(ctx context.Context) error {
+	c.dbMut.Lock()
+	resultChan := c.resultChan
+	c.dbMut.Unlock()
+
+	if resultChan == nil {
+		return nil
+	}
+
 	c.shutSig.TriggerHardStop()
 	select {
 	case <-c.shutSig.HasStoppedChan():

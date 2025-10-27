@@ -302,7 +302,7 @@ retry:
 
 	sendForRetry("second", tChan, resChan2, t)
 	expectFromRetry(component.ErrFailedSend, mOut.TChan, t, "first", "second")
-
+	time.Sleep(50 * time.Millisecond)
 	select {
 	case tChan <- message.NewTransaction(nil, nil):
 		t.Fatal("Accepted transaction during retry loop")

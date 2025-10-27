@@ -23,7 +23,6 @@ func init() {
 	// ./internal/bloblang/query/parsed_test.go
 
 	tsRoundSpec := bloblang.NewPluginSpec().
-		Beta().
 		Static().
 		Category(query.MethodCategoryTime).
 		Description(`Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The `+"[`ts_parse`](#ts_parse)"+` method can be used in order to parse different timestamp formats.`).
@@ -52,7 +51,6 @@ func init() {
 	}
 
 	tsTZSpec := bloblang.NewPluginSpec().
-		Beta().
 		Static().
 		Category(query.MethodCategoryTime).
 		Description(`Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The `+"[`ts_parse`](#ts_parse)"+` method can be used in order to parse different timestamp formats.`).
@@ -85,14 +83,12 @@ func init() {
 
 	tsAddISOSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Parse parameter string as ISO 8601 period and add it to value with high precision for units larger than an hour.").
 		Param(bloblang.NewStringParam("duration").Description(`Duration in ISO 8601 format`))
 
 	tsSubISOSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Parse parameter string as ISO 8601 period and subtract it from value with high precision for units larger than an hour.").
 		Param(bloblang.NewStringParam("duration").Description(`Duration in ISO 8601 format`))
@@ -166,7 +162,6 @@ func init() {
 
 	parseDurISOSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description(`Attempts to parse a string using ISO-8601 rules as a duration and returns an integer of nanoseconds. A duration string is represented by the format "P[n]Y[n]M[n]DT[n]H[n]M[n]S" or "P[n]W". In these representations, the "[n]" is replaced by the value for each of the date and time elements that follow the "[n]". For example, "P3Y6M4DT12H30M5S" represents a duration of "three years, six months, four days, twelve hours, thirty minutes, and five seconds". The last field of the format allows fractions with one decimal place, so "P3.5S" will return 3500000000ns. Any additional decimals will be truncated.`).
 		Example("Arbitrary ISO-8601 duration string to nanoseconds:",
@@ -211,7 +206,6 @@ func init() {
 
 	parseTSSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description(`Attempts to parse a string as a timestamp following a specified format and outputs a timestamp, which can then be fed into methods such as ` + "[`ts_format`](#ts_format)" + `.
 
@@ -258,7 +252,6 @@ The input format is defined by showing how the reference time, defined to be Mon
 
 	parseTSStrptimeSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Attempts to parse a string as a timestamp following a specified strptime-compatible format and outputs a timestamp, which can then be fed into [`ts_format`](#ts_format).").
 		Param(bloblang.NewStringParam("format").Description("The format of the target string."))
@@ -314,7 +307,6 @@ The input format is defined by showing how the reference time, defined to be Mon
 
 	formatTSSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description(`Attempts to format a timestamp value as a string according to a specified format, or RFC 3339 by default. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format.
 
@@ -394,7 +386,6 @@ The output format is defined by showing how the reference time, defined to be Mo
 
 	formatTSStrftimeSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Attempts to format a timestamp value as a string according to a specified strftime-compatible format. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format.").
 		Param(bloblang.NewStringParam("format").Description("The output format to use.")).
@@ -467,7 +458,6 @@ The output format is defined by showing how the reference time, defined to be Mo
 
 	formatTSUnixSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Attempts to format a timestamp value as a unix timestamp. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.")
 
@@ -498,7 +488,6 @@ The output format is defined by showing how the reference time, defined to be Mo
 
 	formatTSUnixMilliSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Attempts to format a timestamp value as a unix timestamp with millisecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.")
 
@@ -529,7 +518,6 @@ The output format is defined by showing how the reference time, defined to be Mo
 
 	formatTSUnixMicroSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Attempts to format a timestamp value as a unix timestamp with microsecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.")
 
@@ -560,7 +548,6 @@ The output format is defined by showing how the reference time, defined to be Mo
 
 	formatTSUnixNanoSpec := bloblang.NewPluginSpec().
 		Category(query.MethodCategoryTime).
-		Beta().
 		Static().
 		Description("Attempts to format a timestamp value as a unix timestamp with nanosecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.")
 
@@ -590,7 +577,6 @@ The output format is defined by showing how the reference time, defined to be Mo
 	}
 
 	tsSubSpec := bloblang.NewPluginSpec().
-		Beta().
 		Static().
 		Category(query.MethodCategoryTime).
 		Description(`Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The `+"[`ts_parse`](#ts_parse)"+` method can be used in order to parse different timestamp formats.`).

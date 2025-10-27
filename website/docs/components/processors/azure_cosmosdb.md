@@ -2,7 +2,7 @@
 title: azure_cosmosdb
 slug: azure_cosmosdb
 type: processor
-status: experimental
+status: stable
 categories: ["Azure"]
 ---
 
@@ -15,12 +15,9 @@ categories: ["Azure"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Creates or updates messages as JSON documents in [Azure CosmosDB](https://learn.microsoft.com/en-us/azure/cosmos-db/introduction).
 
-Introduced in version v4.25.0.
+Introduced in version 1.0.0.
 
 
 <Tabs defaultValue="common" values={[

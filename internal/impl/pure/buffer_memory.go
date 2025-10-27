@@ -48,6 +48,10 @@ It is possible to batch up messages sent from this buffer using a [batch policy]
 		Field(service.NewIntField("limit").
 			Description(`The maximum buffer size (in bytes) to allow before applying backpressure upstream.`).
 			Default(524288000)).
+		Field(service.NewBoolField("spillover").
+			Description("Whether to drop incoming messages that will exceed the buffer limit.").
+			Advanced().
+			Default(false)).
 		Field(service.NewInternalField(bs))
 }
 
@@ -64,6 +68,11 @@ func init() {
 
 func newMemoryBufferFromConfig(conf *service.ParsedConfig, res *service.Resources) (*memoryBuffer, error) {
 	limit, err := conf.FieldInt("limit")
+	if err != nil {
+		return nil, err
+	}
+
+	spilloverEnabled, err := conf.FieldBool("spillover")
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +97,7 @@ func newMemoryBufferFromConfig(conf *service.ParsedConfig, res *service.Resource
 		}
 	}
 
-	return newMemoryBuffer(limit, batcher), nil
+	return newMemoryBuffer(limit, spilloverEnabled, batcher), nil
 }
 
 //------------------------------------------------------------------------------
@@ -102,19 +111,21 @@ type memoryBuffer struct {
 	batches []measuredBatch
 	bytes   int
 
-	cap        int
-	cond       *sync.Cond
-	endOfInput bool
-	closed     bool
+	cap              int
+	spilloverEnabled bool
+	cond             *sync.Cond
+	endOfInput       bool
+	closed           bool
 
 	batcher *service.Batcher
 }
 
-func newMemoryBuffer(capacity int, batcher *service.Batcher) *memoryBuffer {
+func newMemoryBuffer(capacity int, spilloverEnabled bool, batcher *service.Batcher) *memoryBuffer {
 	return &memoryBuffer{
-		cap:     capacity,
-		cond:    sync.NewCond(&sync.Mutex{}),
-		batcher: batcher,
+		cap:              capacity,
+		spilloverEnabled: spilloverEnabled,
+		cond:             sync.NewCond(&sync.Mutex{}),
+		batcher:          batcher,
 	}
 }
 
@@ -250,6 +261,10 @@ func (m *memoryBuffer) WriteBatch(ctx context.Context, msgBatch service.MessageB
 	}
 
 	for (m.bytes + extraBytes) > m.cap {
+		if m.spilloverEnabled {
+			return component.ErrLimitReached
+		}
+
 		m.cond.Wait()
 		if m.closed {
 			return component.ErrTypeClosed

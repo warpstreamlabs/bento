@@ -2,7 +2,7 @@
 title: logger
 slug: logger
 type: metrics
-status: beta
+status: stable
 ---
 
 <!--
@@ -14,9 +14,6 @@ status: beta
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Prints aggregated metrics through the logger.
 
 ```yml

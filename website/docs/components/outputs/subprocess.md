@@ -2,7 +2,7 @@
 title: subprocess
 slug: subprocess
 type: output
-status: beta
+status: stable
 categories: ["Utility"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Utility"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Executes a command, runs it as a subprocess, and writes messages to it over stdin.
 
 ```yml

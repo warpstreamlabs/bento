@@ -2,7 +2,7 @@
 title: command
 slug: command
 type: processor
-status: experimental
+status: stable
 categories: ["Integration"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Integration"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Executes a command for each message.
 
 Introduced in version 1.0.0.

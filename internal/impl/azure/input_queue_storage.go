@@ -48,7 +48,7 @@ func qsiConfigFromParsed(pConf *service.ParsedConfig) (conf qsiConfig, err error
 
 func qsiSpec() *service.ConfigSpec {
 	return azureComponentSpec(false).
-		Beta().
+		Stable().
 		Version("1.0.0").
 		Summary(`Dequeue objects from an Azure Storage Queue.`).
 		Description(`

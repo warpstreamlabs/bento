@@ -444,20 +444,20 @@ func TestIntegrationSaramaOld(t *testing.T) {
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
 	kafkaResource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "bitnami/kafka",
+		Repository:   "apache/kafka-native",
 		Tag:          "latest",
 		ExposedPorts: []string{"9092"},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
 		},
 		Env: []string{
-			"KAFKA_CFG_NODE_ID=0",
-			"KAFKA_CFG_PROCESS_ROLES=controller,broker",
-			"KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
-			"KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER",
-			"KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
-			"KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
-			"KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
+			"KAFKA_NODE_ID=0",
+			"KAFKA_PROCESS_ROLES=controller,broker",
+			"KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
+			"KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
+			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
+			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
 		},
 	})
 	require.NoError(t, err)

@@ -19,7 +19,7 @@ const (
 
 func subprocOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Utility").
 		Summary("Executes a command, runs it as a subprocess, and writes messages to it over stdin.").
 		Description(`

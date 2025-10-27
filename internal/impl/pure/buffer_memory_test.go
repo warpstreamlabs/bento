@@ -476,3 +476,66 @@ batch_policy:
 	msgEqual(t, "hello", m[0])
 	require.NoError(t, ackFunc(ctx, nil))
 }
+
+func TestMemorySpilloverBasic(t *testing.T) {
+	n := 100
+
+	ctx := context.Background()
+	block := memBufFromConf(t, `
+limit: 100000
+spillover: true
+`)
+	defer block.Close(ctx)
+
+	for i := range n {
+		if err := block.WriteBatch(ctx, service.MessageBatch{
+			service.NewMessage([]byte("hello")),
+			service.NewMessage([]byte("world")),
+			service.NewMessage([]byte("12345")),
+			service.NewMessage(fmt.Appendf([]byte{}, "test%v", i)),
+		}, func(ctx context.Context, err error) error { return nil }); err != nil {
+			t.Error(err)
+		}
+	}
+
+	for i := range n {
+		m, ackFunc, err := block.ReadBatch(ctx)
+		require.NoError(t, err)
+		require.Len(t, m, 4)
+		msgEqual(t, fmt.Sprintf("test%v", i), m[3])
+		require.NoError(t, ackFunc(ctx, nil))
+	}
+}
+
+func TestMemorySpilloverOnLimit(t *testing.T) {
+	ctx := context.Background()
+	block := memBufFromConf(t, `
+limit: 5
+spillover: true
+`)
+	defer block.Close(ctx)
+
+	if err := block.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte("hello")),
+	}, func(ctx context.Context, err error) error { return nil }); err != nil {
+		t.Error(err)
+	}
+
+	err := block.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte("hello")),
+	}, func(ctx context.Context, err error) error { return nil })
+	require.Equal(t, component.ErrLimitReached, err)
+
+	block.EndOfInput()
+
+	m, ackFunc, err := block.ReadBatch(ctx)
+	require.NoError(t, err)
+	require.Len(t, m, 1)
+	msgEqual(t, "hello", m[0])
+	require.NoError(t, ackFunc(ctx, nil))
+
+	m, ackFunc, err = block.ReadBatch(ctx)
+	require.Equal(t, service.ErrEndOfBuffer, err)
+	require.Empty(t, m)
+	require.Nil(t, ackFunc)
+}

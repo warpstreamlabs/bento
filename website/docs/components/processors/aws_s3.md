@@ -2,7 +2,7 @@
 title: aws_s3
 slug: aws_s3
 type: processor
-status: experimental
+status: stable
 categories: ["Services","AWS"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services","AWS"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Performs an S3 GetObject operation using the `bucket` + `key` provided in the config and replaces the original message parts with the content retrieved from S3.
 
 Introduced in version 1.4.0.

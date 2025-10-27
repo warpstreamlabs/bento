@@ -2,7 +2,7 @@
 title: schema_registry_encode
 slug: schema_registry_encode
 type: processor
-status: beta
+status: stable
 categories: ["Parsing","Integration"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Parsing","Integration"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Automatically encodes and validates messages with schemas from a Confluent Schema Registry service.
 
 Introduced in version 1.0.0.

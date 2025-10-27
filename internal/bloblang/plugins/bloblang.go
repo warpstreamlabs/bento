@@ -27,7 +27,7 @@ func Register() error {
 				`{"body":{"foo":"hello world 2"},"mapping":"root.foo = this.foo.capitalize()"}`,
 				`{"body":{"foo":"Hello World 2"}}`,
 			),
-		).Beta().Param(query.ParamString("mapping", "The mapping to execute.")),
+		).Param(query.ParamString("mapping", "The mapping to execute.")),
 		func(target query.Function, args *query.ParsedParams) (query.Function, error) {
 			mappingStr, err := args.FieldString("mapping")
 			if err != nil {

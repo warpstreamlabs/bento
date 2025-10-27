@@ -18,7 +18,7 @@ import (
 
 func franzKafkaOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Services").
 		Version("1.0.0").
 		Summary("A Kafka output using the [Franz Kafka client library](https://github.com/twmb/franz-go).").

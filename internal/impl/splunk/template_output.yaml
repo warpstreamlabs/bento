@@ -1,6 +1,6 @@
 name: splunk_hec
 type: output
-status: experimental
+status: stable
 categories: [ Services ]
 summary: Writes messages to a Splunk HTTP Endpoint Collector.
 description: |

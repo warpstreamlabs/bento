@@ -20,7 +20,7 @@ const (
 
 func loggerMetricsSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Summary(`Prints aggregated metrics through the logger.`).
 		Description(`
 Prints each metric produced by Bento as a log event (level `+"`info`"+` by default) during shutdown, and optionally on an interval.

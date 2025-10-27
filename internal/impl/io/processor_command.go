@@ -18,6 +18,7 @@ const (
 
 func commandProcSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
+		Stable().
 		Version("1.0.0").
 		Categories("Integration").
 		Summary("Executes a command for each message.").

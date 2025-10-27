@@ -2,7 +2,7 @@
 title: mongodb
 slug: mongodb
 type: cache
-status: experimental
+status: stable
 ---
 
 <!--
@@ -14,9 +14,6 @@ status: experimental
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Use a MongoDB instance as a cache.
 
 Introduced in version 1.0.0.

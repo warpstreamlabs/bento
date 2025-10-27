@@ -2,7 +2,7 @@
 title: schema_registry_decode
 slug: schema_registry_decode
 type: processor
-status: beta
+status: stable
 categories: ["Parsing","Integration"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Parsing","Integration"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Automatically decodes and validates messages with schemas from a Confluent Schema Registry service.
 
 

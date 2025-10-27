@@ -29,7 +29,7 @@ import (
 func gcpBigQueryWriteAPIConfig() *service.ConfigSpec {
 
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("GCP", "Services").
 		Version("1.3.0").
 		Summary(`Sends messages as new rows to a Google Cloud BigQuery table using the BigQuery Storage Write API.`).
@@ -256,7 +256,7 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 
 	streamDescriptorPair, err := bq.getManagedStreamForTable(ctx, tableID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	stream := streamDescriptorPair.stream

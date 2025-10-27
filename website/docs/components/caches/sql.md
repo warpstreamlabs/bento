@@ -2,7 +2,7 @@
 title: sql
 slug: sql
 type: cache
-status: experimental
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Uses an SQL database table as a destination for storing cache key/value items.
 
 Introduced in version 1.0.0.

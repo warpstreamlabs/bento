@@ -29,7 +29,7 @@ var (
 
 func franzKafkaInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Services").
 		Version("1.0.0").
 		Summary(`A Kafka input using the [Franz Kafka client library](https://github.com/twmb/franz-go).`).

@@ -2,7 +2,7 @@
 title: mongodb
 slug: mongodb
 type: input
-status: experimental
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Executes a query and creates a message for each document received.
 
 Introduced in version 1.0.0.

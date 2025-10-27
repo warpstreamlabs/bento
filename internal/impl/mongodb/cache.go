@@ -16,6 +16,7 @@ const mongoDuplicateKeyErrCode = 11000
 
 func mongodbCacheConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
+		Stable().
 		Version("1.0.0").
 		Summary(`Use a MongoDB instance as a cache.`).
 		Fields(clientFields()...).

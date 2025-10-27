@@ -230,6 +230,22 @@ not this`,
 	5 and also this`,
 			remaining: " and also this",
 		},
+		"bracket slice with single param": {
+			input:     `this.value[4]`,
+			remaining: ``,
+		},
+		"bracket slice with two params": {
+			input:     `this.value[0:2]`,
+			remaining: ``,
+		},
+		"bracket slice chained": {
+			input:     `this.value[0:5][1:3]`,
+			remaining: ``,
+		},
+		"bracket slice with method": {
+			input:     `this.value[0:2].length()`,
+			remaining: ``,
+		},
 	}
 
 	for name, test := range tests {

@@ -24,7 +24,7 @@ const (
 
 func retryProcSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Composition").
 		Version("1.0.0").
 		Summary(`Attempts to execute a series of child processors until success.`).
