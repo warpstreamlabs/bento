@@ -297,7 +297,7 @@ func (a *azureServiceBusQueueReader) readLoop(ctx context.Context) {
 }
 
 func (a *azureServiceBusQueueReader) ackLoop(ctx context.Context) {
-	hardStopCtx, cancel := a.closeSignal.HardStopCtx(context.Background())
+	hardStopCtx, cancel := a.closeSignal.HardStopCtx(ctx)
 	defer cancel()
 
 	for {
@@ -339,7 +339,7 @@ func (a *azureServiceBusQueueReader) ackLoop(ctx context.Context) {
 				default:
 				}
 				if err := receiver.AbandonMessage(ackCtx, msg, nil); err != nil {
-					// Only log error if not due to shutdown
+					// Only a log error if not due to shut down
 					select {
 					case <-ctx.Done():
 						// Shutting down, don't log errors
@@ -418,7 +418,7 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 	}
 
 	ackFunc := func(actx context.Context, res error) error {
-		// Stop lock renewal when message is acknowledged
+		// Stop lock renewal when a message is acknowledged
 		if lockStopChan != nil {
 			a.stopLockRenewal(fmt.Sprintf("%x", msg.LockToken), lockStopChan)
 		}
@@ -497,7 +497,7 @@ func (a *azureServiceBusQueueReader) Close(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-a.closeSignal.HasStoppedChan():
-			return a.disconnect()
+			return a.disconnect(ctx)
 		}
 	}
 
@@ -506,10 +506,10 @@ func (a *azureServiceBusQueueReader) Close(ctx context.Context) error {
 		return ctx.Err()
 	case <-a.closeSignal.HasStoppedChan():
 	}
-	return a.disconnect()
+	return a.disconnect(ctx)
 }
 
-func (a *azureServiceBusQueueReader) disconnect() error {
+func (a *azureServiceBusQueueReader) disconnect(ctx context.Context) error {
 	// Stop all active lock renewals first (before acquiring)
 	// This prevents deadlock with lock renewal goroutines that acquire locksMutex then a.m.RLock()
 	a.stopAllLockRenewals()
@@ -518,7 +518,7 @@ func (a *azureServiceBusQueueReader) disconnect() error {
 	defer a.m.Unlock()
 
 	// Use hard stop context for closing connections to ensure they're canceled on hard stop
-	ctx, cancel := a.closeSignal.HardStopCtx(context.Background())
+	ctx, cancel := a.closeSignal.HardStopCtx(ctx)
 	defer cancel()
 
 	g, ctx := errgroup.WithContext(ctx)
