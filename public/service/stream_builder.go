@@ -75,6 +75,8 @@ type StreamBuilder struct {
 	lintingDisabled bool
 	envVarLookupFn  func(string) (string, bool)
 
+	// lintWarns caches warnings from AddInputYaml, SetYaml etc. until .Build()
+	// is called and a logger becomes available.
 	lintWarns []Lint
 }
 

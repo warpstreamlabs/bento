@@ -9,8 +9,9 @@ import (
 )
 
 // LintType is a discrete linting type.
-// NOTE: These should be kept in sync with ./internal/docs/field.go:586.
 type LintType int
+
+// NOTE: These should be kept in sync with ./internal/docs/field.go:726.
 
 const (
 	// LintCustom means a custom linting rule failed.
@@ -113,8 +114,9 @@ func convertDocsLintType(d docs.LintType) LintType {
 }
 
 // LintLevel describes the severity level of a linting error.
-// NOTE: These should be kept in sync with ./internal/docs/field.go:726.
 type LintLevel int
+
+// NOTE: These should be kept in sync with ./internal/docs/field.go:717.
 
 const (
 	LintLevelError   LintLevel = iota
