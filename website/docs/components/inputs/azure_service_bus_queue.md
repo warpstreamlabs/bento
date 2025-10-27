@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Consume messages from an Azure Service Bus Queue.
 
-Introduced in version 1.0.0.
+Introduced in version 1.13.0.
 
 
 <Tabs defaultValue="common" values={[
