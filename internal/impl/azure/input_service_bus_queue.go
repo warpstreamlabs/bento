@@ -208,14 +208,14 @@ func (a *azureServiceBusQueueReader) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to create Service Bus receiver: %w", err)
 	}
 
-	softStopCtx, cancel := a.closeSignal.SoftStopCtx(context.Background())
-	defer cancel()
+	softStopCtx, cancel := a.closeSignal.SoftStopCtx(ctx)
 
 	var wg sync.WaitGroup
 	wg.Go(func() { a.readLoop(softStopCtx) })
 	wg.Go(func() { a.ackLoop(softStopCtx) })
 	go func() {
 		wg.Wait()
+		cancel()
 		a.closeSignal.TriggerHasStopped()
 	}()
 
