@@ -419,33 +419,32 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 			return nil
 		}
 
-		if res != nil {
-			errStr := res.Error()
-			for _, p := range a.conf.nackRejectPatterns {
-				if p.MatchString(errStr) {
-					a.m.RLock()
-					receiver := a.receiver
-					a.m.RUnlock()
-					if receiver != nil {
-						if err := receiver.DeadLetterMessage(actx, msg, nil); err != nil {
-							// If dead lettering fails, abandon the message instead
-							select {
-							case a.nackMessagesChan <- msg:
-							case <-actx.Done():
-								return actx.Err()
-							case <-a.closeSignal.SoftStopChan():
-							}
-						}
-						return nil
-					}
-					select {
-					case a.nackMessagesChan <- msg:
-					case <-actx.Done():
-						return actx.Err()
-					case <-a.closeSignal.SoftStopChan():
-					}
-					return nil
-				}
+		if res == nil {
+			select {
+			case a.ackMessagesChan <- msg:
+			case <-actx.Done():
+				return actx.Err()
+			case <-a.closeSignal.SoftStopChan():
+			}
+			return nil
+		}
+
+		errStr := res.Error()
+		for _, p := range a.conf.nackRejectPatterns {
+			if !p.MatchString(errStr) {
+				continue
+			}
+
+			a.m.RLock()
+			receiver := a.receiver
+			a.m.RUnlock()
+			if receiver == nil {
+				return nil
+			}
+
+			if err := receiver.DeadLetterMessage(actx, msg, nil); err != nil {
+				// If dead lettering fails, abandon the message instead
+				return actx.Err()
 			}
 			select {
 			case a.nackMessagesChan <- msg:
@@ -455,6 +454,9 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 			}
 			return nil
 		}
+
+		return nil
+	}
 
 		select {
 		case a.ackMessagesChan <- msg:
