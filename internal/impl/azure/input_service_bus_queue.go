@@ -80,7 +80,7 @@ func sbqSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
 		Categories("Services", "Azure").
-		Version("1.0.0").
+		Version("1.13.0").
 		Summary(`Consume messages from an Azure Service Bus Queue.`).
 		Description(`
 Consume messages from an Azure Service Bus Queue using AMQP 1.0 protocol.
