@@ -207,7 +207,7 @@ func TestServiceBusQueueClose(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test disconnect when nothing is connected
-	err = reader.disconnect()
+	err = reader.disconnect(context.Background())
 	require.NoError(t, err)
 }
 
