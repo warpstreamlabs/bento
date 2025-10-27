@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/Jeffail/shutdown"
 
@@ -207,7 +208,9 @@ func (a *azureServiceBusQueueReader) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to create Service Bus receiver: %w", err)
 	}
 
-    softStopCtx, cancel := a.closeSignal.SoftStopCtx(context.Background())
+	softStopCtx, cancel := a.closeSignal.SoftStopCtx(context.Background())
+	defer cancel()
+
 	var wg sync.WaitGroup
 	wg.Go(func() { a.readLoop(softStopCtx) })
 	wg.Go(func() { a.ackLoop(softStopCtx) })
@@ -219,20 +222,17 @@ func (a *azureServiceBusQueueReader) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (a *azureServiceBusQueueReader) readLoop(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	closeAtLeisureCtx, done := a.closeSignal.SoftStopCtx(context.Background())
-	defer done()
-
+func (a *azureServiceBusQueueReader) readLoop(ctx context.Context) {
 	exponentialBackOff := backoff.NewExponentialBackOff()
 	exponentialBackOff.InitialInterval = 10 * time.Millisecond
 	exponentialBackOff.MaxInterval = time.Minute
 	exponentialBackOff.MaxElapsedTime = 0
 
+	backoffWithContext := backoff.WithContext(exponentialBackOff, ctx)
+
 	for {
 		select {
-		case <-a.closeSignal.SoftStopChan():
+		case <-ctx.Done():
 			return
 		default:
 			a.m.RLock()
@@ -240,9 +240,13 @@ func (a *azureServiceBusQueueReader) readLoop(wg *sync.WaitGroup) {
 			a.m.RUnlock()
 
 			if receiver == nil {
+				backoffDuration := backoffWithContext.NextBackOff()
+				if backoffDuration == backoff.Stop {
+					return // Context was canceled
+				}
 				select {
-				case <-time.After(exponentialBackOff.NextBackOff()):
-				case <-a.closeSignal.SoftStopChan():
+				case <-time.After(backoffDuration):
+				case <-ctx.Done():
 					return
 				}
 				continue
@@ -253,12 +257,16 @@ func (a *azureServiceBusQueueReader) readLoop(wg *sync.WaitGroup) {
 				maxMessages = 10
 			}
 
-			messages, err := receiver.ReceiveMessages(closeAtLeisureCtx, int(maxMessages), nil)
+			messages, err := receiver.ReceiveMessages(ctx, int(maxMessages), nil)
 			if err != nil {
 				a.log.Errorf("Failed to receive messages from Service Bus: %v", err)
+				backoffDuration := backoffWithContext.NextBackOff()
+				if backoffDuration == backoff.Stop {
+					return // Context was canceled
+				}
 				select {
-				case <-time.After(exponentialBackOff.NextBackOff()):
-				case <-a.closeSignal.SoftStopChan():
+				case <-time.After(backoffDuration):
+				case <-ctx.Done():
 					return
 				}
 				continue
@@ -269,14 +277,18 @@ func (a *azureServiceBusQueueReader) readLoop(wg *sync.WaitGroup) {
 				for _, msg := range messages {
 					select {
 					case a.messagesChan <- msg:
-					case <-a.closeSignal.SoftStopChan():
+					case <-ctx.Done():
 						return
 					}
 				}
 			} else {
+				backoffDuration := backoffWithContext.NextBackOff()
+				if backoffDuration == backoff.Stop {
+					return // Context was canceled
+				}
 				select {
-				case <-time.After(exponentialBackOff.NextBackOff()):
-				case <-a.closeSignal.SoftStopChan():
+				case <-time.After(backoffDuration):
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -284,13 +296,9 @@ func (a *azureServiceBusQueueReader) readLoop(wg *sync.WaitGroup) {
 	}
 }
 
-func (a *azureServiceBusQueueReader) ackLoop(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	closeAtLeisureCtx, doneLeisure := a.closeSignal.SoftStopCtx(context.Background())
-	defer doneLeisure()
-	closeNowCtx, doneNow := a.closeSignal.HardStopCtx(context.Background())
-	defer doneNow()
+func (a *azureServiceBusQueueReader) ackLoop(ctx context.Context) {
+	hardStopCtx, cancel := a.closeSignal.HardStopCtx(context.Background())
+	defer cancel()
 
 	for {
 		select {
@@ -300,17 +308,17 @@ func (a *azureServiceBusQueueReader) ackLoop(wg *sync.WaitGroup) {
 			a.m.RUnlock()
 
 			if receiver != nil {
-				// Use the leisure context first, fall back to hard stop context if cancelled
-				ctx := closeAtLeisureCtx
+				// Use the soft stop context first, fall back to hard stop context if cancelled
+				ackCtx := ctx
 				select {
-				case <-closeAtLeisureCtx.Done():
-					ctx = closeNowCtx
+				case <-ctx.Done():
+					ackCtx = hardStopCtx
 				default:
 				}
-				if err := receiver.CompleteMessage(ctx, msg, nil); err != nil {
-					// Only log error if not due to shutdown
+				if err := receiver.CompleteMessage(ackCtx, msg, nil); err != nil {
+					// Only a log error if not due to shut down
 					select {
-					case <-a.closeSignal.SoftStopChan():
+					case <-ctx.Done():
 						// Shutting down, don't log errors
 					default:
 						a.log.Errorf("Failed to complete message: %v", err)
@@ -323,24 +331,24 @@ func (a *azureServiceBusQueueReader) ackLoop(wg *sync.WaitGroup) {
 			a.m.RUnlock()
 
 			if receiver != nil {
-				// Use the leisure context first, fall back to hard stop context if cancelled
-				ctx := closeAtLeisureCtx
+				// Use the soft stop context first, fall back to hard stop context if cancelled
+				ackCtx := ctx
 				select {
-				case <-closeAtLeisureCtx.Done():
-					ctx = closeNowCtx
+				case <-ctx.Done():
+					ackCtx = hardStopCtx
 				default:
 				}
-				if err := receiver.AbandonMessage(ctx, msg, nil); err != nil {
+				if err := receiver.AbandonMessage(ackCtx, msg, nil); err != nil {
 					// Only log error if not due to shutdown
 					select {
-					case <-a.closeSignal.SoftStopChan():
+					case <-ctx.Done():
 						// Shutting down, don't log errors
 					default:
 						a.log.Errorf("Failed to abandon message: %v", err)
 					}
 				}
 			}
-		case <-a.closeSignal.SoftStopChan():
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -502,24 +510,48 @@ func (a *azureServiceBusQueueReader) Close(ctx context.Context) error {
 }
 
 func (a *azureServiceBusQueueReader) disconnect() error {
+	// Stop all active lock renewals first (before acquiring)
+	// This prevents deadlock with lock renewal goroutines that acquire locksMutex then a.m.RLock()
+	a.stopAllLockRenewals()
+
 	a.m.Lock()
 	defer a.m.Unlock()
 
-	// Stop all active lock renewals
-	a.stopAllLockRenewals()
+	// Use hard stop context for closing connections to ensure they're canceled on hard stop
+	ctx, cancel := a.closeSignal.HardStopCtx(context.Background())
+	defer cancel()
+
+	g, ctx := errgroup.WithContext(ctx)
 
 	if a.receiver != nil {
-		if err := a.receiver.Close(context.Background()); err != nil {
-			a.log.Errorf("Failed to close Service Bus receiver: %v", err)
-		}
+		receiver := a.receiver
 		a.receiver = nil
+		g.Go(func() error {
+			if err := receiver.Close(ctx); err != nil {
+				a.log.Errorf("Failed to close Service Bus receiver: %v", err)
+				return err
+			}
+			return nil
+		})
 	}
+
 	if a.client != nil {
-		if err := a.client.Close(context.Background()); err != nil {
-			a.log.Errorf("Failed to close Service Bus client: %v", err)
-		}
+		client := a.client
 		a.client = nil
+		g.Go(func() error {
+			if err := client.Close(ctx); err != nil {
+				a.log.Errorf("Failed to close Service Bus client: %v", err)
+				return err
+			}
+			return nil
+		})
 	}
+
+	// Wait for all close operations to complete or context to be canceled
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
