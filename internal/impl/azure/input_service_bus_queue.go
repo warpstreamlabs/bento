@@ -419,6 +419,13 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 			return nil
 		}
 
+		// Check if we're shutting down
+		select {
+		case <-a.closeSignal.SoftStopChan():
+			return nil
+		default:
+		}
+
 		if res == nil {
 			select {
 			case a.ackMessagesChan <- msg:
@@ -443,23 +450,19 @@ func (a *azureServiceBusQueueReader) Read(ctx context.Context) (*service.Message
 			}
 
 			if err := receiver.DeadLetterMessage(actx, msg, nil); err != nil {
-				// If dead lettering fails, abandon the message instead
-				return actx.Err()
+				// If dead lettering fails, abandon the message to requeue it
+				if abandonErr := receiver.AbandonMessage(actx, msg, nil); abandonErr != nil {
+					a.log.Errorf("Failed to abandon message after dead letter failure: %v", abandonErr)
+				}
+				return nil
 			}
-			select {
-			case a.nackMessagesChan <- msg:
-			case <-actx.Done():
-				return actx.Err()
-			case <-a.closeSignal.SoftStopChan():
-			}
+			// Dead lettering succeeded - the message is now in DLQ, no further action needed
 			return nil
 		}
 
-		return nil
-	}
-
+		// No pattern matched - abandon the message to requeue it
 		select {
-		case a.ackMessagesChan <- msg:
+		case a.nackMessagesChan <- msg:
 		case <-actx.Done():
 			return actx.Err()
 		case <-a.closeSignal.SoftStopChan():
@@ -535,6 +538,14 @@ func (a *azureServiceBusQueueReader) startLockRenewal(msg *azservicebus.Received
 			a.locksMutex.Unlock()
 		}()
 
+		a.m.RLock()
+		receiver := a.receiver
+		a.m.RUnlock()
+
+		if receiver == nil {
+			return
+		}
+
 		// Renew the lock every 30 seconds (assuming default lock duration is 60s)
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
@@ -546,22 +557,15 @@ func (a *azureServiceBusQueueReader) startLockRenewal(msg *azservicebus.Received
 			case <-a.closeSignal.SoftStopChan():
 				return
 			case <-ticker.C:
-				a.m.RLock()
-				receiver := a.receiver
-				a.m.RUnlock()
-
-				if receiver == nil {
-					return
-				}
-
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				if err := receiver.RenewMessageLock(ctx, msg, nil); err != nil {
-					a.log.Debugf("Failed to renew lock for message %s: %v", lockToken, err)
-					cancel()
-					return
-				}
-				cancel()
-				a.log.Tracef("Successfully renewed lock for message %s", lockToken)
+				func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					if err := receiver.RenewMessageLock(ctx, msg, nil); err != nil {
+						a.log.Debugf("Failed to renew lock for message %s: %v", lockToken, err)
+						return
+					}
+					a.log.Tracef("Successfully renewed lock for message %s", lockToken)
+				}()
 			}
 		}
 	}()
