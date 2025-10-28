@@ -9,8 +9,9 @@ import (
 )
 
 // LintType is a discrete linting type.
-// NOTE: These should be kept in sync with ./internal/docs/field.go:586.
 type LintType int
+
+// NOTE: These should be kept in sync with ./internal/docs/field.go:726.
 
 const (
 	// LintCustom means a custom linting rule failed.
@@ -112,10 +113,30 @@ func convertDocsLintType(d docs.LintType) LintType {
 	return LintCustom
 }
 
+// LintLevel describes the severity level of a linting error.
+type LintLevel int
+
+// NOTE: These should be kept in sync with ./internal/docs/field.go:717.
+
+const (
+	LintLevelError   LintLevel = iota
+	LintLevelWarning LintLevel = iota
+)
+
+func convertDocsLintLevel(d docs.LintLevel) LintLevel {
+	switch d {
+	case docs.LintWarning:
+		return LintLevelWarning
+	default:
+		return LintLevelError
+	}
+}
+
 // Lint represents a configuration file linting error.
 type Lint struct {
 	Line   int
 	Column int
+	Level  LintLevel
 	Type   LintType
 	What   string
 }
@@ -133,6 +154,9 @@ type LintError []Lint
 func (e LintError) Error() string {
 	var lintsCollapsed bytes.Buffer
 	for i, l := range e {
+		if l.Level != LintLevelError {
+			continue
+		}
 		if i > 0 {
 			lintsCollapsed.WriteString("\n")
 		}
@@ -145,20 +169,29 @@ func convertDocsLint(l docs.Lint) Lint {
 	return Lint{
 		Line:   l.Line,
 		Column: l.Column,
+		Level:  convertDocsLintLevel(l.Level),
 		Type:   convertDocsLintType(l.Type),
 		What:   l.What,
 	}
 }
 
-func lintsToErr(lints []docs.Lint) error {
+func lintsToErr(lints []docs.Lint) (lintWarns []Lint, err error) {
 	if len(lints) == 0 {
-		return nil
+		return nil, nil
 	}
 	var e LintError
 	for _, l := range lints {
-		e = append(e, convertDocsLint(l))
+		switch l.Level {
+		case docs.LintError:
+			e = append(e, convertDocsLint(l))
+		case docs.LintWarning:
+			lintWarns = append(lintWarns, convertDocsLint(l))
+		}
 	}
-	return e
+	if len(e) == 0 {
+		return lintWarns, nil
+	}
+	return lintWarns, e
 }
 
 func convertDocsLintErr(err error) error {

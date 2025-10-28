@@ -74,6 +74,10 @@ type StreamBuilder struct {
 	env             *Environment
 	lintingDisabled bool
 	envVarLookupFn  func(string) (string, bool)
+
+	// lintWarns caches warnings from AddInputYaml, SetYaml etc. until .Build()
+	// is called and a logger becomes available.
+	lintWarns []Lint
 }
 
 // NewStreamBuilder creates a new StreamBuilder.
@@ -102,6 +106,7 @@ func (s *StreamBuilder) getLintContext() docs.LintContext {
 	conf := docs.NewLintConfig(s.env.internal)
 	conf.DocsProvider = s.env.internal
 	conf.BloblangEnv = s.env.bloblangEnv.Deactivated()
+	conf.WarnDeprecated = true
 	return docs.NewLintContext(conf)
 }
 
@@ -922,6 +927,10 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 		}
 	}
 
+	for _, lw := range s.lintWarns {
+		logger.Warn(lw.Error())
+	}
+
 	engVer := s.engineVersion
 	if engVer == "" {
 		engVer = cli.Version
@@ -1102,16 +1111,20 @@ func (s *StreamBuilder) getYAMLNode(b []byte) (*yaml.Node, error) {
 	return docs.UnmarshalYAML(b)
 }
 
-func (s *StreamBuilder) lintYAMLSpec(spec docs.FieldSpecs, node *yaml.Node) error {
+func (s *StreamBuilder) lintYAMLSpec(spec docs.FieldSpecs, node *yaml.Node) (err error) {
 	if s.lintingDisabled {
 		return nil
 	}
-	return lintsToErr(spec.LintYAML(s.getLintContext(), node))
+	lintWarns, err := lintsToErr(spec.LintYAML(s.getLintContext(), node))
+	s.lintWarns = append(s.lintWarns, lintWarns...)
+	return err
 }
 
-func (s *StreamBuilder) lintYAMLComponent(node *yaml.Node, ctype docs.Type) error {
+func (s *StreamBuilder) lintYAMLComponent(node *yaml.Node, ctype docs.Type) (err error) {
 	if s.lintingDisabled {
 		return nil
 	}
-	return lintsToErr(docs.LintYAML(s.getLintContext(), ctype, node))
+	lintWarns, err := lintsToErr(docs.LintYAML(s.getLintContext(), ctype, node))
+	s.lintWarns = append(s.lintWarns, lintWarns...)
+	return err
 }
