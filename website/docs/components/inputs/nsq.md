@@ -32,6 +32,7 @@ input:
   nsq:
     nsqd_tcp_addresses: [] # No default (required)
     lookupd_http_addresses: [] # No default (required)
+    auth_secret: "" # No default (optional)
     topic: "" # No default (required)
     channel: "" # No default (required)
     user_agent: "" # No default (optional)
@@ -56,6 +57,7 @@ input:
       root_cas: ""
       root_cas_file: ""
       client_certs: []
+    auth_secret: "" # No default (optional)
     topic: "" # No default (required)
     channel: "" # No default (required)
     user_agent: "" # No default (optional)
@@ -235,6 +237,16 @@ password: foo
 
 password: ${KEY_PASSWORD}
 ```
+
+### `auth_secret`
+
+An optional secret for NSQ authentication (requires nsqd 0.2.29+).
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
 
 ### `topic`
 

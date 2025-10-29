@@ -33,6 +33,7 @@ output:
     nsqd_tcp_address: "" # No default (required)
     topic: "" # No default (required)
     user_agent: "" # No default (optional)
+    auth_secret: "" # No default (optional)
     max_in_flight: 64
 ```
 
@@ -54,6 +55,7 @@ output:
       root_cas: ""
       root_cas_file: ""
       client_certs: []
+    auth_secret: "" # No default (optional)
     max_in_flight: 64
 ```
 
@@ -229,6 +231,16 @@ password: foo
 
 password: ${KEY_PASSWORD}
 ```
+
+### `auth_secret`
+
+An optional secret for NSQ authentication (requires nsqd 0.2.29+).
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
 
 ### `max_in_flight`
 
