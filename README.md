@@ -86,6 +86,17 @@ docker run --rm -p 4195:4195 ghcr.io/warpstreamlabs/bento \
   -s "output.kafka.topic=bento_topic"
 ```
 
+Or, deploy to Cloudflare Containers for global edge deployment:
+
+```shell
+# Quick start
+wrangler deploy
+
+# See CLOUDFLARE_QUICKSTART.md for complete guide
+```
+
+Deploy Bento globally on Cloudflare's edge network with automatic scaling and Cloudflare R2 integration. See [Cloudflare Deployment Guide](CLOUDFLARE_DEPLOYMENT.md) for details.
+
 ## Monitoring
 
 ### Health Checks

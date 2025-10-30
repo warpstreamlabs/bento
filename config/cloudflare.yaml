@@ -1,0 +1,83 @@
+# Bento configuration for Cloudflare Containers
+# Example: Reading from Cloudflare R2 and processing data
+
+http:
+  enabled: true
+  address: 0.0.0.0:4195
+  # Health check endpoints
+  # /ping - liveness probe (always returns 200)
+  # /ready - readiness probe (returns 200 when input/output connected)
+
+metrics:
+  prometheus:
+    use_histogram_timing: false
+
+logger:
+  format: json
+  level: INFO
+
+input:
+  # Read from Cloudflare R2 (S3-compatible)
+  aws_s3:
+    bucket: ${R2_BUCKET_NAME}
+    prefix: input/
+
+    # Cloudflare R2 endpoint
+    # Format: https://<account-id>.r2.cloudflarestorage.com
+    endpoint: ${R2_ENDPOINT}
+
+    # R2 credentials
+    credentials:
+      id: ${R2_ACCESS_KEY_ID}
+      secret: ${R2_SECRET_ACCESS_KEY}
+
+    # Force path style for R2 compatibility
+    force_path_style_urls: true
+
+    # Delete files after processing (optional)
+    delete_objects: false
+
+    # Scan interval
+    scanner:
+      to_the_end: {}
+
+pipeline:
+  processors:
+    # Example processing: Parse JSON and transform
+    - mapping: |
+        root = this
+        root.processed_at = now()
+        root.processor = "bento-cloudflare"
+
+output:
+  # Write to Cloudflare R2
+  aws_s3:
+    bucket: ${R2_OUTPUT_BUCKET_NAME}
+    path: "output/${!timestamp_unix}.json"
+
+    # Cloudflare R2 endpoint
+    endpoint: ${R2_ENDPOINT}
+
+    # R2 credentials
+    credentials:
+      id: ${R2_ACCESS_KEY_ID}
+      secret: ${R2_SECRET_ACCESS_KEY}
+
+    # Force path style for R2 compatibility
+    force_path_style_urls: true
+
+    # Content type
+    content_type: application/json
+
+    # Batching configuration
+    batching:
+      count: 100
+      period: 10s
+
+# Alternative: Use HTTP input for stream processing
+# input:
+#   http_server:
+#     address: 0.0.0.0:4195
+#     path: /process
+#     allowed_verbs:
+#       - POST

@@ -1,0 +1,36 @@
+name = "bento-stream-processor"
+main = "src/worker.js"
+compatibility_date = "2025-01-15"
+
+# Container configuration
+[[durable_objects.bindings]]
+name = "BENTO_CONTAINER"
+class_name = "BentoContainer"
+script_name = "bento-stream-processor"
+
+# Durable Object migrations for Containers
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BentoContainer"]
+
+# Container instance configuration
+[containers.BENTO_CONTAINER]
+image = "./resources/docker/Dockerfile"
+instance_type = "standard-1"  # Options: lite, basic, standard-1, standard-2, standard-3, standard-4
+max_instances = 10
+
+# Environment variables for Bento
+[vars]
+BENTO_CONFIG_PATH = "/bento.yaml"
+
+# R2 bucket binding (optional - for Cloudflare R2 storage)
+[[r2_buckets]]
+binding = "BENTO_STORAGE"
+bucket_name = "bento-data"
+preview_bucket_name = "bento-data-preview"
+
+# KV namespace binding (optional - for Cloudflare KV)
+[[kv_namespaces]]
+binding = "BENTO_KV"
+id = "your_kv_namespace_id"
+preview_id = "your_preview_kv_namespace_id"
