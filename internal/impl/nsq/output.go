@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	noFieldNSQDAddr  = "nsqd_tcp_address"
-	noFieldTLS       = "tls"
+	noFieldNSQDAddr   = "nsqd_tcp_address"
+	noFieldTLS        = "tls"
 	noFieldAuthSecret = "auth_secret"
-	noFieldTopic     = "topic"
-	noFieldUserAgent = "user_agent"
+	noFieldTopic      = "topic"
+	noFieldUserAgent  = "user_agent"
 )
 
 func outputConfigSpec() *service.ConfigSpec {
