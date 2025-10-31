@@ -16,6 +16,7 @@ import (
 	"github.com/gofrs/uuid"
 
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/internal/impl/aws/helper"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -629,6 +630,20 @@ func isShardFinished(s types.Shard) bool {
 	return *s.SequenceNumberRange.EndingSequenceNumber != "null"
 }
 
+func collectShards(ctx context.Context, arn string, svc *kinesis.Client) ([]types.Shard, error) {
+	listShardFn := func(token *string) ([]types.Shard, *string, error) {
+		shardsRes, err := svc.ListShards(ctx, &kinesis.ListShardsInput{
+			StreamARN: aws.String(arn),
+			NextToken: token,
+		})
+		return shardsRes.Shards, shardsRes.NextToken, err
+	}
+
+	shardIter := helper.TokenIterator(listShardFn)
+
+	return helper.Collect(shardIter)
+}
+
 func (k *kinesisReader) runBalancedShards() {
 	var wg sync.WaitGroup
 	defer func() {
@@ -641,10 +656,7 @@ func (k *kinesisReader) runBalancedShards() {
 
 	for {
 		for _, info := range k.streams {
-			shardsRes, err := k.svc.ListShards(k.ctx, &kinesis.ListShardsInput{
-				StreamARN: &info.arn,
-			})
-
+			allShards, err := collectShards(k.ctx, info.arn, k.svc)
 			var clientClaims map[string][]awsKinesisClientClaim
 			if err == nil {
 				clientClaims, err = k.checkpointer.AllClaims(k.ctx, info.id)
@@ -657,9 +669,9 @@ func (k *kinesisReader) runBalancedShards() {
 				continue
 			}
 
-			totalShards := len(shardsRes.Shards)
+			totalShards := len(allShards)
 			unclaimedShards := make(map[string]string, totalShards)
-			for _, s := range shardsRes.Shards {
+			for _, s := range allShards {
 				if !isShardFinished(s) {
 					unclaimedShards[*s.ShardId] = ""
 				}
