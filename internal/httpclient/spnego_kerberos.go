@@ -120,7 +120,7 @@ func (t *kerberosTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 	ccname := os.Getenv("KRB5CCNAME")
 	if strings.HasPrefix(ccname, "FILE:") {
-		ccpath = strings.SplitN(ccname, ":", 2)[1]
+		ccpath = ccname[len("FILE:"):]
 	}
 
 	ccache, err := credentials.LoadCCache(ccpath)
