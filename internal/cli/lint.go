@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"slices"
 	"sync"
 
 	"github.com/fatih/color"
@@ -135,6 +136,27 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 	return
 }
 
+func lintFlags() []cli.Flag {
+	flags := []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "deprecated",
+			Value: false,
+			Usage: "Print linting errors for the presence of deprecated fields.",
+		},
+		&cli.BoolFlag{
+			Name:  "labels",
+			Value: false,
+			Usage: "Print linting errors when components do not have labels.",
+		},
+		&cli.BoolFlag{
+			Name:  "skip-env-var-check",
+			Value: false,
+			Usage: "Do not produce lint errors when environment interpolations exist without defaults within configs but aren't defined.",
+		},
+	}
+	return append(flags, disableWarningFlags()...)
+}
+
 func lintCliCommand(cliOpts *common.CLIOpts) *cli.Command {
 	return &cli.Command{
 		Name:  "lint",
@@ -149,23 +171,7 @@ Exits with a status code 1 if any linting errors are detected:
 
 If a path ends with '...' then {{.ProductName}} will walk the target and lint any
 files with the .yaml or .yml extension.`)[1:],
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "deprecated",
-				Value: false,
-				Usage: "Print linting errors for the presence of deprecated fields.",
-			},
-			&cli.BoolFlag{
-				Name:  "labels",
-				Value: false,
-				Usage: "Print linting errors when components do not have labels.",
-			},
-			&cli.BoolFlag{
-				Name:  "skip-env-var-check",
-				Value: false,
-				Usage: "Do not produce lint errors when environment interpolations exist without defaults within configs but aren't defined.",
-			},
-		},
+		Flags: lintFlags(),
 		Action: func(c *cli.Context) error {
 			if code := LintAction(c, cliOpts, os.Stderr); code != 0 {
 				os.Exit(code)
@@ -192,6 +198,8 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 	lConf.RejectDeprecated = c.Bool("deprecated")
 	lConf.WarnDeprecated = !lConf.RejectDeprecated
 	lConf.RequireLabels = c.Bool("labels")
+	lConf.AllowBeta = c.Bool("allow-beta")
+	lConf.AllowExperimental = c.Bool("allow-experimental")
 	skipEnvVarCheck := c.Bool("skip-env-var-check")
 
 	spec := opts.MainConfigSpecCtor()
@@ -227,11 +235,13 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 	}
 	wg.Wait()
 
-	// filter out deprecated warnings and other lints
+	// filter out deprecated, experimental & beta warnings
 	var lintErrors []pathLint
 
+	filterLintCodes := []docs.LintType{docs.LintDeprecated, docs.LintExperimental, docs.LintBeta}
+
 	for _, lint := range pathLints {
-		if lint.lint.Level == docs.LintWarning && lint.lint.Type == docs.LintDeprecated {
+		if lint.lint.Level == docs.LintWarning && slices.Contains(filterLintCodes, lint.lint.Type) {
 			fmt.Print(yellow(fmt.Sprintf("%v%v\n", lint.source, lint.lint.Error())))
 		} else {
 			lintErrors = append(lintErrors, lint)
