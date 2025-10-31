@@ -18,6 +18,7 @@ const (
 	niFieldNSQDAddrs    = "nsqd_tcp_addresses"
 	niFieldLookupDAddrs = "lookupd_http_addresses"
 	niFieldTLS          = "tls"
+	niFieldAuthSecret   = "auth_secret"
 	niFieldMaxInFlight  = "max_in_flight"
 	niFieldTopic        = "topic"
 	niFieldChannel      = "channel"
@@ -50,6 +51,10 @@ You can access these metadata fields using [function interpolation](/docs/config
 			service.NewStringListField(niFieldLookupDAddrs).
 				Description("A list of nsqlookupd addresses to connect to."),
 			service.NewTLSToggledField(niFieldTLS),
+			service.NewStringField(niFieldAuthSecret).
+				Description("An optional secret for NSQ authentication (requires nsqd 0.2.29+).").
+				Secret().
+				Optional(),
 			service.NewStringField(niFieldTopic).
 				Description("The topic to consume from."),
 			service.NewStringField(niFieldChannel).
@@ -82,6 +87,7 @@ type nsqReader struct {
 	unAckMsgs []*nsq.Message
 
 	tlsConf         *tls.Config
+	authSecret      string
 	addresses       []string
 	lookupAddresses []string
 	topic           string
@@ -130,6 +136,8 @@ func newNSQReaderFromParsed(conf *service.ParsedConfig, mgr *service.Resources) 
 		return
 	}
 
+	n.authSecret, _ = conf.FieldString(niFieldAuthSecret)
+
 	if n.topic, err = conf.FieldString(niFieldTopic); err != nil {
 		return
 	}
@@ -174,6 +182,9 @@ func (n *nsqReader) Connect(ctx context.Context) (err error) {
 	if n.tlsConf != nil {
 		cfg.TlsV1 = true
 		cfg.TlsConfig = n.tlsConf
+	}
+	if n.authSecret != "" {
+		cfg.AuthSecret = n.authSecret
 	}
 
 	var consumer *nsq.Consumer

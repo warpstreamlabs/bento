@@ -3,6 +3,10 @@
 # extremely awkward to write real integration tests. Instead, we have this
 # docker-compose set up where if you run it and then execute unit tests for this
 # package it'll run them.
+#
+# This setup includes both non-authenticated and authenticated NSQ instances:
+# - nsqd (port 4150): Standard NSQ without authentication
+# - nsqd-auth (port 4152): NSQ with authentication enabled
 version: '3'
 services:
   nsqlookupd:
@@ -19,10 +23,39 @@ services:
     ports:
       - "4150:4150"
       - "4151"
+  # Go-based HTTP auth server for NSQ authentication testing
+  # Returns 200 OK for any auth request with the correct secret
+  nsq-auth:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM golang:1.21-alpine AS builder
+        WORKDIR /build
+        COPY testdata/auth_server.go .
+        RUN go build -o auth_server auth_server.go
+
+        FROM alpine:latest
+        RUN apk --no-cache add ca-certificates
+        WORKDIR /app
+        COPY --from=builder /build/auth_server .
+        EXPOSE 8080
+        CMD ["./auth_server"]
+    ports:
+      - "8080:8080"
+  # NSQ daemon with authentication enabled
+  nsqd-auth:
+    image: nsqio/nsq
+    command: /nsqd --lookupd-tcp-address=nsqlookupd:4160 --auth-http-address=nsq-auth:8080
+    depends_on:
+      - nsqlookupd
+      - nsq-auth
+    ports:
+      - "4152:4150"
+      - "4153:4151"
   nsqadmin:
     image: nsqio/nsq
     command: /nsqadmin --lookupd-http-address=nsqlookupd:4161
     depends_on:
-      - nsqlookupd  
+      - nsqlookupd
     ports:
       - "4171"
