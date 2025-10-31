@@ -111,16 +111,18 @@ func (t *kerberosTransport) RoundTrip(req *http.Request) (*http.Response, error)
 		return nil, err
 	}
 
-	u, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-
-	ccpath := "/tmp/krb5cc_" + u.Uid
+	var ccpath string
 
 	ccname := os.Getenv("KRB5CCNAME")
 	if strings.HasPrefix(ccname, "FILE:") {
 		ccpath = ccname[len("FILE:"):]
+	} else {
+		u, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+
+		ccpath = "/tmp/krb5cc_" + u.Uid
 	}
 
 	ccache, err := credentials.LoadCCache(ccpath)
