@@ -102,6 +102,7 @@ input:
     drop_on: []
     successful_on: []
     proxy_url: "" # No default (optional)
+    negotiate: false
     payload: "" # No default (optional)
     drop_empty_bodies: true
     stream:
@@ -723,6 +724,14 @@ An optional HTTP proxy URL.
 
 
 Type: `string`  
+
+### `negotiate`
+
+Use Negotiate (SPNEGO) authentication.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `payload`
 
