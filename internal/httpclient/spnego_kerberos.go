@@ -38,7 +38,7 @@ func kerberosConfig() (*config.Config, error) {
 		case "linux":
 			configPath = "/etc/krb5.conf"
 		case "darwin":
-			configPath = "opt/local/etc/krb5.conf"
+			configPath = "/opt/local/etc/krb5.conf"
 		default:
 			configPath = "/etc/krb5/krb5.conf"
 		}
@@ -53,7 +53,7 @@ func kerberosConfig() (*config.Config, error) {
 			case "linux":
 				configPath = "/etc/krb5.conf"
 			case "darwin":
-				configPath = "opt/local/etc/krb5.conf"
+				configPath = "/opt/local/etc/krb5.conf"
 			default:
 				configPath = "/etc/krb5/krb5.conf"
 			}
