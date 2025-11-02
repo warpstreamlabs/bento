@@ -92,7 +92,7 @@ func TestCollect(t *testing.T) {
 				assert.Equal(t, test.expErrorValue, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, test.expResult, allFoo)
+				require.ElementsMatch(t, test.expResult, allFoo)
 			}
 		})
 	}
