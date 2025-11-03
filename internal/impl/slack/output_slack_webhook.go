@@ -20,7 +20,8 @@ func ConfigSpec() *service.ConfigSpec {
 		The format of a message should be a JSON object should match the [Golang Slack WebhookMessage struct](https://github.com/slack-go/slack/blob/v0.17.3/webhooks.go#L12) type`).
 		Fields(
 			service.NewStringField("webhook").
-				Description("Slack webhook URL to post messages"),
+				Description("Slack webhook URL to post messages").
+				Example("https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"),
 		)
 }
 

@@ -25,7 +25,7 @@ Post messages to Slack via webhook.
 output:
   label: ""
   slack_webhook:
-    webhook: "" # No default (required)
+    webhook: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX # No default (required)
 ```
 
 		This output POSTs messages to a Slack channel via webhook.
@@ -39,5 +39,11 @@ Slack webhook URL to post messages
 
 
 Type: `string`  
+
+```yml
+# Examples
+
+webhook: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
 
 
