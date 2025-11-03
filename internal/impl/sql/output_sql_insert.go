@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Masterminds/squirrel"
 
@@ -111,6 +112,8 @@ type sqlInsertOutput struct {
 
 	logger  *service.Logger
 	shutSig *shutdown.Signaller
+
+	healthCheckStarted sync.Once
 }
 
 func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*sqlInsertOutput, error) {
@@ -216,15 +219,37 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 
 	s.connSettings.apply(ctx, s.db, s.logger)
 
-	go func() {
-		<-s.shutSig.HardStopChan()
+	s.healthCheckStarted.Do(func() {
+		go func() {
+			ticker := time.NewTicker(time.Second * 30)
+			defer ticker.Stop()
 
-		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
+			for {
+				select {
+				case <-s.shutSig.HardStopChan():
+					s.dbMut.Lock()
+					_ = s.db.Close()
+					s.dbMut.Unlock()
 
-		s.shutSig.TriggerHasStopped()
-	}()
+					s.shutSig.TriggerHasStopped()
+					return
+				case <-ticker.C:
+					pingCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+					if s.driver != "trino" {
+						s.dbMut.RLock()
+						db := s.db
+						s.dbMut.RUnlock()
+						if err := db.PingContext(pingCtx); err != nil {
+							s.dbMut.Lock()
+							s.db = nil
+							s.dbMut.Unlock()
+						}
+					}
+					cancel()
+				}
+			}
+		}()
+	})
 	return nil
 }
 
@@ -232,11 +257,8 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
-	if s.driver != "trino" {
-		if err := s.db.PingContext(ctx); err != nil {
-			s.db = nil
-			return service.ErrNotConnected
-		}
+	if s.db == nil {
+		return service.ErrNotConnected
 	}
 
 	insertBuilder := s.builder
