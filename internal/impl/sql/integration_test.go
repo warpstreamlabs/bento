@@ -1568,7 +1568,7 @@ func TestIntegrationCheckReconnectLogic(t *testing.T) {
 			"5432/tcp": {
 				{
 					HostIP:   "0.0.0.0",
-					HostPort: string(freePort),
+					HostPort: freePort,
 				},
 			},
 		},
@@ -1656,7 +1656,8 @@ output:
 	var count int
 	db, err = sql.Open("postgres", dsn)
 	require.Eventually(t, func() bool {
-		db.QueryRow("select count(*) from test_data;").Scan(&count)
+		err := db.QueryRow("select count(*) from test_data;").Scan(&count)
+		require.NoError(t, err)
 		return count > 1000
 	}, time.Minute, time.Second)
 
@@ -1678,6 +1679,7 @@ output:
 	// we should now have reconnected and have more rows in the table
 	var countAfterRestart int
 	require.Eventually(t, func() bool {
+		//nolint:errcheck // We expect errors here whilst reconnecting
 		db.QueryRow("select count(*) from test_data;").Scan(&countAfterRestart)
 		return countAfterRestart > count+100
 	}, time.Minute, time.Second)
