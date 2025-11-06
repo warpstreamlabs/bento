@@ -3,6 +3,8 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -220,8 +222,12 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 		<-s.shutSig.HardStopChan()
 
 		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
+		defer s.dbMut.Unlock()
+
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
 
 		s.shutSig.TriggerHasStopped()
 	}()
@@ -229,14 +235,27 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 }
 
 func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
+	err := s.writeBatch(ctx, batch)
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, driver.ErrBadConn) {
+		s.dbMut.Lock()
+		s.db = nil
+		s.dbMut.Unlock()
+		return service.ErrNotConnected
+	}
+
+	return err
+}
+
+func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageBatch) error {
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
-	if s.driver != "trino" {
-		if err := s.db.PingContext(ctx); err != nil {
-			s.db = nil
-			return service.ErrNotConnected
-		}
+	if s.db == nil {
+		return service.ErrNotConnected
 	}
 
 	insertBuilder := s.builder
