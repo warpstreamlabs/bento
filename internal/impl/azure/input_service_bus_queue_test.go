@@ -12,16 +12,7 @@ import (
 
 func TestServiceBusQueueConfig(t *testing.T) {
 	// Test configuration parsing
-	conf := service.NewConfigSpec().
-		Field(service.NewStringField("connection_string").Default("")).
-		Field(service.NewStringField("namespace").Default("")).
-		Field(service.NewStringField("queue").Default("test-queue")).
-		Field(service.NewInputMaxInFlightField().Default(10)).
-		Field(service.NewBoolField("auto_ack").Default(false)).
-		Field(service.NewStringListField("nack_reject_patterns").Default([]any{})).
-		Field(service.NewBoolField("renew_lock").Default(true))
-
-	parsed, err := conf.ParseYAML(`
+parsed, err := sbqSpec().ParseYAML(`
 connection_string: "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test"
 queue: "my-queue"
 max_in_flight: 5
