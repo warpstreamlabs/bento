@@ -143,9 +143,6 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 	if cfg.StateDir == "" {
 		return nil, errors.New("state_dir is required")
 	}
-	if cfg.StateDir == "" {
-		return nil, errors.New("state_dir is required")
-	}
 	if cfg.CheckpointInterval <= 0 {
 		cfg.CheckpointInterval = 100
 	}
@@ -241,7 +238,7 @@ func streamingFileInputSpec() *service.ConfigSpec {
 		Categories("Local").
 		Summary("Robust streaming file input with automatic recovery and rotation handling").
 		Description(`
-Reads from a file continuously, similar to 'tail -f', but with several important improvements:
+Reads from a file continuously, similar to using a subprocess with 'tail -F', but with several important improvements:
 
 - Automatic recovery from crashes using persistent position tracking
 - Seamless handling of file rotations
@@ -360,7 +357,11 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	savedOffset := sfi.position.ByteOffset.Load()
 	sfi.positionMutex.Unlock()
 
-	shouldResume := hasInode && savedInode != 0 && savedInode == currentInode && savedOffset > 0 && savedOffset <= currentSize
+	shouldResume := hasInode && // Inode is available
+		savedInode != 0 && // Inode is non-zero
+		savedInode == currentInode && // Inode matches
+		savedOffset > 0 && // Offset is positive
+		savedOffset <= currentSize // Offset is within file size
 
 	sfi.positionMutex.Lock()
 	if hasInode {
@@ -368,14 +369,17 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 		sfi.lastInode = currentInode
 	}
 
-	if shouldResume {
+	if !shouldResume {
+		sfi.position.ByteOffset.Store(0)
+		sfi.position.LineNumber.Store(0)
+	} else {
+		sfi.logDebugf("Resuming from previous position: line=%d, offset=%d", sfi.position.LineNumber.Load(), sfi.position.ByteOffset.Load())
 		if _, err := file.Seek(savedOffset, 0); err != nil {
+			sfi.logErrorf("Failed to seek to previous position, starting from beginning: %v", err)
 			sfi.position.ByteOffset.Store(0)
 			sfi.position.LineNumber.Store(0)
 		}
-	} else {
-		sfi.position.ByteOffset.Store(0)
-		sfi.position.LineNumber.Store(0)
+		sfi.logDebugf("Seeked to previous position: line=%d, offset=%d", sfi.position.LineNumber.Load(), sfi.position.ByteOffset.Load())
 	}
 	sfi.positionMutex.Unlock()
 
