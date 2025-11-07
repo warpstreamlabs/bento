@@ -308,7 +308,6 @@ func (a *azureServiceBusQueueReader) ackLoop(ctx context.Context) {
 			a.m.RUnlock()
 
 			if receiver != nil {
-				// Use the soft stop context first, fall back to hard stop context if cancelled
 				ackCtx := ctx
 				select {
 				case <-ctx.Done():
