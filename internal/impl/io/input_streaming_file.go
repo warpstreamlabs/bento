@@ -23,6 +23,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -116,8 +117,6 @@ type StreamingFileInput struct {
 	readLoopDone  chan struct{}
 	wg            sync.WaitGroup
 	statusMu      sync.RWMutex
-	lastError     error
-	lastReadTime  time.Time
 	lastSaveTime  time.Time
 	connected     bool
 	connMutex     sync.RWMutex
@@ -139,10 +138,13 @@ type StreamingFileInput struct {
 // NewStreamingFileInput creates a new streaming file input
 func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger) (*StreamingFileInput, error) {
 	if cfg.Path == "" {
-		return nil, fmt.Errorf("path is required")
+		return nil, errors.New("path is required")
 	}
 	if cfg.StateDir == "" {
-		return nil, fmt.Errorf("state_dir is required")
+		return nil, errors.New("state_dir is required")
+	}
+	if cfg.StateDir == "" {
+		return nil, errors.New("state_dir is required")
 	}
 	if cfg.CheckpointInterval <= 0 {
 		cfg.CheckpointInterval = 100
@@ -214,7 +216,6 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 			FilePath: cfg.Path,
 		},
 		metrics:          metrics,
-		lastReadTime:     now,
 		lastSaveTime:     now,
 		lastMetricsFlush: now,
 		bufferPool: sync.Pool{
@@ -302,34 +303,6 @@ func (sfi *StreamingFileInput) logErrorf(format string, args ...interface{}) {
 	}
 }
 
-// setLastError safely sets the last error
-func (sfi *StreamingFileInput) setLastError(err error) {
-	sfi.statusMu.Lock()
-	sfi.lastError = err
-	sfi.statusMu.Unlock()
-}
-
-// getLastError safely gets the last error
-func (sfi *StreamingFileInput) getLastError() error {
-	sfi.statusMu.RLock()
-	defer sfi.statusMu.RUnlock()
-	return sfi.lastError
-}
-
-// setLastReadNow safely sets the last read time to now
-func (sfi *StreamingFileInput) setLastReadNow() {
-	sfi.statusMu.Lock()
-	sfi.lastReadTime = time.Now()
-	sfi.statusMu.Unlock()
-}
-
-// getLastReadTime safely gets the last read time
-func (sfi *StreamingFileInput) getLastReadTime() time.Time {
-	sfi.statusMu.RLock()
-	defer sfi.statusMu.RUnlock()
-	return sfi.lastReadTime
-}
-
 // setLastSaveNow safely sets the last save time to now
 func (sfi *StreamingFileInput) setLastSaveNow() {
 	sfi.statusMu.Lock()
@@ -387,11 +360,7 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	savedOffset := sfi.position.ByteOffset.Load()
 	sfi.positionMutex.Unlock()
 
-	shouldResume := false
-
-	if hasInode && savedInode != 0 && savedInode == currentInode && savedOffset > 0 && savedOffset <= currentSize {
-		shouldResume = true
-	}
+	shouldResume := hasInode && savedInode != 0 && savedInode == currentInode && savedOffset > 0 && savedOffset <= currentSize
 
 	sfi.positionMutex.Lock()
 	if hasInode {
@@ -445,8 +414,6 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	return nil
 }
 
-const maxConsecutivePanics = 10
-
 // monitorFile is the primary goroutine for watching and reading the file using fsnotify.
 func (sfi *StreamingFileInput) monitorFile(ctx context.Context) {
 	defer sfi.wg.Done()
@@ -474,7 +441,9 @@ func (sfi *StreamingFileInput) monitorFile(ctx context.Context) {
 
 			// A file was created in the directory - check if it's our target (rotation completion)
 			if event.Has(fsnotify.Create) && event.Name == sfi.config.Path {
-				sfi.handleRotation()
+				if err := sfi.handleRotation(); err != nil {
+					sfi.logErrorf("Error handling rotation: %v", err)
+				}
 			}
 
 			// Rename/Remove can indicate rotation - re-check the file state
@@ -512,9 +481,13 @@ func (sfi *StreamingFileInput) checkStateAndReact() {
 		return
 	}
 	if rotated {
-		sfi.handleRotation()
+		if err := sfi.handleRotation(); err != nil {
+			sfi.logErrorf("Error handling rotation: %v", err)
+		}
 	} else if truncated {
-		sfi.handleTruncation()
+		if err := sfi.handleTruncation(); err != nil {
+			sfi.logErrorf("Error handling truncation: %v", err)
+		}
 	}
 }
 
@@ -720,14 +693,6 @@ func (sfi *StreamingFileInput) drainAvailableData() {
 	sfi.drainAvailableDataWithReader(reader)
 }
 
-// drainAvailableDataLocked drains data (assumes lock is held)
-func (sfi *StreamingFileInput) drainAvailableDataLocked() {
-	if sfi.reader == nil || sfi.file == nil {
-		return
-	}
-	sfi.drainAvailableDataWithReader(sfi.reader)
-}
-
 // drainAvailableDataWithoutRotationCheckLocked drains data without rotation check (assumes lock is held)
 // This is used to avoid recursive rotation detection
 func (sfi *StreamingFileInput) drainAvailableDataWithoutRotationCheckLocked() {
@@ -745,11 +710,15 @@ func (sfi *StreamingFileInput) drainAvailableDataWithReader(reader *bufio.Reader
 		sfi.logErrorf("Error detecting file changes: %v", err)
 	}
 	if rotated {
-		sfi.handleRotation()
+		if err := sfi.handleRotation(); err != nil {
+			sfi.logErrorf("Error handling rotation: %v", err)
+		}
 		return
 	}
 	if truncated {
-		sfi.handleTruncation()
+		if err := sfi.handleTruncation(); err != nil {
+			sfi.logErrorf("Error handling truncation: %v", err)
+		}
 		return
 	}
 
@@ -807,7 +776,6 @@ func (sfi *StreamingFileInput) drainAvailableDataWithoutRotationCheck(reader *bu
 			}
 			sfi.incrementLinesRead()
 			sfi.incrementBytesRead(int64(len(lineBytes)))
-			sfi.setLastReadNow()
 		case <-sfi.stopCh:
 			sfi.bufferPool.Put(bufPtr)
 			return
@@ -1225,10 +1193,6 @@ func (sfi *StreamingFileInput) incrementLinesRead() {
 func (sfi *StreamingFileInput) incrementBytesRead(bytes int64) {
 	sfi.metrics.BytesRead.Add(bytes)
 	sfi.batchedBytesRead.Add(bytes)
-}
-
-func (sfi *StreamingFileInput) incrementErrorsCount() {
-	sfi.incrementErrorsCountWithType("unknown")
 }
 
 func (sfi *StreamingFileInput) incrementErrorsCountWithType(errorType string) {

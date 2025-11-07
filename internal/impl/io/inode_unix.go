@@ -11,8 +11,7 @@ import (
 // Returns (inode, true) if inode is available, (0, false) otherwise
 func inodeOf(fi os.FileInfo) (uint64, bool) {
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return uint64(st.Ino), true
+		return st.Ino, true
 	}
 	return 0, false
 }
-
