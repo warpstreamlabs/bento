@@ -248,7 +248,7 @@ func TestStreamingFileInput_ConcurrentReads(t *testing.T) {
 				mu.Lock()
 				readLines[line] = true
 				mu.Unlock()
-				ack(ctx, nil)
+				_ = ack(ctx, nil)
 			}
 		}()
 	}
@@ -256,7 +256,7 @@ func TestStreamingFileInput_ConcurrentReads(t *testing.T) {
 	wg.Wait()
 
 	// Verify we read all lines
-	assert.Equal(t, 100, len(readLines))
+	assert.Len(t, readLines, 100)
 	for i := 1; i <= 100; i++ {
 		assert.True(t, readLines[fmt.Sprintf("line%d", i)])
 	}
