@@ -512,7 +512,7 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	pool, err := dockertest.NewPool("")
 	require.NoError(t, err)
 
-	// Set timeout to 5 minutes for containers to start (SQL Edge + Service Bus emulator)
+	// Set timeout to 5 minutes for containers to start (Microsoft SQL Server + Service Bus emulator)
 	pool.MaxWait = 5 * time.Minute
 	if deadline, ok := t.Deadline(); ok {
 		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
@@ -532,17 +532,16 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 		_ = pool.Client.RemoveNetwork(networkName)
 	})
 
-	// Start SQL Edge container (backend for Service Bus emulator)
 	sqlPassword := "StrongP@ssw0rd!"
 	sqlResource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mcr.microsoft.com/azure-sql-edge",
-		Tag:        "latest",
+		Repository: "mcr.microsoft.com/mssql/server",
+		Tag:        "2022-latest",
 		Env: []string{
 			"ACCEPT_EULA=Y",
 			fmt.Sprintf("MSSQL_SA_PASSWORD=%s", sqlPassword),
 		},
 		NetworkID: network.ID,
-		Hostname:  "sqledge",
+		Hostname:  "sqlserver",
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -551,7 +550,6 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	_ = sqlResource.Expire(900)
 
 	// Create Config.json for the emulator with queue definition
-	// NOTE: The emulator requires the namespace name to be "sbemulatorns"
 	configJSON := fmt.Sprintf(`{
   "UserConfig": {
     "Logging": {
@@ -576,7 +574,7 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	err = os.WriteFile(configPath, []byte(configJSON), 0644)
 	require.NoError(t, err)
 
-	// Start Azure Service Bus emulator connected to SQL Edge
+	// Start Azure Service Bus emulator connected to Microsoft SQL Server
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
 		Repository: "mcr.microsoft.com/azure-messaging/servicebus-emulator",
 		Tag:        "latest",
@@ -584,7 +582,7 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 			"ACCEPT_EULA=Y",
 			"CONFIG_PATH=/ServiceBus_Emulator/ConfigFiles/Config.json",
 			fmt.Sprintf("MSSQL_SA_PASSWORD=%s", sqlPassword),
-			"SQL_SERVER=sqledge",
+			"SQL_SERVER=sqlserver",
 		},
 		Mounts: []string{
 			fmt.Sprintf("%s:/ServiceBus_Emulator/ConfigFiles", tmpDir),
