@@ -28,6 +28,20 @@ const (
 	sbqFieldRenewLock          = "renew_lock"
 )
 
+func init() {
+	err := service.RegisterInput("azure_service_bus_queue", sbqSpec(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
+			pConf, err := sbqConfigFromParsed(conf)
+			if err != nil {
+				return nil, err
+			}
+			return newAzureServiceBusQueueReader(pConf, mgr)
+		})
+	if err != nil {
+		panic(err)
+	}
+}
+
 type sbqConfig struct {
 	connectionString   string
 	namespace          string
@@ -79,7 +93,7 @@ func sbqConfigFromParsed(pConf *service.ParsedConfig) (*sbqConfig, error) {
 
 func sbqSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		//nolint:gofmt    //Beta(). Experimental component.
 		Categories("Services", "Azure").
 		Version("1.13.0").
 		Summary(`Consume messages from an Azure Service Bus Queue.`).
@@ -208,14 +222,13 @@ func (a *azureServiceBusQueueReader) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to create Service Bus receiver: %w", err)
 	}
 
-	softStopCtx, cancel := a.closeSignal.SoftStopCtx(ctx)
+	softStopCtx, _ := a.closeSignal.SoftStopCtx(ctx)
 
 	var wg sync.WaitGroup
 	wg.Go(func() { a.readLoop(softStopCtx) })
 	wg.Go(func() { a.ackLoop(softStopCtx) })
 	go func() {
 		wg.Wait()
-		cancel()
 		a.closeSignal.TriggerHasStopped()
 	}()
 
@@ -630,18 +643,4 @@ func (a *azureServiceBusQueueReader) stopAllLockRenewals() {
 		}
 	}
 	a.activeLocks = make(map[string]chan struct{})
-}
-
-func init() {
-	err := service.RegisterInput("azure_service_bus_queue", sbqSpec(),
-		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
-			pConf, err := sbqConfigFromParsed(conf)
-			if err != nil {
-				return nil, err
-			}
-			return newAzureServiceBusQueueReader(pConf, mgr)
-		})
-	if err != nil {
-		panic(err)
-	}
 }
