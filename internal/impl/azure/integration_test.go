@@ -17,9 +17,11 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gofrs/uuid"
 	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -500,5 +502,362 @@ enable_content_response_on_write: true
 			require.NoError(t, err)
 			assert.Contains(t, data, "blobfish")
 		}
+	})
+}
+
+func TestIntegrationAzureServiceBus(t *testing.T) {
+	integration.CheckSkip(t)
+	t.Parallel()
+
+	pool, err := dockertest.NewPool("")
+	require.NoError(t, err)
+
+	// Set timeout to 5 minutes for containers to start (Microsoft SQL Server + Service Bus emulator)
+	pool.MaxWait = 5 * time.Minute
+	if deadline, ok := t.Deadline(); ok {
+		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+	}
+
+	dummyQueue := "bento-test-queue"
+
+	// Create a Docker network for the containers to communicate
+	networkUUID, err := uuid.NewV4()
+	require.NoError(t, err)
+	networkName := fmt.Sprintf("servicebus-test-network-%s", networkUUID.String())
+	network, err := pool.Client.CreateNetwork(docker.CreateNetworkOptions{
+		Name: networkName,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = pool.Client.RemoveNetwork(networkName)
+	})
+
+	sqlPassword := "StrongP@ssw0rd!"
+	sqlResource, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "mcr.microsoft.com/mssql/server",
+		Tag:        "2022-latest",
+		Env: []string{
+			"ACCEPT_EULA=Y",
+			fmt.Sprintf("MSSQL_SA_PASSWORD=%s", sqlPassword),
+		},
+		NetworkID: network.ID,
+		Hostname:  "sqlserver",
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(sqlResource))
+	})
+	_ = sqlResource.Expire(900)
+
+	// Create Config.json for the emulator with queue definition
+	configJSON := fmt.Sprintf(`{
+  "UserConfig": {
+    "Logging": {
+      "Type": "Console"
+    },
+    "Namespaces": [
+      {
+        "Name": "sbemulatorns",
+        "Queues": [
+          {
+            "Name": "%s"
+          }
+        ]
+      }
+    ]
+  }
+}`, dummyQueue)
+
+	// Write config to a temp file
+	tmpDir := t.TempDir()
+	configPath := fmt.Sprintf("%s/Config.json", tmpDir)
+	err = os.WriteFile(configPath, []byte(configJSON), 0644)
+	require.NoError(t, err)
+
+	// Start Azure Service Bus emulator connected to Microsoft SQL Server
+	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "mcr.microsoft.com/azure-messaging/servicebus-emulator",
+		Tag:        "latest",
+		Env: []string{
+			"ACCEPT_EULA=Y",
+			"CONFIG_PATH=/ServiceBus_Emulator/ConfigFiles/Config.json",
+			fmt.Sprintf("MSSQL_SA_PASSWORD=%s", sqlPassword),
+			"SQL_SERVER=sqlserver",
+		},
+		Mounts: []string{
+			fmt.Sprintf("%s:/ServiceBus_Emulator/ConfigFiles", tmpDir),
+		},
+		NetworkID:    network.ID,
+		ExposedPorts: []string{"5672/tcp"}, // AMQP port
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(resource))
+	})
+
+	_ = resource.Expire(900)
+
+	// Get the mapped AMQP port for host access
+	amqpPort := resource.GetPort("5672/tcp")
+
+	// Connection string with the mapped port
+	connString := fmt.Sprintf("Endpoint=sb://127.0.0.1:%s;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;", amqpPort)
+
+	// Helper to send test messages
+	sendTestMessages := func(t testing.TB, ctx context.Context, queue string, messages []string) {
+		t.Helper()
+
+		client, err := azservicebus.NewClientFromConnectionString(connString, nil)
+		require.NoError(t, err)
+		defer func() {
+			assert.NoError(t, client.Close(ctx))
+		}()
+
+		sender, err := client.NewSender(queue, nil)
+		require.NoError(t, err)
+		defer func() {
+			assert.NoError(t, sender.Close(ctx))
+		}()
+
+		for _, msg := range messages {
+			err = sender.SendMessage(ctx, &azservicebus.Message{
+				Body: []byte(msg),
+			}, nil)
+			require.NoError(t, err)
+		}
+	}
+
+	// Wait for Service Bus emulator to start
+	err = pool.Retry(func() error {
+		ctx, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+
+		client, err := azservicebus.NewClientFromConnectionString(connString, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = client.Close(ctx) }()
+
+		// Try to create a sender for the actual queue to verify connectivity
+		sender, err := client.NewSender(dummyQueue, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = sender.Close(ctx) }()
+
+		// Try to send a test message to ensure the queue is ready
+		testMsg := &azservicebus.Message{
+			Body: []byte("emulator-ready-test"),
+		}
+		if err := sender.SendMessage(ctx, testMsg, nil); err != nil {
+			return err
+		}
+
+		// Receive and complete the test message to clear it from the queue
+		receiver, err := client.NewReceiverForQueue(dummyQueue, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = receiver.Close(ctx) }()
+
+		messages, err := receiver.ReceiveMessages(ctx, 1, nil)
+		if err != nil {
+			return err
+		}
+		if len(messages) > 0 {
+			_ = receiver.CompleteMessage(ctx, messages[0], nil)
+		}
+
+		return nil
+	})
+	require.NoError(t, err, "Failed to start Service Bus emulator")
+
+	t.Run("service_bus_queue", func(t *testing.T) {
+		template := fmt.Sprintf(`
+connection_string: %s
+queue: %s
+max_in_flight: 10
+`, connString, dummyQueue)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Send test messages
+		testMessages := []string{
+			"test message 1",
+			"test message 2",
+			"test message 3",
+			"test message 4",
+			"test message 5",
+		}
+		sendTestMessages(t, ctx, dummyQueue, testMessages)
+
+		// Create and test input
+		env := service.NewEnvironment()
+		conf, err := sbqSpec().ParseYAML(template, env)
+		require.NoError(t, err)
+
+		config, err := sbqConfigFromParsed(conf)
+		require.NoError(t, err)
+
+		input, err := newAzureServiceBusQueueReader(config, service.MockResources())
+		require.NoError(t, err)
+
+		err = input.Connect(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			assert.NoError(t, input.Close(context.Background()))
+		})
+
+		// Read and verify messages
+		receivedCount := 0
+		for i := 0; i < len(testMessages); i++ {
+			msg, ackFn, err := input.Read(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, msg)
+
+			content, err := msg.AsBytes()
+			require.NoError(t, err)
+			assert.Contains(t, testMessages, string(content))
+
+			// Verify metadata
+			messageID, exists := msg.MetaGet("service_bus_message_id")
+			assert.True(t, exists)
+			assert.NotEmpty(t, messageID)
+
+			sequenceNumber, exists := msg.MetaGet("service_bus_sequence_number")
+			assert.True(t, exists)
+			assert.NotEmpty(t, sequenceNumber)
+
+			err = ackFn(ctx, nil)
+			require.NoError(t, err)
+
+			receivedCount++
+		}
+
+		assert.Equal(t, len(testMessages), receivedCount)
+	})
+
+	t.Run("service_bus_queue_auto_ack", func(t *testing.T) {
+		template := fmt.Sprintf(`
+connection_string: %s
+queue: %s
+max_in_flight: 10
+auto_ack: true
+`, connString, dummyQueue)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		testMessages := []string{"auto_ack_1", "auto_ack_2", "auto_ack_3"}
+		sendTestMessages(t, ctx, dummyQueue, testMessages)
+
+		env := service.NewEnvironment()
+		conf, err := sbqSpec().ParseYAML(template, env)
+		require.NoError(t, err)
+
+		config, err := sbqConfigFromParsed(conf)
+		require.NoError(t, err)
+
+		input, err := newAzureServiceBusQueueReader(config, service.MockResources())
+		require.NoError(t, err)
+
+		err = input.Connect(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			assert.NoError(t, input.Close(context.Background()))
+		})
+
+		receivedCount := 0
+		for i := 0; i < len(testMessages); i++ {
+			msg, ackFn, err := input.Read(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, msg)
+
+			// With auto_ack, this should be a no-op
+			err = ackFn(ctx, nil)
+			require.NoError(t, err)
+
+			receivedCount++
+		}
+
+		assert.Equal(t, len(testMessages), receivedCount)
+	})
+
+	t.Run("service_bus_queue_metadata", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Send message with custom properties
+		client, err := azservicebus.NewClientFromConnectionString(connString, nil)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			assert.NoError(t, client.Close(context.Background()))
+		})
+
+		sender, err := client.NewSender(dummyQueue, nil)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			assert.NoError(t, sender.Close(context.Background()))
+		})
+
+		messageID := "test-msg-123"
+		contentType := "application/json"
+		correlationID := "corr-456"
+
+		err = sender.SendMessage(ctx, &azservicebus.Message{
+			Body:          []byte(`{"test": "metadata"}`),
+			MessageID:     &messageID,
+			ContentType:   &contentType,
+			CorrelationID: &correlationID,
+		}, nil)
+		require.NoError(t, err)
+
+		// Configure and read message
+		template := fmt.Sprintf(`
+connection_string: %s
+queue: %s
+max_in_flight: 1
+`, connString, dummyQueue)
+
+		env := service.NewEnvironment()
+		conf, err := sbqSpec().ParseYAML(template, env)
+		require.NoError(t, err)
+
+		config, err := sbqConfigFromParsed(conf)
+		require.NoError(t, err)
+
+		input, err := newAzureServiceBusQueueReader(config, service.MockResources())
+		require.NoError(t, err)
+
+		err = input.Connect(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			assert.NoError(t, input.Close(context.Background()))
+		})
+
+		msg, ackFn, err := input.Read(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, msg)
+
+		// Verify all metadata fields
+		msgID, exists := msg.MetaGet("service_bus_message_id")
+		assert.True(t, exists)
+		assert.Equal(t, messageID, msgID)
+
+		ct, exists := msg.MetaGet("service_bus_content_type")
+		assert.True(t, exists)
+		assert.Equal(t, contentType, ct)
+
+		cid, exists := msg.MetaGet("service_bus_correlation_id")
+		assert.True(t, exists)
+		assert.Equal(t, correlationID, cid)
+
+		lockToken, exists := msg.MetaGet("service_bus_lock_token")
+		assert.True(t, exists)
+		assert.NotEmpty(t, lockToken)
+
+		err = ackFn(ctx, nil)
+		require.NoError(t, err)
 	})
 }
