@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	noFieldNSQDAddr  = "nsqd_tcp_address"
-	noFieldTLS       = "tls"
-	noFieldTopic     = "topic"
-	noFieldUserAgent = "user_agent"
+	noFieldNSQDAddr   = "nsqd_tcp_address"
+	noFieldTLS        = "tls"
+	noFieldAuthSecret = "auth_secret"
+	noFieldTopic      = "topic"
+	noFieldUserAgent  = "user_agent"
 )
 
 func outputConfigSpec() *service.ConfigSpec {
@@ -35,6 +36,10 @@ func outputConfigSpec() *service.ConfigSpec {
 				Description("A user agent to assume when connecting.").
 				Optional(),
 			service.NewTLSToggledField(noFieldTLS),
+			service.NewStringField(noFieldAuthSecret).
+				Description("An optional secret for NSQ authentication (requires nsqd 0.2.29+).").
+				Secret().
+				Optional(),
 			service.NewOutputMaxInFlightField(),
 		)
 }
@@ -59,10 +64,11 @@ func init() {
 type nsqWriter struct {
 	log *service.Logger
 
-	address   string
-	topicStr  *service.InterpolatedString
-	tlsConf   *tls.Config
-	userAgent string
+	address    string
+	topicStr   *service.InterpolatedString
+	tlsConf    *tls.Config
+	authSecret string
+	userAgent  string
 
 	connMut  sync.RWMutex
 	producer *nsq.Producer
@@ -82,6 +88,7 @@ func newNSQWriterFromParsed(conf *service.ParsedConfig, mgr *service.Resources) 
 	if n.tlsConf, _, err = conf.FieldTLSToggled(noFieldTLS); err != nil {
 		return
 	}
+	n.authSecret, _ = conf.FieldString(noFieldAuthSecret)
 	n.userAgent, _ = conf.FieldString(noFieldUserAgent)
 	return
 }
@@ -95,6 +102,9 @@ func (n *nsqWriter) Connect(ctx context.Context) error {
 	if n.tlsConf != nil {
 		cfg.TlsV1 = true
 		cfg.TlsConfig = n.tlsConf
+	}
+	if n.authSecret != "" {
+		cfg.AuthSecret = n.authSecret
 	}
 
 	producer, err := nsq.NewProducer(n.address, cfg)
