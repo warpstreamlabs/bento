@@ -22,24 +22,24 @@ func TestStreamLinter(t *testing.T) {
 	env := service.NewEmptyEnvironment()
 	env.UseBloblangEnvironment(blobl)
 
-	require.NoError(t, env.RegisterInput("dog", service.NewConfigSpec().Fields(
+	require.NoError(t, env.RegisterInput("dog", service.NewConfigSpec().Stable().Fields(
 		service.NewStringField("woof").Example("WOOF"),
 	),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterBatchBuffer("none", service.NewConfigSpec(),
+	require.NoError(t, env.RegisterBatchBuffer("none", service.NewConfigSpec().Stable(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchBuffer, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterProcessor("testprocessor", service.NewConfigSpec().Field(service.NewBloblangField("mapfield")),
+	require.NoError(t, env.RegisterProcessor("testprocessor", service.NewConfigSpec().Stable().Field(service.NewBloblangField("mapfield")),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
 			return nil, errors.New("nope")
 		}))
 
-	require.NoError(t, env.RegisterOutput("stdout", service.NewConfigSpec(),
+	require.NoError(t, env.RegisterOutput("stdout", service.NewConfigSpec().Stable(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (out service.Output, maxInFlight int, err error) {
 			err = errors.New("nope")
 			return
