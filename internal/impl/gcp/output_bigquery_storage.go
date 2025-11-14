@@ -280,11 +280,9 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 	bq.tableUpdateLock.Unlock()
 
 	if updating {
-		bq.log.Debugf("Waiting for concurrent schema update on table %s to complete", tableID)
 		tableLock.Lock()
 		//nolint:staticcheck // SA2001: Empty critical section is intentional - waiting for schema update to complete
 		tableLock.Unlock()
-		bq.log.Debugf("Schema update completed, proceeding with write to table %s", tableID)
 	}
 
 	maxSchemaUpdateAttempts := 1
@@ -318,15 +316,10 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 					_ = stream.stream.Close()
 				}
 				delete(bq.streams, destTable)
-				bq.log.Debugf("Cleared stream cache for table %s before retry", tableID)
 			}
 			bq.streamCacheLock.Unlock()
 
 			continue
-		}
-
-		if bq.conf.autoAddMissingColumns && bq.conf.messageFormat == "json" {
-			bq.log.Debugf("Error was not identified as schema error, auto_add_missing_columns will not trigger: %v", err)
 		}
 
 		return err
@@ -388,7 +381,6 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 
 	if result, err = stream.AppendRows(ctx, rowData); err != nil {
 		if isStreamClosedError(err) {
-			bq.log.Debugf("Stream closed error detected, invalidating stream cache for table %s", tableID)
 			destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
 			bq.streamCacheLock.Lock()
 			if cachedStream, ok := bq.streams[destTable]; ok {
@@ -409,7 +401,6 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 		}
 
 		if isStreamClosedError(err) {
-			bq.log.Debugf("Stream closed error in result, invalidating stream cache for table %s", tableID)
 			destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
 			bq.streamCacheLock.Lock()
 			if cachedStream, ok := bq.streams[destTable]; ok {
@@ -695,8 +686,6 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 		return errors.New("no valid messages in batch for schema inference")
 	}
 
-	bq.log.Debugf("Analyzed %d messages in batch, found %d unique top-level fields", len(batch), len(allFieldsMap))
-
 	maxETagRetries := 3
 	for etagRetry := 0; etagRetry < maxETagRetries; etagRetry++ {
 		if etagRetry > 0 {
@@ -710,13 +699,11 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 		}
 
 		currentSchema := metadata.Schema
-		bq.log.Debugf("Current schema has %d top-level fields", len(currentSchema))
 
 		existingFieldNames := make([]string, len(currentSchema))
 		for i, field := range currentSchema {
 			existingFieldNames[i] = field.Name
 		}
-		bq.log.Debugf("Existing schema fields: %v", existingFieldNames)
 
 		missingFields := bq.findMissingFields(currentSchema, allFieldsMap)
 		if len(missingFields) == 0 {
@@ -758,17 +745,9 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 		}
 
 		bq.log.Infof("Detected %d field update(s) needed", len(missingFields))
-		for i, field := range missingFields {
-			if field.Type == bigquery.RecordFieldType && field.Schema != nil {
-				bq.log.Debugf("  [%d] Field '%s' (RECORD, Repeated=%v): adding/updating with %d nested field(s)", i+1, field.Name, field.Repeated, len(field.Schema))
-			} else {
-				bq.log.Debugf("  [%d] Field '%s' (Type=%s, Repeated=%v): new field", i+1, field.Name, field.Type, field.Repeated)
-			}
-		}
 
 		newSchema := bq.mergeSchemas(currentSchema, missingFields)
 
-		bq.log.Debugf("=== FINAL SCHEMA TO SEND TO BIGQUERY (%d fields) ===", len(newSchema))
 		bq.dumpSchema(newSchema, "  ")
 
 		update := bigquery.TableMetadataToUpdate{
@@ -866,8 +845,6 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 		existingFieldsMap[normalizedName] = field
 	}
 
-	bq.log.Debugf("Checking %d message fields against %d schema fields", len(msgData), len(existingFieldsMap))
-
 	for fieldName, value := range msgData {
 		sanitizedName := sanitizeFieldName(fieldName)
 
@@ -876,7 +853,6 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 		if !fieldExists {
 			fieldSchema := inferBigQueryFieldSchema(sanitizedName, value)
 			if fieldSchema != nil {
-				bq.log.Debugf("Adding missing field '%s' (Type=%s, Repeated=%v)", sanitizedName, fieldSchema.Type, fieldSchema.Repeated)
 				missingFields = append(missingFields, fieldSchema)
 			}
 		} else if existingField.Type == bigquery.RecordFieldType && existingField.Schema != nil {
@@ -896,25 +872,19 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 					mergedNestedSchema := bq.mergeSchemas(existingField.Schema, nestedMissing)
 
 					updatedField := &bigquery.FieldSchema{
-						Name:        sanitizedName, // Use normalized lowercase name
+						Name:        sanitizedName,
 						Type:        existingField.Type,
 						Repeated:    existingField.Repeated,
 						Required:    existingField.Required,
 						Description: existingField.Description,
 						Schema:      mergedNestedSchema,
 					}
-					bq.log.Debugf("Updating RECORD field '%s' with %d new nested fields", sanitizedName, len(nestedMissing))
 					missingFields = append(missingFields, updatedField)
-				} else {
-					bq.log.Debugf("Skipping existing RECORD field '%s' - no new nested fields needed", sanitizedName)
 				}
 			}
-		} else {
-			bq.log.Debugf("Skipping existing field '%s'", sanitizedName)
 		}
 	}
 
-	bq.log.Debugf("Found %d fields needing updates out of %d message fields", len(missingFields), len(msgData))
 	return missingFields
 }
 
@@ -923,14 +893,6 @@ func (bq *bigQueryStorageWriter) mergeSchemas(existingSchema bigquery.Schema, ne
 	for i, field := range existingSchema {
 		normalizedName := strings.ToLower(field.Name)
 		existingFieldsMap[normalizedName] = existingSchema[i]
-	}
-
-	bq.log.Debugf("mergeSchemas: existing=%d fields, new=%d fields", len(existingSchema), len(newFields))
-	for _, f := range existingSchema {
-		bq.log.Debugf("  existing: %s (type=%s, repeated=%v)", f.Name, f.Type, f.Repeated)
-	}
-	for _, f := range newFields {
-		bq.log.Debugf("  new: %s (type=%s, repeated=%v)", f.Name, f.Type, f.Repeated)
 	}
 
 	result := make(bigquery.Schema, 0, len(existingSchema))
