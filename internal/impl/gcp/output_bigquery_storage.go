@@ -703,8 +703,9 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 	}
 
 	for fieldName, value := range msgData {
-		if !existingFields[fieldName] {
-			fieldSchema := inferBigQueryFieldSchema(fieldName, value)
+		sanitizedName := sanitizeFieldName(fieldName)
+		if !existingFields[sanitizedName] {
+			fieldSchema := inferBigQueryFieldSchema(sanitizedName, value)
 			if fieldSchema != nil {
 				missingFields = append(missingFields, fieldSchema)
 			}
@@ -716,7 +717,8 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 
 func (bq *bigQueryStorageWriter) mergeFields(target, source map[string]interface{}) {
 	for key, value := range source {
-		if existingValue, exists := target[key]; exists {
+		sanitizedKey := sanitizeFieldName(key)
+		if existingValue, exists := target[sanitizedKey]; exists {
 			if existingMap, ok := existingValue.(map[string]interface{}); ok {
 				if sourceMap, ok := value.(map[string]interface{}); ok {
 					bq.mergeFields(existingMap, sourceMap)
@@ -736,8 +738,12 @@ func (bq *bigQueryStorageWriter) mergeFields(target, source map[string]interface
 				}
 			}
 		}
-		target[key] = value
+		target[sanitizedKey] = value
 	}
+}
+
+func sanitizeFieldName(name string) string {
+	return strings.ReplaceAll(name, "-", "_")
 }
 
 func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSchema {
@@ -779,7 +785,8 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 	case map[string]interface{}:
 		nestedSchema := make([]*bigquery.FieldSchema, 0)
 		for nestedName, nestedValue := range v {
-			nestedField := inferBigQueryFieldSchema(nestedName, nestedValue)
+			sanitizedNestedName := sanitizeFieldName(nestedName)
+			nestedField := inferBigQueryFieldSchema(sanitizedNestedName, nestedValue)
 			if nestedField != nil {
 				nestedSchema = append(nestedSchema, nestedField)
 			}
