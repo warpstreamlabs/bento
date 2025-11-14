@@ -54,6 +54,8 @@ output:
       grpc: ""
     stream_type: DEFAULT
     message_format: json
+    auto_add_missing_columns: false
+    max_schema_update_retries: 3
     batching:
       count: 0
       byte_size: 0
@@ -155,6 +157,22 @@ Default: `"json"`
 | `json` | Messages are in JSON format (default) |
 | `protobuf` | Messages are in protobuf format |
 
+
+### `auto_add_missing_columns`
+
+Automatically add missing columns to the BigQuery table when a schema mismatch error is detected. When enabled, the component will detect missing fields, update the table schema, and retry the write operation. **Note:** This feature only works when `message_format` is set to `json`.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `max_schema_update_retries`
+
+Maximum number of times to retry a write operation after updating the table schema. Prevents infinite loops if schema updates fail repeatedly.
+
+
+Type: `int`  
+Default: `3`  
 
 ### `batching`
 
