@@ -177,8 +177,6 @@ func init() {
 	}
 }
 
-//------------------------------------------------------------------------------
-
 type streamWithDescriptor struct {
 	stream            *managedwriter.ManagedStream
 	messageDescriptor protoreflect.MessageDescriptor
@@ -193,7 +191,7 @@ type bigQueryStorageWriter struct {
 
 	streamCacheLock sync.Mutex
 	streams         map[string]*streamWithDescriptor
-	
+
 	tableUpdateLock sync.Mutex
 	tablesUpdating  map[string]*sync.Mutex
 }
@@ -212,10 +210,8 @@ type bigQueryStorageWriterConfig struct {
 
 	messageFormat string
 
-	autoAddMissingColumns   bool
-	maxSchemaUpdateRetries  int
-
-	tableSchema bigquery.Schema
+	autoAddMissingColumns  bool
+	maxSchemaUpdateRetries int
 }
 
 func (bq *bigQueryStorageWriter) Connect(ctx context.Context) error {
@@ -333,7 +329,6 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 		var protoBytes []byte
 		switch bq.conf.messageFormat {
 		case "json":
-			// Convert timestamp fields to BigQuery format
 			convertedBytes, err := bq.convertTimestampsToBigQueryFormat(msgBytes)
 			if err != nil {
 				return fmt.Errorf("failed to convert timestamps for item %d: %w", i, err)
@@ -371,7 +366,6 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 	return nil
 }
 
-// convertTimestampsToBigQueryFormat converts ISO 8601 timestamps to BigQuery TIMESTAMP format
 func (bq *bigQueryStorageWriter) convertTimestampsToBigQueryFormat(jsonBytes []byte) ([]byte, error) {
 	var data map[string]interface{}
 	if err := json.Unmarshal(jsonBytes, &data); err != nil {
@@ -385,7 +379,6 @@ func (bq *bigQueryStorageWriter) convertTimestampsToBigQueryFormat(jsonBytes []b
 	return json.Marshal(data)
 }
 
-// convertTimestampsInMapToBigQueryFormat recursively converts timestamp strings to BigQuery format
 func (bq *bigQueryStorageWriter) convertTimestampsInMapToBigQueryFormat(data map[string]interface{}) error {
 	for key, value := range data {
 		switch v := value.(type) {
@@ -422,12 +415,7 @@ func (bq *bigQueryStorageWriter) convertTimestampsInMapToBigQueryFormat(data map
 	return nil
 }
 
-// convertToBigQueryTimestampFormat converts ISO 8601 to BigQuery TIMESTAMP format (INT64 microseconds)
-// Input:  "2024-01-15T10:30:45.123Z"
-// Output: 1705318245123000 (microseconds since epoch)
-// Note: BigQuery Storage Write API requires INT64, not string format
 func convertToBigQueryTimestampFormat(timestampStr string) (int64, error) {
-	// Try multiple timestamp formats
 	formats := []string{
 		time.RFC3339Nano,
 		time.RFC3339,
@@ -446,15 +434,12 @@ func convertToBigQueryTimestampFormat(timestampStr string) (int64, error) {
 	for _, format := range formats {
 		t, err = time.Parse(format, timestampStr)
 		if err == nil {
-			// Convert to microseconds since epoch (INT64)
 			return t.UnixMicro(), nil
 		}
 	}
 
 	return 0, fmt.Errorf("unable to parse timestamp '%s' with any known format: %w", timestampStr, err)
 }
-
-//------------------------------------------------------------------------------
 
 func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, tableID string) (*streamWithDescriptor, error) {
 	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
@@ -520,7 +505,7 @@ func isSchemaError(err error) bool {
 	}
 
 	errMsg := err.Error()
-	
+
 	schemaErrorPatterns := []string{
 		"no matching field found",
 		"schema mismatch",
@@ -568,9 +553,9 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 	bq.streamCacheLock.Unlock()
 
 	table := bq.client.Dataset(bq.conf.datasetID).Table(tableID)
-	
+
 	if len(batch) == 0 {
-		return fmt.Errorf("empty batch, cannot infer schema")
+		return errors.New("empty batch, cannot infer schema")
 	}
 
 	msgBytes, err := batch[0].AsBytes()
@@ -630,11 +615,11 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 
 	bq.log.Infof("Waiting for BigQuery schema propagation...")
 	defStreamName := destTable + "/streams/_default"
-	
+
 	maxWaitTime := 10 * time.Second
 	pollInterval := 500 * time.Millisecond
 	deadline := time.Now().Add(maxWaitTime)
-	
+
 	for time.Now().Before(deadline) {
 		resp, err := bq.storageClient.GetWriteStream(ctx, &storagepb.GetWriteStreamRequest{
 			Name: defStreamName,
@@ -659,7 +644,7 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 								break
 							}
 						}
-						
+
 						if allFieldsPresent {
 							bq.log.Infof("Schema propagation confirmed - all new fields present")
 							bq.streamCacheLock.Lock()
@@ -700,13 +685,11 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema, msgData map[string]interface{}) []*bigquery.FieldSchema {
 	var missingFields []*bigquery.FieldSchema
 
-	// Create a map of existing field names for quick lookup
 	existingFields := make(map[string]bool)
 	for _, field := range currentSchema {
 		existingFields[field.Name] = true
 	}
 
-	// Check each field in the message
 	for fieldName, value := range msgData {
 		if !existingFields[fieldName] {
 			fieldSchema := inferBigQueryFieldSchema(fieldName, value)
@@ -719,7 +702,6 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 	return missingFields
 }
 
-// inferBigQueryFieldSchema creates a complete FieldSchema including nested structures
 func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSchema {
 	if value == nil {
 		return &bigquery.FieldSchema{
@@ -737,7 +719,6 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 			Required: false,
 		}
 	case float64:
-		// Check if it's actually an integer
 		fieldType := bigquery.FloatFieldType
 		if v == float64(int64(v)) {
 			fieldType = bigquery.IntegerFieldType
@@ -749,7 +730,6 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 		}
 	case string:
 		fieldType := bigquery.StringFieldType
-		// Check if it's a timestamp field - use TIMESTAMP type
 		if isTimestampField(name, v) {
 			fieldType = bigquery.TimestampFieldType
 		}
@@ -759,7 +739,6 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 			Required: false,
 		}
 	case map[string]interface{}:
-		// RECORD type with nested schema
 		nestedSchema := make([]*bigquery.FieldSchema, 0)
 		for nestedName, nestedValue := range v {
 			nestedField := inferBigQueryFieldSchema(nestedName, nestedValue)
@@ -774,17 +753,13 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 			Required: false,
 		}
 	case []interface{}:
-		// Array - need to infer the element type
 		if len(v) > 0 {
-			// Get schema from first element
 			firstElemSchema := inferBigQueryFieldSchema(name, v[0])
 			if firstElemSchema != nil {
-				// Arrays in BigQuery are REPEATED fields
 				firstElemSchema.Repeated = true
 				return firstElemSchema
 			}
 		}
-		// Empty array - default to repeated STRING
 		return &bigquery.FieldSchema{
 			Name:     name,
 			Type:     bigquery.StringFieldType,
@@ -792,7 +767,6 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 			Required: false,
 		}
 	default:
-		// Fallback to STRING
 		return &bigquery.FieldSchema{
 			Name:     name,
 			Type:     bigquery.StringFieldType,
@@ -802,17 +776,12 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 }
 
 func isTimestampField(name string, value string) bool {
-	// Detect ISO 8601 timestamp format by analyzing the value itself
-	// Format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DD HH:MM:SS (with optional timezone/microseconds)
-	
 	if len(value) < 19 {
 		return false
 	}
 
-	// Check for ISO 8601 format: YYYY-MM-DDTHH:MM:SS
-	if value[4] == '-' && value[7] == '-' && value[10] == 'T' && 
-	   value[13] == ':' && value[16] == ':' {
-		// Validate it's actually a valid timestamp by trying to parse it
+	if value[4] == '-' && value[7] == '-' && value[10] == 'T' &&
+		value[13] == ':' && value[16] == ':' {
 		formats := []string{
 			time.RFC3339Nano,
 			time.RFC3339,
@@ -823,7 +792,7 @@ func isTimestampField(name string, value string) bool {
 			"2006-01-02T15:04:05.999999Z",
 			"2006-01-02T15:04:05Z",
 		}
-		
+
 		for _, format := range formats {
 			if _, err := time.Parse(format, value); err == nil {
 				return true
@@ -831,14 +800,13 @@ func isTimestampField(name string, value string) bool {
 		}
 	}
 
-	// Check for space-separated format: YYYY-MM-DD HH:MM:SS
-	if value[4] == '-' && value[7] == '-' && value[10] == ' ' && 
-	   value[13] == ':' && value[16] == ':' {
+	if value[4] == '-' && value[7] == '-' && value[10] == ' ' &&
+		value[13] == ':' && value[16] == ':' {
 		formats := []string{
 			"2006-01-02 15:04:05.999999999",
 			"2006-01-02 15:04:05",
 		}
-		
+
 		for _, format := range formats {
 			if _, err := time.Parse(format, value); err == nil {
 				return true
@@ -849,35 +817,6 @@ func isTimestampField(name string, value string) bool {
 	return false
 }
 
-// inferBigQueryType infers the BigQuery field type from a Go value (kept for backward compatibility)
-func inferBigQueryType(value interface{}) bigquery.FieldType {
-	if value == nil {
-		return bigquery.StringFieldType
-	}
-
-	switch v := value.(type) {
-	case bool:
-		return bigquery.BooleanFieldType
-	case float64:
-		if v == float64(int64(v)) {
-			return bigquery.IntegerFieldType
-		}
-		return bigquery.FloatFieldType
-	case string:
-		return bigquery.StringFieldType
-	case map[string]interface{}:
-		return bigquery.RecordFieldType
-	case []interface{}:
-		if len(v) > 0 {
-			return inferBigQueryType(v[0])
-		}
-		return bigquery.StringFieldType
-	default:
-		return bigquery.StringFieldType
-	}
-}
-
-// fieldNames extracts field names from a slice of FieldSchema for logging
 func fieldNames(fields []*bigquery.FieldSchema) []string {
 	names := make([]string, len(fields))
 	for i, field := range fields {
