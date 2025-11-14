@@ -558,15 +558,27 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 		return errors.New("empty batch, cannot infer schema")
 	}
 
-	msgBytes, err := batch[0].AsBytes()
-	if err != nil {
-		return fmt.Errorf("failed to get message bytes: %w", err)
+	allFieldsMap := make(map[string]interface{})
+	for i, msg := range batch {
+		msgBytes, err := msg.AsBytes()
+		if err != nil {
+			return fmt.Errorf("failed to get message bytes from batch item %d: %w", i, err)
+		}
+
+		var msgData map[string]interface{}
+		if err := json.Unmarshal(msgBytes, &msgData); err != nil {
+			bq.log.Warnf("Failed to unmarshal message %d for schema inference, skipping: %v", i, err)
+			continue
+		}
+
+		bq.mergeFields(allFieldsMap, msgData)
 	}
 
-	var msgData map[string]interface{}
-	if err := json.Unmarshal(msgBytes, &msgData); err != nil {
-		return fmt.Errorf("failed to unmarshal message for schema inference: %w", err)
+	if len(allFieldsMap) == 0 {
+		return errors.New("no valid messages in batch for schema inference")
 	}
+
+	bq.log.Debugf("Analyzed %d messages in batch, found %d unique top-level fields", len(batch), len(allFieldsMap))
 
 	maxETagRetries := 3
 	for etagRetry := 0; etagRetry < maxETagRetries; etagRetry++ {
@@ -582,7 +594,7 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 
 		currentSchema := metadata.Schema
 
-		missingFields := bq.findMissingFields(currentSchema, msgData)
+		missingFields := bq.findMissingFields(currentSchema, allFieldsMap)
 		if len(missingFields) == 0 {
 			if etagRetry == 0 {
 				return fmt.Errorf("no missing fields detected, but schema error occurred: %w", originalErr)
@@ -635,10 +647,10 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 			if messageDesc, ok := descriptor.(protoreflect.MessageDescriptor); ok {
 				metadata, err := bq.client.Dataset(bq.conf.datasetID).Table(tableID).Metadata(ctx)
 				if err == nil {
-					missingFields := bq.findMissingFields(metadata.Schema, msgData)
+					missingFields := bq.findMissingFields(metadata.Schema, allFieldsMap)
 					if len(missingFields) == 0 {
 						allFieldsPresent := true
-						for fieldName := range msgData {
+						for fieldName := range allFieldsMap {
 							if messageDesc.Fields().ByName(protoreflect.Name(fieldName)) == nil {
 								allFieldsPresent = false
 								break
@@ -700,6 +712,32 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 	}
 
 	return missingFields
+}
+
+func (bq *bigQueryStorageWriter) mergeFields(target, source map[string]interface{}) {
+	for key, value := range source {
+		if existingValue, exists := target[key]; exists {
+			if existingMap, ok := existingValue.(map[string]interface{}); ok {
+				if sourceMap, ok := value.(map[string]interface{}); ok {
+					bq.mergeFields(existingMap, sourceMap)
+					continue
+				}
+			}
+			if existingArray, ok := existingValue.([]interface{}); ok {
+				if sourceArray, ok := value.([]interface{}); ok {
+					if len(sourceArray) > 0 && len(existingArray) > 0 {
+						if existingItemMap, ok := existingArray[0].(map[string]interface{}); ok {
+							if sourceItemMap, ok := sourceArray[0].(map[string]interface{}); ok {
+								bq.mergeFields(existingItemMap, sourceItemMap)
+								continue
+							}
+						}
+					}
+				}
+			}
+		}
+		target[key] = value
+	}
 }
 
 func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSchema {
