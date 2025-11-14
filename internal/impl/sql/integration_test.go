@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1545,4 +1547,141 @@ func waitForRds(localstackPort string) (err error) {
 		}
 	}
 	return errors.New("polling localstack for ready RDS failed")
+}
+
+// TODO(gregfurman): Generalise this into a testSuite that can be run against all SQL TestIntegration cases.
+func TestIntegrationCheckReconnectLogic(t *testing.T) {
+	integration.CheckSkip(t)
+
+	freePortInt, err := integration.GetFreePort()
+	require.NoError(t, err)
+	freePort := strconv.Itoa(freePortInt)
+
+	pool, err := dockertest.NewPool("")
+	if err != nil {
+		t.Skipf("Could not connect to docker: %s", err)
+	}
+	pool.MaxWait = 3 * time.Minute
+
+	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "postgres",
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"5432/tcp": {
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: freePort,
+				},
+			},
+		},
+		ExposedPorts: []string{"5432/tcp"},
+		Env: []string{
+			"POSTGRES_USER=testuser",
+			"POSTGRES_PASSWORD=testpass",
+			"POSTGRES_DB=testdb",
+		},
+	})
+	require.NoError(t, err)
+
+	var db *sql.DB
+	t.Cleanup(func() {
+		if err = pool.Purge(resource); err != nil {
+			t.Logf("Failed to clean up docker resource: %s", err)
+		}
+		if db != nil {
+			db.Close()
+		}
+	})
+
+	createTable := func(name string) (string, error) {
+		_, err := db.Exec(fmt.Sprintf(`CREATE TABLE %s (
+		first_name varchar(255),
+		last_name varchar(255), 
+		age int
+		)`, name))
+		return name, err
+	}
+
+	dsn := fmt.Sprintf("postgres://testuser:testpass@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
+	require.NoError(t, pool.Retry(func() error {
+		db, err = sql.Open("postgres", dsn)
+		if err != nil {
+			return err
+		}
+		if err = db.Ping(); err != nil {
+			db.Close()
+			db = nil
+			return err
+		}
+		if _, err := createTable("test_data"); err != nil {
+			return err
+		}
+		return nil
+	}))
+
+	// start a go routine to create a stream into db above
+	sb := service.NewStreamBuilder()
+
+	err = sb.SetYAML(fmt.Sprintf(`
+input:
+  generate:
+    mapping: 'root = {"first_name":fake("first_name"), "last_name":fake("last_name"), "age":random_int(min:0, max:99)}'
+    interval: 1ns
+
+output:
+  sql_insert:
+    driver: postgres
+    dsn: %v
+    table: test_data
+    columns:
+      - first_name
+      - last_name
+      - age
+    args_mapping: |
+        root = [
+          this.first_name,
+          this.last_name,
+          this.age
+        ]`, dsn))
+	require.NoError(t, err)
+	stream, err := sb.Build()
+	streamCtx := t.Context()
+
+	go func() {
+		err := stream.Run(streamCtx)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			require.NoError(t, err)
+		}
+	}()
+
+	// when we have over 1000 records in the db - stop the container
+	var count int
+	db, err = sql.Open("postgres", dsn)
+	require.Eventually(t, func() bool {
+		err := db.QueryRow("select count(*) from test_data;").Scan(&count)
+		require.NoError(t, err)
+		return count > 1000
+	}, time.Minute, time.Second)
+
+	err = pool.Client.StopContainer(resource.Container.ID, 60)
+	require.NoError(t, err)
+
+	err = pool.Client.StartContainer(resource.Container.ID, &docker.HostConfig{
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"5432/tcp": {
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: freePort,
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// we should now have reconnected and have more rows in the table
+	var countAfterRestart int
+	require.Eventually(t, func() bool {
+		//nolint:errcheck // We expect errors here whilst reconnecting
+		db.QueryRow("select count(*) from test_data;").Scan(&countAfterRestart)
+		return countAfterRestart > count+100
+	}, time.Minute, time.Second)
 }

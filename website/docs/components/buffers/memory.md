@@ -47,6 +47,7 @@ buffer:
 buffer:
   memory:
     limit: 524288000
+    spillover: false
     batch_policy:
       enabled: false
       count: 0
@@ -81,6 +82,14 @@ The maximum buffer size (in bytes) to allow before applying backpressure upstrea
 
 Type: `int`  
 Default: `524288000`  
+
+### `spillover`
+
+Whether to drop incoming messages that will exceed the buffer limit.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `batch_policy`
 

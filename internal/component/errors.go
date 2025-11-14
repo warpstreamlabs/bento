@@ -102,4 +102,5 @@ var (
 // Buffer errors.
 var (
 	ErrMessageTooLarge = errors.New("message body larger than buffer space")
+	ErrLimitReached    = errors.New("adding message to buffer will exceed size limit")
 )

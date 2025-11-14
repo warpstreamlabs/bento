@@ -100,7 +100,9 @@ func TestIntegrationBigQuery(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = client.Dataset("test_dataset").Create(ctx, &bigquery.DatasetMetadata{})
+	err = pool.Retry(func() error {
+		return client.Dataset("test_dataset").Create(ctx, &bigquery.DatasetMetadata{})
+	})
 	require.NoError(t, err)
 
 	schema := bigquery.Schema{

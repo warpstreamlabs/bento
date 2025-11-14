@@ -2,7 +2,7 @@
 title: redis_scan
 slug: redis_scan
 type: input
-status: experimental
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Scans the set of keys in the current selected database and gets their values, using the Scan and Get commands.
 
 Introduced in version 1.0.0.

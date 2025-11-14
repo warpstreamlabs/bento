@@ -3,6 +3,8 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -205,15 +207,24 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 }
 
 func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
+	err := s.writeBatch(ctx, batch)
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, driver.ErrBadConn) {
+		s.dbMut.Lock()
+		s.db = nil
+		s.dbMut.Unlock()
+		return service.ErrNotConnected
+	}
+
+	return err
+}
+
+func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatch) error {
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
-
-	if s.driver != "trino" {
-		if err := s.db.PingContext(ctx); err != nil {
-			s.db = nil
-			return service.ErrNotConnected
-		}
-	}
 
 	var executor *service.MessageBatchBloblangExecutor
 	if s.argsMapping != nil {

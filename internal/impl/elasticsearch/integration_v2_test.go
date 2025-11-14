@@ -1,20 +1,20 @@
 package elasticsearch
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -189,38 +189,53 @@ tls:
 	}
 
 	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 
-		pool, resource, port := startElasticsearch(t, tc.env)
-		pollURL := tc.pollURL(port)
+			pool, resource, port := startElasticsearch(t, tc.env)
+			pollURL := tc.pollURL(port)
 
-		var client *http.Client
-		var configArgs []string
-		if tc.name == "TLS" {
-			// give elasticsearch a moment to create a tls cert
-			time.Sleep(time.Second * 20)
+			var client *http.Client
+			var configArgs []string
+			if tc.name == "TLS" {
 
-			containerName := resource.Container.Name[1:]
-			cmd := exec.Command("docker", "exec", containerName, "cat", "config/certs/http_ca.crt")
-			output, err := cmd.Output()
-			require.NoError(t, err)
+				var stdout bytes.Buffer
+				err := pool.Retry(func() error {
+					exitCode, err := resource.Exec(
+						[]string{"cat", "config/certs/http_ca.crt"},
+						dockertest.ExecOptions{
+							StdOut: &stdout,
+						},
+					)
+					if err != nil {
+						return err
+					}
 
-			tmpDir := t.TempDir()
-			fileName := "http_ca.crt"
-			CAFilePath := filepath.Join(tmpDir, fileName)
+					if exitCode != 0 {
+						return errors.New("exited with error")
+					}
+					return nil
+				})
 
-			err = os.WriteFile(CAFilePath, output, 0644)
-			require.NoError(t, err)
+				require.NoError(t, err)
 
-			client = createHTTPClientWithCA(t, output)
-			configArgs = []string{port, CAFilePath}
-		} else {
-			client = &http.Client{}
-			configArgs = []string{port}
-		}
+				tmpDir := t.TempDir()
+				fileName := "http_ca.crt"
+				CAFilePath := filepath.Join(tmpDir, fileName)
 
-		waitForElasticsearch(t, pool, client, pollURL)
+				err = os.WriteFile(CAFilePath, stdout.Bytes(), 0644)
+				require.NoError(t, err)
 
-		connectOutput(t, tc.configYAML(configArgs))
+				client = createHTTPClientWithCA(t, stdout.Bytes())
+				configArgs = []string{port, CAFilePath}
+			} else {
+				client = &http.Client{}
+				configArgs = []string{port}
+			}
+
+			waitForElasticsearch(t, pool, client, pollURL)
+
+			connectOutput(t, tc.configYAML(configArgs))
+		})
 	}
 }
 
@@ -235,7 +250,7 @@ func startElasticsearch(t *testing.T, env []string) (pool *dockertest.Pool, reso
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
+		require.NoError(t, pool.Purge(resource))
 	})
 
 	port = resource.GetPort("9200/tcp")

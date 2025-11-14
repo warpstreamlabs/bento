@@ -32,6 +32,7 @@ func init() {
 
 func outputConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
+		Stable().
 		Version("1.0.0").
 		Categories("Services").
 		Summary("Write messages to an Apache Pulsar server.").

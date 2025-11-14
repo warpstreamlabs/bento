@@ -2,7 +2,7 @@
 title: redis_script
 slug: redis_script
 type: processor
-status: beta
+status: stable
 categories: ["Integration"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Integration"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Performs actions against Redis using [LUA scripts](https://redis.io/docs/manual/programmability/eval-intro/).
 
 Introduced in version 1.0.0.

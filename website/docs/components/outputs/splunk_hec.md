@@ -2,7 +2,7 @@
 title: splunk_hec
 slug: splunk_hec
 type: output
-status: experimental
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Writes messages to a Splunk HTTP Endpoint Collector.
 
 

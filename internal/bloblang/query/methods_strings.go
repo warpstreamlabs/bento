@@ -1270,7 +1270,6 @@ var _ = registerSimpleMethod(
 }`,
 		),
 	).
-		Beta().
 		Param(ParamString(
 			"indent",
 			"Indentation string. Each element in a JSON object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.",

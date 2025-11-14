@@ -444,7 +444,7 @@ var _ = registerSimpleMethod(
 			`{"goal":"bar","things":["foo", "bar", "baz"]}`,
 			`{"index":1}`,
 		),
-	).Beta().Param(ParamAny("value", "A value to find.")),
+	).Param(ParamAny("value", "A value to find.")),
 	func(args *ParsedParams) (simpleMethod, error) {
 		val, err := args.Field("value")
 		if err != nil {
@@ -485,7 +485,7 @@ var _ = registerSimpleMethod(
 			`{"goal":"bar","things":["foo", "bar", "baz", "bar", "buz"]}`,
 			`{"indexes":[1,3]}`,
 		),
-	).Beta().Param(ParamAny("value", "A value to find.")),
+	).Param(ParamAny("value", "A value to find.")),
 	func(args *ParsedParams) (simpleMethod, error) {
 		val, err := args.Field("value")
 		if err != nil {
@@ -523,7 +523,7 @@ var _ = registerSimpleMethod(
 			`["foo", "bar", "baz"]`,
 			`{"index":0}`,
 		),
-	).Beta().Param(ParamQuery("query", "A query to execute for each element.", false)),
+	).Param(ParamQuery("query", "A query to execute for each element.", false)),
 	func(args *ParsedParams) (simpleMethod, error) {
 		queryFn, err := args.FieldQuery("query")
 		if err != nil {
@@ -567,7 +567,7 @@ var _ = registerSimpleMethod(
 			`["foo", "bar", "baz"]`,
 			`{"index":[0,2]}`,
 		),
-	).Beta().Param(ParamQuery("query", "A query to execute for each element.", false)),
+	).Param(ParamQuery("query", "A query to execute for each element.", false)),
 	func(args *ParsedParams) (simpleMethod, error) {
 		queryFn, err := args.FieldQuery("query")
 		if err != nil {
@@ -769,7 +769,7 @@ var _ = registerSimpleMethod(
 			"In order to load a schema from a file use the `file` function.",
 			`root = this.json_schema(file(env("BENTO_TEST_BLOBLANG_SCHEMA_FILE")))`,
 		),
-	).Beta().Param(ParamString("schema", "The schema to check values against.")),
+	).Param(ParamString("schema", "The schema to check values against.")),
 	func(args *ParsedParams) (simpleMethod, error) {
 		schemaStr, err := args.FieldString("schema")
 		if err != nil {

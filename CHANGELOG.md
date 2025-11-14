@@ -3,6 +3,39 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.12.1 - 2025-10-24
+
+### Fixed 
+
+- `gcp_bigquery_write_api` now propagates error when failing to acquire a stream
+
+## 1.12.0 - 2025-10-21
+
+### Added 
+
+- `use_default_registry` field to Prometheus metrics config to expose stream metrics on the default registry @alecmerdler
+- 'Python-like' slices added to Bloblang using a square bracket syntax @iamramtin
+- `cosine_similarity` function added to Bloblang @gregfurman
+- simple perfomance benchmark test for `kafka_franz` @jem-davies
+- readiness check `IsReady()` add to StreamBuilder API @alecmerdler
+- `opensnowcat` experimental processor @joaolcorreia
+- `headers` field added to `websocket` input enabling specification of custom headers to add to the websocket handshake @exside
+
+### Changed
+
+ - Go version increased to 1.25 @gregfurman & @jem-davies
+ - review various component Statuses & promote various to Stable @jem-davies
+
+### Fixed
+
+ - flaky test `TestHTTPServerOutputSSEHeartbeat` in output_http_server_test.go @HankStat
+ - flaky test `TestRetryParallel` in output_retry_test.go @HankStat
+ - flaky test `TestHealthCheck` in serverless/lambda @HankStat
+ - integration_bigquery_test.go @jem-davies
+ - flaky test `TestWorkflowUnwrapResourceBranches` @HankStat
+ - update container image for integration tests pertaining to `etcd` & `kafka` components,  @gregfurman
+ - race condition on cockroachdb input `Close()` & port-confict with test @gregfurman
+
 ## 1.11.0 - 2025-09-19
 
 ### Added

@@ -25,6 +25,7 @@ func s3pSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Summary("Performs an S3 GetObject operation using the `bucket` + `key` provided in the config and replaces the original message parts with the content retrieved from S3.").
 		Version("1.4.0").
+		Stable().
 		Description(`
 This `+"`aws_s3`"+` processor is offered as an alternative to [streaming-objects-on-upload-with-sqs](/docs/components/inputs/aws_s3#streaming-objects-on-upload-with-sqs).
 
@@ -104,7 +105,7 @@ pipeline:
 			service.NewBoolField(s3pFieldForcePathStyleURLs).
 				Description("Forces the client API to use path style URLs for downloading keys, which is often required when connecting to custom endpoints.").
 				Default(false),
-			service.NewBoolField(s3iFieldDeleteObjects).
+			service.NewBoolField(s3pFieldDeleteObjects).
 				Description("Whether to delete downloaded objects from the bucket once they are processed. Note: the S3 Object will be deleted from AWS as soon as this processor has consumed the object.").
 				Version("1.5.0").
 				Default(false).
