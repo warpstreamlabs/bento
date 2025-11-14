@@ -70,7 +70,7 @@ sets the type of stream this write client is managing.`).Default(string(managedw
 			"protobuf": "Messages are in protobuf format",
 		}).Description("Format of incoming messages").Default("json")).
 		Field(service.NewBoolField("auto_add_missing_columns").
-			Description("Automatically add missing columns to the BigQuery table when a schema mismatch error is detected. When enabled, the component will detect missing fields, update the table schema, and retry the write operation.").
+			Description("Automatically add missing columns to the BigQuery table when a schema mismatch error is detected. When enabled, the component will detect missing fields, update the table schema, and retry the write operation. **Note:** This feature only works when `message_format` is set to `json`.").
 			Default(false).
 			Advanced()).
 		Field(service.NewIntField("max_schema_update_retries").
@@ -289,13 +289,13 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 		bq.log.Debugf("Schema update completed, proceeding with write to table %s", tableID)
 	}
 
-	maxRetries := 1
-	if bq.conf.autoAddMissingColumns {
-		maxRetries = bq.conf.maxSchemaUpdateRetries
+	maxSchemaUpdateAttempts := 1
+	if bq.conf.autoAddMissingColumns && bq.conf.messageFormat == "json" {
+		maxSchemaUpdateAttempts = bq.conf.maxSchemaUpdateRetries
 	}
 
 	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := 0; attempt < maxSchemaUpdateAttempts; attempt++ {
 		err := bq.writeBatchAttempt(ctx, tableID, batch)
 		if err == nil {
 			return nil
@@ -303,15 +303,15 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 
 		lastErr = err
 
-		if bq.conf.autoAddMissingColumns && isSchemaError(err) {
-			bq.log.Warnf("Schema mismatch detected on attempt %d/%d: %v", attempt+1, maxRetries, err)
+		if bq.conf.autoAddMissingColumns && bq.conf.messageFormat == "json" && isSchemaError(err) {
+			bq.log.Warnf("Schema mismatch detected on attempt %d/%d: %v", attempt+1, maxSchemaUpdateAttempts, err)
 
 			if updateErr := bq.handleSchemaEvolution(ctx, tableID, batch, err); updateErr != nil {
 				bq.log.Errorf("Failed to update schema: %v", updateErr)
 				return fmt.Errorf("schema update failed: %w (original error: %v)", updateErr, err)
 			}
 
-			bq.log.Infof("Schema updated successfully, retrying write (attempt %d/%d)", attempt+2, maxRetries)
+			bq.log.Infof("Schema updated successfully, retrying write (attempt %d/%d)", attempt+2, maxSchemaUpdateAttempts)
 			
 			// CRITICAL: Ensure the stream cache is cleared so we get a fresh descriptor
 			// This forces getManagedStreamForTable to fetch the updated schema
@@ -329,14 +329,14 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 			continue
 		}
 
-		if bq.conf.autoAddMissingColumns {
+		if bq.conf.autoAddMissingColumns && bq.conf.messageFormat == "json" {
 			bq.log.Debugf("Error was not identified as schema error, auto_add_missing_columns will not trigger: %v", err)
 		}
 
 		return err
 	}
 
-	return fmt.Errorf("max schema update retries (%d) exceeded: %w", maxRetries, lastErr)
+	return fmt.Errorf("max schema update retries (%d) exceeded: %w", maxSchemaUpdateAttempts, lastErr)
 }
 
 func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID string, batch service.MessageBatch) error {
@@ -656,6 +656,11 @@ func isStreamClosedError(err error) bool {
 }
 
 func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tableID string, batch service.MessageBatch, originalErr error) error {
+	// Schema evolution is only supported for JSON format
+	if bq.conf.messageFormat != "json" {
+		return fmt.Errorf("schema evolution is only supported for JSON format, current format is %s: %w", bq.conf.messageFormat, originalErr)
+	}
+
 	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
 
 	bq.tableUpdateLock.Lock()
