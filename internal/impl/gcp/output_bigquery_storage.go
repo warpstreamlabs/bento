@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	"cloud.google.com/go/bigquery/storage/managedwriter"
@@ -99,12 +100,10 @@ func bigQueryStorageWriterConfigFromParsed(pConf *service.ParsedConfig) (conf bi
 	}
 
 	if tableID, isStatic := conf.tableID.Static(); isStatic {
-		// Always return the same string value if static
 		conf.getTableID = func(_ *service.Message) (string, error) {
 			return tableID, nil
 		}
 	} else {
-		// Interpolate the tableID using the built-in TryString function if dynamic
 		conf.getTableID = conf.tableID.TryString
 	}
 
@@ -194,6 +193,9 @@ type bigQueryStorageWriter struct {
 
 	streamCacheLock sync.Mutex
 	streams         map[string]*streamWithDescriptor
+	
+	tableUpdateLock sync.Mutex
+	tablesUpdating  map[string]*sync.Mutex
 }
 
 type bigQueryStorageWriterConfig struct {
@@ -201,7 +203,6 @@ type bigQueryStorageWriterConfig struct {
 	datasetID string
 	tableID   *service.InterpolatedString
 
-	// getTableID interpolates a tableID string if dynamic, else it just returns a static tableID string
 	getTableID func(*service.Message) (string, error)
 
 	httpEndpoint string
@@ -214,7 +215,6 @@ type bigQueryStorageWriterConfig struct {
 	autoAddMissingColumns   bool
 	maxSchemaUpdateRetries  int
 
-	// Not implemented: tableSchema holds an explicitly defined BigQuery table schema.
 	tableSchema bigquery.Schema
 }
 
@@ -248,6 +248,7 @@ func (bq *bigQueryStorageWriter) Connect(ctx context.Context) error {
 	bq.client = client
 	bq.storageClient = storageClient
 	bq.streams = make(map[string]*streamWithDescriptor)
+	bq.tablesUpdating = make(map[string]*sync.Mutex)
 
 	return nil
 }
@@ -276,7 +277,6 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 		return err
 	}
 
-	// Retry logic for schema updates
 	maxRetries := 1
 	if bq.conf.autoAddMissingColumns {
 		maxRetries = bq.conf.maxSchemaUpdateRetries
@@ -291,11 +291,9 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 
 		lastErr = err
 
-		// Check if this is a schema mismatch error and auto-add is enabled
 		if bq.conf.autoAddMissingColumns && isSchemaError(err) {
 			bq.log.Warnf("Schema mismatch detected on attempt %d/%d: %v", attempt+1, maxRetries, err)
 
-			// Try to update the schema
 			if updateErr := bq.handleSchemaEvolution(ctx, tableID, batch, err); updateErr != nil {
 				bq.log.Errorf("Failed to update schema: %v", updateErr)
 				return fmt.Errorf("schema update failed: %w (original error: %v)", updateErr, err)
@@ -305,7 +303,10 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 			continue
 		}
 
-		// Not a schema error or auto-add disabled, return immediately
+		if bq.conf.autoAddMissingColumns {
+			bq.log.Debugf("Error was not identified as schema error, auto_add_missing_columns will not trigger: %v", err)
+		}
+
 		return err
 	}
 
@@ -332,12 +333,17 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 		var protoBytes []byte
 		switch bq.conf.messageFormat {
 		case "json":
-			protoMessage := dynamicpb.NewMessage(messageDescriptor)
-			if err := protojson.Unmarshal(msgBytes, protoMessage); err != nil {
-				return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(msgBytes))
+			// Convert timestamp fields to BigQuery format
+			convertedBytes, err := bq.convertTimestampsToBigQueryFormat(msgBytes)
+			if err != nil {
+				return fmt.Errorf("failed to convert timestamps for item %d: %w", i, err)
 			}
 
-			// Marshal to proto bytes for BigQuery
+			protoMessage := dynamicpb.NewMessage(messageDescriptor)
+			if err := protojson.Unmarshal(convertedBytes, protoMessage); err != nil {
+				return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(convertedBytes))
+			}
+
 			protoBytes, err = proto.Marshal(protoMessage)
 			if err != nil {
 				return fmt.Errorf("failed to marshal proto bytes for item %d: %w", i, err)
@@ -353,7 +359,6 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 		return fmt.Errorf("single-row append failed: %w", err)
 	}
 
-	// Wait for the result to indicate ready, then validate.
 	if _, err := result.GetResult(ctx); err != nil {
 		fullResponse, _ := result.FullResponse(ctx)
 		if fullResponse != nil && len(fullResponse.RowErrors) > 0 {
@@ -366,6 +371,89 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 	return nil
 }
 
+// convertTimestampsToBigQueryFormat converts ISO 8601 timestamps to BigQuery TIMESTAMP format
+func (bq *bigQueryStorageWriter) convertTimestampsToBigQueryFormat(jsonBytes []byte) ([]byte, error) {
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	if err := bq.convertTimestampsInMapToBigQueryFormat(data); err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(data)
+}
+
+// convertTimestampsInMapToBigQueryFormat recursively converts timestamp strings to BigQuery format
+func (bq *bigQueryStorageWriter) convertTimestampsInMapToBigQueryFormat(data map[string]interface{}) error {
+	for key, value := range data {
+		switch v := value.(type) {
+		case string:
+			if isTimestampField(key, v) {
+				bqTimestamp, err := convertToBigQueryTimestampFormat(v)
+				if err != nil {
+					return fmt.Errorf("failed to convert timestamp field %s: %w", key, err)
+				}
+				data[key] = bqTimestamp
+			}
+		case map[string]interface{}:
+			if err := bq.convertTimestampsInMapToBigQueryFormat(v); err != nil {
+				return err
+			}
+		case []interface{}:
+			for i, item := range v {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if err := bq.convertTimestampsInMapToBigQueryFormat(itemMap); err != nil {
+						return err
+					}
+				} else if itemStr, ok := item.(string); ok {
+					if isTimestampField(key, itemStr) {
+						bqTimestamp, err := convertToBigQueryTimestampFormat(itemStr)
+						if err != nil {
+							return fmt.Errorf("failed to convert timestamp in array field %s[%d]: %w", key, i, err)
+						}
+						v[i] = bqTimestamp
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// convertToBigQueryTimestampFormat converts ISO 8601 to BigQuery TIMESTAMP format (INT64 microseconds)
+// Input:  "2024-01-15T10:30:45.123Z"
+// Output: 1705318245123000 (microseconds since epoch)
+// Note: BigQuery Storage Write API requires INT64, not string format
+func convertToBigQueryTimestampFormat(timestampStr string) (int64, error) {
+	// Try multiple timestamp formats
+	formats := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999999Z07:00",
+		"2006-01-02T15:04:05.999999Z07:00",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04:05.999999999Z",
+		"2006-01-02T15:04:05.999999Z",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+	}
+
+	var t time.Time
+	var err error
+	for _, format := range formats {
+		t, err = time.Parse(format, timestampStr)
+		if err == nil {
+			// Convert to microseconds since epoch (INT64)
+			return t.UnixMicro(), nil
+		}
+	}
+
+	return 0, fmt.Errorf("unable to parse timestamp '%s' with any known format: %w", timestampStr, err)
+}
+
 //------------------------------------------------------------------------------
 
 func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, tableID string) (*streamWithDescriptor, error) {
@@ -373,10 +461,11 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 	defStreamName := destTable + "/streams/_default"
 
 	bq.streamCacheLock.Lock()
-	defer bq.streamCacheLock.Unlock()
 	if stream, ok := bq.streams[destTable]; ok {
+		bq.streamCacheLock.Unlock()
 		return stream, nil
 	}
+	bq.streamCacheLock.Unlock()
 
 	resp, err := bq.storageClient.GetWriteStream(ctx, &storagepb.GetWriteStreamRequest{
 		Name: defStreamName,
@@ -415,7 +504,9 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 		messageDescriptor: messageDescriptor,
 	}
 
+	bq.streamCacheLock.Lock()
 	bq.streams[destTable] = managedStreamPair
+	bq.streamCacheLock.Unlock()
 
 	messageDescriptorString := prototext.Format(protodesc.ToFileDescriptorProto(messageDescriptor.ParentFile()))
 	bq.log.Infof("loaded new bigquery schema for table: %s, schema: %s", destTable, messageDescriptorString)
@@ -423,7 +514,6 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 	return managedStreamPair, nil
 }
 
-// isSchemaError checks if the error is related to schema mismatch
 func isSchemaError(err error) bool {
 	if err == nil {
 		return false
@@ -431,13 +521,13 @@ func isSchemaError(err error) bool {
 
 	errMsg := err.Error()
 	
-	// Check for common schema-related error messages
 	schemaErrorPatterns := []string{
 		"no matching field found",
 		"schema mismatch",
 		"field not found",
 		"unknown field",
 		"cannot find field",
+		"failed to unmarshal",
 	}
 
 	lowerErr := strings.ToLower(errMsg)
@@ -447,29 +537,38 @@ func isSchemaError(err error) bool {
 		}
 	}
 
-	// Check gRPC status code
 	if st, ok := status.FromError(err); ok {
-		// InvalidArgument is commonly used for schema mismatches
-		return st.Code() == 3 // codes.InvalidArgument
+		return st.Code() == 3
 	}
 
 	return false
 }
 
-// handleSchemaEvolution attempts to update the BigQuery table schema to accommodate missing fields
 func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tableID string, batch service.MessageBatch, originalErr error) error {
 	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
 
-	// Get the current table metadata
-	table := bq.client.Dataset(bq.conf.datasetID).Table(tableID)
-	metadata, err := table.Metadata(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get table metadata: %w", err)
+	bq.tableUpdateLock.Lock()
+	tableLock, exists := bq.tablesUpdating[destTable]
+	if !exists {
+		tableLock = &sync.Mutex{}
+		bq.tablesUpdating[destTable] = tableLock
 	}
+	bq.tableUpdateLock.Unlock()
 
-	currentSchema := metadata.Schema
+	tableLock.Lock()
+	defer tableLock.Unlock()
 
-	// Parse the first message to extract all fields
+	bq.streamCacheLock.Lock()
+	if stream, ok := bq.streams[destTable]; ok {
+		if stream.stream != nil {
+			_ = stream.stream.Close()
+		}
+		delete(bq.streams, destTable)
+	}
+	bq.streamCacheLock.Unlock()
+
+	table := bq.client.Dataset(bq.conf.datasetID).Table(tableID)
+	
 	if len(batch) == 0 {
 		return fmt.Errorf("empty batch, cannot infer schema")
 	}
@@ -479,46 +578,121 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 		return fmt.Errorf("failed to get message bytes: %w", err)
 	}
 
-	// Parse JSON to extract field names and types
 	var msgData map[string]interface{}
 	if err := json.Unmarshal(msgBytes, &msgData); err != nil {
 		return fmt.Errorf("failed to unmarshal message for schema inference: %w", err)
 	}
 
-	// Identify missing fields
-	missingFields := bq.findMissingFields(currentSchema, msgData)
-	if len(missingFields) == 0 {
-		return fmt.Errorf("no missing fields detected, but schema error occurred: %w", originalErr)
+	maxETagRetries := 3
+	for etagRetry := 0; etagRetry < maxETagRetries; etagRetry++ {
+		if etagRetry > 0 {
+			bq.log.Infof("Retrying schema update (ETag retry %d/%d)", etagRetry+1, maxETagRetries)
+			time.Sleep(time.Duration(etagRetry) * 500 * time.Millisecond)
+		}
+
+		metadata, err := table.Metadata(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get table metadata: %w", err)
+		}
+
+		currentSchema := metadata.Schema
+
+		missingFields := bq.findMissingFields(currentSchema, msgData)
+		if len(missingFields) == 0 {
+			if etagRetry == 0 {
+				return fmt.Errorf("no missing fields detected, but schema error occurred: %w", originalErr)
+			}
+			bq.log.Infof("No missing fields found on retry %d, schema may have been updated by another process", etagRetry+1)
+			break
+		}
+
+		bq.log.Infof("Detected %d missing field(s): %v", len(missingFields), fieldNames(missingFields))
+
+		newSchema := append(currentSchema, missingFields...)
+
+		update := bigquery.TableMetadataToUpdate{
+			Schema: newSchema,
+		}
+
+		if _, err := table.Update(ctx, update, metadata.ETag); err != nil {
+			if strings.Contains(err.Error(), "Precondition check failed") || strings.Contains(err.Error(), "412") {
+				if etagRetry < maxETagRetries-1 {
+					bq.log.Warnf("Precondition failed (ETag mismatch), retrying with fresh metadata...")
+					continue
+				}
+			}
+			return fmt.Errorf("failed to update table schema: %w", err)
+		}
+
+		bq.log.Infof("Successfully added %d field(s) to table %s", len(missingFields), tableID)
+		break
 	}
 
-	bq.log.Infof("Detected %d missing field(s): %v", len(missingFields), fieldNames(missingFields))
+	bq.log.Infof("Waiting for BigQuery schema propagation...")
+	defStreamName := destTable + "/streams/_default"
+	
+	maxWaitTime := 10 * time.Second
+	pollInterval := 500 * time.Millisecond
+	deadline := time.Now().Add(maxWaitTime)
+	
+	for time.Now().Before(deadline) {
+		resp, err := bq.storageClient.GetWriteStream(ctx, &storagepb.GetWriteStreamRequest{
+			Name: defStreamName,
+			View: storagepb.WriteStreamView_FULL,
+		})
+		if err != nil {
+			bq.log.Warnf("Failed to verify schema propagation: %v", err)
+			break
+		}
 
-	// Add missing fields to schema
-	newSchema := append(currentSchema, missingFields...)
+		descriptor, err := adapt.StorageSchemaToProto2Descriptor(resp.GetTableSchema(), "root")
+		if err == nil {
+			if messageDesc, ok := descriptor.(protoreflect.MessageDescriptor); ok {
+				metadata, err := bq.client.Dataset(bq.conf.datasetID).Table(tableID).Metadata(ctx)
+				if err == nil {
+					missingFields := bq.findMissingFields(metadata.Schema, msgData)
+					if len(missingFields) == 0 {
+						allFieldsPresent := true
+						for fieldName := range msgData {
+							if messageDesc.Fields().ByName(protoreflect.Name(fieldName)) == nil {
+								allFieldsPresent = false
+								break
+							}
+						}
+						
+						if allFieldsPresent {
+							bq.log.Infof("Schema propagation confirmed - all new fields present")
+							bq.streamCacheLock.Lock()
+							if stream, ok := bq.streams[destTable]; ok {
+								if stream.stream != nil {
+									_ = stream.stream.Close()
+								}
+								delete(bq.streams, destTable)
+							}
+							bq.streamCacheLock.Unlock()
+							return nil
+						}
+					}
+				}
+			}
+		}
 
-	// Update the table schema
-	update := bigquery.TableMetadataToUpdate{
-		Schema: newSchema,
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pollInterval):
+		}
 	}
 
-	if _, err := table.Update(ctx, update, metadata.ETag); err != nil {
-		return fmt.Errorf("failed to update table schema: %w", err)
-	}
-
-	bq.log.Infof("Successfully added %d field(s) to table %s", len(missingFields), tableID)
-
-	// Invalidate the cached stream so it gets recreated with new schema
+	bq.log.Warnf("Schema propagation verification timed out, proceeding anyway")
 	bq.streamCacheLock.Lock()
 	if stream, ok := bq.streams[destTable]; ok {
-		// Close the old stream
 		if stream.stream != nil {
-			// Best effort close, ignore errors
 			_ = stream.stream.Close()
 		}
 		delete(bq.streams, destTable)
 	}
 	bq.streamCacheLock.Unlock()
-
 	return nil
 }
 
@@ -535,31 +709,156 @@ func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema
 	// Check each field in the message
 	for fieldName, value := range msgData {
 		if !existingFields[fieldName] {
-			fieldType := inferBigQueryType(value)
-			missingFields = append(missingFields, &bigquery.FieldSchema{
-				Name: fieldName,
-				Type: fieldType,
-				// New fields are nullable by default
-				Required: false,
-			})
+			fieldSchema := inferBigQueryFieldSchema(fieldName, value)
+			if fieldSchema != nil {
+				missingFields = append(missingFields, fieldSchema)
+			}
 		}
 	}
 
 	return missingFields
 }
 
-// inferBigQueryType infers the BigQuery field type from a Go value
+// inferBigQueryFieldSchema creates a complete FieldSchema including nested structures
+func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSchema {
+	if value == nil {
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     bigquery.StringFieldType,
+			Required: false,
+		}
+	}
+
+	switch v := value.(type) {
+	case bool:
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     bigquery.BooleanFieldType,
+			Required: false,
+		}
+	case float64:
+		// Check if it's actually an integer
+		fieldType := bigquery.FloatFieldType
+		if v == float64(int64(v)) {
+			fieldType = bigquery.IntegerFieldType
+		}
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     fieldType,
+			Required: false,
+		}
+	case string:
+		fieldType := bigquery.StringFieldType
+		// Check if it's a timestamp field - use TIMESTAMP type
+		if isTimestampField(name, v) {
+			fieldType = bigquery.TimestampFieldType
+		}
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     fieldType,
+			Required: false,
+		}
+	case map[string]interface{}:
+		// RECORD type with nested schema
+		nestedSchema := make([]*bigquery.FieldSchema, 0)
+		for nestedName, nestedValue := range v {
+			nestedField := inferBigQueryFieldSchema(nestedName, nestedValue)
+			if nestedField != nil {
+				nestedSchema = append(nestedSchema, nestedField)
+			}
+		}
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     bigquery.RecordFieldType,
+			Schema:   nestedSchema,
+			Required: false,
+		}
+	case []interface{}:
+		// Array - need to infer the element type
+		if len(v) > 0 {
+			// Get schema from first element
+			firstElemSchema := inferBigQueryFieldSchema(name, v[0])
+			if firstElemSchema != nil {
+				// Arrays in BigQuery are REPEATED fields
+				firstElemSchema.Repeated = true
+				return firstElemSchema
+			}
+		}
+		// Empty array - default to repeated STRING
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     bigquery.StringFieldType,
+			Repeated: true,
+			Required: false,
+		}
+	default:
+		// Fallback to STRING
+		return &bigquery.FieldSchema{
+			Name:     name,
+			Type:     bigquery.StringFieldType,
+			Required: false,
+		}
+	}
+}
+
+func isTimestampField(name string, value string) bool {
+	// Detect ISO 8601 timestamp format by analyzing the value itself
+	// Format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DD HH:MM:SS (with optional timezone/microseconds)
+	
+	if len(value) < 19 {
+		return false
+	}
+
+	// Check for ISO 8601 format: YYYY-MM-DDTHH:MM:SS
+	if value[4] == '-' && value[7] == '-' && value[10] == 'T' && 
+	   value[13] == ':' && value[16] == ':' {
+		// Validate it's actually a valid timestamp by trying to parse it
+		formats := []string{
+			time.RFC3339Nano,
+			time.RFC3339,
+			"2006-01-02T15:04:05.999999999Z07:00",
+			"2006-01-02T15:04:05.999999Z07:00",
+			"2006-01-02T15:04:05Z07:00",
+			"2006-01-02T15:04:05.999999999Z",
+			"2006-01-02T15:04:05.999999Z",
+			"2006-01-02T15:04:05Z",
+		}
+		
+		for _, format := range formats {
+			if _, err := time.Parse(format, value); err == nil {
+				return true
+			}
+		}
+	}
+
+	// Check for space-separated format: YYYY-MM-DD HH:MM:SS
+	if value[4] == '-' && value[7] == '-' && value[10] == ' ' && 
+	   value[13] == ':' && value[16] == ':' {
+		formats := []string{
+			"2006-01-02 15:04:05.999999999",
+			"2006-01-02 15:04:05",
+		}
+		
+		for _, format := range formats {
+			if _, err := time.Parse(format, value); err == nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// inferBigQueryType infers the BigQuery field type from a Go value (kept for backward compatibility)
 func inferBigQueryType(value interface{}) bigquery.FieldType {
 	if value == nil {
-		return bigquery.StringFieldType // Default to STRING for null values
+		return bigquery.StringFieldType
 	}
 
 	switch v := value.(type) {
 	case bool:
 		return bigquery.BooleanFieldType
 	case float64:
-		// JSON numbers are always float64
-		// Check if it's actually an integer
 		if v == float64(int64(v)) {
 			return bigquery.IntegerFieldType
 		}
@@ -569,14 +868,12 @@ func inferBigQueryType(value interface{}) bigquery.FieldType {
 	case map[string]interface{}:
 		return bigquery.RecordFieldType
 	case []interface{}:
-		// Arrays in BigQuery are repeated fields
 		if len(v) > 0 {
-			// Infer type from first element
 			return inferBigQueryType(v[0])
 		}
-		return bigquery.StringFieldType // Default for empty arrays
+		return bigquery.StringFieldType
 	default:
-		return bigquery.StringFieldType // Default fallback
+		return bigquery.StringFieldType
 	}
 }
 
