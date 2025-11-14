@@ -2,8 +2,10 @@ package gcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
@@ -14,6 +16,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	"github.com/warpstreamlabs/bento/public/service"
 
@@ -65,6 +68,14 @@ sets the type of stream this write client is managing.`).Default(string(managedw
 			"json":     "Messages are in JSON format (default)",
 			"protobuf": "Messages are in protobuf format",
 		}).Description("Format of incoming messages").Default("json")).
+		Field(service.NewBoolField("auto_add_missing_columns").
+			Description("Automatically add missing columns to the BigQuery table when a schema mismatch error is detected. When enabled, the component will detect missing fields, update the table schema, and retry the write operation.").
+			Default(false).
+			Advanced()).
+		Field(service.NewIntField("max_schema_update_retries").
+			Description("Maximum number of times to retry a write operation after updating the table schema. Prevents infinite loops if schema updates fail repeatedly.").
+			Default(3).
+			Advanced()).
 		Field(service.NewBatchPolicyField("batching").Advanced().LintRule(`root = if this.byte_size >= 1000000 { "the amount of bytes in a batch cannot exceed 10 MB" }`)).
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of message batches to have in flight at a given time. Increase this to improve throughput.").
@@ -119,6 +130,14 @@ func bigQueryStorageWriterConfigFromParsed(pConf *service.ParsedConfig) (conf bi
 	}
 
 	if conf.messageFormat, err = pConf.FieldString("message_format"); err != nil {
+		return
+	}
+
+	if conf.autoAddMissingColumns, err = pConf.FieldBool("auto_add_missing_columns"); err != nil {
+		return
+	}
+
+	if conf.maxSchemaUpdateRetries, err = pConf.FieldInt("max_schema_update_retries"); err != nil {
 		return
 	}
 
@@ -192,6 +211,9 @@ type bigQueryStorageWriterConfig struct {
 
 	messageFormat string
 
+	autoAddMissingColumns   bool
+	maxSchemaUpdateRetries  int
+
 	// Not implemented: tableSchema holds an explicitly defined BigQuery table schema.
 	tableSchema bigquery.Schema
 }
@@ -254,9 +276,46 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 		return err
 	}
 
+	// Retry logic for schema updates
+	maxRetries := 1
+	if bq.conf.autoAddMissingColumns {
+		maxRetries = bq.conf.maxSchemaUpdateRetries
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := bq.writeBatchAttempt(ctx, tableID, batch)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		// Check if this is a schema mismatch error and auto-add is enabled
+		if bq.conf.autoAddMissingColumns && isSchemaError(err) {
+			bq.log.Warnf("Schema mismatch detected on attempt %d/%d: %v", attempt+1, maxRetries, err)
+
+			// Try to update the schema
+			if updateErr := bq.handleSchemaEvolution(ctx, tableID, batch, err); updateErr != nil {
+				bq.log.Errorf("Failed to update schema: %v", updateErr)
+				return fmt.Errorf("schema update failed: %w (original error: %v)", updateErr, err)
+			}
+
+			bq.log.Infof("Schema updated successfully, retrying write (attempt %d/%d)", attempt+2, maxRetries)
+			continue
+		}
+
+		// Not a schema error or auto-add disabled, return immediately
+		return err
+	}
+
+	return fmt.Errorf("max schema update retries (%d) exceeded: %w", maxRetries, lastErr)
+}
+
+func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID string, batch service.MessageBatch) error {
 	streamDescriptorPair, err := bq.getManagedStreamForTable(ctx, tableID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	stream := streamDescriptorPair.stream
@@ -362,4 +421,170 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 	bq.log.Infof("loaded new bigquery schema for table: %s, schema: %s", destTable, messageDescriptorString)
 
 	return managedStreamPair, nil
+}
+
+// isSchemaError checks if the error is related to schema mismatch
+func isSchemaError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := err.Error()
+	
+	// Check for common schema-related error messages
+	schemaErrorPatterns := []string{
+		"no matching field found",
+		"schema mismatch",
+		"field not found",
+		"unknown field",
+		"cannot find field",
+	}
+
+	lowerErr := strings.ToLower(errMsg)
+	for _, pattern := range schemaErrorPatterns {
+		if strings.Contains(lowerErr, pattern) {
+			return true
+		}
+	}
+
+	// Check gRPC status code
+	if st, ok := status.FromError(err); ok {
+		// InvalidArgument is commonly used for schema mismatches
+		return st.Code() == 3 // codes.InvalidArgument
+	}
+
+	return false
+}
+
+// handleSchemaEvolution attempts to update the BigQuery table schema to accommodate missing fields
+func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tableID string, batch service.MessageBatch, originalErr error) error {
+	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
+
+	// Get the current table metadata
+	table := bq.client.Dataset(bq.conf.datasetID).Table(tableID)
+	metadata, err := table.Metadata(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get table metadata: %w", err)
+	}
+
+	currentSchema := metadata.Schema
+
+	// Parse the first message to extract all fields
+	if len(batch) == 0 {
+		return fmt.Errorf("empty batch, cannot infer schema")
+	}
+
+	msgBytes, err := batch[0].AsBytes()
+	if err != nil {
+		return fmt.Errorf("failed to get message bytes: %w", err)
+	}
+
+	// Parse JSON to extract field names and types
+	var msgData map[string]interface{}
+	if err := json.Unmarshal(msgBytes, &msgData); err != nil {
+		return fmt.Errorf("failed to unmarshal message for schema inference: %w", err)
+	}
+
+	// Identify missing fields
+	missingFields := bq.findMissingFields(currentSchema, msgData)
+	if len(missingFields) == 0 {
+		return fmt.Errorf("no missing fields detected, but schema error occurred: %w", originalErr)
+	}
+
+	bq.log.Infof("Detected %d missing field(s): %v", len(missingFields), fieldNames(missingFields))
+
+	// Add missing fields to schema
+	newSchema := append(currentSchema, missingFields...)
+
+	// Update the table schema
+	update := bigquery.TableMetadataToUpdate{
+		Schema: newSchema,
+	}
+
+	if _, err := table.Update(ctx, update, metadata.ETag); err != nil {
+		return fmt.Errorf("failed to update table schema: %w", err)
+	}
+
+	bq.log.Infof("Successfully added %d field(s) to table %s", len(missingFields), tableID)
+
+	// Invalidate the cached stream so it gets recreated with new schema
+	bq.streamCacheLock.Lock()
+	if stream, ok := bq.streams[destTable]; ok {
+		// Close the old stream
+		if stream.stream != nil {
+			// Best effort close, ignore errors
+			_ = stream.stream.Close()
+		}
+		delete(bq.streams, destTable)
+	}
+	bq.streamCacheLock.Unlock()
+
+	return nil
+}
+
+// findMissingFields compares the current schema with message data to find missing fields
+func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema, msgData map[string]interface{}) []*bigquery.FieldSchema {
+	var missingFields []*bigquery.FieldSchema
+
+	// Create a map of existing field names for quick lookup
+	existingFields := make(map[string]bool)
+	for _, field := range currentSchema {
+		existingFields[field.Name] = true
+	}
+
+	// Check each field in the message
+	for fieldName, value := range msgData {
+		if !existingFields[fieldName] {
+			fieldType := inferBigQueryType(value)
+			missingFields = append(missingFields, &bigquery.FieldSchema{
+				Name: fieldName,
+				Type: fieldType,
+				// New fields are nullable by default
+				Required: false,
+			})
+		}
+	}
+
+	return missingFields
+}
+
+// inferBigQueryType infers the BigQuery field type from a Go value
+func inferBigQueryType(value interface{}) bigquery.FieldType {
+	if value == nil {
+		return bigquery.StringFieldType // Default to STRING for null values
+	}
+
+	switch v := value.(type) {
+	case bool:
+		return bigquery.BooleanFieldType
+	case float64:
+		// JSON numbers are always float64
+		// Check if it's actually an integer
+		if v == float64(int64(v)) {
+			return bigquery.IntegerFieldType
+		}
+		return bigquery.FloatFieldType
+	case string:
+		return bigquery.StringFieldType
+	case map[string]interface{}:
+		return bigquery.RecordFieldType
+	case []interface{}:
+		// Arrays in BigQuery are repeated fields
+		if len(v) > 0 {
+			// Infer type from first element
+			return inferBigQueryType(v[0])
+		}
+		return bigquery.StringFieldType // Default for empty arrays
+	default:
+		return bigquery.StringFieldType // Default fallback
+	}
+}
+
+// fieldNames extracts field names from a slice of FieldSchema for logging
+func fieldNames(fields []*bigquery.FieldSchema) []string {
+	names := make([]string, len(fields))
+	for i, field := range fields {
+		names[i] = field.Name
+	}
+	return names
 }
