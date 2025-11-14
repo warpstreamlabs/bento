@@ -27,6 +27,7 @@ const (
 	hcFieldDumpRequestLogLevel = "dump_request_log_level"
 	hcFieldTLS                 = "tls"
 	hcFieldProxyURL            = "proxy_url"
+	hcFieldNegotiate           = "negotiate"
 )
 
 // ConfigField returns a public API config field spec for an HTTP component,
@@ -101,6 +102,10 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("An optional HTTP proxy URL.").
 			Advanced().
 			Optional(),
+		service.NewBoolField(hcFieldNegotiate).
+			Description("Use Negotiate (SPNEGO) authentication.").
+			Advanced().
+			Default(false),
 	)
 
 	innerFields = append(innerFields, extraChildren...)
@@ -154,6 +159,7 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 		return
 	}
 	conf.ProxyURL, _ = pConf.FieldString(hcFieldProxyURL)
+	conf.Negotiate, _ = pConf.FieldBool(hcFieldNegotiate)
 	if conf.authSigner, err = pConf.HTTPRequestAuthSignerFromParsed(); err != nil {
 		return
 	}
@@ -182,6 +188,7 @@ type OldConfig struct {
 	TLSEnabled          bool
 	TLSConf             *tls.Config
 	ProxyURL            string
+	Negotiate           bool
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
 }

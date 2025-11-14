@@ -102,6 +102,7 @@ output:
     drop_on: []
     successful_on: []
     proxy_url: "" # No default (optional)
+    negotiate: false
     batch_as_multipart: false
     propagate_response: false
     max_in_flight: 64
@@ -697,6 +698,14 @@ An optional HTTP proxy URL.
 
 
 Type: `string`  
+
+### `negotiate`
+
+Use Negotiate (SPNEGO) authentication.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `batch_as_multipart`
 

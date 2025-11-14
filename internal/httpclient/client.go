@@ -3,6 +3,7 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -75,16 +76,11 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 		h.client.Timeout = conf.Timeout
 	}
 
+	var tlsClientConfig *tls.Config
+	var proxy func(*http.Request) (*url.URL, error)
+
 	if conf.TLSEnabled && conf.TLSConf != nil {
-		if c, ok := http.DefaultTransport.(*http.Transport); ok {
-			cloned := c.Clone()
-			cloned.TLSClientConfig = conf.TLSConf
-			h.client.Transport = cloned
-		} else {
-			h.client.Transport = &http.Transport{
-				TLSClientConfig: conf.TLSConf,
-			}
-		}
+		tlsClientConfig = conf.TLSConf
 	}
 
 	if conf.ProxyURL != "" {
@@ -92,17 +88,34 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse proxy_url string: %v", err)
 		}
-		if h.client.Transport != nil {
-			if tr, ok := h.client.Transport.(*http.Transport); ok {
-				tr.Proxy = http.ProxyURL(proxyURL)
-			} else {
-				return nil, fmt.Errorf("unable to apply proxy_url to transport, unexpected type %T", h.client.Transport)
+		proxy = http.ProxyURL(proxyURL)
+	}
+
+	if tlsClientConfig != nil || proxy != nil {
+		if c, ok := http.DefaultTransport.(*http.Transport); ok {
+			cloned := c.Clone()
+
+			if tlsClientConfig != nil {
+				cloned.TLSClientConfig = tlsClientConfig
 			}
+
+			if proxy != nil {
+				cloned.Proxy = proxy
+			}
+
+			h.client.Transport = cloned
 		} else {
 			h.client.Transport = &http.Transport{
-				Proxy: http.ProxyURL(proxyURL),
+				TLSClientConfig: tlsClientConfig,
+				Proxy:           proxy,
 			}
 		}
+
+		if conf.Negotiate {
+			h.client.Transport = newSPPNEGORoundTripper(h.client.Transport)
+		}
+	} else if conf.Negotiate {
+		h.client.Transport = newSPPNEGORoundTripper(http.DefaultTransport)
 	}
 
 	h.client.Transport, err = newRequestLog(h.client.Transport, h.log, conf.DumpRequestLogLevel)
