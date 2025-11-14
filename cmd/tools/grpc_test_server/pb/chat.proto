@@ -1,0 +1,10 @@
+syntax = "proto3";
+package chat;
+
+import "google/protobuf/struct.proto";
+
+service Chat {
+  rpc Stream(stream google.protobuf.Struct) returns (stream google.protobuf.Struct);
+}
+
+
