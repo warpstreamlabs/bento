@@ -33,7 +33,7 @@ func gcpBigQueryWriteAPIConfFromYAML(t *testing.T, yamlStr string) bigQueryStora
 func TestNewGCPBigQueryStorageOutputSchemaConfigOK(t *testing.T) {
 	t.Skip("Passing an explicit table schema is not implemented yet")
 
-	config := gcpBigQueryWriteAPIConfFromYAML(t, `
+	_ = gcpBigQueryWriteAPIConfFromYAML(t, `
 project: foo
 dataset: bar
 table: baz
@@ -43,16 +43,16 @@ schema:
     type: BOOLEAN
 `)
 
-	schema, err := bigquery.SchemaFromJSON([]byte(`[{"name":"foobar","type":"BOOL","mode":"NULLABLE","description":""}]`))
+	_, err := bigquery.SchemaFromJSON([]byte(`[{"name":"foobar","type":"BOOL","mode":"NULLABLE","description":""}]`))
 	require.NoError(t, err)
 
-	require.Equal(t, schema, config.tableSchema)
+	// TODO: Implement explicit table schema support and add assertion
 }
 
 func TestNewGCPBigQueryStorageOutputSchemaRepeatedConfigOK(t *testing.T) {
 	t.Skip("Passing an explicit table schema is not implemented yet")
 
-	config := gcpBigQueryWriteAPIConfFromYAML(t, `
+	_ = gcpBigQueryWriteAPIConfFromYAML(t, `
 project: foo
 dataset: bar
 table: baz
@@ -62,16 +62,16 @@ schema:
     repeated: True
 `)
 
-	schema, err := bigquery.SchemaFromJSON([]byte(`[{"name":"foobar","type":"BOOL","mode":"REPEATED","description":""}]`))
+	_, err := bigquery.SchemaFromJSON([]byte(`[{"name":"foobar","type":"BOOL","mode":"REPEATED","description":""}]`))
 	require.NoError(t, err)
 
-	require.Equal(t, schema, config.tableSchema)
+	// TODO: Implement explicit table schema support and add assertion
 }
 
 func TestNewGCPBigQueryStorageOutputNestedSchemaConfigOK(t *testing.T) {
 	t.Skip("Passing an explicit table schema is not implemented yet")
 
-	config := gcpBigQueryWriteAPIConfFromYAML(t, `
+	_ = gcpBigQueryWriteAPIConfFromYAML(t, `
 project: foo
 dataset: bar
 table: baz
@@ -90,10 +90,10 @@ schema:
 `)
 
 	jsonSchema := `[{"name":"nested_record","type":"RECORD","mode":"NULLABLE","description":"Nested nullable RECORD","fields":[{"name":"record_field_1","type":"STRING","mode":"NULLABLE","description":"First nested record field"},{"name":"record_field_2","type":"INTEGER","mode":"REQUIRED","description":"Second nested record field"}]}]`
-	schema, err := bigquery.SchemaFromJSON([]byte(jsonSchema))
+	_, err := bigquery.SchemaFromJSON([]byte(jsonSchema))
 	require.NoError(t, err)
 
-	require.Equal(t, schema, config.tableSchema)
+	// TODO: Implement explicit table schema support and add assertion
 }
 
 func TestNewGCPBigQueryStorageOutputNestedSchemaConfigErr(t *testing.T) {
