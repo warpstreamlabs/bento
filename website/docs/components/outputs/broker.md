@@ -63,7 +63,7 @@ output:
 </TabItem>
 </Tabs>
 
-Outputs can be defined inline with their full configuration or referenced by name. Both methods can be mixed:
+Outputs can be defined inline with their full configuration or referenced by resource name. Both methods can be mixed:
 
 ```yaml
 output:
@@ -99,11 +99,16 @@ output:
     - resource: general_processor
 ```
 
-## Common Use Cases
+## Examples
 
-### Send to Multiple Destinations
+<Tabs defaultValue="Send to Multiple Destinations" values={[
+{ label: 'Send to Multiple Destinations', value: 'Send to Multiple Destinations', },
+{ label: 'Load Balance Across Endpoints', value: 'Load Balance Across Endpoints', },
+]}>
 
-Send the same data to multiple outputs simultaneously:
+<TabItem value="Send to Multiple Destinations">
+
+Send the same data to multiple outputs simultaneously.
 
 ```yaml
 output:
@@ -123,9 +128,10 @@ output:
           codec: lines
 ```
 
-### Load Balance Across Endpoints
+</TabItem>
+<TabItem value="Load Balance Across Endpoints">
 
-Distribute messages across multiple targets:
+Distribute messages across multiple targets.
 
 ```yaml
 output:
@@ -139,6 +145,9 @@ output:
       - http_client:
           url: http://api3.example.com/data
 ```
+
+</TabItem>
+</Tabs>
 
 ## Fields
 
