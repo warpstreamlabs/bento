@@ -521,7 +521,7 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 		})
 
 		if err == nil {
-			break // Success!
+			break
 		}
 
 		if st, ok := status.FromError(err); ok && st.Code() == 5 { // Code 5 = NotFound
@@ -898,7 +898,7 @@ func (bq *bigQueryStorageWriter) mergeSchemas(existingSchema bigquery.Schema, ne
 	result := make(bigquery.Schema, 0, len(existingSchema))
 	for _, field := range existingSchema {
 		normalizedField := &bigquery.FieldSchema{
-			Name:        strings.ToLower(field.Name), // Normalize to lowercase
+			Name:        strings.ToLower(field.Name),
 			Type:        field.Type,
 			Repeated:    field.Repeated,
 			Required:    field.Required,
@@ -918,12 +918,12 @@ func (bq *bigQueryStorageWriter) mergeSchemas(existingSchema bigquery.Schema, ne
 			if normalizedNewName == normalizedExistingName {
 				if newField.Type == bigquery.RecordFieldType && existingField.Type == bigquery.RecordFieldType {
 					result[i] = &bigquery.FieldSchema{
-						Name:        normalizedNewName, // Use normalized lowercase name
+						Name:        normalizedNewName,
 						Type:        existingField.Type,
 						Repeated:    existingField.Repeated,
 						Required:    existingField.Required,
 						Description: existingField.Description,
-						Schema:      newField.Schema, // newField.Schema already contains merged nested fields
+						Schema:      newField.Schema,
 					}
 					processedNewFields[normalizedNewName] = true
 					bq.log.Debugf("Merged nested fields into existing RECORD field '%s'", normalizedNewName)
@@ -974,7 +974,7 @@ func (bq *bigQueryStorageWriter) dumpSchema(schema bigquery.Schema, indent strin
 }
 
 func (bq *bigQueryStorageWriter) mergeFields(target, source map[string]interface{}) {
-	targetKeysLower := make(map[string]string) // lowercase -> original key
+	targetKeysLower := make(map[string]string)
 	for key := range target {
 		targetKeysLower[strings.ToLower(key)] = key
 	}
@@ -1092,7 +1092,7 @@ func (bq *bigQueryStorageWriter) convertNumbersToStringsInMap(data map[string]in
 	for key, value := range data {
 		fieldDesc := descriptor.Fields().ByName(protoreflect.Name(key))
 		if fieldDesc == nil {
-			continue // Field not in schema
+			continue
 		}
 
 		switch v := value.(type) {
