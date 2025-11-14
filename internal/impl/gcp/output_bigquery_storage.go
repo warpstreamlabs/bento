@@ -273,6 +273,22 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 		return err
 	}
 
+	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
+
+	// Check if this table is currently being updated by another goroutine
+	// If so, wait for the update to complete before attempting to write
+	bq.tableUpdateLock.Lock()
+	tableLock, updating := bq.tablesUpdating[destTable]
+	bq.tableUpdateLock.Unlock()
+
+	if updating {
+		// Another goroutine is updating this table's schema, wait for it to finish
+		bq.log.Debugf("Waiting for concurrent schema update on table %s to complete", tableID)
+		tableLock.Lock()
+		tableLock.Unlock()
+		bq.log.Debugf("Schema update completed, proceeding with write to table %s", tableID)
+	}
+
 	maxRetries := 1
 	if bq.conf.autoAddMissingColumns {
 		maxRetries = bq.conf.maxSchemaUpdateRetries
@@ -296,6 +312,20 @@ func (bq *bigQueryStorageWriter) WriteBatch(ctx context.Context, batch service.M
 			}
 
 			bq.log.Infof("Schema updated successfully, retrying write (attempt %d/%d)", attempt+2, maxRetries)
+			
+			// CRITICAL: Ensure the stream cache is cleared so we get a fresh descriptor
+			// This forces getManagedStreamForTable to fetch the updated schema
+			destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
+			bq.streamCacheLock.Lock()
+			if stream, ok := bq.streams[destTable]; ok {
+				if stream.stream != nil {
+					_ = stream.stream.Close()
+				}
+				delete(bq.streams, destTable)
+				bq.log.Debugf("Cleared stream cache for table %s before retry", tableID)
+			}
+			bq.streamCacheLock.Unlock()
+			
 			continue
 		}
 
@@ -334,9 +364,22 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 				return fmt.Errorf("failed to convert timestamps for item %d: %w", i, err)
 			}
 
+			// Sanitize field names (convert hyphens to underscores) to match BigQuery schema
+			sanitizedBytes, err := bq.sanitizeJSONFieldNames(convertedBytes)
+			if err != nil {
+				return fmt.Errorf("failed to sanitize field names for item %d: %w", i, err)
+			}
+
+			// Convert numbers to strings where the proto schema expects strings
+			// This handles cases where JSON has numeric values but BigQuery schema is STRING
+			normalizedBytes, err := bq.normalizeNumbersToStrings(sanitizedBytes, messageDescriptor)
+			if err != nil {
+				return fmt.Errorf("failed to normalize numbers to strings for item %d: %w", i, err)
+			}
+
 			protoMessage := dynamicpb.NewMessage(messageDescriptor)
-			if err := protojson.Unmarshal(convertedBytes, protoMessage); err != nil {
-				return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(convertedBytes))
+			if err := protojson.Unmarshal(normalizedBytes, protoMessage); err != nil {
+				return fmt.Errorf("failed to Unmarshal message for item %d: err: %w, sampleEvent: %s", i, err, string(normalizedBytes))
 			}
 
 			protoBytes, err = proto.Marshal(protoMessage)
@@ -351,6 +394,20 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 	}
 
 	if result, err = stream.AppendRows(ctx, rowData); err != nil {
+		// Check if this is a stream closure error (EOF or connection issues)
+		if isStreamClosedError(err) {
+			bq.log.Debugf("Stream closed error detected, invalidating stream cache for table %s", tableID)
+			// Invalidate the stream cache so next attempt gets a fresh stream
+			destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
+			bq.streamCacheLock.Lock()
+			if cachedStream, ok := bq.streams[destTable]; ok {
+				if cachedStream.stream != nil {
+					_ = cachedStream.stream.Close()
+				}
+				delete(bq.streams, destTable)
+			}
+			bq.streamCacheLock.Unlock()
+		}
 		return fmt.Errorf("single-row append failed: %w", err)
 	}
 
@@ -358,6 +415,20 @@ func (bq *bigQueryStorageWriter) writeBatchAttempt(ctx context.Context, tableID 
 		fullResponse, _ := result.FullResponse(ctx)
 		if fullResponse != nil && len(fullResponse.RowErrors) > 0 {
 			err = fmt.Errorf("original error: %w, sample row error: (code=%v): %v", err, fullResponse.RowErrors[0].Code, fullResponse.RowErrors[0].Message)
+		}
+
+		// Also check for stream closed errors in the result
+		if isStreamClosedError(err) {
+			bq.log.Debugf("Stream closed error in result, invalidating stream cache for table %s", tableID)
+			destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
+			bq.streamCacheLock.Lock()
+			if cachedStream, ok := bq.streams[destTable]; ok {
+				if cachedStream.stream != nil {
+					_ = cachedStream.stream.Close()
+				}
+				delete(bq.streams, destTable)
+			}
+			bq.streamCacheLock.Unlock()
 		}
 
 		return fmt.Errorf("result error for last send: %w", err)
@@ -452,12 +523,41 @@ func (bq *bigQueryStorageWriter) getManagedStreamForTable(ctx context.Context, t
 	}
 	bq.streamCacheLock.Unlock()
 
-	resp, err := bq.storageClient.GetWriteStream(ctx, &storagepb.GetWriteStreamRequest{
-		Name: defStreamName,
-		View: storagepb.WriteStreamView_FULL,
-	})
-	if err != nil {
+	// Retry logic for table/stream not found (propagation delays after table creation)
+	maxRetries := 5
+	var resp *storagepb.WriteStream
+	var err error
+	
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(attempt) * 500 * time.Millisecond
+			bq.log.Infof("Retrying GetWriteStream for table %s (attempt %d/%d) after %v", tableID, attempt+1, maxRetries, backoff)
+			time.Sleep(backoff)
+		}
+		
+		resp, err = bq.storageClient.GetWriteStream(ctx, &storagepb.GetWriteStreamRequest{
+			Name: defStreamName,
+			View: storagepb.WriteStreamView_FULL,
+		})
+		
+		if err == nil {
+			break // Success!
+		}
+		
+		// Check if it's a NotFound error (table/stream propagation delay)
+		if st, ok := status.FromError(err); ok && st.Code() == 5 { // Code 5 = NotFound
+			if attempt < maxRetries-1 {
+				bq.log.Warnf("Table/stream not found (propagation delay), will retry: %v", err)
+				continue
+			}
+		}
+		
+		// For other errors, fail immediately
 		return nil, fmt.Errorf("failed to get write stream: %w", err)
+	}
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get write stream after %d retries: %w", maxRetries, err)
 	}
 
 	descriptor, err := adapt.StorageSchemaToProto2Descriptor(resp.GetTableSchema(), "root")
@@ -529,6 +629,32 @@ func isSchemaError(err error) bool {
 	return false
 }
 
+func isStreamClosedError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := strings.ToLower(err.Error())
+	
+	// Common patterns for stream/connection closure errors
+	streamClosedPatterns := []string{
+		"eof",
+		"connection reset",
+		"broken pipe",
+		"stream closed",
+		"connection closed",
+		"transport is closing",
+	}
+
+	for _, pattern := range streamClosedPatterns {
+		if strings.Contains(errMsg, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tableID string, batch service.MessageBatch, originalErr error) error {
 	destTable := managedwriter.TableParentFromParts(bq.conf.projectID, bq.conf.datasetID, tableID)
 
@@ -571,7 +697,9 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 			continue
 		}
 
-		bq.mergeFields(allFieldsMap, msgData)
+		// Sanitize field names in the data to match what will be sent to BigQuery
+		sanitizedMsgData := bq.sanitizeMapFieldNames(msgData)
+		bq.mergeFields(allFieldsMap, sanitizedMsgData)
 	}
 
 	if len(allFieldsMap) == 0 {
@@ -593,19 +721,72 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 		}
 
 		currentSchema := metadata.Schema
+		bq.log.Debugf("Current schema has %d top-level fields", len(currentSchema))
+		
+		// Log existing field names for debugging
+		existingFieldNames := make([]string, len(currentSchema))
+		for i, field := range currentSchema {
+			existingFieldNames[i] = field.Name
+		}
+		bq.log.Debugf("Existing schema fields: %v", existingFieldNames)
 
 		missingFields := bq.findMissingFields(currentSchema, allFieldsMap)
 		if len(missingFields) == 0 {
 			if etagRetry == 0 {
+				// Log the fields we analyzed vs what exists
+				analyzedFields := make([]string, 0, len(allFieldsMap))
+				for k := range allFieldsMap {
+					analyzedFields = append(analyzedFields, k)
+				}
+				existingFields := make([]string, 0, len(currentSchema))
+				for _, f := range currentSchema {
+					existingFields = append(existingFields, f.Name)
+				}
+				
+				// DEBUG: Check what's in our map vs schema
+				bq.log.Warnf("=== SCHEMA MISMATCH DEBUG ===")
+				bq.log.Warnf("Analyzed %d fields from batch (lowercase): %v", len(analyzedFields), analyzedFields)
+				bq.log.Warnf("Existing %d fields in schema (original casing): %v", len(existingFields), existingFields)
+				
+				// Check which analyzed fields are missing from schema
+				existingLowerMap := make(map[string]bool)
+				for _, f := range currentSchema {
+					existingLowerMap[strings.ToLower(f.Name)] = true
+				}
+				
+				actuallyMissing := make([]string, 0)
+				for _, analyzedField := range analyzedFields {
+					if !existingLowerMap[strings.ToLower(analyzedField)] {
+						actuallyMissing = append(actuallyMissing, analyzedField)
+					}
+				}
+				
+				if len(actuallyMissing) > 0 {
+					bq.log.Errorf("BUG DETECTED: Found %d actually missing fields that weren't detected: %v", len(actuallyMissing), actuallyMissing)
+				}
+				
+				bq.log.Warnf("Original error: %v", originalErr)
 				return fmt.Errorf("no missing fields detected, but schema error occurred: %w", originalErr)
 			}
 			bq.log.Infof("No missing fields found on retry %d, schema may have been updated by another process", etagRetry+1)
 			break
 		}
 
-		bq.log.Infof("Detected %d missing field(s): %v", len(missingFields), fieldNames(missingFields))
+		bq.log.Infof("Detected %d field update(s) needed", len(missingFields))
+		for i, field := range missingFields {
+			if field.Type == bigquery.RecordFieldType && field.Schema != nil {
+				bq.log.Debugf("  [%d] Field '%s' (RECORD, Repeated=%v): adding/updating with %d nested field(s)", i+1, field.Name, field.Repeated, len(field.Schema))
+			} else {
+				bq.log.Debugf("  [%d] Field '%s' (Type=%s, Repeated=%v): new field", i+1, field.Name, field.Type, field.Repeated)
+			}
+		}
 
-		newSchema := append(currentSchema, missingFields...)
+		// Merge new fields into existing schema (handles both new fields and nested field updates)
+		newSchema := bq.mergeSchemas(currentSchema, missingFields)
+
+		// DEBUG: Log the final schema we're about to send
+		bq.log.Debugf("=== FINAL SCHEMA TO SEND TO BIGQUERY (%d fields) ===", len(newSchema))
+		bq.dumpSchema(newSchema, "  ")
 
 		update := bigquery.TableMetadataToUpdate{
 			Schema: newSchema,
@@ -694,56 +875,361 @@ func (bq *bigQueryStorageWriter) handleSchemaEvolution(ctx context.Context, tabl
 }
 
 // findMissingFields compares the current schema with message data to find missing fields
+// This function returns fields that are missing OR existing RECORD fields that need new nested fields added
 func (bq *bigQueryStorageWriter) findMissingFields(currentSchema bigquery.Schema, msgData map[string]interface{}) []*bigquery.FieldSchema {
 	var missingFields []*bigquery.FieldSchema
 
-	existingFields := make(map[string]bool)
+	// Build a map of existing fields for quick lookup - normalize all field names to lowercase
+	existingFieldsMap := make(map[string]*bigquery.FieldSchema)
 	for _, field := range currentSchema {
-		existingFields[field.Name] = true
+		// Normalize the schema field name to lowercase for comparison
+		normalizedName := strings.ToLower(field.Name)
+		existingFieldsMap[normalizedName] = field
 	}
+
+	bq.log.Debugf("Checking %d message fields against %d schema fields", len(msgData), len(existingFieldsMap))
 
 	for fieldName, value := range msgData {
 		sanitizedName := sanitizeFieldName(fieldName)
-		if !existingFields[sanitizedName] {
+		
+		// Use lowercase for lookup (already lowercase from sanitizeFieldName)
+		existingField, fieldExists := existingFieldsMap[sanitizedName]
+		
+		if !fieldExists {
+			// Field doesn't exist at all, add it as a complete new field
 			fieldSchema := inferBigQueryFieldSchema(sanitizedName, value)
 			if fieldSchema != nil {
+				bq.log.Debugf("Adding missing field '%s' (Type=%s, Repeated=%v)", sanitizedName, fieldSchema.Type, fieldSchema.Repeated)
 				missingFields = append(missingFields, fieldSchema)
+			}
+		} else if existingField.Type == bigquery.RecordFieldType && existingField.Schema != nil {
+			// Field exists and is a RECORD - check if we need to add nested fields
+			var nestedData map[string]interface{}
+			
+			// Handle both direct RECORD and REPEATED RECORD
+			if existingField.Repeated {
+				// For REPEATED RECORD, look at first element in array
+				if valueArray, ok := value.([]interface{}); ok && len(valueArray) > 0 {
+					nestedData, _ = valueArray[0].(map[string]interface{})
+				}
+			} else {
+				// For non-repeated RECORD
+				nestedData, _ = value.(map[string]interface{})
+			}
+			
+			if nestedData != nil {
+				// Recursively find missing nested fields
+				nestedMissing := bq.findMissingFields(existingField.Schema, nestedData)
+				if len(nestedMissing) > 0 {
+					// Merge the new nested fields into the existing schema
+					mergedNestedSchema := bq.mergeSchemas(existingField.Schema, nestedMissing)
+					
+					// Create updated field with normalized (lowercase) name
+					updatedField := &bigquery.FieldSchema{
+						Name:        sanitizedName, // Use normalized lowercase name
+						Type:        existingField.Type,
+						Repeated:    existingField.Repeated,
+						Required:    existingField.Required,
+						Description: existingField.Description,
+						Schema:      mergedNestedSchema,
+					}
+					bq.log.Debugf("Updating RECORD field '%s' with %d new nested fields", sanitizedName, len(nestedMissing))
+					missingFields = append(missingFields, updatedField)
+				} else {
+					bq.log.Debugf("Skipping existing RECORD field '%s' - no new nested fields needed", sanitizedName)
+				}
+			}
+		} else {
+			bq.log.Debugf("Skipping existing field '%s'", sanitizedName)
+		}
+	}
+
+	bq.log.Debugf("Found %d fields needing updates out of %d message fields", len(missingFields), len(msgData))
+	return missingFields
+}
+
+// mergeSchemas merges new fields into an existing schema
+// This is used when adding new nested fields to existing RECORD fields
+func (bq *bigQueryStorageWriter) mergeSchemas(existingSchema bigquery.Schema, newFields []*bigquery.FieldSchema) bigquery.Schema {
+	// Create a map for fast lookup - normalize all field names to lowercase
+	existingFieldsMap := make(map[string]*bigquery.FieldSchema)
+	for i, field := range existingSchema {
+		normalizedName := strings.ToLower(field.Name)
+		existingFieldsMap[normalizedName] = existingSchema[i]
+	}
+
+	bq.log.Debugf("mergeSchemas: existing=%d fields, new=%d fields", len(existingSchema), len(newFields))
+	for _, f := range existingSchema {
+		bq.log.Debugf("  existing: %s (type=%s, repeated=%v)", f.Name, f.Type, f.Repeated)
+	}
+	for _, f := range newFields {
+		bq.log.Debugf("  new: %s (type=%s, repeated=%v)", f.Name, f.Type, f.Repeated)
+	}
+
+	// Build the result schema starting with existing fields (normalized to lowercase)
+	result := make(bigquery.Schema, 0, len(existingSchema))
+	for _, field := range existingSchema {
+		normalizedField := &bigquery.FieldSchema{
+			Name:        strings.ToLower(field.Name), // Normalize to lowercase
+			Type:        field.Type,
+			Repeated:    field.Repeated,
+			Required:    field.Required,
+			Description: field.Description,
+			Schema:      field.Schema,
+		}
+		result = append(result, normalizedField)
+	}
+	
+	// Track which new fields have been processed (merged into existing fields)
+	processedNewFields := make(map[string]bool)
+	
+	// Update existing fields if they have nested changes
+	for i, existingField := range result {
+		normalizedExistingName := strings.ToLower(existingField.Name)
+		for _, newField := range newFields {
+			normalizedNewName := strings.ToLower(newField.Name)
+			
+			if normalizedNewName == normalizedExistingName {
+				// This is an update to an existing field (nested fields added)
+				if newField.Type == bigquery.RecordFieldType && existingField.Type == bigquery.RecordFieldType {
+					// Use the merged schema from newField (which was already merged recursively)
+					result[i] = &bigquery.FieldSchema{
+						Name:        normalizedNewName, // Use normalized lowercase name
+						Type:        existingField.Type,
+						Repeated:    existingField.Repeated,
+						Required:    existingField.Required,
+						Description: existingField.Description,
+						Schema:      newField.Schema, // newField.Schema already contains merged nested fields
+					}
+					processedNewFields[normalizedNewName] = true
+					bq.log.Debugf("Merged nested fields into existing RECORD field '%s'", normalizedNewName)
+					break
+				}
 			}
 		}
 	}
 
-	return missingFields
+	// Add truly new fields (that don't exist in current schema at all)
+	for _, newField := range newFields {
+		normalizedNewName := strings.ToLower(newField.Name)
+		if !processedNewFields[normalizedNewName] {
+			if _, exists := existingFieldsMap[normalizedNewName]; !exists {
+				// Ensure the new field name is also normalized
+				normalizedNewField := &bigquery.FieldSchema{
+					Name:        normalizedNewName,
+					Type:        newField.Type,
+					Repeated:    newField.Repeated,
+					Required:    newField.Required,
+					Description: newField.Description,
+					Schema:      newField.Schema,
+				}
+				result = append(result, normalizedNewField)
+				bq.log.Debugf("Added new field '%s' (Type=%s, Repeated=%v)", normalizedNewName, newField.Type, newField.Repeated)
+			} else {
+				bq.log.Debugf("Skipping field '%s' - already exists in schema", normalizedNewName)
+			}
+		}
+	}
+
+	bq.log.Debugf("mergeSchemas result: %d fields", len(result))
+	for _, f := range result {
+		bq.log.Debugf("  result: %s (type=%s, repeated=%v)", f.Name, f.Type, f.Repeated)
+	}
+
+	return result
+}
+
+// dumpSchema recursively logs schema structure for debugging
+func (bq *bigQueryStorageWriter) dumpSchema(schema bigquery.Schema, indent string) {
+	for _, field := range schema {
+		if field.Type == bigquery.RecordFieldType && field.Schema != nil {
+			bq.log.Debugf("%s%s (RECORD, repeated=%v) {", indent, field.Name, field.Repeated)
+			bq.dumpSchema(field.Schema, indent+"  ")
+			bq.log.Debugf("%s}", indent)
+		} else {
+			bq.log.Debugf("%s%s (type=%s, repeated=%v)", indent, field.Name, field.Type, field.Repeated)
+		}
+	}
 }
 
 func (bq *bigQueryStorageWriter) mergeFields(target, source map[string]interface{}) {
+	// Build a lowercase key map for case-insensitive lookups
+	targetKeysLower := make(map[string]string) // lowercase -> original key
+	for key := range target {
+		targetKeysLower[strings.ToLower(key)] = key
+	}
+
 	for key, value := range source {
 		sanitizedKey := sanitizeFieldName(key)
-		if existingValue, exists := target[sanitizedKey]; exists {
+		sanitizedKeyLower := strings.ToLower(sanitizedKey)
+		
+		// Check if field exists with case-insensitive comparison
+		existingKey, exists := targetKeysLower[sanitizedKeyLower]
+		if exists {
+			// Field already exists in target (possibly with different casing)
+			existingValue := target[existingKey]
+			
+			// For RECORD types (maps), merge nested fields recursively
 			if existingMap, ok := existingValue.(map[string]interface{}); ok {
 				if sourceMap, ok := value.(map[string]interface{}); ok {
+					// Recursively merge the nested maps
 					bq.mergeFields(existingMap, sourceMap)
 					continue
 				}
 			}
+			// For REPEATED RECORD (arrays with objects), merge the nested object structures
+			// This ensures we capture all possible fields across all messages
 			if existingArray, ok := existingValue.([]interface{}); ok {
 				if sourceArray, ok := value.([]interface{}); ok {
-					if len(sourceArray) > 0 && len(existingArray) > 0 {
+					if len(existingArray) > 0 && len(sourceArray) > 0 {
 						if existingItemMap, ok := existingArray[0].(map[string]interface{}); ok {
 							if sourceItemMap, ok := sourceArray[0].(map[string]interface{}); ok {
+								// Recursively merge nested structures to capture all fields
 								bq.mergeFields(existingItemMap, sourceItemMap)
 								continue
 							}
 						}
 					}
 				}
+				// For non-object arrays, keep first occurrence
+				continue
 			}
+			// Field exists but not mergeable - keep first occurrence
+			bq.log.Debugf("Skipping duplicate field '%s' (already exists as '%s')", sanitizedKey, existingKey)
+		} else {
+			// Set the value (first occurrence)
+			target[sanitizedKey] = value
+			targetKeysLower[sanitizedKeyLower] = sanitizedKey
 		}
-		target[sanitizedKey] = value
 	}
 }
 
 func sanitizeFieldName(name string) string {
-	return strings.ReplaceAll(name, "-", "_")
+	// Replace hyphens with underscores and lowercase to normalize field names
+	// This ensures consistency across payload, schema reads, and schema writes
+	return strings.ToLower(strings.ReplaceAll(name, "-", "_"))
+}
+
+// sanitizeJSONFieldNames recursively sanitizes all field names in a JSON document
+// by replacing hyphens with underscores to match BigQuery's field naming requirements
+func (bq *bigQueryStorageWriter) sanitizeJSONFieldNames(jsonBytes []byte) ([]byte, error) {
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	sanitizedData := bq.sanitizeMapFieldNames(data)
+	
+	return json.Marshal(sanitizedData)
+}
+
+// sanitizeMapFieldNames recursively sanitizes field names in a map
+// and removes empty objects (which cannot be represented in BigQuery RECORD fields)
+func (bq *bigQueryStorageWriter) sanitizeMapFieldNames(data map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	
+	for key, value := range data {
+		sanitizedKey := sanitizeFieldName(key)
+		
+		switch v := value.(type) {
+		case map[string]interface{}:
+			// Skip empty objects - BigQuery doesn't support RECORD fields with no schema
+			if len(v) == 0 {
+				continue
+			}
+			// Recursively sanitize nested objects
+			sanitizedNested := bq.sanitizeMapFieldNames(v)
+			// Only add if the nested object is not empty after sanitization
+			if len(sanitizedNested) > 0 {
+				result[sanitizedKey] = sanitizedNested
+			}
+		case []interface{}:
+			// Recursively sanitize arrays
+			sanitizedArray := make([]interface{}, 0, len(v))
+			for _, item := range v {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					// Skip empty objects in arrays
+					if len(itemMap) == 0 {
+						continue
+					}
+					sanitizedItem := bq.sanitizeMapFieldNames(itemMap)
+					// Only add if the sanitized item is not empty
+					if len(sanitizedItem) > 0 {
+						sanitizedArray = append(sanitizedArray, sanitizedItem)
+					}
+				} else {
+					sanitizedArray = append(sanitizedArray, item)
+				}
+			}
+			// Only add the array if it has elements
+			if len(sanitizedArray) > 0 {
+				result[sanitizedKey] = sanitizedArray
+			}
+		default:
+			// Primitive value, just copy it
+			result[sanitizedKey] = value
+		}
+	}
+	
+	return result
+}
+
+// normalizeNumbersToStrings converts numeric JSON values to strings when the proto schema expects strings
+// This handles the case where JSON contains numbers (e.g., "id": 123) but BigQuery schema is STRING type
+func (bq *bigQueryStorageWriter) normalizeNumbersToStrings(jsonBytes []byte, messageDescriptor protoreflect.MessageDescriptor) ([]byte, error) {
+	// Unmarshal with json.Number to preserve number precision
+	decoder := json.NewDecoder(strings.NewReader(string(jsonBytes)))
+	decoder.UseNumber()
+	
+	var data map[string]interface{}
+	if err := decoder.Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON: %w", err)
+	}
+
+	// Recursively convert numbers to strings based on proto schema
+	normalizedData := bq.convertNumbersToStringsInMap(data, messageDescriptor)
+	
+	return json.Marshal(normalizedData)
+}
+
+// convertNumbersToStringsInMap recursively processes a map and converts json.Number to string
+// when the corresponding proto field is a string type
+func (bq *bigQueryStorageWriter) convertNumbersToStringsInMap(data map[string]interface{}, descriptor protoreflect.MessageDescriptor) map[string]interface{} {
+	if descriptor == nil {
+		return data
+	}
+
+	for key, value := range data {
+		fieldDesc := descriptor.Fields().ByName(protoreflect.Name(key))
+		if fieldDesc == nil {
+			continue // Field not in schema
+		}
+
+		switch v := value.(type) {
+		case json.Number:
+			// If proto field is string, convert the number to string
+			if fieldDesc.Kind() == protoreflect.StringKind {
+				data[key] = v.String()
+			}
+		case map[string]interface{}:
+			// Recursively process nested objects
+			if fieldDesc.Kind() == protoreflect.MessageKind && !fieldDesc.IsMap() {
+				data[key] = bq.convertNumbersToStringsInMap(v, fieldDesc.Message())
+			}
+		case []interface{}:
+			// Process arrays
+			if fieldDesc.IsList() && fieldDesc.Kind() == protoreflect.MessageKind {
+				nestedDesc := fieldDesc.Message()
+				for i, item := range v {
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						v[i] = bq.convertNumbersToStringsInMap(itemMap, nestedDesc)
+					}
+				}
+			}
+		}
+	}
+
+	return data
 }
 
 func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSchema {
@@ -763,13 +1249,11 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 			Required: false,
 		}
 	case float64:
-		fieldType := bigquery.FloatFieldType
-		if v == float64(int64(v)) {
-			fieldType = bigquery.IntegerFieldType
-		}
+		// Always use FloatFieldType for JSON numbers to handle both integers and decimals
+		// BigQuery FLOAT can store integer values, but INTEGER cannot store decimals
 		return &bigquery.FieldSchema{
 			Name:     name,
-			Type:     fieldType,
+			Type:     bigquery.FloatFieldType,
 			Required: false,
 		}
 	case string:
@@ -783,6 +1267,11 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 			Required: false,
 		}
 	case map[string]interface{}:
+		// Skip empty objects - BigQuery doesn't allow RECORD fields with no schema
+		if len(v) == 0 {
+			return nil
+		}
+		
 		nestedSchema := make([]*bigquery.FieldSchema, 0)
 		for nestedName, nestedValue := range v {
 			sanitizedNestedName := sanitizeFieldName(nestedName)
@@ -791,6 +1280,13 @@ func inferBigQueryFieldSchema(name string, value interface{}) *bigquery.FieldSch
 				nestedSchema = append(nestedSchema, nestedField)
 			}
 		}
+		
+		// Double-check that we have at least one nested field after processing
+		// (in case all nested values were filtered out)
+		if len(nestedSchema) == 0 {
+			return nil
+		}
+		
 		return &bigquery.FieldSchema{
 			Name:     name,
 			Type:     bigquery.RecordFieldType,
