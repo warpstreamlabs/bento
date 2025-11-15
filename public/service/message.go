@@ -573,11 +573,7 @@ func (b MessageBatch) BloblangMutate(index int, blobl *bloblang.Executor) (*Mess
 // member of a batch individually, you should instead use an
 // InterpolationExecutor.
 func (b MessageBatch) TryInterpolatedString(index int, i *InterpolatedString) (string, error) {
-	msg := make(message.Batch, len(b))
-	for i, m := range b {
-		msg[i] = m.part
-	}
-	return i.expr.String(index, msg)
+	return i.TryString(b[index])
 }
 
 // TryInterpolatedBytes resolves an interpolated string expression on a message
@@ -591,11 +587,7 @@ func (b MessageBatch) TryInterpolatedString(index int, i *InterpolatedString) (s
 // member of a batch individually, you should instead use an
 // InterpolationExecutor.
 func (b MessageBatch) TryInterpolatedBytes(index int, i *InterpolatedString) ([]byte, error) {
-	msg := make(message.Batch, len(b))
-	for i, m := range b {
-		msg[i] = m.part
-	}
-	return i.expr.Bytes(index, msg)
+	return i.TryBytes(b[index])
 }
 
 // InterpolatedString resolves an interpolated string expression on a message
