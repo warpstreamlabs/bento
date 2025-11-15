@@ -169,10 +169,29 @@ func (s *StreamBuilder) SetPrintLogger(l PrintLogger) {
 	s.customLogger = log.Wrap(l)
 }
 
-// SetLogger sets a customer logger via Go's standard logging interface,
+// LeveledLogger is an interface supported by most loggers.
+type LeveledLogger interface {
+	Error(format string, v ...any)
+	Warn(format string, v ...any)
+	Info(format string, v ...any)
+	Debug(format string, v ...any)
+}
+
+var (
+	_ LeveledLogger = (*slog.Logger)(nil)
+	_ LeveledLogger = (log.Modular)(nil)
+)
+
+// SetLogger sets a slog logger via Bento's standard logging interface,
 // allowing you to replace the default Bento logger with your own.
 func (s *StreamBuilder) SetLogger(l *slog.Logger) {
 	s.customLogger = log.NewBentoLogAdapter(l)
+}
+
+// SetLeveledLogger sets a custom logger via Bento's standard logging interface,
+// allowing you to replace the default Bento logger with your own.
+func (s *StreamBuilder) SetLeveledLogger(l LeveledLogger) {
+	s.customLogger = newAirGapLogger(l)
 }
 
 // HTTPMultiplexer is an interface supported by most HTTP multiplexers.
