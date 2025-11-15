@@ -84,6 +84,7 @@ All transformations support both direct TSV columns and schema property paths.
 
 <Tabs defaultValue="TSV > JSON" values={[
 { label: 'TSV > JSON', value: 'TSV > JSON', },
+{ label: 'TSV > Enriched JSON', value: 'TSV > Enriched JSON', },
 { label: 'Filter IP', value: 'Filter IP', },
 { label: 'Schema Filter', value: 'Schema Filter', },
 { label: 'Transform', value: 'Transform', },
@@ -100,6 +101,19 @@ pipeline:
   processors:
     - opensnowcat:
         output_format: json
+
+```
+
+</TabItem>
+<TabItem value="TSV > Enriched JSON">
+
+Converts OpenSnowcat/Snowplow enriched TSV to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_schema_name) with version and data fields. Example output: contexts['com_snowplowanalytics_snowplow_web_page'] = {version: '1-0-0', data: [{id: '...'}]}. Enables simple direct-access queries across all databases without UNNEST operations. Perfect for BigQuery, Snowflake, Databricks, Redshift, and other data warehouses.
+
+```yaml
+pipeline:
+  processors:
+    - opensnowcat:
+        output_format: enriched_json
 
 ```
 
@@ -239,6 +253,7 @@ Default: `"tsv"`
 
 | Option | Summary |
 |---|---|
+| `enriched_json` | Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Example: contexts['com_vendor_schema'].data[0].field. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations. |
 | `json` | Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects. |
 | `tsv` | Maintain enriched TSV format without conversion. |
 
