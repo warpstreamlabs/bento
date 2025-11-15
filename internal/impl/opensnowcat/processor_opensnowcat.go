@@ -128,18 +128,17 @@ pipeline:
   processors:
     - opensnowcat:
         output_format: json
-
 `,
 		).
 		Example(
 			"TSV > Enriched JSON",
-			"Converts OpenSnowcat/Snowplow enriched TSV to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_schema_name) with version and data fields. Example output: contexts['com_snowplowanalytics_snowplow_web_page'] = {version: '1-0-0', data: [{id: '...'}]}. Enables simple direct-access queries across all databases without UNNEST operations. Perfect for BigQuery, Snowflake, Databricks, Redshift, and other data warehouses.",
+			"Converts OpenSnowcat/Snowplow enriched TSV to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_schema_name) with version and data fields. Enables simple direct-access queries across all databases without UNNEST operations. Perfect for BigQuery, Snowflake, Databricks, Redshift, and other data warehouses.",
 			`
 pipeline:
   processors:
     - opensnowcat:
         output_format: enriched_json
-
+# Out: { 'contexts': { 'com_snowplowanalytics_snowplow_web_page': {version: '1-0-0', data: [{id: '...'}] } } }
 `,
 		).
 		Example(
