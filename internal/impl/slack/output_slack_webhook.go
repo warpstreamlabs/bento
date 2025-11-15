@@ -4,30 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
+	"sync"
 
+	"github.com/Jeffail/shutdown"
 	"github.com/slack-go/slack"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-// ConfigSpec returns the configuration specification for the Slack webhook output.
-func ConfigSpec() *service.ConfigSpec {
-	return service.NewConfigSpec().
-		Categories("Services", "Social").
-		Summary("Post messages to Slack via webhook.").
-		Description(`
-		This output POSTs messages to a Slack channel via webhook.
-		The format of a message should be a JSON object should match the [Golang Slack WebhookMessage struct](https://github.com/slack-go/slack/blob/v0.17.3/webhooks.go#L12) type`).
-		Fields(
-			service.NewStringField("webhook").
-				Description("Slack webhook URL to post messages").
-				Example("https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"),
-		)
-}
+const (
+	slackWebhookURLField     = "webhook"
+	slackWebhookTimeoutField = "timeout"
+	slackWebhookTLSField     = "tls"
+)
 
 func init() {
 	err := service.RegisterOutput(
-		"slack_webhook", ConfigSpec(),
+		"slack_webhook", slackWebhookOutputSpec(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Output, int, error) {
 			w, err := newWriter(conf, mgr)
 			return w, 1, err
@@ -38,36 +30,98 @@ func init() {
 	}
 }
 
+func slackWebhookOutputSpec() *service.ConfigSpec {
+	return service.NewConfigSpec().
+		Categories("Services", "Social").
+		Summary("Post messages to Slack via webhook.").
+		Description(`
+		This output POSTs messages to a Slack channel via webhook.
+		The format of a message should be a JSON object should match the [Golang Slack WebhookMessage struct](https://github.com/slack-go/slack/blob/v0.17.3/webhooks.go#L12) type`).
+		Fields(
+			service.NewURLField(slackWebhookURLField).
+				Description("Slack webhook URL to post messages").
+				Example("https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"),
+			service.NewDurationField(slackWebhookTimeoutField).
+				Description("The maximum time to wait before abandoning a request (and trying again).").
+				Advanced().
+				Default("5s"),
+			service.NewTLSToggledField(slackWebhookTLSField),
+		)
+}
+
 type writer struct {
 	log *service.Logger
 
-	// Config
+	// The actual webhook URL where requests will be sent.
 	webhook string
 
 	httpClient *http.Client
+
+	mu      sync.RWMutex
+	shutSig *shutdown.Signaller
 }
 
-// newWriter creates a new instance of the Slack webhook output.
 func newWriter(conf *service.ParsedConfig, mgr *service.Resources) (*writer, error) {
 	w := &writer{
 		log: mgr.Logger(),
 	}
-	var err error
-	if w.webhook, err = conf.FieldString("webhook"); err != nil {
+
+	timeout, err := conf.FieldDuration(slackWebhookTimeoutField)
+	if err != nil {
+		return nil, err
+	}
+
+	w.httpClient = &http.Client{
+		Timeout: timeout,
+	}
+
+	tlsConf, tlsEnabled, err := conf.FieldTLSToggled(slackWebhookTLSField)
+	if err != nil {
+		return nil, err
+	}
+
+	transport := &http.Transport{}
+	if tlsEnabled {
+		transport.TLSClientConfig = tlsConf
+	}
+
+	w.webhook, err = conf.FieldString(slackWebhookURLField)
+	if err != nil {
 		return nil, err
 	}
 	return w, nil
 }
 
 func (w *writer) Connect(ctx context.Context) error {
-	w.httpClient = &http.Client{
-		Timeout: 5 * time.Second,
-	}
 	w.log.Debugf("Writing Slack messages with webhook: %s", w.webhook)
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.shutSig == nil {
+		w.shutSig = shutdown.NewSignaller()
+		return nil
+	}
+
+	if w.shutSig.IsHardStopSignalled() {
+		// allow the shutdown signaller to be re-created if we try connect after a close
+		w.shutSig = shutdown.NewSignaller()
+		return nil
+	}
+
 	return nil
 }
 
 func (w *writer) Write(ctx context.Context, msg *service.Message) error {
+	w.mu.RLock()
+	if w.shutSig == nil || w.shutSig.IsHardStopSignalled() {
+		w.mu.RUnlock()
+		return service.ErrNotConnected
+	}
+	ctx, cancel := w.shutSig.SoftStopCtx(ctx)
+	defer cancel()
+	w.mu.RUnlock()
+
 	rawContent, err := msg.AsBytes()
 	if err != nil {
 		return err
@@ -90,6 +144,12 @@ func (w *writer) Write(ctx context.Context, msg *service.Message) error {
 }
 
 func (w *writer) Close(ctx context.Context) error {
-	// No close logic required for webhook output.
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.shutSig == nil {
+		return nil
+	}
+
+	w.shutSig.TriggerHardStop()
 	return nil
 }
