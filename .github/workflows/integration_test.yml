@@ -52,9 +52,11 @@ jobs:
           echo "packages=./..." >> $GITHUB_OUTPUT
           echo "Running all tests."
         else
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           # HACK: gets affected directory names of modified files using some sed magic
-          affected_dirs=($(git diff --dirstat=files,0 main...HEAD | sed 's/^[^%]*% //' | tr '\n' ' '))
-          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sort -u | sed 's|^|./|')
+          affected_dirs=($(git diff --dirstat=files,0 "$BASE_SHA...$HEAD_SHA" | sed 's/^[^%]*% //' | tr '\n' ' '))
+          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sort -u | sed 's|^\./||' | sed 's|^|./|')
           echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
           echo "Running integration tests for services in the following locations: $packages"
         fi
