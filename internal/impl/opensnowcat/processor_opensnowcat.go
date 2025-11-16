@@ -12,6 +12,7 @@ import (
 	"hash"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	analytics "github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
@@ -329,6 +330,7 @@ type opensnowcatProcessor struct {
 	mDropped         *service.MetricCounter
 	schemaDiscovery  *schemaDelivery
 	schemasCollected map[string]bool
+	schemasMu        sync.Mutex
 }
 
 func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.Resources) (*opensnowcatProcessor, error) {
@@ -460,8 +462,17 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 		}
 	}
 
-	var schemaDiscov *schemaDelivery
 	schemasCollected := make(map[string]bool)
+
+	proc := &opensnowcatProcessor{
+		dropFilters:      dropFilters,
+		transformConfig:  transformCfg,
+		outputFormat:     outputFormat,
+		columnIndexMap:   columnIndexMap,
+		log:              res.Logger(),
+		mDropped:         res.Metrics().NewCounter("dropped"),
+		schemasCollected: schemasCollected,
+	}
 
 	if conf.Contains(oscFieldSchemaDiscovery) {
 		sdConf, err := conf.FieldObjectMap(oscFieldSchemaDiscovery)
@@ -496,27 +507,36 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 				}
 			}
 
-			template := `{"schemas": ${SCHEMAS}}`
+			template := `{"schemas": {{SCHEMAS}}}`
 			if templateVal, exists := sdConf["template"]; exists {
 				if templateStr, err := templateVal.FieldString(); err == nil {
-					template = templateStr
+					if templateStr != "" && templateStr != "{}" {
+						template = templateStr
+					}
 				}
 			}
 
-			schemaDiscov = newSchemaDelivery(enabled, flushInterval, endpoint, template)
+			getSchemas := func() []string {
+				proc.schemasMu.Lock()
+				defer proc.schemasMu.Unlock()
+				schemas := make([]string, 0, len(proc.schemasCollected))
+				for schema := range proc.schemasCollected {
+					schemas = append(schemas, schema)
+				}
+				return schemas
+			}
+
+			clearSchemas := func() {
+				proc.schemasMu.Lock()
+				defer proc.schemasMu.Unlock()
+				proc.schemasCollected = make(map[string]bool)
+			}
+
+			proc.schemaDiscovery = newSchemaDelivery(enabled, flushInterval, endpoint, template, getSchemas, clearSchemas, res.Logger())
 		}
 	}
 
-	return &opensnowcatProcessor{
-		dropFilters:      dropFilters,
-		transformConfig:  transformCfg,
-		outputFormat:     outputFormat,
-		columnIndexMap:   columnIndexMap,
-		log:              res.Logger(),
-		mDropped:         res.Metrics().NewCounter("dropped"),
-		schemaDiscovery:  schemaDiscov,
-		schemasCollected: schemasCollected,
-	}, nil
+	return proc, nil
 }
 
 func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
@@ -530,18 +550,11 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 
 	if o.schemaDiscovery != nil && o.schemaDiscovery.config.enabled {
 		schemas := o.extractSchemasFromEvent(columns)
+		o.schemasMu.Lock()
 		for _, schema := range schemas {
 			o.schemasCollected[schema] = true
 		}
-
-		if o.schemaDiscovery.shouldFlush() {
-			schemasJSON, err := json.Marshal(o.getCollectedSchemas())
-			if err == nil {
-				if err := o.schemaDiscovery.deliver(string(schemasJSON)); err != nil {
-					o.log.Warnf("Failed to deliver schema discovery: %v", err)
-				}
-			}
-		}
+		o.schemasMu.Unlock()
 	}
 
 	if len(o.dropFilters) > 0 {
@@ -579,14 +592,6 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 	msg.SetStructuredMut(eventMap)
 
 	return service.MessageBatch{msg}, nil
-}
-
-func (o *opensnowcatProcessor) getCollectedSchemas() []string {
-	schemas := make([]string, 0, len(o.schemasCollected))
-	for schema := range o.schemasCollected {
-		schemas = append(schemas, schema)
-	}
-	return schemas
 }
 
 func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
@@ -1013,5 +1018,8 @@ func (o *opensnowcatProcessor) parseSchemaURI(schemaURI string) (string, string,
 }
 
 func (o *opensnowcatProcessor) Close(context.Context) error {
+	if o.schemaDiscovery != nil {
+		o.schemaDiscovery.stop()
+	}
 	return nil
 }
