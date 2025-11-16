@@ -133,8 +133,8 @@ Supports both TSV columns (e.g., user_id, user_ipaddress) and schema property pa
 				Description("HTTP endpoint to send schema discovery data").
 				Default("https://api.snowcatcloud.com/internal/schema-discovery"),
 			service.NewStringField("template").
-				Description("Template for schema discovery payload. Use ${SCHEMAS} variable for schema list").
-				Default(`{"schemas": ${SCHEMAS}}`),
+				Description("Template for schema discovery payload. Use {{SCHEMAS}} variable for schema list").
+				Default(`{"schemas": {{SCHEMAS}}}`),
 		).Description("Schema discovery configuration").Optional().Advanced()).
 		Example(
 			"TSV > JSON",
@@ -282,7 +282,7 @@ pipeline:
           endpoint: "https://api.snowcatcloud.com/internal/schema-discovery"
           template: |
             {
-              "schemas": ${SCHEMAS}
+              "schemas": {{SCHEMAS}}
             }
 `,
 		)

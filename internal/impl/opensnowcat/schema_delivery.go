@@ -54,5 +54,5 @@ func (sd *schemaDelivery) deliver(schemas string) error {
 }
 
 func replaceSchemasVar(template, schemas string) string {
-	return string(bytes.ReplaceAll([]byte(template), []byte("${SCHEMAS}"), []byte(schemas)))
+	return string(bytes.ReplaceAll([]byte(template), []byte("{{SCHEMAS}}"), []byte(schemas)))
 }
