@@ -130,7 +130,7 @@ jobs:
   # together again before being used to calculate the next split strategy.
   integration-combine-summaries:
     name: Combine Integration Test Reports
-    if: always()
+    if: needs.integration-test.result != 'cancelled'
     needs: [integration-test]
     runs-on: ubuntu-latest
     steps:
