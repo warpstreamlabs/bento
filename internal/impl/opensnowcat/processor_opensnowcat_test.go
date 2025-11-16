@@ -146,7 +146,7 @@ func TestProcessPageViewTSV_FilterBySchemaProperty(t *testing.T) {
 	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
-			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.useragentFamily": {
 				contains: []string{"Chrome"},
 			},
 		},
@@ -176,7 +176,7 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_NoMatch(t *testing.T) {
 	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
-			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.useragentFamily": {
 				contains: []string{"Firefox"},
 			},
 		},
@@ -209,7 +209,7 @@ func TestProcessPageViewTSV_FilterBySchemaProperty_osFamily(t *testing.T) {
 	res := service.MockResources()
 	proc := &opensnowcatProcessor{
 		dropFilters: map[string]*filterCriteria{
-			"com.snowplowanalytics.snowplow.ua_parser_context.osFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.osFamily": {
 				contains: []string{"Mac OS X"},
 			},
 		},
@@ -243,7 +243,7 @@ func TestProcessPageViewTSV_FilterCombinedRegularAndSchemaProperty(t *testing.T)
 			"useragent": {
 				contains: []string{"bot", "crawler", "spider"},
 			},
-			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.useragentFamily": {
 				contains: []string{"Chrome"},
 			},
 		},
@@ -279,10 +279,10 @@ func TestProcessPageViewTSV_FilterMultipleConditions(t *testing.T) {
 			"useragent": {
 				contains: []string{"bot", "crawler"}, // Won't match (actual useragent is Chrome)
 			},
-			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.useragentFamily": {
 				contains: []string{"Firefox", "Safari"}, // Won't match (actual is Chrome)
 			},
-			"com.snowplowanalytics.snowplow.ua_parser_context.osFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.osFamily": {
 				contains: []string{"Mac OS X"}, // WILL MATCH - should drop the event
 			},
 			"nl.basjes.yauaa_context.deviceClass": {
@@ -321,10 +321,10 @@ func TestProcessPageViewTSV_FilterMultipleConditions_NoMatch(t *testing.T) {
 			"useragent": {
 				contains: []string{"bot", "crawler", "spider"}, // Won't match
 			},
-			"com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.useragentFamily": {
 				contains: []string{"Firefox", "Safari", "Edge"}, // Won't match
 			},
-			"com.snowplowanalytics.snowplow.ua_parser_context.osFamily": {
+			"com_snowplowanalytics_snowplow_ua_parser_context.osFamily": {
 				contains: []string{"Windows", "Linux", "Android"}, // Won't match
 			},
 			"nl.basjes.yauaa_context.deviceClass": {
@@ -484,4 +484,197 @@ func TestProcessPageViewJSON_TransformFields(t *testing.T) {
 	assert.Equal(t, "snwcat", jsonOutput["app_id"], "app_id should remain unchanged")
 	assert.Equal(t, "page_view", jsonOutput["event"], "event should remain unchanged")
 	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", jsonOutput["event_id"], "event_id should remain unchanged")
+}
+
+func TestProcessPageViewEnrichedJSON(t *testing.T) {
+	// Build column index map
+	columnIndexMap := make(map[string]int)
+	for i, col := range opensnowcatColumns {
+		columnIndexMap[col] = i
+	}
+
+	res := service.MockResources()
+	proc := &opensnowcatProcessor{
+		outputFormat:   "enriched_json",
+		columnIndexMap: columnIndexMap,
+		dropFilters:    make(map[string]*filterCriteria),
+		log:            res.Logger(),
+		mDropped:       res.Metrics().NewCounter("dropped"),
+	}
+
+	msg := service.NewMessage([]byte(testPageViewTSV))
+	msgs, err := proc.Process(context.Background(), msg)
+
+	require.NoError(t, err)
+	require.Len(t, msgs, 1, "Should process one message")
+
+	// Parse JSON output
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
+	var jsonOutput map[string]interface{}
+	err = json.Unmarshal(msgBytes, &jsonOutput)
+	require.NoError(t, err)
+
+	// ========== VERIFY TOP-LEVEL TSV FIELDS ==========
+	assert.Equal(t, "snwcat", jsonOutput["app_id"])
+	assert.Equal(t, "page_view", jsonOutput["event"])
+	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", jsonOutput["event_id"])
+	assert.Equal(t, "joaocorreia", jsonOutput["user_id"])
+
+	// ========== VERIFY CONTEXTS STRUCTURE ==========
+	require.Contains(t, jsonOutput, "contexts", "Should have contexts field")
+	contextsMap, ok := jsonOutput["contexts"].(map[string]interface{})
+	require.True(t, ok, "contexts should be a map[string]interface{}")
+
+	// ========== VERIFY DERIVED_CONTEXTS STRUCTURE ==========
+	require.Contains(t, jsonOutput, "derived_contexts", "Should have derived_contexts field")
+	derivedContextsMap, ok := jsonOutput["derived_contexts"].(map[string]interface{})
+	require.True(t, ok, "derived_contexts should be a map[string]interface{}")
+	require.NotEmpty(t, derivedContextsMap, "Should have at least one derived context")
+
+	// Test 1: Verify schema key format (no iglu: prefix, just vendor.name)
+	// ua_parser_context is in derived_contexts, not contexts
+	require.Contains(t, derivedContextsMap, "com_snowplowanalytics_snowplow_ua_parser_context",
+		"Schema key should be 'com_snowplowanalytics_snowplow_ua_parser_context' without iglu: prefix")
+
+	// Test 2: Verify structure has version and data at the same level
+	uaContextSchema := derivedContextsMap["com_snowplowanalytics_snowplow_ua_parser_context"].(map[string]interface{})
+	require.Contains(t, uaContextSchema, "version", "Schema object should have 'version' field")
+	require.Contains(t, uaContextSchema, "data", "Schema object should have 'data' field")
+	assert.Len(t, uaContextSchema, 2, "Schema object should ONLY have 'version' and 'data' fields")
+
+	// Test 3: Verify NO nested schema field (common mistake)
+	assert.NotContains(t, uaContextSchema, "schema", "Should NOT have nested 'schema' field")
+
+	// Test 4: Verify version format
+	assert.Equal(t, "1-0-0", uaContextSchema["version"], "Version should be in MODEL-REVISION-ADDITION format")
+
+	// Test 5: Verify data is an array
+	uaDataArray, ok := uaContextSchema["data"].([]interface{})
+	require.True(t, ok, "data should be an array")
+	require.Len(t, uaDataArray, 1, "Should have one ua_parser_context entry")
+
+	// Test 6: Verify data content is directly accessible (no extra nesting)
+	uaData := uaDataArray[0].(map[string]interface{})
+	assert.Equal(t, "Chrome", uaData["useragentFamily"],
+		"Should directly access field without nested data wrapper")
+	assert.Equal(t, "Mac OS X", uaData["osFamily"])
+	assert.NotContains(t, uaData, "schema", "Data object should NOT contain schema field")
+
+	// ========== TEST WEB PAGE CONTEXT ==========
+	require.Contains(t, contextsMap, "com_snowplowanalytics_snowplow_web_page")
+	webPageSchema := contextsMap["com_snowplowanalytics_snowplow_web_page"].(map[string]interface{})
+	assert.Equal(t, "1-0-0", webPageSchema["version"])
+	assert.Len(t, webPageSchema, 2, "Should only have version and data")
+	webPageDataArray := webPageSchema["data"].([]interface{})
+	require.Len(t, webPageDataArray, 1)
+	webPageData := webPageDataArray[0].(map[string]interface{})
+	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", webPageData["id"])
+
+	// ========== TEST FINGERPRINT CONTEXT ==========
+	require.Contains(t, contextsMap, "com_fingerprintjs_fingerprint")
+	fpSchema := contextsMap["com_fingerprintjs_fingerprint"].(map[string]interface{})
+	assert.Equal(t, "1-0-0", fpSchema["version"])
+	fpDataArray := fpSchema["data"].([]interface{})
+	require.Len(t, fpDataArray, 1)
+	fpData := fpDataArray[0].(map[string]interface{})
+	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", fpData["visitorId"])
+
+	// ========== TEST CLEARBIT COMPANY CONTEXT (in contexts field) ==========
+	require.Contains(t, contextsMap, "com_clearbit_company")
+	clearbitSchema := contextsMap["com_clearbit_company"].(map[string]interface{})
+	assert.Equal(t, "1-0-0", clearbitSchema["version"])
+	clearbitDataArray := clearbitSchema["data"].([]interface{})
+	require.Len(t, clearbitDataArray, 1)
+	clearbitData := clearbitDataArray[0].(map[string]interface{})
+	assert.Equal(t, "SnowcatCloud", clearbitData["name"])
+
+	// Verify arrays within data are preserved
+	techArray := clearbitData["tech"].([]interface{})
+	require.GreaterOrEqual(t, len(techArray), 1)
+	assert.Equal(t, "google_apps", techArray[0])
+
+	// ========== TEST NESTED OBJECTS PRESERVATION (in derived_contexts field) ==========
+	// com_dbip_location is in derived_contexts, not contexts
+	require.Contains(t, derivedContextsMap, "com_dbip_location")
+	locationSchema := derivedContextsMap["com_dbip_location"].(map[string]interface{})
+	assert.Equal(t, "1-0-0", locationSchema["version"])
+	assert.Len(t, locationSchema, 2, "Should only have version and data")
+	locationDataArray := locationSchema["data"].([]interface{})
+	require.Len(t, locationDataArray, 1)
+	locationData := locationDataArray[0].(map[string]interface{})
+
+	// Verify nested objects work correctly (city.names.en path)
+	cityMap := locationData["city"].(map[string]interface{})
+	namesMap := cityMap["names"].(map[string]interface{})
+	assert.Equal(t, "Del Mar", namesMap["en"],
+		"Nested objects should be accessible via path: data[0].city.names.en")
+
+	// ========== TEST MULTIPLE ITEMS IN DATA ARRAY ==========
+	// org_ietf_http_cookie should have multiple cookie entries in the data array
+	// http_cookie is in derived_contexts, not contexts
+	require.Contains(t, derivedContextsMap, "org_ietf_http_cookie")
+	cookieSchema := derivedContextsMap["org_ietf_http_cookie"].(map[string]interface{})
+	assert.Equal(t, "1-0-0", cookieSchema["version"])
+	assert.Len(t, cookieSchema, 2, "Should only have version and data")
+	cookieDataArray := cookieSchema["data"].([]interface{})
+	require.GreaterOrEqual(t, len(cookieDataArray), 2, "Should have multiple cookies in data array")
+
+	cookie0 := cookieDataArray[0].(map[string]interface{})
+	assert.Equal(t, "_gaexp", cookie0["name"])
+	cookie1 := cookieDataArray[1].(map[string]interface{})
+	assert.Equal(t, "ajs_user_id", cookie1["name"])
+
+	// ========== VERIFY DERIVED_CONTEXTS STRUCTURE ==========
+	require.Contains(t, jsonOutput, "derived_contexts", "Should have derived_contexts field")
+	derivedContextsMap, ok = jsonOutput["derived_contexts"].(map[string]interface{})
+	require.True(t, ok, "derived_contexts should be a map[string]interface{}")
+	require.NotEmpty(t, derivedContextsMap, "Should have at least one derived context")
+
+	// Verify derived_contexts follow the same structure pattern
+	for schemaKey, schemaValue := range derivedContextsMap {
+		schemaObj := schemaValue.(map[string]interface{})
+		assert.Contains(t, schemaObj, "version", "Derived context %s should have version", schemaKey)
+		assert.Contains(t, schemaObj, "data", "Derived context %s should have data", schemaKey)
+		assert.Len(t, schemaObj, 2, "Derived context %s should only have version and data", schemaKey)
+		assert.NotContains(t, schemaObj, "schema", "Derived context %s should NOT have schema field", schemaKey)
+
+		// Verify data is an array
+		dataArray, ok := schemaObj["data"].([]interface{})
+		assert.True(t, ok, "Derived context %s data should be an array", schemaKey)
+		assert.NotEmpty(t, dataArray, "Derived context %s data array should not be empty", schemaKey)
+	}
+
+	// ========== VERIFY NO FLATTENED FIELDS ==========
+	// The enriched_json format should NOT have the flattened _1, _2 suffix fields
+	assert.NotContains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1",
+		"Should NOT have flattened context fields (that's the 'json' format)")
+	assert.NotContains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_web_page_1",
+		"Should NOT have flattened context fields (that's the 'json' format)")
+	assert.NotContains(t, jsonOutput, "derived_contexts_com_dbip_location_1",
+		"Should NOT have flattened derived_context fields")
+
+	// ========== VERIFY UNSTRUCT_EVENT STRUCTURE (if present) ==========
+	// Note: The test data might not have an unstruct_event, but if it does, verify structure
+	if unstructEvent, exists := jsonOutput["unstruct_event"]; exists {
+		unstructMap, ok := unstructEvent.(map[string]interface{})
+		require.True(t, ok, "unstruct_event should be a map")
+
+		// Each unstruct_event schema should follow the same pattern
+		for schemaKey, schemaValue := range unstructMap {
+			schemaObj := schemaValue.(map[string]interface{})
+			assert.Contains(t, schemaObj, "version", "Unstruct event %s should have version", schemaKey)
+			assert.Contains(t, schemaObj, "data", "Unstruct event %s should have data", schemaKey)
+			assert.Len(t, schemaObj, 2, "Unstruct event %s should only have version and data", schemaKey)
+			assert.NotContains(t, schemaObj, "schema", "Unstruct event %s should NOT have schema field", schemaKey)
+		}
+	}
+
+	// ========== VERIFY SQL-FRIENDLY ACCESS PATTERN ==========
+	// This format enables queries like: SELECT derived_contexts['com_dbip_location'].data[0].city.names.en
+	// Verify the access path works as expected (using derived_contexts since that's where location is)
+	locationDataFromPath := derivedContextsMap["com_dbip_location"].(map[string]interface{})["data"].([]interface{})[0].(map[string]interface{})
+	cityNameFromPath := locationDataFromPath["city"].(map[string]interface{})["names"].(map[string]interface{})["en"]
+	assert.Equal(t, "Del Mar", cityNameFromPath,
+		"Should be able to access nested data via: derived_contexts['com_dbip_location'].data[0].city.names.en")
 }

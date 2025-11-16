@@ -51,6 +51,11 @@ opensnowcat:
       salt: "" # No default (optional)
       hash_algo: SHA-256
       fields: {} # No default (optional)
+  schema_discovery:
+    enabled: false
+    flush_interval: 5m
+    endpoint: https://api.snowcatcloud.com/internal/schema-discovery
+    template: '{"schemas": {{SCHEMAS}}}'
 ```
 
 </TabItem>
@@ -84,11 +89,11 @@ All transformations support both direct TSV columns and schema property paths.
 
 <Tabs defaultValue="TSV > JSON" values={[
 { label: 'TSV > JSON', value: 'TSV > JSON', },
+{ label: 'TSV > Enriched JSON', value: 'TSV > Enriched JSON', },
 { label: 'Filter IP', value: 'Filter IP', },
 { label: 'Schema Filter', value: 'Schema Filter', },
 { label: 'Transform', value: 'Transform', },
 { label: 'Advanced Transforms', value: 'Advanced Transforms', },
-{ label: 'Combined', value: 'Combined', },
 ]}>
 
 <TabItem value="TSV > JSON">
@@ -100,7 +105,19 @@ pipeline:
   processors:
     - opensnowcat:
         output_format: json
+```
 
+</TabItem>
+<TabItem value="TSV > Enriched JSON">
+
+Converts OpenSnowcat/Snowplow enriched TSV to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_schema_name) with version and data fields. Enables simple direct-access queries across all databases without UNNEST operations. Perfect for BigQuery, Snowflake, Databricks, Redshift, and other data warehouses.
+
+```yaml
+pipeline:
+  processors:
+    - opensnowcat:
+        output_format: enriched_json
+# Out: { 'contexts': { 'com_snowplowanalytics_snowplow_web_page': {version: '1-0-0', data: [{id: '...'}] } } }
 ```
 
 </TabItem>
@@ -197,34 +214,6 @@ pipeline:
 ```
 
 </TabItem>
-<TabItem value="Combined">
-
-Drops unwanted events while transforming sensitive fields in the remaining events. Useful for processing only relevant data while maintaining privacy.
-
-```yaml
-pipeline:
-  processors:
-    - opensnowcat:
-        output_format: json
-        filters:
-          drop:
-            user_ipaddress:
-              contains: ["127.0.0.1", "10.0.", "192.168."]
-            com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily:
-              contains: ["bot", "crawler", "spider"]
-          transform:
-            salt: "production-salt-v1"
-            hash_algo: SHA-256
-            fields:
-              user_id:
-                strategy: hash
-              user_ipaddress:
-                strategy: anonymize_ip
-                anon_octets: 2
-                anon_segments: 3
-```
-
-</TabItem>
 </Tabs>
 
 ## Fields
@@ -239,6 +228,7 @@ Default: `"tsv"`
 
 | Option | Summary |
 |---|---|
+| `enriched_json` | Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations. |
 | `json` | Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects. |
 | `tsv` | Maintain enriched TSV format without conversion. |
 
@@ -294,5 +284,44 @@ Supports both TSV columns (e.g., user_id, user_ipaddress) and schema property pa
 
 
 Type: `object`  
+
+### `schema_discovery`
+
+Schema discovery configuration
+
+
+Type: `object`  
+
+### `schema_discovery.enabled`
+
+Enable schema discovery feature
+
+
+Type: `bool`  
+Default: `false`  
+
+### `schema_discovery.flush_interval`
+
+Interval between schema discovery flushes
+
+
+Type: `string`  
+Default: `"5m"`  
+
+### `schema_discovery.endpoint`
+
+HTTP endpoint to send schema discovery data
+
+
+Type: `string`  
+Default: `"https://api.snowcatcloud.com/internal/schema-discovery"`  
+
+### `schema_discovery.template`
+
+Template for schema discovery payload. Use `{{SCHEMAS}}` variable for schema list
+
+
+Type: `string`  
+Default: `"{\"schemas\": {{SCHEMAS}}}"`  
 
 
