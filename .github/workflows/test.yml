@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: '0 0/2 * * *' # Every two hours
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
@@ -68,5 +72,5 @@ jobs:
     - run: yarn --cwd ./website install && yarn --cwd ./website build
 
   integration-tests:
-    needs: [test, golangci-lint]
+    needs: [test, golangci-lint, build-docsite]
     uses: ./.github/workflows/integration_test.yml
