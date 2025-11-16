@@ -91,7 +91,7 @@ All transformations support both direct TSV columns and schema property paths.`)
 		Field(service.NewStringAnnotatedEnumField(oscFieldOutputFormat, map[string]string{
 			"json":          "Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects.",
 			"tsv":           "Maintain enriched TSV format without conversion.",
-			"enriched_json": "Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Example: contexts['com_vendor_schema'].data[0].field. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations.",
+			"enriched_json": "Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations.",
 		}).Description("Output format for processed events.").Default("tsv")).
 		Field(service.NewObjectField(oscFieldFilters,
 			service.NewAnyMapField(oscFieldFiltersDrop).
@@ -134,7 +134,7 @@ Supports both TSV columns (e.g., user_id, user_ipaddress) and schema property pa
 				Description("HTTP endpoint to send schema discovery data").
 				Default("https://api.snowcatcloud.com/internal/schema-discovery"),
 			service.NewStringField("template").
-				Description("Template for schema discovery payload. Use {{SCHEMAS}} variable for schema list").
+				Description("Template for schema discovery payload. Use `{{SCHEMAS}}` variable for schema list").
 				Default(`{"schemas": {{SCHEMAS}}}`),
 		).Description("Schema discovery configuration").Optional().Advanced()).
 		Example(
@@ -241,50 +241,6 @@ pipeline:
               user_fingerprint:
                 strategy: hash
                 hash_algo: MD5
-`,
-		).
-		Example(
-			"Combined",
-			"Drops unwanted events while transforming sensitive fields in the remaining events. Useful for processing only relevant data while maintaining privacy.",
-			`
-pipeline:
-  processors:
-    - opensnowcat:
-        output_format: json
-        filters:
-          drop:
-            user_ipaddress:
-              contains: ["127.0.0.1", "10.0.", "192.168."]
-            com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily:
-              contains: ["bot", "crawler", "spider"]
-          transform:
-            salt: "production-salt-v1"
-            hash_algo: SHA-256
-            fields:
-              user_id:
-                strategy: hash
-              user_ipaddress:
-                strategy: anonymize_ip
-                anon_octets: 2
-                anon_segments: 3
-`,
-		).
-		Example(
-			"Schema Discovery",
-			"Enables schema discovery feature to automatically collect and send schema information to a monitoring endpoint.",
-			`
-pipeline:
-  processors:
-    - opensnowcat:
-        output_format: json
-        schema_discovery:
-          enabled: true
-          flush_interval: "5m"
-          endpoint: "https://api.snowcatcloud.com/internal/schema-discovery"
-          template: |
-            {
-              "schemas": {{SCHEMAS}}
-            }
 `,
 		)
 }
