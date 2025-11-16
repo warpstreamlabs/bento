@@ -70,8 +70,8 @@ jobs:
       fail-fast: false
       matrix:
         # split tests into 4 parallel runs based on test durations.
-        parallel: [4] 
-        index: [0, 1, 2, 3]
+        parallel: [4]
+        index: [1, 2, 3, 4]
     env:
       CGO_ENABLED: 0
     steps:
@@ -127,7 +127,7 @@ jobs:
   # together again before being used to calculate the next split strategy.
   integration-combine-summaries:
     name: Combine Integration Test Reports
-    if: '!cancelled()'
+    if: ${{ !cancelled() && github.ref_name == 'main' }}
     needs: [integration-test]
     runs-on: ubuntu-latest
     steps:
@@ -142,7 +142,7 @@ jobs:
         run: npm install -g junit-report-merger
 
       - name: Merge reports
-        run: jrm ./junit-integration-summary.xml "junit-integration-summary-0/*.xml" "junit-integration-summary-1/*.xml" "junit-integration-summary-2/*.xml" "junit-integration-summary-3/*.xml"
+        run: jrm ./junit-integration-summary.xml "junit-integration-summary-*/*.xml"
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
