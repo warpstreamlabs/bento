@@ -12,6 +12,7 @@ import (
 	"hash"
 	"strconv"
 	"strings"
+	"time"
 
 	analytics "github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
@@ -19,9 +20,10 @@ import (
 )
 
 const (
-	oscFieldFilters      = "filters"
-	oscFieldFiltersDrop  = "drop"
-	oscFieldOutputFormat = "output_format"
+	oscFieldFilters         = "filters"
+	oscFieldFiltersDrop     = "drop"
+	oscFieldOutputFormat    = "output_format"
+	oscFieldSchemaDiscovery = "schema_discovery"
 )
 
 // OpenSnowcat/Snowplow Enriched TSV column names (lowercase, 131 columns)
@@ -120,6 +122,20 @@ Supports both TSV columns (e.g., user_id, user_ipaddress) and schema property pa
 				Optional().
 				Advanced(),
 		).Description("Filter and transformation configurations").Optional().Advanced()).
+		Field(service.NewObjectField(oscFieldSchemaDiscovery,
+			service.NewBoolField("enabled").
+				Description("Enable schema discovery feature").
+				Default(false),
+			service.NewStringField("flush_interval").
+				Description("Interval between schema discovery flushes").
+				Default("5m"),
+			service.NewStringField("endpoint").
+				Description("HTTP endpoint to send schema discovery data").
+				Default("https://api.snowcatcloud.com/internal/schema-discovery"),
+			service.NewStringField("template").
+				Description("Template for schema discovery payload. Use ${SCHEMAS} variable for schema list").
+				Default(`{"schemas": ${SCHEMAS}}`),
+		).Description("Schema discovery configuration").Optional().Advanced()).
 		Example(
 			"TSV > JSON",
 			"Converts OpenSnowcat/Snowplow enriched TSV events to flattened JSON format, extracting all contexts, derived contexts, and unstruct events into top-level fields.",
@@ -251,6 +267,24 @@ pipeline:
                 anon_octets: 2
                 anon_segments: 3
 `,
+		).
+		Example(
+			"Schema Discovery",
+			"Enables schema discovery feature to automatically collect and send schema information to a monitoring endpoint.",
+			`
+pipeline:
+  processors:
+    - opensnowcat:
+        output_format: json
+        schema_discovery:
+          enabled: true
+          flush_interval: "5m"
+          endpoint: "https://api.snowcatcloud.com/internal/schema-discovery"
+          template: |
+            {
+              "schemas": ${SCHEMAS}
+            }
+`,
 		)
 }
 
@@ -287,12 +321,14 @@ type transformConfig struct {
 }
 
 type opensnowcatProcessor struct {
-	dropFilters     map[string]*filterCriteria
-	transformConfig *transformConfig
-	outputFormat    string
-	columnIndexMap  map[string]int
-	log             *service.Logger
-	mDropped        *service.MetricCounter
+	dropFilters      map[string]*filterCriteria
+	transformConfig  *transformConfig
+	outputFormat     string
+	columnIndexMap   map[string]int
+	log              *service.Logger
+	mDropped         *service.MetricCounter
+	schemaDiscovery  *schemaDelivery
+	schemasCollected map[string]bool
 }
 
 func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.Resources) (*opensnowcatProcessor, error) {
@@ -424,13 +460,62 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 		}
 	}
 
+	var schemaDiscov *schemaDelivery
+	schemasCollected := make(map[string]bool)
+
+	if conf.Contains(oscFieldSchemaDiscovery) {
+		sdConf, err := conf.FieldObjectMap(oscFieldSchemaDiscovery)
+		if err != nil {
+			return nil, err
+		}
+
+		enabled := false
+		if enabledVal, exists := sdConf["enabled"]; exists {
+			if enabledBool, err := enabledVal.FieldBool(); err == nil {
+				enabled = enabledBool
+			}
+		}
+
+		if enabled {
+			flushIntervalStr := "5m"
+			if intervalVal, exists := sdConf["flush_interval"]; exists {
+				if intervalStr, err := intervalVal.FieldString(); err == nil {
+					flushIntervalStr = intervalStr
+				}
+			}
+
+			flushInterval, err := time.ParseDuration(flushIntervalStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid flush_interval: %w", err)
+			}
+
+			endpoint := "https://api.snowcatcloud.com/internal/schema-discovery"
+			if endpointVal, exists := sdConf["endpoint"]; exists {
+				if endpointStr, err := endpointVal.FieldString(); err == nil {
+					endpoint = endpointStr
+				}
+			}
+
+			template := `{"schemas": ${SCHEMAS}}`
+			if templateVal, exists := sdConf["template"]; exists {
+				if templateStr, err := templateVal.FieldString(); err == nil {
+					template = templateStr
+				}
+			}
+
+			schemaDiscov = newSchemaDelivery(enabled, flushInterval, endpoint, template)
+		}
+	}
+
 	return &opensnowcatProcessor{
-		dropFilters:     dropFilters,
-		transformConfig: transformCfg,
-		outputFormat:    outputFormat,
-		columnIndexMap:  columnIndexMap,
-		log:             res.Logger(),
-		mDropped:        res.Metrics().NewCounter("dropped"),
+		dropFilters:      dropFilters,
+		transformConfig:  transformCfg,
+		outputFormat:     outputFormat,
+		columnIndexMap:   columnIndexMap,
+		log:              res.Logger(),
+		mDropped:         res.Metrics().NewCounter("dropped"),
+		schemaDiscovery:  schemaDiscov,
+		schemasCollected: schemasCollected,
 	}, nil
 }
 
@@ -442,6 +527,22 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 	tsvString := string(tsvBytes)
 
 	columns := strings.Split(tsvString, "\t")
+
+	if o.schemaDiscovery != nil && o.schemaDiscovery.config.enabled {
+		schemas := o.extractSchemasFromEvent(columns)
+		for _, schema := range schemas {
+			o.schemasCollected[schema] = true
+		}
+
+		if o.schemaDiscovery.shouldFlush() {
+			schemasJSON, err := json.Marshal(o.getCollectedSchemas())
+			if err == nil {
+				if err := o.schemaDiscovery.deliver(string(schemasJSON)); err != nil {
+					o.log.Warnf("Failed to deliver schema discovery: %v", err)
+				}
+			}
+		}
+	}
 
 	if len(o.dropFilters) > 0 {
 		if o.shouldDropEventFromTSV(columns) {
@@ -478,6 +579,14 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 	msg.SetStructuredMut(eventMap)
 
 	return service.MessageBatch{msg}, nil
+}
+
+func (o *opensnowcatProcessor) getCollectedSchemas() []string {
+	schemas := make([]string, 0, len(o.schemasCollected))
+	for schema := range o.schemasCollected {
+		schemas = append(schemas, schema)
+	}
+	return schemas
 }
 
 func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
