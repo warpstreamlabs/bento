@@ -69,9 +69,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # split tests into 4 parallel runs based on test durations.
-        parallel: [4]
-        index: [0, 1, 2, 3]
+        # split tests into 8 parallel runs based on test durations.
+        parallel: [8]
+        index: [0, 1, 2, 3, 4, 5, 6, 7]
     env:
       CGO_ENABLED: 0
     steps:
@@ -111,6 +111,7 @@ jobs:
         total: ${{ matrix.parallel }}
         junit-summary: ./junit-integration-summary.xml
         packages: ${{ needs.prepare-tests.outputs.packages }}
+        working-directory: './internal/impl'
         list: '^Test.*Integration.*$'
 
     - name: Run Integration Test (Shard ${{ matrix.index }})
@@ -129,7 +130,7 @@ jobs:
   # together again before being used to calculate the next split strategy.
   integration-combine-summaries:
     name: Combine Integration Test Reports
-    if: ${{ !cancelled() && github.ref_name == 'main' }}
+    # if: ${{ !cancelled() && github.ref_name == 'main' }}
     needs: [integration-test]
     runs-on: ubuntu-latest
     steps:
