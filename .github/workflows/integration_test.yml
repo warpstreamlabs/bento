@@ -113,7 +113,7 @@ jobs:
 
     - name: Run Integration Test (Shard ${{ matrix.index }})
       run: |
-        gotestsum --junitfile shard-summary.xml --format short-verbose -- -run "${{ steps.test_split.outputs.run }}" -timeout 60m ./...
+        gotestsum --junitfile shard-summary.xml --format short-verbose -- -p 1 -run "${{ steps.test_split.outputs.run }}" -timeout 60m ./...
 
     - name: Upload test artifacts
       if: always()
