@@ -3,11 +3,14 @@ name: Integration Test
 on:
   schedule:
     - cron: '0 1 * * *' # run at 1 AM UTC
-  
-  # Allow a subset of actions to run on PR open and push
-  pull_request:
   # Allow to trigger the integration tests manually
   workflow_dispatch:
+  # Allow this workflow to be called from other workflows
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deps:
