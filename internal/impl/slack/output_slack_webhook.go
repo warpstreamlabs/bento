@@ -80,9 +80,8 @@ func newWriter(conf *service.ParsedConfig, mgr *service.Resources) (*writer, err
 		return nil, err
 	}
 
-	transport := &http.Transport{}
 	if tlsEnabled {
-		transport.TLSClientConfig = tlsConf
+		w.httpClient.Transport = &http.Transport{TLSClientConfig: tlsConf}
 	}
 
 	w.webhook, err = conf.FieldString(slackWebhookURLField)
