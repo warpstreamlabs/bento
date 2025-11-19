@@ -51,6 +51,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/s2"
 	_ "github.com/warpstreamlabs/bento/public/components/sentry"
 	_ "github.com/warpstreamlabs/bento/public/components/sftp"
+	_ "github.com/warpstreamlabs/bento/public/components/slack"
 	_ "github.com/warpstreamlabs/bento/public/components/snowflake"
 	_ "github.com/warpstreamlabs/bento/public/components/splunk"
 	_ "github.com/warpstreamlabs/bento/public/components/sql"
