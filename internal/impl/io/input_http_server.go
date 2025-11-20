@@ -53,6 +53,8 @@ const (
 	hsiFieldCORS                    = "cors"
 	hsiFieldCORSEnabled             = "enabled"
 	hsiFieldCORSAllowedOrigins      = "allowed_origins"
+	hsiFieldCORSAllowedMethods      = "allowed_methods"
+	hsiFieldCORSAllowedHeaders      = "allowed_headers"
 	hsiFieldResponse                = "sync_response"
 	hsiFieldResponseStatus          = "status"
 	hsiFieldResponseHeaders         = "headers"
@@ -135,9 +137,21 @@ func corsConfigFromParsed(pConf *service.ParsedConfig) (conf httpserver.CORSConf
 	if conf.Enabled, err = pConf.FieldBool(hsiFieldCORSEnabled); err != nil {
 		return
 	}
+
 	if conf.AllowedOrigins, err = pConf.FieldStringList(hsiFieldCORSAllowedOrigins); err != nil {
 		return
 	}
+
+	ah, err := pConf.FieldStringList(hsiFieldCORSAllowedHeaders)
+	if err != nil {
+		return
+	}
+	conf.AllowedHeaders = append(ah, []string{"Accept", "Accept-Language", "Content-Language", "Origin"}...)
+
+	if conf.AllowedMethods, err = pConf.FieldStringList(hsiFieldCORSAllowedMethods); err != nil {
+		return
+	}
+
 	return
 }
 
