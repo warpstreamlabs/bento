@@ -95,9 +95,7 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 		if tr, ok := h.client.Transport.(*http.Transport); ok {
 			tr.Proxy = http.ProxyURL(proxyURL)
 		} else {
-			tr := getBentoDefaultTransport()
-			tr.Proxy = http.ProxyURL(proxyURL)
-			h.client.Transport = tr
+			return nil, fmt.Errorf("unable to apply proxy_url to transport, unexpected type %T", h.client.Transport)
 		}
 	}
 
