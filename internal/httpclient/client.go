@@ -59,7 +59,7 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 
 	h := Client{
 		reqCreator:        reqCreator,
-		client:            &http.Client{},
+		client:            &http.Client{Transport: getBentoDefaultTransport()},
 		metaExtractFilter: conf.ExtractMetadata,
 
 		backoffOn: map[int]struct{}{},
@@ -76,7 +76,7 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 	}
 
 	if conf.TLSEnabled && conf.TLSConf != nil {
-		if c, ok := http.DefaultTransport.(*http.Transport); ok {
+		if c, ok := h.client.Transport.(*http.Transport); ok {
 			cloned := c.Clone()
 			cloned.TLSClientConfig = conf.TLSConf
 			h.client.Transport = cloned
@@ -92,16 +92,12 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse proxy_url string: %v", err)
 		}
-		if h.client.Transport != nil {
-			if tr, ok := h.client.Transport.(*http.Transport); ok {
-				tr.Proxy = http.ProxyURL(proxyURL)
-			} else {
-				return nil, fmt.Errorf("unable to apply proxy_url to transport, unexpected type %T", h.client.Transport)
-			}
+		if tr, ok := h.client.Transport.(*http.Transport); ok {
+			tr.Proxy = http.ProxyURL(proxyURL)
 		} else {
-			h.client.Transport = &http.Transport{
-				Proxy: http.ProxyURL(proxyURL),
-			}
+			tr := getBentoDefaultTransport()
+			tr.Proxy = http.ProxyURL(proxyURL)
+			h.client.Transport = tr
 		}
 	}
 
