@@ -7,7 +7,7 @@ import (
 )
 
 // Manual copy of net/http's DefaultTransport because Warpstream have overriden
-// the default.
+// the default. Copied at Go version 1.25.3.
 func getBentoDefaultTransport() *http.Transport {
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
