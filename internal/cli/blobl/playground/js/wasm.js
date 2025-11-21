@@ -11,6 +11,10 @@ class WasmManager {
       syntax: false,
       format: false,
       autocomplete: false,
+      validate: false,
+      formatJSON: false,
+      minifyJSON: false,
+      validateJSON: false,
     };
 
     // Check if Go WASM support is available
@@ -98,6 +102,10 @@ class WasmManager {
       this.functions.syntax = typeof this.api.syntax === "function";
       this.functions.format = typeof this.api.format === "function";
       this.functions.autocomplete = typeof this.api.autocomplete === "function";
+      this.functions.validate = typeof this.api.validate === "function";
+      this.functions.formatJSON = typeof this.api.formatJSON === "function";
+      this.functions.minifyJSON = typeof this.api.minifyJSON === "function";
+      this.functions.validateJSON = typeof this.api.validateJSON === "function";
     } else {
       console.warn("window.bloblangApi API not available");
     }
@@ -160,5 +168,53 @@ class WasmManager {
       };
     }
     return this.api.autocomplete(request);
+  }
+
+  // Validates a Bloblang mapping without executing it.
+  // Note: Not used by playground UI (execute already validates), but exposed
+  // for external integrations and future tooling.
+  validateMapping(mapping) {
+    if (!this.isAvailable("validate")) {
+      return {
+        valid: false,
+        error: "Validation not available",
+      };
+    }
+    return this.api.validate(mapping);
+  }
+
+  // Formats a JSON string with 2-space indentation
+  formatJSON(jsonString) {
+    if (!this.isAvailable("formatJSON")) {
+      return {
+        success: false,
+        result: jsonString,
+        error: "JSON formatting not available",
+      };
+    }
+    return this.api.formatJSON(jsonString);
+  }
+
+  // Minifies a JSON string by removing whitespace
+  minifyJSON(jsonString) {
+    if (!this.isAvailable("minifyJSON")) {
+      return {
+        success: false,
+        result: jsonString,
+        error: "JSON minification not available",
+      };
+    }
+    return this.api.minifyJSON(jsonString);
+  }
+
+  // Validates a JSON string
+  validateJSON(jsonString) {
+    if (!this.isAvailable("validateJSON")) {
+      return {
+        valid: false,
+        error: "JSON validation not available",
+      };
+    }
+    return this.api.validateJSON(jsonString);
   }
 }
