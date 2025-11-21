@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/warpstreamlabs/bento/internal/httptransport"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -27,6 +28,7 @@ const (
 	hcFieldDumpRequestLogLevel = "dump_request_log_level"
 	hcFieldTLS                 = "tls"
 	hcFieldProxyURL            = "proxy_url"
+	hcFieldTransport           = "transport"
 )
 
 // ConfigField returns a public API config field spec for an HTTP component,
@@ -101,6 +103,7 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("An optional HTTP proxy URL.").
 			Advanced().
 			Optional(),
+		httptransport.CustomTransportConfigSpec(),
 	)
 
 	innerFields = append(innerFields, extraChildren...)
@@ -160,6 +163,10 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
+	if conf.transport, conf.customTransport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -184,4 +191,7 @@ type OldConfig struct {
 	ProxyURL            string
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
+
+	transport       *http.Transport
+	customTransport bool
 }
