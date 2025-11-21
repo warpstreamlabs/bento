@@ -735,7 +735,7 @@ Type: `object`
 
 ### `custom_transport.enabled`
 
-Enables a custom HTTP transport. When set to `false` (default), Bento will use Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport) for the underlying net/http transport. When enabled, settings from the `custom_transport` fields will be applied to the underlying transport. Note that other fields that modify the transport, such as TLS & ProxyURL, will always apply to the transport. The Env Var 'BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT' can also be used to ensure the DefaultTransport isn't used.
+Enables a custom HTTP transport. When set to `false` (default), Bento will use Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport) for the underlying net/http transport. When enabled, settings from the `custom_transport` fields will be applied to the underlying transport. Note that other fields that modify the transport, such as TLS & ProxyURL, will always apply to the transport. The Env Var `BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT` can also be set to 'true' to ensure the DefaultTransport isn't used.
 
 
 Type: `bool`  
