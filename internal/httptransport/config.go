@@ -24,7 +24,7 @@ func FieldSpec() docs.FieldSpec {
 			"Settings for the dialer used to create new connections.",
 		).Optional().Advanced().AtVersion("1.13.0").WithChildren(
 
-			docs.FieldString(
+			docs.FieldString( // TODO - no duration field in docs package ?
 				"timeout",
 				"Timeout for establishing new network connections.",
 			).HasDefault("30s").AtVersion("1.13.0").Advanced(),
