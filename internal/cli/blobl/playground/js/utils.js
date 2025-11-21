@@ -276,6 +276,12 @@ function saveOutput() {
 
 // JSON Utilities
 function isValidJSON(str) {
+  // Try WASM if available
+  if (window.playground?.wasm?.validateJSON) {
+    const result = window.playground.wasm.validateJSON(str);
+    return result.valid;
+  }
+
   try {
     JSON.parse(str);
     return true;
@@ -285,6 +291,12 @@ function isValidJSON(str) {
 }
 
 function formatJSON(jsonString) {
+  // Try WASM if available
+  if (window.playground?.wasm?.formatJSON) {
+    const result = window.playground.wasm.formatJSON(jsonString);
+    return result.success ? result.result : jsonString;
+  }
+
   try {
     const parsed = JSON.parse(jsonString);
     return JSON.stringify(parsed, null, 2);
@@ -294,6 +306,12 @@ function formatJSON(jsonString) {
 }
 
 function minifyJSON(jsonString) {
+  // Try WASM if available
+  if (window.playground?.wasm?.minifyJSON) {
+    const result = window.playground.wasm.minifyJSON(jsonString);
+    return result.success ? result.result : jsonString;
+  }
+
   try {
     const parsed = JSON.parse(jsonString);
     return JSON.stringify(parsed);

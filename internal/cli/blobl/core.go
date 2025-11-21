@@ -3,6 +3,7 @@
 package blobl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -46,12 +47,24 @@ type highlightRule struct {
 	Regex string `json:"regex"`
 }
 
+// functionSpecWithHTML extends FunctionSpec with pre-generated HTML documentation
+type functionSpecWithHTML struct {
+	query.FunctionSpec
+	DocHTML string `json:"docHTML"`
+}
+
+// methodSpecWithHTML extends MethodSpec with pre-generated HTML documentation
+type methodSpecWithHTML struct {
+	query.MethodSpec
+	DocHTML string `json:"docHTML"`
+}
+
 // bloblangSyntax contains syntax metadata for the Bloblang language,
 // including function/method specs and highlighting rules.
 type bloblangSyntax struct {
-	// Rich function and method data
-	Functions map[string]query.FunctionSpec `json:"functions"`
-	Methods   map[string]query.MethodSpec   `json:"methods"`
+	// Rich function and method data with pre-generated documentation HTML
+	Functions map[string]functionSpecWithHTML `json:"functions"`
+	Methods   map[string]methodSpecWithHTML   `json:"methods"`
 
 	// Minimal syntax highlighting rules that extends CoffeeScript
 	Rules []highlightRule `json:"rules"`
@@ -200,16 +213,30 @@ func evaluateMapping(env *bloblang.Environment, input, mapping string) *executio
 // generateBloblangSyntax returns Bloblang syntax metadata for editor tooling.
 func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	var functionNames, methodNames []string
-	functions := make(map[string]query.FunctionSpec)
-	methods := make(map[string]query.MethodSpec)
+	functions := make(map[string]functionSpecWithHTML)
+	methods := make(map[string]methodSpecWithHTML)
 
 	env.WithoutFunctions("env", "file").WalkFunctions(func(name string, spec query.FunctionSpec) {
-		functions[name] = spec
+		// Pre-generate documentation HTML for this function
+		wrapper := FunctionSpecWrapper{spec}
+		docHTML := createSpecDocHTML(name, wrapper, false)
+
+		functions[name] = functionSpecWithHTML{
+			FunctionSpec: spec,
+			DocHTML:      docHTML,
+		}
 		functionNames = append(functionNames, name)
 	})
 
 	env.WalkMethods(func(name string, spec query.MethodSpec) {
-		methods[name] = spec
+		// Pre-generate documentation HTML for this method
+		wrapper := MethodSpecWrapper{spec}
+		docHTML := createSpecDocHTML(name, wrapper, true)
+
+		methods[name] = methodSpecWithHTML{
+			MethodSpec: spec,
+			DocHTML:    docHTML,
+		}
 		methodNames = append(methodNames, name)
 	})
 
@@ -916,6 +943,134 @@ type FormatMappingResponse struct {
 	Success   bool   `json:"success"`
 	Formatted string `json:"formatted"`
 	Error     string `json:"error,omitempty"`
+}
+
+// ValidationResponse represents the response from validating a Bloblang mapping
+type ValidationResponse struct {
+	Valid bool   `json:"valid"`
+	Error string `json:"error,omitempty"`
+}
+
+// JSONResponse represents the response from JSON formatting operations
+type JSONResponse struct {
+	Success bool   `json:"success"`
+	Result  string `json:"result"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ValidateBloblangMapping validates a Bloblang mapping without executing it.
+// Note: Not currently used by the playground UI ('execute' already validates), but exposed
+// for future integrations / consumers
+func ValidateBloblangMapping(env *bloblang.Environment, mapping string) ValidationResponse {
+	if mapping == "" {
+		return ValidationResponse{
+			Valid: false,
+			Error: "Mapping cannot be empty",
+		}
+	}
+
+	// Parse the mapping to validate it
+	_, err := env.NewMapping(mapping)
+	if err != nil {
+		return ValidationResponse{
+			Valid: false,
+			Error: err.Error(),
+		}
+	}
+
+	return ValidationResponse{
+		Valid: true,
+	}
+}
+
+// FormatJSON formats a JSON string with 2-space indentation
+func FormatJSON(jsonString string) JSONResponse {
+	if jsonString == "" {
+		return JSONResponse{
+			Success: false,
+			Result:  "",
+			Error:   "JSON string cannot be empty",
+		}
+	}
+
+	var parsed any
+	if err := json.Unmarshal([]byte(jsonString), &parsed); err != nil {
+		return JSONResponse{
+			Success: false,
+			Result:  jsonString, // Return original on error
+			Error:   fmt.Sprintf("Invalid JSON: %v", err),
+		}
+	}
+
+	formatted, err := json.MarshalIndent(parsed, "", "  ")
+	if err != nil {
+		return JSONResponse{
+			Success: false,
+			Result:  jsonString,
+			Error:   fmt.Sprintf("Failed to format JSON: %v", err),
+		}
+	}
+
+	return JSONResponse{
+		Success: true,
+		Result:  string(formatted),
+	}
+}
+
+// MinifyJSON compacts a JSON string by removing whitespace
+func MinifyJSON(jsonString string) JSONResponse {
+	if jsonString == "" {
+		return JSONResponse{
+			Success: false,
+			Result:  "",
+			Error:   "JSON string cannot be empty",
+		}
+	}
+
+	var parsed any
+	if err := json.Unmarshal([]byte(jsonString), &parsed); err != nil {
+		return JSONResponse{
+			Success: false,
+			Result:  jsonString, // Return original on error
+			Error:   fmt.Sprintf("Invalid JSON: %v", err),
+		}
+	}
+
+	minified, err := json.Marshal(parsed)
+	if err != nil {
+		return JSONResponse{
+			Success: false,
+			Result:  jsonString,
+			Error:   fmt.Sprintf("Failed to minify JSON: %v", err),
+		}
+	}
+
+	return JSONResponse{
+		Success: true,
+		Result:  string(minified),
+	}
+}
+
+// ValidateJSON checks if a string is valid JSON
+func ValidateJSON(jsonString string) ValidationResponse {
+	if jsonString == "" {
+		return ValidationResponse{
+			Valid: false,
+			Error: "JSON string cannot be empty",
+		}
+	}
+
+	var parsed any
+	if err := json.Unmarshal([]byte(jsonString), &parsed); err != nil {
+		return ValidationResponse{
+			Valid: false,
+			Error: fmt.Sprintf("Invalid JSON: %v", err),
+		}
+	}
+
+	return ValidationResponse{
+		Valid: true,
+	}
 }
 
 // FormatBloblangMapping formats Bloblang mappings
