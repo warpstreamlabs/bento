@@ -77,6 +77,11 @@ class UIManager {
     let startY = 0;
 
     this.horizontalResizer.addEventListener("mousedown", (e) => {
+      // Disable resizer in mobile view
+      if (window.innerWidth <= 768) {
+        return;
+      }
+
       this.isResizing = true;
       startY = e.clientY;
       document.addEventListener("mousemove", doResize);

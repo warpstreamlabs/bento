@@ -18,8 +18,14 @@
   --bento-error-bg: #ffebee;
   --bento-warning: #eb8788;
 
+  /* Common colors */
+  --bento-white: #ffffff;
+  --bento-text-muted: #999999;
+
   /* Layout */
   --bento-border-radius: 6px;
+  --bento-border-radius-sm: 4px;
+  --bento-border-radius-lg: 8px;
   --bento-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --bento-shadow-3d: 0 3px 0 #e8908e;
 
@@ -27,6 +33,23 @@
   --bento-font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
   --bento-font-mono: "Monaco", "IBM Plex Mono", "SF Mono", "Consolas", monospace;
+  --bento-font-size-xs: 11px;
+  --bento-font-size-sm: 12px;
+  --bento-font-size-md: 13px;
+  --bento-font-size-base: 14px;
+
+  /* Transitions */
+  --bento-transition-fast: 0.15s ease;
+  --bento-transition-base: 0.2s ease;
+  --bento-transition-slow: 0.3s ease;
+
+  /* Monokai syntax colors (dark mode) */
+  --bento-monokai-string: rgb(230, 219, 116);
+  --bento-monokai-constant: rgb(174, 129, 255);
+  --bento-monokai-keyword: rgb(249, 38, 114);
+  --bento-monokai-function: rgb(166, 226, 46);
+  --bento-monokai-variable: rgb(248, 248, 242);
+  --bento-monokai-comment: rgb(136, 132, 111);
 }
 
 /* Dark mode color palette */
@@ -159,7 +182,7 @@ body.embedded .format-btn {
   align-items: center;
   justify-content: center;
   border-radius: var(--bento-border-radius);
-  transition: background-color 0.2s ease;
+  transition: background-color var(--bento-transition-base);
   position: relative;
 }
 
@@ -196,7 +219,7 @@ body.embedded .format-btn {
   font-size: 18px;
   font-weight: 500;
   color: var(--bento-text-heading);
-  transition: opacity 0.3s ease;
+  transition: opacity var(--bento-transition-slow);
 }
 
 .loading-overlay.hidden {
@@ -211,17 +234,6 @@ body.embedded .format-btn {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
-}
-
-/* Dark mode loading overlay */
-[data-theme="dark"] .loading-overlay {
-  background: var(--bento-bg-main);
-  color: var(--bento-text-heading);
-}
-
-[data-theme="dark"] .loading-spinner {
-  border: 3px solid var(--bento-bg-alt);
-  border-top: 3px solid var(--bento-bg-highlight);
 }
 
 @keyframes spin {
@@ -239,10 +251,10 @@ body.embedded .format-btn {
   height: 100%;
   border: none;
   font-family: var(--bento-font-mono);
-  font-size: 13px;
+  font-size: var(--bento-font-size-md);
   line-height: 1.4;
   padding: 12px;
-  background: #ffffff;
+  background: var(--bento-white);
   color: var(--bento-text-body);
   resize: none;
   outline: none;
@@ -257,12 +269,6 @@ body.embedded .format-btn {
 
 .fallback-editor {
   display: none;
-}
-
-.panel-content {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
 }
 
 /* Fallback editor for when ACE fails to load */
@@ -289,7 +295,7 @@ body.embedded .format-btn {
   background: var(--bento-bg-alt) !important;
   color: var(--bento-text-body);
   font-family: var(--bento-font-mono);
-  font-size: 13px;
+  font-size: var(--bento-font-size-md);
   line-height: 1.4;
   white-space: pre-wrap;
   overflow: auto;
@@ -299,10 +305,12 @@ body.embedded .format-btn {
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: 1fr 1fr 1fr;
     grid-template-columns: 1fr;
     gap: 8px;
-    padding: 8px;
+    padding: 12px;
+    height: 100vh;
+    min-height: 100vh;
   }
 
   .input-panel {
@@ -314,11 +322,11 @@ body.embedded .format-btn {
   }
 
   .horizontal-resizer {
-    grid-area: 3 / 1 / 4 / 2;
+    display: none;
   }
 
   .output-panel {
-    grid-area: 4 / 1 / 5 / 2;
+    grid-area: 3 / 1 / 4 / 2;
   }
 }
 
@@ -329,13 +337,13 @@ body.embedded .format-btn {
 
 .output::-webkit-scrollbar-track {
   background: var(--bento-bg-alt);
-  border-radius: 4px;
+  border-radius: var(--bento-border-radius-sm);
 }
 
 .output::-webkit-scrollbar-thumb {
   background: var(--bento-bg-highlight);
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
+  border-radius: var(--bento-border-radius-sm);
+  transition: background-color var(--bento-transition-base);
 }
 
 .output::-webkit-scrollbar-thumb:hover {
