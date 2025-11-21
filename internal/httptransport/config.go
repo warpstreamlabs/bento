@@ -3,73 +3,67 @@ package httptransport
 import (
 	"time"
 
-	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
-const (
-	hcFieldCustomTransportEnabled = "enabled"
-	hcFieldCustomTransport        = "custom_transport"
-	hcFieldDialContext            = "dial_context"
-	hcFieldDialContextTimeout     = "timeout"
-	hcFieldDialContextKeepAlive   = "keep_alive"
-	hcFieldForceAttemptHTTP2      = "force_http2"
-	hcFieldMaxIdleConns           = "max_idle_connections"
-	hcFieldIdleConnTimeout        = "idle_connection_timeout"
-	hcFieldTLSHandshakeTimeout    = "tls_handshake_timeout"
-	hcFieldExpectContinueTimeout  = "expect_continue_timeout"
-)
+func FieldSpec() docs.FieldSpec {
+	return docs.FieldObject(
+		"custom_transport",
+		"Custom transport options.",
+	).Advanced().WithChildren(
 
-func CustomTransportConfigSpec() *service.ConfigField {
-	return service.NewObjectField(hcFieldCustomTransport,
-		service.NewBoolField(hcFieldCustomTransportEnabled).
-			Description("Enables a custom HTTP transport. When set to `false` (default), Bento will use Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport) for the underlying net/http transport. When enabled, settings from the `custom_transport` fields will be applied to the underlying transport. Note that other fields that modify the transport, such as TLS & ProxyURL, will always apply to the transport. The Env Var `BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT` can also be set to 'true' to ensure the DefaultTransport isn't used.").
-			Advanced().
-			Version("1.13.0").
-			Default(false),
-		service.NewObjectField(hcFieldDialContext,
-			service.NewDurationField(hcFieldDialContextTimeout).
-				Description("Timeout for establishing new network connections.").
-				Advanced().
-				Version("1.13.0").
-				Default("30s"),
-			service.NewDurationField(hcFieldDialContextKeepAlive).
-				Description("Keep-alive period for an active network connections used by the dialer.").
-				Advanced().
-				Version("1.13.0").
-				Default("30s"),
-		).
-			Description("Settings for the dialer used to create new connections.").
-			Advanced().
-			Version("1.13.0").
-			Optional(),
-		service.NewBoolField(hcFieldForceAttemptHTTP2).
-			Description("If true, the transport will attempt to use HTTP/2.").
-			Advanced().
-			Version("1.13.0").
-			Default(true),
-		service.NewIntField(hcFieldMaxIdleConns).
-			Description("Controls the maximum number of idle (keep-alive) connections across all hosts. Zero means no limit.").
-			Advanced().
-			Version("1.13.0").
-			Default(100),
-		service.NewDurationField(hcFieldIdleConnTimeout).
-			Description("Maximum amount of time an idle (keep-alive) connection will remain idle before closing itself.").
-			Advanced().
-			Version("1.13.0").
-			Default("90s"),
-		service.NewDurationField(hcFieldTLSHandshakeTimeout).
-			Description("Maximum time allowed for the TLS handshake to complete when establishing connections.").
-			Advanced().
-			Version("1.13.0").
-			Default("10s"),
-		service.NewDurationField(hcFieldExpectContinueTimeout).
-			Description("Time to wait for a server's first response headers after fully writing the request headers if the request has an 'Expect: 100-continue' header. Zero means no timeout and causes the body to be sent immediately, without waiting for the server to approve.").
-			Advanced().
-			Version("1.13.0").
-			Default("1s"),
-	).
-		Description("Custom transport options.").
-		Advanced()
+		// enabled
+		docs.FieldBool(
+			"enabled",
+			"Enables a custom HTTP transport. When false (default), Bento uses Go's DefaultTransport. "+
+				"When true, the custom_transport settings override. TLS and ProxyURL always apply. "+
+				"The env var BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT=true forces avoiding DefaultTransport.",
+		).HasDefault(false).AtVersion("1.13.0").Advanced(),
+
+		// dial_context
+		docs.FieldObject(
+			"dial_context",
+			"Settings for the dialer used to create new connections.",
+		).Optional().Advanced().AtVersion("1.13.0").WithChildren(
+
+			docs.FieldString(
+				"timeout",
+				"Timeout for establishing new network connections.",
+			).HasDefault("30s").AtVersion("1.13.0").Advanced(),
+
+			docs.FieldString(
+				"keep_alive",
+				"Keep-alive period for active network connections used by the dialer.",
+			).HasDefault("30s").AtVersion("1.13.0").Advanced(),
+		),
+
+		docs.FieldBool(
+			"force_http2",
+			"If true, the transport will attempt to use HTTP/2.",
+		).HasDefault(true).AtVersion("1.13.0").Advanced(),
+
+		docs.FieldInt(
+			"max_idle_connections",
+			"Maximum number of idle keep-alive connections. Zero = unlimited.",
+		).HasDefault(100).AtVersion("1.13.0").Advanced(),
+
+		docs.FieldString(
+			"idle_connection_timeout",
+			"Maximum time an idle keep-alive connection remains open before closing itself.",
+		).HasDefault("90s").AtVersion("1.13.0").Advanced(),
+
+		// tls_handshake_timeout
+		docs.FieldString(
+			"tls_handshake_timeout",
+			"Maximum time allowed for TLS handshake to complete.",
+		).HasDefault("10s").AtVersion("1.13.0").Advanced(),
+
+		// expect_continue_timeout
+		docs.FieldString(
+			"expect_continue_timeout",
+			"Time to wait for a server's first response headers after sending request headers when 'Expect: 100-continue' is used. Zero means send body immediately.",
+		).HasDefault("1s").AtVersion("1.13.0").Advanced(),
+	)
 }
 
 type CustomTransport struct {

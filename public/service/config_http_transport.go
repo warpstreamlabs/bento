@@ -4,6 +4,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+
+	httptran "github.com/warpstreamlabs/bento/internal/httptransport"
 )
 
 const (
@@ -83,4 +85,10 @@ func (pConf *ParsedConfig) FieldHTTPTransport(path ...string) (transport *http.T
 	}
 
 	return transport, true, nil
+}
+
+func NewTransportField(name string) *ConfigField {
+	tf := httptran.FieldSpec()
+	tf.Name = name
+	return &ConfigField{field: tf}
 }

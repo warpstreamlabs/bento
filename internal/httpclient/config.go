@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/warpstreamlabs/bento/internal/httptransport"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -103,7 +102,8 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("An optional HTTP proxy URL.").
 			Advanced().
 			Optional(),
-		httptransport.CustomTransportConfigSpec(),
+		service.NewTransportField(hcFieldTransport),
+		//httptransport.CustomTransportConfigSpec(),
 	)
 
 	innerFields = append(innerFields, extraChildren...)
