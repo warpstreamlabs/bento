@@ -1,6 +1,6 @@
 /* Panel Components */
 .panel {
-  background: #ffffff;
+  background: var(--bento-white);
   border: 1px solid var(--bento-bg-highlight);
   border-radius: var(--bento-border-radius);
   overflow: hidden;
@@ -44,7 +44,7 @@
   color: var(--bento-button-text);
   padding: 8px 16px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--bento-font-size-base);
   border-bottom: 2px solid var(--bento-bg-highlight);
   display: flex;
   align-items: center;
@@ -61,11 +61,12 @@
 .status-badge {
   background: var(--bento-bg-alt);
   color: var(--bento-text-heading);
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  border-radius: var(--bento-border-radius-sm);
+  font-size: var(--bento-font-size-xs);
   font-weight: 500;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--bento-transition-slow);
 }
 
 body.embedded .status-badge {
@@ -102,14 +103,14 @@ body.embedded .status-badge {
   color: var(--bento-button-text);
   border-radius: var(--bento-border-radius);
   padding: 6px 12px;
-  font-size: 11px;
+  font-size: var(--bento-font-size-xs);
   font-weight: 500;
   cursor: pointer;
   font-family: var(--bento-font-family);
   box-shadow: var(--bento-shadow-3d);
   transform: translateY(0);
-  transition: transform 0.15s ease, box-shadow 0.15s ease,
-    background-color 0.15s ease;
+  transition: transform var(--bento-transition-fast), box-shadow var(--bento-transition-fast),
+    background-color var(--bento-transition-fast);
   margin-left: 4px;
 }
 
@@ -185,7 +186,7 @@ body.embedded .status-badge {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: var(--bento-font-size-sm);
   color: var(--bento-text-heading);
 }
 
@@ -226,15 +227,15 @@ body.embedded .status-badge {
 
 /* Format Buttons */
 .format-btn {
-  background: #ffffff;
+  background: var(--bento-white);
   border: 1px solid var(--bento-bg-highlight);
-  border-radius: 4px;
+  border-radius: var(--bento-border-radius-sm);
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: var(--bento-font-size-xs);
   font-weight: 500;
   color: var(--bento-text-heading);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--bento-transition-base);
   font-family: var(--bento-font-family);
 }
 
@@ -273,7 +274,7 @@ body.embedded .status-badge {
 }
 
 .output.success {
-  background: #ffffff;
+  background: var(--bento-white);
   color: var(--bento-text-body);
 }
 
@@ -301,13 +302,13 @@ body.embedded .status-badge {
   margin: 8px;
   color: var(--bento-error);
   font-family: var(--bento-font-family);
-  font-size: 13px;
+  font-size: var(--bento-font-size-md);
   line-height: 1.5;
 }
 
 .error-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--bento-font-size-base);
   margin-bottom: 8px;
   display: flex;
   align-items: center;
@@ -323,9 +324,9 @@ body.embedded .status-badge {
   font-family: var(--bento-font-mono);
   background: rgba(211, 47, 47, 0.1);
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--bento-border-radius-sm);
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--bento-font-size-sm);
   white-space: pre-wrap;
 }
 
@@ -351,7 +352,7 @@ body.embedded .status-badge {
 }
 
 .output .json-null {
-  color: #999999;
+  color: var(--bento-text-muted);
   font-style: italic;
 }
 
@@ -359,29 +360,29 @@ body.embedded .status-badge {
   color: var(--bento-text-heading);
 }
 
-/* Dark mode JSON syntax highlighting - Monokai colors from website */
+/* Dark mode JSON syntax highlighting - Monokai colors */
 [data-theme="dark"] .output .json-string {
-  color: rgb(230, 219, 116);
+  color: var(--bento-monokai-string);
 }
 
 [data-theme="dark"] .output .json-number {
-  color: rgb(174, 129, 255);
+  color: var(--bento-monokai-constant);
 }
 
 [data-theme="dark"] .output .json-null {
-  color: rgb(174, 129, 255);
+  color: var(--bento-monokai-constant);
 }
 
 [data-theme="dark"] .output .json-key {
-  color: rgb(249, 38, 114);
+  color: var(--bento-monokai-keyword);
 }
 
 [data-theme="dark"] .output .json-boolean {
-  color: rgb(174, 129, 255);
+  color: var(--bento-monokai-constant);
 }
 
 [data-theme="dark"] .output .json-punctuation {
-  color: rgb(249, 38, 114);
+  color: var(--bento-monokai-keyword);
 }
 
 /* Dark Mode Toggle with Peek Effect */
@@ -425,8 +426,8 @@ body.embedded .status-badge {
   height: 20px;
   background: linear-gradient(
     to bottom,
-    var(--bento-primary),
-    var(--bento-secondary)
+    var(--bento-bg-highlight),
+    var(--bento-text-highlight)
   );
   border-radius: 2px;
   opacity: 0.6;
@@ -512,12 +513,12 @@ body.embedded .status-badge {
   padding: 12px 16px;
   border-radius: var(--bento-border-radius);
   font-family: var(--bento-font-family);
-  font-size: 13px;
+  font-size: var(--bento-font-size-md);
   font-weight: 500;
   z-index: 1000;
   opacity: 0;
   transform: translateX(100%);
-  transition: all 0.3s ease;
+  transition: all var(--bento-transition-slow);
 }
 
 .notification.show {
