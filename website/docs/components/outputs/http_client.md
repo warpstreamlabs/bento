@@ -102,7 +102,7 @@ output:
     drop_on: []
     successful_on: []
     proxy_url: "" # No default (optional)
-    custom_transport:
+    transport:
       enabled: false
       dial_context:
         timeout: 30s
@@ -708,23 +708,24 @@ An optional HTTP proxy URL.
 
 Type: `string`  
 
-### `custom_transport`
+### `transport`
 
 Custom transport options.
 
 
 Type: `object`  
+Requires version 1.13.0 or newer  
 
-### `custom_transport.enabled`
+### `transport.enabled`
 
-Enables a custom HTTP transport. When set to `false` (default), Bento will use Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport) for the underlying net/http transport. When enabled, settings from the `custom_transport` fields will be applied to the underlying transport. Note that other fields that modify the transport, such as TLS & ProxyURL, will always apply to the transport. The Env Var `BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT` can also be set to 'true' to ensure the DefaultTransport isn't used.
+Enables a custom HTTP transport. When false (default), Bento uses Go's DefaultTransport. When true, the custom_transport settings override. TLS and ProxyURL always apply. The env var BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT=true forces avoiding DefaultTransport.
 
 
 Type: `bool`  
 Default: `false`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.dial_context`
+### `transport.dial_context`
 
 Settings for the dialer used to create new connections.
 
@@ -732,7 +733,7 @@ Settings for the dialer used to create new connections.
 Type: `object`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.dial_context.timeout`
+### `transport.dial_context.timeout`
 
 Timeout for establishing new network connections.
 
@@ -741,16 +742,16 @@ Type: `string`
 Default: `"30s"`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.dial_context.keep_alive`
+### `transport.dial_context.keep_alive`
 
-Keep-alive period for an active network connections used by the dialer.
+Keep-alive period for active network connections used by the dialer.
 
 
 Type: `string`  
 Default: `"30s"`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.force_http2`
+### `transport.force_http2`
 
 If true, the transport will attempt to use HTTP/2.
 
@@ -759,36 +760,36 @@ Type: `bool`
 Default: `true`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.max_idle_connections`
+### `transport.max_idle_connections`
 
-Controls the maximum number of idle (keep-alive) connections across all hosts. Zero means no limit.
+Maximum number of idle keep-alive connections. Zero = unlimited.
 
 
 Type: `int`  
 Default: `100`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.idle_connection_timeout`
+### `transport.idle_connection_timeout`
 
-Maximum amount of time an idle (keep-alive) connection will remain idle before closing itself.
+Maximum time an idle keep-alive connection remains open before closing itself.
 
 
 Type: `string`  
 Default: `"90s"`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.tls_handshake_timeout`
+### `transport.tls_handshake_timeout`
 
-Maximum time allowed for the TLS handshake to complete when establishing connections.
+Maximum time allowed for TLS handshake to complete.
 
 
 Type: `string`  
 Default: `"10s"`  
 Requires version 1.13.0 or newer  
 
-### `custom_transport.expect_continue_timeout`
+### `transport.expect_continue_timeout`
 
-Time to wait for a server's first response headers after fully writing the request headers if the request has an 'Expect: 100-continue' header. Zero means no timeout and causes the body to be sent immediately, without waiting for the server to approve.
+Time to wait for a server's first response headers after sending request headers when 'Expect: 100-continue' is used. Zero means send body immediately.
 
 
 Type: `string`  

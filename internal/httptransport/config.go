@@ -10,9 +10,8 @@ func FieldSpec() docs.FieldSpec {
 	return docs.FieldObject(
 		"custom_transport",
 		"Custom transport options.",
-	).Advanced().WithChildren(
+	).Advanced().AtVersion("1.13.0").WithChildren(
 
-		// enabled
 		docs.FieldBool(
 			"enabled",
 			"Enables a custom HTTP transport. When false (default), Bento uses Go's DefaultTransport. "+
@@ -20,7 +19,6 @@ func FieldSpec() docs.FieldSpec {
 				"The env var BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT=true forces avoiding DefaultTransport.",
 		).HasDefault(false).AtVersion("1.13.0").Advanced(),
 
-		// dial_context
 		docs.FieldObject(
 			"dial_context",
 			"Settings for the dialer used to create new connections.",
@@ -52,13 +50,11 @@ func FieldSpec() docs.FieldSpec {
 			"Maximum time an idle keep-alive connection remains open before closing itself.",
 		).HasDefault("90s").AtVersion("1.13.0").Advanced(),
 
-		// tls_handshake_timeout
 		docs.FieldString(
 			"tls_handshake_timeout",
 			"Maximum time allowed for TLS handshake to complete.",
 		).HasDefault("10s").AtVersion("1.13.0").Advanced(),
 
-		// expect_continue_timeout
 		docs.FieldString(
 			"expect_continue_timeout",
 			"Time to wait for a server's first response headers after sending request headers when 'Expect: 100-continue' is used. Zero means send body immediately.",
