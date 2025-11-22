@@ -8,14 +8,14 @@ import (
 
 func FieldSpec() docs.FieldSpec {
 	return docs.FieldObject(
-		"custom_transport",
+		"transport",
 		"Custom transport options.",
 	).Advanced().AtVersion("1.13.0").WithChildren(
 
 		docs.FieldBool(
 			"enabled",
-			"Enables a custom HTTP transport. When false (default), Bento uses Go's DefaultTransport. "+
-				"When true, the custom_transport settings override. TLS and ProxyURL always apply. "+
+			"Enables a custom HTTP transport. When `false` (default), Bento uses Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport). "+
+				"When true, the transport settings override. TLS and ProxyURL always apply. "+
 				"The env var BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT=true forces avoiding DefaultTransport.",
 		).HasDefault(false).AtVersion("1.13.0").Advanced(),
 
@@ -24,7 +24,7 @@ func FieldSpec() docs.FieldSpec {
 			"Settings for the dialer used to create new connections.",
 		).Optional().Advanced().AtVersion("1.13.0").WithChildren(
 
-			docs.FieldString( // TODO - no duration field in docs package ?
+			docs.FieldString(
 				"timeout",
 				"Timeout for establishing new network connections.",
 			).HasDefault("30s").AtVersion("1.13.0").Advanced(),

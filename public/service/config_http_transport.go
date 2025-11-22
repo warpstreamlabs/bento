@@ -32,7 +32,7 @@ func (pConf *ParsedConfig) FieldHTTPTransport(path ...string) (transport *http.T
 	if err != nil {
 		return
 	}
-	if !(customTransportEnabled || OverrideDefaultHTTPTransport) {
+	if !customTransportEnabled && !OverrideDefaultHTTPTransport {
 		return nil, false, nil
 	}
 
