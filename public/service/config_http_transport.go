@@ -20,7 +20,7 @@ const (
 	fieldExpectContinueTimeout  = "expect_continue_timeout"
 )
 
-var overrideDefaultHTTPTransport bool = os.Getenv("BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT") == "true"
+var OverrideDefaultHTTPTransport bool = os.Getenv("BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT") == "true"
 
 // FieldHTTPTransport constructs an *http.Transport based on configuration fields found at the given path.
 // It returns the transport, a boolean indicating if a custom transport is enabled, and an error if any configuration is invalid.
@@ -32,7 +32,7 @@ func (pConf *ParsedConfig) FieldHTTPTransport(path ...string) (transport *http.T
 	if err != nil {
 		return
 	}
-	if !customTransportEnabled && !overrideDefaultHTTPTransport {
+	if !(customTransportEnabled || OverrideDefaultHTTPTransport) {
 		return nil, false, nil
 	}
 

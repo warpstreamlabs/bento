@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
@@ -707,4 +708,213 @@ tls:
 	mBytes, err := resBatch[0].AsBytes()
 	require.NoError(t, err)
 	assert.Equal(t, "HELLO WORLD", string(mBytes))
+}
+
+func TestHTTPClientTransport(t *testing.T) {
+	type trnsprtCfg struct {
+		forceAttemptHTTP2     bool
+		maxIdleConns          int
+		idleConnTimeout       time.Duration
+		tlsHandshakeTimeout   time.Duration
+		expectContinueTimeout time.Duration
+	}
+	tests := map[string]struct {
+		config                string
+		results               trnsprtCfg
+		alterDefaultTransport bool
+		alterEnvVarOverride   bool
+	}{
+		"custom transport via config": {
+			config: `
+url: foobar.com
+transport:
+  enabled: true
+  force_http2: false
+  max_idle_connections: 50
+  idle_connection_timeout: 45s
+  tls_handshake_timeout: 5s
+  expect_continue_timeout: 500ms
+`,
+			results: trnsprtCfg{
+				forceAttemptHTTP2:     false,
+				maxIdleConns:          50,
+				idleConnTimeout:       time.Second * 45,
+				tlsHandshakeTimeout:   time.Second * 5,
+				expectContinueTimeout: time.Millisecond * 500,
+			},
+		},
+		"default http config still uses overridden http.DefaultTransport": {
+			config: `
+url: foobar.com
+`,
+			results: trnsprtCfg{
+				forceAttemptHTTP2:     false,
+				maxIdleConns:          50,
+				idleConnTimeout:       time.Second * 45,
+				tlsHandshakeTimeout:   time.Second * 5,
+				expectContinueTimeout: time.Millisecond * 500,
+			},
+			alterDefaultTransport: true,
+		},
+		"transport enabled option yields a 'default transport' built from config defaults": {
+			config: `
+url: foobar.com
+transport:
+  enabled: true
+`,
+			results: trnsprtCfg{
+				forceAttemptHTTP2:     true,
+				maxIdleConns:          100,
+				idleConnTimeout:       time.Second * 90,
+				tlsHandshakeTimeout:   time.Second * 10,
+				expectContinueTimeout: time.Second,
+			},
+			alterDefaultTransport: true,
+		},
+		"transport is overridden with config defaults when Env Var override is set": {
+			config: `
+url: foobar.com
+`,
+			results: trnsprtCfg{
+				forceAttemptHTTP2:     true,
+				maxIdleConns:          100,
+				idleConnTimeout:       time.Second * 90,
+				tlsHandshakeTimeout:   time.Second * 10,
+				expectContinueTimeout: time.Second,
+			},
+			alterDefaultTransport: true,
+			alterEnvVarOverride:   true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if test.alterDefaultTransport {
+				alterDefaultTransport(t)
+			}
+			if test.alterEnvVarOverride {
+				alterEnvVarOverride(t)
+			}
+
+			conf := clientConfig(t, "%s", test.config)
+
+			h, err := NewClientFromOldConfig(conf, service.MockResources())
+			require.NoError(t, err)
+
+			var clone *http.Transport
+			if tr, ok := h.client.Transport.(*http.Transport); ok {
+				clone = tr.Clone()
+			}
+
+			assert.Equal(t, test.results.forceAttemptHTTP2, clone.ForceAttemptHTTP2)
+			assert.Equal(t, test.results.maxIdleConns, clone.MaxIdleConns)
+			assert.Equal(t, test.results.idleConnTimeout, clone.IdleConnTimeout)
+			assert.Equal(t, test.results.tlsHandshakeTimeout, clone.TLSHandshakeTimeout)
+			assert.Equal(t, test.results.expectContinueTimeout, clone.ExpectContinueTimeout)
+		})
+	}
+}
+
+func alterDefaultTransport(t *testing.T) {
+	t.Helper()
+
+	originalTransport := http.DefaultTransport
+
+	http.DefaultTransport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     false,
+		MaxIdleConns:          50,
+		IdleConnTimeout:       45 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ExpectContinueTimeout: 500 * time.Millisecond,
+	}
+
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+}
+
+func alterEnvVarOverride(t *testing.T) {
+	service.OverrideDefaultHTTPTransport = true
+
+	t.Cleanup(func() {
+		service.OverrideDefaultHTTPTransport = false
+	})
+}
+
+func TestHTTPClientProxyTLSConfAndTransport(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("this shouldnt be hit directly")
+	}))
+	defer ts.Close()
+
+	tsProxy := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Host, strings.TrimPrefix(ts.URL, "http://"))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		_, _ = w.Write(bytes.ToUpper(b))
+	}))
+	defer tsProxy.Close()
+
+	conf := clientConfig(t, `
+url: %v
+tls:
+  enabled: true
+  skip_cert_verify: true
+proxy_url: %v
+transport:
+  enabled: true
+`, ts.URL+"/testpost", tsProxy.URL)
+
+	h, err := NewClientFromOldConfig(conf, service.MockResources())
+	require.NoError(t, err)
+
+	resBatch, err := h.Send(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("hello world")),
+	})
+	require.NoError(t, err)
+	require.Len(t, resBatch, 1)
+
+	mBytes, err := resBatch[0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, "HELLO WORLD", string(mBytes))
+}
+
+func TestHTTPClientProxyTLSConfAndTransportFail(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("this shouldnt be hit directly")
+	}))
+	defer ts.Close()
+
+	tsProxy := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Host, strings.TrimPrefix(ts.URL, "http://"))
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		_, _ = w.Write(bytes.ToUpper(b))
+	}))
+	defer tsProxy.Close()
+
+	conf := clientConfig(t, `
+url: %v
+tls:
+  enabled: true
+  skip_cert_verify: true
+proxy_url: %v
+retries: 0
+transport:
+  enabled: true
+  tls_handshake_timeout: 1ns
+`, ts.URL+"/testpost", tsProxy.URL)
+
+	h, err := NewClientFromOldConfig(conf, service.MockResources())
+	require.NoError(t, err)
+
+	_, err = h.Send(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("hello world")),
+	})
+	require.ErrorContains(t, err, "proxyconnect tcp: net/http: TLS handshake timeout")
 }
