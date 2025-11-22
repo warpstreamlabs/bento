@@ -103,7 +103,6 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Advanced().
 			Optional(),
 		service.NewTransportField(hcFieldTransport),
-		//httptransport.CustomTransportConfigSpec(),
 	)
 
 	innerFields = append(innerFields, extraChildren...)
@@ -163,7 +162,7 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
-	if conf.transport, conf.customTransport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
+	if conf.transport, conf.isCustomTransport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
 		return
 	}
 
@@ -192,6 +191,6 @@ type OldConfig struct {
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
 
-	transport       *http.Transport
-	customTransport bool
+	transport         *http.Transport
+	isCustomTransport bool
 }

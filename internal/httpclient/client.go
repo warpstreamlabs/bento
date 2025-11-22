@@ -58,7 +58,7 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 	}
 
 	var transport *http.Transport
-	if conf.customTransport {
+	if conf.isCustomTransport {
 		transport = conf.transport
 	} else {
 		if t, ok := http.DefaultTransport.(*http.Transport); ok {
