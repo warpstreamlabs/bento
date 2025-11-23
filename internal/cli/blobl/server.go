@@ -25,6 +25,32 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
+type httpEndpoint struct {
+	Path    string
+	Handler http.HandlerFunc
+}
+
+// getRegisteredEndpoints creates the list of HTTP endpoints for the playground server.
+// This function must be called with a fileSync instance, so it's created at runtime
+// rather than package initialization time.
+func getRegisteredEndpoints(fSync *fileSync) []httpEndpoint {
+	return []httpEndpoint{
+		// Core operations
+		{"/execute", serveExecute(fSync)},   // Execute Bloblang mapping on JSON input
+		{"/validate", serveValidate()},       // Validate Bloblang mapping without executing
+
+		// Editor tooling
+		{"/syntax", serveSyntax()},                 // Get Bloblang syntax metadata for editor
+		{"/format", serveFormat()},          // Format Bloblang mapping with indentation
+		{"/autocomplete", serveAutocomplete()},   // Provide autocompletion suggestions
+
+		// JSON utilities
+		{"/format-json", serveFormatJSON()},        // Format JSON with indentation
+		{"/minify-json", serveMinifyJSON()},        // Minify JSON by removing whitespace
+		{"/validate-json", serveValidateJSON()},    // Validate JSON syntax
+	}
+}
+
 // Default playground values
 const (
 	defaultPlaygroundInput   = `{"name": "bento", "type": "stream_processor", "features": ["fast", "fancy"], "stars": 1500}`
@@ -49,8 +75,8 @@ var playgroundFS embed.FS
 
 var bloblangPlaygroundPage string
 
-// serveExecuteMapping handles mapping execution requests for server mode
-func serveExecuteMapping(fSync *fileSync) http.HandlerFunc {
+// serveExecute handles mapping execution requests for server mode
+func serveExecute(fSync *fileSync) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req := struct {
 			Mapping string `json:"mapping"`
@@ -63,7 +89,7 @@ func serveExecuteMapping(fSync *fileSync) http.HandlerFunc {
 		}
 		fSync.update(req.Input, req.Mapping)
 
-		result := evaluateMapping(bloblang.GlobalEnvironment(), req.Input, req.Mapping)
+		result := executeBloblangMapping(bloblang.GlobalEnvironment(), req.Input, req.Mapping)
 
 		resBytes, err := json.Marshal(struct {
 			Result       any `json:"result"`
@@ -82,8 +108,8 @@ func serveExecuteMapping(fSync *fileSync) http.HandlerFunc {
 	}
 }
 
-// serveFormatMapping handles formatting requests for server mode
-func serveFormatMapping() http.HandlerFunc {
+// serveFormat handles formatting requests for server mode
+func serveFormat() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -104,14 +130,14 @@ func serveFormatMapping() http.HandlerFunc {
 			return
 		}
 
-		response := FormatBloblangMapping(request.Mapping)
+		response := formatBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}
 }
 
-// serveAutocompletion handles autocompletion requests for server mode
-func serveAutocompletion() http.HandlerFunc {
+// serveAutocomplete handles autocompletion requests for server mode
+func serveAutocomplete() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -124,16 +150,16 @@ func serveAutocompletion() http.HandlerFunc {
 			return
 		}
 
-		response := GenerateAutocompletion(bloblang.GlobalEnvironment(), request)
+		response := generateAutocompletion(bloblang.GlobalEnvironment(), request)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}
 }
 
-// serveValidateMapping handles validation requests for server mode.
+// serveValidate handles validation requests for server mode.
 // Note: Not currently used by the playground UI ('execute' already validates), but exposed
 // for future integrations / consumers
-func serveValidateMapping() http.HandlerFunc {
+func serveValidate() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -149,12 +175,32 @@ func serveValidateMapping() http.HandlerFunc {
 			return
 		}
 
-		response := ValidateBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
+		response := validateBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}
 }
 
+// serveSyntax handles syntax metadata requests for server mode
+func serveSyntax() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost && r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(syntax)
+	}
+}
+
+// serveFormatJSON handles JSON formatting requests for server mode
 func serveFormatJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -177,6 +223,7 @@ func serveFormatJSON() http.HandlerFunc {
 	}
 }
 
+// serveMinifyJSON handles JSON minification requests for server mode
 func serveMinifyJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -199,6 +246,7 @@ func serveMinifyJSON() http.HandlerFunc {
 	}
 }
 
+// serveValidateJSON handles JSON validation requests for server mode
 func serveValidateJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -348,13 +396,10 @@ func runPlayground(c *cli.Context) error {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/execute", serveExecuteMapping(fSync))
-	mux.HandleFunc("/format", serveFormatMapping())
-	mux.HandleFunc("/autocomplete", serveAutocompletion())
-	mux.HandleFunc("/validate", serveValidateMapping())
-	mux.HandleFunc("/format-json", serveFormatJSON())
-	mux.HandleFunc("/minify-json", serveMinifyJSON())
-	mux.HandleFunc("/validate-json", serveValidateJSON())
+	// Register all API endpoints from the registry
+	for _, ep := range getRegisteredEndpoints(fSync) {
+		mux.HandleFunc(ep.Path, ep.Handler)
+	}
 
 	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")
 	if err != nil {

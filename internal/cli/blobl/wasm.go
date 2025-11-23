@@ -9,6 +9,12 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 )
 
+// wasmEnvironment returns a Bloblang environment suitable for browser/WASM context.
+// Excludes functions that depend on system resources (env vars, filesystem).
+func wasmEnvironment() *bloblang.Environment {
+	return bloblang.GlobalEnvironment().WithoutFunctions("env", "file")
+}
+
 type WASMFunction struct {
 	Name string
 	Func js.Func
@@ -18,30 +24,32 @@ type WASMFunction struct {
 // This list is used by playground/main.go to initialize window.bloblangApi.
 // Add new exports here to make them available to the playground.
 var RegisteredWasmFunctions = []WASMFunction{
-	// Core execution
-	// Executes a Bloblang mapping on a JSON input string and returns the result or error
-	{"execute", ExportExecute()},
-	// Validates Bloblang mappings
-	{"validate", ExportValidate()},
+	// Core execution - Executes a Bloblang mapping on JSON input and returns the result or error
+	{"execute", exportExecute()},
 
-	// Editor tooling
-	// Returns Bloblang syntax metadata for editor tooling
-	{"syntax", ExportSyntax()},
-	// Formats Bloblang mappings
-	{"format", ExportFormat()},
-	// Provides Bloblang autocompletions
-	{"autocomplete", ExportAutocomplete()},
+	// Validation - Validates Bloblang mappings without executing
+	{"validate", exportValidate()},
 
-	// JSON utilities
-	// Formats JSON strings with indentation
-	{"formatJSON", ExportFormatJSON()},
-	// Minifies JSON strings by removing whitespace
-	{"minifyJSON", ExportMinifyJSON()},
-	// Validates JSON strings
-	{"validateJSON", ExportValidateJSON()},
+	// Editor tooling - Returns Bloblang syntax metadata
+	{"syntax", exportSyntax()},
+
+	// Editor tooling - Formats Bloblang mappings with proper indentation
+	{"format", exportFormat()},
+
+	// Editor tooling - Provides Bloblang autocompletion suggestions
+	{"autocomplete", exportAutocomplete()},
+
+	// JSON utilities - Formats JSON strings with indentation
+	{"formatJSON", exportFormatJSON()},
+
+	// JSON utilities - Minifies JSON strings by removing whitespace
+	{"minifyJSON", exportMinifyJSON()},
+
+	// JSON utilities - Validates JSON syntax
+	{"validateJSON", exportValidateJSON()},
 }
 
-// ExportExecute returns a js.Func that executes the Bloblang mapping functionality on input JSON.
+// exportExecute returns a js.Func that executes the Bloblang mapping functionality on input JSON.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -52,7 +60,7 @@ var RegisteredWasmFunctions = []WASMFunction{
 //   - "result":        the mapping result (any type, or nil on error)
 //   - "parse_error":   error message if input JSON could not be parsed, else nil
 //   - "mapping_error": error message if mapping failed, else nil
-func ExportExecute() js.Func {
+func exportExecute() js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) != 2 || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
 			return ToJS(map[string]any{
@@ -63,7 +71,7 @@ func ExportExecute() js.Func {
 		}
 
 		input, mapping := args[0].String(), args[1].String()
-		result := evaluateMapping(bloblang.GlobalEnvironment(), input, mapping)
+		result := executeBloblangMapping(wasmEnvironment(), input, mapping)
 
 		return ToJS(map[string]any{
 			"mapping_error": result.MappingError,
@@ -73,13 +81,40 @@ func ExportExecute() js.Func {
 	})
 }
 
-// ExportSyntax returns a js.Func that provides Bloblang syntax metadata for editor tooling.
+// exportValidate returns a js.Func that validates Bloblang mappings without executing them.
+// This function is intended to be exposed to JavaScript via WebAssembly.
+//
+// Note: Not currently used by the playground UI ('execute' already validates), but exposed
+// for future integrations / consumers
+//
+// Arguments:
+//   - args[0]: Bloblang mapping string to validate
+//
+// Returns a JS object with:
+//   - "valid": true if mapping is valid, false otherwise
+//   - "error": error message if validation failed, else nil
+func exportValidate() js.Func {
+	return js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) != 1 || args[0].Type() != js.TypeString {
+			return ToJS(ValidationResponse{
+				Valid: false,
+				Error: "Invalid arguments: expected one string (mapping)",
+			})
+		}
+
+		mapping := args[0].String()
+		response := validateBloblangMapping(wasmEnvironment(), mapping)
+		return ToJS(response)
+	})
+}
+
+// exportSyntax returns a js.Func that provides Bloblang syntax metadata for editor tooling.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Returns a JS object with syntax info, or an "error" field if retrieval fails.
-func ExportSyntax() js.Func {
+func exportSyntax() js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
-		syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
+		syntax, err := generateBloblangSyntax(wasmEnvironment())
 		if err != nil {
 			return ToJS(map[string]any{
 				"error": err.Error(),
@@ -89,7 +124,7 @@ func ExportSyntax() js.Func {
 	})
 }
 
-// ExportFormat returns a js.Func that provides formatted Bloblang mappings.
+// exportFormat returns a js.Func that provides formatted Bloblang mappings.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -99,7 +134,7 @@ func ExportSyntax() js.Func {
 //   - "formatted": the formatted mapping string
 //   - "success":   true if formatting succeeded, false otherwise
 //   - "error":     error message if formatting failed, else nil
-func ExportFormat() js.Func {
+func exportFormat() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return ToJS(FormatMappingResponse{
@@ -110,12 +145,12 @@ func ExportFormat() js.Func {
 		}
 
 		mapping := args[0].String()
-		response := FormatBloblangMapping(mapping)
+		response := formatBloblangMapping(wasmEnvironment(), mapping)
 		return ToJS(response)
 	})
 }
 
-// ExportAutocomplete returns a js.Func that provides autocompletion suggestions for Bloblang code.
+// exportAutocomplete returns a js.Func that provides autocompletion suggestions for Bloblang code.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -125,7 +160,7 @@ func ExportFormat() js.Func {
 //   - "completions": array of completion items with caption, value, meta, type, score, docHTML
 //   - "success":     true if autocompletion succeeded, false otherwise
 //   - "error":       error message if autocompletion failed, else nil
-func ExportAutocomplete() js.Func {
+func exportAutocomplete() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return ToJS(AutocompletionResponse{
@@ -148,39 +183,12 @@ func ExportAutocomplete() js.Func {
 		}
 
 		// Generate autocompletion using the Bloblang environment
-		response := GenerateAutocompletion(bloblang.GlobalEnvironment(), req)
+		response := generateAutocompletion(wasmEnvironment(), req)
 		return ToJS(response)
 	})
 }
 
-// ExportValidate returns a js.Func that validates Bloblang mappings without executing them.
-// This function is intended to be exposed to JavaScript via WebAssembly.
-//
-// Note: Not currently used by the playground UI ('execute' already validates), but exposed
-// for future integrations / consumers
-//
-// Arguments:
-//   - args[0]: Bloblang mapping string to validate
-//
-// Returns a JS object with:
-//   - "valid": true if mapping is valid, false otherwise
-//   - "error": error message if validation failed, else nil
-func ExportValidate() js.Func {
-	return js.FuncOf(func(this js.Value, args []js.Value) any {
-		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return ToJS(ValidationResponse{
-				Valid: false,
-				Error: "Invalid arguments: expected one string (mapping)",
-			})
-		}
-
-		mapping := args[0].String()
-		response := ValidateBloblangMapping(bloblang.GlobalEnvironment(), mapping)
-		return ToJS(response)
-	})
-}
-
-// ExportFormatJSON returns a js.Func that formats JSON strings with indentation.
+// exportFormatJSON returns a js.Func that formats JSON strings with indentation.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -190,7 +198,7 @@ func ExportValidate() js.Func {
 //   - "success": true if formatting succeeded, false otherwise
 //   - "result": the formatted JSON string
 //   - "error": error message if formatting failed, else nil
-func ExportFormatJSON() js.Func {
+func exportFormatJSON() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return ToJS(JSONResponse{
@@ -206,7 +214,7 @@ func ExportFormatJSON() js.Func {
 	})
 }
 
-// ExportMinifyJSON returns a js.Func that minifies JSON strings by removing whitespace.
+// exportMinifyJSON returns a js.Func that minifies JSON strings by removing whitespace.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -216,7 +224,7 @@ func ExportFormatJSON() js.Func {
 //   - "success": true if minification succeeded, false otherwise
 //   - "result": the minified JSON string
 //   - "error": error message if minification failed, else nil
-func ExportMinifyJSON() js.Func {
+func exportMinifyJSON() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return ToJS(JSONResponse{
@@ -232,7 +240,7 @@ func ExportMinifyJSON() js.Func {
 	})
 }
 
-// ExportValidateJSON returns a js.Func that validates JSON strings.
+// exportValidateJSON returns a js.Func that validates JSON strings.
 // This function is intended to be exposed to JavaScript via WebAssembly.
 //
 // Arguments:
@@ -241,7 +249,7 @@ func ExportMinifyJSON() js.Func {
 // Returns a JS object with:
 //   - "valid": true if JSON is valid, false otherwise
 //   - "error": error message if validation failed, else nil
-func ExportValidateJSON() js.Func {
+func exportValidateJSON() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return ToJS(ValidationResponse{
@@ -254,6 +262,17 @@ func ExportValidateJSON() js.Func {
 		response := ValidateJSON(jsonString)
 		return ToJS(response)
 	})
+}
+
+// InitializeWASM sets up the Bloblang API in the browser's global scope.
+// Call this from main() in the WASM entry point.
+func InitializeWASM() {
+	bloblangAPI := js.Global().Get("Object").New()
+	for _, fn := range RegisteredWasmFunctions {
+		bloblangAPI.Set(fn.Name, fn.Func)
+	}
+	js.Global().Set("bloblangApi", bloblangAPI)
+	js.Global().Set("wasmReady", js.ValueOf(true))
 }
 
 // ToJS marshals a Go value to a JavaScript value for WASM compatibility.

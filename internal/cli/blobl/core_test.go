@@ -50,16 +50,16 @@ func TestExecuteMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := evaluateMapping(env, tt.input, tt.mapping)
+			result := executeBloblangMapping(env, tt.input, tt.mapping)
 
 			hasError := result.ParseError != nil || result.MappingError != nil
 			if hasError != tt.expectError {
-				t.Errorf("evaluateMapping() error = %v, expectError = %v", hasError, tt.expectError)
+				t.Errorf("executeBloblangMapping() error = %v, expectError = %v", hasError, tt.expectError)
 			}
 
 			hasResult := result.Result != nil
 			if hasResult != tt.expectResult {
-				t.Errorf("evaluateMapping() hasResult = %v, expectResult = %v", hasResult, tt.expectResult)
+				t.Errorf("executeBloblangMapping() hasResult = %v, expectResult = %v", hasResult, tt.expectResult)
 			}
 		})
 	}
@@ -108,9 +108,9 @@ func TestValidateBloblangMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ValidateBloblangMapping(env, tt.mapping)
+			result := validateBloblangMapping(env, tt.mapping)
 			if result.Valid != tt.valid {
-				t.Errorf("ValidateBloblangMapping() = %v, want %v (error: %s)", result.Valid, tt.valid, result.Error)
+				t.Errorf("validateBloblangMapping() = %v, want %v (error: %s)", result.Valid, tt.valid, result.Error)
 			}
 		})
 	}
@@ -203,14 +203,14 @@ func TestFormatBloblangMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatBloblangMapping(tt.mapping)
+			result := formatBloblangMapping(bloblang.GlobalEnvironment(), tt.mapping)
 
 			if result.Success == tt.expectError {
-				t.Errorf("FormatBloblangMapping() success = %v, expectError = %v", result.Success, tt.expectError)
+				t.Errorf("formatBloblangMapping() success = %v, expectError = %v", result.Success, tt.expectError)
 			}
 
 			if !tt.expectError && result.Formatted == "" {
-				t.Error("FormatBloblangMapping() returned empty formatted result")
+				t.Error("formatBloblangMapping() returned empty formatted result")
 			}
 		})
 	}
@@ -265,10 +265,10 @@ func TestGenerateAutocompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GenerateAutocompletion(env, tt.request)
+			result := generateAutocompletion(env, tt.request)
 
 			if result.Success == tt.expectError {
-				t.Errorf("GenerateAutocompletion() success = %v, expectError = %v", result.Success, tt.expectError)
+				t.Errorf("generateAutocompletion() success = %v, expectError = %v", result.Success, tt.expectError)
 			}
 
 			if !tt.expectError && len(result.Completions) > 0 {
