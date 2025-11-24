@@ -1,4 +1,9 @@
-// Syntax Highlighting
+/**
+ * UI Utility Functions
+ * Pure helpers with no business logic
+ */
+
+// Syntax Highlighting - For display purposes only, not validation
 function syntaxHighlightJSON(json) {
   if (typeof json !== "string") {
     json = JSON.stringify(json, null, 2);
@@ -29,72 +34,7 @@ function syntaxHighlightJSON(json) {
   );
 }
 
-// Linting Functions
-function lintJSON(json) {
-  try {
-    return JSON.parse(json);
-  } catch (e) {
-    return null;
-  }
-}
-
-function updateInputLinter(input) {
-  const lint = lintJSON(input)
-    ? { valid: true, message: "Valid Syntax" }
-    : { valid: false, message: "Invalid Syntax" };
-
-  const indicator = document.getElementById("inputLint");
-  if (indicator) {
-    indicator.textContent = lint.message;
-    indicator.className = `lint-indicator ${lint.valid ? "valid" : "invalid"}`;
-  }
-
-  return lint;
-}
-
-function updateMappingLinter(mapping, errorMessage = null) {
-  const lint = !errorMessage
-    ? { valid: true, message: "Valid Syntax" }
-    : { valid: false, message: "Invalid Syntax" };
-
-  const indicator = document.getElementById("mappingLint");
-  if (indicator) {
-    indicator.textContent = lint.message;
-    indicator.className = `lint-indicator ${lint.valid ? "valid" : "invalid"}`;
-  }
-
-  return lint;
-}
-
-function updateOutputLinter(output) {
-  const indicator = document.getElementById("outputLint");
-  const formatBtn = document.getElementById("formatOutputBtn");
-  const minifyBtn = document.getElementById("minifyOutputBtn");
-
-  if (!indicator) return;
-
-  if (output === "Ready to execute your first mapping...") {
-    indicator.textContent = "Ready";
-    indicator.className = "lint-indicator";
-    if (formatBtn) formatBtn.disabled = true;
-    if (minifyBtn) minifyBtn.disabled = true;
-    return;
-  }
-
-  if (isValidJSON(output)) {
-    indicator.textContent = "Valid JSON";
-    indicator.className = "lint-indicator valid";
-    if (formatBtn) formatBtn.disabled = false;
-    if (minifyBtn) minifyBtn.disabled = false;
-  } else {
-    indicator.textContent = "Text Output";
-    indicator.className = "lint-indicator warning";
-    if (formatBtn) formatBtn.disabled = true;
-    if (minifyBtn) minifyBtn.disabled = true;
-  }
-}
-
-// File Operations
+// Clipboard Operations
 async function copyToClipboard(text, successMessage = "Copied to clipboard!") {
   try {
     await navigator.clipboard.writeText(text);
@@ -112,6 +52,7 @@ async function copyToClipboard(text, successMessage = "Copied to clipboard!") {
   }
 }
 
+// File Download
 function downloadFile(content, filename, contentType = "text/plain") {
   const blob = new Blob([content], { type: contentType });
   const url = window.URL.createObjectURL(blob);
@@ -122,166 +63,8 @@ function downloadFile(content, filename, contentType = "text/plain") {
   window.URL.revokeObjectURL(url);
 }
 
-// Action handlers
-function copyInput() {
-  if (window.playground) {
-    copyToClipboard(window.playground.editor.getInput(), "Input copied!");
-  }
-}
-
-function copyMapping() {
-  if (window.playground) {
-    copyToClipboard(window.playground.editor.getMapping(), "Mapping copied!");
-  }
-}
-
-function copyOutput() {
-  if (window.playground) {
-    copyToClipboard(
-      window.playground.elements.outputArea.textContent,
-      "Output copied!"
-    );
-  }
-}
-
-function formatInput() {
-  if (window.playground) {
-    const formatted = formatJSON(window.playground.editor.getInput());
-    window.playground.editor.setInput(formatted);
-    updateInputLinter(formatted);
-  }
-}
-
-function minifyInput() {
-  if (window.playground) {
-    const minified = minifyJSON(window.playground.editor.getInput());
-    window.playground.editor.setInput(minified);
-    updateInputLinter(minified);
-  }
-}
-
-async function formatBloblang() {
-  if (!window.playground || !window.playground.editor) {
-    return callback(null, []);
-  }
-
-  try {
-    const raw = window.playground.editor.getMapping();
-    if (!raw || typeof raw !== "string") return;
-
-    let result;
-    switch (window.playground.state.executionMode) {
-      case "server":
-        const response = await fetch("/format", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mapping: raw }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        result = await response.json();
-        break;
-
-      case "wasm":
-        result = window.playground.wasm.formatMapping(raw);
-        if (!result) {
-          return;
-        }
-        break;
-
-      default:
-        console.warn("Formatter unavailable");
-        return;
-    }
-
-    if (result && result.success && result.formatted) {
-      window.playground.editor.setMapping(result.formatted);
-      updateMappingLinter(result.formatted);
-    }
-  } catch (err) {
-    console.warn("Formatting error:", err);
-  }
-}
-
-function formatOutput() {
-  if (window.playground) {
-    const output = window.playground.elements.outputArea.textContent;
-    if (isValidJSON(output)) {
-      const formatted = formatJSON(output);
-      const highlighted = syntaxHighlightJSON(formatted);
-      window.playground.elements.outputArea.innerHTML = highlighted;
-      window.playground.elements.outputArea.classList.add("json-formatted");
-      updateOutputLinter(output);
-    } else {
-      window.playground.ui.showNotification(
-        "Output is not valid JSON",
-        "error"
-      );
-    }
-  }
-}
-
-function minifyOutput() {
-  if (window.playground) {
-    const output = window.playground.elements.outputArea.textContent;
-    if (isValidJSON(output)) {
-      const minified = minifyJSON(output);
-      const highlighted = syntaxHighlightJSON(minified);
-      window.playground.elements.outputArea.innerHTML = highlighted;
-      window.playground.elements.outputArea.classList.remove("json-formatted");
-      updateOutputLinter(minified);
-    } else {
-      window.playground.ui.showNotification(
-        "Output is not valid JSON",
-        "error"
-      );
-    }
-  }
-}
-
-function loadInputFile() {
-  document.getElementById("inputFileInput").click();
-}
-
-function loadMappingFile() {
-  document.getElementById("mappingFileInput").click();
-}
-
-function saveOutput() {
-  if (window.playground) {
-    const output = window.playground.elements.outputArea.textContent;
-    const timestamp = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace(/[:.]/g, "-");
-
-    let formattedOutput = output;
-    let extension = "txt";
-
-    if (isValidJSON(output)) {
-      formattedOutput = formatJSON(output);
-      extension = "json";
-    }
-
-    downloadFile(
-      formattedOutput,
-      `bloblang-output-${timestamp}.${extension}`,
-      extension === "json" ? "application/json" : "text/plain"
-    );
-  }
-}
-
-// JSON Utilities
+// JSON utilities
 function isValidJSON(str) {
-  // Try WASM if available
-  if (window.playground?.wasm?.validateJSON) {
-    const result = window.playground.wasm.validateJSON(str);
-    return result.valid;
-  }
-
   try {
     JSON.parse(str);
     return true;
@@ -291,12 +74,6 @@ function isValidJSON(str) {
 }
 
 function formatJSON(jsonString) {
-  // Try WASM if available
-  if (window.playground?.wasm?.formatJSON) {
-    const result = window.playground.wasm.formatJSON(jsonString);
-    return result.success ? result.result : jsonString;
-  }
-
   try {
     const parsed = JSON.parse(jsonString);
     return JSON.stringify(parsed, null, 2);
@@ -306,12 +83,6 @@ function formatJSON(jsonString) {
 }
 
 function minifyJSON(jsonString) {
-  // Try WASM if available
-  if (window.playground?.wasm?.minifyJSON) {
-    const result = window.playground.wasm.minifyJSON(jsonString);
-    return result.success ? result.result : jsonString;
-  }
-
   try {
     const parsed = JSON.parse(jsonString);
     return JSON.stringify(parsed);

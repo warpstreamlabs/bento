@@ -123,51 +123,20 @@ class UIManager {
 
   showNotification(message, type = "info") {
     const notification = document.createElement("div");
-    notification.className = `notification ${type}`;
+    notification.className = `notification notification-${type}`;
     notification.textContent = message;
-
-    const colors = {
-      success: { bg: "#E8F5E8", color: "#2E7D32", border: "#2E7D32" },
-      error: { bg: "#FFEBEE", color: "#D32F2F", border: "#D32F2F" },
-      warning: { bg: "#FFF3E0", color: "#F57C00", border: "#F57C00" },
-      info: { bg: "#FDE5D8", color: "#553630", border: "#EB8788" },
-    };
-
-    const style = colors[type] || colors.info;
-
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${style.bg};
-      color: ${style.color};
-      padding: 12px 16px;
-      border-radius: 6px;
-      border: 1px solid ${style.border};
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      z-index: 1000;
-      opacity: 0;
-      transform: translateX(100%);
-      transition: all 0.3s ease;
-      max-width: 300px;
-    `;
 
     document.body.appendChild(notification);
 
-    // Animate in
-    setTimeout(() => {
-      notification.style.opacity = "1";
-      notification.style.transform = "translateX(0)";
-    }, 10);
+    // Trigger animation after DOM insertion
+    requestAnimationFrame(() => {
+      notification.classList.add("notification-show");
+    });
 
-    // Animate out and remove
+    // Auto-dismiss notification
     const duration = type === "warning" ? 5000 : 3000;
-
     setTimeout(() => {
-      notification.style.opacity = "0";
-      notification.style.transform = "translateX(100%)";
+      notification.classList.remove("notification-show");
       setTimeout(() => {
         if (notification.parentNode) {
           document.body.removeChild(notification);

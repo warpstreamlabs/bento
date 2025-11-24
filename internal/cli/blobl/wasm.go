@@ -38,15 +38,6 @@ var RegisteredWasmFunctions = []WASMFunction{
 
 	// Editor tooling - Provides Bloblang autocompletion suggestions
 	{"autocomplete", exportAutocomplete()},
-
-	// JSON utilities - Formats JSON strings with indentation
-	{"formatJSON", exportFormatJSON()},
-
-	// JSON utilities - Minifies JSON strings by removing whitespace
-	{"minifyJSON", exportMinifyJSON()},
-
-	// JSON utilities - Validates JSON syntax
-	{"validateJSON", exportValidateJSON()},
 }
 
 // exportExecute returns a js.Func that executes the Bloblang mapping functionality on input JSON.
@@ -184,82 +175,6 @@ func exportAutocomplete() js.Func {
 
 		// Generate autocompletion using the Bloblang environment
 		response := generateAutocompletion(wasmEnvironment(), req)
-		return ToJS(response)
-	})
-}
-
-// exportFormatJSON returns a js.Func that formats JSON strings with indentation.
-// This function is intended to be exposed to JavaScript via WebAssembly.
-//
-// Arguments:
-//   - args[0]: JSON string to format
-//
-// Returns a JS object with:
-//   - "success": true if formatting succeeded, false otherwise
-//   - "result": the formatted JSON string
-//   - "error": error message if formatting failed, else nil
-func exportFormatJSON() js.Func {
-	return js.FuncOf(func(this js.Value, args []js.Value) any {
-		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return ToJS(JSONResponse{
-				Success: false,
-				Result:  "",
-				Error:   "Invalid arguments: expected one string (JSON)",
-			})
-		}
-
-		jsonString := args[0].String()
-		response := FormatJSON(jsonString)
-		return ToJS(response)
-	})
-}
-
-// exportMinifyJSON returns a js.Func that minifies JSON strings by removing whitespace.
-// This function is intended to be exposed to JavaScript via WebAssembly.
-//
-// Arguments:
-//   - args[0]: JSON string to minify
-//
-// Returns a JS object with:
-//   - "success": true if minification succeeded, false otherwise
-//   - "result": the minified JSON string
-//   - "error": error message if minification failed, else nil
-func exportMinifyJSON() js.Func {
-	return js.FuncOf(func(this js.Value, args []js.Value) any {
-		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return ToJS(JSONResponse{
-				Success: false,
-				Result:  "",
-				Error:   "Invalid arguments: expected one string (JSON)",
-			})
-		}
-
-		jsonString := args[0].String()
-		response := MinifyJSON(jsonString)
-		return ToJS(response)
-	})
-}
-
-// exportValidateJSON returns a js.Func that validates JSON strings.
-// This function is intended to be exposed to JavaScript via WebAssembly.
-//
-// Arguments:
-//   - args[0]: JSON string to validate
-//
-// Returns a JS object with:
-//   - "valid": true if JSON is valid, false otherwise
-//   - "error": error message if validation failed, else nil
-func exportValidateJSON() js.Func {
-	return js.FuncOf(func(this js.Value, args []js.Value) any {
-		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return ToJS(ValidationResponse{
-				Valid: false,
-				Error: "Invalid arguments: expected one string (JSON)",
-			})
-		}
-
-		jsonString := args[0].String()
-		response := ValidateJSON(jsonString)
 		return ToJS(response)
 	})
 }
