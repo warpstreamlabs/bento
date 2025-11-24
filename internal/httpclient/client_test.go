@@ -722,13 +722,11 @@ func TestHTTPClientTransport(t *testing.T) {
 		config                string
 		results               trnsprtCfg
 		alterDefaultTransport bool
-		alterEnvVarOverride   bool
 	}{
 		"custom transport via config": {
 			config: `
 url: foobar.com
 transport:
-  enabled: true
   force_http2: false
   max_idle_connections: 50
   idle_connection_timeout: 45s
@@ -743,24 +741,9 @@ transport:
 				expectContinueTimeout: time.Millisecond * 500,
 			},
 		},
-		"default http config still uses overridden http.DefaultTransport": {
-			config: `
-url: foobar.com
-`,
-			results: trnsprtCfg{
-				forceAttemptHTTP2:     false,
-				maxIdleConns:          50,
-				idleConnTimeout:       time.Second * 45,
-				tlsHandshakeTimeout:   time.Second * 5,
-				expectContinueTimeout: time.Millisecond * 500,
-			},
-			alterDefaultTransport: true,
-		},
 		"transport enabled option yields a 'default transport' built from config defaults": {
 			config: `
 url: foobar.com
-transport:
-  enabled: true
 `,
 			results: trnsprtCfg{
 				forceAttemptHTTP2:     true,
@@ -770,20 +753,6 @@ transport:
 				expectContinueTimeout: time.Second,
 			},
 			alterDefaultTransport: true,
-		},
-		"transport is overridden with config defaults when Env Var override is set": {
-			config: `
-url: foobar.com
-`,
-			results: trnsprtCfg{
-				forceAttemptHTTP2:     true,
-				maxIdleConns:          100,
-				idleConnTimeout:       time.Second * 90,
-				tlsHandshakeTimeout:   time.Second * 10,
-				expectContinueTimeout: time.Second,
-			},
-			alterDefaultTransport: true,
-			alterEnvVarOverride:   true,
 		},
 	}
 
@@ -791,9 +760,6 @@ url: foobar.com
 		t.Run(name, func(t *testing.T) {
 			if test.alterDefaultTransport {
 				alterDefaultTransport(t)
-			}
-			if test.alterEnvVarOverride {
-				alterEnvVarOverride(t)
 			}
 
 			conf := clientConfig(t, "%s", test.config)
@@ -838,14 +804,6 @@ func alterDefaultTransport(t *testing.T) {
 	})
 }
 
-func alterEnvVarOverride(t *testing.T) {
-	service.OverrideDefaultHTTPTransport = true
-
-	t.Cleanup(func() {
-		service.OverrideDefaultHTTPTransport = false
-	})
-}
-
 func TestHTTPClientProxyTLSConfAndTransport(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("this shouldnt be hit directly")
@@ -866,8 +824,6 @@ tls:
   enabled: true
   skip_cert_verify: true
 proxy_url: %v
-transport:
-  enabled: true
 `, ts.URL+"/testpost", tsProxy.URL)
 
 	h, err := NewClientFromOldConfig(conf, service.MockResources())
@@ -906,7 +862,6 @@ tls:
 proxy_url: %v
 retries: 0
 transport:
-  enabled: true
   tls_handshake_timeout: 1ns
 `, ts.URL+"/testpost", tsProxy.URL)
 

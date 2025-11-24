@@ -57,20 +57,9 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 		return nil, err
 	}
 
-	var transport *http.Transport
-	if conf.isCustomTransport {
-		transport = conf.transport
-	} else {
-		if t, ok := http.DefaultTransport.(*http.Transport); ok {
-			transport = t.Clone()
-		} else {
-			return nil, fmt.Errorf("unable to use http.DefaultTransport, unexpected type: %T", http.DefaultTransport)
-		}
-	}
-
 	h := Client{
 		reqCreator:        reqCreator,
-		client:            &http.Client{Transport: transport},
+		client:            &http.Client{Transport: conf.transport},
 		metaExtractFilter: conf.ExtractMetadata,
 
 		backoffOn: map[int]struct{}{},

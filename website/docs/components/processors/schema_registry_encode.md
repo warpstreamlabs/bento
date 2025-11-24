@@ -49,7 +49,6 @@ schema_registry_encode:
   avro_raw_json: false
   avro_nested_schemas: false
   transport:
-    enabled: false
     dial_context:
       timeout: 30s
       keep_alive: 30s
@@ -186,15 +185,6 @@ Custom transport options.
 
 
 Type: `object`  
-Requires version 1.13.0 or newer  
-
-### `transport.enabled`
-
-Enables a custom HTTP transport. When `false` (default), Bento uses Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport). When true, the transport settings override. TLS and ProxyURL always apply. The env var BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT=true forces avoiding DefaultTransport.
-
-
-Type: `bool`  
-Default: `false`  
 Requires version 1.13.0 or newer  
 
 ### `transport.dial_context`

@@ -27,7 +27,6 @@ func newSchemaRegistryClient(
 	reqSigner func(f fs.FS, req *http.Request) error,
 	tlsConf *tls.Config,
 	transport *http.Transport,
-	isCustomTransport bool,
 	mgr *service.Resources,
 ) (*schemaRegistryClient, error) {
 	u, err := url.Parse(urlStr)
@@ -37,23 +36,19 @@ func newSchemaRegistryClient(
 
 	hClient := http.DefaultClient
 
-	if isCustomTransport {
-		clone := transport.Clone()
-		if tlsConf != nil {
-			clone.TLSClientConfig = tlsConf
-		}
-		hClient.Transport = clone
-	} else if tlsConf != nil {
-		hClient = &http.Client{}
-		if c, ok := http.DefaultTransport.(*http.Transport); ok {
-			cloned := c.Clone()
-			cloned.TLSClientConfig = tlsConf
-			hClient.Transport = cloned
+	if transport == nil {
+		if tr, ok := http.DefaultTransport.(*http.Transport); ok {
+			transport = tr.Clone()
 		} else {
-			hClient.Transport = &http.Transport{
-				TLSClientConfig: tlsConf,
-			}
+			transport = &http.Transport{}
 		}
+	}
+
+	if tlsConf != nil {
+		hClient = &http.Client{}
+		cloned := transport.Clone()
+		cloned.TLSClientConfig = tlsConf
+		hClient.Transport = cloned
 	}
 
 	return &schemaRegistryClient{

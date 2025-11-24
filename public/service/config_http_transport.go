@@ -3,38 +3,24 @@ package service
 import (
 	"net"
 	"net/http"
-	"os"
 
 	httptran "github.com/warpstreamlabs/bento/internal/httptransport"
 )
 
 const (
-	fieldCustomTransportEnabled = "enabled"
-	fieldDialContext            = "dial_context"
-	fieldDialContextTimeout     = "timeout"
-	fieldDialContextKeepAlive   = "keep_alive"
-	fieldForceAttemptHTTP2      = "force_http2"
-	fieldMaxIdleConns           = "max_idle_connections"
-	fieldIdleConnTimeout        = "idle_connection_timeout"
-	fieldTLSHandshakeTimeout    = "tls_handshake_timeout"
-	fieldExpectContinueTimeout  = "expect_continue_timeout"
+	fieldDialContext           = "dial_context"
+	fieldDialContextTimeout    = "timeout"
+	fieldDialContextKeepAlive  = "keep_alive"
+	fieldForceAttemptHTTP2     = "force_http2"
+	fieldMaxIdleConns          = "max_idle_connections"
+	fieldIdleConnTimeout       = "idle_connection_timeout"
+	fieldTLSHandshakeTimeout   = "tls_handshake_timeout"
+	fieldExpectContinueTimeout = "expect_continue_timeout"
 )
 
-var OverrideDefaultHTTPTransport bool = os.Getenv("BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT") == "true"
-
 // FieldHTTPTransport constructs an *http.Transport based on configuration fields found at the given path.
-// It returns the transport, a boolean indicating if a custom transport is enabled, and an error if any configuration is invalid.
-// The default transport can be overridden by setting the BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT environment variable to "true".
-func (pConf *ParsedConfig) FieldHTTPTransport(path ...string) (transport *http.Transport, customTransportEnabled bool, err error) {
+func (pConf *ParsedConfig) FieldHTTPTransport(path ...string) (transport *http.Transport, err error) {
 	tranPConf := pConf.Namespace(path...)
-
-	customTransportEnabled, err = tranPConf.FieldBool(fieldCustomTransportEnabled)
-	if err != nil {
-		return
-	}
-	if !customTransportEnabled && !OverrideDefaultHTTPTransport {
-		return nil, false, nil
-	}
 
 	dialContextTimeout, err := tranPConf.FieldDuration([]string{fieldDialContext, fieldDialContextTimeout}...)
 	if err != nil {
@@ -84,7 +70,7 @@ func (pConf *ParsedConfig) FieldHTTPTransport(path ...string) (transport *http.T
 		ExpectContinueTimeout: expectContinueTimeout,
 	}
 
-	return transport, true, nil
+	return transport, nil
 }
 
 func NewTransportField(name string) *ConfigField {

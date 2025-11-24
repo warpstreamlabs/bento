@@ -12,13 +12,6 @@ func FieldSpec() docs.FieldSpec {
 		"Custom transport options.",
 	).Advanced().AtVersion("1.13.0").WithChildren(
 
-		docs.FieldBool(
-			"enabled",
-			"Enables a custom HTTP transport. When `false` (default), Bento uses Go's [DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport). "+
-				"When true, the transport settings override. TLS and ProxyURL always apply. "+
-				"The env var BENTO_OVERRIDE_DEFAULT_HTTP_TRANSPORT=true forces avoiding DefaultTransport.",
-		).HasDefault(false).AtVersion("1.13.0").Advanced(),
-
 		docs.FieldObject(
 			"dial_context",
 			"Settings for the dialer used to create new connections.",

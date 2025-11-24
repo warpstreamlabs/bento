@@ -124,7 +124,7 @@ func newSchemaRegistryDecoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
-	transport, isCustomTransport, err := conf.FieldHTTPTransport("transport")
+	transport, err := conf.FieldHTTPTransport("transport")
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,6 @@ func newSchemaRegistryDecoderFromConfig(conf *service.ParsedConfig, mgr *service
 		avroRawJSON,
 		avroNestedSchemas,
 		transport,
-		isCustomTransport,
 		mgr)
 }
 
@@ -146,7 +145,6 @@ func newSchemaRegistryDecoder(
 	avroRawJSON bool,
 	avroNestedSchemas bool,
 	transport *http.Transport,
-	isCustomTransport bool,
 	mgr *service.Resources,
 ) (*schemaRegistryDecoder, error) {
 	s := &schemaRegistryDecoder{
@@ -158,7 +156,7 @@ func newSchemaRegistryDecoder(
 		mgr:               mgr,
 	}
 	var err error
-	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, isCustomTransport, mgr); err != nil {
+	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, mgr); err != nil {
 		return nil, err
 	}
 

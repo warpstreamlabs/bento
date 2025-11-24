@@ -150,7 +150,7 @@ func newSchemaRegistryEncoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
-	transport, isCustomTransport, err := conf.FieldHTTPTransport("transport")
+	transport, err := conf.FieldHTTPTransport("transport")
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,6 @@ func newSchemaRegistryEncoderFromConfig(conf *service.ParsedConfig, mgr *service
 		avroRawJSON,
 		avroNestedSchemas,
 		transport,
-		isCustomTransport,
 		refreshPeriod,
 		refreshTicker,
 		mgr)
@@ -176,7 +175,6 @@ func newSchemaRegistryEncoder(
 	avroRawJSON bool,
 	avroNestedSchemas bool,
 	transport *http.Transport,
-	isCustomTransport bool,
 	schemaRefreshAfter, schemaRefreshTicker time.Duration,
 	mgr *service.Resources,
 ) (*schemaRegistryEncoder, error) {
@@ -192,7 +190,7 @@ func newSchemaRegistryEncoder(
 		nowFn:              time.Now,
 	}
 	var err error
-	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, isCustomTransport, mgr); err != nil {
+	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, mgr); err != nil {
 		return nil, err
 	}
 

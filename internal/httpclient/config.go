@@ -162,7 +162,7 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
-	if conf.transport, conf.isCustomTransport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
+	if conf.transport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
 		return
 	}
 
@@ -191,6 +191,5 @@ type OldConfig struct {
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
 
-	transport         *http.Transport
-	isCustomTransport bool
+	transport *http.Transport
 }
