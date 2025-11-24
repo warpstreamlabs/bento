@@ -1,220 +1,97 @@
+/**
+ * Manages WebAssembly module loading for the Bloblang playground.
+ * Handles initialization of the Go WASM runtime and loading of the compiled WASM module.
+ */
 class WasmManager {
+  static WASM_PATH = "playground.wasm";
+  static READY_TIMEOUT_MS = 5000;
+  static READY_CHECK_INTERVAL_MS = 100;
+
   constructor() {
-    this.available = false;
-    this.failed = false;
-    this.go = null;
-    this.api = null; // Will hold window.bloblangApi
-
-    // Track available WASM functions
-    this.functions = {
-      execute: false,
-      syntax: false,
-      format: false,
-      autocomplete: false,
-      validate: false,
-      formatJSON: false,
-      minifyJSON: false,
-      validateJSON: false,
-    };
-
-    // Check if Go WASM support is available
-    if (typeof Go !== "undefined") {
-      try {
-        this.go = new Go();
-      } catch (error) {
-        console.warn("Failed to initialize Go WASM runtime:", error.message);
-        this.failed = true;
-      }
-    } else {
-      console.warn(
-        "Go WASM runtime not available - wasm_exec.js not loaded or Go not defined"
-      );
-      this.failed = true;
-    }
+    this.isLoaded = false;
+    this.hasFailed = false;
+    this.goRuntime = this.#initializeGoRuntime();
   }
 
+  /**
+   * Loads and initializes the WebAssembly module.
+   * @returns {Promise<void>}
+   */
   async load() {
-    // If Go runtime failed to initialize, don't attempt WASM loading
-    if (this.failed || !this.go) {
+    if (this.hasFailed || !this.goRuntime) {
       console.warn("Skipping WASM load - Go runtime not available");
       return;
     }
 
     try {
-      const wasmPath = ["playground.wasm"];
-      const result = await this.loadWasmFromPath(wasmPath);
-      this.go.run(result.instance);
-
-      // Wait for WASM module to signal readiness
-      await this.waitForWasmReady();
-
-      // Register and validate all WASM functions
-      this.registerFunctions();
-
-      this.available = true;
-      return;
+      const wasmModule = await this.#fetchAndInstantiate();
+      this.goRuntime.run(wasmModule.instance);
+      await this.#waitForReady();
+      this.isLoaded = true;
     } catch (error) {
-      console.warn("Failed to load WASM from", wasmPath, ":", error.message);
+      console.warn("WASM failed to load:", error.message);
+      this.hasFailed = true;
+      this.isLoaded = false;
     }
-
-    console.warn("WASM failed to load from all paths");
-    this.failed = true;
-    this.available = false;
   }
 
-  async loadWasmFromPath(path) {
-    const response = await fetch(path);
+  /**
+   * Initializes the Go WebAssembly runtime.
+   * @returns {Go|null} The Go runtime instance, or null if initialization failed
+   */
+  #initializeGoRuntime() {
+    if (typeof Go === "undefined") {
+      console.warn("Go WASM runtime not available - wasm_exec.js not loaded");
+      this.hasFailed = true;
+      return null;
+    }
+
+    try {
+      return new Go();
+    } catch (error) {
+      console.warn("Failed to initialize Go WASM runtime:", error.message);
+      this.hasFailed = true;
+      return null;
+    }
+  }
+
+  /**
+   * Fetches and instantiates the WebAssembly module.
+   * @returns {Promise<WebAssembly.Instance>}
+   */
+  async #fetchAndInstantiate() {
+    const response = await fetch(WasmManager.WASM_PATH);
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     return await WebAssembly.instantiateStreaming(
       response,
-      this.go.importObject
+      this.goRuntime.importObject
     );
   }
 
-  async waitForWasmReady() {
+  /**
+   * Waits for the WASM module to signal readiness via window.wasmReady.
+   * @returns {Promise<void>}
+   */
+  async #waitForReady() {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         reject(new Error("WASM initialization timeout"));
-      }, 5000); // 5 second timeout
+      }, WasmManager.READY_TIMEOUT_MS);
 
       const checkReady = () => {
         if (window.wasmReady) {
-          clearTimeout(timeout);
+          clearTimeout(timeoutId);
           resolve();
         } else {
-          setTimeout(checkReady, 100);
+          setTimeout(checkReady, WasmManager.READY_CHECK_INTERVAL_MS);
         }
       };
 
       checkReady();
     });
-  }
-
-  // Register available WASM functions
-  registerFunctions() {
-    // Check if the bloblang API is available
-    if (window.bloblangApi && typeof window.bloblangApi === "object") {
-      this.api = window.bloblangApi;
-      this.functions.execute = typeof this.api.execute === "function";
-      this.functions.syntax = typeof this.api.syntax === "function";
-      this.functions.format = typeof this.api.format === "function";
-      this.functions.autocomplete = typeof this.api.autocomplete === "function";
-      this.functions.validate = typeof this.api.validate === "function";
-      this.functions.formatJSON = typeof this.api.formatJSON === "function";
-      this.functions.minifyJSON = typeof this.api.minifyJSON === "function";
-      this.functions.validateJSON = typeof this.api.validateJSON === "function";
-    } else {
-      console.warn("window.bloblangApi API not available");
-    }
-  }
-
-  // Check availability of a specific function
-  isAvailable(functionName) {
-    if (this.failed) {
-      console.warn("WASM not loaded. Bloblang functionality is unavailable.");
-      return false;
-    }
-
-    if (!this.available) {
-      return false;
-    }
-
-    if (!this.functions[functionName]) {
-      console.warn(`${functionName} not available in WASM context.`);
-      return false;
-    }
-
-    return true;
-  }
-
-  // Registered Go functions
-
-  getAvailableFunctions() {
-    return Object.entries(this.functions)
-      .filter(([, available]) => available)
-      .map(([name]) => name);
-  }
-
-  execute(input, mapping) {
-    if (!this.isAvailable("execute")) {
-      throw new Error("Execute functionality not available");
-    }
-    return this.api.execute(input, mapping);
-  }
-
-  getSyntax() {
-    if (!this.isAvailable("syntax")) {
-      return null;
-    }
-    return this.api.syntax();
-  }
-
-  formatMapping(mapping) {
-    if (!this.isAvailable("format")) {
-      return null;
-    }
-    return this.api.format(mapping);
-  }
-
-  getAutocompletion(request) {
-    if (!this.isAvailable("autocomplete")) {
-      return {
-        success: false,
-        error: "Autocompletion not available",
-        completions: [],
-      };
-    }
-    return this.api.autocomplete(request);
-  }
-
-  // Validates a Bloblang mapping without executing it.
-  // Note: Not used by playground UI (execute already validates), but exposed
-  // for external integrations and future tooling.
-  validateMapping(mapping) {
-    if (!this.isAvailable("validate")) {
-      return {
-        valid: false,
-        error: "Validation not available",
-      };
-    }
-    return this.api.validate(mapping);
-  }
-
-  // Formats a JSON string with 2-space indentation
-  formatJSON(jsonString) {
-    if (!this.isAvailable("formatJSON")) {
-      return {
-        success: false,
-        result: jsonString,
-        error: "JSON formatting not available",
-      };
-    }
-    return this.api.formatJSON(jsonString);
-  }
-
-  // Minifies a JSON string by removing whitespace
-  minifyJSON(jsonString) {
-    if (!this.isAvailable("minifyJSON")) {
-      return {
-        success: false,
-        result: jsonString,
-        error: "JSON minification not available",
-      };
-    }
-    return this.api.minifyJSON(jsonString);
-  }
-
-  // Validates a JSON string
-  validateJSON(jsonString) {
-    if (!this.isAvailable("validateJSON")) {
-      return {
-        valid: false,
-        error: "JSON validation not available",
-      };
-    }
-    return this.api.validateJSON(jsonString);
   }
 }

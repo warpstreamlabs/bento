@@ -132,10 +132,3 @@ type ValidationResponse struct {
 	Valid bool   `json:"valid"`
 	Error string `json:"error,omitempty"`
 }
-
-// JSONResponse represents the response from JSON formatting operations
-type JSONResponse struct {
-	Success bool   `json:"success"`
-	Result  string `json:"result"`
-	Error   string `json:"error,omitempty"`
-}

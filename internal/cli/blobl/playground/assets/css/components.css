@@ -580,3 +580,53 @@ body.embedded .status-badge {
     font-size: 14px;
   }
 }
+
+/* ===================================================================
+   Notifications
+   =================================================================== */
+
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  max-width: 300px;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+}
+
+.notification-show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification-success {
+  background: #E8F5E8;
+  color: #2E7D32;
+  border-color: #2E7D32;
+}
+
+.notification-error {
+  background: #FFEBEE;
+  color: #D32F2F;
+  border-color: #D32F2F;
+}
+
+.notification-warning {
+  background: #FFF3E0;
+  color: #F57C00;
+  border-color: #F57C00;
+}
+
+.notification-info {
+  background: #FDE5D8;
+  color: #553630;
+  border-color: #EB8788;
+}

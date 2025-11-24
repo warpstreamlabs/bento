@@ -43,11 +43,6 @@ func getRegisteredEndpoints(fSync *fileSync) []httpEndpoint {
 		{"/syntax", serveSyntax()},                 // Get Bloblang syntax metadata for editor
 		{"/format", serveFormat()},          // Format Bloblang mapping with indentation
 		{"/autocomplete", serveAutocomplete()},   // Provide autocompletion suggestions
-
-		// JSON utilities
-		{"/format-json", serveFormatJSON()},        // Format JSON with indentation
-		{"/minify-json", serveMinifyJSON()},        // Minify JSON by removing whitespace
-		{"/validate-json", serveValidateJSON()},    // Validate JSON syntax
 	}
 }
 
@@ -197,75 +192,6 @@ func serveSyntax() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(syntax)
-	}
-}
-
-// serveFormatJSON handles JSON formatting requests for server mode
-func serveFormatJSON() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var request struct {
-			JSON string `json:"json"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		response := FormatJSON(request.JSON)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	}
-}
-
-// serveMinifyJSON handles JSON minification requests for server mode
-func serveMinifyJSON() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var request struct {
-			JSON string `json:"json"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		response := MinifyJSON(request.JSON)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	}
-}
-
-// serveValidateJSON handles JSON validation requests for server mode
-func serveValidateJSON() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var request struct {
-			JSON string `json:"json"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		response := ValidateJSON(request.JSON)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
 	}
 }
 

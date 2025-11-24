@@ -26,10 +26,6 @@ class EditorManager {
     this.defaultInput = defaultInput || window.DEFAULT_INPUT;
     this.defaultMapping = defaultMapping || window.DEFAULT_MAPPING;
 
-    // Future-proof event listeners
-    this.inputChangeListeners = [];
-    this.mappingChangeListeners = [];
-
     // State persistence
     this.stateStored = true;
   }
@@ -56,18 +52,18 @@ class EditorManager {
     try {
       // Initialize plain editors
       this.configureInputEditor();
-      this.configureMappingEditorBasic();
+      this.configureMappingEditor();
       this.registerEditorChangeHandlers();
 
       // Load Bloblang syntax asynchronously
-      this.loadBloblangSyntaxAsync();
+      this.loadSyntaxAsync();
     } catch (error) {
       console.warn("ACE editor failed to load, falling back to textarea");
       this.configureFallbackEditors();
     }
   }
 
-  async loadBloblangSyntax() {
+  async loadSyntax() {
     try {
       // First, try direct injection (server mode fallback)
       if (typeof window.BLOBLANG_SYNTAX !== "undefined") {
@@ -76,32 +72,10 @@ class EditorManager {
         return;
       }
 
-      // Then check playground-based modes
-      if (window.playground && window.playground.state) {
-        switch (window.playground.state.executionMode) {
-          case "wasm":
-            if (window.playground.wasm) {
-              const syntaxData = window.playground.wasm.getSyntax();
-              if (syntaxData && !syntaxData.error) {
-                this.bloblangSyntax = syntaxData;
-                this.syntaxLoaded = true;
-              } else {
-                console.warn(
-                  "WASM syntax function returned error:",
-                  syntaxData?.error
-                );
-                this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
-              }
-            } else {
-              console.warn("WASM mode but wasm manager not available");
-              this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
-            }
-            break;
-
-          default:
-            console.warn("Unknown execution mode, using fallback syntax");
-            this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
-        }
+      // Then check playground-based modes (WASM)
+      if (window.playground && window.playground.api) {
+        this.bloblangSyntax = window.playground.api.getSyntax();
+        this.syntaxLoaded = true;
       } else {
         this.bloblangSyntax = { functions: {}, methods: {}, rules: [] };
       }
@@ -111,19 +85,24 @@ class EditorManager {
     }
   }
 
-  async loadBloblangSyntaxAsync() {
+  async loadSyntaxAsync() {
     // Try loading syntax immediately
-    await this.loadBloblangSyntax();
+    await this.loadSyntax();
 
     // If WASM mode and not loaded, retry with a delay (WASM might still be initializing)
     if (!this.syntaxLoaded && typeof window.BLOBLANG_SYNTAX === "undefined") {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
-      await this.loadBloblangSyntax();
+      await this.loadSyntax();
     }
 
-    // Setup editor features once syntax is available
+    // Warn if syntax failed to load after retry attempts
+    if (!this.syntaxLoaded) {
+      console.warn("Bloblang syntax data not available - autocompletion will be limited");
+    }
+
+    // Setup editor features (will gracefully degrade if syntax unavailable)
     this.setupTheme();
-    this.enhanceMappingEditor();
+    this.applyBloblangMode();
     this.configureAutocompletion();
     this.refreshSyntaxHighlighting();
   }
@@ -179,14 +158,6 @@ class EditorManager {
   }
 
   configureMappingEditor() {
-    this.configureMappingEditorBasic();
-    this.aceMappingEditor.session.setMode(
-      this.currentBloblangMode || MODE_BLOBLANG
-    );
-    this.configureAutocompletion();
-  }
-
-  configureMappingEditorBasic() {
     const mappingEl = this.getElement(DOM_IDS.aceMapping);
     if (!mappingEl) return;
 
@@ -210,7 +181,7 @@ class EditorManager {
     this.overrideCommentShortcut(editor);
   }
 
-  enhanceMappingEditor() {
+  applyBloblangMode() {
     if (!this.aceMappingEditor) return;
 
     // Apply enhanced Bloblang mode
@@ -261,13 +232,11 @@ class EditorManager {
   }
 
   handleInputChange() {
-    this.inputChangeListeners.forEach((fn) => fn());
     this.callbacks.onInputChange?.();
     this.debouncedSaveState();
   }
 
   handleMappingChange() {
-    this.mappingChangeListeners.forEach((fn) => fn());
     this.callbacks.onMappingChange?.();
     this.debouncedSaveState();
   }
@@ -322,8 +291,8 @@ class EditorManager {
   configureAutocompletion() {
     if (!this.aceMappingEditor) return;
 
+    // Silently skip if syntax not loaded yet (it may still be loading)
     if (!this.syntaxLoaded || !this.bloblangSyntax) {
-      console.warn("Autocompletion disabled - syntax data not available");
       return;
     }
 
@@ -341,49 +310,11 @@ class EditorManager {
           };
 
           try {
-            if (!window.playground || !window.playground.editor) {
+            if (!window.playground || !window.playground.api) {
               return callback(null, []);
             }
 
-            let result;
-            switch (window.playground.state.executionMode) {
-              case "server":
-                const response = await fetch("/autocomplete", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(request),
-                });
-
-                if (!response.ok) {
-                  throw new Error(`Server error: ${response.status}`);
-                }
-
-                result = await response.json();
-                break;
-
-              case "wasm":
-                if (
-                  window.playground.wasm &&
-                  typeof window.playground.wasm.getAutocompletion === "function"
-                ) {
-                  result = window.playground.wasm.getAutocompletion(
-                    JSON.stringify(request)
-                  );
-                  if (!result.success) {
-                    return callback(null, []);
-                  }
-                } else {
-                  console.warn("WASM autocompletion not available");
-                  return callback(null, []);
-                }
-                break;
-
-              default:
-                console.warn(
-                  "Unknown execution mode, autocompletion unavailable"
-                );
-                return callback(null, []);
-            }
+            let result = await window.playground.api.autocomplete(request);
 
             if (result && result.success && result.completions) {
               // Convert Go completion format to ACE editor format
@@ -412,7 +343,7 @@ class EditorManager {
       this.aceMappingEditor.setOptions({
         enableBasicAutocompletion: [completer],
         enableLiveAutocompletion: true,
-        enableSnippets: true,
+        enableSnippets: false, // Disabled to avoid 404 errors for missing snippet files
       });
     } catch (error) {
       console.warn("Autocompletion disabled:", error);
