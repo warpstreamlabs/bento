@@ -31,18 +31,17 @@ type httpEndpoint struct {
 }
 
 // getRegisteredEndpoints creates the list of HTTP endpoints for the playground server.
-// This function must be called with a fileSync instance, so it's created at runtime
-// rather than package initialization time.
+// Add new endpoints here to expose them.
 func getRegisteredEndpoints(fSync *fileSync) []httpEndpoint {
 	return []httpEndpoint{
 		// Core operations
-		{"/execute", serveExecute(fSync)},   // Execute Bloblang mapping on JSON input
-		{"/validate", serveValidate()},       // Validate Bloblang mapping without executing
+		{"/execute", serveExecute(fSync)}, // Execute Bloblang mapping on JSON input
+		{"/validate", serveValidate()},    // Validate Bloblang mapping without executing
 
 		// Editor tooling
-		{"/syntax", serveSyntax()},                 // Get Bloblang syntax metadata for editor
-		{"/format", serveFormat()},          // Format Bloblang mapping with indentation
-		{"/autocomplete", serveAutocomplete()},   // Provide autocompletion suggestions
+		{"/syntax", serveSyntax()},             // Get Bloblang syntax metadata for editor
+		{"/format", serveFormat()},             // Format Bloblang mapping with indentation
+		{"/autocomplete", serveAutocomplete()}, // Provide autocompletion suggestions
 	}
 }
 
@@ -127,7 +126,9 @@ func serveFormat() http.HandlerFunc {
 
 		response := formatBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -147,7 +148,9 @@ func serveAutocomplete() http.HandlerFunc {
 
 		response := generateAutocompletion(bloblang.GlobalEnvironment(), request)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -172,7 +175,9 @@ func serveValidate() http.HandlerFunc {
 
 		response := validateBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -191,7 +196,9 @@ func serveSyntax() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(syntax)
+		if err := json.NewEncoder(w).Encode(syntax); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
