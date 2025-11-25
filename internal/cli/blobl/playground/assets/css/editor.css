@@ -50,7 +50,7 @@
   .ace-bento .ace_cursor {
     margin-left: 3px;
   }
-  
+
   .ace-bento .ace_marker-layer .ace_bracket {
     margin-left: 2.5px;
   }
@@ -62,11 +62,11 @@
     font-size: 12px !important;
     line-height: 1.4 !important;
   }
-  
+
   .editor {
     min-height: 80px !important;
   }
-  
+
   .formatter-section {
     padding: 4px 8px;
     font-size: 11px;

@@ -319,12 +319,9 @@ func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest
 
 	// Determine context: method vs function/keyword context
 	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
-
 	if isMethodContext {
-		// Add method completions
 		completions = append(completions, getCompletions(syntaxData.Methods)...)
 	} else {
-		// Add function and keyword completions
 		completions = append(completions, getCompletions(syntaxData.Functions)...)
 		completions = append(completions, getKeywordCompletions()...)
 	}

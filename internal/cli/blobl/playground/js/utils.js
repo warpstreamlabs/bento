@@ -1,8 +1,3 @@
-/**
- * UI Utility Functions
- * Pure helpers with no business logic
- */
-
 // Syntax Highlighting - For display purposes only, not validation
 function syntaxHighlightJSON(json) {
   if (typeof json !== "string") {

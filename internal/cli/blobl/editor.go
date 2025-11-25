@@ -3,6 +3,7 @@ package blobl
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
@@ -59,18 +60,17 @@ func getKeywordCompletions() []CompletionItem {
 		name        string
 		description string
 		score       int
-		category    string
 	}{
-		{"root", "The root of the output document", 950, "core"},
-		{"this", "The current context value", 950, "core"},
-		{"if", "Conditional expression", 900, "control"},
-		{"match", "Pattern matching expression", 900, "control"},
-		{"let", "Variable assignment", 880, "variable"},
-		{"map", "Create named mapping", 870, "mapping"},
-		{"else", "Alternative branch", 850, "control"},
-		{"import", "Import external mapping", 800, "mapping"},
-		{"meta", "Access message metadata", 820, "metadata"},
-		{"deleted", "Delete the current field", 750, "mutation"},
+		{"root", "The root of the output document", 950},
+		{"this", "The current context value", 950},
+		{"if", "Conditional expression", 900},
+		{"match", "Pattern matching expression", 900},
+		{"let", "Variable assignment", 880},
+		{"map", "Create named mapping", 870},
+		{"else", "Alternative branch", 850},
+		{"import", "Import external mapping", 800},
+		{"meta", "Access message metadata", 820},
+		{"deleted", "Delete the current field", 750},
 	}
 
 	var completions []CompletionItem
@@ -81,16 +81,15 @@ func getKeywordCompletions() []CompletionItem {
 				<div class="ace-doc-header">
 					<div class="ace-doc-signature">
 						<strong>%s</strong>
-						<span class="ace-keyword-category">%s</span>
 					</div>
 				</div>
 				<div class="ace-doc-description">%s</div>
-			</div>`, keyword.name, keyword.category, keyword.description)
+			</div>`, keyword.name, keyword.description)
 
 		completions = append(completions, CompletionItem{
 			Caption:     keyword.name,
 			Value:       keyword.name,
-			Meta:        keyword.category,
+			Meta:        "keyword",
 			Type:        "keyword",
 			Score:       keyword.score,
 			Description: keyword.description,
@@ -101,24 +100,23 @@ func getKeywordCompletions() []CompletionItem {
 	return completions
 }
 
-// getCompletions converts function/method specs into autocompletion items.
-// Uses type switch to handle both FunctionSpec and MethodSpec maps.
+// getCompletions converts function/method specs with HTML into autocompletion items.
 func getCompletions(specs any) []CompletionItem {
 	var completions []CompletionItem
 
 	switch s := specs.(type) {
-	case map[string]query.FunctionSpec:
+	case map[string]functionSpecWithHTML:
 		for name, spec := range s {
 			completions = append(completions, buildCompletionItem(
 				name,
-				FunctionSpecWrapper{spec},
+				FunctionSpecWrapper{spec.FunctionSpec},
 				spec.Category,
 				"function",
 				false, // isMethod
 			))
 		}
 
-	case map[string]query.MethodSpec:
+	case map[string]methodSpecWithHTML:
 		for name, spec := range s {
 			category := "general"
 			if len(spec.Categories) > 0 {
@@ -126,7 +124,7 @@ func getCompletions(specs any) []CompletionItem {
 			}
 			completions = append(completions, buildCompletionItem(
 				name,
-				MethodSpecWrapper{spec},
+				MethodSpecWrapper{spec.MethodSpec},
 				category,
 				"method",
 				true, // isMethod
@@ -139,6 +137,11 @@ func getCompletions(specs any) []CompletionItem {
 
 // buildCompletionItem creates a CompletionItem from a spec wrapper.
 func buildCompletionItem(name string, spec Spec, category, itemType string, isMethod bool) CompletionItem {
+	// Use "general" as default if no category provided
+	if category == "" {
+		category = "general"
+	}
+
 	item := CompletionItem{
 		Caption:     name,
 		Meta:        category,
@@ -150,9 +153,9 @@ func buildCompletionItem(name string, spec Spec, category, itemType string, isMe
 
 	// Use snippet for functions with params (enables cursor positioning), otherwise plain value
 	if hasSpecParameters(spec) {
-		item.Snippet = fmt.Sprintf("%s($1)", name)
+		item.Snippet = name + "($1)"
 	} else {
-		item.Value = fmt.Sprintf("%s()", name)
+		item.Value = name + "()"
 	}
 
 	return item
@@ -436,7 +439,7 @@ func protectStringLiterals(content string) (string, []string) {
 	protected := stringRegex.ReplaceAllStringFunc(content, func(match string) string {
 		index := len(literals)
 		literals = append(literals, match)
-		return stringLiteralPlaceholder + fmt.Sprintf("%d", index)
+		return stringLiteralPlaceholder + strconv.Itoa(index)
 	})
 
 	return protected, literals
@@ -445,7 +448,7 @@ func protectStringLiterals(content string) (string, []string) {
 // restoreStringLiterals restores protected string literals
 func restoreStringLiterals(content string, literals []string) string {
 	for i, literal := range literals {
-		placeholderStr := stringLiteralPlaceholder + fmt.Sprintf("%d", i)
+		placeholderStr := stringLiteralPlaceholder + strconv.Itoa(i)
 		content = strings.ReplaceAll(content, placeholderStr, literal)
 	}
 
@@ -488,7 +491,7 @@ func protectLambdaExpressions(content string) (string, []string) {
 		formattedLambda = strings.TrimSpace(formattedLambda)
 
 		lambdas = append(lambdas, formattedLambda)
-		return lambdaPlaceholder + fmt.Sprintf("%d", len(lambdas)-1)
+		return lambdaPlaceholder + strconv.Itoa(len(lambdas)-1)
 	})
 
 	return content, lambdas
@@ -498,7 +501,7 @@ func protectLambdaExpressions(content string) (string, []string) {
 func restoreLambdaExpressions(content string, lambdas []string) string {
 
 	for i, lambda := range lambdas {
-		placeholderStr := lambdaPlaceholder + fmt.Sprintf("%d", i)
+		placeholderStr := lambdaPlaceholder + strconv.Itoa(i)
 		// Lambda is already properly formatted, just restore it
 		content = strings.ReplaceAll(content, placeholderStr, lambda)
 	}

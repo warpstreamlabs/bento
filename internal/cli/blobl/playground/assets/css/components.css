@@ -15,7 +15,7 @@
     padding: 6px 12px;
     font-size: 13px;
   }
-  
+
   .panel {
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -109,7 +109,8 @@ body.embedded .status-badge {
   font-family: var(--bento-font-family);
   box-shadow: var(--bento-shadow-3d);
   transform: translateY(0);
-  transition: transform var(--bento-transition-fast), box-shadow var(--bento-transition-fast),
+  transition: transform var(--bento-transition-fast),
+    box-shadow var(--bento-transition-fast),
     background-color var(--bento-transition-fast);
   margin-left: 4px;
 }
@@ -581,10 +582,7 @@ body.embedded .status-badge {
   }
 }
 
-/* ===================================================================
-   Notifications
-   =================================================================== */
-
+/* Notifications */
 .notification {
   position: fixed;
   top: 20px;
@@ -592,7 +590,7 @@ body.embedded .status-badge {
   padding: 12px 16px;
   border-radius: 6px;
   border: 1px solid;
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: "IBM Plex Sans", sans-serif;
   font-size: 13px;
   font-weight: 500;
   z-index: 1000;
@@ -608,25 +606,25 @@ body.embedded .status-badge {
 }
 
 .notification-success {
-  background: #E8F5E8;
-  color: #2E7D32;
-  border-color: #2E7D32;
+  background: #e8f5e8;
+  color: #2e7d32;
+  border-color: #2e7d32;
 }
 
 .notification-error {
-  background: #FFEBEE;
-  color: #D32F2F;
-  border-color: #D32F2F;
+  background: #ffebee;
+  color: #d32f2f;
+  border-color: #d32f2f;
 }
 
 .notification-warning {
-  background: #FFF3E0;
-  color: #F57C00;
-  border-color: #F57C00;
+  background: #fff3e0;
+  color: #f57c00;
+  border-color: #f57c00;
 }
 
 .notification-info {
-  background: #FDE5D8;
+  background: #fde5d8;
   color: #553630;
-  border-color: #EB8788;
+  border-color: #eb8788;
 }

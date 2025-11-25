@@ -44,6 +44,9 @@ class EditorManager {
 
     this.loadState();
 
+    // Prevent ACE from loading external snippet files
+    ace.config.setModuleUrl("ace/snippets/coffee", "data:text/javascript,");
+
     // Initialize basic ACE theme
     ace.define(THEME_BENTO, function (require, exports, module) {
       exports.cssClass = "ace-bento";
@@ -65,14 +68,14 @@ class EditorManager {
 
   async loadSyntax() {
     try {
-      // First, try direct injection (server mode fallback)
+      // Try direct injection (server mode)
       if (typeof window.BLOBLANG_SYNTAX !== "undefined") {
         this.bloblangSyntax = window.BLOBLANG_SYNTAX;
         this.syntaxLoaded = true;
         return;
       }
 
-      // Then check playground-based modes (WASM)
+      // Try WASM API
       if (window.playground && window.playground.api) {
         this.bloblangSyntax = window.playground.api.getSyntax();
         this.syntaxLoaded = true;
@@ -89,18 +92,18 @@ class EditorManager {
     // Try loading syntax immediately
     await this.loadSyntax();
 
-    // If WASM mode and not loaded, retry with a delay (WASM might still be initializing)
+    // If WASM mode and not loaded, retry (WASM may still be initializing)
     if (!this.syntaxLoaded && typeof window.BLOBLANG_SYNTAX === "undefined") {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
       await this.loadSyntax();
     }
 
-    // Warn if syntax failed to load after retry attempts
+    // Silently skip if syntax not loaded yet (it may still be loading)
     if (!this.syntaxLoaded) {
-      console.warn("Bloblang syntax data not available - autocompletion will be limited");
+      return;
     }
 
-    // Setup editor features (will gracefully degrade if syntax unavailable)
+    // Setup editor features
     this.setupTheme();
     this.applyBloblangMode();
     this.configureAutocompletion();
@@ -311,12 +314,18 @@ class EditorManager {
 
           try {
             if (!window.playground || !window.playground.api) {
+              console.log("Autocomplete: API not available");
               return callback(null, []);
             }
 
             let result = await window.playground.api.autocomplete(request);
 
-            if (result && result.success && result.completions) {
+            if (
+              result &&
+              result.success &&
+              result.completions &&
+              result.completions.length > 0
+            ) {
               // Convert Go completion format to ACE editor format
               const aceCompletions = result.completions.map((item) => ({
                 caption: item.caption,
@@ -330,7 +339,6 @@ class EditorManager {
 
               callback(null, aceCompletions);
             } else {
-              console.warn("Autocompletion failed:", result?.error);
               callback(null, []);
             }
           } catch (error) {
@@ -343,7 +351,7 @@ class EditorManager {
       this.aceMappingEditor.setOptions({
         enableBasicAutocompletion: [completer],
         enableLiveAutocompletion: true,
-        enableSnippets: false, // Disabled to avoid 404 errors for missing snippet files
+        enableSnippets: true,
       });
     } catch (error) {
       console.warn("Autocompletion disabled:", error);

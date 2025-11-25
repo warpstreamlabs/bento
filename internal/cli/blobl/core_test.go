@@ -221,45 +221,76 @@ func TestGenerateAutocompletion(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
 
 	tests := []struct {
-		name        string
-		request     AutocompletionRequest
-		expectError bool
+		name              string
+		request           AutocompletionRequest
+		expectError       bool
+		expectCompletions bool
+		expectKeywords    bool
+		expectFunctions   bool
+		expectMethods     bool
+		minCompletions    int
 	}{
 		{
-			name: "function context",
+			name: "function context - should return functions and keywords",
 			request: AutocompletionRequest{
 				Line:         "root = ",
 				Column:       7,
 				BeforeCursor: "root = ",
 			},
-			expectError: false,
+			expectError:       false,
+			expectCompletions: true,
+			expectKeywords:    false, // Keywords only show when typing keyword prefix
+			expectFunctions:   true,
+			expectMethods:     false,
+			minCompletions:    10, // Should have many function completions
 		},
 		{
-			name: "method context with dot",
+			name: "method context - should return methods only",
 			request: AutocompletionRequest{
 				Line:         "root = this.u",
 				Column:       13,
 				BeforeCursor: "root = this.u",
 			},
-			expectError: false,
+			expectError:       false,
+			expectCompletions: true,
+			expectKeywords:    false,
+			expectFunctions:   false,
+			expectMethods:     true,
+			minCompletions:    5, // Should have method completions (uppercase, etc.)
 		},
 		{
-			name: "invalid column",
+			name: "keyword context - should return keywords",
+			request: AutocompletionRequest{
+				Line:         "ro",
+				Column:       2,
+				BeforeCursor: "ro",
+			},
+			expectError:       false,
+			expectCompletions: true,
+			expectKeywords:    true,
+			expectFunctions:   true,
+			expectMethods:     false,
+			minCompletions:    1,
+		},
+		{
+			name: "invalid column - should fail",
 			request: AutocompletionRequest{
 				Line:         "root = this",
 				Column:       -1,
 				BeforeCursor: "",
 			},
-			expectError: true,
+			expectError:       true,
+			expectCompletions: false,
 		},
 		{
-			name: "inside comment",
+			name: "inside comment - should return empty",
 			request: AutocompletionRequest{
 				Line:         "# comment",
 				Column:       5,
 				BeforeCursor: "# com",
 			},
-			expectError: false,
+			expectError:       false,
+			expectCompletions: false,
 		},
 	}
 
@@ -271,12 +302,59 @@ func TestGenerateAutocompletion(t *testing.T) {
 				t.Errorf("generateAutocompletion() success = %v, expectError = %v", result.Success, tt.expectError)
 			}
 
-			if !tt.expectError && len(result.Completions) > 0 {
-				// Check that completions have DocHTML when present
+			if tt.expectCompletions {
+				if len(result.Completions) < tt.minCompletions {
+					t.Errorf("Expected at least %d completions, got %d", tt.minCompletions, len(result.Completions))
+				}
+
+				// Verify completion structure
 				for _, comp := range result.Completions {
-					if comp.DocHTML == "" {
-						t.Error("Completion missing DocHTML field")
+					if comp.Caption == "" {
+						t.Error("Completion missing Caption")
 					}
+					if comp.Type == "" {
+						t.Error("Completion missing Type")
+					}
+					if comp.DocHTML == "" {
+						t.Error("Completion missing DocHTML")
+					}
+					if comp.Meta == "" {
+						t.Error("Completion missing Meta")
+					}
+					// Either Value or Snippet should be set
+					if comp.Value == "" && comp.Snippet == "" {
+						t.Error("Completion missing both Value and Snippet")
+					}
+				}
+
+				// Verify expected types are present
+				hasKeyword := false
+				hasFunction := false
+				hasMethod := false
+
+				for _, comp := range result.Completions {
+					switch comp.Type {
+					case "keyword":
+						hasKeyword = true
+					case "function":
+						hasFunction = true
+					case "method":
+						hasMethod = true
+					}
+				}
+
+				if tt.expectKeywords && !hasKeyword {
+					t.Error("Expected keyword completions but found none")
+				}
+				if tt.expectFunctions && !hasFunction {
+					t.Error("Expected function completions but found none")
+				}
+				if tt.expectMethods && !hasMethod {
+					t.Error("Expected method completions but found none")
+				}
+			} else {
+				if len(result.Completions) > 0 {
+					t.Errorf("Expected no completions, got %d", len(result.Completions))
 				}
 			}
 		})
