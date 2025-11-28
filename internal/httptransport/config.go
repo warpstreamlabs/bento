@@ -1,8 +1,6 @@
 package httptransport
 
 import (
-	"time"
-
 	"github.com/warpstreamlabs/bento/internal/docs"
 )
 
@@ -53,15 +51,4 @@ func FieldSpec() docs.FieldSpec {
 			"Time to wait for a server's first response headers after sending request headers when 'Expect: 100-continue' is used. Zero means send body immediately.",
 		).HasDefault("1s").AtVersion("1.13.0").Advanced(),
 	)
-}
-
-type CustomTransport struct {
-	CustomTransportEnabled bool
-	DialContextTimeout     time.Duration
-	DialContextKeepAlive   time.Duration
-	ForceAttemptHTTP2      bool
-	MaxIdleConns           int
-	IdleConnTimeout        time.Duration
-	TlsHandshakeTimeout    time.Duration
-	ExpectContinueTimeout  time.Duration
 }
