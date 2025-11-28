@@ -18,7 +18,7 @@ const (
 )
 
 var defaultHeaders = []string{"Accept", "Accept-Language", "Content-Language", "Origin"}
-var defaultMethods = []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"}
+var defaultMethods = []string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
 
 // CORSConfig contains struct configuration for allowing CORS headers.
 type CORSConfig struct {
@@ -76,12 +76,10 @@ func CORSConfigFromParsed(pConf *docs.ParsedConfig) (conf CORSConfig, err error)
 		return
 	}
 
-	ah, err := pConf.FieldStringList(fieldCORSAllowedHeaders)
+	conf.AllowedHeaders, err = pConf.FieldStringList(fieldCORSAllowedHeaders)
 	if err != nil {
 		return
 	}
-	// conf.AllowedHeaders = buildHeadersFromConfigAndDefaults(ah)
-	conf.AllowedHeaders = ah
 
 	if conf.AllowedMethods, err = pConf.FieldStringList(fieldCORSAllowedMethods); err != nil {
 		return
@@ -89,13 +87,3 @@ func CORSConfigFromParsed(pConf *docs.ParsedConfig) (conf CORSConfig, err error)
 
 	return
 }
-
-// func buildHeadersFromConfigAndDefaults(allowed_headers []string) []string {
-// 	strippedHeaders := []string{}
-// 	for _, ah := range allowed_headers {
-// 		if !slices.Contains(defaultHeaders, ah) {
-// 			strippedHeaders = append(strippedHeaders, ah)
-// 		}
-// 	}
-// 	return append(strippedHeaders, defaultHeaders...)
-// }
