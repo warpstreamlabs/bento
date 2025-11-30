@@ -61,6 +61,14 @@ input:
     cors:
       enabled: false
       allowed_origins: []
+      allowed_headers: []
+      allowed_methods:
+        - GET
+        - HEAD
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
     sync_response:
       status: "200"
       headers:
@@ -310,6 +318,24 @@ An explicit list of origins that are allowed for CORS requests.
 
 Type: `array`  
 Default: `[]`  
+
+### `cors.allowed_headers`
+
+Appends additional headers to the list of default allowed headers: Accept, Accept-Language, Content-Language & Origin. These default headers are therefore always allowed.
+
+
+Type: `array`  
+Default: `[]`  
+Requires version 1.13.0 or newer  
+
+### `cors.allowed_methods`
+
+Used to explicitly set allowed methods in the Access-Control-Allow-Methods header.
+
+
+Type: `array`  
+Default: `["GET","HEAD","POST","PUT","PATCH","DELETE"]`  
+Requires version 1.13.0 or newer  
 
 ### `sync_response`
 
