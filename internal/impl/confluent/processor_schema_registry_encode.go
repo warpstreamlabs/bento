@@ -73,7 +73,8 @@ We will be considering alternative approaches in future so please [get in touch]
 			Advanced().Default(false).Version("1.0.0")).
 		Field(service.NewBoolField("avro_nested_schemas").
 			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
-			Advanced().Default(false).Version("1.2.0"))
+			Advanced().Default(false).Version("1.2.0")).
+		Field(service.NewTransportField("transport")).Version("1.13.0")
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
 		spec = spec.Field(f.Version("1.0.0"))
@@ -149,7 +150,21 @@ func newSchemaRegistryEncoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
-	return newSchemaRegistryEncoder(urlStr, authSigner, tlsConf, subject, avroRawJSON, avroNestedSchemas, refreshPeriod, refreshTicker, mgr)
+	transport, err := conf.FieldHTTPTransport("transport")
+	if err != nil {
+		return nil, err
+	}
+
+	return newSchemaRegistryEncoder(urlStr,
+		authSigner,
+		tlsConf,
+		subject,
+		avroRawJSON,
+		avroNestedSchemas,
+		transport,
+		refreshPeriod,
+		refreshTicker,
+		mgr)
 }
 
 func newSchemaRegistryEncoder(
@@ -159,6 +174,7 @@ func newSchemaRegistryEncoder(
 	subject *service.InterpolatedString,
 	avroRawJSON bool,
 	avroNestedSchemas bool,
+	transport *http.Transport,
 	schemaRefreshAfter, schemaRefreshTicker time.Duration,
 	mgr *service.Resources,
 ) (*schemaRegistryEncoder, error) {
@@ -174,7 +190,7 @@ func newSchemaRegistryEncoder(
 		nowFn:              time.Now,
 	}
 	var err error
-	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, mgr); err != nil {
+	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, mgr); err != nil {
 		return nil, err
 	}
 

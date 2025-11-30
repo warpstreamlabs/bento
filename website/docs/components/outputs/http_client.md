@@ -102,6 +102,15 @@ output:
     drop_on: []
     successful_on: []
     proxy_url: "" # No default (optional)
+    transport:
+      dial_context:
+        timeout: 30s
+        keep_alive: 30s
+      force_http2: true
+      max_idle_connections: 100
+      idle_connection_timeout: 90s
+      tls_handshake_timeout: 10s
+      expect_continue_timeout: 1s
     batch_as_multipart: false
     propagate_response: false
     max_in_flight: 64
@@ -697,6 +706,85 @@ An optional HTTP proxy URL.
 
 
 Type: `string`  
+
+### `transport`
+
+Custom transport options.
+
+
+Type: `object`  
+Requires version 1.13.0 or newer  
+
+### `transport.dial_context`
+
+Settings for the dialer used to create new connections.
+
+
+Type: `object`  
+Requires version 1.13.0 or newer  
+
+### `transport.dial_context.timeout`
+
+Timeout for establishing new network connections.
+
+
+Type: `string`  
+Default: `"30s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.dial_context.keep_alive`
+
+Keep-alive period for active network connections used by the dialer.
+
+
+Type: `string`  
+Default: `"30s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.force_http2`
+
+If true, the transport will attempt to use HTTP/2.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.13.0 or newer  
+
+### `transport.max_idle_connections`
+
+Maximum number of idle keep-alive connections. Zero = unlimited.
+
+
+Type: `int`  
+Default: `100`  
+Requires version 1.13.0 or newer  
+
+### `transport.idle_connection_timeout`
+
+Maximum time an idle keep-alive connection remains open before closing itself.
+
+
+Type: `string`  
+Default: `"90s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.tls_handshake_timeout`
+
+Maximum time allowed for TLS handshake to complete.
+
+
+Type: `string`  
+Default: `"10s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.expect_continue_timeout`
+
+Time to wait for a server's first response headers after sending request headers when 'Expect: 100-continue' is used. Zero means send body immediately.
+
+
+Type: `string`  
+Default: `"1s"`  
+Requires version 1.13.0 or newer  
 
 ### `batch_as_multipart`
 

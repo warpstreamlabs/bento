@@ -66,7 +66,8 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 		Field(service.NewBoolField("avro_nested_schemas").
 			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
 			Advanced().Default(false).Version("1.2.0")).
-		Field(service.NewURLField("url").Description("The base URL of the schema registry service."))
+		Field(service.NewURLField("url").Description("The base URL of the schema registry service.")).
+		Field(service.NewTransportField("transport")).Version("1.13.0")
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
 		spec = spec.Field(f.Version("1.0.0"))
@@ -123,7 +124,18 @@ func newSchemaRegistryDecoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
-	return newSchemaRegistryDecoder(urlStr, authSigner, tlsConf, avroRawJSON, avroNestedSchemas, mgr)
+	transport, err := conf.FieldHTTPTransport("transport")
+	if err != nil {
+		return nil, err
+	}
+
+	return newSchemaRegistryDecoder(urlStr,
+		authSigner,
+		tlsConf,
+		avroRawJSON,
+		avroNestedSchemas,
+		transport,
+		mgr)
 }
 
 func newSchemaRegistryDecoder(
@@ -132,6 +144,7 @@ func newSchemaRegistryDecoder(
 	tlsConf *tls.Config,
 	avroRawJSON bool,
 	avroNestedSchemas bool,
+	transport *http.Transport,
 	mgr *service.Resources,
 ) (*schemaRegistryDecoder, error) {
 	s := &schemaRegistryDecoder{
@@ -143,7 +156,7 @@ func newSchemaRegistryDecoder(
 		mgr:               mgr,
 	}
 	var err error
-	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, mgr); err != nil {
+	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, mgr); err != nil {
 		return nil, err
 	}
 
