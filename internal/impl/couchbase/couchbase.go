@@ -7,13 +7,6 @@ import (
 	"github.com/couchbase/gocb/v2"
 )
 
-// Add missing methods
-// increment
-// decrement
-// prepend
-// append
-// touch
-
 func valueFromOp(op gocb.BulkOp) (out any, cas gocb.Cas, err error) {
 	switch o := op.(type) {
 	case *gocb.GetOp:
