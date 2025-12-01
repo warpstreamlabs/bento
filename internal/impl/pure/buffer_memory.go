@@ -44,13 +44,21 @@ This buffer intentionally weakens the delivery guarantees of the pipeline and th
 
 ## Batching
 
-It is possible to batch up messages sent from this buffer using a [batch policy](/docs/configuration/batching#batch-policy).`).
+It is possible to batch up messages sent from this buffer using a [batch policy](/docs/configuration/batching#batch-policy).
+
+## Metrics 
+
+- ` + "`buffer_active`" + ` Gauge metric tracking the current number of bytes in the buffer.
+- ` + "`buffer_spillover`" + ` Counter metric tracking the total number of bytes dropped because of spillover.
+
+`).
 		Field(service.NewIntField("limit").
 			Description(`The maximum buffer size (in bytes) to allow before applying backpressure upstream.`).
 			Default(524288000)).
 		Field(service.NewBoolField("spillover").
 			Description("Whether to drop incoming messages that will exceed the buffer limit.").
 			Advanced().
+			Version("1.13.0").
 			Default(false)).
 		Field(service.NewInternalField(bs))
 }
