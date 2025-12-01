@@ -3,6 +3,7 @@ package couchbase_test
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,6 +83,16 @@ couchbase:
   id: '${! json("id") }'
   content: 'root = this'
   operation: 'insert'
+`,
+		},
+		{
+			name: "increment without content",
+			config: `
+couchbase:
+  url: 'url'
+  bucket: 'bucket'
+  id: '${! json("id") }'
+  operation: 'increment'
 `,
 		},
 	}
@@ -295,4 +306,40 @@ operation: 'get'
 	dataOut, err := msgOut[0][0].AsBytes()
 	assert.NoError(t, err)
 	assert.Equal(t, uid, string(dataOut))
+}
+
+func testCouchbaseProcessorIncrement(uid string, increment, expected int64, bucket, port string, t *testing.T) {
+	config := fmt.Sprintf(`
+url: 'couchbase://localhost:%s'
+bucket: %s
+username: %s
+password: %s
+id: '${! meta("id") }'
+content: 'root = this'
+operation: 'increment'
+`, port, bucket, username, password)
+
+	msg := service.NewMessage([]byte(strconv.FormatInt(increment, 10)))
+	msg.MetaSetMut("id", uid)
+	msgOut, err := getProc(t, config).ProcessBatch(context.Background(), service.MessageBatch{
+		msg,
+	})
+
+	// batch processing should be fine and contain one message.
+	assert.NoError(t, err)
+	assert.Len(t, msgOut, 1)
+	assert.Len(t, msgOut[0], 1)
+
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
+
+	// message content should be the counter value (1)
+	dataOut, err := msgOut[0][0].AsBytes()
+	assert.NoError(t, err)
+	// The result of increment is the new value.
+	// Since we didn't provide content, delta is 1, initial is 1.
+	// So first increment should return 1.
+	assert.Equal(t, strconv.FormatInt(expected, 10), string(dataOut))
 }
