@@ -62,7 +62,57 @@ output:
               - name: tags
                 type: LIST
                 fields:
-                  - { name: element, type: UTF8 }				
+                  - { name: element, type: UTF8 }
+            default_compression: zstd
+`).
+		Example("Using STRUCT Types for Nested Objects",
+			"This example shows how to use STRUCT types to store complex nested objects natively in Parquet format, avoiding JSON serialization overhead.",
+			`
+output:
+  aws_s3:
+    bucket: TODO
+    path: 'events/${! timestamp_unix() }-${! uuid_v4() }.parquet'
+    batching:
+      count: 1000
+      period: 10s
+      processors:
+        - parquet_encode:
+            schema:
+              - name: id
+                type: INT64
+              - name: timestamp
+                type: INT64
+              - name: cloud
+                type: STRUCT
+                optional: true
+                fields:
+                  - name: provider
+                    type: UTF8
+                  - name: region
+                    type: UTF8
+                    optional: true
+                  - name: account
+                    type: STRUCT
+                    optional: true
+                    fields:
+                      - name: uid
+                        type: UTF8
+                        optional: true
+              - name: metadata
+                type: STRUCT
+                optional: true
+                fields:
+                  - name: version
+                    type: UTF8
+                  - name: product
+                    type: STRUCT
+                    optional: true
+                    fields:
+                      - name: name
+                        type: UTF8
+                      - name: version
+                        type: UTF8
+                        optional: true
             default_compression: zstd
 `)
 }
@@ -83,8 +133,8 @@ func init() {
 func parquetSchemaConfig() *service.ConfigField {
 	return service.NewObjectListField("schema",
 		service.NewStringField("name").Description("The name of the column."),
-		service.NewStringEnumField("type", "BOOLEAN", "INT8", "INT16", "INT32", "INT64", "DECIMAL64", "DECIMAL32", "FLOAT", "DOUBLE", "BYTE_ARRAY", "UTF8", "MAP", "LIST").
-			Description("The type of the column, only applicable for leaf columns with no child fields. MAP supports only string keys, but can support values of all types. Nesting of map values and list elements is untested. Some logical types can be specified here such as UTF8.").Optional(),
+		service.NewStringEnumField("type", "BOOLEAN", "INT8", "INT16", "INT32", "INT64", "DECIMAL64", "DECIMAL32", "FLOAT", "DOUBLE", "BYTE_ARRAY", "UTF8", "MAP", "LIST", "STRUCT").
+			Description("The type of the column, only applicable for leaf columns with no child fields. STRUCT represents nested objects with defined field schemas. MAP supports only string keys, but can support values of all types. Some logical types can be specified here such as UTF8.").Optional(),
 		service.NewIntField("decimal_precision").Description("Precision to use for DECIMAL32/DECIMAL64 type").Default(0),
 		service.NewIntField("decimal_scale").Description("Scale to use for DECIMAL32/DECIMAL64 type").Default(0),
 		service.NewBoolField("repeated").Description("Whether the field is repeated.").Default(false),

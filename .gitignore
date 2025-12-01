@@ -13,3 +13,4 @@ release_notes.md
 go.work*
 *.env
 *.prof
+bento

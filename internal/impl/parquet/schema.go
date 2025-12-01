@@ -129,6 +129,21 @@ func generateFieldType(
 			if err != nil {
 				return nil, err
 			}
+		case "STRUCT":
+			// Handle explicit STRUCT type - requires fields
+			subfields, err := field.FieldAnyList("fields")
+			if err != nil {
+				return nil, fmt.Errorf("STRUCT type requires 'fields' to be specified: %w", err)
+			}
+
+			if len(subfields) == 0 {
+				return nil, errors.New("STRUCT type requires at least one field in 'fields'")
+			}
+
+			outputType, err = generateStructTypeFromFields(subfields, schemaOpts)
+			if err != nil {
+				return nil, fmt.Errorf("generating STRUCT: %w", err)
+			}
 		default:
 			outputType, err = getReflectType(typeStr)
 			if err != nil {
@@ -139,7 +154,7 @@ func generateFieldType(
 		return wrapType(outputType, field, schemaOpts)
 	}
 
-	// Handle nested struct
+	// Handle nested struct without explicit type (backwards compatibility)
 	if field.Contains("fields") {
 		subfields, err := field.FieldAnyList("fields")
 		if err != nil {
