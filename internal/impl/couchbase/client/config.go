@@ -32,4 +32,6 @@ const (
 	OperationUpsert Operation = "upsert"
 	// OperationIncrement Increment operation.
 	OperationIncrement Operation = "increment"
+	// OperationDecrement Decrement operation.
+	OperationDecrement Operation = "decrement"
 )

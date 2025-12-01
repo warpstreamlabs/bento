@@ -42,6 +42,7 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationUpsert):  "creates a new document if it does not exist, if it does exist then it updates it.",
 
 			string(client.OperationIncrement): "increment a counter.",
+			string(client.OperationDecrement): "decrement a counter.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
 		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(true).Version("1.3.0")). // TODO: Consider removal in next release?
 		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert") && !this.exists("content")) { [ "content must be set for insert, replace and upsert operations." ] }`)
@@ -121,6 +122,8 @@ func NewProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*Processo
 		p.op = upsert
 	case client.OperationIncrement:
 		p.op = increment
+	case client.OperationDecrement:
+		p.op = decrement
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrInvalidOperation, op)
 	}

@@ -3,7 +3,6 @@ package couchbase_test
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,6 +92,16 @@ couchbase:
   bucket: 'bucket'
   id: '${! json("id") }'
   operation: 'increment'
+`,
+		},
+		{
+			name: "decrement without content",
+			config: `
+couchbase:
+  url: 'url'
+  bucket: 'bucket'
+  id: '${! json("id") }'
+  operation: 'decrement'
 `,
 		},
 	}
@@ -308,18 +317,18 @@ operation: 'get'
 	assert.Equal(t, uid, string(dataOut))
 }
 
-func testCouchbaseProcessorIncrement(uid string, increment, expected int64, bucket, port string, t *testing.T) {
+func testCouchbaseProcessorCounter(uid, operation, value, expected, bucket, port string, t *testing.T) {
 	config := fmt.Sprintf(`
 url: 'couchbase://localhost:%s'
 bucket: %s
 username: %s
 password: %s
 id: '${! meta("id") }'
-content: 'root = this'
-operation: 'increment'
-`, port, bucket, username, password)
+content: 'root = this.or(null)'
+operation: '%s'
+`, port, bucket, username, password, operation)
 
-	msg := service.NewMessage([]byte(strconv.FormatInt(increment, 10)))
+	msg := service.NewMessage([]byte(value))
 	msg.MetaSetMut("id", uid)
 	msgOut, err := getProc(t, config).ProcessBatch(context.Background(), service.MessageBatch{
 		msg,
@@ -341,5 +350,5 @@ operation: 'increment'
 	// The result of increment is the new value.
 	// Since we didn't provide content, delta is 1, initial is 1.
 	// So first increment should return 1.
-	assert.Equal(t, strconv.FormatInt(expected, 10), string(dataOut))
+	assert.Equal(t, expected, string(dataOut))
 }

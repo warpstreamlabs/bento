@@ -48,6 +48,11 @@ func valueFromOp(op gocb.BulkOp) (out any, cas gocb.Cas, err error) {
 			return o.Result.Content(), o.Result.Cas(), o.Err
 		}
 		return nil, gocb.Cas(0), o.Err
+	case *gocb.DecrementOp:
+		if o.Result != nil {
+			return o.Result.Content(), o.Result.Cas(), o.Err
+		}
+		return nil, gocb.Cas(0), o.Err
 	}
 
 	return nil, gocb.Cas(0), errors.New("type not supported")
@@ -90,7 +95,7 @@ func upsert(key string, data []byte, cas gocb.Cas) gocb.BulkOp {
 }
 
 func increment(key string, data []byte, _ gocb.Cas) gocb.BulkOp {
-	delta := int64(1)
+	delta := int64(0)
 	if len(data) > 0 {
 		if d, err := strconv.ParseInt(string(data), 10, 64); err == nil {
 			delta = d
@@ -101,5 +106,20 @@ func increment(key string, data []byte, _ gocb.Cas) gocb.BulkOp {
 		ID:      key,
 		Delta:   delta,
 		Initial: delta, // Default initial to delta
+	}
+}
+
+func decrement(key string, data []byte, _ gocb.Cas) gocb.BulkOp {
+	delta := int64(0)
+	if len(data) > 0 {
+		if d, err := strconv.ParseInt(string(data), 10, 64); err == nil {
+			delta = d
+		}
+	}
+
+	return &gocb.DecrementOp{
+		ID:      key,
+		Delta:   delta,
+		Initial: -delta, // Default initial to -delta
 	}
 }
