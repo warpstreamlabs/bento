@@ -50,7 +50,7 @@ func init() {
 
 // NewSQLDeprecatedProcessorFromConfig returns an internal sql processor.
 func NewSQLDeprecatedProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*sqlRawProcessor, error) {
-	driverStr, err := conf.FieldString("driver")
+	driverStr, err := getDriver(conf, mgr.Logger())
 	if err != nil {
 		return nil, err
 	}

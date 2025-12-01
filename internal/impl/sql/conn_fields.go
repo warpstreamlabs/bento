@@ -163,6 +163,26 @@ CREATE TABLE IF NOT EXISTS some_table (
 
 }
 
+var warnPostgresV2Once sync.Once
+
+func warnIfPostgresV2(driver string, log *service.Logger) {
+	if driver != "postgres_v2" || log == nil {
+		return
+	}
+	warnPostgresV2Once.Do(func() {
+		log.With("driver", driver).Warn("driver 'postgres_v2' (jackc/pgx) is temporary and will become default 'postgres' in next minor release")
+	})
+}
+
+func getDriver(conf *service.ParsedConfig, log *service.Logger) (string, error) {
+	driver, err := conf.FieldString("driver")
+	if err != nil {
+		return "", err
+	}
+	warnIfPostgresV2(driver, log)
+	return driver, nil
+}
+
 func rawQueryField() *service.ConfigField {
 	return service.NewStringField("query").
 		Description("The query to execute. The style of placeholder to use depends on the driver, some drivers require question marks (`?`) whereas others expect incrementing dollar signs (`$1`, `$2`, and so on) or colons (`:1`, `:2` and so on). The style to use is outlined in this table:" + `
