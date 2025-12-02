@@ -1,13 +1,21 @@
 package parquet
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateStructTypeAsPtrs(t *testing.T) {
+	randSource = rand.New(rand.NewSource(42))
+	t.Cleanup(func() {
+		// Resets after test complete
+		rand.New(rand.NewSource(time.Now().UnixNano()))
+	})
+
 	tests := []struct {
 		name       string
 		yaml       string
@@ -81,6 +89,20 @@ schema:
 				"Req": {reflect.TypeOf(int64(0)), `parquet:"req" json:"req"`},
 				"Opt": {reflect.PointerTo(reflect.TypeOf(int64(0))), `parquet:"opt" json:"opt"`},
 				"Arr": {reflect.SliceOf(reflect.TypeOf(float32(0))), `parquet:"arr" json:"arr"`},
+			},
+		},
+		{
+			name: "whacky naming",
+			yaml: `
+schema:
+  - { name: _timestamp, type: UTF8 }
+`,
+			wantFields: map[string]struct {
+				fieldType reflect.Type
+				tag       string
+			}{
+				// deterministic random field name
+				"HRUKPTTUEZPTNEU": {reflect.TypeOf(""), `parquet:"_timestamp" json:"_timestamp"`},
 			},
 		},
 		{
