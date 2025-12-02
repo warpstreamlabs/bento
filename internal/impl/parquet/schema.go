@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -43,6 +44,11 @@ func generateStructTypeFromFields(
 			exportedName = strings.ToUpper(name[:1]) + name[1:]
 			components   = []string{name}
 		)
+
+		if !unicode.IsUpper(rune(exportedName[0])) {
+			// HACK(gregfurman): 1/26^15 chance of collision. Should be fine ¯\_(ツ)_/¯
+			exportedName = randomFieldName(15)
+		}
 
 		if field.Contains("type") {
 			typeStr, err := field.FieldString("type")
