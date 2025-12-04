@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.13.1 - 2025-12-04
+
+### Fixed 
+
+- `parquet_encode` processor adds safeguard for schema fields beginning with non-alphabetic characters @gregfurman
+
 ## 1.13.0 - 2025-12-02
 
 ### Added 
