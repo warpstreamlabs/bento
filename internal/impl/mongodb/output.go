@@ -107,7 +107,6 @@ func (m *outputWriter) Connect(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if err := m.client.Ping(ctx, nil); err != nil {
-		_ = m.client.Disconnect(ctx)
 		return fmt.Errorf("ping failed: %v", err)
 	}
 	return nil
