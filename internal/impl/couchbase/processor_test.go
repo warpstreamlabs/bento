@@ -116,7 +116,7 @@ func getProc(tb testing.TB, config string) *couchbase.Processor {
 	return proc
 }
 
-func testCouchbaseProcessorInsert(uid, payload, bucket, port string, t *testing.T) {
+func testCouchbaseProcessorInsert(payload, bucket, port string, t *testing.T) {
 	config := fmt.Sprintf(`
 url: 'couchbase://localhost:%s'
 bucket: %s
@@ -147,7 +147,7 @@ operation: 'insert'
 	assert.JSONEq(t, payload, string(dataOut))
 }
 
-func testCouchbaseProcessorUpsert(uid, payload, bucket, port string, t *testing.T) {
+func testCouchbaseProcessorUpsert(payload, bucket, port string, t *testing.T) {
 	config := fmt.Sprintf(`
 url: 'couchbase://localhost:%s'
 bucket: %s
@@ -178,7 +178,7 @@ operation: 'upsert'
 	assert.JSONEq(t, payload, string(dataOut))
 }
 
-func testCouchbaseProcessorReplace(uid, payload, bucket, port string, t *testing.T) {
+func testCouchbaseProcessorReplace(payload, bucket, port string, t *testing.T) {
 	config := fmt.Sprintf(`
 url: 'couchbase://localhost:%s'
 bucket: %s
@@ -295,4 +295,36 @@ operation: 'get'
 	dataOut, err := msgOut[0][0].AsBytes()
 	assert.NoError(t, err)
 	assert.Equal(t, uid, string(dataOut))
+}
+
+func testCouchbaseProcessorUpsertTTL(payload, bucket, port string, t *testing.T) {
+	config := fmt.Sprintf(`
+url: 'couchbase://localhost:%s'
+bucket: %s
+username: %s
+password: %s
+id: '${! json("id") }'
+content: 'root = this'
+operation: 'upsert'
+ttl: 3s
+`, port, bucket, username, password)
+
+	msgOut, err := getProc(t, config).ProcessBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte(payload)),
+	})
+
+	// batch processing should be fine and contain one message.
+	assert.NoError(t, err)
+	assert.Len(t, msgOut, 1)
+	assert.Len(t, msgOut[0], 1)
+
+	// check CAS
+	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
+	assert.True(t, ok)
+	assert.NotEmpty(t, cas)
+
+	// message content should stay the same.
+	dataOut, err := msgOut[0][0].AsBytes()
+	assert.NoError(t, err)
+	assert.JSONEq(t, payload, string(dataOut))
 }
