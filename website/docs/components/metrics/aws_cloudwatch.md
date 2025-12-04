@@ -53,6 +53,7 @@ metrics:
       from_ec2_role: false
       role: ""
       role_external_id: ""
+      expiry_window: ""
   mapping: ""
 ```
 
@@ -184,6 +185,14 @@ Default: `""`
 ### `credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. Should be a duration, valid time units are 'ns', 'us' (or 'µs'), 'ms', 's', 'm', 'h'. For example '10s' would refresh credentials ten seconds before expiration.
 
 
 Type: `string`  
