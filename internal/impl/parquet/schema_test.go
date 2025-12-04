@@ -232,6 +232,111 @@ schema:
 `,
 			wantErr: true,
 		},
+		{
+			name: "explicit STRUCT type",
+			yaml: `
+schema:
+  - name: cloud
+    type: STRUCT
+    optional: true
+    fields:
+      - { name: provider, type: UTF8 }
+      - { name: region, type: UTF8, optional: true }
+`,
+			wantFields: map[string]struct {
+				fieldType reflect.Type
+				tag       string
+			}{
+				"Cloud": {
+					fieldType: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
+						{Name: "Provider", Type: reflect.TypeOf(""), Tag: `parquet:"provider" json:"provider"`},
+						{Name: "Region", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: `parquet:"region" json:"region"`},
+					})),
+					tag: `parquet:"cloud" json:"cloud"`,
+				},
+			},
+		},
+		{
+			name: "nested STRUCT types",
+			yaml: `
+schema:
+  - name: cloud
+    type: STRUCT
+    optional: true
+    fields:
+      - { name: provider, type: UTF8 }
+      - { name: region, type: UTF8, optional: true }
+      - name: account
+        type: STRUCT
+        optional: true
+        fields:
+          - { name: uid, type: UTF8, optional: true }
+          - { name: name, type: UTF8, optional: true }
+`,
+			wantFields: map[string]struct {
+				fieldType reflect.Type
+				tag       string
+			}{
+				"Cloud": {
+					fieldType: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
+						{Name: "Provider", Type: reflect.TypeOf(""), Tag: `parquet:"provider" json:"provider"`},
+						{Name: "Region", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: `parquet:"region" json:"region"`},
+						{Name: "Account", Type: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
+							{Name: "Uid", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: `parquet:"uid" json:"uid"`},
+							{Name: "Name", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: `parquet:"name" json:"name"`},
+						})), Tag: `parquet:"account" json:"account"`},
+					})),
+					tag: `parquet:"cloud" json:"cloud"`,
+				},
+			},
+		},
+		{
+			name: "STRUCT with complex nested types",
+			yaml: `
+schema:
+  - name: metadata
+    type: STRUCT
+    optional: true
+    fields:
+      - { name: version, type: UTF8 }
+      - name: profiles
+        type: LIST
+        optional: true
+        fields:
+          - { name: element, type: UTF8 }
+      - name: product
+        type: STRUCT
+        optional: true
+        fields:
+          - { name: name, type: UTF8 }
+          - { name: version, type: UTF8, optional: true }
+`,
+			wantFields: map[string]struct {
+				fieldType reflect.Type
+				tag       string
+			}{
+				"Metadata": {
+					fieldType: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
+						{Name: "Version", Type: reflect.TypeOf(""), Tag: `parquet:"version" json:"version"`},
+						{Name: "Profiles", Type: reflect.PointerTo(reflect.SliceOf(reflect.TypeOf(""))), Tag: `parquet:"profiles,list" json:"profiles"`},
+						{Name: "Product", Type: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
+							{Name: "Name", Type: reflect.TypeOf(""), Tag: `parquet:"name" json:"name"`},
+							{Name: "Version", Type: reflect.PointerTo(reflect.TypeOf("")), Tag: `parquet:"version" json:"version"`},
+						})), Tag: `parquet:"product" json:"product"`},
+					})),
+					tag: `parquet:"metadata" json:"metadata"`,
+				},
+			},
+		},
+		{
+			name: "error: STRUCT without fields",
+			yaml: `
+schema:
+  - name: mystruct
+    type: STRUCT
+`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
