@@ -457,6 +457,6 @@ EXPERIMENTAL: Starts a new root span with link to parent.
 
 
 Type: `bool`  
-Requires version 1.13.0 or newer  
+Requires version 1.14.0 or newer  
 
 

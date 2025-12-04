@@ -23,7 +23,7 @@ NATS component, so that monitoring tools between NATS and bento can stay in sync
 func inputTracingDocs() []*service.ConfigField {
 	return []*service.ConfigField{
 		service.NewExtractTracingSpanMappingField().Version("1.0.0"),
-		service.NewRootSpanWithLinkField().Version("1.13.0"),
+		service.NewRootSpanWithLinkField().Version("1.14.0"),
 	}
 }
 
