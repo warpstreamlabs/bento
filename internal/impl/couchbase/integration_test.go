@@ -128,7 +128,7 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 	payload := fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
 
 	t.Run("Insert", func(t *testing.T) {
-		testCouchbaseProcessorInsert(uid, payload, bucket, servicePort, t)
+		testCouchbaseProcessorInsert(payload, bucket, servicePort, t)
 	})
 	t.Run("Get", func(t *testing.T) {
 		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
@@ -142,7 +142,7 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 
 	payload = fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
 	t.Run("Upsert", func(t *testing.T) {
-		testCouchbaseProcessorUpsert(uid, payload, bucket, servicePort, t)
+		testCouchbaseProcessorUpsert(payload, bucket, servicePort, t)
 	})
 	t.Run("Get", func(t *testing.T) {
 		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
@@ -150,10 +150,16 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 
 	payload = fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
 	t.Run("Replace", func(t *testing.T) {
-		testCouchbaseProcessorReplace(uid, payload, bucket, servicePort, t)
+		testCouchbaseProcessorReplace(payload, bucket, servicePort, t)
 	})
 	t.Run("Get", func(t *testing.T) {
 		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
+	})
+	t.Run("TTL", func(t *testing.T) {
+		testCouchbaseProcessorUpsertTTL(payload, bucket, servicePort, t)
+		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
+		time.Sleep(5 * time.Second)
+		testCouchbaseProcessorGetMissing(uid, bucket, servicePort, t)
 	})
 }
 

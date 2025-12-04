@@ -60,6 +60,7 @@ couchbase:
   timeout: 15s
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
+  ttl: "" # No default (optional)
   operation: get
   cas_enabled: true
 ```
@@ -161,6 +162,13 @@ id: ${! json("id") }
 ### `content`
 
 Document content.
+
+
+Type: `string`  
+
+### `ttl`
+
+An optional TTL to set for items.
 
 
 Type: `string`  
