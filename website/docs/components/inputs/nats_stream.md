@@ -70,6 +70,7 @@ input:
       user_jwt: "" # No default (optional)
       user_nkey_seed: "" # No default (optional)
     extract_tracing_map: root = @ # No default (optional)
+    new_root_span_with_link: false # No default (optional)
 ```
 
 </TabItem>
@@ -413,7 +414,7 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 4.23.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -422,5 +423,13 @@ extract_tracing_map: root = @
 
 extract_tracing_map: root = this.meta.span
 ```
+
+### `new_root_span_with_link`
+
+EXPERIMENTAL: Starts a new root span with link to parent.
+
+
+Type: `bool`  
+Requires version 1.14.0 or newer  
 
 

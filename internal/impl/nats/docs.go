@@ -8,10 +8,6 @@ const (
 	kvFieldBucket = "bucket"
 )
 
-const (
-	tracingVersion = "4.23.0"
-)
-
 func connectionNameDescription() string {
 	return `### Connection Name
 
@@ -24,11 +20,15 @@ NATS component, so that monitoring tools between NATS and bento can stay in sync
 `
 }
 
-func inputTracingDocs() *service.ConfigField {
-	return service.NewExtractTracingSpanMappingField().Version(tracingVersion)
+func inputTracingDocs() []*service.ConfigField {
+	return []*service.ConfigField{
+		service.NewExtractTracingSpanMappingField().Version("1.0.0"),
+		service.NewRootSpanWithLinkField().Version("1.14.0"),
+	}
 }
+
 func outputTracingDocs() *service.ConfigField {
-	return service.NewInjectTracingSpanMappingField().Version(tracingVersion)
+	return service.NewInjectTracingSpanMappingField().Version("1.0.0")
 }
 func Docs(natsComponentType string, extraFields ...*service.ConfigField) []*service.ConfigField {
 	// TODO: Use `slices.Concat()` after switching to Go 1.22
