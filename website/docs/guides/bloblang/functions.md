@@ -595,6 +595,24 @@ root.doc = file_rel(path: env("BENTO_TEST_BLOBLANG_FILE"), no_cache: true).parse
 # Out: {"doc":{"foo":"bar"}}
 ```
 
+### `file_rel_json`
+
+Reads a JSON file and returns the parsed object. The file is read and parsed only once, with the result cached for all subsequent calls. Relative paths are resolved from the directory of the mapping. This is significantly more efficient than `file_rel().parse_json()` which parses the JSON on every invocation.
+
+#### Parameters
+
+**`path`** &lt;string&gt; The path of the target JSON file.  
+
+#### Examples
+
+
+```coffee
+root.doc = file_rel_json(env("BENTO_TEST_BLOBLANG_FILE"))
+
+# In:  {}
+# Out: {"doc":{"foo":"bar"}}
+```
+
 ### `hostname`
 
 Returns a string matching the hostname of the machine running Bento.

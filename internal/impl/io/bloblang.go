@@ -1,6 +1,8 @@
 package io
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
@@ -178,6 +180,44 @@ func init() {
 					return args.ImportFile(path)
 				}
 				return cachedPathBytes, nil
+			}, nil
+		},
+	); err != nil {
+		panic(err)
+	}
+
+	if err := bloblang.RegisterFunctionV2("file_rel_json",
+		bloblang.NewPluginSpec().
+			Impure().
+			Static().
+			Category(query.FunctionCategoryEnvironment).
+			Description("Reads a JSON file and returns the parsed object. The file is read and parsed only once, with the result cached for all subsequent calls. Relative paths are resolved from the directory of the mapping. This is significantly more efficient than `file_rel().parse_json()` which parses the JSON on every invocation.").
+			Param(bloblang.NewStringParam("path").
+				Description("The path of the target JSON file.")).
+			Example("", `root.doc = file_rel_json(env("BENTO_TEST_BLOBLANG_FILE"))`, [2]string{
+				`{}`,
+				`{"doc":{"foo":"bar"}}`,
+			}),
+		func(args *bloblang.ParsedParams) (bloblang.Function, error) {
+			path, err := args.GetString("path")
+			if err != nil {
+				return nil, err
+			}
+
+			// Read and parse file once during function creation
+			fileBytes, err := args.ImportFile(path)
+			if err != nil {
+				return nil, err
+			}
+
+			var parsedJSON any
+			if err := json.Unmarshal(fileBytes, &parsedJSON); err != nil {
+				return nil, fmt.Errorf("failed to parse JSON from %s: %w", path, err)
+			}
+
+			// Return a function that always returns the cached parsed result
+			return func() (any, error) {
+				return parsedJSON, nil
 			}, nil
 		},
 	); err != nil {
