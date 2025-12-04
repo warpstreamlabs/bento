@@ -155,6 +155,36 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 	t.Run("Get", func(t *testing.T) {
 		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
 	})
+
+	// counters tests
+	t.Run("Remove", func(t *testing.T) {
+		testCouchbaseProcessorRemove(uid, bucket, servicePort, t)
+	})
+	t.Run("Increment", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "increment", "1", "1", bucket, servicePort, t)
+	})
+	t.Run("Decrement", func(t *testing.T) { // minimum value of counter is zero
+		testCouchbaseProcessorCounter(uid, "decrement", "2", "0", bucket, servicePort, t)
+	})
+	t.Run("Increment", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "increment", "8", "8", bucket, servicePort, t)
+	})
+	t.Run("Decrement", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "decrement", "2", "6", bucket, servicePort, t)
+	})
+	// noop only retrive value
+	t.Run("Increment", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "increment", "0", "6", bucket, servicePort, t)
+	})
+	t.Run("Decrement", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "decrement", "0", "6", bucket, servicePort, t)
+	})
+	t.Run("Increment", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "increment", "", "6", bucket, servicePort, t)
+	})
+	t.Run("Decrement", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "decrement", "", "6", bucket, servicePort, t)
+	})
 }
 
 func TestIntegrationCouchbaseStream(t *testing.T) {

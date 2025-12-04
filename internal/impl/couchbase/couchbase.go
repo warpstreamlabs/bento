@@ -2,6 +2,7 @@ package couchbase
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/couchbase/gocb/v2"
 )
@@ -33,6 +34,16 @@ func valueFromOp(op gocb.BulkOp) (out any, cas gocb.Cas, err error) {
 	case *gocb.UpsertOp:
 		if o.Result != nil {
 			return nil, o.Result.Cas(), o.Err
+		}
+		return nil, gocb.Cas(0), o.Err
+	case *gocb.IncrementOp:
+		if o.Result != nil {
+			return o.Result.Content(), o.Result.Cas(), o.Err
+		}
+		return nil, gocb.Cas(0), o.Err
+	case *gocb.DecrementOp:
+		if o.Result != nil {
+			return o.Result.Content(), o.Result.Cas(), o.Err
 		}
 		return nil, gocb.Cas(0), o.Err
 	}
@@ -73,5 +84,35 @@ func upsert(key string, data []byte, cas gocb.Cas) gocb.BulkOp {
 		ID:    key,
 		Value: data,
 		Cas:   cas,
+	}
+}
+
+func increment(key string, data []byte, _ gocb.Cas) gocb.BulkOp {
+	delta := int64(0)
+	if len(data) > 0 {
+		if d, err := strconv.ParseInt(string(data), 10, 64); err == nil {
+			delta = d
+		}
+	}
+
+	return &gocb.IncrementOp{
+		ID:      key,
+		Delta:   delta,
+		Initial: delta, // Default initial to delta
+	}
+}
+
+func decrement(key string, data []byte, _ gocb.Cas) gocb.BulkOp {
+	delta := int64(0)
+	if len(data) > 0 {
+		if d, err := strconv.ParseInt(string(data), 10, 64); err == nil {
+			delta = d
+		}
+	}
+
+	return &gocb.DecrementOp{
+		ID:      key,
+		Delta:   delta,
+		Initial: -delta, // Default initial to -delta
 	}
 }

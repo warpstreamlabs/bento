@@ -175,7 +175,9 @@ Default: `"get"`
 
 | Option | Summary |
 |---|---|
+| `decrement` | decrement a counter. |
 | `get` | fetch a document. |
+| `increment` | increment a counter. |
 | `insert` | insert a new document. |
 | `remove` | delete a document. |
 | `replace` | replace the contents of a document. |
