@@ -284,7 +284,7 @@ function Home() {
                 <p className={styles.writtenInGo}>
                   Written in Go, deployed as a static binary, declarative configuration. <a href="https://github.com/warpstreamlabs/bento" target="_blank" rel="noopener noreferrer" aria-label="View Bento source code on GitHub">Open source</a> and cloud native as utter heck.
                 </p>
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                   <Link
                     className={classnames('button button--outline button--primary', styles.learnMoreButton)}
                     to={useBaseUrl('docs/guides/getting_started')}>
@@ -295,6 +295,12 @@ function Home() {
                     style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
                     to={useBaseUrl('cookbooks')}>
                     Explore Cookbooks
+                  </Link>
+                  <Link
+                    className={classnames('button button--outline button--primary', styles.learnMoreButton)}
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                    to={useBaseUrl('docs/guides/bloblang/playground')}>
+                    Try Playground
                   </Link>
                 </div>
               </div>
