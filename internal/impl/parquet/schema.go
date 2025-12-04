@@ -130,17 +130,7 @@ func generateFieldType(
 				return nil, err
 			}
 		case "STRUCT":
-			// Handle explicit STRUCT type - requires fields
-			subfields, err := field.FieldAnyList("fields")
-			if err != nil {
-				return nil, fmt.Errorf("STRUCT type requires 'fields' to be specified: %w", err)
-			}
-
-			if len(subfields) == 0 {
-				return nil, errors.New("STRUCT type requires at least one field in 'fields'")
-			}
-
-			outputType, err = generateStructTypeFromFields(subfields, schemaOpts)
+			outputType, err = generateStructType(field, schemaOpts)
 			if err != nil {
 				return nil, fmt.Errorf("generating STRUCT: %w", err)
 			}
@@ -170,6 +160,27 @@ func generateFieldType(
 	}
 
 	return nil, errors.New("field has neither type nor fields")
+}
+
+func generateStructType(
+	field *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
+	subfields, err := field.FieldAnyList("fields")
+	if err != nil {
+		return nil, fmt.Errorf("struct type requires 'fields' to be specified: %w", err)
+	}
+
+	if len(subfields) == 0 {
+		return nil, errors.New("struct type requires at least one field in 'fields'")
+	}
+
+	structValueType, err := generateStructTypeFromFields(subfields, schemaOpts)
+	if err != nil {
+		return nil, fmt.Errorf("generating struct: %w", err)
+	}
+
+	return structValueType, nil
 }
 
 func generateListType(
