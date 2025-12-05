@@ -12,6 +12,8 @@ import (
 	"hash"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	analytics "github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
@@ -19,9 +21,10 @@ import (
 )
 
 const (
-	oscFieldFilters      = "filters"
-	oscFieldFiltersDrop  = "drop"
-	oscFieldOutputFormat = "output_format"
+	oscFieldFilters         = "filters"
+	oscFieldFiltersDrop     = "drop"
+	oscFieldOutputFormat    = "output_format"
+	oscFieldSchemaDiscovery = "schema_discovery"
 )
 
 // OpenSnowcat/Snowplow Enriched TSV column names (lowercase, 131 columns)
@@ -86,8 +89,9 @@ Transform sensitive fields for PII compliance and privacy:
 All transformations support both direct TSV columns and schema property paths.`).
 		Version("1.12.0").
 		Field(service.NewStringAnnotatedEnumField(oscFieldOutputFormat, map[string]string{
-			"json": "Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects.",
-			"tsv":  "Maintain enriched TSV format without conversion.",
+			"json":          "Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects.",
+			"tsv":           "Maintain enriched TSV format without conversion.",
+			"enriched_json": "Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations.",
 		}).Description("Output format for processed events.").Default("tsv")).
 		Field(service.NewObjectField(oscFieldFilters,
 			service.NewAnyMapField(oscFieldFiltersDrop).
@@ -119,6 +123,20 @@ Supports both TSV columns (e.g., user_id, user_ipaddress) and schema property pa
 				Optional().
 				Advanced(),
 		).Description("Filter and transformation configurations").Optional().Advanced()).
+		Field(service.NewObjectField(oscFieldSchemaDiscovery,
+			service.NewBoolField("enabled").
+				Description("Enable schema discovery feature").
+				Default(false),
+			service.NewStringField("flush_interval").
+				Description("Interval between schema discovery flushes").
+				Default("5m"),
+			service.NewStringField("endpoint").
+				Description("HTTP endpoint to send schema discovery data").
+				Default("https://api.snowcatcloud.com/internal/schema-discovery"),
+			service.NewStringField("template").
+				Description("Template for schema discovery payload. Use `{{SCHEMAS}}` variable for schema list").
+				Default(`{"schemas": {{SCHEMAS}}}`),
+		).Description("Schema discovery configuration").Optional().Advanced()).
 		Example(
 			"TSV > JSON",
 			"Converts OpenSnowcat/Snowplow enriched TSV events to flattened JSON format, extracting all contexts, derived contexts, and unstruct events into top-level fields.",
@@ -127,7 +145,17 @@ pipeline:
   processors:
     - opensnowcat:
         output_format: json
-
+`,
+		).
+		Example(
+			"TSV > Enriched JSON",
+			"Converts OpenSnowcat/Snowplow enriched TSV to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_schema_name) with version and data fields. Enables simple direct-access queries across all databases without UNNEST operations. Perfect for BigQuery, Snowflake, Databricks, Redshift, and other data warehouses.",
+			`
+pipeline:
+  processors:
+    - opensnowcat:
+        output_format: enriched_json
+# Out: { 'contexts': { 'com_snowplowanalytics_snowplow_web_page': {version: '1-0-0', data: [{id: '...'}] } } }
 `,
 		).
 		Example(
@@ -214,32 +242,6 @@ pipeline:
                 strategy: hash
                 hash_algo: MD5
 `,
-		).
-		Example(
-			"Combined",
-			"Drops unwanted events while transforming sensitive fields in the remaining events. Useful for processing only relevant data while maintaining privacy.",
-			`
-pipeline:
-  processors:
-    - opensnowcat:
-        output_format: json
-        filters:
-          drop:
-            user_ipaddress:
-              contains: ["127.0.0.1", "10.0.", "192.168."]
-            com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily:
-              contains: ["bot", "crawler", "spider"]
-          transform:
-            salt: "production-salt-v1"
-            hash_algo: SHA-256
-            fields:
-              user_id:
-                strategy: hash
-              user_ipaddress:
-                strategy: anonymize_ip
-                anon_octets: 2
-                anon_segments: 3
-`,
 		)
 }
 
@@ -257,16 +259,16 @@ func init() {
 
 type filterCriteria struct {
 	contains []string
-	schemas  []string // Schema patterns like "com.snowplowanalytics.snowplow.ua_parser_context" or "com.vendor.request"
+	schemas  []string
 }
 
 type fieldTransform struct {
-	strategy     string // "hash", "redact", "anonymize_ip"
-	hashAlgo     string // "MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512"
+	strategy     string
+	hashAlgo     string
 	salt         string
 	redactValue  string
-	anonOctets   int // For IPv4 anonymization
-	anonSegments int // For IPv6 anonymization
+	anonOctets   int
+	anonSegments int
 }
 
 type transformConfig struct {
@@ -276,18 +278,20 @@ type transformConfig struct {
 }
 
 type opensnowcatProcessor struct {
-	dropFilters     map[string]*filterCriteria
-	transformConfig *transformConfig
-	outputFormat    string
-	columnIndexMap  map[string]int
-	log             *service.Logger
-	mDropped        *service.MetricCounter
+	dropFilters      map[string]*filterCriteria
+	transformConfig  *transformConfig
+	outputFormat     string
+	columnIndexMap   map[string]int
+	log              *service.Logger
+	mDropped         *service.MetricCounter
+	schemaDiscovery  *schemaDelivery
+	schemasCollected map[string]bool
+	schemasMu        sync.Mutex
 }
 
 func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.Resources) (*opensnowcatProcessor, error) {
 	outputFormat := "tsv"
 
-	// Get output format
 	if conf.Contains(oscFieldOutputFormat) {
 		format, err := conf.FieldString(oscFieldOutputFormat)
 		if err != nil {
@@ -296,13 +300,11 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 		outputFormat = format
 	}
 
-	// Build column index map for TSV parsing (all lowercase)
 	columnIndexMap := make(map[string]int)
 	for i, col := range opensnowcatColumns {
 		columnIndexMap[col] = i
 	}
 
-	// Parse filter configuration
 	dropFilters := make(map[string]*filterCriteria)
 	var transformCfg *transformConfig
 
@@ -312,7 +314,6 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 			return nil, err
 		}
 
-		// Parse drop filters
 		if dropParsed, exists := filtersConf[oscFieldFiltersDrop]; exists {
 			dropAny, _ := dropParsed.FieldAny()
 			if dropConfig, ok := dropAny.(map[string]interface{}); ok {
@@ -320,7 +321,6 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 					if criteriaMap, ok := criteria.(map[string]interface{}); ok {
 						fc := &filterCriteria{}
 
-						// Parse "contains" filter
 						if containsList, ok := criteriaMap["contains"]; ok {
 							if containsSlice, ok := containsList.([]interface{}); ok {
 								for _, item := range containsSlice {
@@ -331,7 +331,6 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 							}
 						}
 
-						// Parse "schemas" filter
 						if schemasList, ok := criteriaMap["schemas"]; ok {
 							if schemasSlice, ok := schemasList.([]interface{}); ok {
 								for _, item := range schemasSlice {
@@ -342,12 +341,10 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 							}
 						}
 
-						// Only add filter if it has criteria
 						if len(fc.contains) > 0 || len(fc.schemas) > 0 {
-							// Normalize field name to lowercase for column matching, but keep schema paths case-sensitive
+
 							normalizedFieldName := fieldName
 							if !strings.Contains(fieldName, ".") || strings.HasPrefix(fieldName, "geo.") || strings.HasPrefix(fieldName, "metrics.") || strings.HasPrefix(fieldName, "site.") {
-								// Regular column name - normalize to lowercase
 								normalizedFieldName = strings.ToLower(fieldName)
 							}
 							dropFilters[normalizedFieldName] = fc
@@ -357,7 +354,6 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 			}
 		}
 
-		// Parse transform config
 		if transformParsed, exists := filtersConf["transform"]; exists {
 			transformAny, _ := transformParsed.FieldAny()
 			if transformMap, ok := transformAny.(map[string]interface{}); ok {
@@ -365,19 +361,16 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 					fields: make(map[string]*fieldTransform),
 				}
 
-				// Parse global salt
 				if salt, ok := transformMap["salt"].(string); ok {
 					transformCfg.salt = salt
 				}
 
-				// Parse global hash_algo
 				if hashAlgo, ok := transformMap["hash_algo"].(string); ok {
 					transformCfg.hashAlgo = hashAlgo
 				} else {
 					transformCfg.hashAlgo = "SHA-256"
 				}
 
-				// Parse fields
 				if fieldsMap, ok := transformMap["fields"].(map[string]interface{}); ok {
 					for fieldName, fieldConfig := range fieldsMap {
 						if fieldCfgMap, ok := fieldConfig.(map[string]interface{}); ok {
@@ -413,10 +406,8 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 								ft.anonSegments = 4
 							}
 
-							// Normalize field name to lowercase for column matching, but keep schema paths case-sensitive
 							normalizedFieldName := fieldName
 							if !strings.Contains(fieldName, ".") || strings.HasPrefix(fieldName, "geo.") || strings.HasPrefix(fieldName, "metrics.") || strings.HasPrefix(fieldName, "site.") {
-								// Regular column name - normalize to lowercase
 								normalizedFieldName = strings.ToLower(fieldName)
 							}
 							transformCfg.fields[normalizedFieldName] = ft
@@ -427,14 +418,81 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 		}
 	}
 
-	return &opensnowcatProcessor{
-		dropFilters:     dropFilters,
-		transformConfig: transformCfg,
-		outputFormat:    outputFormat,
-		columnIndexMap:  columnIndexMap,
-		log:             res.Logger(),
-		mDropped:        res.Metrics().NewCounter("dropped"),
-	}, nil
+	schemasCollected := make(map[string]bool)
+
+	proc := &opensnowcatProcessor{
+		dropFilters:      dropFilters,
+		transformConfig:  transformCfg,
+		outputFormat:     outputFormat,
+		columnIndexMap:   columnIndexMap,
+		log:              res.Logger(),
+		mDropped:         res.Metrics().NewCounter("dropped"),
+		schemasCollected: schemasCollected,
+	}
+
+	if conf.Contains(oscFieldSchemaDiscovery) {
+		sdConf, err := conf.FieldObjectMap(oscFieldSchemaDiscovery)
+		if err != nil {
+			return nil, err
+		}
+
+		enabled := false
+		if enabledVal, exists := sdConf["enabled"]; exists {
+			if enabledBool, err := enabledVal.FieldBool(); err == nil {
+				enabled = enabledBool
+			}
+		}
+
+		if enabled {
+			flushIntervalStr := "5m"
+			if intervalVal, exists := sdConf["flush_interval"]; exists {
+				if intervalStr, err := intervalVal.FieldString(); err == nil {
+					flushIntervalStr = intervalStr
+				}
+			}
+
+			flushInterval, err := time.ParseDuration(flushIntervalStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid flush_interval: %w", err)
+			}
+
+			endpoint := "https://api.snowcatcloud.com/internal/schema-discovery"
+			if endpointVal, exists := sdConf["endpoint"]; exists {
+				if endpointStr, err := endpointVal.FieldString(); err == nil {
+					endpoint = endpointStr
+				}
+			}
+
+			template := `{"schemas": {{SCHEMAS}}}`
+			if templateVal, exists := sdConf["template"]; exists {
+				if templateStr, err := templateVal.FieldString(); err == nil {
+					if templateStr != "" && templateStr != "{}" {
+						template = templateStr
+					}
+				}
+			}
+
+			getSchemas := func() []string {
+				proc.schemasMu.Lock()
+				defer proc.schemasMu.Unlock()
+				schemas := make([]string, 0, len(proc.schemasCollected))
+				for schema := range proc.schemasCollected {
+					schemas = append(schemas, schema)
+				}
+				return schemas
+			}
+
+			clearSchemas := func() {
+				proc.schemasMu.Lock()
+				defer proc.schemasMu.Unlock()
+				proc.schemasCollected = make(map[string]bool)
+			}
+
+			proc.schemaDiscovery = newSchemaDelivery(enabled, flushInterval, endpoint, template, getSchemas, clearSchemas, res.Logger())
+		}
+	}
+
+	return proc, nil
 }
 
 func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
@@ -444,43 +502,49 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 	}
 	tsvString := string(tsvBytes)
 
-	// Parse TSV into columns
 	columns := strings.Split(tsvString, "\t")
 
-	// Check if we have filters to apply
+	if o.schemaDiscovery != nil && o.schemaDiscovery.config.enabled {
+		schemas := o.extractSchemasFromEvent(columns)
+		o.schemasMu.Lock()
+		for _, schema := range schemas {
+			o.schemasCollected[schema] = true
+		}
+		o.schemasMu.Unlock()
+	}
+
 	if len(o.dropFilters) > 0 {
 		if o.shouldDropEventFromTSV(columns) {
 			o.mDropped.Incr(1)
-			return nil, nil // Drop the event
+			return nil, nil
 		}
 	}
 
-	// Apply field transformations if configured
 	if o.transformConfig != nil && len(o.transformConfig.fields) > 0 {
 		o.applyTransformations(columns)
 	}
 
-	// If output format is TSV, reconstruct and return the TSV
 	if o.outputFormat == "tsv" {
 		transformedTSV := strings.Join(columns, "\t")
 		msg = service.NewMessage([]byte(transformedTSV))
 		return service.MessageBatch{msg}, nil
 	}
 
-	// For JSON output, reconstruct TSV then use the Snowplow SDK to parse
 	transformedTSV := strings.Join(columns, "\t")
 	parsedEvent, err := analytics.ParseEvent(transformedTSV)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse OpenSnowcat event: %w", err)
 	}
 
-	// Convert to map - Snowplow SDK already extracts contexts nicely
 	eventMap, err := parsedEvent.ToMap()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert event to map: %w", err)
 	}
 
-	// Set the map as structured data (no extra flattening needed)
+	if o.outputFormat == "enriched_json" {
+		eventMap = o.restructureForEnrichedJSON(eventMap, columns)
+	}
+
 	msg.SetStructuredMut(eventMap)
 
 	return service.MessageBatch{msg}, nil
@@ -488,30 +552,25 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 
 func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 	for fieldName, criteria := range o.dropFilters {
-		// Check if this is a schema property path (e.g., "com.vendor.schema.property")
 		if strings.Contains(fieldName, ".") && !strings.HasPrefix(fieldName, "geo.") && !strings.HasPrefix(fieldName, "metrics.") && !strings.HasPrefix(fieldName, "site.") {
-			// This is a schema property path
 			if o.matchesSchemaProperty(columns, fieldName, criteria) {
 				return true
 			}
 			continue
 		}
 
-		// Regular field filter
 		colIndex, exists := o.columnIndexMap[fieldName]
 		if !exists {
 			o.log.Warnf("Filter field %s not found in column map", fieldName)
 			continue
 		}
 
-		// Check if we have enough columns
 		if colIndex >= len(columns) {
 			continue
 		}
 
 		fieldValue := columns[colIndex]
 
-		// Check contains criteria
 		for _, containsStr := range criteria.contains {
 			if strings.Contains(strings.ToLower(fieldValue), strings.ToLower(containsStr)) {
 				return true
@@ -521,15 +580,8 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 	return false
 }
 
-// matchesSchemaProperty checks if a schema property matches the filter criteria
-// Format: "com.vendor.schema_name.property.nested.path"
-// Example: "com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily"
 func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPath string, criteria *filterCriteria) bool {
-	// Parse the schema path to extract vendor.schema and property path
-	// Example: "com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily"
-	// Need to find where schema ends and property begins
 
-	// Check in contexts, derived_contexts, and unstruct_event fields
 	jsonFields := []string{"contexts", "derived_contexts", "unstruct_event"}
 
 	for _, jsonFieldName := range jsonFields {
@@ -543,10 +595,8 @@ func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPat
 			continue
 		}
 
-		// Try to extract the property value from this JSON field
 		propertyValue := o.extractSchemaPropertyValue(jsonValue, schemaPath)
 		if propertyValue != "" {
-			// Check if the property value matches the filter criteria
 			for _, containsStr := range criteria.contains {
 				if strings.Contains(strings.ToLower(propertyValue), strings.ToLower(containsStr)) {
 					return true
@@ -558,25 +608,19 @@ func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPat
 	return false
 }
 
-// extractSchemaPropertyValue extracts a property value from a JSON field based on schema path
-// Example: "com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily" -> "Chrome"
 func (o *opensnowcatProcessor) extractSchemaPropertyValue(jsonValue string, schemaPath string) string {
 	var data map[string]interface{}
 	if err := json.Unmarshal([]byte(jsonValue), &data); err != nil {
 		return ""
 	}
 
-	// Recursively search for matching schema and extract property
 	return o.searchSchemaProperty(data, schemaPath)
 }
 
-// searchSchemaProperty recursively searches for a schema and extracts the property value
 func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath string) string {
 	switch v := data.(type) {
 	case map[string]interface{}:
-		// Check if this map has a "schema" field
 		if schemaVal, ok := v["schema"].(string); ok && strings.HasPrefix(schemaVal, "iglu:") {
-			// Parse the schema URI
 			schemaURI := strings.TrimPrefix(schemaVal, "iglu:")
 			parts := strings.SplitN(schemaURI, "/", 2)
 			if len(parts) >= 2 {
@@ -584,14 +628,13 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 				schemaParts := strings.Split(parts[1], "/")
 				if len(schemaParts) > 0 {
 					schemaName := schemaParts[0]
-					fullSchema := vendor + "." + schemaName
+					// Build schema key with dots first, then convert to underscores for filter matching
+					dottedSchema := vendor + "." + schemaName
+					fullSchema := strings.ReplaceAll(dottedSchema, ".", "_")
 
-					// Check if this schema matches the path prefix
 					if strings.HasPrefix(schemaPath, fullSchema+".") {
-						// Extract the property path
 						propertyPath := strings.TrimPrefix(schemaPath, fullSchema+".")
 
-						// Look for the property in the "data" field
 						if dataObj, ok := v["data"].(map[string]interface{}); ok {
 							return o.getNestedProperty(dataObj, propertyPath)
 						}
@@ -600,7 +643,6 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 			}
 		}
 
-		// Recursively search nested maps
 		for _, value := range v {
 			result := o.searchSchemaProperty(value, schemaPath)
 			if result != "" {
@@ -609,7 +651,6 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 		}
 
 	case []interface{}:
-		// Recursively search array elements
 		for _, item := range v {
 			result := o.searchSchemaProperty(item, schemaPath)
 			if result != "" {
@@ -621,8 +662,6 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 	return ""
 }
 
-// getNestedProperty gets a nested property value using dot notation
-// Example: "geo.country" from {"geo": {"country": "US"}}
 func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, path string) string {
 	parts := strings.Split(path, ".")
 
@@ -635,7 +674,6 @@ func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, pa
 		}
 	}
 
-	// Convert the final value to string
 	switch v := current.(type) {
 	case string:
 		return v
@@ -650,18 +688,13 @@ func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, pa
 	}
 }
 
-// anonymizeIP anonymizes an IP address by masking octets (IPv4) or segments (IPv6)
 func (o *opensnowcatProcessor) anonymizeIP(ipAddress string, transform *fieldTransform) string {
-	// Determine if this is IPv4 or IPv6
 	if strings.Contains(ipAddress, ":") {
-		// IPv6
 		return o.anonymizeIPv6(ipAddress, transform.anonSegments)
 	}
-	// IPv4
 	return o.anonymizeIPv4(ipAddress, transform.anonOctets)
 }
 
-// anonymizeIPv4 anonymizes an IPv4 address by masking the last N octets
 func (o *opensnowcatProcessor) anonymizeIPv4(ipAddress string, octetsToMask int) string {
 	if octetsToMask <= 0 {
 		return ipAddress
@@ -683,16 +716,13 @@ func (o *opensnowcatProcessor) anonymizeIPv4(ipAddress string, octetsToMask int)
 	return strings.Join(parts, ".")
 }
 
-// anonymizeIPv6 anonymizes an IPv6 address by masking the last N segments
 func (o *opensnowcatProcessor) anonymizeIPv6(ipAddress string, segmentsToMask int) string {
 	if segmentsToMask <= 0 {
 		return ipAddress
 	}
 
-	// Handle compressed IPv6 addresses (::)
 	parts := strings.Split(ipAddress, ":")
 
-	// Mask the last N segments
 	maskedCount := 0
 	for i := len(parts) - 1; i >= 0 && maskedCount < segmentsToMask; i-- {
 		if parts[i] != "" {
@@ -704,21 +734,17 @@ func (o *opensnowcatProcessor) anonymizeIPv6(ipAddress string, segmentsToMask in
 	return strings.Join(parts, ":")
 }
 
-// hashValue hashes a value using the specified algorithm and salt
 func (o *opensnowcatProcessor) hashValue(value string, transform *fieldTransform) string {
-	// Determine which salt to use (field-specific or global default)
 	salt := transform.salt
 	if salt == "" {
 		salt = o.transformConfig.salt
 	}
 
-	// Determine which hash algorithm to use (field-specific or global default)
 	hashAlgo := transform.hashAlgo
 	if hashAlgo == "" {
 		hashAlgo = o.transformConfig.hashAlgo
 	}
 
-	// Combine value with salt
 	input := value + salt
 
 	var hasher hash.Hash
@@ -742,27 +768,23 @@ func (o *opensnowcatProcessor) hashValue(value string, transform *fieldTransform
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// applyTransformations applies field transformations to TSV columns in-place
 func (o *opensnowcatProcessor) applyTransformations(columns []string) {
 	for fieldName, transform := range o.transformConfig.fields {
-		// Get column index
 		colIndex, exists := o.columnIndexMap[fieldName]
 		if !exists {
 			o.log.Warnf("Transform field %s not found in column map", fieldName)
 			continue
 		}
 
-		// Check if we have enough columns
 		if colIndex >= len(columns) {
 			continue
 		}
 
 		originalValue := columns[colIndex]
 		if originalValue == "" {
-			continue // Skip empty values
+			continue
 		}
 
-		// Apply transformation based on strategy
 		switch transform.strategy {
 		case "hash":
 			columns[colIndex] = o.hashValue(originalValue, transform)
@@ -776,6 +798,184 @@ func (o *opensnowcatProcessor) applyTransformations(columns []string) {
 	}
 }
 
+func (o *opensnowcatProcessor) restructureForEnrichedJSON(eventMap map[string]interface{}, columns []string) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	contextsMap := o.parseContextsFromTSV(columns, "contexts")
+	derivedContextsMap := o.parseContextsFromTSV(columns, "derived_contexts")
+	unstructEvent := o.parseUnstructEventFromTSV(columns)
+
+	for key, value := range eventMap {
+		if !strings.HasPrefix(key, "contexts_") &&
+			!strings.HasPrefix(key, "derived_contexts_") &&
+			!strings.HasPrefix(key, "unstruct_event_") {
+			result[key] = value
+		}
+	}
+
+	if len(contextsMap) > 0 {
+		result["contexts"] = contextsMap
+	}
+	if unstructEvent != nil {
+		result["unstruct_event"] = unstructEvent
+	}
+	if len(derivedContextsMap) > 0 {
+		result["derived_contexts"] = derivedContextsMap
+	}
+
+	return result
+}
+
+func (o *opensnowcatProcessor) parseContextsFromTSV(columns []string, fieldName string) map[string]map[string]interface{} {
+	contextsMap := make(map[string]map[string]interface{})
+
+	colIndex, exists := o.columnIndexMap[fieldName]
+	if !exists || colIndex >= len(columns) {
+		return contextsMap
+	}
+
+	jsonValue := columns[colIndex]
+	if jsonValue == "" {
+		return contextsMap
+	}
+
+	var data interface{}
+	if err := json.Unmarshal([]byte(jsonValue), &data); err != nil {
+		o.log.Warnf("Failed to parse %s JSON: %v", fieldName, err)
+		return contextsMap
+	}
+
+	switch v := data.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				o.processContextItem(m, contextsMap)
+			}
+		}
+	case map[string]interface{}:
+		o.processContextItem(v, contextsMap)
+	}
+
+	return contextsMap
+}
+
+// processContextItem processes a single context item and unwraps Snowplow wrapper schemas
+func (o *opensnowcatProcessor) processContextItem(item map[string]interface{}, contextsMap map[string]map[string]interface{}) {
+	schemaURI, ok := item["schema"].(string)
+	if !ok {
+		return
+	}
+
+	vendor, name, version := o.parseSchemaURI(schemaURI)
+	if name == "" {
+		return
+	}
+
+	// For filtering, we use the dotted format (e.g., com.vendor.schema)
+	dottedSchemaKey := vendor + "." + name
+
+	// Check if this is a Snowplow wrapper schema (com.snowplowanalytics.snowplow.contexts)
+	// These wrapper schemas contain an array of actual contexts in their data field
+	if dottedSchemaKey == "com.snowplowanalytics.snowplow.contexts" {
+		// Unwrap: extract the actual contexts from inside the wrapper
+		if dataField, ok := item["data"].([]interface{}); ok {
+			for _, nestedItem := range dataField {
+				if nestedMap, ok := nestedItem.(map[string]interface{}); ok {
+					// Recursively process the unwrapped context
+					o.processContextItem(nestedMap, contextsMap)
+				}
+			}
+		}
+		// Don't add the wrapper itself to the output
+		return
+	}
+
+	// For output, we convert dots to underscores for database compatibility
+	// Replace all dots in the full schema key (vendor.name) with underscores
+	schemaKey := strings.ReplaceAll(dottedSchemaKey, ".", "_")
+
+	// Regular context - add it to the map
+	if _, exists := contextsMap[schemaKey]; !exists {
+		contextsMap[schemaKey] = map[string]interface{}{
+			"version": version,
+			"data":    []interface{}{},
+		}
+	}
+
+	if dataField, ok := item["data"]; ok {
+		dataArray := contextsMap[schemaKey]["data"].([]interface{})
+		dataArray = append(dataArray, dataField)
+		contextsMap[schemaKey]["data"] = dataArray
+	}
+}
+
+func (o *opensnowcatProcessor) parseUnstructEventFromTSV(columns []string) map[string]interface{} {
+	colIndex, exists := o.columnIndexMap["unstruct_event"]
+	if !exists || colIndex >= len(columns) {
+		return nil
+	}
+
+	jsonValue := columns[colIndex]
+	if jsonValue == "" {
+		return nil
+	}
+
+	var unstructMap map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonValue), &unstructMap); err != nil {
+		o.log.Warnf("Failed to parse unstruct_event JSON: %v", err)
+		return nil
+	}
+
+	schemaURI, ok := unstructMap["schema"].(string)
+	if !ok {
+		return nil
+	}
+
+	vendor, name, version := o.parseSchemaURI(schemaURI)
+	if name == "" {
+		return nil
+	}
+
+	// For output, we convert dots to underscores for database compatibility
+	dottedSchemaKey := vendor + "." + name
+	schemaKey := strings.ReplaceAll(dottedSchemaKey, ".", "_")
+
+	var dataArray []interface{}
+	if data, ok := unstructMap["data"]; ok {
+		dataArray = []interface{}{data}
+	}
+
+	return map[string]interface{}{
+		schemaKey: map[string]interface{}{
+			"version": version,
+			"data":    dataArray,
+		},
+	}
+}
+
+func (o *opensnowcatProcessor) parseSchemaURI(schemaURI string) (string, string, string) {
+	if !strings.HasPrefix(schemaURI, "iglu:") {
+		return "", "", ""
+	}
+
+	uri := strings.TrimPrefix(schemaURI, "iglu:")
+
+	parts := strings.Split(uri, "/")
+	if len(parts) < 4 {
+		return "", "", ""
+	}
+
+	vendor := parts[0]
+	schemaName := parts[1]
+	// parts[2] is "jsonschema" or format - skip it
+	version := parts[3]
+
+	return vendor, schemaName, version
+}
+
 func (o *opensnowcatProcessor) Close(context.Context) error {
+	if o.schemaDiscovery != nil {
+		o.schemaDiscovery.stop()
+	}
 	return nil
 }
