@@ -1,0 +1,26 @@
+pipeline:
+  processors:
+    - mapping: |
+        cache_set(resource: "local", key: batch_index().string(), value: content())
+    - mapping: |
+        root = cache_get(resource: "local", key: batch_index().string()) + "_cached"
+
+cache_resources:
+  - label: local
+    memory:
+      default_ttl: 1m
+
+tests:
+  - name: de-duplicate by batches
+    input_batches:
+      -
+        - content: '1'
+        - content: '2'
+        - content: '3'
+        - content: '4'
+    output_batches:
+      -
+        - content_equals: '1_cached'
+        - content_equals: '2_cached'
+        - content_equals: '3_cached'
+        - content_equals: '4_cached'
