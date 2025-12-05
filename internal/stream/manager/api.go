@@ -23,7 +23,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/stream"
 	"github.com/warpstreamlabs/bento/internal/value"
-	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func (m *Type) registerEndpoints(enableCrud bool) {
@@ -65,15 +64,8 @@ type lintErrors struct {
 	LintErrs []string `json:"lint_errors"`
 }
 
-func (m *Type) lintCtx() docs.LintContext {
-	lConf := docs.NewLintConfig(m.manager.Environment())
-	lConf.BloblangEnv = bloblang.XWrapEnvironment(m.manager.BloblEnvironment()).Deactivated()
-	lConf.WarnDeprecated = true
-	return docs.NewLintContext(lConf)
-}
-
 func (m *Type) lintStreamConfigNode(node *yaml.Node) (lints []string, lintWarns []string) {
-	for _, dLint := range stream.Spec().LintYAML(m.lintCtx(), node) {
+	for _, dLint := range stream.Spec().LintYAML(m.lintCtx, node) {
 		if dLint.Level == docs.LintError {
 			lints = append(lints, dLint.Error())
 		}
@@ -563,7 +555,7 @@ func (m *Type) HandleResourceCRUD(w http.ResponseWriter, r *http.Request) {
 		confNode = &node
 
 		if !ignoreLints {
-			for _, l := range docs.LintYAML(m.lintCtx(), docType, &node) {
+			for _, l := range docs.LintYAML(m.lintCtx, docType, &node) {
 				lints = append(lints, l.Error())
 				if l.Level == docs.LintError {
 					m.manager.Logger().Info("Resource '%v' config: %v\n", id, l)
