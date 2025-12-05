@@ -205,3 +205,20 @@ func RegisterBatchScannerCreator(name string, spec *ConfigSpec, ctor BatchScanne
 func RegisterTemplateYAML(yamlStr string) error {
 	return globalEnvironment.RegisterTemplateYAML(yamlStr)
 }
+
+// ManagedConstructor is a func that's provided access to a service manager and
+// must return an error if the initialization fails.
+//
+// Experimental: This type signature is experimental and therefore subject to
+// change outside of major version releases.
+type ManagedConstructor func(mgr LimitedResources) error
+
+// RegisterManagedConstructor attempts to register a non-specific constructor that
+// will be called during service initialization with access to service resources.
+// The constructor will be called once during environment setup.
+//
+// Experimental: This type signature is experimental and therefore subject to
+// change outside of major version releases.
+func RegisterManagedConstructor(ctor ManagedConstructor) error {
+	return globalEnvironment.RegisterManagedConstructor(ctor)
+}
