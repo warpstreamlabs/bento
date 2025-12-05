@@ -456,6 +456,16 @@ func (e *Environment) RegisterBatchProcessor(name string, spec *ConfigSpec, ctor
 	}, componentSpec)
 }
 
+// RegisterManagedConstructor attempts to register a managed constructor that
+// will be called during environment initialization with access to service
+// resources. The constructor will be called once during environment setup.
+func (e *Environment) RegisterManagedConstructor(ctor ManagedConstructor) error {
+	return e.internal.ConstructorAdd(func(nm bundle.NewManagement) error {
+		res := newResourcesFromManager(nm)
+		return ctor(res)
+	})
+}
+
 // WalkProcessors executes a provided function argument for every processor
 // component that has been registered to the environment.
 func (e *Environment) WalkProcessors(fn func(name string, config *ConfigView)) {

@@ -18,6 +18,28 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 )
 
+var _ LimitedResources = (*Resources)(nil)
+
+// LimitedResources provides constrained access a subset of resources
+// that are deemed safe for use within any component.
+//
+// Future versions will likely see this interface replaced entirely
+// by the `service.Resources` implementation. However, while this functionality
+// is still evolving, preventing full-access is safer.
+//
+// While this can be circumvented with type-assertions, it is strongly
+// discouraged and should be done so at your own risk.
+//
+// Experimental: This interface is experimental and therefore subject to
+// change outside of major version releases.
+type LimitedResources interface {
+	AccessCache(ctx context.Context, name string, fn func(c Cache)) error
+	AccessRateLimit(ctx context.Context, name string, fn func(r RateLimit)) error
+
+	HasCache(name string) bool
+	HasRateLimit(name string) bool
+}
+
 // Resources provides access to service-wide resources.
 type Resources struct {
 	mgr bundle.NewManagement
