@@ -1,4 +1,3 @@
-// Syntax Highlighting - For display purposes only, not validation
 function syntaxHighlightJSON(json) {
   if (typeof json !== "string") {
     json = JSON.stringify(json, null, 2);
@@ -29,7 +28,6 @@ function syntaxHighlightJSON(json) {
   );
 }
 
-// Clipboard Operations
 async function copyToClipboard(text, successMessage = "Copied to clipboard!") {
   try {
     await navigator.clipboard.writeText(text);
@@ -47,7 +45,6 @@ async function copyToClipboard(text, successMessage = "Copied to clipboard!") {
   }
 }
 
-// File Download
 function downloadFile(content, filename, contentType = "text/plain") {
   const blob = new Blob([content], { type: contentType });
   const url = window.URL.createObjectURL(blob);
@@ -58,7 +55,6 @@ function downloadFile(content, filename, contentType = "text/plain") {
   window.URL.revokeObjectURL(url);
 }
 
-// JSON utilities
 function isValidJSON(str) {
   try {
     JSON.parse(str);

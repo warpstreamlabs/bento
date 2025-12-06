@@ -1,5 +1,3 @@
-// Package blobl provides core functionality for the Bloblang language playground,
-// including code execution, syntax highlighting, autocompletion, and formatting.
 package blobl
 
 import (
@@ -17,38 +15,25 @@ import (
 	"github.com/warpstreamlabs/bento/internal/value"
 )
 
-// Configuration constants
 const (
-	// Autocompletion limits
-	maxBeforeCursorLength = 1000
-
-	// Formatting configuration
-	indentSize = 2
-
-	// Placeholder prefixes for string protection during formatting
+	maxBeforeCursorLength    = 1000
+	indentSize               = 2
 	stringLiteralPlaceholder = "BLOBLANG_STRING_LITERAL_"
 	lambdaPlaceholder        = "BLOBLANG_LAMBDA_"
-
-	// Documentation base URL
-	docsBaseURL = "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
+	docsBaseURL              = "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
 )
 
-// Compiled regex patterns for formatting (compiled once at package initialization)
+// Compiled regex patterns for formatting
 var (
-	// Whitespace cleanup
 	multipleSpacesRegex = regexp.MustCompile(`\s{2,}`)
-
-	// Logical operators
-	logicalAndRegex = regexp.MustCompile(`\s*&&\s*`)
-	logicalOrRegex  = regexp.MustCompile(`\s*\|\|\s*`)
-
-	// Comparison operators
-	equalityRegex     = regexp.MustCompile(`\s*==\s*`)
-	inequalityRegex   = regexp.MustCompile(`\s*!=\s*`)
-	greaterEqualRegex = regexp.MustCompile(`\s*>=\s*`)
-	lessEqualRegex    = regexp.MustCompile(`\s*<=\s*`)
-	greaterThanRegex  = regexp.MustCompile(`\s*>\s*`)
-	lessThanRegex     = regexp.MustCompile(`\s*<\s*`)
+	logicalAndRegex     = regexp.MustCompile(`\s*&&\s*`)
+	logicalOrRegex      = regexp.MustCompile(`\s*\|\|\s*`)
+	equalityRegex       = regexp.MustCompile(`\s*==\s*`)
+	inequalityRegex     = regexp.MustCompile(`\s*!=\s*`)
+	greaterEqualRegex   = regexp.MustCompile(`\s*>=\s*`)
+	lessEqualRegex      = regexp.MustCompile(`\s*<=\s*`)
+	greaterThanRegex    = regexp.MustCompile(`\s*>\s*`)
+	lessThanRegex       = regexp.MustCompile(`\s*<\s*`)
 )
 
 // newExecCache creates a new execution cache for running mappings.
@@ -190,8 +175,7 @@ func executeBloblangMapping(env *bloblang.Environment, input, mapping string) *e
 }
 
 // validateBloblangMapping validates a Bloblang mapping without executing it.
-// Note: Not currently used by the playground UI ('execute' already validates), but exposed
-// for future integrations / consumers
+// Note: Not currently used by the playground UI ('execute' already validates).
 func validateBloblangMapping(env *bloblang.Environment, mapping string) ValidationResponse {
 	if mapping == "" {
 		return ValidationResponse{
@@ -220,7 +204,6 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	functions := make(map[string]functionSpecWithHTML)
 	methods := make(map[string]methodSpecWithHTML)
 
-	// Walk all functions: uuid(), timestamp(), etc.
 	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
 		wrapper := FunctionSpecWrapper{spec}
 		functions[name] = functionSpecWithHTML{
@@ -230,7 +213,6 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 		functionNames = append(functionNames, name)
 	})
 
-	// Walk all methods: .uppercase(), .split(), etc.
 	env.WalkMethods(func(name string, spec query.MethodSpec) {
 		wrapper := MethodSpecWrapper{spec}
 		methods[name] = methodSpecWithHTML{
@@ -259,23 +241,21 @@ func formatBloblangMapping(env *bloblang.Environment, mapping string) FormatMapp
 		}
 	}
 
-	// Parse the mapping to validate it
 	_, err := env.NewMapping(mapping)
 	if err != nil {
 		return FormatMappingResponse{
 			Success:   false,
 			Error:     fmt.Sprintf("Parse error: %v", err),
-			Formatted: mapping, // Return original on error
+			Formatted: mapping,
 		}
 	}
 
-	// Format using AST structure
 	formatted, formatErr := formatBloblang(mapping)
 	if formatErr != nil {
 		return FormatMappingResponse{
 			Success:   false,
 			Error:     formatErr.Error(),
-			Formatted: mapping, // Return original on error
+			Formatted: mapping,
 		}
 	}
 
@@ -288,7 +268,6 @@ func formatBloblangMapping(env *bloblang.Environment, mapping string) FormatMapp
 
 // generateAutocompletion provides context-aware autocompletion for Bloblang
 func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) AutocompletionResponse {
-	// Validate input
 	if err := validateAutocompletionRequest(req); err != nil {
 		return AutocompletionResponse{
 			Completions: []CompletionItem{},
@@ -305,7 +284,6 @@ func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest
 		}
 	}
 
-	// Get cached syntax data
 	syntaxData, err := getOrGenerateSyntax(env)
 	if err != nil {
 		return AutocompletionResponse{
@@ -317,7 +295,6 @@ func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest
 
 	var completions []CompletionItem
 
-	// Determine context: method vs function/keyword context
 	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
 	if isMethodContext {
 		completions = append(completions, getCompletions(syntaxData.Methods)...)

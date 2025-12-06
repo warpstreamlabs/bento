@@ -5,7 +5,7 @@ class UIManager {
     this.horizontalResizer = document.getElementById("horizontalResizer");
     this.themeToggle = document.getElementById("themeToggle");
     this.currentTheme = this.getInitialTheme();
-    this.rotationAngle = 0; // Track current rotation for smooth animations
+    this.rotationAngle = 0;
   }
 
   init() {
@@ -36,12 +36,11 @@ class UIManager {
   }
 
   toggleTheme() {
-    // Smooth rotation using CSS transforms
     if (this.themeToggle) {
       const icon = this.themeToggle.querySelector(".theme-icon");
 
       if (icon) {
-        this.rotationAngle += 360; // Add 360 degrees to current rotation
+        this.rotationAngle += 360;
         icon.style.transform = `rotate(${this.rotationAngle}deg)`;
       }
     }
@@ -51,17 +50,14 @@ class UIManager {
   }
 
   setupTheme() {
-    // Apply initial theme
     this.setTheme(this.currentTheme);
 
-    // Setup dark mode toggle button
     if (this.themeToggle) {
       this.themeToggle.addEventListener("click", () => {
         this.toggleTheme();
       });
     }
 
-    // Listen for system theme changes when no stored preference
     if (!this.getStoredTheme()) {
       window
         .matchMedia("(prefers-color-scheme: dark)")
@@ -128,12 +124,10 @@ class UIManager {
 
     document.body.appendChild(notification);
 
-    // Trigger animation after DOM insertion
     requestAnimationFrame(() => {
       notification.classList.add("notification-show");
     });
 
-    // Auto-dismiss notification
     const duration = type === "warning" ? 5000 : 3000;
     setTimeout(() => {
       notification.classList.remove("notification-show");
@@ -152,7 +146,6 @@ class UIManager {
       badge.textContent = message;
       badge.className = `status-badge show ${status}`;
 
-      // Auto-hide after delay (except for errors)
       setTimeout(() => {
         if (!badge.classList.contains("error")) {
           badge.classList.remove("show");

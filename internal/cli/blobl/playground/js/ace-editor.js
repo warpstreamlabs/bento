@@ -26,13 +26,8 @@ class EditorManager {
     this.defaultInput = defaultInput || window.DEFAULT_INPUT;
     this.defaultMapping = defaultMapping || window.DEFAULT_MAPPING;
 
-    // State persistence
     this.stateStored = true;
   }
-
-  // ─────────────────────────────────────────────────────
-  // Initialization & Setup
-  // ─────────────────────────────────────────────────────
 
   async init(callbacks = {}) {
     if (!ace) {
@@ -41,24 +36,18 @@ class EditorManager {
     }
 
     this.callbacks = callbacks;
-
     this.loadState();
 
     // Prevent ACE from loading external snippet files
     ace.config.setModuleUrl("ace/snippets/coffee", "data:text/javascript,");
-
-    // Initialize basic ACE theme
     ace.define(THEME_BENTO, function (require, exports, module) {
       exports.cssClass = "ace-bento";
     });
 
     try {
-      // Initialize plain editors
       this.configureInputEditor();
       this.configureMappingEditor();
       this.registerEditorChangeHandlers();
-
-      // Load Bloblang syntax asynchronously
       this.loadSyntaxAsync();
     } catch (error) {
       console.warn("ACE editor failed to load, falling back to textarea");
@@ -89,7 +78,6 @@ class EditorManager {
   }
 
   async loadSyntaxAsync() {
-    // Try loading syntax immediately
     await this.loadSyntax();
 
     // If WASM mode and not loaded, retry (WASM may still be initializing)
@@ -98,12 +86,10 @@ class EditorManager {
       await this.loadSyntax();
     }
 
-    // Silently skip if syntax not loaded yet (it may still be loading)
     if (!this.syntaxLoaded) {
       return;
     }
 
-    // Setup editor features
     this.setupTheme();
     this.applyBloblangMode();
     this.configureAutocompletion();
@@ -111,10 +97,9 @@ class EditorManager {
   }
 
   setupTheme() {
-    const rules = this.bloblangSyntax?.rules || [];
-
     // Force reload the mode by using a unique ID each time
     const modeId = MODE_BLOBLANG + "_" + Date.now();
+    const rules = this.bloblangSyntax?.rules || [];
 
     ace.define(modeId, function (require, exports, module) {
       const oop = require("../lib/oop");
@@ -141,13 +126,8 @@ class EditorManager {
       exports.Mode = BloblangMode;
     });
 
-    // Update the mode constant to the new ID
     this.currentBloblangMode = modeId;
   }
-
-  // ─────────────────────────────────────────────────────
-  // Editor Initialization
-  // ─────────────────────────────────────────────────────
 
   configureInputEditor() {
     const inputEl = this.getElement(DOM_IDS.aceInput);
@@ -168,7 +148,6 @@ class EditorManager {
     const contentWithNewline = this.defaultMapping.trimEnd() + "\n"; // Trailing newline
     this.aceMappingEditor.setValue(contentWithNewline, 1);
 
-    // Use coffee mode initially for basic syntax highlighting
     this.aceMappingEditor.session.setMode("ace/mode/coffee");
     this.aceMappingEditor.setTheme(THEME_BENTO);
     this.addMappingEditorCommands(this.aceMappingEditor);
@@ -187,13 +166,11 @@ class EditorManager {
   applyBloblangMode() {
     if (!this.aceMappingEditor) return;
 
-    // Apply enhanced Bloblang mode
     this.aceMappingEditor.session.setMode(
       this.currentBloblangMode || MODE_BLOBLANG
     );
   }
 
-  // Method to refresh syntax highlighting with new rules
   refreshSyntaxHighlighting() {
     if (this.aceMappingEditor && this.currentBloblangMode) {
       this.aceMappingEditor.session.setMode(this.currentBloblangMode);
@@ -209,11 +186,9 @@ class EditorManager {
   }
 
   configureFallbackEditors() {
-    // Show fallback textareas
     this.toggleEditorDisplay(DOM_IDS.aceInput, DOM_IDS.fallbackInput);
     this.toggleEditorDisplay(DOM_IDS.aceMapping, DOM_IDS.fallbackMapping);
 
-    // Set up fallback listeners
     this.getElement(DOM_IDS.fallbackInput)?.addEventListener("input", () =>
       this.handleInputChange()
     );
@@ -248,10 +223,10 @@ class EditorManager {
     clearTimeout(this.saveStateTimeout);
     this.saveStateTimeout = setTimeout(() => this.saveState(), 1000);
   }
+
   /**
-   * Modifies ACE Editor's "toggleComment" command to insert a trailing newline
-   * when commenting the last line. This prevents Bloblang parse errors that occur
-   * if the final line is a comment without a newline.
+   * Insert trailing newline when commenting the last line.
+   * Prevents Bloblang parse errors when last line is a comment without a newline.
    */
   overrideCommentShortcut(editor) {
     const originalCommand = editor.commands.commands["togglecomment"];
@@ -267,7 +242,6 @@ class EditorManager {
         const lastLineIndex = session.getLength() - 1;
         const lastLine = session.getLine(lastLineIndex);
 
-        // Adds a trailing newline to prevent parse errors on final comment lines
         if (
           lastLineIndex === editorInstance.getCursorPosition().row &&
           lastLine.trim().startsWith("#")
@@ -277,10 +251,6 @@ class EditorManager {
       },
     });
   }
-
-  // ─────────────────────────────────────────────────────
-  // Autocompletion Logic
-  // ─────────────────────────────────────────────────────
 
   static BLOBLANG_KEYWORDS = [
     { name: "root", description: "The root of the output document" },
@@ -292,12 +262,7 @@ class EditorManager {
   ];
 
   configureAutocompletion() {
-    if (!this.aceMappingEditor) return;
-
-    // Silently skip if syntax not loaded yet (it may still be loading)
-    if (!this.syntaxLoaded || !this.bloblangSyntax) {
-      return;
-    }
+    if (!this.aceMappingEditor || !this.syntaxLoaded || !this.bloblangSyntax) return;
 
     try {
       const completer = {
@@ -359,7 +324,6 @@ class EditorManager {
   }
 
   setupDocumentationClickHandlers() {
-    // Make header and signature section clickable
     document.addEventListener("click", (event) => {
       const clickedHeader = event.target.closest(".ace-doc-header");
       const clickedSignature = event.target.closest(".ace-doc-signature");
@@ -377,10 +341,6 @@ class EditorManager {
       }
     });
   }
-
-  // ─────────────────────────────────────────────────────
-  // Data Accessors
-  // ─────────────────────────────────────────────────────
 
   /**
    * Gets the current input value from the editor or fallback.
@@ -441,10 +401,6 @@ class EditorManager {
   getElement(id) {
     return document.getElementById(id);
   }
-
-  // ─────────────────────────────────────────────────────
-  // State Persistence
-  // ─────────────────────────────────────────────────────
 
   loadState() {
     if (!this.stateStored) return;

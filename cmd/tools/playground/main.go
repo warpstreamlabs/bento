@@ -7,7 +7,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
-// main initializes and exposes Bloblang playground functions to JavaScript via WebAssembly
+// main initializes and exposes Bloblang playground functions to JS via WASM
 func main() {
 	blobl.InitializeWASM()
 	select {} // Keeps Go runtime alive to handle JS calls

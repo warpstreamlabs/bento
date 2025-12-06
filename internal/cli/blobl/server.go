@@ -4,7 +4,6 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -15,192 +14,22 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
-	"sync"
 	"syscall"
-	"time"
 
 	"github.com/urfave/cli/v2"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
-	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
 
-type httpEndpoint struct {
-	Path    string
-	Handler http.HandlerFunc
-}
-
-// getRegisteredEndpoints creates the list of HTTP endpoints for the playground server.
-// Add new endpoints here to expose them.
-func getRegisteredEndpoints(fSync *fileSync) []httpEndpoint {
-	return []httpEndpoint{
-		// Core operations
-		{"/execute", serveExecute(fSync)}, // Execute Bloblang mapping on JSON input
-		{"/validate", serveValidate()},    // Validate Bloblang mapping without executing
-
-		// Editor tooling
-		{"/syntax", serveSyntax()},             // Get Bloblang syntax metadata for editor
-		{"/format", serveFormat()},             // Format Bloblang mapping with indentation
-		{"/autocomplete", serveAutocomplete()}, // Provide autocompletion suggestions
-	}
-}
-
-// Default playground values
 const (
 	defaultPlaygroundInput   = `{"name": "bento", "type": "stream_processor", "features": ["fast", "fancy"], "stars": 1500}`
 	defaultPlaygroundMapping = `root.about = "%s 🍱 is a %s %s".format(this.name.capitalize(), this.features.join(" & "), this.type.split("_").join(" "))
 root.stars = "★".repeat((this.stars / 300))`
 )
 
-type fileSync struct {
-	mut sync.Mutex
-
-	dirty         bool
-	mappingString string
-	inputString   string
-
-	writeBack   bool
-	mappingFile string
-	inputFile   string
-}
-
 //go:embed playground
 var playgroundFS embed.FS
-
 var bloblangPlaygroundPage string
-
-// serveExecute handles mapping execution requests for server mode
-func serveExecute(fSync *fileSync) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		req := struct {
-			Mapping string `json:"mapping"`
-			Input   string `json:"input"`
-		}{}
-		dec := json.NewDecoder(r.Body)
-		if err := dec.Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		fSync.update(req.Input, req.Mapping)
-
-		result := executeBloblangMapping(bloblang.GlobalEnvironment(), req.Input, req.Mapping)
-
-		resBytes, err := json.Marshal(struct {
-			Result       any `json:"result"`
-			ParseError   any `json:"parse_error"`
-			MappingError any `json:"mapping_error"`
-		}{
-			Result:       result.Result,
-			ParseError:   result.ParseError,
-			MappingError: result.MappingError,
-		})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		_, _ = w.Write(resBytes)
-	}
-}
-
-// serveFormat handles formatting requests for server mode
-func serveFormat() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var request struct {
-			Mapping string `json:"mapping"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		if request.Mapping == "" {
-			http.Error(w, "Mapping cannot be empty", http.StatusBadRequest)
-			return
-		}
-
-		response := formatBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
-
-// serveAutocomplete handles autocompletion requests for server mode
-func serveAutocomplete() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var request AutocompletionRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		response := generateAutocompletion(bloblang.GlobalEnvironment(), request)
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
-
-// serveValidate handles validation requests for server mode.
-// Note: Not currently used by the playground UI ('execute' already validates), but exposed
-// for future integrations / consumers
-func serveValidate() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var request struct {
-			Mapping string `json:"mapping"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		response := validateBloblangMapping(bloblang.GlobalEnvironment(), request.Mapping)
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
-
-// serveSyntax handles syntax metadata requests for server mode
-func serveSyntax() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost && r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(syntax); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
 
 func init() {
 	page, err := playgroundFS.ReadFile("playground/index.html")
@@ -210,20 +39,232 @@ func init() {
 	bloblangPlaygroundPage = string(page)
 }
 
-func openBrowserAt(url string) {
-	switch runtime.GOOS {
-	case "linux":
-		_ = exec.Command("xdg-open", url).Start()
-	case "windows":
-		_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	case "darwin":
-		_ = exec.Command("open", url).Start()
+type server struct {
+	env   *bloblang.Environment
+	fSync *fileSync
+	mux   *http.ServeMux
+}
+
+func newServer(inputFile, mappingFile string, writeBack bool) *server {
+	return &server{
+		env:   bloblang.GlobalEnvironment(),
+		fSync: newFileSync(inputFile, mappingFile, writeBack),
+		mux:   http.NewServeMux(),
 	}
 }
 
-// Generates and marshals the Bloblang syntax spec as template.JS for HTML templates
-func generateBloblangSyntaxTemplate() (template.JS, error) {
-	syntax, err := generateBloblangSyntax(bloblang.GlobalEnvironment())
+func (s *server) registerRoutes() error {
+	// API endpoints
+	s.mux.HandleFunc("/execute", s.handleExecute)
+	s.mux.HandleFunc("/validate", s.handleValidate)
+	s.mux.HandleFunc("/syntax", s.handleSyntax)
+	s.mux.HandleFunc("/format", s.handleFormat)
+	s.mux.HandleFunc("/autocomplete", s.handleAutocomplete)
+
+	// Static assets
+	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")
+	if err != nil {
+		return fmt.Errorf("failed to get assets subFS: %w", err)
+	}
+	jsFS, err := fs.Sub(playgroundFS, "playground/js")
+	if err != nil {
+		return fmt.Errorf("failed to get js subFS: %w", err)
+	}
+
+	s.mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
+	s.mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(jsFS))))
+
+	// Index page
+	s.mux.HandleFunc("/", s.handleIndex)
+
+	return nil
+}
+
+func (s *server) listenAndServe(host, port string, noOpen bool) error {
+	bindAddress := host + ":" + port
+
+	if !noOpen {
+		u, err := url.Parse("http://localhost:" + port)
+		if err != nil {
+			return fmt.Errorf("failed to parse URL: %w", err)
+		}
+		openBrowserAt(u.String())
+	}
+
+	fmt.Printf("✓ Playground serving at: http://%s\n", bindAddress)
+
+	server := &http.Server{
+		Addr:    bindAddress,
+		Handler: s.mux,
+	}
+
+	go s.handleShutdown(server)
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("failed to listen and serve: %w", err)
+	}
+	return nil
+}
+
+func (s *server) handleShutdown(server *http.Server) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	<-sigChan
+	s.fSync.write() // Ensure final write before shutdown
+	_ = server.Shutdown(context.Background())
+}
+
+func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	indexTemplate := template.Must(template.New("index").Parse(bloblangPlaygroundPage))
+
+	bloblangSyntaxTemplate, err := s.generateSyntaxTemplate()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	initialInputJSON, _ := json.Marshal(s.fSync.input())
+	initialMappingJSON, _ := json.Marshal(s.fSync.mapping())
+
+	err = indexTemplate.Execute(w, struct {
+		WasmMode       bool
+		InitialInput   template.JS
+		InitialMapping template.JS
+		BloblangSyntax template.JS
+	}{
+		WasmMode:       false, // WASM not available in server mode
+		InitialInput:   template.JS(initialInputJSON),
+		InitialMapping: template.JS(initialMappingJSON),
+		BloblangSyntax: bloblangSyntaxTemplate,
+	})
+
+	if err != nil {
+		http.Error(w, "Template error", http.StatusInternalServerError)
+	}
+}
+
+func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Mapping string `json:"mapping"`
+		Input   string `json:"input"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.fSync.update(req.Input, req.Mapping)
+
+	response := executeBloblangMapping(s.env, req.Input, req.Mapping)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(struct {
+		Result       any `json:"result"`
+		ParseError   any `json:"parse_error"`
+		MappingError any `json:"mapping_error"`
+	}{
+		Result:       response.Result,
+		ParseError:   response.ParseError,
+		MappingError: response.MappingError,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *server) handleFormat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request struct {
+		Mapping string `json:"mapping"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if request.Mapping == "" {
+		http.Error(w, "Mapping cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	response := formatBloblangMapping(s.env, request.Mapping)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *server) handleAutocomplete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request AutocompletionRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	response := generateAutocompletion(s.env, request)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *server) handleSyntax(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response, err := generateBloblangSyntax(s.env)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// Note: Not currently used by the playground UI ('execute' already validates)
+func (s *server) handleValidate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request struct {
+		Mapping string `json:"mapping"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	response := validateBloblangMapping(s.env, request.Mapping)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *server) generateSyntaxTemplate() (template.JS, error) {
+	syntax, err := generateBloblangSyntax(s.env)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
 	}
@@ -236,174 +277,35 @@ func generateBloblangSyntaxTemplate() (template.JS, error) {
 	return template.JS(jsonBytes), nil
 }
 
-func newFileSync(inputFile, mappingFile string, writeBack bool) *fileSync {
-	f := &fileSync{
-		inputString:   defaultPlaygroundInput,
-		mappingString: defaultPlaygroundMapping,
-		writeBack:     writeBack,
-		inputFile:     inputFile,
-		mappingFile:   mappingFile,
-	}
-
-	if inputFile != "" {
-		inputBytes, err := ifs.ReadFile(ifs.OS(), inputFile)
-		if err != nil {
-			if !writeBack || !errors.Is(err, fs.ErrNotExist) {
-				log.Fatal(err)
-			}
-		} else {
-			f.inputString = string(inputBytes)
-		}
-	}
-
-	if mappingFile != "" {
-		mappingBytes, err := ifs.ReadFile(ifs.OS(), mappingFile)
-		if err != nil {
-			if !writeBack || !errors.Is(err, fs.ErrNotExist) {
-				log.Fatal(err)
-			}
-		} else {
-			f.mappingString = string(mappingBytes)
-		}
-	}
-
-	if writeBack {
-		go func() {
-			t := time.NewTicker(time.Second * 5)
-			for {
-				<-t.C
-				f.write()
-			}
-		}()
-	}
-
-	return f
-}
-
-func (f *fileSync) update(input, mapping string) {
-	f.mut.Lock()
-	if mapping != f.mappingString || input != f.inputString {
-		f.dirty = true
-	}
-	f.mappingString = mapping
-	f.inputString = input
-	f.mut.Unlock()
-}
-
-func (f *fileSync) write() {
-	f.mut.Lock()
-	defer f.mut.Unlock()
-
-	if !f.writeBack || !f.dirty {
+func openBrowserAt(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
 		return
 	}
-
-	if f.inputFile != "" {
-		if err := ifs.WriteFile(ifs.OS(), f.inputFile, []byte(f.inputString), 0o644); err != nil {
-			log.Printf("Failed to write input file: %v\n", err)
-		}
-	}
-	if f.mappingFile != "" {
-		if err := ifs.WriteFile(ifs.OS(), f.mappingFile, []byte(f.mappingString), 0o644); err != nil {
-			log.Printf("Failed to write mapping file: %v\n", err)
-		}
-	}
-	f.dirty = false
-}
-
-func (f *fileSync) input() string {
-	f.mut.Lock()
-	defer f.mut.Unlock()
-	return f.inputString
-}
-
-func (f *fileSync) mapping() string {
-	f.mut.Lock()
-	defer f.mut.Unlock()
-	return f.mappingString
+	_ = cmd.Start()
 }
 
 func runPlayground(c *cli.Context) error {
-	fSync := newFileSync(c.String("input-file"), c.String("mapping-file"), c.Bool("write"))
-	defer fSync.write()
+	server := newServer(
+		c.String("input-file"),
+		c.String("mapping-file"),
+		c.Bool("write"),
+	)
 
-	mux := http.NewServeMux()
-
-	// Register all API endpoints from the registry
-	for _, ep := range getRegisteredEndpoints(fSync) {
-		mux.HandleFunc(ep.Path, ep.Handler)
-	}
-
-	assetsFS, err := fs.Sub(playgroundFS, "playground/assets")
-	if err != nil {
-		return fmt.Errorf("failed to get assets subFS: %w", err)
-	}
-	jsFS, err := fs.Sub(playgroundFS, "playground/js")
-	if err != nil {
-		return fmt.Errorf("failed to get js subFS: %w", err)
-	}
-
-	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
-	mux.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.FS(jsFS))))
-
-	indexTemplate := template.Must(template.New("index").Parse(bloblangPlaygroundPage))
-	bloblangSyntaxTemplate, err := generateBloblangSyntaxTemplate()
-	if err != nil {
+	if err := server.registerRoutes(); err != nil {
 		return err
 	}
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Convert strings to JSON for safe template injection
-		initialInputJSON, _ := json.Marshal(fSync.input())
-		initialMappingJSON, _ := json.Marshal(fSync.mapping())
-
-		err := indexTemplate.Execute(w, struct {
-			WasmMode       bool
-			InitialInput   template.JS
-			InitialMapping template.JS
-			BloblangSyntax template.JS
-		}{
-			false, // WASM not available in server mode
-			template.JS(initialInputJSON),
-			template.JS(initialMappingJSON),
-			bloblangSyntaxTemplate,
-		})
-
-		if err != nil {
-			http.Error(w, "Template error", http.StatusBadGateway)
-			return
-		}
-	})
-
-	host, port := c.String("host"), c.String("port")
-	bindAddress := host + ":" + port
-
-	if !c.Bool("no-open") {
-		u, err := url.Parse("http://localhost:" + port)
-		if err != nil {
-			return fmt.Errorf("failed to parse URL: %w", err)
-		}
-		openBrowserAt(u.String())
-	}
-
-	fmt.Printf("✓ Playground serving at: http://%s\n", bindAddress)
-
-	server := http.Server{
-		Addr:    bindAddress,
-		Handler: mux,
-	}
-
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-		// Wait for termination signal
-		<-sigChan
-		_ = server.Shutdown(context.Background())
-	}()
-
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("failed to listen and serve: %w", err)
-	}
-	return nil
+	return server.listenAndServe(
+		c.String("host"),
+		c.String("port"),
+		c.Bool("no-open"),
+	)
 }
