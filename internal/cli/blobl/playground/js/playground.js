@@ -1,5 +1,5 @@
 class BloblangPlayground {
-  static CONNECTION_ERROR_DELAY = 3000; // 3 seconds before showing connection errors
+  static CONNECTION_ERROR_DELAY = 3000;
 
   constructor() {
     // If BLOBLANG_SYNTAX is defined in index.html, we're running through the Go server
@@ -39,7 +39,6 @@ class BloblangPlayground {
     // Check if playground is in an iframe to sync light/dark mode with parent window (Docusaurus)
     if (window.parent !== window) {
       this.setupDocusaurusThemeSync();
-      // Add embedded class for enhanced sizing
       document.body.classList.add("embedded");
     }
 
@@ -48,7 +47,6 @@ class BloblangPlayground {
 
   async init() {
     try {
-      // Initialize basic editor
       this.editor.init({
         onInputChange: () => {
           this.debouncedExecute("input");
@@ -58,11 +56,9 @@ class BloblangPlayground {
         },
       });
 
-      // Show basic editor
       this.ui.init();
       this.editor.setupDocumentationClickHandlers();
 
-      // Initialize API before executing
       if (this.state.executionMode === "wasm") {
         // WASM mode: load WASM then setup API
         await this.wasm.load();
@@ -75,18 +71,14 @@ class BloblangPlayground {
 
         if (!this.editor.syntaxLoaded) {
           await this.editor.loadSyntax();
-          // Re-setup theme with new syntax rules
           this.editor.setupTheme();
           this.editor.configureAutocompletion();
-          // Refresh the mapping editor to apply new highlighting
           this.editor.refreshSyntaxHighlighting();
         }
       } else {
-        // Server mode
         this.api = new BloblangAPI("server");
       }
 
-      // Hide loading and execute now that API is ready
       this.hideLoading();
       this.execute();
     } catch (error) {
@@ -100,20 +92,16 @@ class BloblangPlayground {
     }
   }
 
-
   setupDocusaurusThemeSync() {
-    // Hide the theme toggle since parent handles theming
     const themeToggle = document.getElementById("themeToggle");
     if (themeToggle) {
       themeToggle.style.display = "none";
     }
 
-    // Listen for theme changes from parent window
     window.addEventListener("message", (event) => {
       if (event.data.type === "docusaurus-theme-change") {
         const isDark = event.data.theme === "dark";
 
-        // Set data-theme attribute on document element
         document.documentElement.setAttribute(
           "data-theme",
           isDark ? "dark" : "light"
@@ -121,15 +109,12 @@ class BloblangPlayground {
       }
     });
 
-    // Request theme from parent
     window.parent.postMessage({ type: "request-theme" }, "*");
   }
 
   bindEvents() {
-    // Button clicks
     document.addEventListener("click", (e) => this.handleAction(e));
 
-    // File inputs
     this.elements.inputFileInput.addEventListener("change", (e) =>
       this.handleFileLoad(e, "input")
     );
@@ -160,7 +145,6 @@ class BloblangPlayground {
     if (this.state.isExecuting) return;
     this.state.isExecuting = true;
 
-    // Track first execution time for delayed error handling
     if (!this.state.firstExecutionStartTime) {
       this.state.firstExecutionStartTime = Date.now();
     }
@@ -234,7 +218,6 @@ class BloblangPlayground {
     const stateKey = isInput ? "inputFormatMode" : "outputFormatMode";
     const btn = isInput ? this.elements.toggleFormatInputBtn : this.elements.toggleFormatOutputBtn;
 
-    // Toggle state and execute opposite action
     if (this.state[stateKey] === "format") {
       this.state[stateKey] = "minify";
       btn.textContent = "Minify";
@@ -290,7 +273,6 @@ class BloblangPlayground {
         error.message
       );
     } else {
-      // Show a brief loading message instead
       this.elements.outputArea.textContent =
         "Initializing Bloblang execution...";
       this.ui.updateStatus("outputStatus", "executing", "Initializing...");
@@ -359,7 +341,6 @@ class BloblangPlayground {
   }
 }
 
-// Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
   window.playground = new BloblangPlayground();
 });

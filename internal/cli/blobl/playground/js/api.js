@@ -1,6 +1,5 @@
 /**
- * API for Bloblang operations
- * Automatically routes to WASM or server based on execution mode
+ * Route Bloblang operations to WASM or server based on execution mode
  */
 class BloblangAPI {
   constructor(mode, wasmApi = null) {

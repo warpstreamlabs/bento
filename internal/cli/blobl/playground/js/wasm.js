@@ -1,6 +1,5 @@
 /**
- * Manages WebAssembly module loading for the Bloblang playground.
- * Handles initialization of the Go WASM runtime and loading of the compiled WASM module.
+ * Initializes Go WASM runtime and loading the compiled module.
  */
 class WasmManager {
   static WASM_PATH = "playground.wasm";
