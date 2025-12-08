@@ -29,7 +29,7 @@ jobs:
           fi
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v4.31.2
+        uses: github/codeql-action/upload-sarif@v4.31.7
         with:
           sarif_file: govulncheck.sarif
           category: govulncheck
