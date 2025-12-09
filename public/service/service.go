@@ -38,7 +38,7 @@ func RunCLI(ctx context.Context, optFuncs ...CLIOptFunc) {
 			cliOpts.outLoggerFn(&Logger{m: l})
 		}
 		if cliOpts.teeLogger != nil {
-			return log.TeeLogger(l, log.NewBentoLogAdapter(cliOpts.teeLogger)), nil
+			return log.TeeLogger(l, newAirGapLogger(cliOpts.teeLogger)), nil
 		}
 		return l, nil
 	}
