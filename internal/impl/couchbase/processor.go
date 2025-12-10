@@ -37,11 +37,11 @@ func ProcessorConfig() *service.ConfigSpec {
 		Field(service.NewBloblangField("content").Description("Document content.").Optional()).
 		Field(service.NewDurationField("ttl").Description("An optional TTL to set for items.").Optional().Advanced()).
 		Field(service.NewStringAnnotatedEnumField("operation", map[string]string{
-			string(client.OperationGet):     "fetch a document.",
-			string(client.OperationInsert):  "insert a new document.",
-			string(client.OperationRemove):  "delete a document.",
-			string(client.OperationReplace): "replace the contents of a document.",
-			string(client.OperationUpsert):  "creates a new document if it does not exist, if it does exist then it updates it.",
+			string(client.OperationGet):       "fetch a document.",
+			string(client.OperationInsert):    "insert a new document.",
+			string(client.OperationRemove):    "delete a document.",
+			string(client.OperationReplace):   "replace the contents of a document.",
+			string(client.OperationUpsert):    "creates a new document if it does not exist, if it does exist then it updates it.",
 			string(client.OperationIncrement): "increment a counter.",
 			string(client.OperationDecrement): "decrement a counter.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
