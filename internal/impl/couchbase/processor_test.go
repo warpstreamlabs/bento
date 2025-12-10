@@ -85,6 +85,28 @@ couchbase:
 `,
 		},
 		{
+			name: "increment",
+			config: `
+couchbase:
+  url: 'url'
+  bucket: 'bucket'
+  id: '${! json("id") }'
+  operation: 'increment'
+  content: '1'
+`,
+		},
+		{
+			name: "decrement",
+			config: `
+couchbase:
+  url: 'url'
+  bucket: 'bucket'
+  id: '${! json("id") }'
+  operation: 'decrement'
+  content: '1'
+`,
+		},
+		{
 			name: "increment without content",
 			config: `
 couchbase:
@@ -93,6 +115,7 @@ couchbase:
   id: '${! json("id") }'
   operation: 'increment'
 `,
+			errContains: `content must be set for insert, replace, upsert, increment and decrement operations.`,
 		},
 		{
 			name: "decrement without content",
@@ -103,6 +126,7 @@ couchbase:
   id: '${! json("id") }'
   operation: 'decrement'
 `,
+			errContains: `content must be set for insert, replace, upsert, increment and decrement operations.`,
 		},
 	}
 
