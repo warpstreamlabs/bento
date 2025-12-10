@@ -183,9 +183,9 @@ Default: `"get"`
 
 | Option | Summary |
 |---|---|
-| `decrement` | decrement a counter. |
+| `decrement` | decrement a counter by the value in content. |
 | `get` | fetch a document. |
-| `increment` | increment a counter. |
+| `increment` | increment a counter by the value in content. |
 | `insert` | insert a new document. |
 | `remove` | delete a document. |
 | `replace` | replace the contents of a document. |

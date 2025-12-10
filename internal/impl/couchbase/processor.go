@@ -42,8 +42,8 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationRemove):    "delete a document.",
 			string(client.OperationReplace):   "replace the contents of a document.",
 			string(client.OperationUpsert):    "creates a new document if it does not exist, if it does exist then it updates it.",
-			string(client.OperationIncrement): "increment a counter.",
-			string(client.OperationDecrement): "decrement a counter.",
+			string(client.OperationIncrement): "increment a counter by the value in content.",
+			string(client.OperationDecrement): "decrement a counter by the value in content.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
 		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(true).Version("1.3.0")). // TODO: Consider removal in next release?
 		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert" || this.operation == "increment" || this.operation == "decrement") && !this.exists("content")) { [ "content must be set for insert, replace, upsert, increment and decrement operations." ] }`)
