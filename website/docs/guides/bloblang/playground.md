@@ -155,7 +155,7 @@ root.finalPrice = this.product.price - root.discount
 Want to run the playground locally? Use the Bento CLI:
 
 ```bash
-bento blobl server
+bento blobl playground
 ```
 
 This starts a local server with the full playground interface, perfect for development and testing.

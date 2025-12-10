@@ -54,6 +54,7 @@ module.exports = {
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},
         {to: 'cookbooks', label: 'Cookbooks', position: 'left'},
+        {to: 'docs/guides/bloblang/playground', label: 'Playground', position: 'left'},
         {
           type: 'html',
           position: 'right',
