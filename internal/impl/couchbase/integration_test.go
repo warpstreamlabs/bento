@@ -181,18 +181,32 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 	t.Run("Decrement zero", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "decrement", "0", "6", bucket, servicePort, t)
 	})
-	t.Run("Increment empty", func(t *testing.T) {
-		testCouchbaseProcessorCounter(uid, "increment", "", "6", bucket, servicePort, t)
-	})
-	t.Run("Decrement empty", func(t *testing.T) {
-		testCouchbaseProcessorCounter(uid, "decrement", "", "6", bucket, servicePort, t)
-	})
 	t.Run("Remove", func(t *testing.T) {
 		testCouchbaseProcessorRemove(uid, bucket, servicePort, t)
 	})
 	t.Run("Decrement non existing with negative initial", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "decrement", "-10", "10", bucket, servicePort, t)
 	})
+
+	t.Run("Error increment empty", func(t *testing.T) {
+		testCouchbaseProcessorCounterError(uid, "increment", "", bucket, servicePort, t)
+	})
+	t.Run("Error decrement empty", func(t *testing.T) {
+		testCouchbaseProcessorCounterError(uid, "decrement", "", bucket, servicePort, t)
+	})
+	t.Run("Error increment float", func(t *testing.T) {
+		testCouchbaseProcessorCounterError(uid, "increment", "0.1", bucket, servicePort, t)
+	})
+	t.Run("Error decrement float", func(t *testing.T) {
+		testCouchbaseProcessorCounterError(uid, "decrement", "0.1", bucket, servicePort, t)
+	})
+	t.Run("Error increment invalid", func(t *testing.T) {
+		testCouchbaseProcessorCounterError(uid, "increment", "invalid", bucket, servicePort, t)
+	})
+	t.Run("Error decrement invalid", func(t *testing.T) {
+		testCouchbaseProcessorCounterError(uid, "decrement", "invalid", bucket, servicePort, t)
+	})
+
 }
 
 func TestIntegrationCouchbaseStream(t *testing.T) {

@@ -46,7 +46,7 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationDecrement): "decrement a counter.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
 		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(true).Version("1.3.0")). // TODO: Consider removal in next release?
-		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert") && !this.exists("content")) { [ "content must be set for insert, replace and upsert operations." ] }`)
+		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert" || this.operation == "increment" || this.operation == "decrement") && !this.exists("content")) { [ "content must be set for insert, replace, upsert, increment and decrement operations." ] }`)
 }
 
 func init() {
@@ -69,7 +69,7 @@ type Processor struct {
 	id         *service.InterpolatedString
 	content    *bloblang.Executor
 	ttl        *time.Duration
-	op         func(key string, data []byte, cas gocb.Cas, ttl *time.Duration) gocb.BulkOp
+	op         func(key string, data []byte, cas gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error)
 	casEnabled bool
 }
 
@@ -181,7 +181,10 @@ func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBat
 			}
 		}
 
-		ops[index] = p.op(k, content, cas, p.ttl)
+		ops[index], err = p.op(k, content, cas, p.ttl)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// execute

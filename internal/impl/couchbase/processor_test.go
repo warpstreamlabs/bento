@@ -383,3 +383,24 @@ operation: '%s'
 	// The result of increment is the new value.
 	assert.Equal(t, expected, string(dataOut))
 }
+
+func testCouchbaseProcessorCounterError(uid, operation, value, bucket, port string, t *testing.T) {
+	config := fmt.Sprintf(`
+url: 'couchbase://localhost:%s'
+bucket: %s
+username: %s
+password: %s
+id: '${! meta("id") }'
+content: 'root = this.or(null)'
+operation: '%s'
+`, port, bucket, username, password, operation)
+
+	msg := service.NewMessage([]byte(value))
+	msg.MetaSetMut("id", uid)
+	_, err := getProc(t, config).ProcessBatch(context.Background(), service.MessageBatch{
+		msg,
+	})
+
+	// batch processing should not be fine.
+	require.Error(t, err)
+}
