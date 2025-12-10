@@ -161,14 +161,11 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 		time.Sleep(5 * time.Second)
 		testCouchbaseProcessorGetMissing(uid, bucket, servicePort, t)
 	})
-	// counters tests
-	t.Run("Remove", func(t *testing.T) {
-		testCouchbaseProcessorRemove(uid, bucket, servicePort, t)
-	})
-	t.Run("Increment", func(t *testing.T) {
+	// counters tests (entry cleared by ttl before)
+	t.Run("Increment non existing", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "increment", "1", "1", bucket, servicePort, t)
 	})
-	t.Run("Decrement", func(t *testing.T) { // minimum value of counter is zero
+	t.Run("Decrement to minimal value", func(t *testing.T) { // minimum value of counter is zero
 		testCouchbaseProcessorCounter(uid, "decrement", "2", "0", bucket, servicePort, t)
 	})
 	t.Run("Increment", func(t *testing.T) {
@@ -178,17 +175,23 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "decrement", "2", "6", bucket, servicePort, t)
 	})
 	// noop only retrive value
-	t.Run("Increment", func(t *testing.T) {
+	t.Run("Increment zero", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "increment", "0", "6", bucket, servicePort, t)
 	})
-	t.Run("Decrement", func(t *testing.T) {
+	t.Run("Decrement zero", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "decrement", "0", "6", bucket, servicePort, t)
 	})
-	t.Run("Increment", func(t *testing.T) {
+	t.Run("Increment empty", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "increment", "", "6", bucket, servicePort, t)
 	})
-	t.Run("Decrement", func(t *testing.T) {
+	t.Run("Decrement empty", func(t *testing.T) {
 		testCouchbaseProcessorCounter(uid, "decrement", "", "6", bucket, servicePort, t)
+	})
+	t.Run("Remove", func(t *testing.T) {
+		testCouchbaseProcessorRemove(uid, bucket, servicePort, t)
+	})
+	t.Run("Decrement non existing with negative initial", func(t *testing.T) {
+		testCouchbaseProcessorCounter(uid, "decrement", "-10", "10", bucket, servicePort, t)
 	})
 }
 

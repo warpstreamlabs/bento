@@ -370,17 +370,16 @@ operation: '%s'
 	assert.NoError(t, err)
 	assert.Len(t, msgOut, 1)
 	assert.Len(t, msgOut[0], 1)
+	assert.NoError(t, msgOut[0][0].GetError())
 
 	// check CAS
 	cas, ok := msgOut[0][0].MetaGetMut(couchbase.MetaCASKey)
 	assert.True(t, ok)
 	assert.NotEmpty(t, cas)
 
-	// message content should be the counter value (1)
+	// message content should be the counter value
 	dataOut, err := msgOut[0][0].AsBytes()
 	assert.NoError(t, err)
 	// The result of increment is the new value.
-	// Since we didn't provide content, delta is 1, initial is 1.
-	// So first increment should return 1.
 	assert.Equal(t, expected, string(dataOut))
 }
