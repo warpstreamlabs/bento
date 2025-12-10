@@ -40,7 +40,6 @@ func ProcessorConfig() *service.ConfigSpec {
 			string(client.OperationRemove):  "delete a document.",
 			string(client.OperationReplace): "replace the contents of a document.",
 			string(client.OperationUpsert):  "creates a new document if it does not exist, if it does exist then it updates it.",
-
 			string(client.OperationIncrement): "increment a counter.",
 			string(client.OperationDecrement): "decrement a counter.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
