@@ -2,7 +2,6 @@ package aws
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -23,10 +22,7 @@ func int64Field(conf *service.ParsedConfig, path ...string) (int64, error) {
 }
 
 func getCredentialsCacheOptions(conf *service.ParsedConfig) func(*aws.CredentialsCacheOptions) {
-	var expiryWindow time.Duration
-	if expiryWindowStr, _ := conf.FieldString("expiry_window"); expiryWindowStr != "" {
-		expiryWindow, _ = time.ParseDuration(expiryWindowStr)
-	}
+	expiryWindow, _ := conf.FieldDuration("expiry_window")
 	return func(cco *aws.CredentialsCacheOptions) {
 		cco.ExpiryWindow = expiryWindow
 	}
