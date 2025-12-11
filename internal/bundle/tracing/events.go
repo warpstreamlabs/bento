@@ -65,6 +65,8 @@ func EventConsumeOf(part *message.Part) NodeEvent {
 }
 
 // EventDeleteOf creates a deleted event from a message part.
+//
+// Deprecated: Use EventDeleteOfPart instead. This function cannot track flow IDs.
 func EventDeleteOf() NodeEvent {
 	return NodeEvent{
 		Type:      EventDelete,
@@ -83,6 +85,8 @@ func EventDeleteOfPart(part *message.Part) NodeEvent {
 }
 
 // EventErrorOf creates an error event from a message part.
+//
+// Deprecated: Use EventErrorOfPart instead. This function cannot track flow IDs.
 func EventErrorOf(err error) NodeEvent {
 	return NodeEvent{
 		Type:      EventError,

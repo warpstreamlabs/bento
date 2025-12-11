@@ -81,14 +81,16 @@ func TestEventCreationWithFlowID(t *testing.T) {
 	assert.Equal(t, produceEvent.FlowID, errorEvent.FlowID)
 }
 
+// TestEventCreationWithoutPart tests deprecated functions that create events without flow IDs.
+// These functions are kept for backward compatibility.
 func TestEventCreationWithoutPart(t *testing.T) {
-	deleteEvent := EventDeleteOf()
+	deleteEvent := EventDeleteOf() // Deprecated: use EventDeleteOfPart
 	assert.Equal(t, EventDelete, deleteEvent.Type)
 	assert.Empty(t, deleteEvent.FlowID)
 	assert.Empty(t, deleteEvent.Content)
 
 	testErr := assert.AnError
-	errorEvent := EventErrorOf(testErr)
+	errorEvent := EventErrorOf(testErr) // Deprecated: use EventErrorOfPart
 	assert.Equal(t, EventError, errorEvent.Type)
 	assert.Equal(t, testErr.Error(), errorEvent.Content)
 	assert.Empty(t, errorEvent.FlowID)
