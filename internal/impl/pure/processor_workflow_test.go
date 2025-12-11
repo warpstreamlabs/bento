@@ -1,6 +1,7 @@
 package pure_test
 
 import (
+	"maps"
 	"context"
 	"errors"
 	"fmt"
@@ -1039,7 +1040,6 @@ workflow:
 
 	assert.Equal(t, `{"content":"waddup","id":"HELLO WORLD","meta":{"workflow":{"succeeded":["fooproc"]}}}`, outValue)
 
-	// Normalize events for testing by removing FlowID, Timestamp, and _bento_flow_id metadata
 	normalizeEvents := func(events map[string][]service.TracingEvent) map[string][]service.TracingEvent {
 		normalized := make(map[string][]service.TracingEvent)
 		for k, evs := range events {
@@ -1057,12 +1057,7 @@ workflow:
 					normalizedEvs[i].Meta = map[string]any{}
 				} else {
 					normalizedEvs[i].Meta = make(map[string]any)
-					// Copy metadata except _bento_flow_id
-					for metaKey, metaVal := range ev.Meta {
-						if metaKey != "_bento_flow_id" {
-							normalizedEvs[i].Meta[metaKey] = metaVal
-						}
-					}
+					maps.Copy(normalizedEvs[i].Meta, ev.Meta)
 				}
 			}
 			normalized[k] = normalizedEvs

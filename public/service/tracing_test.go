@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"maps"
 	"bytes"
 	"context"
 	"fmt"
@@ -118,11 +119,7 @@ logger:
 							return nil
 						}
 						meta := make(map[string]any)
-						for mk, mv := range ev.Meta {
-							if mk != "_bento_flow_id" {
-								meta[mk] = mv
-							}
-						}
+						maps.Copy(meta, ev.Meta)
 						if len(meta) == 0 {
 							return tMap{}
 						}
