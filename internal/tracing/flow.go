@@ -1,6 +1,11 @@
 package tracing
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+	"github.com/warpstreamlabs/bento/internal/message"
+)
 
 const EmptyTraceID = "00000000000000000000000000000000"
 
@@ -17,4 +22,24 @@ func GetFlowID(ctx context.Context) string {
 		return id
 	}
 	return ""
+}
+
+// EnsureFlowID ensures a flow ID exists on the message part, creating one if necessary.
+// This should be called at the input layer to initialize flow IDs for all messages.
+func EnsureFlowID(part *message.Part) *message.Part {
+	ctx := message.GetContext(part)
+
+	if flowID := GetFlowID(ctx); flowID != "" {
+		return part
+	}
+
+	if traceID := GetTraceID(part); traceID != "" && traceID != EmptyTraceID {
+		ctx = WithFlowID(ctx, traceID)
+		return part.WithContext(ctx)
+	}
+
+	flowID, _ := uuid.NewV7()
+	flowIDStr := flowID.String()
+	ctx = WithFlowID(ctx, flowIDStr)
+	return part.WithContext(ctx)
 }

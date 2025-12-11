@@ -14,6 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/message"
+	internaltracing "github.com/warpstreamlabs/bento/internal/tracing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -520,6 +521,7 @@ meta bar = "new bar value"
 	for i := 0; i < 10; i++ {
 		part := message.NewPart([]byte(strconv.Itoa(i)))
 		part.MetaSetMut("foo", fmt.Sprintf("foo value %v", i))
+		part = internaltracing.EnsureFlowID(part)
 		batch, res := proc.ProcessBatch(tCtx, message.Batch{part})
 		require.NoError(t, res)
 		require.Len(t, batch, 1)

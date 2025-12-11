@@ -828,7 +828,8 @@ func (s *StreamBuilder) runConsumerFunc(mgr *manager.Type) error {
 // Build a Bento stream pipeline according to the components specified by this
 // stream builder.
 func (s *StreamBuilder) Build() (*Stream, error) {
-	return s.buildWithEnv(s.env.internal, false)
+	flowEnv := tracing.FlowIDBundle(s.env.internal)
+	return s.buildWithEnv(flowEnv, false)
 }
 
 // BuildTraced creates a Bento stream pipeline according to the components
@@ -841,7 +842,8 @@ func (s *StreamBuilder) Build() (*Stream, error) {
 // Experimental: The behaviour of this method could change outside of major
 // version releases.
 func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
-	tenv, summary := tracing.TracedBundle(s.env.internal)
+	flowEnv := tracing.FlowIDBundle(s.env.internal)
+	tenv, summary := tracing.TracedBundle(flowEnv)
 	strm, err := s.buildWithEnv(tenv, false)
 	return strm, &TracingSummary{summary}, err
 }

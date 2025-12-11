@@ -11,7 +11,6 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/gofrs/uuid"
-	googleuuid "github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/segmentio/ksuid"
 
@@ -267,7 +266,7 @@ var _ = registerSimpleFunction(
 var _ = registerSimpleFunction(
 	NewFunctionSpec(
 		FunctionCategoryMessage, "flow_id",
-		"Provides the message flow id used for tracing the journey of a message through the pipeline. If no flow ID exists, one will be created and stored in the message context.",
+		"Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer.",
 		NewExampleSpec("",
 			`meta flow_id = flow_id()`,
 		),
@@ -275,23 +274,7 @@ var _ = registerSimpleFunction(
 	func(fCtx FunctionContext) (any, error) {
 		part := fCtx.MsgBatch.Get(fCtx.Index)
 		ctx := part.GetContext()
-
-		if flowID := tracing.GetFlowID(ctx); flowID != "" {
-			return flowID, nil
-		}
-
-		if traceID := tracing.GetTraceID(part); traceID != "" && traceID != tracing.EmptyTraceID {
-			ctx = tracing.WithFlowID(ctx, traceID)
-			*part = *part.WithContext(ctx)
-			return traceID, nil
-		}
-
-		flowID, _ := googleuuid.NewV7()
-		flowIDStr := flowID.String()
-		ctx = tracing.WithFlowID(ctx, flowIDStr)
-		*part = *part.WithContext(ctx)
-
-		return flowIDStr, nil
+		return tracing.GetFlowID(ctx), nil
 	},
 )
 

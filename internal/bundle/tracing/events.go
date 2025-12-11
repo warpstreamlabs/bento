@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/tracing"
 )
@@ -43,7 +42,7 @@ func EventProduceOf(part *message.Part) NodeEvent {
 		Type:      EventProduce,
 		Content:   string(part.AsBytes()),
 		Meta:      meta,
-		FlowID:    getOrCreateFlowID(part),
+		FlowID:    getFlowID(part),
 		Timestamp: time.Now(),
 	}
 }
@@ -60,7 +59,7 @@ func EventConsumeOf(part *message.Part) NodeEvent {
 		Type:      EventConsume,
 		Content:   string(part.AsBytes()),
 		Meta:      meta,
-		FlowID:    getOrCreateFlowID(part),
+		FlowID:    getFlowID(part),
 		Timestamp: time.Now(),
 	}
 }
@@ -78,7 +77,7 @@ func EventDeleteOf() NodeEvent {
 func EventDeleteOfPart(part *message.Part) NodeEvent {
 	return NodeEvent{
 		Type:      EventDelete,
-		FlowID:    getOrCreateFlowID(part),
+		FlowID:    getFlowID(part),
 		Timestamp: time.Now(),
 	}
 }
@@ -98,30 +97,15 @@ func EventErrorOfPart(part *message.Part, err error) NodeEvent {
 	return NodeEvent{
 		Type:      EventError,
 		Content:   err.Error(),
-		FlowID:    getOrCreateFlowID(part),
+		FlowID:    getFlowID(part),
 		Timestamp: time.Now(),
 	}
 }
 
-// getOrCreateFlowID retrieves or creates a flow ID for a message part.
-func getOrCreateFlowID(part *message.Part) string {
-	ctx := message.GetContext(part)
-
-	if flowID := tracing.GetFlowID(ctx); flowID != "" {
-		return flowID
-	}
-
-	if traceID := tracing.GetTraceID(part); traceID != "" && traceID != tracing.EmptyTraceID {
-		ctx = tracing.WithFlowID(ctx, traceID)
-		*part = *part.WithContext(ctx)
-		return traceID
-	}
-
-	flowID, _ := uuid.NewV7()
-	flowIDStr := flowID.String()
-	ctx = tracing.WithFlowID(ctx, flowIDStr)
-	*part = *part.WithContext(ctx)
-	return flowIDStr
+// getFlowID retrieves the flow ID from a message part.
+// Flow IDs are initialized at the input layer, so this should always return a value.
+func getFlowID(part *message.Part) string {
+	return tracing.GetFlowID(message.GetContext(part))
 }
 
 type control struct {
