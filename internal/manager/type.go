@@ -306,6 +306,10 @@ func New(conf ResourceConfig, opts ...OptFunc) (*Type, error) {
 		}
 	}
 
+	if err := t.env.ConstructorInit(t); err != nil {
+		return nil, err
+	}
+
 	return t, nil
 }
 

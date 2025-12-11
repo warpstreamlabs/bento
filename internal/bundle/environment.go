@@ -18,20 +18,23 @@ type Environment struct {
 	tracers    *TracerSet
 
 	scanners *ScannerSet
+
+	constructors *ConstructorSet
 }
 
 // NewEnvironment creates an empty environment.
 func NewEnvironment() *Environment {
 	return &Environment{
-		buffers:    &BufferSet{},
-		caches:     &CacheSet{},
-		inputs:     &InputSet{},
-		outputs:    &OutputSet{},
-		processors: &ProcessorSet{},
-		rateLimits: &RateLimitSet{},
-		metrics:    &MetricsSet{},
-		tracers:    &TracerSet{},
-		scanners:   &ScannerSet{},
+		buffers:      &BufferSet{},
+		caches:       &CacheSet{},
+		inputs:       &InputSet{},
+		outputs:      &OutputSet{},
+		processors:   &ProcessorSet{},
+		rateLimits:   &RateLimitSet{},
+		metrics:      &MetricsSet{},
+		tracers:      &TracerSet{},
+		scanners:     &ScannerSet{},
+		constructors: &ConstructorSet{},
 	}
 }
 
@@ -39,6 +42,9 @@ func NewEnvironment() *Environment {
 // independently.
 func (e *Environment) Clone() *Environment {
 	newEnv := NewEnvironment()
+	for _, v := range e.constructors.ctors {
+		_ = newEnv.constructors.Add(v)
+	}
 	for _, v := range e.buffers.specs {
 		_ = newEnv.buffers.Add(v.constructor, v.spec)
 	}
@@ -100,13 +106,14 @@ func (e *Environment) GetDocs(name string, ctype docs.Type) (docs.ComponentSpec,
 
 // GlobalEnvironment contains service-wide singleton bundles.
 var GlobalEnvironment = &Environment{
-	buffers:    AllBuffers,
-	caches:     AllCaches,
-	inputs:     AllInputs,
-	outputs:    AllOutputs,
-	processors: AllProcessors,
-	rateLimits: AllRateLimits,
-	metrics:    AllMetrics,
-	tracers:    AllTracers,
-	scanners:   AllScanners,
+	buffers:      AllBuffers,
+	caches:       AllCaches,
+	inputs:       AllInputs,
+	outputs:      AllOutputs,
+	processors:   AllProcessors,
+	rateLimits:   AllRateLimits,
+	metrics:      AllMetrics,
+	tracers:      AllTracers,
+	scanners:     AllScanners,
+	constructors: AllConstructors,
 }
