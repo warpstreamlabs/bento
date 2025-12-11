@@ -24,10 +24,12 @@ func init() {
 		panic(err)
 	}
 
-	service.RegisterManagedConstructor(func(mgr service.LimitedResources) error {
+	if err := service.RegisterManagedConstructor(func(mgr service.LimitedResources) error {
 		container.Store(mgr)
 		return nil
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 }
 
@@ -101,10 +103,7 @@ func registerBloblangFunctions(getMgr func() service.LimitedResources) error {
 				}); err != nil {
 					return nil, err
 				}
-				if cerr != nil {
-					return nil, cerr
-				}
-				return nil, nil
+				return nil, cerr
 			}, nil
 		}); err != nil {
 		return err
@@ -136,10 +135,7 @@ func registerBloblangFunctions(getMgr func() service.LimitedResources) error {
 				}); err != nil {
 					return nil, err
 				}
-				if cerr != nil {
-					return nil, cerr
-				}
-				return nil, nil
+				return nil, cerr
 			}, nil
 		}); err != nil {
 		return err
@@ -176,10 +172,7 @@ func registerBloblangFunctions(getMgr func() service.LimitedResources) error {
 				}); err != nil {
 					return nil, err
 				}
-				if cerr != nil {
-					return nil, cerr
-				}
-				return value, nil
+				return nil, cerr
 			}, nil
 		}); err != nil {
 		return err

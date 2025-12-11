@@ -20,7 +20,7 @@ import (
 
 var _ LimitedResources = (*Resources)(nil)
 
-// LimitedResources provides constrained access a subset of resources
+// LimitedResources provides constrained access to a subset of resources
 // that are deemed safe for use within any component.
 //
 // Future versions will likely see this interface replaced entirely

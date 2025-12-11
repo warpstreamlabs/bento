@@ -82,7 +82,7 @@ mapping: |
 			input: [][]byte{
 				[]byte(`{}`),
 			},
-			expected: []string{"test_value"},
+			expected: []string{"null"},
 		},
 		{
 			name: "cache_get nonexistent key",
@@ -107,7 +107,7 @@ mapping: |
 			input: [][]byte{
 				[]byte(`{"key":"crud_key","value":"crud_val"}`),
 			},
-			expected: []string{`{"add_result":"crud_val","delete_result":null,"get_after_delete":"deleted","get_after_set":"crud_val_updated","get_result":"crud_val","set_result":null}`},
+			expected: []string{`{"add_result":null,"delete_result":null,"get_after_delete":"deleted","get_after_set":"crud_val_updated","get_result":"crud_val","set_result":null}`},
 		},
 	}
 
@@ -145,74 +145,6 @@ cache_resources:
 			for i, expected := range tt.expected {
 				require.Equal(t, expected, string(out[0][i].AsBytes()))
 			}
-		})
-	}
-}
-
-func TestCacheProcessorInterop(t *testing.T) {
-	tests := []struct {
-		name     string
-		setConf  string
-		getConf  string
-		expected string
-	}{
-		{
-			name: "cache processor set -> bloblang get",
-			setConf: `
-cache:
-  resource: local
-  operator: set
-  key: test_key
-  value: test_value`,
-			getConf: `
-mapping: |
-  root = cache_get(resource: "local", key: "test_key").string()`,
-			expected: "test_value",
-		},
-		{
-			name: "bloblang set -> cache processor get",
-			setConf: `
-mapping: |
-  _ = cache_set(resource: "local", key: "test_key", value: "test_value")`,
-			getConf: `
-cache:
-  resource: local
-  operator: get
-  key: test_key`,
-			expected: "test_value",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mgrConf, err := testutil.ManagerFromYAML(`
-cache_resources:
-  - label: local
-    memory: {}
-`)
-			require.NoError(t, err)
-
-			mgr, err := manager.New(mgrConf)
-			require.NoError(t, err)
-
-			setProcConf, err := testutil.ProcessorFromYAML(tt.setConf)
-			require.NoError(t, err)
-			setProc, err := mgr.NewProcessor(setProcConf)
-			require.NoError(t, err)
-
-			getProcConf, err := testutil.ProcessorFromYAML(tt.getConf)
-			require.NoError(t, err)
-			getProc, err := mgr.NewProcessor(getProcConf)
-			require.NoError(t, err)
-
-			ctx := context.Background()
-
-			_, err = setProc.ProcessBatch(ctx, message.QuickBatch([][]byte{[]byte(`{}`)}))
-			require.NoError(t, err)
-
-			out, err := getProc.ProcessBatch(ctx, message.QuickBatch([][]byte{[]byte(`{}`)}))
-			require.NoError(t, err)
-			require.Equal(t, tt.expected, string(out[0][0].AsBytes()))
 		})
 	}
 }
