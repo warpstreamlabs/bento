@@ -37,13 +37,13 @@ func ProcessorConfig() *service.ConfigSpec {
 		Field(service.NewBloblangField("content").Description("Document content.").Optional()).
 		Field(service.NewDurationField("ttl").Description("An optional TTL to set for items.").Optional().Advanced()).
 		Field(service.NewStringAnnotatedEnumField("operation", map[string]string{
-			string(client.OperationGet):       "fetch a document.",
-			string(client.OperationInsert):    "insert a new document.",
-			string(client.OperationRemove):    "delete a document.",
-			string(client.OperationReplace):   "replace the contents of a document.",
-			string(client.OperationUpsert):    "creates a new document if it does not exist, if it does exist then it updates it.",
-			string(client.OperationIncrement): "increment a counter by the value in content.",
-			string(client.OperationDecrement): "decrement a counter by the value in content.",
+			string(client.OperationGet):       "Fetch a document.",
+			string(client.OperationInsert):    "Insert a new document.",
+			string(client.OperationRemove):    "Delete a document.",
+			string(client.OperationReplace):   "Replace the contents of a document.",
+			string(client.OperationUpsert):    "Creates a new document if it does not exist, if it does exist then it updates it.",
+			string(client.OperationIncrement): "Increment a counter by the value in content, if it does not exist then it creates a counter with an initial value equal to the value in content. If the initial value is less than or equal to 0, a document not found error is returned.",
+			string(client.OperationDecrement): "Decrement a counter by the value in content, if it does not exist then it creates a counter with an initial value equal to the negative of the value in content. If the initial value is less than or equal to 0, a document not found error is returned.",
 		}).Description("Couchbase operation to perform.").Default(string(client.OperationGet))).
 		Field(service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(true).Version("1.3.0")). // TODO: Consider removal in next release?
 		LintRule(`root = if ((this.operation == "insert" || this.operation == "replace" || this.operation == "upsert" || this.operation == "increment" || this.operation == "decrement") && !this.exists("content")) { [ "content must be set for insert, replace, upsert, increment and decrement operations." ] }`)
