@@ -69,12 +69,12 @@ func EventConsumeOf(part *message.Part) NodeEvent {
 func EventDeleteOf() NodeEvent {
 	return NodeEvent{
 		Type:      EventDelete,
-		FlowID:    "", // No part available, so no flow ID
+		FlowID:    "",
 		Timestamp: time.Now(),
 	}
 }
 
-// EventDeleteOfPart creates a deleted event from a message part with flow ID.
+// EventDeleteOfPart creates a deleted event with flow ID from a message part.
 func EventDeleteOfPart(part *message.Part) NodeEvent {
 	return NodeEvent{
 		Type:      EventDelete,
@@ -88,12 +88,12 @@ func EventErrorOf(err error) NodeEvent {
 	return NodeEvent{
 		Type:      EventError,
 		Content:   err.Error(),
-		FlowID:    "", // No part available, so no flow ID
+		FlowID:    "",
 		Timestamp: time.Now(),
 	}
 }
 
-// EventErrorOfPart creates an error event from a message part with flow ID.
+// EventErrorOfPart creates an error event with flow ID from a message part.
 func EventErrorOfPart(part *message.Part, err error) NodeEvent {
 	return NodeEvent{
 		Type:      EventError,
@@ -104,25 +104,19 @@ func EventErrorOfPart(part *message.Part, err error) NodeEvent {
 }
 
 // getOrCreateFlowID retrieves or creates a flow ID for a message part.
-// It first tries to get an existing flow ID from context, then from OpenTelemetry trace ID,
-// and finally generates a new one if neither exists.
 func getOrCreateFlowID(part *message.Part) string {
 	ctx := message.GetContext(part)
 
-	// First, check if we already have a flow ID in context
 	if flowID := tracing.GetFlowID(ctx); flowID != "" {
 		return flowID
 	}
 
-	// Try to use OpenTelemetry trace ID if available
-	if traceID := tracing.GetTraceID(part); traceID != "" && traceID != "00000000000000000000000000000000" {
-		// Store it in context for future use
+	if traceID := tracing.GetTraceID(part); traceID != "" && traceID != tracing.EmptyTraceID {
 		ctx = tracing.WithFlowID(ctx, traceID)
 		*part = *part.WithContext(ctx)
 		return traceID
 	}
 
-	// Generate a new flow ID using UUID V7 (time-ordered)
 	flowID, _ := uuid.NewV7()
 	flowIDStr := flowID.String()
 	ctx = tracing.WithFlowID(ctx, flowIDStr)

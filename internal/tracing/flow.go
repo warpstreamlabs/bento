@@ -2,7 +2,8 @@ package tracing
 
 import "context"
 
-// flowTraceKey is an internal struct used as a context key for flow IDs to avoid collisions
+const EmptyTraceID = "00000000000000000000000000000000"
+
 type flowTraceKey struct{}
 
 // WithFlowID returns a context with the flow ID stored in it

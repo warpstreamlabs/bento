@@ -32,7 +32,6 @@ func (t *tracedProcessor) ProcessBatch(ctx context.Context, m message.Batch) ([]
 		return t.wrapped.ProcessBatch(ctx, m)
 	}
 
-	// Track input parts and their flow IDs for better correlation
 	inputParts := make([]*message.Part, m.Len())
 	prevErrs := make([]error, m.Len())
 	_ = m.Iter(func(i int, part *message.Part) error {
@@ -44,7 +43,6 @@ func (t *tracedProcessor) ProcessBatch(ctx context.Context, m message.Batch) ([]
 
 	outMsgs, res := t.wrapped.ProcessBatch(ctx, m)
 
-	// Track which input parts produced outputs
 	hasOutput := make([]bool, len(inputParts))
 
 	for _, outMsg := range outMsgs {
@@ -63,7 +61,6 @@ func (t *tracedProcessor) ProcessBatch(ctx context.Context, m message.Batch) ([]
 			return nil
 		})
 
-		// Mark that we have output for tracking deletions
 		if outMsg.Len() > 0 {
 			for i := 0; i < len(hasOutput) && i < outMsg.Len(); i++ {
 				hasOutput[i] = true
@@ -71,7 +68,6 @@ func (t *tracedProcessor) ProcessBatch(ctx context.Context, m message.Batch) ([]
 		}
 	}
 
-	// If no output messages, record delete events for each input part
 	if len(outMsgs) == 0 {
 		for _, part := range inputParts {
 			if part != nil {

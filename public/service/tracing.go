@@ -154,7 +154,6 @@ func (s *TracingSummary) OutputEvents(flush bool) map[string][]TracingEvent {
 func (s *TracingSummary) EventsByFlowID(flush bool) map[string][]TracingEvent {
 	flowEvents := map[string][]TracingEvent{}
 
-	// Collect events from all sources
 	for _, events := range s.InputEvents(flush) {
 		for _, event := range events {
 			if event.FlowID != "" {
@@ -179,7 +178,6 @@ func (s *TracingSummary) EventsByFlowID(flush bool) map[string][]TracingEvent {
 		}
 	}
 
-	// Sort events by timestamp within each flow
 	for flowID, events := range flowEvents {
 		sort.Slice(events, func(i, j int) bool {
 			return events[i].Timestamp.Before(events[j].Timestamp)

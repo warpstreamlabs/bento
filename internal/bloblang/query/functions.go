@@ -276,20 +276,16 @@ var _ = registerSimpleFunction(
 		part := fCtx.MsgBatch.Get(fCtx.Index)
 		ctx := part.GetContext()
 
-		// Check if we already have a flow ID in context
 		if flowID := tracing.GetFlowID(ctx); flowID != "" {
 			return flowID, nil
 		}
 
-		// Try to use OpenTelemetry trace ID if available
-		if traceID := tracing.GetTraceID(part); traceID != "" && traceID != "00000000000000000000000000000000" {
-			// Store it in context for future use
+		if traceID := tracing.GetTraceID(part); traceID != "" && traceID != tracing.EmptyTraceID {
 			ctx = tracing.WithFlowID(ctx, traceID)
 			*part = *part.WithContext(ctx)
 			return traceID, nil
 		}
 
-		// Generate a new flow ID
 		flowID, _ := googleuuid.NewV7()
 		flowIDStr := flowID.String()
 		ctx = tracing.WithFlowID(ctx, flowIDStr)

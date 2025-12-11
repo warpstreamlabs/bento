@@ -1,10 +1,10 @@
 package pure_test
 
 import (
-	"maps"
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -1052,7 +1052,6 @@ workflow:
 					Timestamp: time.Time{},
 				}
 
-				// Handle metadata
 				if ev.Meta == nil {
 					normalizedEvs[i].Meta = map[string]any{}
 				} else {
