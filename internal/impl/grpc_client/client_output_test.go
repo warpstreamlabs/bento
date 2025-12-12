@@ -140,7 +140,10 @@ func startGRPCServer(t *testing.T, opts ...testServerOpt) *testServer {
 	}
 
 	test_server.RegisterGreeterServer(s, testServer)
-	go s.Serve(lis)
+	go func() {
+		err := s.Serve(lis)
+		require.NoError(t, err)
+	}()
 	return testServer
 }
 
@@ -190,9 +193,15 @@ func (s *testServer) SayHelloHowAreYou(in *test_server.HelloRequest, stream test
 	}
 
 	helloMsg := &test_server.HelloReply{Message: "Hello " + in.GetName()}
-	stream.Send(helloMsg)
+	err := stream.Send(helloMsg)
+	if err != nil {
+		return err
+	}
 	howAreYouMsg := &test_server.HelloReply{Message: "How are you, " + in.GetName() + "?"}
-	stream.Send(howAreYouMsg)
+	err = stream.Send(howAreYouMsg)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -612,7 +621,7 @@ grpc_client:
 		assert.NoError(t, res)
 		resBatch := resultStore.Get()
 		assert.Equal(t, `{"message":"Hello `+names+`"}`, string(resBatch[0].Get(0).AsBytes()))
-		assert.Equal(t, 1, len(resBatch))
+		assert.Len(t, resBatch, 1)
 	case <-time.After(time.Minute):
 		t.Fatal("receive timed out")
 	}
@@ -697,7 +706,7 @@ func TestGrpcClientWriterUnableToFindMethodErr(t *testing.T) {
 
 	sb := service.NewStreamBuilder()
 
-	sb.SetYAML(fmt.Sprintf(`
+	err := sb.SetYAML(fmt.Sprintf(`
 input:
   generate:
     mapping: root.name = "Alice"
@@ -710,6 +719,7 @@ output:
     method: DoesNotExist
     reflection: true
 `, testServer.port))
+	require.NoError(t, err)
 
 	buffer := new(bytes.Buffer)
 	logger := slog.New(slog.NewTextHandler(buffer, nil))
@@ -722,11 +732,20 @@ output:
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	go stream.Run(ctx)
+	streamErrChan := make(chan error, 1)
+
+	go func() {
+		streamErrChan <- stream.Run(ctx)
+	}()
 
 	assert.Eventually(t, func() bool {
 		return strings.Contains(buffer.String(), "method: DoesNotExist not found")
 	}, time.Second*10, time.Millisecond*20)
+
+	stream.Stop(ctx)
+
+	err = <-streamErrChan
+	require.NoError(t, err)
 }
 
 func TestGrpcClientWriterBrokenProtoFile(t *testing.T) {
@@ -761,11 +780,20 @@ output:
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	go stream.Run(ctx)
+	streamErrChan := make(chan error, 1)
+
+	go func() {
+		streamErrChan <- stream.Run(ctx)
+	}()
 
 	assert.Eventually(t, func() bool {
 		return strings.Contains(buffer.String(), "syntax error: unexpected '='")
 	}, time.Second*10, time.Millisecond*20)
+
+	stream.Stop(ctx)
+
+	err = <-streamErrChan
+	require.NoError(t, err)
 }
 
 func TestGrpcClientWriterLints(t *testing.T) {
