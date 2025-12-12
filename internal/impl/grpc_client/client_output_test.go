@@ -742,7 +742,8 @@ output:
 		return strings.Contains(buffer.String(), "method: DoesNotExist not found")
 	}, time.Second*10, time.Millisecond*20)
 
-	stream.Stop(ctx)
+	err = stream.Stop(ctx)
+	require.NoError(t, err)
 
 	err = <-streamErrChan
 	require.NoError(t, err)
@@ -790,7 +791,8 @@ output:
 		return strings.Contains(buffer.String(), "syntax error: unexpected '='")
 	}, time.Second*10, time.Millisecond*20)
 
-	stream.Stop(ctx)
+	err = stream.Stop(ctx)
+	require.NoError(t, err)
 
 	err = <-streamErrChan
 	require.NoError(t, err)
