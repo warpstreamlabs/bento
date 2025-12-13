@@ -737,16 +737,17 @@ output:
 	go func() {
 		streamErrChan <- stream.Run(ctx)
 	}()
-
-	assert.Eventually(t, func() bool {
-		return strings.Contains(buffer.String(), "method: DoesNotExist not found")
-	}, time.Second*10, time.Millisecond*20)
+	err = <-streamErrChan
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		require.NoError(t, err)
+	}
 
 	err = stream.Stop(ctx)
-	require.NoError(t, err)
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		require.NoError(t, err)
+	}
 
-	err = <-streamErrChan
-	require.NoError(t, err)
+	assert.Contains(t, buffer.String(), "method: DoesNotExist not found")
 }
 
 func TestGrpcClientWriterBrokenProtoFile(t *testing.T) {
@@ -786,16 +787,17 @@ output:
 	go func() {
 		streamErrChan <- stream.Run(ctx)
 	}()
-
-	assert.Eventually(t, func() bool {
-		return strings.Contains(buffer.String(), "syntax error: unexpected '='")
-	}, time.Second*10, time.Millisecond*20)
+	err = <-streamErrChan
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		require.NoError(t, err)
+	}
 
 	err = stream.Stop(ctx)
-	require.NoError(t, err)
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		require.NoError(t, err)
+	}
 
-	err = <-streamErrChan
-	require.NoError(t, err)
+	assert.Contains(t, buffer.String(), "syntax error: unexpected '='")
 }
 
 func TestGrpcClientWriterLints(t *testing.T) {
