@@ -36,6 +36,9 @@ func SessionFields() []*service.ConfigField {
 				Default("").Advanced(),
 			service.NewStringField("role_external_id").
 				Description("An external ID to provide when assuming a role.").
+				Default("").Advanced(),
+			service.NewDurationField("expiry_window").
+				Description("Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.").
 				Default("").Advanced()).
 			Advanced().
 			Description("Optional manual configuration of AWS credentials to use. More information can be found [in this document](/docs/guides/cloud/aws)."),

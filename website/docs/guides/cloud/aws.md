@@ -13,6 +13,7 @@ credentials:
   token: ""
   role: ""
   role_external_id: ""
+  expiry_window: ""
 ```
 
 This section contains many fields and it isn't immediately clear which of them are compulsory and which aren't. This document aims to make it clear what each field is responsible for and how it might be used.
@@ -75,3 +76,18 @@ credentials:
 [temporary-creds]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html
 [assuming-role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html
 [role-external-id]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html
+
+## Expiry Window
+
+AWS services may reject authentication requests with a token that is too close to expiring.
+If you see errors like `Session too short` then use `expiry_window` to refresh tokens well before they expire.
+
+This setting allows the credentials to trigger refreshing prior to the credentials actually expiring.
+This is beneficial so race conditions with expiring credentials do not cause requests to fail.
+It should be a duration, valid time units are 'ns', 'us' (or 'µs'), 'ms', 's', 'm', 'h'.
+For example '10s' would refresh credentials ten seconds before expiration.
+
+```yml
+credentials:
+  expiry_window: 10s
+```
