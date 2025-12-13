@@ -354,7 +354,7 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) used to inject a
 
 
 Type: `string`  
-Requires version 4.23.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

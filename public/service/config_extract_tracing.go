@@ -7,13 +7,15 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 const (
-	etsField = "extract_tracing_map"
+	etsField   = "extract_tracing_map"
+	nrswlField = "new_root_span_with_link"
 )
 
 // NewExtractTracingSpanMappingField returns a config field for mapping messages
@@ -27,6 +29,14 @@ func NewExtractTracingSpanMappingField() *ConfigField {
 		Advanced()
 }
 
+func NewRootSpanWithLinkField() *ConfigField {
+	return NewBoolField(nrswlField).
+		Description("EXPERIMENTAL: Starts a new root span with link to parent.").
+		Version("1.0.0").
+		Optional().
+		Advanced()
+}
+
 // WrapBatchInputExtractTracingSpanMapping wraps a BatchInput with a mechanism
 // for extracting tracing spans using a bloblang mapping.
 func (p *ParsedConfig) WrapBatchInputExtractTracingSpanMapping(inputName string, i BatchInput) (
@@ -34,11 +44,15 @@ func (p *ParsedConfig) WrapBatchInputExtractTracingSpanMapping(inputName string,
 	if str, _ := p.FieldString(etsField); str == "" {
 		return i, nil
 	}
+
 	exe, err := p.FieldBloblang(etsField)
 	if err != nil {
 		return nil, err
 	}
-	return &spanInjectBatchInput{inputName: inputName, mgr: p.mgr, mapping: exe, rdr: i}, nil
+
+	newSpan, _ := p.FieldBool(nrswlField)
+
+	return &spanInjectBatchInput{inputName: inputName, mgr: p.mgr, mapping: exe, rdr: i, newSpan: newSpan}, nil
 }
 
 // WrapInputExtractTracingSpanMapping wraps a Input with a mechanism for
@@ -51,7 +65,9 @@ func (p *ParsedConfig) WrapInputExtractTracingSpanMapping(inputName string, i In
 	if err != nil {
 		return nil, err
 	}
-	return &spanInjectInput{inputName: inputName, mgr: p.mgr, mapping: exe, rdr: i}, nil
+
+	newSpan, _ := p.FieldBool(nrswlField)
+	return &spanInjectInput{inputName: inputName, mgr: p.mgr, mapping: exe, rdr: i, newSpan: newSpan}, nil
 }
 
 func getPropMapCarrier(spanPart *Message) (propagation.MapCarrier, error) {
@@ -82,6 +98,7 @@ type spanInjectBatchInput struct {
 
 	mapping *bloblang.Executor
 	rdr     BatchInput
+	newSpan bool
 }
 
 func (s *spanInjectBatchInput) Connect(ctx context.Context) error {
@@ -112,7 +129,16 @@ func (s *spanInjectBatchInput) ReadBatch(ctx context.Context) (MessageBatch, Ack
 	textProp := otel.GetTextMapPropagator()
 	for i, p := range m {
 		ctx := textProp.Extract(p.Context(), c)
-		pCtx, _ := prov.Tracer("bento").Start(ctx, operationName)
+
+		var opts []trace.SpanStartOption
+		if s.newSpan {
+			opts = []trace.SpanStartOption{
+				trace.WithNewRoot(),
+				trace.WithLinks(trace.LinkFromContext(ctx)),
+			}
+		}
+
+		pCtx, _ := prov.Tracer("bento").Start(ctx, operationName, opts...)
 		m[i] = p.WithContext(pCtx)
 	}
 	return m, afn, nil
@@ -130,6 +156,7 @@ type spanInjectInput struct {
 
 	mapping *bloblang.Executor
 	rdr     Input
+	newSpan bool
 }
 
 func (s *spanInjectInput) Connect(ctx context.Context) error {
@@ -159,7 +186,17 @@ func (s *spanInjectInput) Read(ctx context.Context) (*Message, AckFunc, error) {
 
 	textProp := otel.GetTextMapPropagator()
 
-	pCtx, _ := prov.Tracer("bento").Start(textProp.Extract(m.Context(), c), operationName)
+	ctx = textProp.Extract(m.Context(), c)
+
+	var opts []trace.SpanStartOption
+	if s.newSpan {
+		opts = []trace.SpanStartOption{
+			trace.WithNewRoot(),
+			trace.WithLinks(trace.LinkFromContext(ctx)),
+		}
+	}
+
+	pCtx, _ := prov.Tracer("bento").Start(ctx, operationName, opts...)
 	m = m.WithContext(pCtx)
 
 	return m, afn, nil
