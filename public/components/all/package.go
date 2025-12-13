@@ -23,6 +23,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/elasticsearch"
 	_ "github.com/warpstreamlabs/bento/public/components/etcd"
 	_ "github.com/warpstreamlabs/bento/public/components/gcp"
+	_ "github.com/warpstreamlabs/bento/public/components/grpc_client"
 	_ "github.com/warpstreamlabs/bento/public/components/hdfs"
 	_ "github.com/warpstreamlabs/bento/public/components/huggingface"
 	_ "github.com/warpstreamlabs/bento/public/components/influxdb"
