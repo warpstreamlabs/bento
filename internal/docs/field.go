@@ -681,6 +681,12 @@ type LintConfig struct {
 	// Warn any deprecated components or fields as linting warnings.
 	WarnDeprecated bool
 
+	// Silence warning logs pertaining to the use of experimental components.
+	AllowExperimental bool
+
+	// Silence warning logs pertaining to the use of beta components.
+	AllowBeta bool
+
 	// Require labels for components.
 	RequireLabels bool
 }
@@ -783,6 +789,13 @@ const (
 
 	// LintDeprecated means a field is deprecated and should not be used.
 	LintDeprecated LintType = iota
+
+	// LintExperimental is used for warning that a field/component is
+	// experimental.
+	LintExperimental LintType = iota
+
+	// LintBeta is used for warning that a field/component is beta.
+	LintBeta LintType = iota
 )
 
 // Lint describes a single linting issue found with a Bento config.

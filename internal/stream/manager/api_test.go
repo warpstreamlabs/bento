@@ -2,9 +2,11 @@ package manager_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,13 +26,16 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/log"
 	bmanager "github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/stream/manager"
 
 	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/nats"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func router(m *manager.Type) *mux.Router {
@@ -725,6 +730,113 @@ func TestTypeAPILinting(t *testing.T) {
 	response = httptest.NewRecorder()
 	r.ServeHTTP(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
+}
+
+// implements a Bento Processor
+type proc struct{}
+
+func (f proc) Close(ctx context.Context) error {
+	return nil
+}
+
+func (f proc) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
+	return service.MessageBatch{msg}, nil
+}
+
+func TestTypeAPILintWarningLogs(t *testing.T) {
+	err := service.RegisterProcessor(
+		"proc",
+		service.NewConfigSpec(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return proc{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+	foo := log.NewBentoLogAdapter(logger)
+
+	res, err := bmanager.New(bmanager.NewResourceConfig(), bmanager.OptSetLogger(foo))
+	require.NoError(t, err)
+
+	mgr := manager.New(res)
+
+	r := router(mgr)
+
+	body := []byte(`{
+	"input": {
+		"stdin": {}
+	},
+	"pipeline": {
+		"processors": [
+			"proc": {}
+		]
+	},
+	"output": {
+		"stdout": {}
+	},
+}`)
+
+	request, err := http.NewRequest("POST", "/streams/foo", bytes.NewReader(body))
+	require.NoError(t, err)
+
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusOK, response.Code)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="Stream 'foo' config: (7,1) processor proc is experimental; silence warning with --allow-experimental`)
+}
+
+func TestTypeAPINoLintWarningLogs(t *testing.T) {
+	err := service.RegisterProcessor(
+		"proc",
+		service.NewConfigSpec(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return proc{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+	foo := log.NewBentoLogAdapter(logger)
+
+	res, err := bmanager.New(bmanager.NewResourceConfig(), bmanager.OptSetLogger(foo))
+	require.NoError(t, err)
+
+	lConf := docs.NewLintConfig(res)
+	lConf.WarnDeprecated = true
+	lConf.AllowBeta = true
+	lConf.AllowExperimental = true
+	lCtx := docs.NewLintContext(lConf)
+
+	mgr := manager.New(res, manager.OptSetLintCtx(lCtx))
+
+	r := router(mgr)
+
+	body := []byte(`{
+	"input": {
+		"stdin": {}
+	},
+	"pipeline": {
+		"processors": [
+			"proc": {}
+		]
+	},
+	"output": {
+		"stdout": {}
+	},
+}`)
+
+	request, err := http.NewRequest("POST", "/streams/foo", bytes.NewReader(body))
+	require.NoError(t, err)
+
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusOK, response.Code)
+
+	assert.NotContains(t, buffer.String(), `level=WARN msg="Stream 'foo' config: (7,1) processor proc is experimental; silence warning with --allow-experimental`)
 }
 
 func TestResourceAPILinting(t *testing.T) {
