@@ -1,4 +1,4 @@
-.PHONY: all serverless deps docker docker-cgo clean docs test test-race test-integration fmt lint install deploy-docs playground
+.PHONY: all serverless deps docker docker-cgo clean docs protos test test-race test-integration fmt lint install deploy-docs playground
 TAGS ?=
 
 GOMAXPROCS         ?= 1
@@ -117,6 +117,17 @@ docs: $(APPS) $(TOOLS)
 		"$(WEBSITE_DIR)/cookbooks/**/*.md" \
 		"$(WEBSITE_DIR)/docs/**/*.md"
 	@$(PATHINSTBIN)/bento template lint "./config/template_examples/*.yaml"
+
+PROTO_FILES = $(shell find resources/protos -name '*.proto')
+
+protos:
+	@echo "Generating protocol buffer files..."
+	protoc \
+		--proto_path=resources/protos \
+		--go_out=. \
+		--go_opt=module=github.com/warpstreamlabs/bento \
+		$(PROTO_FILES)
+	@echo "Proto files generated to internal/message/ and internal/docs/"
 
 # HACK:(gregfurman): Change misc/wasm/wasm_exec.js => lib/wasm/wasm_exec.js when using Go 1.24
 playground:

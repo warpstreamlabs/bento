@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package messagepb;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/warpstreamlabs/bento/internal/message/messagepb";
+
+message Part {
+    oneof content {
+        bytes raw = 1;
+        google.protobuf.Value structured = 2;
+    }
+    string error = 3;
+    google.protobuf.Struct metadata = 4;
+}
+
+message Batch {
+    repeated Part parts = 1;
+}
