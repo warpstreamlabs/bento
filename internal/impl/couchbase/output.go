@@ -10,7 +10,9 @@ import (
 
 // OutputConfig export couchbase output specification.
 func OutputConfig() *service.ConfigSpec {
-	return ProcessorConfig().
+	return Config().
+		Version("1.14.0").
+		Summary("Performs operations against Couchbase for each message, allowing you to store data within message payloads.").
 		Field(service.NewStringAnnotatedEnumField("operation", map[string]string{
 			string(client.OperationInsert):    "Insert a new document.",
 			string(client.OperationRemove):    "Delete a document.",

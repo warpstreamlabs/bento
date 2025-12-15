@@ -18,9 +18,9 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Performs operations against Couchbase for each message, allowing you to store or retrieve data within message payloads.
+Performs operations against Couchbase for each message, allowing you to store data within message payloads.
 
-Introduced in version 1.0.0.
+Introduced in version 1.14.0.
 
 
 <Tabs defaultValue="common" values={[
