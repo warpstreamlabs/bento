@@ -2,27 +2,10 @@ package couchbase
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
-
-	"github.com/couchbase/gocb/v2"
 
 	"github.com/warpstreamlabs/bento/internal/impl/couchbase/client"
-	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
-)
-
-const (
-	// MetaCASKey holds the CAS value of an entry.
-	MetaCASKey = "couchbase_cas"
-)
-
-var (
-	// ErrInvalidOperation specified operation is not supported.
-	ErrInvalidOperation = errors.New("invalid operation")
-	// ErrContentRequired content field is required.
-	ErrContentRequired = errors.New("content required")
 )
 
 // ProcessorConfig export couchbase processor specification.
@@ -60,135 +43,18 @@ func init() {
 	}
 }
 
-//------------------------------------------------------------------------------
-
-// Processor stores or retrieves data from couchbase for each message of a
-// batch.
-type Processor struct {
-	*couchbaseClient
-	id         *service.InterpolatedString
-	content    *bloblang.Executor
-	ttl        *time.Duration
-	op         func(key string, data []byte, cas gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error)
-	casEnabled bool
-}
-
 // NewProcessor returns a Couchbase processor.
-func NewProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*Processor, error) {
-	cl, err := getClient(conf, mgr)
-	if err != nil {
-		return nil, err
-	}
-	p := &Processor{
-		couchbaseClient: cl,
-	}
-
-	if p.id, err = conf.FieldInterpolatedString("id"); err != nil {
-		return nil, err
-	}
-
-	if conf.Contains("content") {
-		if p.content, err = conf.FieldBloblang("content"); err != nil {
-			return nil, err
-		}
-	}
-
-	if conf.Contains("ttl") {
-		ttlTmp, err := conf.FieldDuration("ttl")
-		if err != nil {
-			return nil, err
-		}
-		p.ttl = &ttlTmp
-	}
-
-	p.casEnabled, err = conf.FieldBool("cas_enabled")
-	if err != nil {
-		return nil, err
-	}
-
-	op, err := conf.FieldString("operation")
-	if err != nil {
-		return nil, err
-	}
-	switch client.Operation(op) {
-	case client.OperationGet:
-		p.op = get
-	case client.OperationRemove:
-		p.op = remove
-	case client.OperationInsert:
-		if p.content == nil {
-			return nil, ErrContentRequired
-		}
-		p.op = insert
-	case client.OperationReplace:
-		if p.content == nil {
-			return nil, ErrContentRequired
-		}
-		p.op = replace
-	case client.OperationUpsert:
-		if p.content == nil {
-			return nil, ErrContentRequired
-		}
-		p.op = upsert
-	case client.OperationIncrement:
-		p.op = increment
-	case client.OperationDecrement:
-		p.op = decrement
-	default:
-		return nil, fmt.Errorf("%w: %s", ErrInvalidOperation, op)
-	}
-
-	return p, nil
+func NewProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*Couchbase, error) {
+	return New(conf, mgr, false)
 }
 
 // ProcessBatch applies the processor to a message batch, either creating >0
 // resulting messages or a response to be sent back to the message source.
-func (p *Processor) ProcessBatch(ctx context.Context, inBatch service.MessageBatch) ([]service.MessageBatch, error) {
+func (c *Couchbase) ProcessBatch(ctx context.Context, inBatch service.MessageBatch) ([]service.MessageBatch, error) {
 	newMsg := inBatch.Copy()
-	ops := make([]gocb.BulkOp, len(inBatch))
-	var executor *service.MessageBatchBloblangExecutor
-	if p.content != nil {
-		executor = inBatch.BloblangExecutor(p.content)
-	}
-
-	// generate query
-	for index, msg := range newMsg {
-		// generate id
-		k, err := inBatch.TryInterpolatedString(index, p.id)
-		if err != nil {
-			return nil, fmt.Errorf("id interpolation error: %w", err)
-		}
-
-		// generate content
-		var content []byte
-		if p.content != nil {
-			res, err := executor.Query(index)
-			if err != nil {
-				return nil, err
-			}
-			content, err = res.AsBytes()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		var cas gocb.Cas // retrieve cas if set and enabled
-		if p.casEnabled {
-			if val, ok := msg.MetaGetMut(MetaCASKey); ok {
-				if v, ok := val.(gocb.Cas); ok {
-					cas = v
-				}
-			}
-		}
-
-		ops[index], err = p.op(k, content, cas, p.ttl)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	// execute
-	err := p.collection.Do(ops, &gocb.BulkOpOptions{})
+	ops, err := c.process(ctx, newMsg)
 	if err != nil {
 		return nil, err
 	}
