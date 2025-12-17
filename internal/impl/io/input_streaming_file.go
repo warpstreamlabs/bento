@@ -1,20 +1,3 @@
-// Package io contains component implementations for file I/O and streaming.
-//
-// # StreamingFileInput Plugin
-//
-// The StreamingFileInput plugin reads from files continuously with the following features:
-//   - Automatic recovery from crashes using persistent position tracking
-//   - Seamless handling of file rotations
-//   - At-least-once semantics with ack-based position updates (exactly-once in normal operation)
-//   - Comprehensive metrics and observability via OpenTelemetry
-//   - No external process dependencies
-//
-// # Semantics
-//
-// The plugin provides at-least-once semantics:
-//   - In normal operation: exactly-once (position persisted on ack)
-//   - During forced shutdown: at-least-once (soft checkpoint may lag behind acks)
-//   - After rotation: exactly-once (rotation marker persisted immediately)
 package io
 
 import (
@@ -53,19 +36,16 @@ var splitKeepNewline = func(data []byte, atEOF bool) (int, []byte, error) {
 	return 0, nil, nil
 }
 
-// StreamingFileInputConfig holds configuration for the streaming file input
 type StreamingFileInputConfig struct {
-	Path               string        `json:"path"`
-	StateDir           string        `json:"state_dir"`
-	CheckpointInterval int           `json:"checkpoint_interval"`
-	MaxBufferSize      int           `json:"max_buffer_size"`
-	MaxLineSize        int           `json:"max_line_size"`
-	ReadTimeout        time.Duration `json:"read_timeout"`
-	ShutdownTimeout    time.Duration `json:"shutdown_timeout"`
-	Debug              bool          `json:"debug"`
+	Path               string
+	StateDir           string
+	CheckpointInterval int
+	MaxBufferSize      int
+	MaxLineSize        int
+	ReadTimeout        time.Duration
 }
 
-// FilePosition tracks the current position in a file
+// FilePosition is serialized to disk for crash recovery.
 type FilePosition struct {
 	FilePath   string       `json:"file_path"`
 	Inode      uint64       `json:"inode"`
@@ -76,7 +56,6 @@ type FilePosition struct {
 	Timestamp  time.Time    `json:"timestamp"`
 }
 
-// Metrics holds counters for observability using OpenTelemetry
 type Metrics struct {
 	LinesReadCounter      metric.Int64Counter
 	BytesReadCounter      metric.Int64Counter
@@ -92,17 +71,6 @@ type Metrics struct {
 	StateWrites   atomic.Int64
 }
 
-// HealthStatus represents the health of the input
-type HealthStatus struct {
-	IsHealthy    bool
-	LastError    string
-	LastReadTime time.Time
-	FileSize     int64
-	ByteOffset   int64
-	LineNumber   int64
-}
-
-// StreamingFileInput implements a robust streaming file input for Bento
 type StreamingFileInput struct {
 	config        StreamingFileInputConfig
 	logger        *service.Logger
@@ -120,8 +88,6 @@ type StreamingFileInput struct {
 	lastSaveTime  time.Time
 	connected     bool
 	connMutex     sync.RWMutex
-	lastInode     uint64
-	lastSize      atomic.Int64
 	metrics       *Metrics
 	ackCount      atomic.Int64
 	inFlightCount atomic.Int64
@@ -135,7 +101,6 @@ type StreamingFileInput struct {
 	lastMetricsFlush time.Time
 }
 
-// NewStreamingFileInput creates a new streaming file input
 func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger) (*StreamingFileInput, error) {
 	if cfg.Path == "" {
 		return nil, errors.New("path is required")
@@ -154,9 +119,6 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 	}
 	if cfg.ReadTimeout <= 0 {
 		cfg.ReadTimeout = 30 * time.Second
-	}
-	if cfg.ShutdownTimeout <= 0 {
-		cfg.ShutdownTimeout = 30 * time.Second
 	}
 
 	if err := os.MkdirAll(cfg.StateDir, 0755); err != nil {
@@ -234,19 +196,40 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 
 func streamingFileInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Stable().
 		Categories("Local").
-		Summary("Robust streaming file input with automatic recovery and rotation handling").
+		Summary("Streaming file input with log rotation and truncation handling").
 		Description(`
-Reads from a file continuously, similar to using a subprocess with 'tail -F', but with several important improvements:
+Reads from a file continuously with automatic handling of log rotation and truncation.
 
-- Automatic recovery from crashes using persistent position tracking
-- Seamless handling of file rotations
-- At-least-once semantics with ack-based position updates
-- Comprehensive metrics and observability
-- No external process dependencies
+### Core Features
 
-The input maintains state in a JSON file to enable recovery from the exact position where it left off.
+- **Log rotation handling**: Detects when a file is rotated (via inode change) and seamlessly
+  switches to the new file
+- **Truncation handling**: Detects when a file is truncated and resets position to the beginning
+- **Position tracking**: Optionally persists read position to disk for crash recovery
+
+### Position Tracking Trade-off
+
+This component can persist position state to disk via ` + "`state_dir`" + `, which differs from
+Bento's general "no disk persisted state" philosophy. This trade-off enables crash recovery
+for use cases where reprocessing from the beginning is unacceptable. If crash recovery is not
+needed, you can use a tmpfs mount for state_dir or accept that a restart will reprocess from
+the file's beginning.
+
+### Platform Limitations
+
+This component uses fsnotify for file change detection, which has the following constraints:
+
+- **NFS/network filesystems**: fsnotify does not work reliably on network-mounted filesystems
+- **Supported platforms**: Linux, macOS, Windows, BSD (any platform supporting inotify, kqueue, or ReadDirectoryChangesW)
+- **Container environments**: When running in containers, ensure the watched file path is
+  properly mounted and accessible
+
+### Delivery Semantics
+
+- **Normal operation**: Exactly-once (position persisted after each ack)
+- **After crash/restart**: At-least-once (may reprocess messages since last checkpoint)
+- **After rotation**: Exactly-once (new file position persisted immediately)
 `).
 		Field(service.NewStringField("path").
 			Description("Path to the file to read from").
@@ -266,62 +249,51 @@ The input maintains state in a JSON file to enable recovery from the exact posit
 		Field(service.NewIntField("max_line_size").
 			Description("Maximum line size in bytes to prevent OOM").
 			Default(1048576).
-			Example(1048576)).
-		Field(service.NewBoolField("debug").
-			Description("Enable debug logging").
-			Default(false))
+			Example(1048576))
 }
 
-// logDebugf logs a debug message using Bento logger
 func (sfi *StreamingFileInput) logDebugf(format string, args ...interface{}) {
 	if sfi.logger != nil {
 		sfi.logger.Debugf(format, args...)
 	}
 }
 
-// logInfof logs an info message using Bento logger
 func (sfi *StreamingFileInput) logInfof(format string, args ...interface{}) {
 	if sfi.logger != nil {
 		sfi.logger.Infof(format, args...)
 	}
 }
 
-// logWarnf logs a warning message using Bento logger
 func (sfi *StreamingFileInput) logWarnf(format string, args ...interface{}) {
 	if sfi.logger != nil {
 		sfi.logger.Warnf(format, args...)
 	}
 }
 
-// logErrorf logs an error message using Bento logger
 func (sfi *StreamingFileInput) logErrorf(format string, args ...interface{}) {
 	if sfi.logger != nil {
 		sfi.logger.Errorf(format, args...)
 	}
 }
 
-// setLastSaveNow safely sets the last save time to now
 func (sfi *StreamingFileInput) setLastSaveNow() {
 	sfi.statusMu.Lock()
 	sfi.lastSaveTime = time.Now()
 	sfi.statusMu.Unlock()
 }
 
-// getLastSaveTime safely gets the last save time
 func (sfi *StreamingFileInput) getLastSaveTime() time.Time {
 	sfi.statusMu.RLock()
 	defer sfi.statusMu.RUnlock()
 	return sfi.lastSaveTime
 }
 
-// statePaths returns the state file path for this input
 func (sfi *StreamingFileInput) statePaths() string {
 	abs, _ := filepath.Abs(sfi.config.Path)
 	sum := sha1.Sum([]byte(abs))
 	return filepath.Join(sfi.config.StateDir, fmt.Sprintf("pos_%x.json", sum[:8]))
 }
 
-// Connect opens the file and starts reading
 func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	sfi.connMutex.Lock()
 	defer sfi.connMutex.Unlock()
@@ -350,8 +322,6 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	currentInode, hasInode := inodeOf(stat)
 	currentSize := stat.Size()
 
-	sfi.lastSize.Store(currentSize)
-
 	sfi.positionMutex.Lock()
 	savedInode := sfi.position.Inode
 	savedOffset := sfi.position.ByteOffset.Load()
@@ -366,7 +336,6 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 	sfi.positionMutex.Lock()
 	if hasInode {
 		sfi.position.Inode = currentInode
-		sfi.lastInode = currentInode
 	}
 
 	if !shouldResume {
@@ -943,14 +912,11 @@ func (sfi *StreamingFileInput) loadPosition() error {
 	sfi.position.LineNumber.Store(loadedPos.RawLineNum)
 	sfi.position.Timestamp = loadedPos.Timestamp
 
-	if sfi.config.Debug {
-		sfi.logDebugf("Loaded position: line=%d, offset=%d", loadedPos.RawLineNum, loadedPos.RawOffset)
-	}
+	sfi.logDebugf("Loaded position: line=%d, offset=%d", loadedPos.RawLineNum, loadedPos.RawOffset)
 
 	return nil
 }
 
-// Read returns the next message from the buffer
 func (sfi *StreamingFileInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
 	sfi.connMutex.RLock()
 	connected := sfi.connected
@@ -1090,7 +1056,6 @@ func (sfi *StreamingFileInput) Read(ctx context.Context) (*service.Message, serv
 	}
 }
 
-// Close closes the file and stops reading
 func (sfi *StreamingFileInput) Close(ctx context.Context) error {
 	sfi.connMutex.Lock()
 	if !sfi.connected {
@@ -1126,11 +1091,8 @@ func (sfi *StreamingFileInput) Close(ctx context.Context) error {
 		close(sfi.buffer)
 	}
 
-	shutdownTimeout := 30 * time.Second
-	if sfi.config.ShutdownTimeout > 0 {
-		shutdownTimeout = sfi.config.ShutdownTimeout
-	}
-
+	// Wait for in-flight messages to be acknowledged, respecting the context deadline
+	// which is controlled by Bento's shutdown_timeout configuration
 	drainDone := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
@@ -1152,24 +1114,22 @@ func (sfi *StreamingFileInput) Close(ctx context.Context) error {
 	select {
 	case <-drainDone:
 		sfi.logInfof("All in-flight messages acknowledged")
-	case <-time.After(shutdownTimeout):
-		remaining := sfi.inFlightCount.Load()
-		sfi.logErrorf("CRITICAL: Shutdown timeout with %d in-flight messages. Persisting soft checkpoint.", remaining)
-		if sfi.metrics.ErrorsCounter != nil {
-			sfi.metrics.ErrorsCounter.Add(context.Background(), remaining,
-				metric.WithAttributes(
-					attribute.String("error_type", "shutdown_timeout"),
-					attribute.String("file", sfi.config.Path)))
-		}
-		softCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := sfi.savePositionDurable(softCtx); err != nil {
-			sfi.logWarnf("Failed to persist soft checkpoint on shutdown timeout: %v", err)
-		} else {
-			sfi.logInfof("Soft checkpoint persisted with %d in-flight messages", remaining)
-		}
 	case <-ctx.Done():
-		sfi.logWarnf("Close context cancelled with %d in-flight messages", sfi.inFlightCount.Load())
+		remaining := sfi.inFlightCount.Load()
+		if remaining > 0 {
+			sfi.logWarnf("Shutdown with %d in-flight messages, persisting checkpoint", remaining)
+			if sfi.metrics.ErrorsCounter != nil {
+				sfi.metrics.ErrorsCounter.Add(context.Background(), remaining,
+					metric.WithAttributes(
+						attribute.String("error_type", "shutdown_timeout"),
+						attribute.String("file", sfi.config.Path)))
+			}
+			softCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			if err := sfi.savePositionDurable(softCtx); err != nil {
+				sfi.logWarnf("Failed to persist checkpoint on shutdown: %v", err)
+			}
+			cancel()
+		}
 	}
 
 	sfi.wg.Wait()
@@ -1286,10 +1246,6 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			debug, err := pConf.FieldBool("debug")
-			if err != nil {
-				return nil, err
-			}
 
 			cfg := StreamingFileInputConfig{
 				Path:               path,
@@ -1297,7 +1253,6 @@ func init() {
 				CheckpointInterval: checkpointInterval,
 				MaxBufferSize:      maxBufferSize,
 				MaxLineSize:        maxLineSize,
-				Debug:              debug,
 			}
 
 			return NewStreamingFileInput(cfg, res.Logger())
