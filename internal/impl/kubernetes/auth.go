@@ -8,9 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -67,11 +71,13 @@ func AuthFields() []*service.ConfigField {
 	}
 }
 
-// ClientSet contains both the typed and dynamic Kubernetes clients.
+// ClientSet contains the typed, dynamic, and discovery Kubernetes clients.
 type ClientSet struct {
-	Typed   kubernetes.Interface
-	Dynamic dynamic.Interface
-	Config  *rest.Config
+	Typed     kubernetes.Interface
+	Dynamic   dynamic.Interface
+	Discovery discovery.DiscoveryInterface
+	Mapper    meta.RESTMapper
+	Config    *rest.Config
 }
 
 // GetClientSet creates Kubernetes clients from parsed configuration.
@@ -142,10 +148,17 @@ func GetClientSet(ctx context.Context, conf *service.ParsedConfig) (*ClientSet, 
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 
+	// Create cached discovery client and RESTMapper for GVR resolution
+	discoveryClient := typedClient.Discovery()
+	cachedDiscovery := memory.NewMemCacheClient(discoveryClient)
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscovery)
+
 	return &ClientSet{
-		Typed:   typedClient,
-		Dynamic: dynamicClient,
-		Config:  config,
+		Typed:     typedClient,
+		Dynamic:   dynamicClient,
+		Discovery: discoveryClient,
+		Mapper:    mapper,
+		Config:    config,
 	}, nil
 }
 

@@ -74,19 +74,3 @@ namespaces: []
 		})
 	}
 }
-
-func TestStandardResourcesMap(t *testing.T) {
-	// Verify all expected resources are in the map
-	expectedResources := []string{
-		"pods", "services", "configmaps", "secrets",
-		"deployments", "replicasets", "statefulsets", "daemonsets",
-		"jobs", "cronjobs", "ingresses", "networkpolicies",
-		"namespaces", "nodes", "persistentvolumes", "persistentvolumeclaims",
-	}
-
-	for _, resource := range expectedResources {
-		gvr, ok := standardResources[resource]
-		require.True(t, ok, "expected resource %s to be in standardResources", resource)
-		require.NotEmpty(t, gvr.Resource, "expected resource %s to have non-empty Resource field", resource)
-	}
-}

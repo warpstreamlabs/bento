@@ -20,26 +20,6 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-// Standard Kubernetes resources and their GVRs
-var standardResources = map[string]schema.GroupVersionResource{
-	"pods":                   {Group: "", Version: "v1", Resource: "pods"},
-	"services":               {Group: "", Version: "v1", Resource: "services"},
-	"configmaps":             {Group: "", Version: "v1", Resource: "configmaps"},
-	"secrets":                {Group: "", Version: "v1", Resource: "secrets"},
-	"namespaces":             {Group: "", Version: "v1", Resource: "namespaces"},
-	"nodes":                  {Group: "", Version: "v1", Resource: "nodes"},
-	"persistentvolumes":      {Group: "", Version: "v1", Resource: "persistentvolumes"},
-	"persistentvolumeclaims": {Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
-	"deployments":            {Group: "apps", Version: "v1", Resource: "deployments"},
-	"replicasets":            {Group: "apps", Version: "v1", Resource: "replicasets"},
-	"statefulsets":           {Group: "apps", Version: "v1", Resource: "statefulsets"},
-	"daemonsets":             {Group: "apps", Version: "v1", Resource: "daemonsets"},
-	"jobs":                   {Group: "batch", Version: "v1", Resource: "jobs"},
-	"cronjobs":               {Group: "batch", Version: "v1", Resource: "cronjobs"},
-	"ingresses":              {Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
-	"networkpolicies":        {Group: "networking.k8s.io", Version: "v1", Resource: "networkpolicies"},
-}
-
 func kubernetesWatchInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
@@ -48,26 +28,26 @@ func kubernetesWatchInputConfig() *service.ConfigSpec {
 		Summary("Watches Kubernetes resources for changes, similar to `kubectl get <resource> --watch`.").
 		Description(`
 This input watches Kubernetes resources and emits events when resources
-are added, modified, or deleted. It supports both standard Kubernetes
+are added, modified, or deleted. It uses the Kubernetes discovery API
+to automatically resolve resource types, supporting both standard
 resources and Custom Resource Definitions (CRDs).
 
-### Standard Resources
+### Watching Resources
 
-For common resources, simply specify the resource name:
+Specify any resource name recognized by the cluster:
 ` + "```yaml" + `
 input:
   kubernetes_watch:
     resource: pods
 ` + "```" + `
 
-Supported standard resources: pods, services, configmaps, secrets,
-deployments, replicasets, statefulsets, daemonsets, jobs, cronjobs,
-ingresses, networkpolicies, nodes, namespaces, persistentvolumes,
-persistentvolumeclaims.
+The resource name is resolved dynamically via the Kubernetes API,
+so any valid resource type is supported (pods, deployments, services,
+configmaps, or any installed CRD).
 
-### Custom Resources (CRDs)
+### Explicit GVR for Custom Resources
 
-For custom resources, specify the group, version, and resource:
+For custom resources where you need to specify the exact group/version:
 ` + "```yaml" + `
 input:
   kubernetes_watch:
@@ -192,32 +172,6 @@ func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources)
 		return nil, err
 	}
 
-	// Determine GVR from resource or custom_resource
-	resource, _ := conf.FieldString("resource")
-	if resource != "" {
-		gvr, ok := standardResources[resource]
-		if !ok {
-			return nil, fmt.Errorf("unknown resource type: %s", resource)
-		}
-		k.gvr = gvr
-	} else {
-		// Custom resource
-		crConf := conf.Namespace("custom_resource")
-		group, _ := crConf.FieldString("group")
-		version, _ := crConf.FieldString("version")
-		crResource, _ := crConf.FieldString("resource")
-
-		if crResource == "" {
-			return nil, errors.New("custom_resource.resource is required when using custom_resource")
-		}
-
-		k.gvr = schema.GroupVersionResource{
-			Group:    group,
-			Version:  version,
-			Resource: crResource,
-		}
-	}
-
 	// Parse event types filter
 	eventTypesList, err := conf.FieldStringList("event_types")
 	if err != nil {
@@ -240,9 +194,36 @@ func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources)
 		return nil, fmt.Errorf("failed to parse request_timeout: %w", err)
 	}
 
-	// Get Kubernetes client
+	// Get Kubernetes client (needed for RESTMapper)
 	if k.clientSet, err = GetClientSet(context.Background(), conf); err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	// Determine GVR from resource or custom_resource
+	resource, _ := conf.FieldString("resource")
+	if resource != "" {
+		// Use RESTMapper to dynamically resolve the GVR
+		gvr, err := k.clientSet.Mapper.ResourceFor(schema.GroupVersionResource{Resource: resource})
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve resource %q: %w", resource, err)
+		}
+		k.gvr = gvr
+	} else {
+		// Custom resource with explicit GVR
+		crConf := conf.Namespace("custom_resource")
+		group, _ := crConf.FieldString("group")
+		version, _ := crConf.FieldString("version")
+		crResource, _ := crConf.FieldString("resource")
+
+		if crResource == "" {
+			return nil, errors.New("custom_resource.resource is required when using custom_resource")
+		}
+
+		k.gvr = schema.GroupVersionResource{
+			Group:    group,
+			Version:  version,
+			Resource: crResource,
+		}
 	}
 
 	return k, nil
