@@ -325,10 +325,6 @@ output_resources:
 	require.Empty(t, lints)
 }
 
-func TestLintWarnsExperimental(t *testing.T) {
-
-}
-
 func TestDefaultBasedOverridesWithYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	outFile := filepath.Join(tmpDir, "foo.txt")
