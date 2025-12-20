@@ -1,0 +1,39 @@
+# Streaming File Input Example
+# ============================
+# This example demonstrates using streaming_file to tail a log file,
+# similar to 'tail -F' but with automatic rotation and truncation handling.
+#
+# Quick Test:
+#   1. Create a test file:
+#      echo "hello world" > /tmp/test.log
+#
+#   2. Run bento:
+#      bento -c config/examples/streaming_file_tail.yaml
+#
+#   3. In another terminal, append lines:
+#      echo "new line 1" >> /tmp/test.log
+#      echo "new line 2" >> /tmp/test.log
+#
+# Performance Note:
+#   By default, polling-only mode is used (disable_fsnotify: true) which is
+#   more CPU-efficient for high-volume log files. For lower latency on
+#   low-volume files, set disable_fsnotify: false.
+
+input:
+  streaming_file:
+    path: /tmp/test.log
+    poll_interval: 200ms      # How often to check for new data
+    disable_fsnotify: true    # true = polling only (CPU efficient)
+                              # false = use fsnotify (lower latency)
+
+pipeline:
+  processors:
+    - mapping: |
+        # Add timestamp to each line
+        root.timestamp = now()
+        root.content = content().string()
+        root.metadata = @
+
+output:
+  stdout:
+    codec: lines
