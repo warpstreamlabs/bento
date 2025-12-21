@@ -145,7 +145,7 @@ couchbase:
 	}
 }
 
-func getProc(tb testing.TB, config string) *couchbase.Processor {
+func getProc(tb testing.TB, config string) *couchbase.Couchbase {
 	tb.Helper()
 
 	confSpec := couchbase.ProcessorConfig()
