@@ -182,4 +182,4 @@ The full example config for this cookbook lives at [config/examples/bluesky_jets
 [kafka_franz_output]: /docs/components/outputs/kafka_franz
 [metric_processor]: /docs/components/processors/metric
 [metrics_about]: /docs/components/metrics/about
-[full-config]: https://github.com/warpstreamlabs/bento/blob/main/config/examples/bluesky_jetstream.yaml
+[full-config]: ../../config/examples/bluesky_jetstream.yaml
