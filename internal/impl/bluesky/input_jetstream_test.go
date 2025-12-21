@@ -3,6 +3,7 @@ package bluesky
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -130,6 +132,69 @@ endpoint: %v
 	require.NoError(t, reader.Close(ctx))
 }
 
+func TestJetstreamCompression(t *testing.T) {
+	event := JetstreamEvent{
+		Did:    "did:plc:test123",
+		TimeUS: 1234567890123456,
+		Kind:   "commit",
+		Commit: &CommitEvent{
+			Rev:        "rev1",
+			Operation:  "create",
+			Collection: "app.bsky.feed.post",
+			Rkey:       "abc123",
+		},
+	}
+	raw, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	encoder, err := zstd.NewWriter(nil)
+	require.NoError(t, err)
+	compressed := encoder.EncodeAll(raw, nil)
+	require.NoError(t, encoder.Close())
+
+	var gotEncoding string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotEncoding = r.Header.Get("Socket-Encoding")
+		upgrader := websocket.Upgrader{}
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer ws.Close()
+
+		_ = ws.WriteMessage(websocket.BinaryMessage, compressed)
+	}))
+	defer server.Close()
+
+	wsURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	wsURL.Scheme = "ws"
+
+	env := service.NewEnvironment()
+	pConf, err := jetstreamInputSpec().ParseYAML(fmt.Sprintf(`
+endpoint: %v
+compress: true
+`, wsURL.String()), env)
+	require.NoError(t, err)
+
+	reader, err := newJetstreamReader(pConf, service.MockResources())
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, reader.Connect(ctx))
+
+	msg, ackFn, err := reader.Read(ctx)
+	require.NoError(t, err)
+
+	msgBytes, err := msg.AsBytes()
+	require.NoError(t, err)
+	require.Equal(t, raw, msgBytes)
+	require.Equal(t, "zstd", gotEncoding)
+
+	require.NoError(t, ackFn(ctx, nil))
+	require.NoError(t, reader.Close(ctx))
+}
+
 func TestJetstreamFilters(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -223,6 +288,56 @@ endpoint: %v
 			require.Equal(t, expected, receivedURL)
 		})
 	}
+}
+
+func TestJetstreamDisconnect(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer ws.Close()
+
+		event := JetstreamEvent{
+			Did:    "did:plc:test",
+			TimeUS: 9999999999999999,
+			Kind:   "commit",
+		}
+		data, _ := json.Marshal(event)
+		_ = ws.WriteMessage(websocket.TextMessage, data)
+	}))
+	defer server.Close()
+
+	wsURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	wsURL.Scheme = "ws"
+
+	env := service.NewEnvironment()
+	pConf, err := jetstreamInputSpec().ParseYAML(fmt.Sprintf(`
+endpoint: %v
+`, wsURL.String()), env)
+	require.NoError(t, err)
+
+	reader, err := newJetstreamReader(pConf, service.MockResources())
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, reader.Connect(ctx))
+
+	msg, ackFn, err := reader.Read(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+	require.NoError(t, ackFn(ctx, nil))
+
+	require.Eventually(t, func() bool {
+		readCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		_, _, err := reader.Read(readCtx)
+		return errors.Is(err, service.ErrNotConnected)
+	}, time.Second, 25*time.Millisecond)
+
+	require.NoError(t, reader.Close(ctx))
 }
 
 func TestJetstreamCursor(t *testing.T) {
@@ -435,7 +550,11 @@ func TestJetstreamBuildURL(t *testing.T) {
 				compress:    test.compress,
 			}
 
-			url, err := reader.buildURL(test.cursor)
+			endpoint := test.endpoint
+			if endpoint == "" {
+				endpoint = reader.endpointCandidates()[0]
+			}
+			url, err := reader.buildURL(endpoint, test.cursor)
 			require.NoError(t, err)
 			require.Equal(t, test.expected, url)
 		})

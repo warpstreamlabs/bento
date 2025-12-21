@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
@@ -27,6 +28,18 @@ var defaultJetstreamEndpoints = []string{
 	"wss://jetstream2.us-east.bsky.network/subscribe",
 	"wss://jetstream1.us-west.bsky.network/subscribe",
 	"wss://jetstream2.us-west.bsky.network/subscribe",
+}
+
+const (
+	defaultJetstreamBufferSize      = 1024
+	defaultJetstreamCursorCommitInt = time.Second
+	defaultJetstreamPingInterval    = 30 * time.Second
+	pingWriteTimeout                = 10 * time.Second
+)
+
+type jetstreamMessage struct {
+	raw   []byte
+	event JetstreamEvent
 }
 
 // JetstreamEvent represents a message from the Jetstream firehose
@@ -106,13 +119,24 @@ AT Protocol PDS (Personal Data Server) that exposes a Jetstream-compatible endpo
 The input supports cursor-based resumption via an optional cache resource. When configured, the cursor (Unix
 microsecond timestamp) of the last processed event is stored in the cache. On restart, the stream resumes
 from that point, ensuring no events are missed.
+
+### High Volume Tuning
+
+For high throughput workloads consider enabling compress, setting a larger buffer_size, and using
+cursor_commit_interval to reduce cache write amplification. You can also tune max_in_flight, ping_interval,
+and read_timeout for additional control.
 `).
 		Fields(
 			service.NewStringField("endpoint").
 				Description("The Jetstream WebSocket endpoint URL. Leave empty to use the default public endpoints with automatic failover.").
 				Example("wss://jetstream1.us-east.bsky.network/subscribe").
-				Example("wss://my-pds.example.com/xrpc/com.atproto.sync.subscribeRepos").
+				Example("wss://my-pds.example.com/subscribe").
 				Default("").
+				Advanced(),
+			service.NewStringListField("endpoints").
+				Description("A list of Jetstream WebSocket endpoints to try in order. Ignored when `endpoint` is set. Leave empty to use the default public endpoints.").
+				Example([]string{"wss://jetstream1.us-east.bsky.network/subscribe", "wss://jetstream2.us-east.bsky.network/subscribe"}).
+				Default([]string{}).
 				Advanced(),
 			service.NewStringListField("collections").
 				Description("Filter events by collection NSID (Namespaced Identifier). Supports wildcards like `app.bsky.feed.*`. Leave empty to receive all collections.").
@@ -128,6 +152,22 @@ from that point, ensuring no events are missed.
 				Description("Enable zstd compression for reduced bandwidth. Recommended for high-volume streams.").
 				Default(false).
 				Advanced(),
+			service.NewIntField("buffer_size").
+				Description("Size of the internal message buffer. Higher values can absorb bursts but use more memory.").
+				Default(defaultJetstreamBufferSize).
+				Advanced(),
+			service.NewIntField("read_limit_bytes").
+				Description("Maximum size of a WebSocket message in bytes. Set to 0 for no limit.").
+				Default(0).
+				Advanced(),
+			service.NewDurationField("ping_interval").
+				Description("Interval for sending WebSocket ping frames to keep connections alive. Set to 0 to disable.").
+				Default(defaultJetstreamPingInterval.String()).
+				Advanced(),
+			service.NewDurationField("read_timeout").
+				Description("Read deadline for WebSocket messages. If set to 0 and `ping_interval` is enabled, a default of 2x `ping_interval` is used.").
+				Default("0s").
+				Advanced(),
 			service.NewStringField("cache").
 				Description("A cache resource for storing the cursor position. This enables resumption from the last processed event after restarts.").
 				Default("").
@@ -140,6 +180,11 @@ from that point, ensuring no events are missed.
 				Description("When resuming, subtract this many microseconds from the stored cursor to ensure no events are missed due to timing issues. Default is 1 second (1,000,000 microseconds).").
 				Default(1000000).
 				Advanced(),
+			service.NewDurationField("cursor_commit_interval").
+				Description("Minimum interval between cursor commits to the cache. Set to 0 to commit every acknowledged message.").
+				Default(defaultJetstreamCursorCommitInt.String()).
+				Advanced(),
+			service.NewInputMaxInFlightField(),
 			service.NewAutoRetryNacksToggleField(),
 		)
 }
@@ -152,7 +197,11 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			return service.AutoRetryNacksToggled(conf, reader)
+			input, err := service.AutoRetryNacksToggled(conf, reader)
+			if err != nil {
+				return nil, err
+			}
+			return service.InputWithMaxInFlight(reader.maxInFlight, input), nil
 		},
 	)
 	if err != nil {
@@ -169,30 +218,44 @@ type jetstreamReader struct {
 
 	// Config
 	endpoint       string
+	endpoints      []string
 	collections    []string
 	dids           []string
 	compress       bool
+	bufferSize     int
+	readLimitBytes int64
+	pingInterval   time.Duration
+	readTimeout    time.Duration
 	cache          string
 	cacheKey       string
 	cursorBufferUS int64
+	cursorCommit   time.Duration
+	maxInFlight    int
 
 	// Connection state
 	connMut    sync.Mutex
 	conn       *websocket.Conn
-	msgChan    chan *JetstreamEvent
+	msgChan    chan jetstreamMessage
 	zstdReader *zstd.Decoder
+	endpointIx int
+
+	cursorMu       sync.Mutex
+	cursorPending  int64
+	cursorLastSave time.Time
 }
 
 func newJetstreamReader(conf *service.ParsedConfig, mgr *service.Resources) (*jetstreamReader, error) {
 	r := &jetstreamReader{
-		log:          mgr.Logger(),
-		shutSig:      shutdown.NewSignaller(),
-		mgr:          mgr,
-		checkpointer: checkpoint.NewCapped[int64](1024),
+		log:     mgr.Logger(),
+		shutSig: shutdown.NewSignaller(),
+		mgr:     mgr,
 	}
 	var err error
 
 	if r.endpoint, err = conf.FieldString("endpoint"); err != nil {
+		return nil, err
+	}
+	if r.endpoints, err = conf.FieldStringList("endpoints"); err != nil {
 		return nil, err
 	}
 	if r.collections, err = conf.FieldStringList("collections"); err != nil {
@@ -204,10 +267,30 @@ func newJetstreamReader(conf *service.ParsedConfig, mgr *service.Resources) (*je
 	if r.compress, err = conf.FieldBool("compress"); err != nil {
 		return nil, err
 	}
+	if r.bufferSize, err = conf.FieldInt("buffer_size"); err != nil {
+		return nil, err
+	}
+	readLimitBytes, err := conf.FieldInt("read_limit_bytes")
+	if err != nil {
+		return nil, err
+	}
+	r.readLimitBytes = int64(readLimitBytes)
+	if r.pingInterval, err = conf.FieldDuration("ping_interval"); err != nil {
+		return nil, err
+	}
+	if r.readTimeout, err = conf.FieldDuration("read_timeout"); err != nil {
+		return nil, err
+	}
 	if r.cache, err = conf.FieldString("cache"); err != nil {
 		return nil, err
 	}
 	if r.cacheKey, err = conf.FieldString("cache_key"); err != nil {
+		return nil, err
+	}
+	if r.cursorCommit, err = conf.FieldDuration("cursor_commit_interval"); err != nil {
+		return nil, err
+	}
+	if r.maxInFlight, err = conf.FieldInt("max_in_flight"); err != nil {
 		return nil, err
 	}
 
@@ -218,26 +301,74 @@ func newJetstreamReader(conf *service.ParsedConfig, mgr *service.Resources) (*je
 	r.cursorBufferUS = int64(cursorBuffer)
 
 	// Validate configuration
+	if r.bufferSize <= 0 {
+		return nil, errors.New("buffer_size must be greater than 0")
+	}
+	if r.readLimitBytes < 0 {
+		return nil, errors.New("read_limit_bytes must be greater than or equal to 0")
+	}
+	if r.pingInterval < 0 {
+		return nil, errors.New("ping_interval must be greater than or equal to 0")
+	}
+	if r.readTimeout < 0 {
+		return nil, errors.New("read_timeout must be greater than or equal to 0")
+	}
+	if r.cursorBufferUS < 0 {
+		return nil, errors.New("cursor_buffer_us must be greater than or equal to 0")
+	}
+	if r.cursorCommit < 0 {
+		return nil, errors.New("cursor_commit_interval must be greater than or equal to 0")
+	}
 	if len(r.collections) > 100 {
 		return nil, errors.New("maximum of 100 collections allowed")
 	}
 	if len(r.dids) > 10000 {
 		return nil, errors.New("maximum of 10,000 DIDs allowed")
 	}
+	if r.readTimeout == 0 && r.pingInterval > 0 {
+		r.readTimeout = r.pingInterval * 2
+	}
+
+	checkpointLimit := defaultJetstreamBufferSize
+	if r.bufferSize > checkpointLimit {
+		checkpointLimit = r.bufferSize
+	}
+	if r.maxInFlight > checkpointLimit {
+		checkpointLimit = r.maxInFlight
+	}
+	r.checkpointer = checkpoint.NewCapped[int64](int64(checkpointLimit))
 
 	return r, nil
 }
 
-func (r *jetstreamReader) buildURL(cursor int64) (string, error) {
-	var baseURL string
+func (r *jetstreamReader) endpointCandidates() []string {
 	if r.endpoint != "" {
-		baseURL = r.endpoint
-	} else {
-		// Use first public endpoint (could add failover logic later)
-		baseURL = defaultJetstreamEndpoints[0]
+		return []string{r.endpoint}
 	}
+	if len(r.endpoints) > 0 {
+		return r.endpoints
+	}
+	return defaultJetstreamEndpoints
+}
 
-	u, err := url.Parse(baseURL)
+func (r *jetstreamReader) nextEndpoints() []string {
+	endpoints := r.endpointCandidates()
+	if len(endpoints) <= 1 {
+		return endpoints
+	}
+	start := r.endpointIx % len(endpoints)
+	r.endpointIx = (start + 1) % len(endpoints)
+	ordered := make([]string, 0, len(endpoints))
+	ordered = append(ordered, endpoints[start:]...)
+	ordered = append(ordered, endpoints[:start]...)
+	return ordered
+}
+
+func (r *jetstreamReader) buildURL(endpoint string, cursor int64) (string, error) {
+	if endpoint == "" {
+		return "", errors.New("endpoint cannot be empty")
+	}
+	u, err := url.Parse(endpoint)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse endpoint URL: %w", err)
 	}
@@ -316,13 +447,56 @@ func (r *jetstreamReader) saveCursor(ctx context.Context, cursor int64) error {
 	return setErr
 }
 
-func (r *jetstreamReader) Connect(ctx context.Context) error {
-	r.connMut.Lock()
-	defer r.connMut.Unlock()
-
-	if r.msgChan != nil {
+func (r *jetstreamReader) commitCursor(ctx context.Context, cursor int64) error {
+	if r.cache == "" || cursor <= 0 {
 		return nil
 	}
+
+	r.cursorMu.Lock()
+	if cursor > r.cursorPending {
+		r.cursorPending = cursor
+	}
+	cursorToCommit := r.cursorPending
+	commitInterval := r.cursorCommit
+	lastCommit := r.cursorLastSave
+	shouldCommit := commitInterval <= 0 || lastCommit.IsZero() || time.Since(lastCommit) >= commitInterval
+	r.cursorMu.Unlock()
+
+	if !shouldCommit || cursorToCommit <= 0 {
+		return nil
+	}
+
+	if err := r.saveCursor(ctx, cursorToCommit); err != nil {
+		return err
+	}
+
+	r.cursorMu.Lock()
+	r.cursorLastSave = time.Now()
+	r.cursorMu.Unlock()
+	return nil
+}
+
+func (r *jetstreamReader) flushCursor(ctx context.Context) error {
+	if r.cache == "" {
+		return nil
+	}
+	r.cursorMu.Lock()
+	cursor := r.cursorPending
+	r.cursorMu.Unlock()
+	if cursor <= 0 {
+		return nil
+	}
+	return r.saveCursor(ctx, cursor)
+}
+
+func (r *jetstreamReader) Connect(ctx context.Context) error {
+	r.connMut.Lock()
+	if r.msgChan != nil {
+		r.connMut.Unlock()
+		return nil
+	}
+	endpoints := r.nextEndpoints()
+	r.connMut.Unlock()
 
 	// Get cursor for resumption
 	cursor, err := r.getCursor(ctx)
@@ -336,14 +510,6 @@ func (r *jetstreamReader) Connect(ctx context.Context) error {
 			cursor, time.Since(time.UnixMicro(cursor)).Round(time.Second))
 	}
 
-	// Build WebSocket URL
-	wsURL, err := r.buildURL(cursor)
-	if err != nil {
-		return err
-	}
-
-	r.log.Debugf("Connecting to Jetstream: %s", wsURL)
-
 	// Connect with custom headers for compression
 	dialer := websocket.DefaultDialer
 	headers := make(map[string][]string)
@@ -351,12 +517,48 @@ func (r *jetstreamReader) Connect(ctx context.Context) error {
 		headers["Socket-Encoding"] = []string{"zstd"}
 	}
 
-	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
+	var (
+		conn  *websocket.Conn
+		wsURL string
+	)
+	var lastErr error
+	for _, endpoint := range endpoints {
+		wsURL, err = r.buildURL(endpoint, cursor)
+		if err != nil {
+			lastErr = err
+			r.log.Warnf("Invalid Jetstream endpoint %q: %v", endpoint, err)
+			continue
+		}
+
+		r.log.Debugf("Connecting to Jetstream: %s", wsURL)
+		var resp *http.Response
+		conn, resp, err = dialer.DialContext(ctx, wsURL, headers)
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+		if err != nil {
+			lastErr = err
+			r.log.Debugf("Failed to connect to Jetstream endpoint %q: %v", endpoint, err)
+			conn = nil
+			continue
+		}
+		break
 	}
-	if err != nil {
-		return fmt.Errorf("failed to connect to Jetstream: %w", err)
+	if conn == nil {
+		if lastErr == nil {
+			lastErr = errors.New("no endpoints available")
+		}
+		return fmt.Errorf("failed to connect to Jetstream: %w", lastErr)
+	}
+
+	if r.readLimitBytes > 0 {
+		conn.SetReadLimit(r.readLimitBytes)
+	}
+	if r.readTimeout > 0 {
+		conn.SetReadDeadline(time.Now().Add(r.readTimeout))
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(r.readTimeout))
+		})
 	}
 
 	// Initialize zstd decoder if compression is enabled
@@ -368,20 +570,72 @@ func (r *jetstreamReader) Connect(ctx context.Context) error {
 		}
 	}
 
-	msgChan := make(chan *JetstreamEvent, 1024)
+	msgChan := make(chan jetstreamMessage, r.bufferSize)
+	connClosed := make(chan struct{})
+
+	r.connMut.Lock()
+	if r.msgChan != nil {
+		r.connMut.Unlock()
+		close(connClosed)
+		_ = conn.Close()
+		if r.zstdReader != nil {
+			r.zstdReader.Close()
+			r.zstdReader = nil
+		}
+		return nil
+	}
+	r.conn = conn
+	r.msgChan = msgChan
+	r.connMut.Unlock()
+
+	if r.pingInterval > 0 {
+		go func() {
+			ticker := time.NewTicker(r.pingInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					_ = conn.SetWriteDeadline(time.Now().Add(pingWriteTimeout))
+					if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+						if !r.shutSig.IsSoftStopSignalled() {
+							r.log.Warnf("WebSocket ping error: %v", err)
+						}
+						_ = conn.Close()
+						return
+					}
+				case <-connClosed:
+					return
+				case <-r.shutSig.SoftStopChan():
+					return
+				}
+			}
+		}()
+	}
 
 	go func() {
 		defer func() {
-			conn.Close()
+			close(connClosed)
+			_ = conn.Close()
 			if r.zstdReader != nil {
 				r.zstdReader.Close()
+				r.zstdReader = nil
 			}
-			r.shutSig.TriggerHasStopped()
+			close(msgChan)
+			r.connMut.Lock()
+			r.conn = nil
+			r.connMut.Unlock()
+			if r.shutSig.IsSoftStopSignalled() {
+				r.shutSig.TriggerHasStopped()
+			}
 		}()
 
 		for {
 			if r.shutSig.IsSoftStopSignalled() {
 				return
+			}
+
+			if r.readTimeout > 0 {
+				_ = conn.SetReadDeadline(time.Now().Add(r.readTimeout))
 			}
 
 			_, data, err := conn.ReadMessage()
@@ -409,16 +663,14 @@ func (r *jetstreamReader) Connect(ctx context.Context) error {
 			}
 
 			select {
-			case msgChan <- &event:
+			case msgChan <- jetstreamMessage{raw: data, event: event}:
 			case <-r.shutSig.SoftStopChan():
 				return
 			}
 		}
 	}()
 
-	r.conn = conn
-	r.msgChan = msgChan
-	r.log.Infof("Connected to Bluesky Jetstream")
+	r.log.Infof("Connected to Bluesky Jetstream: %s", wsURL)
 	return nil
 }
 
@@ -444,61 +696,66 @@ func (r *jetstreamReader) Read(ctx context.Context) (*service.Message, service.A
 		return nil, nil, service.ErrNotConnected
 	}
 
-	var event *JetstreamEvent
+	var msg jetstreamMessage
 	select {
-	case event = <-msgChan:
+	case m, open := <-msgChan:
+		if !open {
+			r.connMut.Lock()
+			if r.msgChan == msgChan {
+				r.msgChan = nil
+			}
+			r.connMut.Unlock()
+			return nil, nil, service.ErrNotConnected
+		}
+		msg = m
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
 	}
 
-	// Marshal event to JSON for the message payload
-	jBytes, err := json.Marshal(event)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal event: %w", err)
-	}
-
 	// Track this event's cursor for checkpointing
-	release, err := r.checkpointer.Track(ctx, event.TimeUS, 1)
+	release, err := r.checkpointer.Track(ctx, msg.event.TimeUS, 1)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	msg := service.NewMessage(jBytes)
+	out := service.NewMessage(msg.raw)
 
 	// Add metadata for downstream processing
-	msg.MetaSet("bluesky_did", event.Did)
-	msg.MetaSet("bluesky_kind", event.Kind)
-	msg.MetaSet("bluesky_time_us", strconv.FormatInt(event.TimeUS, 10))
+	out.MetaSet("bluesky_did", msg.event.Did)
+	out.MetaSet("bluesky_kind", msg.event.Kind)
+	out.MetaSet("bluesky_time_us", strconv.FormatInt(msg.event.TimeUS, 10))
 
-	if event.Commit != nil {
-		msg.MetaSet("bluesky_collection", event.Commit.Collection)
-		msg.MetaSet("bluesky_operation", event.Commit.Operation)
-		msg.MetaSet("bluesky_rkey", event.Commit.Rkey)
+	if msg.event.Commit != nil {
+		out.MetaSet("bluesky_collection", msg.event.Commit.Collection)
+		out.MetaSet("bluesky_operation", msg.event.Commit.Operation)
+		out.MetaSet("bluesky_rkey", msg.event.Commit.Rkey)
 	}
 
-	return msg, func(ctx context.Context, err error) error {
+	return out, func(ctx context.Context, err error) error {
 		highestCursor := release()
 		if highestCursor == nil {
 			return nil
 		}
-		return r.saveCursor(ctx, *highestCursor)
+		return r.commitCursor(ctx, *highestCursor)
 	}, nil
 }
 
 func (r *jetstreamReader) Close(ctx context.Context) error {
-	go func() {
-		r.shutSig.TriggerSoftStop()
-		r.connMut.Lock()
-		if r.msgChan == nil {
-			r.shutSig.TriggerHasStopped()
-		}
-		r.connMut.Unlock()
-	}()
+	r.shutSig.TriggerSoftStop()
+	r.connMut.Lock()
+	conn := r.conn
+	if conn == nil {
+		r.shutSig.TriggerHasStopped()
+	}
+	r.connMut.Unlock()
+	if conn != nil {
+		_ = conn.Close()
+	}
 
 	select {
 	case <-r.shutSig.HasStoppedChan():
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	return nil
+	return r.flushCursor(ctx)
 }
