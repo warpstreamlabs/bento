@@ -27,7 +27,8 @@ resource: pods
 resource: deployments
 namespaces:
   - production
-label_selector: "app=backend"
+label_selector:
+  app: backend
 `,
 			expectError: false,
 		},
