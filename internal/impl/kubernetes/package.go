@@ -1,18 +1,3 @@
-// Package kubernetes provides Bento inputs for Kubernetes observability.
-//
-// This package implements native Kubernetes integrations that feel as natural
-// as kubectl commands. System administrators can build pipelines for:
-//
-//   - Pod log streaming (kubernetes_logs)
-//   - Cluster event monitoring (kubernetes_events)
-//   - Resource state changes (kubernetes_watch)
-//   - Prometheus metrics scraping (kubernetes_metrics)
-//
-// All components share a common authentication layer supporting:
-//   - Automatic in-cluster detection
-//   - Kubeconfig file authentication
-//   - Service account tokens
-//   - Explicit credentials
 package kubernetes
 
 import (
