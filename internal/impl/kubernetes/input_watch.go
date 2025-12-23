@@ -152,6 +152,7 @@ type kubernetesWatchInput struct {
 	eventChan    chan watchEvent
 	shutSig      *shutdown.Signaller
 	resourceVers map[string]string
+	wg           sync.WaitGroup
 }
 
 func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources) (*kubernetesWatchInput, error) {
@@ -267,7 +268,11 @@ func (k *kubernetesWatchInput) Connect(ctx context.Context) error {
 	}
 
 	for _, ns := range namespaces {
-		go k.watchNamespace(ns)
+		k.wg.Add(1)
+		go func(namespace string) {
+			defer k.wg.Done()
+			k.watchNamespace(namespace)
+		}(ns)
 	}
 
 	return nil
@@ -499,6 +504,7 @@ func (k *kubernetesWatchInput) eventToMessage(event watchEvent) (*service.Messag
 
 func (k *kubernetesWatchInput) Close(ctx context.Context) error {
 	k.shutSig.TriggerSoftStop()
-	k.shutSig.TriggerHasStopped()
+	k.wg.Wait()
+	close(k.eventChan)
 	return nil
 }
