@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jeffail/shutdown"
+	"github.com/cenkalti/backoff/v4"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 
+	"github.com/warpstreamlabs/bento/internal/retries"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -103,6 +105,7 @@ Each message includes the watch event type in metadata:
 		Field(service.NewBoolField("include_initial_list").
 			Description("Emit ADDED events for all existing resources when starting.").
 			Default(true)).
+		Fields(retries.CommonRetryBackOffFields(0, "1s", "60s", "0s")...).
 		LintRule(`
 			let has_resource = this.resource.or("") != ""
 			let has_custom = this.custom_resource.resource.or("") != ""
@@ -142,6 +145,7 @@ type kubernetesWatchInput struct {
 	eventTypes         map[string]struct{}
 	includeInitialList bool
 	requestTimeout     time.Duration
+	backoffCtor        func() backoff.BackOff
 
 	// State
 	mu           sync.Mutex
@@ -197,6 +201,11 @@ func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources)
 	}
 	if k.requestTimeout, err = time.ParseDuration(requestTimeoutStr); err != nil {
 		return nil, fmt.Errorf("failed to parse request_timeout: %w", err)
+	}
+
+	// Parse backoff configuration
+	if k.backoffCtor, err = retries.CommonRetryBackOffCtorFromParsed(conf); err != nil {
+		return nil, fmt.Errorf("failed to parse backoff config: %w", err)
 	}
 
 	// Get Kubernetes client (needed for RESTMapper)
@@ -266,7 +275,7 @@ func (k *kubernetesWatchInput) Connect(ctx context.Context) error {
 
 func (k *kubernetesWatchInput) watchNamespace(namespace string) {
 	dynamicClient := k.clientSet.Dynamic
-	retryAttempt := 0
+	boff := k.backoffCtor()
 
 	for {
 		select {
@@ -312,18 +321,21 @@ func (k *kubernetesWatchInput) watchNamespace(namespace string) {
 			} else {
 				k.log.Errorf("Failed to watch %s in namespace %s: %v", k.gvr.Resource, namespace, err)
 			}
-			backoff := calculateBackoff(retryAttempt)
-			retryAttempt++
+			wait := boff.NextBackOff()
+			if wait == backoff.Stop {
+				k.log.Errorf("Max retries exceeded for watch %s in namespace %s", k.gvr.Resource, namespace)
+				return
+			}
 			select {
-			case <-time.After(backoff):
+			case <-time.After(wait):
 			case <-k.shutSig.SoftStopChan():
 				return
 			}
 			continue
 		}
 
-		// Reset retry counter on successful connection
-		retryAttempt = 0
+		// Reset backoff on successful connection
+		boff.Reset()
 		k.processWatchEvents(watcher, namespace)
 		watchCancel()
 		watcher.Stop()
