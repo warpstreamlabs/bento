@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
@@ -81,7 +83,7 @@ type ClientSet struct {
 }
 
 // GetClientSet creates Kubernetes clients from parsed configuration.
-func GetClientSet(ctx context.Context, conf *service.ParsedConfig) (*ClientSet, error) {
+func GetClientSet(ctx context.Context, conf *service.ParsedConfig, fs *service.FS) (*ClientSet, error) {
 	autoAuth, err := conf.FieldBool("auto_auth")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse auto_auth: %w", err)
@@ -103,7 +105,7 @@ func GetClientSet(ctx context.Context, conf *service.ParsedConfig) (*ClientSet, 
 		// Check for explicit credentials first
 		apiServer, _ := conf.FieldString("api_server")
 		if apiServer != "" {
-			config, err = buildExplicitClient(conf)
+			config, err = buildExplicitClient(conf, fs)
 		} else {
 			config, err = buildKubeconfigClient(conf)
 		}
@@ -213,7 +215,7 @@ func expandHomePath(path string) string {
 	return path
 }
 
-func buildExplicitClient(conf *service.ParsedConfig) (*rest.Config, error) {
+func buildExplicitClient(conf *service.ParsedConfig, fs *service.FS) (*rest.Config, error) {
 	apiServer, _ := conf.FieldString("api_server")
 	if apiServer == "" {
 		return nil, errors.New("api_server is required for explicit authentication")
@@ -230,7 +232,7 @@ func buildExplicitClient(conf *service.ParsedConfig) (*rest.Config, error) {
 	if token != "" {
 		config.BearerToken = token
 	} else if tokenFile != "" {
-		tokenBytes, err := os.ReadFile(tokenFile)
+		tokenBytes, err := ifs.ReadFile(fs, tokenFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read token file: %w", err)
 		}

@@ -195,7 +195,7 @@ func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources)
 	}
 
 	// Get Kubernetes client (needed for RESTMapper)
-	if k.clientSet, err = GetClientSet(context.Background(), conf); err != nil {
+	if k.clientSet, err = GetClientSet(context.Background(), conf, mgr.FS()); err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
