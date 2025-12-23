@@ -165,9 +165,11 @@ func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources)
 	}
 
 	// Parse selectors
-	if k.labelSelector, err = conf.FieldString("label_selector"); err != nil {
+	labelSelectorMap, err := conf.FieldStringMap("label_selector")
+	if err != nil {
 		return nil, err
 	}
+	k.labelSelector = LabelSelectorFromMap(labelSelectorMap)
 	if k.fieldSelector, err = conf.FieldString("field_selector"); err != nil {
 		return nil, err
 	}
