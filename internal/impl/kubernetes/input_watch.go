@@ -309,10 +309,10 @@ func (k *kubernetesWatchInput) watchNamespace(namespace string) {
 		}
 
 		// Start watching
-		watchCtx, watchCancel := requestContext(0, k.shutSig.SoftStopChan())
+		watchCtx, watchDone := k.shutSig.SoftStopCtx(context.Background())
 		watcher, err := resourceInterface.Watch(watchCtx, listOpts)
 		if err != nil {
-			watchCancel()
+			watchDone()
 			// If the error is a "410 Gone" error, it means the resource version is too old.
 			// Reset the resource version to force a fresh list on the next loop.
 			if serr, ok := err.(*k8serrors.StatusError); ok && serr.ErrStatus.Code == http.StatusGone {
@@ -337,7 +337,7 @@ func (k *kubernetesWatchInput) watchNamespace(namespace string) {
 		// Reset backoff on successful connection
 		boff.Reset()
 		k.processWatchEvents(watcher, namespace)
-		watchCancel()
+		watchDone()
 		watcher.Stop()
 	}
 }
@@ -350,9 +350,17 @@ func (k *kubernetesWatchInput) listExistingResources(resourceInterface dynamic.R
 	}
 
 	for {
-		listCtx, cancel := requestContext(k.requestTimeout, k.shutSig.SoftStopChan())
+		softCtx, done := k.shutSig.SoftStopCtx(context.Background())
+		listCtx := softCtx
+		var cancel context.CancelFunc
+		if k.requestTimeout > 0 {
+			listCtx, cancel = context.WithTimeout(softCtx, k.requestTimeout)
+		}
 		list, err := resourceInterface.List(listCtx, listOpts)
-		cancel()
+		if cancel != nil {
+			cancel()
+		}
+		done()
 		if err != nil {
 			k.log.Errorf("Failed to list %s: %v", k.gvr.Resource, err)
 			return
