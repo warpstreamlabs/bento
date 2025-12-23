@@ -33,6 +33,11 @@ func AuthFields() []*service.ConfigField {
 			Description("Path to kubeconfig file. If empty, uses $KUBECONFIG (if set) or the default kubeconfig location (~/.kube/config).").
 			Default("").
 			Optional(),
+		service.NewStringField("kubeconfig_yaml").
+			Description("Kubeconfig content as a YAML string. Use this to embed kubeconfig directly in your config (e.g., from a secret or environment variable) instead of referencing a file path.").
+			Default("").
+			Secret().
+			Optional(),
 		service.NewStringField("context").
 			Description("Kubernetes context to use from kubeconfig. If empty, uses the current context.").
 			Default("").
@@ -165,9 +170,29 @@ func GetClientSet(ctx context.Context, conf *service.ParsedConfig, fs *service.F
 }
 
 func buildKubeconfigClient(conf *service.ParsedConfig) (*rest.Config, error) {
+	kubeconfigYAML, _ := conf.FieldString("kubeconfig_yaml")
 	kubeconfigPath, _ := conf.FieldString("kubeconfig")
 	kubeContext, _ := conf.FieldString("context")
 
+	// If raw kubeconfig YAML is provided, use it directly
+	if kubeconfigYAML != "" {
+		clientConfig, err := clientcmd.NewClientConfigFromBytes([]byte(kubeconfigYAML))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse kubeconfig_yaml: %w", err)
+		}
+		// Apply context override if specified
+		if kubeContext != "" {
+			rawConfig, err := clientConfig.RawConfig()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get raw config: %w", err)
+			}
+			rawConfig.CurrentContext = kubeContext
+			clientConfig = clientcmd.NewDefaultClientConfig(rawConfig, &clientcmd.ConfigOverrides{})
+		}
+		return clientConfig.ClientConfig()
+	}
+
+	// Fall back to file-based kubeconfig
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeconfigPath != "" {
 		loadingRules.ExplicitPath = expandHomePath(kubeconfigPath)
