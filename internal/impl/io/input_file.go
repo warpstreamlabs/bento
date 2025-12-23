@@ -130,7 +130,7 @@ func (f *fileConsumer) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (f *fileConsumer) getReader(ctx context.Context) (scannerInfo, error) {
+func (f *fileConsumer) getReader(_ context.Context) (scannerInfo, error) {
 	f.scannerMut.Lock()
 	defer f.scannerMut.Unlock()
 
