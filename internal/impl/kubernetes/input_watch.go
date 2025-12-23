@@ -95,10 +95,11 @@ Each message includes the watch event type in metadata:
 			Optional().
 			Advanced()).
 		Field(service.NewStringListField("event_types").
-			Description("Watch event types to include.").
+			Description("Watch event types to include. Valid values are `ADDED`, `MODIFIED`, and `DELETED`.").
 			Default([]any{"ADDED", "MODIFIED", "DELETED"}).
 			Example([]string{"ADDED", "DELETED"}).
-			Example([]string{"MODIFIED"})).
+			Example([]string{"MODIFIED"}).
+			LintRule(`root = this.filter(v -> !["ADDED", "MODIFIED", "DELETED"].contains(v)).map_each(v -> "invalid event type %q, must be one of: ADDED, MODIFIED, DELETED".format(v))`)).
 		Field(service.NewBoolField("include_initial_list").
 			Description("Emit ADDED events for all existing resources when starting.").
 			Default(true)).
