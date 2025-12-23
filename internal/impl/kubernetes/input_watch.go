@@ -428,11 +428,6 @@ func (k *kubernetesWatchInput) processWatchEvents(watcher watch.Interface, names
 					return
 				}
 
-			case watch.Bookmark:
-				if obj, ok := event.Object.(*unstructured.Unstructured); ok {
-					k.setResourceVersion(namespace, obj.GetResourceVersion())
-				}
-
 			case watch.Error:
 				if status, ok := event.Object.(*metav1.Status); ok && status.Code == http.StatusGone {
 					k.log.Warnf("Watch for %s in namespace %s returned 410 Gone, resetting resource version", k.gvr.Resource, namespace)
