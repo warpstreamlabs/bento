@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"strings"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -12,11 +14,11 @@ func CommonFields() []*service.ConfigField {
 			Default([]any{}).
 			Example([]string{"default"}).
 			Example([]string{"production", "staging"}),
-		service.NewStringField("label_selector").
-			Description("Kubernetes label selector to filter resources (e.g., 'app=myapp,env=prod').").
-			Default("").
-			Example("app=myapp").
-			Example("app in (frontend,backend)"),
+		service.NewStringMapField("label_selector").
+			Description("Kubernetes label selector to filter resources.").
+			Default(map[string]any{}).
+			Example(map[string]any{"app": "myapp"}).
+			Example(map[string]any{"app": "myapp", "env": "prod"}),
 		service.NewStringField("field_selector").
 			Description("Kubernetes field selector to filter resources (e.g., 'status.phase=Running').").
 			Default("").
@@ -27,6 +29,19 @@ func CommonFields() []*service.ConfigField {
 			Default("30s").
 			Advanced(),
 	}
+}
+
+// LabelSelectorFromMap converts a map of key-value pairs to a Kubernetes
+// label selector string (e.g., "app=myapp,env=prod").
+func LabelSelectorFromMap(labels map[string]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	pairs := make([]string, 0, len(labels))
+	for k, v := range labels {
+		pairs = append(pairs, k+"="+v)
+	}
+	return strings.Join(pairs, ",")
 }
 
 // MetadataDescription returns the standard metadata documentation block.
