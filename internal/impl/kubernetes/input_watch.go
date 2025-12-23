@@ -444,7 +444,10 @@ func (k *kubernetesWatchInput) processWatchEvents(watcher watch.Interface, names
 
 func (k *kubernetesWatchInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
 	select {
-	case event := <-k.eventChan:
+	case event, ok := <-k.eventChan:
+		if !ok {
+			return nil, nil, service.ErrEndOfInput
+		}
 		return k.eventToMessage(event)
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
