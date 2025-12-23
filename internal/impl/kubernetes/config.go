@@ -19,9 +19,11 @@ func CommonFields() []*service.ConfigField {
 			Default(map[string]any{}).
 			Example(map[string]any{"app": "myapp"}).
 			Example(map[string]any{"app": "myapp", "env": "prod"}),
-		service.NewStringField("field_selector").
-			Description("Kubernetes field selector to filter resources (e.g., 'status.phase=Running').").
-			Default("").
+		service.NewStringMapField("field_selector").
+			Description("Kubernetes field selector to filter resources.").
+			Default(map[string]any{}).
+			Example(map[string]any{"status.phase": "Running"}).
+			Example(map[string]any{"metadata.name": "my-pod"}).
 			Optional().
 			Advanced(),
 		service.NewStringField("request_timeout").

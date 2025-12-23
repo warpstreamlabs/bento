@@ -170,9 +170,11 @@ func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources)
 		return nil, err
 	}
 	k.labelSelector = LabelSelectorFromMap(labelSelectorMap)
-	if k.fieldSelector, err = conf.FieldString("field_selector"); err != nil {
+	fieldSelectorMap, err := conf.FieldStringMap("field_selector")
+	if err != nil {
 		return nil, err
 	}
+	k.fieldSelector = LabelSelectorFromMap(fieldSelectorMap)
 
 	// Parse event types filter
 	eventTypesList, err := conf.FieldStringList("event_types")
