@@ -16,15 +16,7 @@
 package kubernetes
 
 import (
-	"math/rand"
 	"sync"
-	"time"
-)
-
-const (
-	// Backoff parameters for watch reconnection
-	minBackoff = 1 * time.Second
-	maxBackoff = 60 * time.Second
 )
 
 // keyCache optimizes metadata key generation by interning strings
@@ -38,17 +30,4 @@ func getMetaKey(prefix, key string) string {
 	}
 	keyCache.Store(fullKey, fullKey)
 	return fullKey
-}
-
-// calculateBackoff returns an exponential backoff duration with jitter.
-// The backoff doubles with each attempt, capped at maxBackoff.
-// Jitter adds randomness to prevent synchronized retries across instances.
-func calculateBackoff(attempt int) time.Duration {
-	backoff := minBackoff * time.Duration(1<<uint(attempt))
-	if backoff > maxBackoff {
-		backoff = maxBackoff
-	}
-	// Add up to 25% jitter
-	jitter := time.Duration(rand.Int63n(int64(backoff / 4)))
-	return backoff + jitter
 }
