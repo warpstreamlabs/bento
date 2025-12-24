@@ -85,6 +85,28 @@ type AccountEvent struct {
 	Status string `json:"status,omitempty"` // "takendown", "suspended", "deleted", "deactivated"
 }
 
+// jetstreamMetadataDescription returns the metadata documentation block.
+func jetstreamMetadataDescription() string {
+	return `
+
+### Metadata
+
+This input adds the following metadata fields to each message:
+
+` + "```text" + `
+- bluesky_did
+- bluesky_kind
+- bluesky_time_us
+- bluesky_collection (for commit events)
+- bluesky_operation (for commit events)
+- bluesky_rkey (for commit events)
+` + "```" + `
+
+You can access these metadata fields using
+[function interpolation](/docs/configuration/interpolation#bloblang-queries).
+`
+}
+
 func jetstreamInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
@@ -125,7 +147,7 @@ from that point, ensuring no events are missed.
 For high throughput workloads consider enabling compress, setting a larger buffer_size, and using
 cursor_commit_interval to reduce cache write amplification. You can also tune max_in_flight, ping_interval,
 and read_timeout for additional control.
-`).
+`+jetstreamMetadataDescription()).
 		Fields(
 			service.NewStringField("endpoint").
 				Description("The Jetstream WebSocket endpoint URL. Leave empty to use the default public endpoints with automatic failover.").
@@ -186,7 +208,22 @@ and read_timeout for additional control.
 				Advanced(),
 			service.NewInputMaxInFlightField(),
 			service.NewAutoRetryNacksToggleField(),
-		)
+		).
+		LintRule(`
+			root = if this.collections.or([]).length() > 100 {
+				"maximum of 100 collections allowed"
+			}
+		`).
+		LintRule(`
+			root = if this.dids.or([]).length() > 10000 {
+				"maximum of 10,000 DIDs allowed"
+			}
+		`).
+		LintRule(`
+			root = if this.buffer_size.or(1024) <= 0 {
+				"buffer_size must be greater than 0"
+			}
+		`)
 }
 
 func init() {
@@ -555,7 +592,7 @@ func (r *jetstreamReader) Connect(ctx context.Context) error {
 		conn.SetReadLimit(r.readLimitBytes)
 	}
 	if r.readTimeout > 0 {
-		conn.SetReadDeadline(time.Now().Add(r.readTimeout))
+		_ = conn.SetReadDeadline(time.Now().Add(r.readTimeout))
 		conn.SetPongHandler(func(string) error {
 			return conn.SetReadDeadline(time.Now().Add(r.readTimeout))
 		})
@@ -742,12 +779,14 @@ func (r *jetstreamReader) Read(ctx context.Context) (*service.Message, service.A
 
 func (r *jetstreamReader) Close(ctx context.Context) error {
 	r.shutSig.TriggerSoftStop()
+
 	r.connMut.Lock()
 	conn := r.conn
 	if conn == nil {
 		r.shutSig.TriggerHasStopped()
 	}
 	r.connMut.Unlock()
+
 	if conn != nil {
 		_ = conn.Close()
 	}
@@ -757,5 +796,6 @@ func (r *jetstreamReader) Close(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+
 	return r.flushCursor(ctx)
 }
