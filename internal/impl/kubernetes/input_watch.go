@@ -153,6 +153,7 @@ type kubernetesWatchInput struct {
 	shutSig      *shutdown.Signaller
 	resourceVers map[string]string
 	wg           sync.WaitGroup
+	keyCache     metaKeyCache
 }
 
 func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources) (*kubernetesWatchInput, error) {
@@ -483,13 +484,13 @@ func (k *kubernetesWatchInput) eventToMessage(event watchEvent) (*service.Messag
 
 	// Add labels as metadata
 	for key, value := range obj.GetLabels() {
-		msg.MetaSetMut(getMetaKey("kubernetes_labels_", key), value)
+		msg.MetaSetMut(k.keyCache.getMetaKey("kubernetes_labels_", key), value)
 	}
 
 	// Add annotations as metadata (selected common ones)
 	annotations := obj.GetAnnotations()
 	for key, value := range annotations {
-		msg.MetaSetMut(getMetaKey("kubernetes_annotations_", key), value)
+		msg.MetaSetMut(k.keyCache.getMetaKey("kubernetes_annotations_", key), value)
 	}
 
 	return msg, func(ctx context.Context, err error) error {
