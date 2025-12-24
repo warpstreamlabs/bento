@@ -6,15 +6,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/Jeffail/shutdown"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/warpstreamlabs/bento/internal/retries"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -36,6 +38,7 @@ type StreamingFileInputConfig struct {
 	MaxLineSize     int
 	PollInterval    time.Duration
 	DisableFSNotify bool // When true, use polling only (more CPU-efficient at high write rates)
+	BackoffCtor     func() backoff.BackOff
 }
 
 // FilePosition represents the current read position in a file.
@@ -57,14 +60,28 @@ type StreamingFileInput struct {
 	fileMu        sync.RWMutex
 	reader        *bufio.Reader
 	buffer        chan []byte
-	stopCh        chan struct{}
-	readLoopDone  chan struct{}
 	wg            sync.WaitGroup
-	connected     bool
-	connMutex     sync.RWMutex
-	inFlightCount atomic.Int64
-	bufferClosed  atomic.Bool
+	shutSig       *shutdown.Signaller
 	watcher       *fsnotify.Watcher
+}
+
+// streamingFileMetadataDescription returns the metadata documentation block.
+func streamingFileMetadataDescription() string {
+	return `
+
+### Metadata
+
+This input adds the following metadata fields to each message:
+
+` + "```text" + `
+- streaming_file_path
+- streaming_file_inode
+- streaming_file_offset
+` + "```" + `
+
+You can access these metadata fields using
+[function interpolation](/docs/configuration/interpolation#bloblang-queries).
+`
 }
 
 // NewStreamingFileInput creates a new streaming file input.
@@ -81,13 +98,21 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 	if cfg.PollInterval <= 0 {
 		cfg.PollInterval = 1 * time.Second // Default 1s polling, like tail -F
 	}
+	if cfg.BackoffCtor == nil {
+		cfg.BackoffCtor = func() backoff.BackOff {
+			boff := backoff.NewExponentialBackOff()
+			boff.InitialInterval = 50 * time.Millisecond
+			boff.MaxInterval = 1 * time.Second
+			boff.MaxElapsedTime = 5 * time.Second
+			return boff
+		}
+	}
 
 	return &StreamingFileInput{
-		config:       cfg,
-		logger:       logger,
-		buffer:       make(chan []byte, cfg.MaxBufferSize),
-		stopCh:       make(chan struct{}),
-		readLoopDone: make(chan struct{}),
+		config:  cfg,
+		logger:  logger,
+		buffer:  make(chan []byte, cfg.MaxBufferSize),
+		shutSig: shutdown.NewSignaller(),
 		position: FilePosition{
 			FilePath: cfg.Path,
 		},
@@ -97,7 +122,7 @@ func NewStreamingFileInput(cfg StreamingFileInputConfig, logger *service.Logger)
 func streamingFileInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Local").
-		Summary("Streaming file input with log rotation and truncation handling").
+		Summary("Streaming file input with log rotation and truncation handling.").
 		Description(`
 Reads from a file continuously with automatic handling of log rotation and truncation.
 
@@ -116,14 +141,6 @@ This component exposes file position as metadata on each message. To implement c
 
 This approach keeps the input stateless while enabling persistence through pipeline composition.
 
-## Metadata Fields
-
-Each message includes the following metadata:
-
-- ` + "`streaming_file_path`" + ` - The file path being read
-- ` + "`streaming_file_inode`" + ` - The file's inode (for rotation detection)
-- ` + "`streaming_file_offset`" + ` - Byte offset where this line started
-
 ## Performance Considerations
 
 By default, this component uses polling-only mode for better CPU efficiency at high write rates.
@@ -141,18 +158,16 @@ When fsnotify is enabled:
 - **NFS/Network Filesystems**: fsnotify does not work reliably on NFS or other network filesystems
 - **Supported Platforms**: Linux (inotify), macOS (FSEvents), Windows (ReadDirectoryChangesW), BSD variants (kqueue)
 - **Container Environments**: Ensure the file path is mounted from the host, not a container-internal path
-`).
+` + streamingFileMetadataDescription()).
 		Field(service.NewStringField("path").
-			Description("Path to the file to read from").
+			Description("Path to the file to read from.").
 			Example("/var/log/app.log")).
 		Field(service.NewIntField("max_buffer_size").
-			Description("Maximum number of lines to buffer").
-			Default(1000).
-			Example(1000)).
+			Description("Maximum number of lines to buffer.").
+			Default(1000)).
 		Field(service.NewIntField("max_line_size").
-			Description("Maximum line size in bytes to prevent OOM").
-			Default(1048576).
-			Example(1048576)).
+			Description("Maximum line size in bytes to prevent OOM.").
+			Default(1048576)).
 		Field(service.NewDurationField("poll_interval").
 			Description("How often to poll the file for new data. This is the primary mechanism for detecting new data. Lower values mean lower latency but higher CPU usage.").
 			Default("1s").
@@ -160,26 +175,13 @@ When fsnotify is enabled:
 			Example("200ms")).
 		Field(service.NewBoolField("disable_fsnotify").
 			Description("When true (default), only use polling to detect file changes. This is more CPU-efficient for high-throughput log files where inotify would fire constantly. Set to false to enable fsnotify for lower latency on low-volume files.").
-			Default(true).
-			Example(true).
-			Example(false))
+			Default(true)).
+		Fields(retries.CommonRetryBackOffFields(0, "50ms", "1s", "5s")...).
+		LintRule(`root = if this.path.or("") == "" { "path is required" }`)
 }
 
 // Connect opens the file and starts monitoring for changes.
 func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
-	sfi.connMutex.Lock()
-	defer sfi.connMutex.Unlock()
-
-	if sfi.connected {
-		return nil
-	}
-
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("context cancelled before opening file: %s: %w", sfi.config.Path, ctx.Err())
-	default:
-	}
-
 	file, err := os.Open(sfi.config.Path)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %s: %w", sfi.config.Path, err)
@@ -225,10 +227,8 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 		}
 	}
 
-	sfi.connected = true
-
 	sfi.wg.Add(1)
-	go sfi.monitorFile(ctx)
+	go sfi.monitorFile()
 
 	return nil
 }
@@ -237,9 +237,8 @@ func (sfi *StreamingFileInput) Connect(ctx context.Context) error {
 // Supports two modes:
 // - Polling-only (default, DisableFSNotify=true): More CPU-efficient for high-volume logs
 // - Event-driven with polling fallback (DisableFSNotify=false): Lower latency for low-volume logs
-func (sfi *StreamingFileInput) monitorFile(ctx context.Context) {
+func (sfi *StreamingFileInput) monitorFile() {
 	defer sfi.wg.Done()
-	defer close(sfi.readLoopDone)
 	if sfi.watcher != nil {
 		defer sfi.watcher.Close()
 	}
@@ -260,9 +259,7 @@ func (sfi *StreamingFileInput) monitorFile(ctx context.Context) {
 			case <-pollInterval.C:
 				sfi.checkStateAndReact()
 				sfi.drainAvailableData()
-			case <-sfi.stopCh:
-				return
-			case <-ctx.Done():
+			case <-sfi.shutSig.SoftStopChan():
 				return
 			}
 		}
@@ -304,10 +301,7 @@ func (sfi *StreamingFileInput) monitorFile(ctx context.Context) {
 			}
 			sfi.logger.Errorf("fsnotify watcher error: %v", err)
 
-		case <-sfi.stopCh:
-			return
-
-		case <-ctx.Done():
+		case <-sfi.shutSig.SoftStopChan():
 			return
 		}
 	}
@@ -402,8 +396,10 @@ func (sfi *StreamingFileInput) handleRotation() error {
 	}
 	sfi.fileMu.Unlock()
 
+	// Use configurable backoff for retrying file open after rotation
+	boff := sfi.config.BackoffCtor()
 	var err error
-	for attempt := 0; attempt < 10; attempt++ {
+	for {
 		if err = sfi.reopenFile(); err == nil {
 			break
 		}
@@ -416,16 +412,21 @@ func (sfi *StreamingFileInput) handleRotation() error {
 			}
 			return err
 		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if err != nil {
-		sfi.logger.Errorf("Failed to open new file after rotation after retries: %v", err)
-		if sfi.watcher != nil {
-			if err2 := sfi.watcher.Add(sfi.config.Path); err2 != nil {
-				sfi.logger.Warnf("Failed to re-add file to watcher after rotation: %v", err2)
+		wait := boff.NextBackOff()
+		if wait == backoff.Stop {
+			sfi.logger.Errorf("Failed to open new file after rotation after retries: %v", err)
+			if sfi.watcher != nil {
+				if err2 := sfi.watcher.Add(sfi.config.Path); err2 != nil {
+					sfi.logger.Warnf("Failed to re-add file to watcher after rotation: %v", err2)
+				}
 			}
+			return err
 		}
-		return err
+		select {
+		case <-time.After(wait):
+		case <-sfi.shutSig.SoftStopChan():
+			return nil
+		}
 	}
 
 	if sfi.watcher != nil {
@@ -520,13 +521,9 @@ func (sfi *StreamingFileInput) drainFromReader(reader *bufio.Reader) {
 		lineCopy := make([]byte, len(lineBytes))
 		copy(lineCopy, lineBytes)
 
-		if sfi.bufferClosed.Load() {
-			return
-		}
-
 		select {
 		case sfi.buffer <- lineCopy:
-		case <-sfi.stopCh:
+		case <-sfi.shutSig.SoftStopChan():
 			return
 		}
 	}
@@ -562,35 +559,25 @@ func (sfi *StreamingFileInput) drainBufferChannel() {
 // Like tail -F, this blocks indefinitely until data is available,
 // the input is closed, or the context is cancelled.
 func (sfi *StreamingFileInput) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
-	sfi.connMutex.RLock()
-	connected := sfi.connected
-	sfi.connMutex.RUnlock()
-
-	if !connected {
-		return nil, nil, service.ErrNotConnected
-	}
-
-	// Block until data is available, shutdown, or context cancellation.
-	// This matches tail -F behavior: no artificial timeout, just wait for data.
 	select {
+	case lineBytes, ok := <-sfi.buffer:
+		if !ok {
+			return nil, nil, service.ErrEndOfInput
+		}
+		return sfi.createMessage(lineBytes)
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
-	case <-sfi.stopCh:
+	case <-sfi.shutSig.SoftStopChan():
 		// On shutdown, drain any remaining buffered data
 		select {
 		case lineBytes, ok := <-sfi.buffer:
 			if !ok {
-				return nil, nil, io.EOF
+				return nil, nil, service.ErrEndOfInput
 			}
 			return sfi.createMessage(lineBytes)
 		default:
-			return nil, nil, io.EOF
+			return nil, nil, service.ErrEndOfInput
 		}
-	case lineBytes, ok := <-sfi.buffer:
-		if !ok {
-			return nil, nil, io.EOF
-		}
-		return sfi.createMessage(lineBytes)
 	}
 }
 
@@ -615,29 +602,14 @@ func (sfi *StreamingFileInput) createMessage(lineBytes []byte) (*service.Message
 	msg.MetaSet("streaming_file_inode", strconv.FormatUint(pos.Inode, 10))
 	msg.MetaSet("streaming_file_offset", strconv.FormatInt(pos.ByteOffset, 10))
 
-	sfi.inFlightCount.Add(1)
-
 	return msg, func(_ context.Context, _ error) error {
-		sfi.inFlightCount.Add(-1)
 		return nil
 	}, nil
 }
 
 // Close shuts down the input.
 func (sfi *StreamingFileInput) Close(ctx context.Context) error {
-	sfi.connMutex.Lock()
-	if !sfi.connected {
-		sfi.connMutex.Unlock()
-		return nil
-	}
-	sfi.connected = false
-	sfi.connMutex.Unlock()
-
-	select {
-	case <-sfi.stopCh:
-	default:
-		close(sfi.stopCh)
-	}
+	sfi.shutSig.TriggerSoftStop()
 
 	sfi.fileMu.Lock()
 	if sfi.file != nil {
@@ -646,54 +618,10 @@ func (sfi *StreamingFileInput) Close(ctx context.Context) error {
 	}
 	sfi.fileMu.Unlock()
 
-	select {
-	case <-sfi.readLoopDone:
-	case <-ctx.Done():
-		sfi.logger.Warnf("Close context cancelled before read loop finished")
-		return ctx.Err()
-	case <-time.After(5 * time.Second):
-		sfi.logger.Warnf("Read loop did not finish within 5 seconds")
-	}
-
-	if sfi.bufferClosed.CompareAndSwap(false, true) {
-		close(sfi.buffer)
-	}
-
-	drainDone := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		defer close(drainDone)
-
-		for {
-			if sfi.inFlightCount.Load() == 0 {
-				return
-			}
-			select {
-			case <-ticker.C:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	select {
-	case <-drainDone:
-		sfi.logger.Infof("All in-flight messages acknowledged")
-	case <-ctx.Done():
-		remaining := sfi.inFlightCount.Load()
-		if remaining > 0 {
-			sfi.logger.Warnf("Shutdown with %d in-flight messages", remaining)
-		}
-	}
-
 	sfi.wg.Wait()
+	close(sfi.buffer)
 
-	sfi.fileMu.Lock()
-	sfi.file = nil
-	sfi.fileMu.Unlock()
-
-	sfi.logger.Infof("Streaming file input closed successfully")
+	sfi.logger.Debugf("Streaming file input closed successfully")
 	return nil
 }
 
@@ -721,12 +649,18 @@ func init() {
 				return nil, err
 			}
 
+			backoffCtor, err := retries.CommonRetryBackOffCtorFromParsed(pConf)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse backoff config: %w", err)
+			}
+
 			cfg := StreamingFileInputConfig{
 				Path:            path,
 				MaxBufferSize:   maxBufferSize,
 				MaxLineSize:     maxLineSize,
 				PollInterval:    pollInterval,
 				DisableFSNotify: disableFSNotify,
+				BackoffCtor:     backoffCtor,
 			}
 
 			return NewStreamingFileInput(cfg, res.Logger())
