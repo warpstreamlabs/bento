@@ -69,8 +69,8 @@ func New(conf *service.ParsedConfig, mgr *service.Resources, outputMode bool) (*
 	var err error
 
 	p := &Couchbase{
-		conf: conf,
-		mgr:  mgr,
+		conf:       conf,
+		mgr:        mgr,
 		outputMode: outputMode,
 	}
 
