@@ -71,6 +71,7 @@ func New(conf *service.ParsedConfig, mgr *service.Resources, outputMode bool) (*
 	p := &Couchbase{
 		conf: conf,
 		mgr:  mgr,
+		outputMode: outputMode,
 	}
 
 	if p.id, err = conf.FieldInterpolatedString("id"); err != nil {
