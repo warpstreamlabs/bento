@@ -32,7 +32,6 @@ func NewExtractTracingSpanMappingField() *ConfigField {
 func NewRootSpanWithLinkField() *ConfigField {
 	return NewBoolField(nrswlField).
 		Description("EXPERIMENTAL: Starts a new root span with link to parent.").
-		Version("1.0.0").
 		Optional().
 		Advanced()
 }
