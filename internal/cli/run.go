@@ -19,6 +19,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/filepath"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/plugin"
+	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 	"github.com/warpstreamlabs/bento/internal/template"
 )
 
@@ -133,6 +135,12 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Aliases: []string{"t"},
 			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
+		&cli.StringFlag{
+			Name:    "plugins",
+			Aliases: []string{"p"},
+			Value:   "",
+			Usage:   "EXPERIMENTAL: path to a plugins configuration file (if not included in main config)",
+		},
 	}
 }
 
@@ -171,6 +179,25 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 		fmt.Fprintf(os.Stderr, "Template file read error: %v\n", err)
 		os.Exit(1)
 	}
+
+	pluginConfigPath := c.String("plugins")
+	mainConfigPath := c.String("config")
+
+	targetPath := pluginConfigPath
+	if targetPath == "" {
+		targetPath = mainConfigPath
+	}
+
+	if targetPath != "" {
+		rt := runtime.NewPluginRuntime()
+		pLints, err := plugin.InitPluginsFromConfig(c.Context, rt, targetPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
+			os.Exit(1)
+		}
+		lints = append(lints, pLints...)
+	}
+
 	if !c.Bool("chilled") && len(lints) > 0 {
 		for _, lint := range lints {
 			fmt.Fprintln(os.Stderr, lint)

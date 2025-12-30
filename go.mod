@@ -61,7 +61,7 @@ require (
 	github.com/dop251/goja v0.0.0-20241024094426-79f3a7efcdbd
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/dustin/go-humanize v1.0.1
-	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/elastic/go-elasticsearch/v9 v9.0.0
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
@@ -129,8 +129,9 @@ require (
 	github.com/smira/go-statsd v1.3.4
 	github.com/snowflakedb/gosnowflake v1.18.1
 	github.com/sourcegraph/conc v0.3.0
+	github.com/stealthrocket/net v0.2.1
 	github.com/stretchr/testify v1.11.1
-	github.com/tetratelabs/wazero v1.6.0
+	github.com/tetratelabs/wazero v1.10.2-0.20251207212443-928644897421
 	github.com/tilinna/z85 v1.0.0
 	github.com/trinodb/trino-go-client v0.313.0
 	github.com/twmb/franz-go v1.18.1
