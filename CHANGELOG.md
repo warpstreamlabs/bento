@@ -3,6 +3,26 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.14.0 - DATE TBD !
+
+### Fixed
+
+- reconnect logic for `mongodb` output @mladBlum
+
+### Added
+
+- `parquet_encode` processor now includes support for native Struct types @triddell
+- `file_rel_json` bloblang function which loads, caches & parses JSON files @triddell
+- `ttl` field to `couchbase` processor enabling optional setting of TTL for couchbase items @sapk
+- `LeveledLogger` interface added to service package enabling simpler use of custom loggers @gregfurman
+- `opensnowcat` processor includes `enriched_json` option for `output_format` @joaolcorreia
+- `RegisterManagedConstructor` API added enabling registration of initialisation functions with access to service resources @gregfurman
+- `cache_get`, `cache_set`, `cache_delete` & `cache_add` bloblang functions (made possible by `RegisterManagedConstructor`) @gregfurman
+- `couchbase` increment & decrement operations @sapk
+- `new_root_span_with_link` field added to various `kafka` & `nats` components @gregfurman 
+- `expiry_window` added to AWS `credentials` config allowing the credentials to trigger refreshing prior to the credentials actually expiring @gitphill
+- `grpc_client` output component @jem-davies
+
 ## 1.13.1 - 2025-12-04
 
 ### Fixed 
