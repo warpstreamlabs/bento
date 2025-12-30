@@ -12,11 +12,11 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `parquet_encode` processor now includes support for native Struct types @triddell
-- `file_rel_json` bloblang function which loads, caches & parses JSON files @triddell
+- `file_rel_json` bloblang function which loads, parses & caches JSON files @triddell
 - `ttl` field to `couchbase` processor enabling optional setting of TTL for couchbase items @sapk
 - `LeveledLogger` interface added to service package enabling simpler use of custom loggers @gregfurman
 - `opensnowcat` processor includes `enriched_json` option for `output_format` @joaolcorreia
-- `RegisterManagedConstructor` API added enabling registration of initialisation functions with access to service resources @gregfurman
+- `RegisterManagedConstructor` added enabling registration of initialisation functions with access to service resources @gregfurman
 - `cache_get`, `cache_set`, `cache_delete` & `cache_add` bloblang functions (made possible by `RegisterManagedConstructor`) @gregfurman
 - `couchbase` increment & decrement operations @sapk
 - `new_root_span_with_link` field added to various `kafka` & `nats` components @gregfurman 
