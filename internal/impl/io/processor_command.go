@@ -87,7 +87,7 @@ type commandProc struct {
 	argsMapping *bloblang.Executor
 }
 
-func newCommandProcFromParsed(conf *service.ParsedConfig, _ *service.Resources) (proc *commandProc, err error) {
+func newCommandProcFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (proc *commandProc, err error) {
 	proc = &commandProc{}
 
 	if proc.name, err = conf.FieldInterpolatedString(cpNameField); err != nil {
