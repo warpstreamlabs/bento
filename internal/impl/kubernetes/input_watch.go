@@ -65,7 +65,7 @@ Each message includes the watch event type in metadata:
 - **ADDED**: Resource was created
 - **MODIFIED**: Resource was updated
 - **DELETED**: Resource was removed
-` + MetadataDescription([]string{
+` + metadataDescription(
 			"kubernetes_watch_event_type",
 			"kubernetes_resource_kind",
 			"kubernetes_resource_name",
@@ -73,7 +73,10 @@ Each message includes the watch event type in metadata:
 			"kubernetes_resource_version",
 			"kubernetes_resource_uid",
 			"kubernetes_resource_creation_timestamp",
-		})).
+		) + `
+
+Additionally, all resource labels are added as metadata with the prefix ` + "`kubernetes_labels_`" + `, and all annotations are added with the prefix ` + "`kubernetes_annotations_`" + `. For example, a label ` + "`app: myapp`" + ` becomes metadata key ` + "`kubernetes_labels_app`" + `.
+`).
 		Fields(AuthFields()...).
 		Fields(CommonFields()...).
 		Field(service.NewStringField("resource").
@@ -153,7 +156,6 @@ type kubernetesWatchInput struct {
 	shutSig      *shutdown.Signaller
 	resourceVers map[string]string
 	wg           sync.WaitGroup
-	keyCache     metaKeyCache
 }
 
 func newKubernetesWatchInput(conf *service.ParsedConfig, mgr *service.Resources) (*kubernetesWatchInput, error) {
@@ -484,13 +486,13 @@ func (k *kubernetesWatchInput) eventToMessage(event watchEvent) (*service.Messag
 
 	// Add labels as metadata
 	for key, value := range obj.GetLabels() {
-		msg.MetaSetMut(k.keyCache.getMetaKey("kubernetes_labels_", key), value)
+		msg.MetaSetMut("kubernetes_labels_"+key, value)
 	}
 
-	// Add annotations as metadata (selected common ones)
+	// Add annotations as metadata
 	annotations := obj.GetAnnotations()
 	for key, value := range annotations {
-		msg.MetaSetMut(k.keyCache.getMetaKey("kubernetes_annotations_", key), value)
+		msg.MetaSetMut("kubernetes_annotations_"+key, value)
 	}
 
 	return msg, func(ctx context.Context, err error) error {

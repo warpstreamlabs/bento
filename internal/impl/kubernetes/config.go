@@ -46,8 +46,8 @@ func LabelSelectorFromMap(labels map[string]string) string {
 	return strings.Join(pairs, ",")
 }
 
-// MetadataDescription returns the standard metadata documentation block.
-func MetadataDescription(fields []string) string {
+// metadataDescription returns the standard metadata documentation block.
+func metadataDescription(fields ...string) string {
 	result := `
 
 ### Metadata
