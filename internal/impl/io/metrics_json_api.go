@@ -31,7 +31,7 @@ type jsonAPIMetrics struct {
 	timestamp time.Time
 }
 
-func newJSONAPI(_ *service.Logger) (*jsonAPIMetrics, error) {
+func newJSONAPI(logger *service.Logger) (*jsonAPIMetrics, error) {
 	return &jsonAPIMetrics{
 		local:     metrics.NewLocal(),
 		timestamp: time.Now(),
