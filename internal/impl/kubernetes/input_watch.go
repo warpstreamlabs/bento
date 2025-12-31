@@ -151,7 +151,7 @@ type kubernetesWatchInput struct {
 	backoffCtor        func() backoff.BackOff
 
 	// State
-	mu           sync.Mutex
+	mu           sync.RWMutex
 	eventChan    chan watchEvent
 	shutSig      *shutdown.Signaller
 	resourceVers map[string]string
@@ -271,11 +271,9 @@ func (k *kubernetesWatchInput) Connect(ctx context.Context) error {
 	}
 
 	for _, ns := range namespaces {
-		k.wg.Add(1)
-		go func(namespace string) {
-			defer k.wg.Done()
-			k.watchNamespace(namespace)
-		}(ns)
+		k.wg.Go(func() {
+			k.watchNamespace(ns)
+		})
 	}
 
 	return nil
@@ -285,18 +283,19 @@ func (k *kubernetesWatchInput) watchNamespace(namespace string) {
 	dynamicClient := k.clientSet.Dynamic
 	boff := k.backoffCtor()
 
+	// Initialize resource interface once (it only depends on namespace, which is constant)
+	var resourceInterface dynamic.ResourceInterface
+	if namespace == "" {
+		resourceInterface = dynamicClient.Resource(k.gvr)
+	} else {
+		resourceInterface = dynamicClient.Resource(k.gvr).Namespace(namespace)
+	}
+
 	for {
 		select {
 		case <-k.shutSig.SoftStopChan():
 			return
 		default:
-		}
-
-		var resourceInterface dynamic.ResourceInterface
-		if namespace == "" {
-			resourceInterface = dynamicClient.Resource(k.gvr)
-		} else {
-			resourceInterface = dynamicClient.Resource(k.gvr).Namespace(namespace)
 		}
 
 		listOpts := metav1.ListOptions{
@@ -317,36 +316,43 @@ func (k *kubernetesWatchInput) watchNamespace(namespace string) {
 		}
 
 		// Start watching
-		watchCtx, watchDone := k.shutSig.SoftStopCtx(context.Background())
-		watcher, err := resourceInterface.Watch(watchCtx, listOpts)
-		if err != nil {
-			watchDone()
-			// If the error is a "410 Gone" error, it means the resource version is too old.
-			// Reset the resource version to force a fresh list on the next loop.
-			if serr, ok := err.(*k8serrors.StatusError); ok && serr.ErrStatus.Code == http.StatusGone {
-				k.log.Warnf("Watch for %s in namespace %s returned 410 Gone, resetting resource version", k.gvr.Resource, namespace)
-				k.setResourceVersion(namespace, "")
-			} else {
-				k.log.Errorf("Failed to watch %s in namespace %s: %v", k.gvr.Resource, namespace, err)
-			}
-			wait := boff.NextBackOff()
-			if wait == backoff.Stop {
-				k.log.Errorf("Max retries exceeded for watch %s in namespace %s", k.gvr.Resource, namespace)
+		shouldExit := false
+		func() {
+			watchCtx, watchDone := k.shutSig.SoftStopCtx(context.Background())
+			defer watchDone() // Ensure context is cancelled to avoid leaks
+			watcher, err := resourceInterface.Watch(watchCtx, listOpts)
+			if err != nil {
+				// If the error is a "410 Gone" error, it means the resource version is too old.
+				// Reset the resource version to force a fresh list on the next loop.
+				if serr, ok := err.(*k8serrors.StatusError); ok && serr.ErrStatus.Code == http.StatusGone {
+					k.log.Warnf("Watch for %s in namespace %s returned 410 Gone, resetting resource version", k.gvr.Resource, namespace)
+					k.setResourceVersion(namespace, "")
+				} else {
+					k.log.Errorf("Failed to watch %s in namespace %s: %v", k.gvr.Resource, namespace, err)
+				}
+				wait := boff.NextBackOff()
+				if wait == backoff.Stop {
+					k.log.Errorf("Max retries exceeded for watch %s in namespace %s", k.gvr.Resource, namespace)
+					shouldExit = true
+					return
+				}
+				select {
+				case <-time.After(wait):
+				case <-k.shutSig.SoftStopChan():
+					shouldExit = true
+					return
+				}
 				return
 			}
-			select {
-			case <-time.After(wait):
-			case <-k.shutSig.SoftStopChan():
-				return
-			}
-			continue
-		}
 
-		// Reset backoff on successful connection
-		boff.Reset()
-		k.processWatchEvents(watcher, namespace)
-		watchDone()
-		watcher.Stop()
+			// Reset backoff on successful connection
+			boff.Reset()
+			k.processWatchEvents(watcher, namespace)
+			watcher.Stop()
+		}()
+		if shouldExit {
+			return
+		}
 	}
 }
 
@@ -501,8 +507,17 @@ func (k *kubernetesWatchInput) eventToMessage(event watchEvent) (*service.Messag
 }
 
 func (k *kubernetesWatchInput) Close(ctx context.Context) error {
-	k.shutSig.TriggerSoftStop()
-	k.wg.Wait()
-	close(k.eventChan)
-	return nil
+	go func() {
+		k.shutSig.TriggerSoftStop()
+		k.wg.Wait()
+		close(k.eventChan)
+		k.shutSig.TriggerHasStopped()
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-k.shutSig.HasStoppedChan():
+		return nil
+	}
 }
