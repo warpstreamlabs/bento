@@ -38,7 +38,7 @@ func init() {
 			if mif, err = conf.FieldMaxInFlight(); err != nil {
 				return
 			}
-			out, err = NewOutput(conf, mgr)
+			out, err = NewOutput(context.Background(), conf, mgr)
 			return
 		},
 	)
@@ -48,8 +48,8 @@ func init() {
 }
 
 // NewOutput returns a Couchbase output.
-func NewOutput(conf *service.ParsedConfig, mgr *service.Resources) (*Couchbase, error) {
-	return New(conf, mgr, true)
+func NewOutput(ctx context.Context, conf *service.ParsedConfig, mgr *service.Resources) (*Couchbase, error) {
+	return New(ctx, conf, mgr, true)
 }
 
 // WriteBatch writes a batch of messages to couchbase.

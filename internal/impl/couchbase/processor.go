@@ -27,7 +27,7 @@ func ProcessorConfig() *service.ConfigSpec {
 func init() {
 	err := service.RegisterBatchProcessor("couchbase", ProcessorConfig(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
-			return NewProcessor(conf, mgr)
+			return NewProcessor(context.Background(), conf, mgr)
 		},
 	)
 	if err != nil {
@@ -36,8 +36,8 @@ func init() {
 }
 
 // NewProcessor returns a Couchbase processor.
-func NewProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*Couchbase, error) {
-	return New(conf, mgr, false)
+func NewProcessor(ctx context.Context, conf *service.ParsedConfig, mgr *service.Resources) (*Couchbase, error) {
+	return New(ctx, conf, mgr, false)
 }
 
 // ProcessBatch applies the processor to a message batch, either creating >0

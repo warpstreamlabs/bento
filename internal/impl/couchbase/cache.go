@@ -26,7 +26,7 @@ func CacheConfig() *service.ConfigSpec {
 func init() {
 	err := service.RegisterCache("couchbase", CacheConfig(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Cache, error) {
-			return NewCache(conf, mgr)
+			return NewCache(context.Background(), conf, mgr)
 		},
 	)
 	if err != nil {
@@ -44,8 +44,8 @@ type Cache struct {
 }
 
 // NewCache returns a Couchbase cache.
-func NewCache(conf *service.ParsedConfig, mgr *service.Resources) (*Cache, error) {
-	cl, err := getClient(conf, mgr)
+func NewCache(ctx context.Context, conf *service.ParsedConfig, mgr *service.Resources) (*Cache, error) {
+	cl, err := getClient(ctx, conf, mgr)
 	if err != nil {
 		return nil, err
 	}

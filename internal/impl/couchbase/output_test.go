@@ -180,7 +180,7 @@ func getOutput(tb testing.TB, config string) *couchbase.Couchbase {
 
 	pConf, err := confSpec.ParseYAML(config, env)
 	require.NoError(tb, err)
-	proc, err := couchbase.NewOutput(pConf, service.MockResources())
+	proc, err := couchbase.NewOutput(tb.Context(), pConf, service.MockResources())
 	require.NoError(tb, err)
 	require.NotNil(tb, proc)
 

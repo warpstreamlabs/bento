@@ -65,7 +65,7 @@ type Couchbase struct {
 }
 
 // New returns a Couchbase instance.
-func New(conf *service.ParsedConfig, mgr *service.Resources, outputMode bool) (*Couchbase, error) {
+func New(ctx context.Context, conf *service.ParsedConfig, mgr *service.Resources, outputMode bool) (*Couchbase, error) {
 	var err error
 
 	p := &Couchbase{
@@ -130,7 +130,7 @@ func New(conf *service.ParsedConfig, mgr *service.Resources, outputMode bool) (*
 	}
 
 	if !p.outputMode {
-		err = p.Connect(context.Background())
+		err = p.Connect(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -192,8 +192,8 @@ func (c *Couchbase) process(ctx context.Context, batch service.MessageBatch) ([]
 }
 
 // Connect connects to the couchbase cluster
-func (c *Couchbase) Connect(_ context.Context) (err error) {
-	c.couchbaseClient, err = getClient(c.conf, c.mgr)
+func (c *Couchbase) Connect(ctx context.Context) (err error) {
+	c.couchbaseClient, err = getClient(ctx, c.conf, c.mgr)
 	if err != nil {
 		return err
 	}
