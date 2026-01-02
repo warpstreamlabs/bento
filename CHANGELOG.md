@@ -3,7 +3,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.14.0 - DATE TBD !
+## 1.14.0 - 2026-01-02
 
 ### Fixed
 
