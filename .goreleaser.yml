@@ -3,14 +3,8 @@ builds:
   - id: bento
     main: cmd/bento/main.go
     binary: bento
-    goos: [ windows, darwin, linux, freebsd, openbsd ]
-    goarch: [ amd64, arm, arm64 ]
-    goarm: [ "6", "7" ]
-    ignore:
-      - goos: windows
-        goarch: arm
-      - goos: darwin
-        goarch: arm
+    goos: [ windows, darwin, linux ]
+    goarch: [ amd64, arm64 ]
     env:
       - CGO_ENABLED=0
     ldflags: >
