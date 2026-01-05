@@ -13,10 +13,11 @@ import (
 
 // CacheConfig export couchbase Cache specification.
 func CacheConfig() *service.ConfigSpec {
-	return client.NewConfigSpec().
+	return service.NewConfigSpec().
 		// TODO Stable().
 		Version("1.0.0").
 		Summary(`Use a Couchbase instance as a cache.`).
+		Fields(client.CommonFields()...).
 		Field(service.NewDurationField("default_ttl").
 			Description("An optional default TTL to set for items, calculated from the moment the item is cached.").
 			Optional().

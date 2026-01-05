@@ -41,8 +41,8 @@ output:
     bucket: "" # No default (required)
     id: ${! json("id") } # No default (required)
     content: "" # No default (optional)
-    operation: upsert
     cas_enabled: true
+    operation: upsert
     max_in_flight: 64
     batching:
       count: 0
@@ -70,8 +70,8 @@ output:
     id: ${! json("id") } # No default (required)
     content: "" # No default (optional)
     ttl: "" # No default (optional)
-    operation: upsert
     cas_enabled: true
+    operation: upsert
     max_in_flight: 64
     batching:
       count: 0
@@ -190,6 +190,15 @@ An optional TTL to set for items.
 
 Type: `string`  
 
+### `cas_enabled`
+
+Enable CAS validation.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.3.0 or newer  
+
 ### `operation`
 
 Couchbase operation to perform.
@@ -207,15 +216,6 @@ Default: `"upsert"`
 | `replace` | Replace the contents of a document. |
 | `upsert` | Creates a new document if it does not exist, if it does exist then it updates it. |
 
-
-### `cas_enabled`
-
-Enable CAS validation.
-
-
-Type: `bool`  
-Default: `true`  
-Requires version 1.3.0 or newer  
 
 ### `max_in_flight`
 

@@ -40,8 +40,8 @@ couchbase:
   bucket: "" # No default (required)
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
-  operation: get
   cas_enabled: true
+  operation: get
 ```
 
 </TabItem>
@@ -61,8 +61,8 @@ couchbase:
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
   ttl: "" # No default (optional)
-  operation: get
   cas_enabled: true
+  operation: get
 ```
 
 </TabItem>
@@ -173,6 +173,15 @@ An optional TTL to set for items.
 
 Type: `string`  
 
+### `cas_enabled`
+
+Enable CAS validation.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.3.0 or newer  
+
 ### `operation`
 
 Couchbase operation to perform.
@@ -191,14 +200,5 @@ Default: `"get"`
 | `replace` | Replace the contents of a document. |
 | `upsert` | Creates a new document if it does not exist, if it does exist then it updates it. |
 
-
-### `cas_enabled`
-
-Enable CAS validation.
-
-
-Type: `bool`  
-Default: `true`  
-Requires version 1.3.0 or newer  
 
 
