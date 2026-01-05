@@ -19,7 +19,7 @@ type couchbaseClient struct {
 	cluster    *gocb.Cluster
 }
 
-func getClient(ctx context.Context, conf *service.ParsedConfig, mgr *service.Resources) (*couchbaseClient, error) {
+func getClient(ctx context.Context, conf *service.ParsedConfig) (*couchbaseClient, error) {
 	// retrieve params
 	url, err := conf.FieldString("url")
 	if err != nil {

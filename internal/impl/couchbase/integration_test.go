@@ -119,9 +119,9 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 	servicePort := requireCouchbase(t)
 
 	bucket := fmt.Sprintf("testing-processor-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	uid := faker.UUIDHyphenated()
@@ -214,9 +214,9 @@ func TestIntegrationCouchbaseOutput(t *testing.T) {
 	servicePort := requireCouchbase(t)
 
 	bucket := fmt.Sprintf("testing-processor-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	uid := faker.UUIDHyphenated()
@@ -266,9 +266,9 @@ func TestIntegrationCouchbaseStream(t *testing.T) {
 
 	servicePort := requireCouchbase(t)
 	bucket := fmt.Sprintf("testing-stream-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	for _, clearCAS := range []bool{true, false} {
@@ -375,9 +375,9 @@ func TestIntegrationCouchbaseStreamError(t *testing.T) {
 
 	servicePort := requireCouchbase(t)
 	bucket := fmt.Sprintf("testing-stream-error-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	streamOutBuilder := service.NewStreamBuilder()

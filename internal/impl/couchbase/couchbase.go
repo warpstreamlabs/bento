@@ -179,7 +179,7 @@ func (c *Couchbase) process(ctx context.Context, batch service.MessageBatch) ([]
 
 // Connect connects to the couchbase cluster
 func (c *Couchbase) Connect(ctx context.Context) (err error) {
-	c.couchbaseClient, err = getClient(ctx, c.conf, c.mgr)
+	c.couchbaseClient, err = getClient(ctx, c.conf)
 	if err != nil {
 		return err
 	}

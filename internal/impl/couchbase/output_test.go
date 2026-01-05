@@ -184,6 +184,8 @@ func getOutput(tb testing.TB, config string) *couchbase.Couchbase {
 	require.NoError(tb, err)
 	require.NotNil(tb, proc)
 
+	require.NoError(tb, proc.Connect(tb.Context()))
+
 	return proc
 }
 
