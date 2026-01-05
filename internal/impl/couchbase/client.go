@@ -115,5 +115,9 @@ func getClient(ctx context.Context, conf *service.ParsedConfig) (*couchbaseClien
 }
 
 func (p *couchbaseClient) Close(ctx context.Context) error {
+	if p.cluster == nil {
+		return nil
+	}
+
 	return p.cluster.Close(&gocb.ClusterCloseOptions{})
 }
