@@ -20,7 +20,7 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Performs operations against Couchbase for each message, allowing you to store data within message payloads.
 
-Introduced in version 1.14.0.
+Introduced in version 1.15.0.
 
 
 <Tabs defaultValue="common" values={[
