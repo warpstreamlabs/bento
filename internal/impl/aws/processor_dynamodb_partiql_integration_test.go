@@ -18,7 +18,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
-func TestDynamoDBPartiqlInsertAndSelect(t *testing.T) {
+func TestIntegrationDDBPartiql(t *testing.T) {
 	integration.CheckSkip(t)
 
 	pool, err := dockertest.NewPool("")
