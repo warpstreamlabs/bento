@@ -187,7 +187,8 @@ file_tail:
 
 	<-msgArrivedChan
 
-	os.Truncate(fullPath, 0)
+	err = os.Truncate(fullPath, 0)
+	require.NoError(t, err)
 
 	appendLine(t, fullPath, "Hello Bob")
 
