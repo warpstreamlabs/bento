@@ -26,7 +26,7 @@ func kubernetesWatchInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Services", "Kubernetes").
-		Version("1.0.0").
+		Version("1.15.0").
 		Summary("Watches Kubernetes resources for changes, similar to `kubectl get <resource> --watch`.").
 		Description(`
 This input watches Kubernetes resources and emits events when resources
