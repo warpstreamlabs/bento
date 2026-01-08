@@ -485,8 +485,18 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 				}
 			case awsKinesisConsumerClosing:
 				reason = " because the pipeline is shutting down"
-				if _, err := k.checkpointer.Checkpoint(context.Background(), info.id, shardID, recordBatcher.GetSequence(), true); err != nil {
-					k.log.Errorf("Failed to store final checkpoint for stream '%v' shard '%v': %v", info.id, shardID, err)
+				// If the iterator is empty, the shard is finished and should be deleted
+				// rather than checkpointed. This prevents orphaned DynamoDB entries when
+				// pods are terminated after Kinesis closes shards but before consumption completes.
+				if iter == "" {
+					k.log.Debugf("Deleting checkpoint for finished shard during shutdown: stream '%v' shard '%v'", info.id, shardID)
+					if err := k.checkpointer.Delete(k.ctx, info.id, shardID); err != nil {
+						k.log.Errorf("Failed to remove checkpoint for finished stream '%v' shard '%v': %v", info.id, shardID, err)
+					}
+				} else {
+					if _, err := k.checkpointer.Checkpoint(context.Background(), info.id, shardID, recordBatcher.GetSequence(), true); err != nil {
+						k.log.Errorf("Failed to store final checkpoint for stream '%v' shard '%v': %v", info.id, shardID, err)
+					}
 				}
 			}
 
@@ -682,6 +692,27 @@ func (k *kinesisReader) runBalancedShards() {
 						unclaimedShards[claim.ShardID] = clientID
 					} else {
 						delete(unclaimedShards, claim.ShardID)
+					}
+				}
+			}
+
+			// Clean up DynamoDB entries for shards that are finished (closed by Kinesis).
+			// This handles cases where pods were terminated before consumers could naturally
+			// finish processing closed shards, leaving orphaned checkpoint entries.
+			finishedShardIDs := make(map[string]bool)
+			for _, s := range allShards {
+				if isShardFinished(s) {
+					finishedShardIDs[*s.ShardId] = true
+				}
+			}
+			for clientID, claims := range clientClaims {
+				for _, claim := range claims {
+					if finishedShardIDs[claim.ShardID] {
+						if err := k.checkpointer.Delete(k.ctx, info.id, claim.ShardID); err != nil {
+							k.log.Errorf("Failed to clean up finished shard '%v' from client '%v': %v", claim.ShardID, clientID, err)
+						} else {
+							k.log.Debugf("Cleaned up finished shard '%v' previously claimed by client '%v'", claim.ShardID, clientID)
+						}
 					}
 				}
 			}
