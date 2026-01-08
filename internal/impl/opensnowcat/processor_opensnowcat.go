@@ -93,6 +93,15 @@ All transformations support both direct TSV columns and schema property paths.`)
 			"tsv":           "Maintain enriched TSV format without conversion.",
 			"enriched_json": "Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations.",
 		}).Description("Output format for processed events.").Default("tsv")).
+		Field(service.NewStringMapField("set_metadata").
+			Description("Map metadata keys to OpenSnowcat canonical event model field names. Supports direct TSV column names (e.g., 'event_fingerprint', 'app_id') and schema property paths (e.g., 'com.vendor.schema.field'). Metadata is set before any filters or transformations are applied.").
+			Optional().
+			Example(map[string]interface{}{
+				"fingerprint":      "event_fingerprint",
+				"eid":              "event_id",
+				"app_id":           "app_id",
+				"collector_tstamp": "collector_tstamp",
+			})).
 		Field(service.NewObjectField(oscFieldFilters,
 			service.NewAnyMapField(oscFieldFiltersDrop).
 				Description("Map of field names to filter criteria. Events matching ANY criteria will be dropped (OR logic). Supports both regular TSV columns (e.g., `user_ipaddress`, `useragent`) and schema property paths (e.g., `com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily`). Each filter uses 'contains' for substring matching.").
@@ -242,6 +251,32 @@ pipeline:
                 strategy: hash
                 hash_algo: MD5
 `,
+		).
+		Example(
+			"Deduplication with Cache",
+			"Sets metadata from event fields to enable deduplication using Bento's cache processor. Parses TSV once, extracts fingerprint as metadata, then uses cache for deduplication. Duplicate events within 5 minutes are dropped.",
+			`
+pipeline:
+  processors:
+    - opensnowcat:
+        set_metadata:
+          fingerprint: event_fingerprint
+        output_format: json
+    
+    - cache:
+        resource: dedupe_cache
+        operator: add
+        key: ${! metadata("fingerprint") }
+        value: "1"
+    
+    - mapping: |
+        root = if !errored() { this } else { deleted() }
+
+cache_resources:
+  - label: dedupe_cache
+    memory:
+      default_ttl: 5m
+`,
 		)
 }
 
@@ -282,6 +317,7 @@ type opensnowcatProcessor struct {
 	transformConfig  *transformConfig
 	outputFormat     string
 	columnIndexMap   map[string]int
+	metadataMapping  map[string]string
 	log              *service.Logger
 	mDropped         *service.MetricCounter
 	schemaDiscovery  *schemaDelivery
@@ -420,11 +456,21 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 
 	schemasCollected := make(map[string]bool)
 
+	metadataMapping := map[string]string{}
+	if conf.Contains("set_metadata") {
+		var err error
+		metadataMapping, err = conf.FieldStringMap("set_metadata")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	proc := &opensnowcatProcessor{
 		dropFilters:      dropFilters,
 		transformConfig:  transformCfg,
 		outputFormat:     outputFormat,
 		columnIndexMap:   columnIndexMap,
+		metadataMapping:  metadataMapping,
 		log:              res.Logger(),
 		mDropped:         res.Metrics().NewCounter("dropped"),
 		schemasCollected: schemasCollected,
@@ -504,6 +550,11 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 
 	columns := strings.Split(tsvString, "\t")
 
+	// Set metadata first (before any filters or transformations)
+	if len(o.metadataMapping) > 0 {
+		o.setMetadataFromFields(msg, columns)
+	}
+
 	if o.schemaDiscovery != nil && o.schemaDiscovery.config.enabled {
 		schemas := o.extractSchemasFromEvent(columns)
 		o.schemasMu.Lock()
@@ -526,7 +577,7 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 
 	if o.outputFormat == "tsv" {
 		transformedTSV := strings.Join(columns, "\t")
-		msg = service.NewMessage([]byte(transformedTSV))
+		msg.SetBytes([]byte(transformedTSV))
 		return service.MessageBatch{msg}, nil
 	}
 
@@ -578,6 +629,54 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 		}
 	}
 	return false
+}
+
+func (o *opensnowcatProcessor) setMetadataFromFields(msg *service.Message, columns []string) {
+	for metaKey, fieldName := range o.metadataMapping {
+		// Check if it's a schema property path (contains dots, but not geo./metrics./site.)
+		if strings.Contains(fieldName, ".") &&
+			!strings.HasPrefix(fieldName, "geo.") &&
+			!strings.HasPrefix(fieldName, "metrics.") &&
+			!strings.HasPrefix(fieldName, "site.") {
+			// Extract from JSON context fields (preserve case for schema paths)
+			value := o.extractSchemaPropertyForMetadata(columns, fieldName)
+			if value != "" {
+				msg.MetaSet(metaKey, value)
+			}
+			continue
+		}
+
+		// Direct TSV column (normalize to lowercase)
+		fieldNameLower := strings.ToLower(fieldName)
+		if colIndex, exists := o.columnIndexMap[fieldNameLower]; exists && colIndex < len(columns) {
+			value := columns[colIndex]
+			if value != "" {
+				msg.MetaSet(metaKey, value)
+			}
+		}
+	}
+}
+
+func (o *opensnowcatProcessor) extractSchemaPropertyForMetadata(columns []string, schemaPath string) string {
+	// Check contexts field
+	if contextsIdx, ok := o.columnIndexMap["contexts"]; ok && contextsIdx < len(columns) {
+		if value := o.extractSchemaPropertyValue(columns[contextsIdx], schemaPath); value != "" {
+			return value
+		}
+	}
+	// Check derived_contexts field
+	if derivedIdx, ok := o.columnIndexMap["derived_contexts"]; ok && derivedIdx < len(columns) {
+		if value := o.extractSchemaPropertyValue(columns[derivedIdx], schemaPath); value != "" {
+			return value
+		}
+	}
+	// Check unstruct_event field
+	if unstructIdx, ok := o.columnIndexMap["unstruct_event"]; ok && unstructIdx < len(columns) {
+		if value := o.extractSchemaPropertyValue(columns[unstructIdx], schemaPath); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPath string, criteria *filterCriteria) bool {
