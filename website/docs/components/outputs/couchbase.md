@@ -1,7 +1,7 @@
 ---
 title: couchbase
 slug: couchbase
-type: processor
+type: output
 status: experimental
 categories: ["Integration"]
 ---
@@ -18,9 +18,9 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Performs operations against Couchbase for each message, allowing you to store or retrieve data within message payloads.
+Performs operations against Couchbase for each message, allowing you to store data within message payloads.
 
-Introduced in version 1.0.0.
+Introduced in version 1.15.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -32,16 +32,24 @@ Introduced in version 1.0.0.
 
 ```yml
 # Common config fields, showing default values
-label: ""
-couchbase:
-  url: couchbase://localhost:11210 # No default (required)
-  username: "" # No default (optional)
-  password: "" # No default (optional)
-  bucket: "" # No default (required)
-  id: ${! json("id") } # No default (required)
-  content: "" # No default (optional)
-  cas_enabled: true
-  operation: get
+output:
+  label: ""
+  couchbase:
+    url: couchbase://localhost:11210 # No default (required)
+    username: "" # No default (optional)
+    password: "" # No default (optional)
+    bucket: "" # No default (required)
+    id: ${! json("id") } # No default (required)
+    content: "" # No default (optional)
+    cas_enabled: true
+    operation: upsert
+    max_in_flight: 64
+    batching:
+      count: 0
+      byte_size: 0
+      period: ""
+      jitter: 0
+      check: ""
 ```
 
 </TabItem>
@@ -49,20 +57,29 @@ couchbase:
 
 ```yml
 # All config fields, showing default values
-label: ""
-couchbase:
-  url: couchbase://localhost:11210 # No default (required)
-  username: "" # No default (optional)
-  password: "" # No default (optional)
-  bucket: "" # No default (required)
-  collection: _default
-  transcoder: legacy
-  timeout: 15s
-  id: ${! json("id") } # No default (required)
-  content: "" # No default (optional)
-  ttl: "" # No default (optional)
-  cas_enabled: true
-  operation: get
+output:
+  label: ""
+  couchbase:
+    url: couchbase://localhost:11210 # No default (required)
+    username: "" # No default (optional)
+    password: "" # No default (optional)
+    bucket: "" # No default (required)
+    collection: _default
+    transcoder: legacy
+    timeout: 15s
+    id: ${! json("id") } # No default (required)
+    content: "" # No default (optional)
+    ttl: "" # No default (optional)
+    cas_enabled: true
+    operation: upsert
+    max_in_flight: 64
+    batching:
+      count: 0
+      byte_size: 0
+      period: ""
+      jitter: 0
+      check: ""
+      processors: [] # No default (optional)
 ```
 
 </TabItem>
@@ -188,17 +205,143 @@ Couchbase operation to perform.
 
 
 Type: `string`  
-Default: `"get"`  
+Default: `"upsert"`  
 
 | Option | Summary |
 |---|---|
 | `decrement` | Decrement a counter by the value in content, if it does not exist then it creates a counter with an initial value equal to the negative of the value in content. If the initial value is less than or equal to 0, a document not found error is returned. |
-| `get` | Fetch a document. |
 | `increment` | Increment a counter by the value in content, if it does not exist then it creates a counter with an initial value equal to the value in content. If the initial value is less than or equal to 0, a document not found error is returned. |
 | `insert` | Insert a new document. |
 | `remove` | Delete a document. |
 | `replace` | Replace the contents of a document. |
 | `upsert` | Creates a new document if it does not exist, if it does exist then it updates it. |
 
+
+### `max_in_flight`
+
+The maximum number of messages to have in flight at a given time. Increase this to improve throughput.
+
+
+Type: `int`  
+Default: `64`  
+
+### `batching`
+
+Allows you to configure a [batching policy](/docs/configuration/batching).
+
+
+Type: `object`  
+
+```yml
+# Examples
+
+batching:
+  byte_size: 5000
+  count: 0
+  period: 1s
+
+batching:
+  count: 10
+  period: 1s
+
+batching:
+  check: this.contains("END BATCH")
+  count: 0
+  period: 1m
+
+batching:
+  count: 10
+  jitter: 0.1
+  period: 10s
+```
+
+### `batching.count`
+
+A number of messages at which the batch should be flushed. If `0` disables count based batching.
+
+
+Type: `int`  
+Default: `0`  
+
+### `batching.byte_size`
+
+An amount of bytes at which the batch should be flushed. If `0` disables size based batching.
+
+
+Type: `int`  
+Default: `0`  
+
+### `batching.period`
+
+A period in which an incomplete batch should be flushed regardless of its size.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+period: 1s
+
+period: 1m
+
+period: 500ms
+```
+
+### `batching.jitter`
+
+A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
+
+
+Type: `float`  
+Default: `0`  
+
+```yml
+# Examples
+
+jitter: 0.01
+
+jitter: 0.1
+
+jitter: 1
+```
+
+### `batching.check`
+
+A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether a message should end a batch.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+check: this.type == "end_of_transaction"
+```
+
+### `batching.processors`
+
+A list of [processors](/docs/components/processors/about) to apply to a batch as it is flushed. This allows you to aggregate and archive the batch however you see fit. Please note that all resulting messages are flushed as a single batch, therefore splitting the batch into smaller batches using these processors is a no-op.
+
+
+Type: `array`  
+
+```yml
+# Examples
+
+processors:
+  - archive:
+      format: concatenate
+
+processors:
+  - archive:
+      format: lines
+
+processors:
+  - archive:
+      format: json_array
+```
 
 
