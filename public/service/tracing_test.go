@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -104,6 +105,33 @@ logger:
 
 	type tMap = map[string]any
 
+	// Helper function to normalize events for testing
+	normalizeEvents := func(events map[string][]service.TracingEvent) map[string][]service.TracingEvent {
+		normalized := make(map[string][]service.TracingEvent)
+		for k, evs := range events {
+			normalizedEvs := make([]service.TracingEvent, len(evs))
+			for i, ev := range evs {
+				normalizedEvs[i] = service.TracingEvent{
+					Type:    ev.Type,
+					Content: ev.Content,
+					Meta: func() map[string]any {
+						if ev.Meta == nil {
+							return nil
+						}
+						meta := make(map[string]any)
+						maps.Copy(meta, ev.Meta)
+						if len(meta) == 0 {
+							return tMap{}
+						}
+						return meta
+					}(),
+				}
+			}
+			normalized[k] = normalizedEvs
+		}
+		return normalized
+	}
+
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"root.input": {
 			{Type: service.TracingEventProduce, Content: `{"id":1}`, Meta: tMap{}},
@@ -112,7 +140,7 @@ logger:
 			{Type: service.TracingEventProduce, Content: `{"id":4}`, Meta: tMap{}},
 			{Type: service.TracingEventProduce, Content: `{"id":5}`, Meta: tMap{}},
 		},
-	}, trace.InputEvents(false))
+	}, normalizeEvents(trace.InputEvents(false)))
 
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"root.pipeline.processors.0": {
@@ -129,7 +157,7 @@ logger:
 			{Type: service.TracingEventConsume, Content: `{"id":5}`, Meta: tMap{}},
 			{Type: service.TracingEventProduce, Content: `{"count":5}`, Meta: tMap{"foo": int64(5)}},
 		},
-	}, trace.ProcessorEvents(false))
+	}, normalizeEvents(trace.ProcessorEvents(false)))
 
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"root.output": {
@@ -139,7 +167,7 @@ logger:
 			{Type: service.TracingEventConsume, Content: `{"id":4}`, Meta: tMap{}},
 			{Type: service.TracingEventConsume, Content: `{"count":5}`, Meta: tMap{"foo": int64(5)}},
 		},
-	}, trace.OutputEvents(false))
+	}, normalizeEvents(trace.OutputEvents(false)))
 }
 
 func BenchmarkStreamTracing(b *testing.B) {
