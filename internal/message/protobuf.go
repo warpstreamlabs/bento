@@ -52,6 +52,45 @@ func UnmarshalBatchFromProto(b []byte) (Batch, error) {
 	return toBatch(protoBatch)
 }
 
+func UnmarshalBatchesFromProto(b []byte) ([]Batch, error) {
+	protoBatch := &pb.Batches{}
+	if err := proto.Unmarshal(b, protoBatch); err != nil {
+		return nil, err
+	}
+
+	batches := make([]Batch, len(protoBatch.GetBatches()))
+	for _, protoBatch := range protoBatch.GetBatches() {
+		batch, err := toBatch(protoBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		batches = append(batches, batch)
+	}
+
+	return batches, nil
+}
+
+func MarshalBatchesToProto(batches []Batch) ([]byte, error) {
+	protoBatches := &pb.Batches{
+		Batches: make([]*pb.Batch, len(batches)),
+	}
+
+	for _, batch := range batches {
+		protoBatch, err := fromBatch(batch)
+		if err != nil {
+			return nil, err
+		}
+		protoBatches.Batches = append(protoBatches.Batches, protoBatch)
+	}
+
+	opts := proto.MarshalOptions{
+		Deterministic: true,
+	}
+
+	return opts.Marshal(protoBatches)
+}
+
 func fromPart(part *Part) (*pb.Part, error) {
 	if part == nil || part.data == nil {
 		return nil, ErrMessagePartNotExist

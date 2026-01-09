@@ -18,3 +18,7 @@ message Part {
 message Batch {
     repeated Part parts = 1;
 }
+
+message Batches {
+    repeated Batch batches = 1;
+}
