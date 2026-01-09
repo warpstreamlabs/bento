@@ -485,8 +485,24 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 				}
 			case awsKinesisConsumerClosing:
 				reason = " because the pipeline is shutting down"
-				if _, err := k.checkpointer.Checkpoint(context.Background(), info.id, shardID, recordBatcher.GetSequence(), true); err != nil {
-					k.log.Errorf("Failed to store final checkpoint for stream '%v' shard '%v': %v", info.id, shardID, err)
+				// If the iterator is empty, the shard is finished and should be deleted
+				// rather than checkpointed. This prevents orphaned DynamoDB entries when
+				// pods are terminated after Kinesis closes shards but before consumption completes.
+				//
+				// Note: There's an edge case where if a shard naturally finishes (state becomes
+				// awsKinesisConsumerFinished) but the pod is terminated before this defer runs,
+				// the state will be changed to awsKinesisConsumerClosing. This means Delete could
+				// be called from both code paths, but this is safe because Delete is idempotent.
+				if iter == "" {
+					k.log.Debugf("Deleting checkpoint for finished shard during shutdown: stream '%v' shard '%v'", info.id, shardID)
+					// Use context.Background() to ensure the delete completes even during shutdown
+					if err := k.checkpointer.Delete(context.Background(), info.id, shardID); err != nil {
+						k.log.Errorf("Failed to remove checkpoint for finished stream '%v' shard '%v': %v", info.id, shardID, err)
+					}
+				} else {
+					if _, err := k.checkpointer.Checkpoint(context.Background(), info.id, shardID, recordBatcher.GetSequence(), true); err != nil {
+						k.log.Errorf("Failed to store final checkpoint for stream '%v' shard '%v': %v", info.id, shardID, err)
+					}
 				}
 			}
 
@@ -682,6 +698,54 @@ func (k *kinesisReader) runBalancedShards() {
 						unclaimedShards[claim.ShardID] = clientID
 					} else {
 						delete(unclaimedShards, claim.ShardID)
+					}
+				}
+			}
+
+			// Clean up DynamoDB entries for shards that are finished (closed by Kinesis).
+			// This handles cases where pods were terminated before consumers could naturally
+			// finish processing closed shards, leaving orphaned checkpoint entries.
+			finishedShardIDs := make(map[string]bool)
+			for _, s := range allShards {
+				if isShardFinished(s) {
+					finishedShardIDs[*s.ShardId] = true
+				}
+			}
+
+			// First, clean up entries with expired leases for finished shards
+			for clientID, claims := range clientClaims {
+				for _, claim := range claims {
+					if finishedShardIDs[claim.ShardID] {
+						isExpired := time.Since(claim.LeaseTimeout) > k.leasePeriod*2
+						if isExpired {
+							if err := k.checkpointer.Delete(k.ctx, info.id, claim.ShardID); err != nil {
+								k.log.Errorf("Failed to clean up finished shard '%v' with expired lease from client '%v': %v", claim.ShardID, clientID, err)
+							} else {
+								k.log.Debugf("Cleaned up finished shard '%v' with expired lease from client '%v'", claim.ShardID, clientID)
+							}
+						} else {
+							k.log.Debugf("Skipping cleanup of finished shard '%v' from client '%v' (lease still active)", claim.ShardID, clientID)
+						}
+					}
+				}
+			}
+
+			// Second, clean up orphaned entries (no ClientID) for finished shards
+			// These are created when Checkpoint(final=true) is called during shutdown
+			orphanedShards, err := k.checkpointer.OrphanedShards(k.ctx, info.id)
+			if err != nil {
+				if k.ctx.Err() != nil {
+					return
+				}
+				k.log.Errorf("Failed to query orphaned shards for stream '%v': %v", info.id, err)
+			} else {
+				for _, shardID := range orphanedShards {
+					if finishedShardIDs[shardID] {
+						if err := k.checkpointer.Delete(k.ctx, info.id, shardID); err != nil {
+							k.log.Errorf("Failed to clean up orphaned finished shard '%v': %v", shardID, err)
+						} else {
+							k.log.Debugf("Cleaned up orphaned finished shard '%v'", shardID)
+						}
 					}
 				}
 			}

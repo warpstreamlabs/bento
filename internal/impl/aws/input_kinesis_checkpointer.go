@@ -180,6 +180,33 @@ type awsKinesisClientClaim struct {
 	LeaseTimeout time.Time
 }
 
+// OrphanedShards returns a list of shard IDs that have checkpoints in DynamoDB
+// but no ClientID (orphaned entries from final checkpoints).
+func (k *awsKinesisCheckpointer) OrphanedShards(ctx context.Context, streamID string) ([]string, error) {
+	var orphanedShards []string
+
+	scanRes, err := k.svc.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(k.conf.Table),
+		FilterExpression: aws.String("StreamID = :stream_id AND attribute_not_exists(ClientID)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":stream_id": &types.AttributeValueMemberS{
+				Value: streamID,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range scanRes.Items {
+		if s, ok := i["ShardID"].(*types.AttributeValueMemberS); ok {
+			orphanedShards = append(orphanedShards, s.Value)
+		}
+	}
+
+	return orphanedShards, nil
+}
+
 // AllClaims returns a map of client IDs to shards claimed by that client,
 // including the lease timeout of the claim.
 func (k *awsKinesisCheckpointer) AllClaims(ctx context.Context, streamID string) (map[string][]awsKinesisClientClaim, error) {
