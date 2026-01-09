@@ -44,6 +44,7 @@ parquet_decode: {}
 label: ""
 parquet_decode:
   use_parquet_list_format: true
+  strict_schema: true
 ```
 
 </TabItem>
@@ -65,6 +66,14 @@ This flag will be disabled (set to `false`) by default and deprecated in future 
 Type: `bool`  
 Default: `true`  
 Requires version 1.8.0 or newer  
+
+### `strict_schema`
+
+Whether to enforce strict Parquet schema validation. When set to false, allows reading files with non-standard schema structures (such as non-standard LIST formats). Disabling strict mode may reduce validation but increases compatibility.
+
+
+Type: `bool`  
+Default: `true`  
 
 ## Examples
 

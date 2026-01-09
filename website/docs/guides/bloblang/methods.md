@@ -3210,12 +3210,19 @@ Decodes a [Parquet file](https://parquet.apache.org/docs/) into an array of obje
 #### Parameters
 
 **`byte_array_as_string`** &lt;bool, default `false`&gt; Deprecated: This parameter is no longer used.  
+**`strict_schema`** &lt;bool, default `true`&gt; Whether to enforce strict Parquet schema validation. When set to false, allows reading files with non-standard schema structures (such as non-standard LIST formats).  
 
 #### Examples
 
 
 ```coffee
 root = content().parse_parquet()
+```
+
+With lenient schema validation
+
+```coffee
+root = content().parse_parquet(strict_schema: false)
 ```
 
 ### `parse_url`
