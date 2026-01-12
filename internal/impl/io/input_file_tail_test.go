@@ -248,7 +248,9 @@ file_tail:
 	time.Sleep(time.Second * 2)
 
 	s.TriggerStopConsuming()
-	assert.NoError(t, s.WaitForClose(context.Background()))
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+	assert.NoError(t, s.WaitForClose(ctx))
 }
 
 func TestFileTail_ErrorHandling(t *testing.T) {

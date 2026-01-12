@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Jeffail/shutdown"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -78,7 +79,8 @@ func init() {
 type FileTailInput struct {
 	tail tail
 
-	logger *service.Logger
+	logger  *service.Logger
+	shutSig *shutdown.Signaller
 }
 
 func NewFileTailInput(pConf *service.ParsedConfig, mgr *service.Resources) (*FileTailInput, error) {
@@ -115,12 +117,17 @@ func NewFileTailInput(pConf *service.ParsedConfig, mgr *service.Resources) (*Fil
 	}
 
 	return &FileTailInput{
-		tail:   tail,
-		logger: mgr.Logger(),
+		tail:    tail,
+		logger:  mgr.Logger(),
+		shutSig: shutdown.NewSignaller(),
 	}, nil
 }
 
 func (fti *FileTailInput) Connect(ctx context.Context) error {
+	if fti.shutSig.IsHardStopSignalled() {
+		return nil
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	fti.tail.cancel = cancel
 
@@ -153,11 +160,19 @@ func (fti *FileTailInput) Read(ctx context.Context) (*service.Message, service.A
 
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
+
+	case <-fti.shutSig.HardStopChan():
+		return nil, nil, nil
 	}
 }
 
 func (fti *FileTailInput) Close(ctx context.Context) error {
+	fti.shutSig.TriggerHardStop()
 	fti.tail.cancel()
+
+	for range fti.tail.errChan {
+	}
+
 	fti.tail.file.Close()
 	return nil
 }
@@ -256,10 +271,11 @@ func newTail(path string, opts ...tailOpt) (tail, error) {
 
 func (t *tail) watch(ctx context.Context) {
 	ticker := time.NewTicker(t.pollInterval)
-	defer ticker.Stop()
-
-	defer close(t.lineChan)
-	defer close(t.errChan)
+	defer func() {
+		ticker.Stop()
+		close(t.lineChan)
+		close(t.errChan)
+	}()
 
 	for {
 
@@ -284,7 +300,11 @@ func (t *tail) watch(ctx context.Context) {
 				position: pos,
 			}
 
-			t.lineChan <- tl
+			select {
+			case t.lineChan <- tl:
+			case <-ctx.Done():
+				return
+			}
 		}
 
 		if err != nil {
