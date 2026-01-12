@@ -249,7 +249,8 @@ file_tail:
 
 	s.TriggerStopConsuming()
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
 	assert.NoError(t, s.WaitForClose(ctx))
 }
 
