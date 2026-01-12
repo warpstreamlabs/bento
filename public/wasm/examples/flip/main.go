@@ -2,23 +2,24 @@ package main
 
 import (
 	"context"
+	"strings"
 
-	"github.com/warpstreamlabs/bento/public/service"
-	plugin "github.com/warpstreamlabs/bento/public/wasm/plugin/batch_processor"
+	"github.com/warpstreamlabs/bento/public/wasm/service"
+	plugin "github.com/warpstreamlabs/bento/public/wasm/service/batch_processor"
 )
 
 func init() {
-	plugin.RegisterBatchProcessor("flip", service.NewConfigSpec(), newFlipProcessor)
+	plugin.RegisterBatchProcessor(newFlipProcessor)
 }
 
 func newFlipProcessor(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
-	return &reverseProc{}, nil
+	return &flipProc{}, nil
 }
 
 var upsideDownChars = map[string]string{
 	"z": "z", "y": "ʎ", "x": "x", "w": "ʍ", "v": "ʌ", "u": "n", "t": "ʇ",
 	"s": "s", "r": "ɹ", "q": "b", "p": "d", "o": "o", "n": "u", "m": "ɯ",
-	"l": "ן", "k": "ʞ", "j": "ɾ", "i": "ᴉ", "h": "ɥ", "g": "ƃ", "f": "ɟ",
+	"l": "l", "k": "ʞ", "j": "ɾ", "i": "ᴉ", "h": "ɥ", "g": "ƃ", "f": "ɟ",
 	"e": "ǝ", "d": "p", "c": "ɔ", "b": "q", "a": "ɐ", " ": " ", "-": "-",
 	"+": "+", "Z": "Z", "Y": "⅄", "X": "X", "W": "M", "V": "Λ", "U": "∩",
 	"T": "┴", "S": "S", "R": "ɹ", "Q": "Q", "P": "Ԁ", "O": "O", "N": "N",
@@ -28,7 +29,21 @@ var upsideDownChars = map[string]string{
 	"2": "ᄅ", "1": "Ɩ", "0": "0",
 }
 
-type reverseProc struct {
+type flipProc struct{}
+
+func flip(s string) string {
+	var result strings.Builder
+
+	for _, char := range s {
+		charStr := string(char)
+		if flipped, ok := upsideDownChars[charStr]; ok {
+			result.WriteString(flipped)
+		} else {
+			result.WriteRune(char)
+		}
+	}
+
+	return result.String()
 }
 
 func reverse(s string) string {
@@ -39,25 +54,19 @@ func reverse(s string) string {
 	return string(r)
 }
 
-func (p *reverseProc) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
+func (p *flipProc) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 	outBatch := make(service.MessageBatch, len(batch))
 	for i, msg := range batch {
 		data, _ := msg.AsBytes()
 		inputStr := string(data)
-
-		reverseData := reverse(inputStr)
-
-		outBatch[i] = service.NewMessage([]byte(reverseData))
+		flipped := flip(inputStr)
+		outBatch[i] = service.NewMessage([]byte(flipped))
 	}
 	return []service.MessageBatch{outBatch}, nil
 }
 
-func (p *reverseProc) Close(ctx context.Context) error {
+func (p *flipProc) Close(ctx context.Context) error {
 	return nil
 }
 
-func main() {
-	if !plugin.IsRegistered() {
-		panic("Plugin not registered")
-	}
-}
+func main() {}

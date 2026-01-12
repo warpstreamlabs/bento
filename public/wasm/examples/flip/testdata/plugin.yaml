@@ -1,0 +1,12 @@
+name: flip
+type: processor
+status: stable
+categories: [Utility]
+summary: Flips text upside down using WebAssembly
+description: "Converts each character to its upside-down equivalent and reverses the string"
+fields: []
+runtime:
+  wasm:
+    memory:
+      max_pages: 512
+    timeout: 5000
