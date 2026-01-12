@@ -20,7 +20,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/plugin"
-	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
+	extismv1 "github.com/warpstreamlabs/bento/internal/plugin/runtime/extism_v1"
 	"github.com/warpstreamlabs/bento/internal/template"
 )
 
@@ -135,11 +135,10 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Aliases: []string{"t"},
 			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:    "plugins",
 			Aliases: []string{"p"},
-			Value:   "",
-			Usage:   "EXPERIMENTAL: path to a plugins configuration file (if not included in main config)",
+			Usage:   "EXPERIMENTAL: path to a plugins configuration file",
 		},
 	}
 }
@@ -180,17 +179,15 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 		os.Exit(1)
 	}
 
-	pluginConfigPath := c.String("plugins")
-	mainConfigPath := c.String("config")
-
-	targetPath := pluginConfigPath
-	if targetPath == "" {
-		targetPath = mainConfigPath
+	pluginPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("plugins"))
+	if err != nil {
+		fmt.Printf("Failed to resolve plugin glob pattern: %v\n", err)
+		os.Exit(1)
 	}
 
-	if targetPath != "" {
-		rt := runtime.NewPluginRuntime()
-		pLints, err := plugin.InitPluginsFromConfig(c.Context, rt, targetPath)
+	if len(pluginPaths) > 0 {
+		rt := extismv1.NewPluginRuntime()
+		pLints, err := plugin.InitPlugins(c.Context, bundle.GlobalEnvironment, rt, pluginPaths...)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
 			os.Exit(1)

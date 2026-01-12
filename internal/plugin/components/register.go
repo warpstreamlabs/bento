@@ -3,23 +3,16 @@
 package components
 
 import (
-	"github.com/warpstreamlabs/bento/internal/plugin/model"
+	"github.com/extism/go-pdk"
 )
 
-//go:wasmexport get_plugin_spec
-func get_plugin_spec() model.Buffer {
-	return plugin.Spec()
-}
-
-//go:wasmexport init_component
-func init_component(conf uint64) model.String {
-	if plugin.IsRegistered() {
-		return 0
-	}
-
-	err := plugin.Init(model.Buffer(conf).String())
+//go:wasmexport plugin_init
+func plugin_init() int32 {
+	err := plugin.Init(pdk.Input())
 	if err != nil {
-		return model.FromString(err.Error())
+		pdk.SetError(err)
+		return 1
 	}
+
 	return 0
 }
