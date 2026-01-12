@@ -24,7 +24,7 @@ func wrapWithStrict(p iprocessor.V1, opts ...func(*strictProcessor)) *strictProc
 
 func setEnabledFromManager(mgr bundle.NewManagement) func(*strictProcessor) {
 	getEnabled := func() bool {
-		ienabled, exists := mgr.GetGeneric(strictModeEnabledKey)
+		ienabled, exists := mgr.GetGeneric(strictModeEnabledKey{})
 		if !exists {
 			return false
 		}
