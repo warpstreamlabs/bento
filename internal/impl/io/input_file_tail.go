@@ -104,12 +104,12 @@ func NewFileTailInput(pConf *service.ParsedConfig, mgr *service.Resources) (*Fil
 		return nil, err
 	}
 
-	var tailOpts []tailOpt
-
-	tailOpts = append(tailOpts, withPollInterval(pollInterval))
-	tailOpts = append(tailOpts, withLineChanBufferSize(lineBufferSize))
-	tailOpts = append(tailOpts, withStartPosition(startPosition))
-	tailOpts = append(tailOpts, withLogger(mgr.Logger()))
+	tailOpts := []tailOpt{
+		withPollInterval(pollInterval),
+		withLineChanBufferSize(lineBufferSize),
+		withStartPosition(startPosition),
+		withLogger(mgr.Logger()),
+	}
 
 	tail, err := newTail(path, tailOpts...)
 	if err != nil {
