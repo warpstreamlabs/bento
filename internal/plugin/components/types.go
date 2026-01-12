@@ -1,48 +1,43 @@
 package components
 
 import (
+	"encoding/json"
 	"errors"
 
-	"github.com/warpstreamlabs/bento/internal/component/interop/private"
-	"github.com/warpstreamlabs/bento/internal/docs"
-	"github.com/warpstreamlabs/bento/internal/plugin/model"
-	"github.com/warpstreamlabs/bento/public/service"
-	"google.golang.org/protobuf/proto"
+	"github.com/warpstreamlabs/bento/public/wasm/service"
 )
 
 type (
 	ProcessorPlugin      = Plugin[service.Processor]
 	BatchProcessorPlugin = Plugin[service.BatchProcessor]
-
-	// InputPlugin      = Plugin[service.Input]
-	// BatchInputPlugin = Plugin[service.BatchInput]
 )
 
 var (
+	errPluginAlreadyRegistered  = errors.New("plugin already registered")
+	errPluginNotRegistered      = errors.New("plugin is not registered")
 	errInvalidPluginType        = errors.New("Invalid or unsupported plugin type")
 	errInvalidInstanceID        = errors.New("instance ID does not correspond to an active plugin")
 	errInvalidInitNotRegistered = errors.New("cannot initialize an unregistered plugin")
 )
 
 type Plugin[T any] struct {
-	name string
-	ctor func(*service.ParsedConfig, *service.Resources) (T, error)
-	spec *service.ConfigSpec
-	typ  model.Type
-
+	ctor     func([]byte) (T, error)
 	instance T
 }
 
-func (p *Plugin[_]) Name() string {
-	return p.name
-}
+func (p *Plugin[T]) Register(
+	ctor func([]byte) (T, error),
+) error {
+	if p.IsRegistered() {
+		return errPluginAlreadyRegistered
+	}
 
-func (p *Plugin[T]) Type() model.Type {
-	return p.typ
+	p.ctor = ctor
+	return nil
 }
 
 func (p *Plugin[_]) IsRegistered() bool {
-	return any(p.instance) != nil
+	return p.ctor != nil
 }
 
 func (p *Plugin[T]) GetInstance() (T, error) {
@@ -53,43 +48,30 @@ func (p *Plugin[T]) GetInstance() (T, error) {
 	return p.instance, nil
 }
 
-func (p *Plugin[T]) Init(conf string) error {
-	pConf, err := p.spec.ParseYAML(conf, service.GlobalEnvironment())
+func (p *Plugin[T]) Init(rawConf []byte) error {
+	var err error
+	p.instance, err = p.ctor(rawConf)
 	if err != nil {
 		return err
 	}
-
-	p.instance, err = p.ctor(pConf, &service.Resources{})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (p *Plugin[_]) Spec() model.Buffer {
-	spec := private.FromInternal(p.spec.XUnwrap())
+// ------------------------------------------------------------------------------
 
-	var err error
-	spec.Name = p.Name()
-	spec.Type, err = model.FromPluginType(p.typ)
-	if err != nil {
-		panic(err.Error())
+func WrapConstructor[Config, Component any](
+	ctor func(*Config, *service.Resources) (Component, error),
+) func([]byte) (Component, error) {
+	return func(rawBytes []byte) (Component, error) {
+		var conf Config
+
+		if len(rawBytes) > 0 {
+			if err := json.Unmarshal(rawBytes, &conf); err != nil {
+				var zero Component
+				return zero, err
+			}
+		}
+
+		return ctor(&conf, &service.Resources{})
 	}
-
-	specpb, err := docs.FromComponentSpec(spec)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	opts := proto.MarshalOptions{
-		Deterministic: true,
-	}
-
-	specBytes, err := opts.Marshal(specpb)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	return model.FromSlice(specBytes)
 }
