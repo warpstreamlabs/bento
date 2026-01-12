@@ -1431,7 +1431,7 @@ error_handling:
 pipeline:
   processors:
     - bloblang: |
-        root = content().parse_json(use_number: false)
+        root = content().parse_json()
 
 error_handling:
   strategy: reject
