@@ -13,4 +13,5 @@ release_notes.md
 go.work*
 *.env
 *.prof
+*.wasm
 bento

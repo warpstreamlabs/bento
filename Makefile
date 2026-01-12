@@ -127,7 +127,6 @@ protos:
 		--go_out=. \
 		--go_opt=module=github.com/warpstreamlabs/bento \
 		$(PROTO_FILES)
-	@echo "Proto files generated to internal/message/ and internal/docs/"
 
 # HACK:(gregfurman): Change misc/wasm/wasm_exec.js => lib/wasm/wasm_exec.js when using Go 1.24
 playground:
