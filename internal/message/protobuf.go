@@ -59,13 +59,13 @@ func UnmarshalBatchesFromProto(b []byte) ([]Batch, error) {
 	}
 
 	batches := make([]Batch, len(protoBatch.GetBatches()))
-	for _, protoBatch := range protoBatch.GetBatches() {
+	for i, protoBatch := range protoBatch.GetBatches() {
 		batch, err := toBatch(protoBatch)
 		if err != nil {
 			return nil, err
 		}
 
-		batches = append(batches, batch)
+		batches[i] = batch
 	}
 
 	return batches, nil
@@ -76,12 +76,12 @@ func MarshalBatchesToProto(batches []Batch) ([]byte, error) {
 		Batches: make([]*pb.Batch, len(batches)),
 	}
 
-	for _, batch := range batches {
+	for i, batch := range batches {
 		protoBatch, err := fromBatch(batch)
 		if err != nil {
 			return nil, err
 		}
-		protoBatches.Batches = append(protoBatches.Batches, protoBatch)
+		protoBatches.Batches[i] = protoBatch
 	}
 
 	opts := proto.MarshalOptions{
