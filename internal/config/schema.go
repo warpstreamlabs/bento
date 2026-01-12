@@ -8,7 +8,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/config/test"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/errorhandling"
-	"github.com/warpstreamlabs/bento/internal/plugin"
 
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/manager"
@@ -38,7 +37,6 @@ type Type struct {
 	SystemCloseDelay       string               `yaml:"shutdown_delay"`
 	SystemCloseTimeout     string               `yaml:"shutdown_timeout"`
 	Tests                  []any                `yaml:"tests"`
-	Plugins                plugin.Config        `yaml:"plugins"`
 
 	rawSource any
 }
@@ -72,12 +70,6 @@ func errorHandlingFields() docs.FieldSpecs {
 	}
 }
 
-func pluginsField() docs.FieldSpecs {
-	// NOTE: this is only included to prevent linting errors when plugins is configured on the main config.
-	// Future iterations will include hot-reloading but for documentation purposes, leave this as is.
-	return docs.FieldSpecs{plugin.ConfigSpec().Optional()}
-}
-
 // Spec returns a docs.FieldSpec for an entire Bento configuration.
 func Spec() docs.FieldSpecs {
 	var httpField = docs.FieldObject(fieldHTTP, "Configures the service-wide HTTP server.").WithChildren(api.Spec()...)
@@ -88,7 +80,6 @@ func Spec() docs.FieldSpecs {
 	fields = append(fields, observabilityFields()...)
 	fields = append(fields, errorHandlingFields()...)
 	fields = append(fields, test.ConfigSpec().Advanced())
-	fields = append(fields, pluginsField()...)
 	return fields
 }
 
@@ -111,7 +102,6 @@ func SpecWithoutStream(spec docs.FieldSpecs) docs.FieldSpecs {
 
 func FromParsed(prov docs.Provider, pConf *docs.ParsedConfig, rawSource any) (conf Type, err error) {
 	conf.rawSource = rawSource
-
 	if conf.Config, err = stream.FromParsed(prov, pConf, nil); err != nil {
 		return
 	}

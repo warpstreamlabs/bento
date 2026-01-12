@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
-	"github.com/warpstreamlabs/bento/internal/component/interop/private"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/manager"
 )
@@ -457,10 +456,6 @@ func (c *ConfigSpec) Example(title, summary, config string) *ConfigSpec {
 // signature and/or behaviour changed outside of major version bumps.
 func (c *ConfigSpec) EncodeJSON(v []byte) error {
 	return json.Unmarshal(v, &c.component)
-}
-
-func (c *ConfigSpec) XUnwrap() private.Internal[docs.ComponentSpec] {
-	return private.ToInternal(c.component)
 }
 
 // LintRule adds a custom linting rule to the ConfigSpec in the form of a

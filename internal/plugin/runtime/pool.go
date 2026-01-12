@@ -1,4 +1,4 @@
-package plugin
+package runtime
 
 import (
 	"context"
@@ -38,7 +38,7 @@ func (p *InstancePool[T]) newInstance(ctx context.Context) (T, error) {
 		return zero, err
 	}
 
-	_ = runtime.AddCleanup(&instance, func(val T) { _ = val.Close(context.TODO()) }, instance)
+	runtime.SetFinalizer(instance, func(val T) { _ = val.Close(context.TODO()) })
 
 	return instance, nil
 }
