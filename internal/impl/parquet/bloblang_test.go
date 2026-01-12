@@ -60,3 +60,40 @@ func TestParquetParseBloblangPanicInit(t *testing.T) {
 	_, err = exec.Query([]byte(`hello world lol`))
 	require.Error(t, err)
 }
+
+func TestParquetParseBloblangLenientSchema(t *testing.T) {
+	// Create a non-standard parquet file with repeated field (non-standard LIST)
+	nonStandardSchema := parquet.NewSchema("test", parquet.Group{
+		"id":     parquet.Int(64),
+		"name":   parquet.String(),
+		"values": parquet.Repeated(parquet.Int(64)),
+	})
+
+	buf := bytes.NewBuffer(nil)
+	pWtr := parquet.NewGenericWriter[any](buf, nonStandardSchema)
+
+	type obj map[string]any
+	type arr []any
+
+	_, err := pWtr.Write([]any{
+		obj{"id": int64(1), "name": "first", "values": arr{int64(10), int64(20)}},
+		obj{"id": int64(2), "name": "second", "values": arr{int64(30), int64(40), int64(50)}},
+	})
+	require.NoError(t, err)
+	require.NoError(t, pWtr.Close())
+
+	// Test with strict_schema: false
+	exec, err := bloblang.Parse(`root = this.parse_parquet(strict_schema: false)`)
+	require.NoError(t, err)
+
+	res, err := exec.Query(buf.Bytes())
+	require.NoError(t, err)
+
+	actualDataBytes, err := json.Marshal(res)
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `[
+		{"id": 1, "name": "first", "values": [10, 20]},
+		{"id": 2, "name": "second", "values": [30, 40, 50]}
+	]`, string(actualDataBytes))
+}
