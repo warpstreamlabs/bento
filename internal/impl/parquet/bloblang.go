@@ -56,7 +56,7 @@ func init() {
 							break
 						}
 
-						for i := 0; i < n; i++ {
+						for i := range n {
 							result = append(result, rowBuf[i])
 						}
 					}
@@ -71,21 +71,22 @@ func init() {
 					// Use RowGroups to avoid deprecated Reader
 					for _, rg := range inFile.RowGroups() {
 						rows := rg.Rows()
-						defer rows.Close()
 
 						for {
 							n, err := readLenient(rows, schema, rowBuf)
 							if err != nil && !errors.Is(err, io.EOF) {
+								rows.Close()
 								return nil, err
 							}
 							if n == 0 {
 								break
 							}
 
-							for i := 0; i < n; i++ {
+							for i := range n {
 								result = append(result, rowBuf[i])
 							}
 						}
+						rows.Close()
 					}
 				}
 

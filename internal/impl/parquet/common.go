@@ -3,6 +3,7 @@ package parquet
 import (
 	"errors"
 	"io"
+	"unicode/utf8"
 
 	"github.com/parquet-go/parquet-go"
 )
@@ -86,9 +87,11 @@ func convertSingleValue(val parquet.Value) any {
 	case parquet.Double:
 		return val.Double()
 	case parquet.ByteArray:
-		// Try to convert to string if it looks like UTF-8
 		b := val.ByteArray()
-		return string(b)
+		if utf8.Valid(b) {
+			return string(b)
+		}
+		return b
 	case parquet.FixedLenByteArray:
 		return val.ByteArray()
 	default:
