@@ -170,8 +170,7 @@ func (fti *FileTailInput) Close(ctx context.Context) error {
 	fti.shutSig.TriggerHardStop()
 	fti.tail.cancel()
 
-	for range fti.tail.errChan {
-	}
+	<-fti.tail.doneChan
 
 	fti.tail.file.Close()
 	return nil
@@ -192,6 +191,7 @@ type tail struct {
 
 	lineChan chan tailLine
 	errChan  chan error
+	doneChan chan struct{}
 
 	cancel context.CancelFunc
 }
@@ -242,6 +242,7 @@ func newTail(path string, opts ...tailOpt) (tail, error) {
 
 	fileInfo, err := file.Stat()
 	if err != nil {
+		file.Close()
 		return tail{}, err
 	}
 
@@ -257,11 +258,13 @@ func newTail(path string, opts ...tailOpt) (tail, error) {
 		reader:   reader,
 		lineChan: make(chan tailLine, 1000),
 		errChan:  make(chan error),
+		doneChan: make(chan struct{}),
 	}
 
 	for _, o := range opts {
 		err := o(t)
 		if err != nil {
+			file.Close()
 			return tail{}, err
 		}
 	}
@@ -271,16 +274,13 @@ func newTail(path string, opts ...tailOpt) (tail, error) {
 
 func (t *tail) watch(ctx context.Context) {
 	ticker := time.NewTicker(t.pollInterval)
-	defer func() {
-		ticker.Stop()
-		close(t.lineChan)
-		close(t.errChan)
-	}()
+	defer ticker.Stop()
 
 	for {
 
 		select {
 		case <-ctx.Done():
+			t.doneChan <- struct{}{}
 			return
 		default:
 		}
@@ -303,6 +303,7 @@ func (t *tail) watch(ctx context.Context) {
 			select {
 			case t.lineChan <- tl:
 			case <-ctx.Done():
+				t.doneChan <- struct{}{}
 				return
 			}
 		}
@@ -313,6 +314,7 @@ func (t *tail) watch(ctx context.Context) {
 				select {
 				case <-ticker.C:
 				case <-ctx.Done():
+					t.doneChan <- struct{}{}
 					return
 				}
 
