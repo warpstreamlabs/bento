@@ -172,6 +172,9 @@ func (fti *FileTailInput) Close(ctx context.Context) error {
 
 	<-fti.tail.doneChan
 
+	close(fti.tail.errChan)
+	close(fti.tail.lineChan)
+
 	fti.tail.file.Close()
 	return nil
 }
