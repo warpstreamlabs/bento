@@ -117,7 +117,7 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 
 	var err error
 
-	if s.driver, err = conf.FieldString("driver"); err != nil {
+	if s.driver, err = getDriver(conf, s.logger); err != nil {
 		return nil, err
 	}
 
