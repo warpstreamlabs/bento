@@ -1,0 +1,35 @@
+input:
+  bluesky_jetstream:
+    # Uses default public Jetstream endpoints with automatic failover.
+    # For higher throughput, consider enabling compression and batching cursor commits.
+    compress: true
+    cursor_commit_interval: 1s
+    cache: jetstream_cursor
+    collections:
+      - app.bsky.feed.post # Only posts (not likes, follows, etc.)
+    # dids:
+    #   - did:plc:example
+
+pipeline:
+  processors:
+    - switch:
+        - check: this.kind == "commit"
+          processors:
+            - bloblang: |
+                root.did = this.did
+                root.time_us = this.time_us
+                root.collection = this.commit.collection
+                root.operation = this.commit.operation
+                root.rkey = this.commit.rkey
+                root.text = this.commit.record.text | null
+        - processors:
+            - bloblang: 'root = deleted()'
+
+output:
+  stdout:
+    codec: lines
+
+cache_resources:
+  - label: jetstream_cursor
+    file:
+      directory: /tmp/bento-bluesky

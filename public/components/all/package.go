@@ -11,6 +11,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/aws"
 	_ "github.com/warpstreamlabs/bento/public/components/azure"
 	_ "github.com/warpstreamlabs/bento/public/components/beanstalkd"
+	_ "github.com/warpstreamlabs/bento/public/components/bluesky"
 	_ "github.com/warpstreamlabs/bento/public/components/cassandra"
 	_ "github.com/warpstreamlabs/bento/public/components/changelog"
 	_ "github.com/warpstreamlabs/bento/public/components/cockroachdb"
