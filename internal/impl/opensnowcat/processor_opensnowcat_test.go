@@ -678,3 +678,111 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	assert.Equal(t, "Del Mar", cityNameFromPath,
 		"Should be able to access nested data via: derived_contexts['com_dbip_location'].data[0].city.names.en")
 }
+
+// TestSetMetadata tests that set_metadata extracts fields and sets them as message metadata
+func TestSetMetadata(t *testing.T) {
+	columnIndexMap := make(map[string]int)
+	for i, col := range opensnowcatColumns {
+		columnIndexMap[col] = i
+	}
+
+	res := service.MockResources()
+
+	metadataMapping := map[string]string{
+		"fingerprint":      "event_fingerprint",
+		"eid":              "event_id",
+		"app_id":           "app_id",
+		"user":             "user_id",
+		"collector_tstamp": "collector_tstamp",
+	}
+
+	proc := &opensnowcatProcessor{
+		outputFormat:    "tsv",
+		columnIndexMap:  columnIndexMap,
+		metadataMapping: metadataMapping,
+		dropFilters:     make(map[string]*filterCriteria),
+		log:             res.Logger(),
+		mDropped:        res.Metrics().NewCounter("dropped"),
+	}
+
+	msg := service.NewMessage([]byte(testPageViewTSV))
+	msgs, err := proc.Process(context.Background(), msg)
+
+	require.NoError(t, err)
+	require.Len(t, msgs, 1, "Should process one message")
+
+	// Verify metadata was set
+	fingerprint, exists := msgs[0].MetaGet("fingerprint")
+	assert.True(t, exists, "fingerprint metadata should exist")
+	assert.NotEmpty(t, fingerprint, "fingerprint metadata should not be empty")
+
+	eid, exists := msgs[0].MetaGet("eid")
+	assert.True(t, exists, "eid metadata should exist")
+	assert.Equal(t, "9fd5fd06-24ad-471b-9f73-f1a054cb0b31", eid)
+
+	appID, exists := msgs[0].MetaGet("app_id")
+	assert.True(t, exists, "app_id metadata should exist")
+	assert.Equal(t, "snwcat", appID)
+
+	user, exists := msgs[0].MetaGet("user")
+	assert.True(t, exists, "user metadata should exist")
+	assert.Equal(t, "joaocorreia", user)
+
+	collectorTstamp, exists := msgs[0].MetaGet("collector_tstamp")
+	assert.True(t, exists, "collector_tstamp metadata should exist")
+	assert.NotEmpty(t, collectorTstamp)
+
+	// Verify payload is unchanged (still TSV)
+	msgBytes, err := msgs[0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, testPageViewTSV, string(msgBytes), "TSV payload should be unchanged")
+}
+
+// TestSetMetadataWithSchemaPath tests that set_metadata can extract schema property paths
+func TestSetMetadataWithSchemaPath(t *testing.T) {
+	columnIndexMap := make(map[string]int)
+	for i, col := range opensnowcatColumns {
+		columnIndexMap[col] = i
+	}
+
+	res := service.MockResources()
+
+	metadataMapping := map[string]string{
+		"ua_family":   "com_snowplowanalytics_snowplow_ua_parser_context.useragentFamily",
+		"os_family":   "com_snowplowanalytics_snowplow_ua_parser_context.osFamily",
+		"visitor_id":  "com_fingerprintjs_fingerprint.visitorId",
+		"web_page_id": "com_snowplowanalytics_snowplow_web_page.id",
+	}
+
+	proc := &opensnowcatProcessor{
+		outputFormat:    "json",
+		columnIndexMap:  columnIndexMap,
+		metadataMapping: metadataMapping,
+		dropFilters:     make(map[string]*filterCriteria),
+		log:             res.Logger(),
+		mDropped:        res.Metrics().NewCounter("dropped"),
+	}
+
+	msg := service.NewMessage([]byte(testPageViewTSV))
+	msgs, err := proc.Process(context.Background(), msg)
+
+	require.NoError(t, err)
+	require.Len(t, msgs, 1, "Should process one message")
+
+	// Verify metadata from schema paths was set
+	uaFamily, exists := msgs[0].MetaGet("ua_family")
+	assert.True(t, exists, "ua_family metadata should exist")
+	assert.Equal(t, "Chrome", uaFamily)
+
+	osFamily, exists := msgs[0].MetaGet("os_family")
+	assert.True(t, exists, "os_family metadata should exist")
+	assert.Equal(t, "Mac OS X", osFamily)
+
+	visitorID, exists := msgs[0].MetaGet("visitor_id")
+	assert.True(t, exists, "visitor_id metadata should exist")
+	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", visitorID)
+
+	webPageID, exists := msgs[0].MetaGet("web_page_id")
+	assert.True(t, exists, "web_page_id metadata should exist")
+	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", webPageID)
+}
