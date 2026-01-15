@@ -34,7 +34,6 @@ type Manifest struct {
 	Name        string                 `yaml:"name"`
 	Type        string                 `yaml:"type"`
 	Status      string                 `yaml:"status"`
-	Categories  []string               `yaml:"categories"`
 	Summary     string                 `yaml:"summary"`
 	Description string                 `yaml:"description"`
 	Fields      []template.FieldConfig `yaml:"fields"`
@@ -94,7 +93,6 @@ func (m Manifest) ComponentSpec() (docs.ComponentSpec, error) {
 		Type:        docs.Type(m.Type),
 		Status:      status,
 		Plugin:      true,
-		Categories:  m.Categories,
 		Summary:     m.Summary,
 		Description: m.Description,
 		Config:      config,
@@ -126,14 +124,13 @@ func componentMetadataSpec() docs.FieldSpecs {
 	return docs.FieldSpecs{
 		docs.FieldString("name", "The name of the plugin."),
 		docs.FieldString("type", "The type of component this plugin creates.").HasOptions(
-			"cache", "input", "output", "processor", "rate_limit",
+			"processor",
 		),
 		docs.FieldString("status", "The stability status of the plugin.").HasAnnotatedOptions(
 			"stable", "This plugin is stable and will not change in breaking ways outside of major version releases.",
 			"beta", "This plugin is beta and will not change in breaking ways unless a major problem is found.",
 			"experimental", "This plugin is experimental and subject to breaking changes outside of major version releases.",
 		).HasDefault("stable"),
-		docs.FieldString("categories", "An optional list of tags for grouping plugins in documentation.").Array().HasDefault([]any{}),
 		docs.FieldString("summary", "A short summary of the plugin.").HasDefault(""),
 		docs.FieldString("description", "A detailed description of the plugin and how to use it.").HasDefault(""),
 		docs.FieldObject("fields", "The configuration fields of the plugin.").Array().WithChildren(template.FieldConfigSpec()...),
