@@ -3,6 +3,7 @@ package blobl
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Jeffail/gabs/v2"
@@ -14,18 +15,26 @@ import (
 	"github.com/warpstreamlabs/bento/internal/value"
 )
 
-// executionResult represents the result of executing a Bloblang mapping.
-type executionResult struct {
-	Result       any `json:"result"`
-	ParseError   any `json:"parse_error"`
-	MappingError any `json:"mapping_error"`
-}
+const (
+	maxBeforeCursorLength    = 1000
+	indentSize               = 2
+	stringLiteralPlaceholder = "BLOBLANG_STRING_LITERAL_"
+	lambdaPlaceholder        = "BLOBLANG_LAMBDA_"
+	docsBaseURL              = "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
+)
 
-// execCache is used to execute Bloblang mappings with cached state.
-type execCache struct {
-	msg  message.Batch
-	vars map[string]any
-}
+// Compiled regex patterns for formatting
+var (
+	multipleSpacesRegex = regexp.MustCompile(`\s{2,}`)
+	logicalAndRegex     = regexp.MustCompile(`\s*&&\s*`)
+	logicalOrRegex      = regexp.MustCompile(`\s*\|\|\s*`)
+	equalityRegex       = regexp.MustCompile(`\s*==\s*`)
+	inequalityRegex     = regexp.MustCompile(`\s*!=\s*`)
+	greaterEqualRegex   = regexp.MustCompile(`\s*>=\s*`)
+	lessEqualRegex      = regexp.MustCompile(`\s*<=\s*`)
+	greaterThanRegex    = regexp.MustCompile(`\s*>\s*`)
+	lessThanRegex       = regexp.MustCompile(`\s*<\s*`)
+)
 
 // newExecCache creates a new execution cache for running mappings.
 func newExecCache() *execCache {
@@ -35,38 +44,9 @@ func newExecCache() *execCache {
 	}
 }
 
-// highlightRule represents a token type and regex pattern for syntax highlighting.
-// Token is a semantic class used to apply styling.
-// Regex is a JS-compatible regex pattern used to match code tokens.
-type highlightRule struct {
-	Token string `json:"token"`
-	Regex string `json:"regex"`
-}
-
-// bloblangSyntax contains syntax metadata for the Bloblang language,
-// including function/method specs and highlighting rules.
-type bloblangSyntax struct {
-	// Rich function and method data
-	Functions map[string]query.FunctionSpec `json:"functions"`
-	Methods   map[string]query.MethodSpec   `json:"methods"`
-
-	// Minimal syntax highlighting rules that extends CoffeeScript
-	Rules []highlightRule `json:"rules"`
-
-	// Quick lookup arrays for regex generation
-	FunctionNames []string `json:"function_names"`
-	MethodNames   []string `json:"method_names"`
-}
-
-// Walker abstracts the ability to walk over registered functions and methods.
-type Walker interface {
-	WalkFunctions(fn func(name string, spec query.FunctionSpec))
-	WalkMethods(fn func(name string, spec query.MethodSpec))
-}
-
-// executeBloblangMapping runs a compiled Bloblang mapping executor against input data.
+// runBloblangExecutor runs a compiled Bloblang mapping executor against input data.
 // It supports both raw and structured input, and optionally pretty-prints output.
-func (e *execCache) executeBloblangMapping(exec *mapping.Executor, rawInput, prettyOutput bool, input []byte) (string, error) {
+func (e *execCache) runBloblangExecutor(exec *mapping.Executor, rawInput, prettyOutput bool, input []byte) (string, error) {
 	e.msg.Get(0).SetBytes(input)
 
 	var valuePtr *any
@@ -154,9 +134,9 @@ func (e *execCache) executeBloblangMapping(exec *mapping.Executor, rawInput, pre
 	return resultStr, nil
 }
 
-// evaluateMapping compiles and executes a Bloblang mapping string against a JSON input string.
-// Returns an executionResult containing with the output or error details.
-func evaluateMapping(env *bloblang.Environment, input, mapping string) *executionResult {
+// executeBloblangMapping compiles and executes a Bloblang mapping against JSON input.
+// Returns an executionResult with parsed result or error details.
+func executeBloblangMapping(env *bloblang.Environment, input, mapping string) *executionResult {
 	result := &executionResult{
 		Result:       nil,
 		ParseError:   nil,
@@ -173,7 +153,7 @@ func evaluateMapping(env *bloblang.Environment, input, mapping string) *executio
 		return result
 	}
 
-	exec, err := env.WithoutFunctions("env", "file").NewMapping(mapping)
+	exec, err := env.NewMapping(mapping)
 	if err != nil {
 		if perr, ok := err.(*parser.Error); ok {
 			result.ParseError = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
@@ -184,7 +164,7 @@ func evaluateMapping(env *bloblang.Environment, input, mapping string) *executio
 	}
 
 	execCache := newExecCache()
-	output, err := execCache.executeBloblangMapping(exec, false, true, []byte(input))
+	output, err := execCache.runBloblangExecutor(exec, false, true, []byte(input))
 	if err != nil {
 		result.MappingError = fmt.Sprintf("execution error: %v", err.Error())
 	} else {
@@ -194,41 +174,137 @@ func evaluateMapping(env *bloblang.Environment, input, mapping string) *executio
 	return result
 }
 
-// generateBloblangSyntax returns Bloblang syntax metadata for editor tooling.
+// validateBloblangMapping validates a Bloblang mapping without executing it.
+// Note: Not currently used by the playground UI ('execute' already validates).
+func validateBloblangMapping(env *bloblang.Environment, mapping string) ValidationResponse {
+	if mapping == "" {
+		return ValidationResponse{
+			Valid: false,
+			Error: "Mapping cannot be empty",
+		}
+	}
+
+	_, err := env.NewMapping(mapping)
+	if err != nil {
+		return ValidationResponse{
+			Valid: false,
+			Error: err.Error(),
+		}
+	}
+
+	return ValidationResponse{
+		Valid: true,
+	}
+}
+
+// generateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
+// Iterates through all functions/methods in the environment and pre-generates HTML documentation.
 func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	var functionNames, methodNames []string
-	functions := make(map[string]query.FunctionSpec)
-	methods := make(map[string]query.MethodSpec)
+	functions := make(map[string]functionSpecWithHTML)
+	methods := make(map[string]methodSpecWithHTML)
 
-	env.WithoutFunctions("env", "file").WalkFunctions(func(name string, spec query.FunctionSpec) {
-		functions[name] = spec
+	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
+		wrapper := FunctionSpecWrapper{spec}
+		functions[name] = functionSpecWithHTML{
+			FunctionSpec: spec,
+			DocHTML:      createSpecDocHTML(name, wrapper, false),
+		}
 		functionNames = append(functionNames, name)
 	})
 
 	env.WalkMethods(func(name string, spec query.MethodSpec) {
-		methods[name] = spec
+		wrapper := MethodSpecWrapper{spec}
+		methods[name] = methodSpecWithHTML{
+			MethodSpec: spec,
+			DocHTML:    createSpecDocHTML(name, wrapper, true),
+		}
 		methodNames = append(methodNames, name)
 	})
 
-	// Generate syntax highlighting rules
-	rules := []highlightRule{
-		// Matches `root` (highest priority)
-		{Token: "bloblang_root", Regex: `\broot\b`},
-		// Matches `this` (highest priority)
-		{Token: "bloblang_this", Regex: `\bthis\b`},
-		// Matches `foo()`
-		{Token: "support.function", Regex: `(?<![\.\w])(` + strings.Join(functionNames, "|") + `)(?=\s*\()`},
-		// Matches `.bar()`
-		{Token: "support.method", Regex: `\.(` + strings.Join(methodNames, "|") + `)(?=\s*\()`},
-	}
-
-	syntax := bloblangSyntax{
+	return bloblangSyntax{
 		Functions:     functions,
 		Methods:       methods,
-		Rules:         rules,
+		Rules:         buildSyntaxHighlightingRules(functionNames, methodNames),
 		FunctionNames: functionNames,
 		MethodNames:   methodNames,
+	}, nil
+}
+
+// formatBloblangMapping formats Bloblang mappings
+func formatBloblangMapping(env *bloblang.Environment, mapping string) FormatMappingResponse {
+	if mapping == "" {
+		return FormatMappingResponse{
+			Success:   false,
+			Error:     "Mapping cannot be empty",
+			Formatted: "",
+		}
 	}
 
-	return syntax, nil
+	_, err := env.NewMapping(mapping)
+	if err != nil {
+		return FormatMappingResponse{
+			Success:   false,
+			Error:     fmt.Sprintf("Parse error: %v", err),
+			Formatted: mapping,
+		}
+	}
+
+	formatted, formatErr := formatBloblang(mapping)
+	if formatErr != nil {
+		return FormatMappingResponse{
+			Success:   false,
+			Error:     formatErr.Error(),
+			Formatted: mapping,
+		}
+	}
+
+	return FormatMappingResponse{
+		Success:   true,
+		Formatted: formatted,
+		Error:     "",
+	}
+}
+
+// generateAutocompletion provides context-aware autocompletion for Bloblang
+func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) AutocompletionResponse {
+	if err := validateAutocompletionRequest(req); err != nil {
+		return AutocompletionResponse{
+			Completions: []CompletionItem{},
+			Success:     false,
+			Error:       err.Error(),
+		}
+	}
+
+	// Don't suggest completions inside comments
+	if strings.Contains(req.BeforeCursor, "#") {
+		return AutocompletionResponse{
+			Completions: []CompletionItem{},
+			Success:     true,
+		}
+	}
+
+	syntaxData, err := getOrGenerateSyntax(env)
+	if err != nil {
+		return AutocompletionResponse{
+			Completions: []CompletionItem{},
+			Success:     false,
+			Error:       fmt.Sprintf("Failed to get syntax data: %v", err),
+		}
+	}
+
+	var completions []CompletionItem
+
+	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
+	if isMethodContext {
+		completions = append(completions, getCompletions(syntaxData.Methods)...)
+	} else {
+		completions = append(completions, getCompletions(syntaxData.Functions)...)
+		completions = append(completions, getKeywordCompletions()...)
+	}
+
+	return AutocompletionResponse{
+		Completions: completions,
+		Success:     true,
+	}
 }
