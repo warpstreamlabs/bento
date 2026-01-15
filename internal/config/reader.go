@@ -165,6 +165,22 @@ func OptSetLintConfigWarnDeprecated() OptFunc {
 	}
 }
 
+// OptSetLintConfigAllowExperimental sets the option to silence the warnings
+// pertaining to the use of Bento components with a Status of 'Experimental'
+func OptSetLintConfigAllowExperimental() OptFunc {
+	return func(r *Reader) {
+		r.lintConf.AllowExperimental = true
+	}
+}
+
+// OptSetLintConfigAllowBeta sets the option to silence the warnings pertaining
+// to the use of Bento components with a Status of 'Beta'
+func OptSetLintConfigAllowBeta() OptFunc {
+	return func(r *Reader) {
+		r.lintConf.AllowBeta = true
+	}
+}
+
 // OptSetStreamPaths marks this config reader as operating in streams mode, and
 // adds a list of paths to obtain individual stream configs from.
 func OptSetStreamPaths(streamsPaths ...string) OptFunc {
