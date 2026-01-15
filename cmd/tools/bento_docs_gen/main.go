@@ -12,6 +12,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/config/test"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/plugin"
 	"github.com/warpstreamlabs/bento/internal/template"
 	"github.com/warpstreamlabs/bento/public/service"
 
@@ -59,6 +60,9 @@ func main() {
 
 	// Template docs
 	doTemplates(docsDir)
+
+	// Plugins docs
+	doPlugins(docsDir)
 }
 
 func viewForDir(docsDir string) func(name string, config *service.ConfigView) {
@@ -120,4 +124,13 @@ func doTemplates(dir string) {
 	}
 
 	create("template docs", filepath.Join(dir, "..", "configuration", "templating.md"), mdSpec)
+}
+
+func doPlugins(dir string) {
+	mdSpec, err := plugin.DocsMarkdown()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate docs for plugin: %v", err))
+	}
+
+	create("plugin docs", filepath.Join(dir, "..", "configuration", "plugins.md"), mdSpec)
 }
