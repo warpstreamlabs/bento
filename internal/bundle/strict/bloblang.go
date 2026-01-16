@@ -14,13 +14,13 @@ func StrictBloblangEnvironment(nm bundle.NewManagement) *bloblang.Environment {
 		_ = newEnv.RegisterFunction(spec, func(args *query.ParsedParams) (query.Function, error) {
 			if isBloblangFunctionIncompatible(name) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible Bloblang function(s) of type '%s'", name)
-				nm.SetGeneric(strictModeEnabledKey, false)
+				nm.SetGeneric(strictModeEnabledKey{}, false)
 			} else {
 				// For compatible processors, set true if not already set
-				nm.GetOrSetGeneric(strictModeEnabledKey, true)
+				nm.GetOrSetGeneric(strictModeEnabledKey{}, true)
 			}
 
-			return query.InitFunctionHelper(name, args.Raw()...)
+			return query.AllFunctions.Init(name, args)
 		})
 	})
 
@@ -28,12 +28,12 @@ func StrictBloblangEnvironment(nm bundle.NewManagement) *bloblang.Environment {
 		_ = newEnv.RegisterMethod(spec, func(target query.Function, args *query.ParsedParams) (query.Function, error) {
 			if isBloblangMethodIncompatible(name) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible Bloblang method(s) of type '%s'", name)
-				nm.SetGeneric(strictModeEnabledKey, false)
+				nm.SetGeneric(strictModeEnabledKey{}, false)
 			} else {
 				// For compatible processors, set true if not already set
-				nm.GetOrSetGeneric(strictModeEnabledKey, true)
+				nm.GetOrSetGeneric(strictModeEnabledKey{}, true)
 			}
-			return query.InitMethodHelper(name, target, args.Raw()...)
+			return query.AllMethods.Init(name, target, args)
 		})
 	})
 

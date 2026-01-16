@@ -145,7 +145,7 @@ couchbase:
 	}
 }
 
-func getProc(tb testing.TB, config string) *couchbase.Processor {
+func getProc(tb testing.TB, config string) *couchbase.Couchbase {
 	tb.Helper()
 
 	confSpec := couchbase.ProcessorConfig()
@@ -153,7 +153,7 @@ func getProc(tb testing.TB, config string) *couchbase.Processor {
 
 	pConf, err := confSpec.ParseYAML(config, env)
 	require.NoError(tb, err)
-	proc, err := couchbase.NewProcessor(pConf, service.MockResources())
+	proc, err := couchbase.NewProcessor(tb.Context(), pConf, service.MockResources())
 	require.NoError(tb, err)
 	require.NotNil(tb, proc)
 

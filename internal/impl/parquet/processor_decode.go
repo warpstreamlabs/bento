@@ -28,6 +28,10 @@ This flag will be disabled `+"(set to `false`)"+` by default and deprecated in f
 :::`).Version("1.8.0").
 			Default(true).
 			Advanced()).
+		Field(service.NewBoolField("strict_schema").
+			Description("Whether to enforce strict Parquet schema validation. When set to false, allows reading files with non-standard schema structures (such as non-standard LIST formats). Disabling strict mode may reduce validation but increases compatibility.").
+			Default(true).
+			Advanced()).
 		Description(`
 This processor uses [https://github.com/parquet-go/parquet-go](https://github.com/parquet-go/parquet-go), which is itself experimental. Therefore changes could be made into how this processor functions outside of major version releases.`).
 		Version("1.0.0").
@@ -67,10 +71,12 @@ func init() {
 
 func newParquetDecodeProcessorFromConfig(conf *service.ParsedConfig, logger *service.Logger) (*parquetDecodeProcessor, error) {
 	isLegacy, _ := conf.FieldBool("use_parquet_list_format")
+	strictSchema, _ := conf.FieldBool("strict_schema")
 
 	return &parquetDecodeProcessor{
 		logger:              logger,
 		useLegacyListFormat: isLegacy,
+		strictSchema:        strictSchema,
 	}, nil
 }
 
@@ -78,6 +84,7 @@ type parquetDecodeProcessor struct {
 	logger *service.Logger
 
 	useLegacyListFormat bool
+	strictSchema        bool
 }
 
 func newReaderWithoutPanic(r io.ReaderAt) (pRdr *parquet.GenericReader[any], err error) {
@@ -113,32 +120,64 @@ func (s *parquetDecodeProcessor) Process(ctx context.Context, msg *service.Messa
 		return nil, err
 	}
 
-	pRdr, err := newReaderWithoutPanic(inFile)
-	if err != nil {
-		return nil, err
-	}
-
 	rowBuf := make([]any, 10)
 	var resBatch service.MessageBatch
 
-	for {
-		n, err := readWithoutPanic(pRdr, rowBuf)
-		if err != nil && !errors.Is(err, io.EOF) {
+	if s.strictSchema {
+		pRdr, err := newReaderWithoutPanic(inFile)
+		if err != nil {
 			return nil, err
 		}
-		if n == 0 {
-			break
-		}
 
-		for i := 0; i < n; i++ {
-			newMsg := msg.Copy()
-
-			if s.useLegacyListFormat {
-				rowBuf[i] = transformDataWithSchema(rowBuf[i], pRdr.Schema().Fields()...)
+		for {
+			n, err := readWithoutPanic(pRdr, rowBuf)
+			if err != nil && !errors.Is(err, io.EOF) {
+				return nil, err
+			}
+			if n == 0 {
+				break
 			}
 
-			newMsg.SetStructuredMut(rowBuf[i])
-			resBatch = append(resBatch, newMsg)
+			for i := range n {
+				newMsg := msg.Copy()
+
+				if s.useLegacyListFormat {
+					rowBuf[i] = transformDataWithSchema(rowBuf[i], pRdr.Schema().Fields()...)
+				}
+
+				newMsg.SetStructuredMut(rowBuf[i])
+				resBatch = append(resBatch, newMsg)
+			}
+		}
+	} else {
+		schema := inFile.Schema()
+
+		// Use RowGroups to avoid deprecated Reader
+		for _, rg := range inFile.RowGroups() {
+			rows := rg.Rows()
+
+			for {
+				n, err := readLenient(rows, schema, rowBuf)
+				if err != nil && !errors.Is(err, io.EOF) {
+					rows.Close()
+					return nil, err
+				}
+				if n == 0 {
+					break
+				}
+
+				for i := range n {
+					newMsg := msg.Copy()
+
+					if s.useLegacyListFormat {
+						rowBuf[i] = transformDataWithSchema(rowBuf[i], schema.Fields()...)
+					}
+
+					newMsg.SetStructuredMut(rowBuf[i])
+					resBatch = append(resBatch, newMsg)
+				}
+			}
+			rows.Close()
 		}
 	}
 

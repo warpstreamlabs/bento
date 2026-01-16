@@ -119,9 +119,9 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 	servicePort := requireCouchbase(t)
 
 	bucket := fmt.Sprintf("testing-processor-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	uid := faker.UUIDHyphenated()
@@ -206,7 +206,57 @@ func TestIntegrationCouchbaseProcessor(t *testing.T) {
 	t.Run("Error decrement invalid", func(t *testing.T) {
 		testCouchbaseProcessorCounterError(uid, "decrement", "invalid", bucket, servicePort, t)
 	})
+}
 
+func TestIntegrationCouchbaseOutput(t *testing.T) {
+	integration.CheckSkip(t)
+
+	servicePort := requireCouchbase(t)
+
+	bucket := fmt.Sprintf("testing-processor-%d", time.Now().Unix())
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
+	t.Cleanup(func() {
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
+	})
+
+	uid := faker.UUIDHyphenated()
+	payload := fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
+
+	t.Run("Insert", func(t *testing.T) {
+		testCouchbaseOutputInsert(payload, bucket, servicePort, t)
+	})
+	// validate with processor.
+	t.Run("Get", func(t *testing.T) {
+		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
+	})
+	t.Run("Remove", func(t *testing.T) {
+		testCouchbaseOutputRemove(uid, bucket, servicePort, t)
+	})
+	t.Run("GetMissing", func(t *testing.T) {
+		testCouchbaseProcessorGetMissing(uid, bucket, servicePort, t)
+	})
+
+	payload = fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
+	t.Run("Upsert", func(t *testing.T) {
+		testCouchbaseOutputUpsert(payload, bucket, servicePort, t)
+	})
+	t.Run("Get", func(t *testing.T) {
+		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
+	})
+
+	payload = fmt.Sprintf(`{"id": %q, "data": %q}`, uid, faker.Sentence())
+	t.Run("Replace", func(t *testing.T) {
+		testCouchbaseOutputReplace(payload, bucket, servicePort, t)
+	})
+	t.Run("Get", func(t *testing.T) {
+		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
+	})
+	t.Run("TTL", func(t *testing.T) {
+		testCouchbaseOutputUpsertTTL(payload, bucket, servicePort, t)
+		testCouchbaseProcessorGet(uid, payload, bucket, servicePort, t)
+		time.Sleep(5 * time.Second)
+		testCouchbaseProcessorGetMissing(uid, bucket, servicePort, t)
+	})
 }
 
 func TestIntegrationCouchbaseStream(t *testing.T) {
@@ -216,9 +266,9 @@ func TestIntegrationCouchbaseStream(t *testing.T) {
 
 	servicePort := requireCouchbase(t)
 	bucket := fmt.Sprintf("testing-stream-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	for _, clearCAS := range []bool{true, false} {
@@ -325,9 +375,9 @@ func TestIntegrationCouchbaseStreamError(t *testing.T) {
 
 	servicePort := requireCouchbase(t)
 	bucket := fmt.Sprintf("testing-stream-error-%d", time.Now().Unix())
-	require.NoError(t, createBucket(context.Background(), t, servicePort, bucket))
+	require.NoError(t, createBucket(context.Background(), servicePort, bucket))
 	t.Cleanup(func() {
-		require.NoError(t, removeBucket(context.Background(), t, servicePort, bucket))
+		require.NoError(t, removeBucket(context.Background(), servicePort, bucket))
 	})
 
 	streamOutBuilder := service.NewStreamBuilder()

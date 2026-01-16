@@ -31,6 +31,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/jaeger"
 	_ "github.com/warpstreamlabs/bento/public/components/javascript"
 	_ "github.com/warpstreamlabs/bento/public/components/kafka"
+	_ "github.com/warpstreamlabs/bento/public/components/kubernetes"
 	_ "github.com/warpstreamlabs/bento/public/components/maxmind"
 	_ "github.com/warpstreamlabs/bento/public/components/memcached"
 	_ "github.com/warpstreamlabs/bento/public/components/mongodb"
