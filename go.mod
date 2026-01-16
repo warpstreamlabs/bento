@@ -232,7 +232,7 @@ require (
 
 require (
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
-	github.com/s2-streamstore/s2-sdk-go v0.6.0
+	github.com/s2-streamstore/s2-sdk-go v0.11.6
 	github.com/tidwall/btree v1.8.1 // indirect
 )
 
@@ -444,7 +444,5 @@ require (
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 )
-
-replace github.com/s2-streamstore/s2-sdk-go => ../s2-sdk-go-old
 
 go 1.25
