@@ -1,146 +1,188 @@
 package couchbase
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
+
+	"github.com/warpstreamlabs/bento/internal/impl/couchbase/client"
+	"github.com/warpstreamlabs/bento/public/bloblang"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func valueFromOp(op gocb.BulkOp) (out any, cas gocb.Cas, err error) {
-	switch o := op.(type) {
-	case *gocb.GetOp:
-		if o.Err != nil {
-			return nil, gocb.Cas(0), o.Err
-		}
-		err := o.Result.Content(&out)
+const (
+	// MetaCASKey holds the CAS value of an entry.
+	MetaCASKey = "couchbase_cas"
+)
 
-		return out, o.Result.Cas(), err
-	case *gocb.InsertOp:
-		if o.Result != nil {
-			return nil, o.Result.Cas(), o.Err
-		}
-		return nil, gocb.Cas(0), o.Err
-	case *gocb.RemoveOp:
-		if o.Result != nil {
-			return nil, o.Result.Cas(), o.Err
-		}
-		return nil, gocb.Cas(0), o.Err
-	case *gocb.ReplaceOp:
-		if o.Result != nil {
-			return nil, o.Result.Cas(), o.Err
-		}
-		return nil, gocb.Cas(0), o.Err
-	case *gocb.UpsertOp:
-		if o.Result != nil {
-			return nil, o.Result.Cas(), o.Err
-		}
-		return nil, gocb.Cas(0), o.Err
-	case *gocb.IncrementOp:
-		if o.Result != nil {
-			return o.Result.Content(), o.Result.Cas(), o.Err
-		}
-		return nil, gocb.Cas(0), o.Err
-	case *gocb.DecrementOp:
-		if o.Result != nil {
-			return o.Result.Content(), o.Result.Cas(), o.Err
-		}
-		return nil, gocb.Cas(0), o.Err
-	}
+var (
+	// ErrInvalidOperation specified operation is not supported.
+	ErrInvalidOperation = errors.New("invalid operation")
+	// ErrContentRequired content field is required.
+	ErrContentRequired = errors.New("content required")
+	// ErrBatchError batch error.
+	ErrBatchError = errors.New("batch error")
+)
 
-	return nil, gocb.Cas(0), errors.New("type not supported")
+// CommonFields returns the common config fields for the Couchbase client.
+func CommonFields() []*service.ConfigField {
+	return append(client.CommonFields(),
+		service.NewInterpolatedStringField("id").Description("Document id.").Example(`${! json("id") }`),
+		service.NewBloblangField("content").Description("Document content.").Optional(),
+		service.NewDurationField("ttl").Description("An optional TTL to set for items.").Optional().Advanced(),
+		service.NewBoolField("cas_enabled").Description("Enable CAS validation.").Default(true).Version("1.3.0"), // TODO: Consider removal in next release?
+	)
 }
 
-func get(key string, _ []byte, _ gocb.Cas, _ *time.Duration) (gocb.BulkOp, error) {
-	return &gocb.GetOp{
-		ID: key,
-	}, nil
+// Couchbase stores or retrieves data from couchbase for each message of a
+// batch.
+type Couchbase struct {
+	*couchbaseClient
+	conf                   *service.ParsedConfig
+	mgr                    *service.Resources
+	id                     *service.InterpolatedString
+	content                *bloblang.Executor
+	ttl                    *time.Duration
+	op                     func(key string, data []byte, cas gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error)
+	casEnabled, outputMode bool
 }
 
-func insert(key string, data []byte, _ gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error) {
-	op := &gocb.InsertOp{
-		ID:    key,
-		Value: data,
+// New returns a Couchbase instance.
+func New(ctx context.Context, conf *service.ParsedConfig, mgr *service.Resources, outputMode bool) (*Couchbase, error) {
+	var err error
+
+	p := &Couchbase{
+		conf:       conf,
+		mgr:        mgr,
+		outputMode: outputMode,
 	}
 
-	if ttl != nil {
-		op.Expiry = *ttl
+	if p.id, err = conf.FieldInterpolatedString("id"); err != nil {
+		return nil, err
 	}
 
-	return op, nil
-}
-
-func remove(key string, _ []byte, cas gocb.Cas, _ *time.Duration) (gocb.BulkOp, error) {
-	return &gocb.RemoveOp{
-		ID:  key,
-		Cas: cas,
-	}, nil
-}
-
-func replace(key string, data []byte, cas gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error) {
-	op := &gocb.ReplaceOp{
-		ID:    key,
-		Value: data,
-		Cas:   cas,
+	if conf.Contains("content") {
+		if p.content, err = conf.FieldBloblang("content"); err != nil {
+			return nil, err
+		}
 	}
 
-	if ttl != nil {
-		op.Expiry = *ttl
+	if conf.Contains("ttl") {
+		ttlTmp, err := conf.FieldDuration("ttl")
+		if err != nil {
+			return nil, err
+		}
+		p.ttl = &ttlTmp
 	}
 
-	return op, nil
-}
-
-func upsert(key string, data []byte, cas gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error) {
-	op := &gocb.UpsertOp{
-		ID:    key,
-		Value: data,
-		Cas:   cas,
-	}
-
-	if ttl != nil {
-		op.Expiry = *ttl
-	}
-
-	return op, nil
-}
-
-func increment(key string, data []byte, _ gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error) {
-	delta, err := strconv.ParseInt(string(data), 10, 64)
+	p.casEnabled, err = conf.FieldBool("cas_enabled")
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse increment value (require integer value): %s", err)
+		return nil, err
 	}
 
-	op := &gocb.IncrementOp{
-		ID:      key,
-		Delta:   delta,
-		Initial: delta, // Default initial to delta
+	op, err := conf.FieldString("operation")
+	if err != nil {
+		return nil, err
+	}
+	switch client.Operation(op) {
+	case client.OperationGet:
+		p.op = get
+	case client.OperationRemove:
+		p.op = remove
+	case client.OperationInsert:
+		if p.content == nil {
+			return nil, ErrContentRequired
+		}
+		p.op = insert
+	case client.OperationReplace:
+		if p.content == nil {
+			return nil, ErrContentRequired
+		}
+		p.op = replace
+	case client.OperationUpsert:
+		if p.content == nil {
+			return nil, ErrContentRequired
+		}
+		p.op = upsert
+	case client.OperationIncrement:
+		p.op = increment
+	case client.OperationDecrement:
+		p.op = decrement
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrInvalidOperation, op)
 	}
 
-	if ttl != nil {
-		op.Expiry = *ttl
+	if !p.outputMode {
+		err = p.Connect(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return op, nil
+	return p, nil
 }
 
-func decrement(key string, data []byte, _ gocb.Cas, ttl *time.Duration) (gocb.BulkOp, error) {
-	delta, err := strconv.ParseInt(string(data), 10, 64)
+func (c *Couchbase) process(ctx context.Context, batch service.MessageBatch) ([]gocb.BulkOp, error) {
+	ops := make([]gocb.BulkOp, len(batch))
+	var executor *service.MessageBatchBloblangExecutor
+	if c.content != nil {
+		executor = batch.BloblangExecutor(c.content)
+	}
+
+	// generate query
+	for index, msg := range batch {
+		// generate id
+		k, err := batch.TryInterpolatedString(index, c.id)
+		if err != nil {
+			return nil, fmt.Errorf("id interpolation error: %w", err)
+		}
+
+		// generate content
+		var content []byte
+		if c.content != nil {
+			res, err := executor.Query(index)
+			if err != nil {
+				return nil, err
+			}
+			content, err = res.AsBytes()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var cas gocb.Cas // retrieve cas if set and enabled
+		if c.casEnabled {
+			if val, ok := msg.MetaGetMut(MetaCASKey); ok {
+				if v, ok := val.(gocb.Cas); ok {
+					cas = v
+				}
+			}
+		}
+
+		ops[index], err = c.op(k, content, cas, c.ttl)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// execute
+	err := c.collection.Do(ops, &gocb.BulkOpOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse decrement value (require integer value): %s", err)
+		return nil, err
 	}
 
-	op := &gocb.DecrementOp{
-		ID:      key,
-		Delta:   delta,
-		Initial: -delta, // Default initial to -delta
+	return ops, nil
+}
+
+// Connect connects to the couchbase cluster
+func (c *Couchbase) Connect(ctx context.Context) (err error) {
+	c.couchbaseClient, err = getClient(ctx, c.conf)
+	if err != nil {
+		return err
 	}
 
-	if ttl != nil {
-		op.Expiry = *ttl
-	}
-
-	return op, nil
+	return nil
 }

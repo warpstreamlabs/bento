@@ -3,6 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.14.1 - 2026-01-12
+
+### Fixed
+
+- `error_handling.strategy` override now correctly parses bloblang named arguments @gregfurman
+
+
 ## 1.14.0 - 2026-01-02
 
 ### Fixed

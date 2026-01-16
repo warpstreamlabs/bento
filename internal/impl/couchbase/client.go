@@ -19,7 +19,7 @@ type couchbaseClient struct {
 	cluster    *gocb.Cluster
 }
 
-func getClient(conf *service.ParsedConfig, mgr *service.Resources) (*couchbaseClient, error) {
+func getClient(ctx context.Context, conf *service.ParsedConfig) (*couchbaseClient, error) {
 	// retrieve params
 	url, err := conf.FieldString("url")
 	if err != nil {
@@ -91,7 +91,7 @@ func getClient(conf *service.ParsedConfig, mgr *service.Resources) (*couchbaseCl
 	}
 
 	// check that we can do query
-	err = cluster.Bucket(bucket).WaitUntilReady(timeout, nil)
+	err = cluster.Bucket(bucket).WaitUntilReady(timeout, &gocb.WaitUntilReadyOptions{Context: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -115,5 +115,9 @@ func getClient(conf *service.ParsedConfig, mgr *service.Resources) (*couchbaseCl
 }
 
 func (p *couchbaseClient) Close(ctx context.Context) error {
+	if p.cluster == nil {
+		return nil
+	}
+
 	return p.cluster.Close(&gocb.ClusterCloseOptions{})
 }

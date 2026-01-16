@@ -12,14 +12,12 @@ import (
 	"github.com/warpstreamlabs/bento/internal/pipeline/constructor"
 )
 
-const (
-	strictModeEnabledKey = "strict_mode_enabled"
-)
+type strictModeEnabledKey struct{}
 
 // isStrictModeEnabled returns whether the environment has been flagged as being strict
 // with the key-value pair `"strict_mode_enabled": true`.
 func isStrictModeEnabled(mgr bundle.NewManagement) bool {
-	ienabled, exists := mgr.GetGeneric(strictModeEnabledKey)
+	ienabled, exists := mgr.GetGeneric(strictModeEnabledKey{})
 	if !exists {
 		return false
 	}
@@ -78,10 +76,10 @@ func StrictBundle(b *bundle.Environment) *bundle.Environment {
 		_ = strictEnv.ProcessorAdd(func(conf processor.Config, nm bundle.NewManagement) (processor.V1, error) {
 			if isProcessorIncompatible(conf.Type) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible processor(s) of type '%s'", conf.Type)
-				nm.SetGeneric(strictModeEnabledKey, false)
+				nm.SetGeneric(strictModeEnabledKey{}, false)
 			} else {
 				// For compatible processors, set true if not already set
-				nm.GetOrSetGeneric(strictModeEnabledKey, true)
+				nm.GetOrSetGeneric(strictModeEnabledKey{}, true)
 			}
 
 			proc, err := b.ProcessorInit(conf, nm)
@@ -98,9 +96,9 @@ func StrictBundle(b *bundle.Environment) *bundle.Environment {
 		_ = strictEnv.OutputAdd(func(conf output.Config, nm bundle.NewManagement, pcf ...processor.PipelineConstructorFunc) (output.Streamed, error) {
 			if isOutputIncompatible(conf.Type) {
 				nm.Logger().Warn("Disabling strict mode due to incompatible output(s) of type '%s'", conf.Type)
-				nm.SetGeneric(strictModeEnabledKey, false)
+				nm.SetGeneric(strictModeEnabledKey{}, false)
 			} else {
-				nm.GetOrSetGeneric(strictModeEnabledKey, true)
+				nm.GetOrSetGeneric(strictModeEnabledKey{}, true)
 			}
 
 			pcf = oprocessors.AppendFromConfig(conf, nm, pcf...)

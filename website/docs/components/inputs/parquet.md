@@ -49,6 +49,7 @@ input:
   parquet:
     paths: [] # No default (required)
     batch_count: 1
+    strict_schema: true
     auto_replay_nacks: true
 ```
 
@@ -87,6 +88,14 @@ Optionally process records in batches. This can help to speed up the consumption
 
 Type: `int`  
 Default: `1`  
+
+### `strict_schema`
+
+Whether to enforce strict Parquet schema validation. When set to false, allows reading files with non-standard schema structures (such as non-standard LIST formats). Disabling strict mode may reduce validation but increases compatibility.
+
+
+Type: `bool`  
+Default: `true`  
 
 ### `auto_replay_nacks`
 
