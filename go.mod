@@ -89,7 +89,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/klauspost/compress v1.18.1
+	github.com/klauspost/compress v1.18.2
 	github.com/klauspost/pgzip v1.2.6
 	github.com/knights-analytics/hugot v0.4.3
 	github.com/lib/pq v1.10.9
@@ -232,9 +232,8 @@ require (
 
 require (
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
-	github.com/s2-streamstore/optr v1.1.0 // indirect
-	github.com/s2-streamstore/s2-sdk-go v0.6.0
-	github.com/tidwall/btree v1.7.0 // indirect
+	github.com/s2-streamstore/s2-sdk-go v0.11.6
+	github.com/tidwall/btree v1.8.1 // indirect
 )
 
 require (
