@@ -48,7 +48,12 @@ func convertFieldSpecToProperty(field docs.FieldSpec) Property {
 	// Map Bento field types to JSON Schema types
 	switch field.Type {
 	case docs.FieldTypeString:
-		prop.Type = "string"
+		// Check if this is actually an array field
+		if field.Kind == docs.KindArray {
+			prop.Type = "array"
+		} else {
+			prop.Type = "string"
+		}
 	case docs.FieldTypeInt:
 		prop.Type = "integer"
 	case docs.FieldTypeFloat:
