@@ -33,7 +33,7 @@ func TestGenerateJSONSchema(t *testing.T) {
 }
 
 // Test the field conversion function
-func testFieldConversion(t *testing.T, schemaData schema.Full) {
+func testFieldConversion(t *testing.T, _ schema.Full) {
 	// Test a simple string field
 	stringField := docs.FieldString("test_string", "A test string field").HasDefault("default_value")
 	prop := convertFieldSpecToProperty(stringField)
@@ -180,8 +180,6 @@ func TestArrayFieldTypes(t *testing.T) {
 
 	// Create a minimal schema to test array field handling
 	jsonSchema := JSONSchema{
-		Schema:     "https://json-schema.org/draft/2020-12/schema",
-		Type:       "object",
 		Properties: make(map[string]Property),
 	}
 
