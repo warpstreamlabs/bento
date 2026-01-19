@@ -35,6 +35,7 @@ Introduced in version 1.12.0.
 label: ""
 opensnowcat:
   output_format: tsv
+  set_metadata: {} # No default (optional)
 ```
 
 </TabItem>
@@ -45,6 +46,7 @@ opensnowcat:
 label: ""
 opensnowcat:
   output_format: tsv
+  set_metadata: {} # No default (optional)
   filters:
     drop: {} # No default (optional)
     transform:
@@ -94,6 +96,7 @@ All transformations support both direct TSV columns and schema property paths.
 { label: 'Schema Filter', value: 'Schema Filter', },
 { label: 'Transform', value: 'Transform', },
 { label: 'Advanced Transforms', value: 'Advanced Transforms', },
+{ label: 'Deduplication with Cache', value: 'Deduplication with Cache', },
 ]}>
 
 <TabItem value="TSV > JSON">
@@ -214,6 +217,34 @@ pipeline:
 ```
 
 </TabItem>
+<TabItem value="Deduplication with Cache">
+
+Sets metadata from event fields to enable deduplication using Bento's cache processor. Parses TSV once, extracts fingerprint as metadata, then uses cache for deduplication. Duplicate events within 5 minutes are dropped.
+
+```yaml
+pipeline:
+  processors:
+    - opensnowcat:
+        set_metadata:
+          fingerprint: event_fingerprint
+        output_format: json
+    
+    - cache:
+        resource: dedupe_cache
+        operator: add
+        key: ${! metadata("fingerprint") }
+        value: "1"
+    
+    - mapping: |
+        root = if !errored() { this } else { deleted() }
+
+cache_resources:
+  - label: dedupe_cache
+    memory:
+      default_ttl: 5m
+```
+
+</TabItem>
 </Tabs>
 
 ## Fields
@@ -232,6 +263,23 @@ Default: `"tsv"`
 | `json` | Convert enriched TSV to flattened JSON with contexts, derived_contexts, and unstruct_event automatically flattened into top-level objects. |
 | `tsv` | Maintain enriched TSV format without conversion. |
 
+
+### `set_metadata`
+
+Map metadata keys to OpenSnowcat canonical event model field names. Supports direct TSV column names (e.g., 'event_fingerprint', 'app_id') and schema property paths (e.g., 'com.vendor.schema.field'). Metadata is set before any filters or transformations are applied.
+
+
+Type: `object`  
+
+```yml
+# Examples
+
+set_metadata:
+  app_id: app_id
+  collector_tstamp: collector_tstamp
+  eid: event_id
+  fingerprint: event_fingerprint
+```
 
 ### `filters`
 
