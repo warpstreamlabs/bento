@@ -47,13 +47,12 @@ const (
 
 func newInputConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
 		Version("1.5.0").
 		Categories("Services").
 		Fields(
 			service.NewStringField(basinField).Description("Basin name"),
-			service.NewStringField(authTokenField).
-				Description("Authentication token for S2 account").
+			service.NewStringField(accessTokenField).
+				Description("Access token for S2 account").
 				Secret(),
 			service.NewAnyField(streamsField).
 				Description("Streams prefix or list of streams to subscribe to"),
@@ -117,7 +116,7 @@ input:
   s2:
     basin: my-favorite-basin
     streams: my-favorite-prefix/
-    auth_token: "${S2_AUTH_TOKEN}"
+    access_token: "${S2_ACCESS_TOKEN}"
     cache: s2_seq_num
 
 output:
@@ -234,7 +233,7 @@ func (i *Input) Connect(ctx context.Context) error {
 func (i *Input) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 	i.logger.Debug("Reading batch from S2")
 
-	batch, aFn, stream, err := i.inner.ReadBatch(ctx)
+	records, aFn, stream, err := i.inner.ReadBatch(ctx)
 	if err != nil {
 		if errors.Is(err, s2bentobox.ErrInputClosed) {
 			return nil, nil, service.ErrNotConnected
@@ -243,9 +242,9 @@ func (i *Input) ReadBatch(ctx context.Context) (service.MessageBatch, service.Ac
 		return nil, nil, err
 	}
 
-	messages := make([]*service.Message, 0, len(batch.Records))
+	messages := make([]*service.Message, 0, len(records))
 
-	for _, record := range batch.Records {
+	for _, record := range records {
 		msg := service.NewMessage(record.Body)
 
 		if len(record.Headers) == 1 && len(record.Headers[0].Name) == 0 {
