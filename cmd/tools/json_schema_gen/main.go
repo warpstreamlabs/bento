@@ -126,15 +126,6 @@ func mapFieldTypeToJSONType(fieldType docs.FieldType) string {
 	}
 }
 
-// convertConfigToProperties converts the config FieldSpecs to properties
-func convertConfigToProperties(fields docs.FieldSpecs) map[string]Property {
-	properties := make(map[string]Property)
-	for _, field := range fields {
-		properties[field.Name] = convertFieldSpecToProperty(field)
-	}
-	return properties
-}
-
 func main() {
 	// Create the schema using the New function
 	schemaData := schema.New("1.0", "2026-01-16")
