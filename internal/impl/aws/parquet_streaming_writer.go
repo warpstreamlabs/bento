@@ -20,6 +20,14 @@ import (
 	bentoparquet "github.com/warpstreamlabs/bento/internal/impl/parquet"
 )
 
+// S3API defines the S3 operations needed for multipart uploads
+type S3API interface {
+	CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
+	UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
+	CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
+	AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
+}
+
 // StreamingParquetWriter writes Parquet data incrementally to S3 using multipart uploads.
 // It buffers rows into row groups and uploads parts as they reach the S3 minimum part size.
 type StreamingParquetWriter struct {
@@ -30,7 +38,7 @@ type StreamingParquetWriter struct {
 	rowGroupSize    int64
 
 	// S3 client and upload state
-	s3Client       *s3.Client
+	s3Client       S3API
 	bucket         string
 	key            string
 	uploadID       *string
@@ -64,7 +72,7 @@ type RowGroupMetadata struct {
 
 // StreamingWriterConfig contains configuration for creating a StreamingParquetWriter
 type StreamingWriterConfig struct {
-	S3Client        *s3.Client
+	S3Client        S3API
 	Bucket          string
 	Key             string
 	Schema          *parquet.Schema
