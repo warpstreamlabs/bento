@@ -10,7 +10,7 @@ mod protos {
 use protos::message::{part::Content, Batch, Batches};
 
 #[plugin_fn]
-pub fn plugin_init(_input: Vec<u8>) -> FnResult<()> {
+pub fn init_plugin(_input: Vec<u8>) -> FnResult<()> {
     Ok(())
 }
 

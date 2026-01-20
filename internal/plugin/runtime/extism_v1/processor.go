@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	pluginInitFn         = "plugin_init"
+	pluginInitFn         = "init_plugin"
 	pluginProcessFn      = "process"
 	pluginProcessBatchFn = "process_batch"
 )
