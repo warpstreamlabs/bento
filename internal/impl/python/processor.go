@@ -13,12 +13,6 @@ import (
 
 var errNoWasmRuntime = errors.New("no WASM runtime found")
 
-var (
-	pythonEntrypoint []byte
-	pythonWASM       []byte
-	isWASM           bool
-)
-
 const (
 	pythonReadySignal = "READY"
 
@@ -32,7 +26,7 @@ const (
 func init() {
 	err := service.RegisterProcessor("python", pythonProcessorSpec(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
-			if !isWASM {
+			if len(pythonWASM) == 0 || len(pythonEntrypoint) == 0 {
 				mgr.Logger().Error("cannot load in python processor without WASM runtime and entrypoint.py being set.")
 				return nil, errNoWasmRuntime
 			}

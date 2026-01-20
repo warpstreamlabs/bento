@@ -1,5 +1,3 @@
-//go:build x_wasm
-
 package python
 
 import (
