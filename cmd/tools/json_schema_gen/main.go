@@ -61,17 +61,25 @@ func convertFieldSpecToProperty(field docs.FieldSpec) Property {
 	case docs.FieldTypeBool:
 		prop.Type = "boolean"
 	case docs.FieldTypeObject:
-		prop.Type = "object"
-		if len(field.Children) > 0 {
-			prop.Properties = make(map[string]Property)
-			for _, child := range field.Children {
-				prop.Properties[child.Name] = convertFieldSpecToProperty(child)
+		if field.Kind == docs.KindArray {
+			prop.Type = "array"
+		} else {
+			prop.Type = "object"
+			if len(field.Children) > 0 {
+				prop.Properties = make(map[string]Property)
+				for _, child := range field.Children {
+					prop.Properties[child.Name] = convertFieldSpecToProperty(child)
+				}
 			}
 		}
 	case docs.FieldTypeInput, docs.FieldTypeOutput, docs.FieldTypeProcessor,
 		docs.FieldTypeBuffer, docs.FieldTypeCache, docs.FieldTypeMetrics,
 		docs.FieldTypeTracer, docs.FieldTypeScanner:
-		prop.Type = "object"
+		if field.Kind == docs.KindArray {
+			prop.Type = "array"
+		} else {
+			prop.Type = "object"
+		}
 		// For component types, expand their children if available
 		if len(field.Children) > 0 {
 			prop.Properties = make(map[string]Property)
