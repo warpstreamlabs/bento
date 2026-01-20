@@ -1,0 +1,623 @@
+package aws
+
+import (
+	"bytes"
+	"context"
+	"encoding/binary"
+	"fmt"
+	"reflect"
+	"sync"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/parquet-go/parquet-go"
+	"github.com/parquet-go/parquet-go/compress"
+	"github.com/parquet-go/parquet-go/encoding/thrift"
+	"github.com/parquet-go/parquet-go/format"
+
+	bentoparquet "github.com/warpstreamlabs/bento/internal/impl/parquet"
+)
+
+// StreamingParquetWriter writes Parquet data incrementally to S3 using multipart uploads.
+// It buffers rows into row groups and uploads parts as they reach the S3 minimum part size.
+type StreamingParquetWriter struct {
+	// Configuration
+	schema          *parquet.Schema
+	messageType     reflect.Type
+	compressionType compress.Codec
+	rowGroupSize    int64
+
+	// S3 client and upload state
+	s3Client       *s3.Client
+	bucket         string
+	key            string
+	uploadID       *string
+	partNumber     int32
+	completedParts []types.CompletedPart
+
+	// Buffering
+	rowBuffer    []any
+	uploadBuffer *bytes.Buffer
+	uploadSize   int64
+
+	// Metadata tracking for footer
+	rowGroupsMeta []RowGroupMetadata
+	totalRows     int64
+
+	// Lifecycle
+	created   time.Time
+	lastWrite time.Time
+	closed    bool
+
+	// Thread safety
+	mu sync.Mutex
+}
+
+// RowGroupMetadata tracks information about each row group for footer generation
+type RowGroupMetadata struct {
+	NumRows       int64
+	TotalByteSize int64
+	FileOffset    int64
+}
+
+// StreamingWriterConfig contains configuration for creating a StreamingParquetWriter
+type StreamingWriterConfig struct {
+	S3Client        *s3.Client
+	Bucket          string
+	Key             string
+	Schema          *parquet.Schema
+	MessageType     reflect.Type
+	CompressionType compress.Codec
+	RowGroupSize    int64 // Number of rows per row group (default: 1000)
+}
+
+// NewStreamingParquetWriter creates a new streaming Parquet writer
+func NewStreamingParquetWriter(config StreamingWriterConfig) (*StreamingParquetWriter, error) {
+	if config.RowGroupSize <= 0 {
+		config.RowGroupSize = 1000 // Default
+	}
+
+	w := &StreamingParquetWriter{
+		schema:          config.Schema,
+		messageType:     config.MessageType,
+		compressionType: config.CompressionType,
+		rowGroupSize:    config.RowGroupSize,
+		s3Client:        config.S3Client,
+		bucket:          config.Bucket,
+		key:             config.Key,
+		uploadBuffer:    bytes.NewBuffer(nil),
+		rowBuffer:       make([]any, 0, config.RowGroupSize),
+		created:         time.Now(),
+		lastWrite:       time.Now(),
+	}
+
+	return w, nil
+}
+
+// Initialize starts the S3 multipart upload
+func (w *StreamingParquetWriter) Initialize(ctx context.Context) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.uploadID != nil {
+		return fmt.Errorf("writer already initialized")
+	}
+
+	// Start multipart upload
+	resp, err := w.s3Client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(w.bucket),
+		Key:    aws.String(w.key),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create multipart upload: %w", err)
+	}
+
+	w.uploadID = resp.UploadId
+
+	// Write Parquet file header (magic bytes "PAR1")
+	header := []byte("PAR1")
+	w.uploadBuffer.Write(header)
+	w.uploadSize = int64(len(header))
+
+	return nil
+}
+
+// WriteEvent adds an event to the buffer and flushes row group when full
+func (w *StreamingParquetWriter) WriteEvent(ctx context.Context, event map[string]any) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.closed {
+		return fmt.Errorf("writer is closed")
+	}
+
+	if w.uploadID == nil {
+		return fmt.Errorf("writer not initialized")
+	}
+
+	// Convert event to Parquet struct
+	v := reflect.New(w.messageType)
+	if err := mapToStruct(event, v.Interface()); err != nil {
+		return fmt.Errorf("failed to convert event to struct: %w", err)
+	}
+
+	// Add to row buffer
+	w.rowBuffer = append(w.rowBuffer, v.Interface())
+	w.lastWrite = time.Now()
+
+	// Flush row group if buffer is full
+	if int64(len(w.rowBuffer)) >= w.rowGroupSize {
+		return w.flushRowGroup(ctx)
+	}
+
+	return nil
+}
+
+// flushRowGroup encodes buffered rows to a Parquet row group and adds to upload buffer
+func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
+	if len(w.rowBuffer) == 0 {
+		return nil
+	}
+
+	// NOTE: This approach creates a complete Parquet file temporarily to extract
+	// row group bytes. While this may seem inefficient, it's actually the most
+	// straightforward way to leverage parquet-go's encoding without implementing
+	// low-level Parquet format details. Memory overhead is minimal since only
+	// one row group is encoded at a time (~row_group_size * row_size bytes).
+
+	tempBuffer := bytes.NewBuffer(nil)
+	writer := parquet.NewGenericWriter[any](
+		tempBuffer,
+		w.schema,
+		parquet.Compression(w.compressionType),
+	)
+
+	// Write all rows in buffer
+	_, err := writer.Write(w.rowBuffer)
+	if err != nil {
+		return fmt.Errorf("failed to write row group: %w", err)
+	}
+
+	// Close writer to finalize encoding
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close row group writer: %w", err)
+	}
+
+	// Extract row group bytes by stripping header and footer
+	// Parquet format: [4 bytes "PAR1"] [row group data] [footer] [4 bytes footer size] [4 bytes "PAR1"]
+	fullFileData := tempBuffer.Bytes()
+
+	// Skip first 4 bytes (header "PAR1")
+	if len(fullFileData) < 12 {
+		return fmt.Errorf("encoded data too short: %d bytes", len(fullFileData))
+	}
+
+	// Read footer size from last 8 bytes: [4 bytes footer length][4 bytes "PAR1"]
+	footerSizeBytes := fullFileData[len(fullFileData)-8 : len(fullFileData)-4]
+	footerSize := int(footerSizeBytes[0]) | int(footerSizeBytes[1])<<8 |
+		int(footerSizeBytes[2])<<16 | int(footerSizeBytes[3])<<24
+
+	// Extract just the row group data (skip header, remove footer + footer metadata)
+	rowGroupStart := 4
+	rowGroupEnd := len(fullFileData) - footerSize - 8
+
+	if rowGroupEnd <= rowGroupStart {
+		return fmt.Errorf("invalid row group boundaries: start=%d, end=%d", rowGroupStart, rowGroupEnd)
+	}
+
+	rowGroupData := fullFileData[rowGroupStart:rowGroupEnd]
+	rowGroupSize := int64(len(rowGroupData))
+
+	// Track metadata for footer
+	w.rowGroupsMeta = append(w.rowGroupsMeta, RowGroupMetadata{
+		NumRows:       int64(len(w.rowBuffer)),
+		TotalByteSize: rowGroupSize,
+		FileOffset:    w.uploadSize,
+	})
+
+	w.totalRows += int64(len(w.rowBuffer))
+
+	// Add to upload buffer
+	w.uploadBuffer.Write(rowGroupData)
+	w.uploadSize += rowGroupSize
+
+	// Clear row buffer
+	w.rowBuffer = w.rowBuffer[:0]
+
+	// Upload part if buffer exceeds S3 minimum (5 MB)
+	if w.uploadSize >= 5*1024*1024 {
+		return w.uploadPart(ctx)
+	}
+
+	return nil
+}
+
+// uploadPart uploads the current buffer as an S3 part
+func (w *StreamingParquetWriter) uploadPart(ctx context.Context) error {
+	if w.uploadBuffer.Len() == 0 {
+		return nil
+	}
+
+	w.partNumber++
+
+	// Upload part with retry
+	var uploadErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		resp, err := w.s3Client.UploadPart(ctx, &s3.UploadPartInput{
+			Bucket:     aws.String(w.bucket),
+			Key:        aws.String(w.key),
+			PartNumber: aws.Int32(w.partNumber),
+			UploadId:   w.uploadID,
+			Body:       bytes.NewReader(w.uploadBuffer.Bytes()),
+		})
+
+		if err == nil {
+			// Success
+			w.completedParts = append(w.completedParts, types.CompletedPart{
+				ETag:       resp.ETag,
+				PartNumber: aws.Int32(w.partNumber),
+			})
+
+			// Clear upload buffer
+			w.uploadBuffer.Reset()
+			w.uploadSize = 0
+
+			return nil
+		}
+
+		uploadErr = err
+		time.Sleep(time.Second * time.Duration(1<<attempt)) // Exponential backoff
+	}
+
+	// All retries failed
+	w.abortMultipartUpload(context.Background())
+	return fmt.Errorf("failed to upload part after retries: %w", uploadErr)
+}
+
+// Close finalizes the Parquet file by flushing remaining data, writing footer, and completing upload
+func (w *StreamingParquetWriter) Close(ctx context.Context) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.closed {
+		return nil
+	}
+
+	if w.uploadID == nil {
+		return fmt.Errorf("writer not initialized")
+	}
+
+	// Flush any remaining rows
+	if len(w.rowBuffer) > 0 {
+		if err := w.flushRowGroup(ctx); err != nil {
+			w.abortMultipartUpload(ctx)
+			return fmt.Errorf("failed to flush final row group: %w", err)
+		}
+	}
+
+	// Generate and write Parquet footer
+	footer, err := w.generateFooter()
+	if err != nil {
+		w.abortMultipartUpload(ctx)
+		return fmt.Errorf("failed to generate footer: %w", err)
+	}
+
+	w.uploadBuffer.Write(footer)
+
+	// Write footer magic bytes "PAR1"
+	w.uploadBuffer.Write([]byte("PAR1"))
+
+	// Upload final part (if any data in buffer)
+	if w.uploadBuffer.Len() > 0 {
+		if err := w.uploadPart(ctx); err != nil {
+			return fmt.Errorf("failed to upload final part: %w", err)
+		}
+	}
+
+	// Complete multipart upload
+	_, err = w.s3Client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   aws.String(w.bucket),
+		Key:      aws.String(w.key),
+		UploadId: w.uploadID,
+		MultipartUpload: &types.CompletedMultipartUpload{
+			Parts: w.completedParts,
+		},
+	})
+
+	if err != nil {
+		w.abortMultipartUpload(ctx)
+		return fmt.Errorf("failed to complete multipart upload: %w", err)
+	}
+
+	w.closed = true
+	return nil
+}
+
+// generateFooter creates the Parquet file footer with row group metadata
+func (w *StreamingParquetWriter) generateFooter() ([]byte, error) {
+	// Create FileMetaData structure for footer
+	schema := w.schemaToThrift(w.schema)
+	rowGroups := w.rowGroupsToThrift()
+
+	fileMetaData := &format.FileMetaData{
+		Version:   1,
+		Schema:    schema,
+		NumRows:   w.totalRows,
+		RowGroups: rowGroups,
+		CreatedBy: "bento-streaming-parquet-writer",
+	}
+
+	// Serialize FileMetaData to Thrift compact protocol
+	footerBuffer := &bytes.Buffer{}
+
+	// Use parquet-go's Thrift serialization (it handles this internally)
+	// We need to create the footer bytes manually
+	thriftBytes, err := w.serializeThrift(fileMetaData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize FileMetaData: %w", err)
+	}
+
+	footerBuffer.Write(thriftBytes)
+
+	// Write footer length as 4-byte little-endian integer
+	footerLength := uint32(len(thriftBytes))
+	lengthBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(lengthBytes, footerLength)
+	footerBuffer.Write(lengthBytes)
+
+	return footerBuffer.Bytes(), nil
+}
+
+// schemaToThrift converts parquet.Schema to Thrift format
+func (w *StreamingParquetWriter) schemaToThrift(schema *parquet.Schema) []format.SchemaElement {
+	// The schema root element
+	numChildren := int32(len(schema.Fields()))
+	elements := []format.SchemaElement{
+		{
+			Name:        "schema",
+			NumChildren: numChildren,
+		},
+	}
+
+	// Add each field recursively
+	for _, field := range schema.Fields() {
+		elements = w.appendFieldToThrift(elements, field)
+	}
+
+	return elements
+}
+
+// appendFieldToThrift converts a parquet.Field to Thrift SchemaElement and appends it and its children
+func (w *StreamingParquetWriter) appendFieldToThrift(elements []format.SchemaElement, field parquet.Field) []format.SchemaElement {
+	elem := format.SchemaElement{
+		Name: field.Name(),
+	}
+
+	// Set repetition type
+	var repType format.FieldRepetitionType
+	if field.Optional() {
+		repType = format.Optional
+	} else if field.Repeated() {
+		repType = format.Repeated
+	} else {
+		repType = format.Required
+	}
+	elem.RepetitionType = &repType
+
+	// Set type based on field type
+	if field.Leaf() {
+		fType := formatTypeFromParquetField(field)
+		elem.Type = &fType
+	} else {
+		// Group/struct type - has children
+		numChildren := int32(len(field.Fields()))
+		elem.NumChildren = numChildren
+	}
+
+	// Append this element
+	elements = append(elements, elem)
+
+	// Recursively append child fields if this is a group
+	if !field.Leaf() {
+		for _, childField := range field.Fields() {
+			elements = w.appendFieldToThrift(elements, childField)
+		}
+	}
+
+	return elements
+}
+
+// rowGroupsToThrift converts collected row group metadata to Thrift format
+func (w *StreamingParquetWriter) rowGroupsToThrift() []format.RowGroup {
+	rowGroups := make([]format.RowGroup, len(w.rowGroupsMeta))
+
+	// Collect all leaf columns (nested fields need to be flattened)
+	leafColumns := w.collectLeafColumns(w.schema.Fields(), []string{})
+
+	for i, meta := range w.rowGroupsMeta {
+		// Create column chunks metadata for each leaf column
+		columnChunks := make([]format.ColumnChunk, len(leafColumns))
+
+		for j, leafInfo := range leafColumns {
+			fType := formatTypeFromParquetField(leafInfo.field)
+			codec := formatCompressionCodec(w.compressionType)
+
+			columnChunks[j] = format.ColumnChunk{
+				MetaData: format.ColumnMetaData{
+					Type:                  fType,
+					PathInSchema:          leafInfo.path,
+					Codec:                 codec,
+					NumValues:             meta.NumRows,
+					TotalCompressedSize:   meta.TotalByteSize / int64(len(leafColumns)), // Approximate distribution
+					TotalUncompressedSize: meta.TotalByteSize / int64(len(leafColumns)), // Approximate
+					DataPageOffset:        meta.FileOffset,
+				},
+			}
+		}
+
+		rowGroups[i] = format.RowGroup{
+			Columns:       columnChunks,
+			TotalByteSize: meta.TotalByteSize,
+			NumRows:       meta.NumRows,
+			FileOffset:    meta.FileOffset,
+		}
+	}
+
+	return rowGroups
+}
+
+type leafColumnInfo struct {
+	field parquet.Field
+	path  []string
+}
+
+// collectLeafColumns recursively collects all leaf columns with their paths
+func (w *StreamingParquetWriter) collectLeafColumns(fields []parquet.Field, parentPath []string) []leafColumnInfo {
+	var leaves []leafColumnInfo
+
+	for _, field := range fields {
+		currentPath := append(parentPath, field.Name())
+
+		if field.Leaf() {
+			// This is a leaf column
+			leaves = append(leaves, leafColumnInfo{
+				field: field,
+				path:  currentPath,
+			})
+		} else {
+			// This is a group - recurse into children
+			childLeaves := w.collectLeafColumns(field.Fields(), currentPath)
+			leaves = append(leaves, childLeaves...)
+		}
+	}
+
+	return leaves
+}
+
+// serializeThrift serializes FileMetaData using Thrift compact protocol
+func (w *StreamingParquetWriter) serializeThrift(meta *format.FileMetaData) ([]byte, error) {
+	// Use parquet-go's Thrift marshaling with compact protocol
+	// This is the same approach used in parquet-go's writer.go
+	thriftBytes, err := thrift.Marshal(new(thrift.CompactProtocol), meta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal FileMetaData with Thrift: %w", err)
+	}
+
+	return thriftBytes, nil
+}
+
+// Helper functions for type conversion
+func formatTypeFromParquetField(field parquet.Field) format.Type {
+	// If field is not a leaf (has nested fields), it's a group type
+	// Group types don't have a physical type in Parquet
+	if !field.Leaf() {
+		return format.ByteArray // Placeholder for group types
+	}
+
+	t := field.Type()
+	switch t.Kind() {
+	case parquet.Boolean:
+		return format.Boolean
+	case parquet.Int32:
+		return format.Int32
+	case parquet.Int64:
+		return format.Int64
+	case parquet.Int96:
+		return format.Int96
+	case parquet.Float:
+		return format.Float
+	case parquet.Double:
+		return format.Double
+	case parquet.ByteArray:
+		return format.ByteArray
+	case parquet.FixedLenByteArray:
+		return format.FixedLenByteArray
+	default:
+		return format.ByteArray
+	}
+}
+
+func formatCompressionCodec(codec compress.Codec) format.CompressionCodec {
+	// Map compression types
+	codecName := codec.String()
+	switch codecName {
+	case "UNCOMPRESSED":
+		return format.Uncompressed
+	case "SNAPPY":
+		return format.Snappy
+	case "GZIP":
+		return format.Gzip
+	case "ZSTD":
+		return format.Zstd
+	case "BROTLI":
+		return format.Brotli
+	case "LZ4":
+		return format.Lz4
+	default:
+		return format.Uncompressed
+	}
+}
+
+// abortMultipartUpload aborts the S3 multipart upload on error
+func (w *StreamingParquetWriter) abortMultipartUpload(ctx context.Context) {
+	if w.uploadID == nil {
+		return
+	}
+
+	_, _ = w.s3Client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   aws.String(w.bucket),
+		Key:      aws.String(w.key),
+		UploadId: w.uploadID,
+	})
+}
+
+// ShouldClose returns true if the writer should be closed based on lifecycle rules
+func (w *StreamingParquetWriter) ShouldClose(maxDuration time.Duration, maxEvents int64) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if time.Since(w.created) > maxDuration {
+		return true
+	}
+
+	if w.totalRows >= maxEvents {
+		return true
+	}
+
+	return false
+}
+
+// Stats returns current writer statistics
+func (w *StreamingParquetWriter) Stats() WriterStats {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return WriterStats{
+		TotalRows:      w.totalRows,
+		RowGroups:      len(w.rowGroupsMeta),
+		PartsUploaded:  int(w.partNumber),
+		BufferedRows:   len(w.rowBuffer),
+		BufferedBytes:  w.uploadSize,
+		Age:            time.Since(w.created),
+		LastWriteAge:   time.Since(w.lastWrite),
+	}
+}
+
+// WriterStats contains statistics about a streaming writer
+type WriterStats struct {
+	TotalRows      int64
+	RowGroups      int
+	PartsUploaded  int
+	BufferedRows   int
+	BufferedBytes  int64
+	Age            time.Duration
+	LastWriteAge   time.Duration
+}
+
+// mapToStruct is a helper function to convert map[string]any to a struct
+// Uses the existing Bento parquet conversion logic
+func mapToStruct(data map[string]any, target any) error {
+	return bentoparquet.MapToStruct(data, target)
+}
