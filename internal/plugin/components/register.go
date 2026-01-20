@@ -6,8 +6,8 @@ import (
 	"github.com/extism/go-pdk"
 )
 
-//go:wasmexport plugin_init
-func plugin_init() int32 {
+//go:wasmexport init_plugin
+func init_plugin() int32 {
 	err := plugin.Init(pdk.Input())
 	if err != nil {
 		pdk.SetError(err)

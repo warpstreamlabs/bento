@@ -61,8 +61,7 @@ func (rt *ExtismRuntime) Register(ctx context.Context, manifest *runtime.Manifes
 	}
 
 	config := extism.PluginConfig{
-		RuntimeConfig: toRuntimeConfig(manifest),
-		EnableWasi:    true,
+		EnableWasi: true,
 	}
 
 	compiled, err := extism.NewCompiledPlugin(ctx, extismManifest, config, []extism.HostFunction{})

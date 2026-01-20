@@ -18,4 +18,3 @@ runtime:
   wasm:
     memory:
       max_pages: 512
-    timeout: 5000

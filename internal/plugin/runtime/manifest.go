@@ -47,16 +47,12 @@ type RuntimeManifest struct {
 
 // WasmRuntimeConfig is the configuration for the WASM runtime.
 type WasmRuntimeConfig struct {
-	Path          string            `yaml:"path"`
-	Env           map[string]string `yaml:"env"`
-	Mounts        []MountConfig     `yaml:"mounts"`
-	AllowedHosts  []string          `yaml:"allowed_hosts"`
-	Entrypoint    string            `yaml:"entrypoint"`
-	Config        map[string]string `yaml:"config"`
-	Memory        MemoryConfig      `yaml:"memory"`
-	FileSystem    *bool             `yaml:"file_system"`
-	Timeout       int               `yaml:"timeout"`
-	HostFunctions []string          `yaml:"host_functions"`
+	Path         string            `yaml:"path"`
+	Env          map[string]string `yaml:"env"`
+	Mounts       []MountConfig     `yaml:"mounts"`
+	AllowedHosts []string          `yaml:"allowed_hosts"`
+	Config       map[string]string `yaml:"config"`
+	Memory       MemoryConfig      `yaml:"memory"`
 }
 
 // MemoryConfig contains memory-related configuration for the WASM runtime.
@@ -70,7 +66,6 @@ type MemoryConfig struct {
 type MountConfig struct {
 	HostPath  string `yaml:"host_path"`
 	GuestPath string `yaml:"guest_path"`
-	ReadOnly  bool   `yaml:"read_only"`
 }
 
 func (m Manifest) ComponentSpec() (docs.ComponentSpec, error) {
@@ -130,7 +125,7 @@ func componentMetadataSpec() docs.FieldSpecs {
 			"stable", "This plugin is stable and will not change in breaking ways outside of major version releases.",
 			"beta", "This plugin is beta and will not change in breaking ways unless a major problem is found.",
 			"experimental", "This plugin is experimental and subject to breaking changes outside of major version releases.",
-		).HasDefault("stable"),
+		).HasDefault("stable").Advanced(),
 		docs.FieldString("summary", "A short summary of the plugin.").HasDefault(""),
 		docs.FieldString("description", "A detailed description of the plugin and how to use it.").HasDefault(""),
 		docs.FieldObject("fields", "The configuration fields of the plugin.").Array().WithChildren(template.FieldConfigSpec()...),
@@ -146,18 +141,13 @@ func wasmRuntimeSpec() docs.FieldSpec {
 		docs.FieldObject("mounts", "A list of directory mounts.").Array().Optional().WithChildren(
 			docs.FieldString("host_path", "The path on the host machine to mount."),
 			docs.FieldString("guest_path", "The path inside the WASM container."),
-			docs.FieldBool("read_only", "If true, the mount will be read-only.").HasDefault(true),
 		),
 		docs.FieldString("allowed_hosts", "A list of hosts that the plugin is allowed to connect to.").Array().Optional(),
-		docs.FieldString("entrypoint", "The name of the function to run as the entrypoint.").Optional(),
 		docs.FieldString("config", "Arbitrary key-value configuration for the plugin.").Map().Optional(),
 		docs.FieldObject("memory", "Describes the limits on the memory the plugin may be allocated.").WithChildren(
 			docs.FieldInt("max_pages", "The max amount of pages the plugin can allocate. One page is 64KiB.").Optional(),
 			docs.FieldString("max_http_response_bytes", "The max size of an Extism HTTP response (e.g., '10MB').").Optional(),
 			docs.FieldString("max_var_bytes", "The max size of all Extism vars (e.g., '1MB').").Optional(),
 		).Optional(),
-		docs.FieldBool("file_system", "Whether to create a temporary directory on the filesystem.").Optional(),
-		docs.FieldInt("timeout", "The timeout in milliseconds for the plugin to execute.").Optional(),
-		docs.FieldString("host_functions", "Host function names the plugin may access.").Array().Optional(),
 	)
 }
