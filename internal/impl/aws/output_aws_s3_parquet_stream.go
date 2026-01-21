@@ -253,17 +253,12 @@ func s3ParquetStreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3Parque
 	}
 
 	// Generate schema and message types
-	schemaType, err := bentop.GenerateStructType(schemaConf, bentop.SchemaOpts{
-		OptionalsAsStructTags: true,
-		OptionalAsPtrs:        false,
-		DefaultEncoding:       defaultEncodingTag,
-	})
-	if err != nil {
-		return conf, fmt.Errorf("failed to generate schema struct: %w", err)
-	}
-
+	// IMPORTANT: Use the same options for both schema and message types to ensure
+	// consistent definition/repetition level encoding. A mismatch causes
+	// "insufficient definition levels" errors when reading parquet files with
+	// nested optional STRUCT fields.
 	messageType, err := bentop.GenerateStructType(schemaConf, bentop.SchemaOpts{
-		OptionalsAsStructTags: false,
+		OptionalsAsStructTags: true,
 		OptionalAsPtrs:        true,
 		DefaultEncoding:       defaultEncodingTag,
 	})
@@ -271,7 +266,8 @@ func s3ParquetStreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3Parque
 		return conf, fmt.Errorf("failed to generate message struct: %w", err)
 	}
 
-	conf.Schema = parquet.SchemaOf(reflect.New(schemaType).Interface())
+	// Use the same type for both schema and message to ensure consistency
+	conf.Schema = parquet.SchemaOf(reflect.New(messageType).Interface())
 	conf.MessageType = messageType
 
 	// Row group size
