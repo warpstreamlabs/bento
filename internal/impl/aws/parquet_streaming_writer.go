@@ -68,6 +68,7 @@ type RowGroupMetadata struct {
 	NumRows       int64
 	TotalByteSize int64
 	FileOffset    int64
+	ColumnChunks  []format.ColumnChunk // Preserve actual column metadata from temp file
 }
 
 // StreamingWriterConfig contains configuration for creating a StreamingParquetWriter
@@ -218,11 +219,35 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 	rowGroupData := fullFileData[rowGroupStart:rowGroupEnd]
 	rowGroupSize := int64(len(rowGroupData))
 
+	// Extract actual column metadata from the temporary file's footer
+	// This ensures definition/repetition levels are correctly preserved
+	footerBytes := fullFileData[rowGroupEnd : len(fullFileData)-8]
+	var fileMeta format.FileMetaData
+	if err := thrift.Unmarshal(new(thrift.CompactProtocol), footerBytes, &fileMeta); err != nil {
+		return fmt.Errorf("failed to parse temporary file footer: %w", err)
+	}
+
+	// Extract column chunks from the first (and only) row group in the temp file
+	var columnChunks []format.ColumnChunk
+	if len(fileMeta.RowGroups) > 0 {
+		columnChunks = make([]format.ColumnChunk, len(fileMeta.RowGroups[0].Columns))
+		for i, col := range fileMeta.RowGroups[0].Columns {
+			// Adjust file offsets to account for new position in streaming file
+			adjustedCol := col
+			adjustedCol.MetaData.DataPageOffset = w.uploadSize + col.MetaData.DataPageOffset - 4 // Subtract temp file header size
+			if adjustedCol.MetaData.DictionaryPageOffset != 0 {
+				adjustedCol.MetaData.DictionaryPageOffset = w.uploadSize + adjustedCol.MetaData.DictionaryPageOffset - 4
+			}
+			columnChunks[i] = adjustedCol
+		}
+	}
+
 	// Track metadata for footer
 	w.rowGroupsMeta = append(w.rowGroupsMeta, RowGroupMetadata{
 		NumRows:       int64(len(w.rowBuffer)),
 		TotalByteSize: rowGroupSize,
 		FileOffset:    w.uploadSize,
+		ColumnChunks:  columnChunks,
 	})
 
 	w.totalRows += int64(len(w.rowBuffer))
@@ -441,27 +466,31 @@ func (w *StreamingParquetWriter) appendFieldToThrift(elements []format.SchemaEle
 func (w *StreamingParquetWriter) rowGroupsToThrift() []format.RowGroup {
 	rowGroups := make([]format.RowGroup, len(w.rowGroupsMeta))
 
-	// Collect all leaf columns (nested fields need to be flattened)
-	leafColumns := w.collectLeafColumns(w.schema.Fields(), []string{})
-
 	for i, meta := range w.rowGroupsMeta {
-		// Create column chunks metadata for each leaf column
-		columnChunks := make([]format.ColumnChunk, len(leafColumns))
+		// Use the preserved column chunks from the temporary file if available
+		columnChunks := meta.ColumnChunks
 
-		for j, leafInfo := range leafColumns {
-			fType := formatTypeFromParquetField(leafInfo.field)
-			codec := formatCompressionCodec(w.compressionType)
+		// Fallback to approximated metadata if column chunks weren't preserved
+		// (this shouldn't happen with the current implementation, but provides safety)
+		if len(columnChunks) == 0 {
+			leafColumns := w.collectLeafColumns(w.schema.Fields(), []string{})
+			columnChunks = make([]format.ColumnChunk, len(leafColumns))
 
-			columnChunks[j] = format.ColumnChunk{
-				MetaData: format.ColumnMetaData{
-					Type:                  fType,
-					PathInSchema:          leafInfo.path,
-					Codec:                 codec,
-					NumValues:             meta.NumRows,
-					TotalCompressedSize:   meta.TotalByteSize / int64(len(leafColumns)), // Approximate distribution
-					TotalUncompressedSize: meta.TotalByteSize / int64(len(leafColumns)), // Approximate
-					DataPageOffset:        meta.FileOffset,
-				},
+			for j, leafInfo := range leafColumns {
+				fType := formatTypeFromParquetField(leafInfo.field)
+				codec := formatCompressionCodec(w.compressionType)
+
+				columnChunks[j] = format.ColumnChunk{
+					MetaData: format.ColumnMetaData{
+						Type:                  fType,
+						PathInSchema:          leafInfo.path,
+						Codec:                 codec,
+						NumValues:             meta.NumRows,
+						TotalCompressedSize:   meta.TotalByteSize / int64(len(leafColumns)),
+						TotalUncompressedSize: meta.TotalByteSize / int64(len(leafColumns)),
+						DataPageOffset:        meta.FileOffset,
+					},
+				}
 			}
 		}
 
