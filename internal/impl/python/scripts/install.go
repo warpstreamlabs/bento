@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
-	_ "embed"
 	"encoding/hex"
 	"flag"
 	"fmt"
