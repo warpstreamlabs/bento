@@ -25,8 +25,19 @@ jobs:
         go-version: 1.25.x
         check-latest: true
 
+    - name: Save/Restore Cache
+      id: artifacts 
+      uses: actions/cache@v4
+      with:
+        path: internal/impl/**/artifacts/*
+        key: cached-artifacts
+
+    - name: Generate
+      if: steps.artifacts.outputs.cache-hit != 'true'
+      run: make generate
+
     - name: Deps
-      run: make deps generate && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
+      run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
 
     - name: Docs
       run: make docs && git diff-index --quiet HEAD || { >&2 echo "Stale docs detected. This can be fixed with 'make docs'."; exit 1; }

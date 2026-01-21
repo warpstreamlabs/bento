@@ -26,11 +26,6 @@ const (
 func init() {
 	err := service.RegisterProcessor("python", pythonProcessorSpec(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
-			if len(pythonWASM) == 0 || len(pythonEntrypoint) == 0 {
-				mgr.Logger().Error("cannot load in python processor without WASM runtime and entrypoint.py being set.")
-				return nil, errNoWasmRuntime
-			}
-
 			return newPythonProcessor(conf, mgr)
 		})
 	if err != nil {
@@ -117,6 +112,11 @@ type pythonProcessor struct {
 }
 
 func newPythonProcessor(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+	if len(pythonWASM) == 0 || len(pythonEntrypoint) == 0 {
+		mgr.Logger().Error("cannot load in python processor without WASM runtime and entrypoint.py being set.")
+		return nil, errNoWasmRuntime
+	}
+
 	ctx := context.Background()
 	r := wazero.NewRuntime(ctx)
 	_, err := wasi_snapshot_preview1.Instantiate(ctx, r)

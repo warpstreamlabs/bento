@@ -197,11 +197,6 @@ root = {
 
 	for _, test := range tests {
 		t.Run(test.name, func(tt *testing.T) {
-			imports := test.imports
-			if imports == nil {
-				imports = []string{}
-			}
-
 			indent := "  "
 			indentedScript := indent + strings.ReplaceAll(strings.TrimSpace(test.script), "\n", "\n"+indent)
 			yamlConfig := fmt.Sprintf(`
@@ -227,14 +222,15 @@ imports: %v
 				if test.errMsg != "" {
 					assert.Contains(t, errMsg.Error(), test.errMsg)
 				}
-			} else {
-				require.NoError(t, msgs[0].GetError())
-
-				mBytes, err := msgs[0].AsBytes()
-				require.NoError(t, err)
-
-				assert.JSONEq(t, test.output, string(mBytes))
+				return
 			}
+
+			require.NoError(t, msgs[0].GetError())
+
+			mBytes, err := msgs[0].AsBytes()
+			require.NoError(t, err)
+
+			assert.JSONEq(t, test.output, string(mBytes))
 		})
 	}
 }
