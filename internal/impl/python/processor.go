@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
@@ -11,7 +12,15 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var errNoWasmRuntime = errors.New("no WASM runtime found")
+var (
+	errNoWasmRuntime = errors.New("no WASM runtime found")
+
+	// getCompliationCache allows us to compile an in-memory compilation cache once, and have it re-used between
+	// processor instantiations.
+	// TODO(gregfurman): Look into a wazero.NewCompilationCacheWithDir for FS persistence (likely within the ./artifacts dir).
+	// TODO(gregfurman): We never close the CompilationCache since it's shared between processors.
+	getCompilationCache = sync.OnceValue(wazero.NewCompilationCache)
+)
 
 const (
 	pythonReadySignal = "READY"
@@ -118,7 +127,9 @@ func newPythonProcessor(conf *service.ParsedConfig, mgr *service.Resources) (ser
 	}
 
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	cache := getCompilationCache()
+
+	r := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithCompilationCache(cache))
 	_, err := wasi_snapshot_preview1.Instantiate(ctx, r)
 	if err != nil {
 		return nil, err
