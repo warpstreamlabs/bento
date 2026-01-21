@@ -36,7 +36,7 @@ jobs:
         check-latest: true
 
     - name: Deps
-      run: make deps generate && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
+      run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
 
     - name: Integration Test
       run: go test -run "^Test.*Integration.*$" -timeout 60m ./...

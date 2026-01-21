@@ -17,7 +17,7 @@ var (
 
 	// getCompliationCache allows us to compile an in-memory compilation cache once, and have it re-used between
 	// processor instantiations.
-	// TODO(gregfurman): Look into a wazero.NewCompilationCacheWithDir for FS persistence (likely within the ./artifacts dir).
+	// TODO(gregfurman): Look into a wazero.NewCompilationCacheWithDir for FS persistence (likely within the ./runtime dir).
 	// TODO(gregfurman): We never close the CompilationCache since it's shared between processors.
 	getCompilationCache = sync.OnceValue(wazero.NewCompilationCache)
 )
@@ -121,6 +121,11 @@ type pythonProcessor struct {
 }
 
 func newPythonProcessor(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+	pythonWASM, err := getPythonWasm()
+	if err != nil {
+		return nil, err
+	}
+
 	if len(pythonWASM) == 0 || len(pythonEntrypoint) == 0 {
 		mgr.Logger().Error("cannot load in python processor without WASM runtime and entrypoint.py being set.")
 		return nil, errNoWasmRuntime
@@ -130,7 +135,7 @@ func newPythonProcessor(conf *service.ParsedConfig, mgr *service.Resources) (ser
 	cache := getCompilationCache()
 
 	r := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().WithCompilationCache(cache))
-	_, err := wasi_snapshot_preview1.Instantiate(ctx, r)
+	_, err = wasi_snapshot_preview1.Instantiate(ctx, r)
 	if err != nil {
 		return nil, err
 	}

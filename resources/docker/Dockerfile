@@ -8,7 +8,6 @@ WORKDIR /go/src/github.com/warpstreamlabs/bento/
 # Update dependencies: On unchanged dependencies, cached layer will be reused
 COPY go.* /go/src/github.com/warpstreamlabs/bento/
 RUN go mod download
-RUN go generate ./...
 
 # Build
 COPY . /go/src/github.com/warpstreamlabs/bento/
