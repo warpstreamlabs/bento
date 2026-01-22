@@ -3,6 +3,23 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.15.0 - <<TBD>>
+
+### Added
+
+- json schema generator tool that produces a json schema for Bento config, available from schemastore.org @mueckinger
+- `set_metadata` field to `opensnowcat` processor @joaolcorreia
+- updated internal message proto spec for multi-batch support @gregfurman
+- `kubernetes_watch` input watches kubernetes resources for changes @aronchick
+- `strict_schema` field to various parquet components which when false will enable reading parquet files with non-standard schema structures @triddell
+- `couchbase` output component @sapk
+
+### Changed
+
+- `s2` input & output component updated (`auth_token` field replaced with `access_token`) @infiniteregrets 
+- 
+
+
 ## 1.14.1 - 2026-01-12
 
 ### Fixed
