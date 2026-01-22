@@ -69,6 +69,11 @@ input:
     rebalance_period: 30s
     lease_period: 30s
     start_from_oldest: true
+    enhanced_fan_out:
+      enabled: false
+      consumer_name: ""
+      consumer_arn: ""
+      record_buffer_cap: 1
     region: ""
     endpoint: ""
     credentials:
@@ -221,6 +226,45 @@ Whether to consume from the oldest message when a sequence does not yet exist fo
 
 Type: `bool`  
 Default: `true`  
+
+### `enhanced_fan_out`
+
+Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.
+
+
+Type: `object`  
+
+### `enhanced_fan_out.enabled`
+
+Enable Enhanced Fan Out mode for push-based streaming with dedicated throughput.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `enhanced_fan_out.consumer_name`
+
+Consumer name for EFO registration. Auto-generated if empty: bento-{clientID}.
+
+
+Type: `string`  
+Default: `""`  
+
+### `enhanced_fan_out.consumer_arn`
+
+Existing consumer ARN to use. If provided, skips registration.
+
+
+Type: `string`  
+Default: `""`  
+
+### `enhanced_fan_out.record_buffer_cap`
+
+Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 1 for minimal memory footprint.
+
+
+Type: `int`  
+Default: `1`  
 
 ### `region`
 
