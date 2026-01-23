@@ -103,8 +103,8 @@ func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, e
 		if efoConf.RecordBufferCap, err = efoNs.FieldInt(kiEFOFieldRecordBufferCap); err != nil {
 			return
 		}
-		if efoConf.RecordBufferCap < 1 {
-			err = errors.New("enhanced_fan_out.record_buffer_cap must be at least 1")
+		if efoConf.RecordBufferCap < 0 {
+			err = errors.New("enhanced_fan_out.record_buffer_cap must be at least 0")
 			return
 		}
 		conf.EnhancedFanOut = efoConf
@@ -191,8 +191,8 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 				Optional().
 				Advanced(),
 			service.NewIntField(kiEFOFieldRecordBufferCap).
-				Description("Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 1 for minimal memory footprint.").
-				Default(1).
+				Description("Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 0 for unbuffered channel (minimal memory footprint).").
+				Default(0).
 				Advanced(),
 		).
 			Description("Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.").

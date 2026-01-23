@@ -73,7 +73,7 @@ input:
       enabled: false
       consumer_name: ""
       consumer_arn: ""
-      record_buffer_cap: 1
+      record_buffer_cap: 0
     region: ""
     endpoint: ""
     credentials:
@@ -260,11 +260,11 @@ Default: `""`
 
 ### `enhanced_fan_out.record_buffer_cap`
 
-Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 1 for minimal memory footprint.
+Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 0 for unbuffered channel (minimal memory footprint).
 
 
 Type: `int`  
-Default: `1`  
+Default: `0`  
 
 ### `region`
 

@@ -216,8 +216,8 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 		k.log.Debugf("Consuming stream '%v' shard '%v' with Enhanced Fan Out as client '%v'", info.id, shardID, k.checkpointer.clientID)
 
 		// Start subscription in a separate goroutine
-		bufferCap := 1
-		if k.conf.EnhancedFanOut != nil && k.conf.EnhancedFanOut.RecordBufferCap > 0 {
+		bufferCap := 0
+		if k.conf.EnhancedFanOut != nil {
 			bufferCap = k.conf.EnhancedFanOut.RecordBufferCap
 		}
 		recordsChan := make(chan []types.Record, bufferCap)
