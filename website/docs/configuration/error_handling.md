@@ -77,8 +77,7 @@ It's also possible to capture additional context about where the error originate
 ```yaml
 pipeline:
   processors:
-    - label: foo
-      resource: foo # Processor that might fail
+    - resource: foo # Processor that might fail
     - catch:
       - log:
           message: "Processor ${!error_source_label()} failed: ${!error()}"

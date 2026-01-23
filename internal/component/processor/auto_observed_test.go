@@ -193,9 +193,10 @@ func TestBatchProcessorAirGapOneToError(t *testing.T) {
 	dErr, ok := err.(*value.DetailedError)
 	require.True(t, ok)
 
-	require.Equal(t, "", dErr.Path())
 	require.Equal(t, "foo", dErr.Type())
-	require.Equal(t, "", dErr.Label())
+	// FIXME: the observability component is mocked out
+	require.Empty(t, dErr.Path())
+	require.Empty(t, dErr.Label())
 }
 
 func TestBatchProcessorAirGapOneToMany(t *testing.T) {
