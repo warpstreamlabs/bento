@@ -182,7 +182,7 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 				Description("Enable Enhanced Fan Out mode for push-based streaming with dedicated throughput.").
 				Default(false),
 			service.NewStringField(kiEFOFieldConsumerName).
-				Description("Consumer name for EFO registration. Auto-generated if empty: bento-{clientID}.").
+				Description("Consumer name for EFO registration. Auto-generated if empty: bento-clientID.").
 				Default("").
 				Optional(),
 			service.NewStringField(kiEFOFieldConsumerARN).
