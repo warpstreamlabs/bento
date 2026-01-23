@@ -41,7 +41,7 @@ func newKinesisEFOManager(conf *kiEFOConfig, streamARN, clientID string, svc *ki
 
 	consumerName := conf.ConsumerName
 	if consumerName == "" && conf.ConsumerARN == "" {
-		consumerName = fmt.Sprintf("bento-%s", clientID)
+		consumerName = "bento-" + clientID
 	}
 
 	return &kinesisEFOManager{
