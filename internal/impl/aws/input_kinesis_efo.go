@@ -105,6 +105,11 @@ func (m *kinesisEFOManager) describeAndWaitForActive(ctx context.Context) (strin
 	m.consumerARN = *output.ConsumerDescription.ConsumerARN
 	m.log.Infof("Found existing consumer with ARN: %s", m.consumerARN)
 
+	if output.ConsumerDescription.ConsumerStatus == types.ConsumerStatusActive {
+		m.log.Infof("Consumer is already ACTIVE")
+		return m.consumerARN, nil
+	}
+
 	if err := m.waitForActiveConsumer(ctx); err != nil {
 		return "", fmt.Errorf("failed waiting for consumer to become active: %w", err)
 	}
