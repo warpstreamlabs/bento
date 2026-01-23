@@ -353,13 +353,11 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 				})
 
 			case sequence := <-resubscribeChan:
-				// Subscription completed successfully, schedule resubscription
-				time.AfterFunc(4*time.Minute+30*time.Second, func() {
-					select {
-					case subscriptionTrigger <- sequence:
-					case <-k.ctx.Done():
-					}
-				})
+				// Subscription completed successfully, resubscribe immediately to maintain continuous data flow
+				select {
+				case subscriptionTrigger <- sequence:
+				case <-k.ctx.Done():
+				}
 
 			case <-k.ctx.Done():
 				state = awsKinesisConsumerClosing
