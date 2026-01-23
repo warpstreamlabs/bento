@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/cenkalti/backoff/v4"
+
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 // kinesisEFOManager handles Enhanced Fan Out consumer registration and lifecycle
@@ -19,18 +21,11 @@ type kinesisEFOManager struct {
 	consumerName string
 	consumerARN  string
 	svc          *kinesis.Client
-	log          awsLogger
-}
-
-type awsLogger interface {
-	Debugf(format string, v ...any)
-	Infof(format string, v ...any)
-	Warnf(format string, v ...any)
-	Errorf(format string, v ...any)
+	log          *service.Logger
 }
 
 // newKinesisEFOManager creates a new EFO manager
-func newKinesisEFOManager(conf *kiEFOConfig, streamARN, clientID string, svc *kinesis.Client, log awsLogger) (*kinesisEFOManager, error) {
+func newKinesisEFOManager(conf *kiEFOConfig, streamARN, clientID string, svc *kinesis.Client, log *service.Logger) (*kinesisEFOManager, error) {
 	if conf == nil {
 		return nil, errors.New("enhanced fan out config is nil")
 	}
