@@ -247,7 +247,6 @@ type kinesisReader struct {
 
 	svc          *kinesis.Client
 	checkpointer *awsKinesisCheckpointer
-	efoManager   *kinesisEFOManager
 	efoEnabled   bool
 
 	streams []*streamInfo
