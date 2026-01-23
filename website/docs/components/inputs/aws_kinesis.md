@@ -244,7 +244,7 @@ Default: `false`
 
 ### `enhanced_fan_out.consumer_name`
 
-Consumer name for EFO registration. Auto-generated if empty: bento-{clientID}.
+Consumer name for EFO registration. Auto-generated if empty: bento-clientID.
 
 
 Type: `string`  
