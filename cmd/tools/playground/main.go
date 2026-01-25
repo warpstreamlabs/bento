@@ -3,12 +3,14 @@
 package main
 
 import (
+	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/cli/blobl"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
-// main initializes and exposes Bloblang playground functions to JS via WASM
+// main initializes and exposes Bloblang playground functions to JS via WASM.
 func main() {
-	blobl.InitializeWASM()
-	select {} // Keeps Go runtime alive to handle JS calls
+	env := bloblang.GlobalEnvironment().WithoutFunctions("env", "file")
+	blobl.InitWASM(env)
+	select {} // Keep Go runtime alive to handle JS calls
 }
