@@ -1,12 +1,14 @@
 //go:build wasm
 
-package blobl
+// Package wasm provides WebAssembly bindings for the Bloblang playground.
+package wasm
 
 import (
 	"encoding/json"
 	"syscall/js"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl"
 )
 
 // executeHandler executes a Bloblang mapping against input JSON.
@@ -21,7 +23,7 @@ func executeHandler(env *bloblang.Environment) js.Func {
 		}
 
 		input, mapping := args[0].String(), args[1].String()
-		response := executeBloblangMapping(env, input, mapping)
+		response := blobl.ExecuteBloblangMapping(env, input, mapping)
 
 		return toJS(map[string]any{
 			"mapping_error": response.MappingError,
@@ -42,7 +44,7 @@ func validateHandler(env *bloblang.Environment) js.Func {
 
 		mapping := args[0].String()
 
-		valid, err := validateBloblangMapping(env, mapping)
+		valid, err := blobl.ValidateBloblangMapping(env, mapping)
 		if err != nil {
 			panic(js.Global().Get("Error").New(err.Error()))
 		}
@@ -54,7 +56,7 @@ func validateHandler(env *bloblang.Environment) js.Func {
 // syntaxHandler exposes Bloblang syntax metadata for editor tooling.
 func syntaxHandler(env *bloblang.Environment) js.Func {
 	return js.FuncOf(func(_ js.Value, _ []js.Value) any {
-		syntax, err := generateBloblangSyntax(env)
+		syntax, err := blobl.GenerateBloblangSyntax(env)
 		if err != nil {
 			panic(js.Global().Get("Error").New(err.Error()))
 		}
@@ -74,7 +76,7 @@ func formatHandler(env *bloblang.Environment) js.Func {
 
 		mapping := args[0].String()
 
-		formatted, err := formatBloblangMapping(env, mapping)
+		formatted, err := blobl.FormatBloblangMapping(env, mapping)
 		if err != nil {
 			panic(js.Global().Get("Error").New(err.Error()))
 		}
@@ -92,14 +94,14 @@ func autocompleteHandler(env *bloblang.Environment) js.Func {
 			))
 		}
 
-		var req AutocompletionRequest
+		var req blobl.AutocompletionRequest
 		if err := json.Unmarshal([]byte(args[0].String()), &req); err != nil {
 			panic(js.Global().Get("Error").New(
 				"failed to parse request JSON: " + err.Error(),
 			))
 		}
 
-		completions, err := generateAutocompletion(env, req)
+		completions, err := blobl.GenerateAutocompletion(env, req)
 		if err != nil {
 			panic(js.Global().Get("Error").New(err.Error()))
 		}
@@ -122,8 +124,8 @@ func toJS(data any) js.Value {
 	return js.Global().Get("JSON").Call("parse", string(b))
 }
 
-// InitWASM registers the Bloblang WASM API on the global object.
-func InitWASM(env *bloblang.Environment) {
+// Init registers the Bloblang WASM API on the global object.
+func Init(env *bloblang.Environment) {
 	api := js.Global().Get("Object").New()
 
 	api.Set("execute", executeHandler(env))

@@ -134,10 +134,10 @@ func (e *execCache) runBloblangExecutor(exec *mapping.Executor, rawInput, pretty
 	return resultStr, nil
 }
 
-// executeBloblangMapping compiles and executes a Bloblang mapping against JSON input.
-// Returns an executionResult with parsed result or error details.
-func executeBloblangMapping(env *bloblang.Environment, input, mapping string) *executionResult {
-	result := &executionResult{
+// ExecuteBloblangMapping compiles and executes a Bloblang mapping against JSON input.
+// Returns an ExecutionResult with parsed result or error details.
+func ExecuteBloblangMapping(env *bloblang.Environment, input, mapping string) *ExecutionResult {
+	result := &ExecutionResult{
 		Result:       nil,
 		ParseError:   nil,
 		MappingError: nil,
@@ -174,9 +174,9 @@ func executeBloblangMapping(env *bloblang.Environment, input, mapping string) *e
 	return result
 }
 
-// validateBloblangMapping validates a Bloblang mapping without executing it.
+// ValidateBloblangMapping validates a Bloblang mapping without executing it.
 // Note: Not currently used by the playground UI ('execute' already validates).
-func validateBloblangMapping(env *bloblang.Environment, mapping string) (bool, error) {
+func ValidateBloblangMapping(env *bloblang.Environment, mapping string) (bool, error) {
 	if mapping == "" {
 		return false, errors.New("mapping cannot be empty")
 	}
@@ -189,9 +189,9 @@ func validateBloblangMapping(env *bloblang.Environment, mapping string) (bool, e
 	return true, nil
 }
 
-// generateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
+// GenerateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
 // Iterates through all functions/methods in the environment and pre-generates HTML documentation.
-func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
+func GenerateBloblangSyntax(env *bloblang.Environment) (BloblangSyntax, error) {
 	var functionNames, methodNames []string
 	functions := make(map[string]functionSpecWithHTML)
 	methods := make(map[string]methodSpecWithHTML)
@@ -214,7 +214,7 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 		methodNames = append(methodNames, name)
 	})
 
-	return bloblangSyntax{
+	return BloblangSyntax{
 		Functions:     functions,
 		Methods:       methods,
 		Rules:         buildSyntaxHighlightingRules(functionNames, methodNames),
@@ -223,8 +223,8 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	}, nil
 }
 
-// formatBloblangMapping formats Bloblang mappings.
-func formatBloblangMapping(env *bloblang.Environment, mapping string) (string, error) {
+// FormatBloblangMapping formats Bloblang mappings.
+func FormatBloblangMapping(env *bloblang.Environment, mapping string) (string, error) {
 	if mapping == "" {
 		return "", errors.New("mapping cannot be empty")
 	}
@@ -248,8 +248,8 @@ func formatBloblangMapping(env *bloblang.Environment, mapping string) (string, e
 	return formatted, nil
 }
 
-// generateAutocompletion provides context-aware autocompletion for Bloblang.
-func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) ([]CompletionItem, error) {
+// GenerateAutocompletion provides context-aware autocompletion for Bloblang.
+func GenerateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) ([]CompletionItem, error) {
 	if err := validateAutocompletionRequest(req); err != nil {
 		return nil, err
 	}
