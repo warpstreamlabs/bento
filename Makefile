@@ -128,6 +128,3 @@ playground:
 		cp "$$(go env GOROOT)/misc/wasm/wasm_exec.js" "$(WEBSITE_DIR)/static/playground/js/wasm_exec.js"; \
 	fi
 	@GOOS=js GOARCH=wasm go build -o "$(WEBSITE_DIR)/static/playground/playground.wasm" "cmd/tools/playground/main.go"
-
-playground-test:
-	@go test ./internal/cli/blobl -timeout 3m 
