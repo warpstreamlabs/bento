@@ -283,16 +283,11 @@ class EditorManager {
               return callback(null, []);
             }
 
-            let result = await window.playground.api.autocomplete(request);
+            const completions = await window.playground.api.autocomplete(request);
 
-            if (
-              result &&
-              result.success &&
-              result.completions &&
-              result.completions.length > 0
-            ) {
+            if (completions && completions.length > 0) {
               // Convert Go completion format to ACE editor format
-              const aceCompletions = result.completions.map((item) => ({
+              const aceCompletions = completions.map((item) => ({
                 caption: item.caption,
                 value: item.value || item.caption,
                 snippet: item.snippet,

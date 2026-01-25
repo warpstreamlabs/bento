@@ -19,6 +19,12 @@ type execCache struct {
 	vars map[string]any
 }
 
+// completionCache holds cached syntax data to avoid repeated environment walks.
+type completionCache struct {
+	syntax *bloblangSyntax
+	env    *bloblang.Environment
+}
+
 // highlightRule represents a token type and regex pattern for syntax highlighting.
 // Token is a semantic class used to apply styling.
 // Regex is a JS-compatible regex pattern used to match code tokens.
@@ -27,20 +33,19 @@ type highlightRule struct {
 	Regex string `json:"regex"`
 }
 
-// functionSpecWithHTML extends FunctionSpec with pre-generated HTML documentation
+// functionSpecWithHTML extends FunctionSpec with pre-generated HTML documentation.
 type functionSpecWithHTML struct {
 	query.FunctionSpec
 	DocHTML string `json:"docHTML"`
 }
 
-// methodSpecWithHTML extends MethodSpec with pre-generated HTML documentation
+// methodSpecWithHTML extends MethodSpec with pre-generated HTML documentation.
 type methodSpecWithHTML struct {
 	query.MethodSpec
 	DocHTML string `json:"docHTML"`
 }
 
-// bloblangSyntax contains syntax metadata for the Bloblang language,
-// including function/method specs and highlighting rules.
+// bloblangSyntax contains syntax metadata and highlighting rules.
 type bloblangSyntax struct {
 	// Rich function and method data with pre-generated documentation HTML
 	Functions map[string]functionSpecWithHTML `json:"functions"`
@@ -60,7 +65,7 @@ type Walker interface {
 	WalkMethods(fn func(name string, spec query.MethodSpec))
 }
 
-// CompletionItem represents an autocompletion suggestion
+// CompletionItem represents an autocompletion suggestion.
 type CompletionItem struct {
 	Caption     string `json:"caption"`     // Display name
 	Value       string `json:"value"`       // Insert value
@@ -72,35 +77,9 @@ type CompletionItem struct {
 	Description string `json:"description"` // Simple description
 }
 
-// AutocompletionRequest represents a request for autocompletion
+// AutocompletionRequest represents a request for autocompletion.
 type AutocompletionRequest struct {
 	Line         string `json:"line"`         // The current line text
 	Column       int    `json:"column"`       // Cursor column position
 	BeforeCursor string `json:"beforeCursor"` // Text before cursor position
-}
-
-// AutocompletionResponse represents the response with completion suggestions
-type AutocompletionResponse struct {
-	Completions []CompletionItem `json:"completions"`
-	Success     bool             `json:"success"`
-	Error       string           `json:"error,omitempty"`
-}
-
-// completionCache holds cached syntax data to avoid repeated environment walks
-type completionCache struct {
-	syntax *bloblangSyntax
-	env    *bloblang.Environment
-}
-
-// FormatMappingResponse represents the standardized response for mapping formatting
-type FormatMappingResponse struct {
-	Success   bool   `json:"success"`
-	Formatted string `json:"formatted"`
-	Error     string `json:"error,omitempty"`
-}
-
-// ValidationResponse represents the response from validating a Bloblang mapping
-type ValidationResponse struct {
-	Valid bool   `json:"valid"`
-	Error string `json:"error,omitempty"`
 }

@@ -330,8 +330,12 @@ class BloblangPlayground {
   }
 
   async formatMapping() {
-    const result = await this.api.format(this.editor.getMapping());
-    if (result.success) this.editor.setMapping(result.formatted);
+    try {
+      const formatted = await this.api.format(this.editor.getMapping());
+      if (formatted) this.editor.setMapping(formatted);
+    } catch (error) {
+      console.error("Format failed:", error.message);
+    }
   }
 
   async saveOutput() {
