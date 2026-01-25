@@ -109,7 +109,7 @@ func getCompletions(specs any) []CompletionItem {
 		for name, spec := range s {
 			completions = append(completions, buildCompletionItem(
 				name,
-				FunctionSpecWrapper{spec.FunctionSpec},
+				spec.BaseSpec,
 				spec.Category,
 				"function",
 				false, // isMethod
@@ -124,7 +124,7 @@ func getCompletions(specs any) []CompletionItem {
 			}
 			completions = append(completions, buildCompletionItem(
 				name,
-				MethodSpecWrapper{spec.MethodSpec},
+				spec.BaseSpec,
 				category,
 				"method",
 				true, // isMethod
@@ -136,7 +136,7 @@ func getCompletions(specs any) []CompletionItem {
 }
 
 // buildCompletionItem creates a CompletionItem from a spec wrapper.
-func buildCompletionItem(name string, spec Spec, category, itemType string, isMethod bool) CompletionItem {
+func buildCompletionItem(name string, spec query.BaseSpec, category, itemType string, isMethod bool) CompletionItem {
 	// Use "general" as default if no category provided
 	if category == "" {
 		category = "general"
@@ -146,8 +146,8 @@ func buildCompletionItem(name string, spec Spec, category, itemType string, isMe
 		Caption:     name,
 		Meta:        category,
 		Type:        itemType,
-		Score:       getSpecScore(spec),
-		Description: spec.GetDescription(),
+		Score:       getSpecScore(spec.Status),
+		Description: spec.Description,
 		DocHTML:     createSpecDocHTML(name, spec, isMethod),
 	}
 
@@ -161,9 +161,9 @@ func buildCompletionItem(name string, spec Spec, category, itemType string, isMe
 	return item
 }
 
-func getSpecScore(spec Spec) int {
+func getSpecScore(status query.Status) int {
 	// Prioritize by status (stable > beta > experimental)
-	switch spec.GetStatus() {
+	switch status {
 	case query.StatusStable:
 		return 1000
 	case query.StatusBeta:
@@ -174,16 +174,15 @@ func getSpecScore(spec Spec) int {
 	return 500
 }
 
-func hasSpecParameters(spec Spec) bool {
-	params := spec.GetParams()
-	return len(params.Definitions) > 0 || params.Variadic
+func hasSpecParameters(spec query.BaseSpec) bool {
+	return len(spec.Params.Definitions) > 0 || spec.Params.Variadic
 }
 
 // createSpecDocHTML creates HTML documentation for Bloblang functions and methods
-func createSpecDocHTML(name string, spec Spec, isMethod bool) string {
+func createSpecDocHTML(name string, spec query.BaseSpec, isMethod bool) string {
 	// Build signature with parameters
 	signature := buildSpecSignature(name, spec, isMethod)
-	status := strings.ToLower(string(spec.GetStatus()))
+	status := strings.ToLower(string(spec.Status))
 
 	// Generate documentation URL
 	docUrl := generateDocumentationLink(name, isMethod)
@@ -201,13 +200,13 @@ func createSpecDocHTML(name string, spec Spec, isMethod bool) string {
 		</div>`, signature, status, status))
 
 	// Version information
-	if spec.GetVersion() != "" {
+	if spec.Version != "" {
 		html.WriteString(fmt.Sprintf(`
-		<div class="ace-doc-version">Since: v%s</div>`, spec.GetVersion()))
+		<div class="ace-doc-version">Since: v%s</div>`, spec.Version))
 	}
 
 	// Parameters section
-	params := spec.GetParams()
+	params := spec.Params
 	if len(params.Definitions) > 0 {
 		html.WriteString(`
 		<div class="ace-doc-parameters">
@@ -234,7 +233,7 @@ func createSpecDocHTML(name string, spec Spec, isMethod bool) string {
 }
 
 // buildSpecSignature creates the signature with parameters for functions and methods
-func buildSpecSignature(name string, spec Spec, isMethod bool) string {
+func buildSpecSignature(name string, spec query.BaseSpec, isMethod bool) string {
 	var sig strings.Builder
 
 	if isMethod {
@@ -242,7 +241,7 @@ func buildSpecSignature(name string, spec Spec, isMethod bool) string {
 	}
 	sig.WriteString(name)
 
-	params := spec.GetParams()
+	params := spec.Params
 	if len(params.Definitions) > 0 {
 		sig.WriteString("(")
 		for i, param := range params.Definitions {

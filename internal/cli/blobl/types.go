@@ -86,34 +86,6 @@ type AutocompletionResponse struct {
 	Error       string           `json:"error,omitempty"`
 }
 
-// Spec represents a unified interface for function and method specs
-type Spec interface {
-	GetDescription() string
-	GetStatus() query.Status
-	GetVersion() string
-	GetParams() query.Params
-}
-
-// FunctionSpecWrapper wraps query.FunctionSpec to implement Spec interface
-type FunctionSpecWrapper struct {
-	query.FunctionSpec
-}
-
-func (f FunctionSpecWrapper) GetDescription() string  { return f.Description }
-func (f FunctionSpecWrapper) GetStatus() query.Status { return f.Status }
-func (f FunctionSpecWrapper) GetVersion() string      { return f.Version }
-func (f FunctionSpecWrapper) GetParams() query.Params { return f.Params }
-
-// MethodSpecWrapper wraps query.MethodSpec to implement Spec interface
-type MethodSpecWrapper struct {
-	query.MethodSpec
-}
-
-func (m MethodSpecWrapper) GetDescription() string  { return m.Description }
-func (m MethodSpecWrapper) GetStatus() query.Status { return m.Status }
-func (m MethodSpecWrapper) GetVersion() string      { return m.Version }
-func (m MethodSpecWrapper) GetParams() query.Params { return m.Params }
-
 // completionCache holds cached syntax data to avoid repeated environment walks
 type completionCache struct {
 	syntax *bloblangSyntax
