@@ -23,7 +23,7 @@ const (
 	docsBaseURL              = "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
 )
 
-// Compiled regex patterns for formatting
+// Compiled regex patterns for formatting.
 var (
 	multipleSpacesRegex = regexp.MustCompile(`\s{2,}`)
 	logicalAndRegex     = regexp.MustCompile(`\s*&&\s*`)
@@ -176,25 +176,17 @@ func executeBloblangMapping(env *bloblang.Environment, input, mapping string) *e
 
 // validateBloblangMapping validates a Bloblang mapping without executing it.
 // Note: Not currently used by the playground UI ('execute' already validates).
-func validateBloblangMapping(env *bloblang.Environment, mapping string) ValidationResponse {
+func validateBloblangMapping(env *bloblang.Environment, mapping string) (bool, error) {
 	if mapping == "" {
-		return ValidationResponse{
-			Valid: false,
-			Error: "Mapping cannot be empty",
-		}
+		return false, errors.New("mapping cannot be empty")
 	}
 
 	_, err := env.NewMapping(mapping)
 	if err != nil {
-		return ValidationResponse{
-			Valid: false,
-			Error: err.Error(),
-		}
+		return false, fmt.Errorf("could not parse mapping: %v", err)
 	}
 
-	return ValidationResponse{
-		Valid: true,
-	}
+	return true, nil
 }
 
 // generateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
@@ -231,71 +223,50 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	}, nil
 }
 
-// formatBloblangMapping formats Bloblang mappings
-func formatBloblangMapping(env *bloblang.Environment, mapping string) FormatMappingResponse {
+// formatBloblangMapping formats Bloblang mappings.
+func formatBloblangMapping(env *bloblang.Environment, mapping string) (string, error) {
 	if mapping == "" {
-		return FormatMappingResponse{
-			Success:   false,
-			Error:     "Mapping cannot be empty",
-			Formatted: "",
-		}
+		return "", errors.New("mapping cannot be empty")
 	}
 
 	_, err := env.NewMapping(mapping)
 	if err != nil {
-		return FormatMappingResponse{
-			Success:   false,
-			Error:     fmt.Sprintf("Parse error: %v", err),
-			Formatted: mapping,
+		if perr, ok := err.(*parser.Error); ok {
+			return "", fmt.Errorf(
+				"could not parse mapping: %v",
+				perr.ErrorAtPositionStructured("", []rune(mapping)),
+			)
 		}
+		return "", fmt.Errorf("could not parse mapping: %w", err)
 	}
 
-	formatted, formatErr := formatBloblang(mapping)
-	if formatErr != nil {
-		return FormatMappingResponse{
-			Success:   false,
-			Error:     formatErr.Error(),
-			Formatted: mapping,
-		}
+	formatted, err := formatBloblang(mapping)
+	if err != nil {
+		return "", fmt.Errorf("could not format mapping: %v", err)
 	}
 
-	return FormatMappingResponse{
-		Success:   true,
-		Formatted: formatted,
-		Error:     "",
-	}
+	return formatted, nil
 }
 
-// generateAutocompletion provides context-aware autocompletion for Bloblang
-func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) AutocompletionResponse {
+// generateAutocompletion provides context-aware autocompletion for Bloblang.
+func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) ([]CompletionItem, error) {
 	if err := validateAutocompletionRequest(req); err != nil {
-		return AutocompletionResponse{
-			Completions: []CompletionItem{},
-			Success:     false,
-			Error:       err.Error(),
-		}
+		return nil, err
 	}
 
 	// Don't suggest completions inside comments
 	if strings.Contains(req.BeforeCursor, "#") {
-		return AutocompletionResponse{
-			Completions: []CompletionItem{},
-			Success:     true,
-		}
+		return []CompletionItem{}, nil
 	}
 
 	syntaxData, err := getOrGenerateSyntax(env)
 	if err != nil {
-		return AutocompletionResponse{
-			Completions: []CompletionItem{},
-			Success:     false,
-			Error:       fmt.Sprintf("Failed to get syntax data: %v", err),
-		}
+		return nil, fmt.Errorf("failed to get syntax data: %w", err)
 	}
 
 	var completions []CompletionItem
-
 	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
+
 	if isMethodContext {
 		completions = append(completions, getCompletions(syntaxData.Methods)...)
 	} else {
@@ -303,8 +274,5 @@ func generateAutocompletion(env *bloblang.Environment, req AutocompletionRequest
 		completions = append(completions, getKeywordCompletions()...)
 	}
 
-	return AutocompletionResponse{
-		Completions: completions,
-		Success:     true,
-	}
+	return completions, nil
 }

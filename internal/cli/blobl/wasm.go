@@ -35,30 +35,31 @@ func executeHandler(env *bloblang.Environment) js.Func {
 func validateHandler(env *bloblang.Environment) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return toJS(ValidationResponse{
-				Valid: false,
-				Error: "Invalid arguments: expected one string (mapping)",
-			})
+			panic(js.Global().Get("Error").New(
+				"invalid arguments: expected one string (mapping)",
+			))
 		}
 
 		mapping := args[0].String()
-		response := validateBloblangMapping(env, mapping)
 
-		return toJS(response)
+		valid, err := validateBloblangMapping(env, mapping)
+		if err != nil {
+			panic(js.Global().Get("Error").New(err.Error()))
+		}
+
+		return toJS(valid)
 	})
 }
 
 // syntaxHandler exposes Bloblang syntax metadata for editor tooling.
 func syntaxHandler(env *bloblang.Environment) js.Func {
-	return js.FuncOf(func(_ js.Value, args []js.Value) any {
-		response, err := generateBloblangSyntax(env)
+	return js.FuncOf(func(_ js.Value, _ []js.Value) any {
+		syntax, err := generateBloblangSyntax(env)
 		if err != nil {
-			return toJS(map[string]any{
-				"error": err.Error(),
-			})
+			panic(js.Global().Get("Error").New(err.Error()))
 		}
 
-		return toJS(response)
+		return toJS(syntax)
 	})
 }
 
@@ -66,17 +67,19 @@ func syntaxHandler(env *bloblang.Environment) js.Func {
 func formatHandler(env *bloblang.Environment) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return toJS(FormatMappingResponse{
-				Error:     "Invalid arguments: expected one string (mapping)",
-				Formatted: "",
-				Success:   false,
-			})
+			panic(js.Global().Get("Error").New(
+				"invalid arguments: expected one string (mapping)",
+			))
 		}
 
 		mapping := args[0].String()
-		response := formatBloblangMapping(env, mapping)
 
-		return toJS(response)
+		formatted, err := formatBloblangMapping(env, mapping)
+		if err != nil {
+			panic(js.Global().Get("Error").New(err.Error()))
+		}
+
+		return toJS(formatted)
 	})
 }
 
@@ -84,27 +87,24 @@ func formatHandler(env *bloblang.Environment) js.Func {
 func autocompleteHandler(env *bloblang.Environment) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
-			return toJS(AutocompletionResponse{
-				Error:       "Invalid arguments: expected one string (request JSON)",
-				Completions: nil,
-				Success:     false,
-			})
+			panic(js.Global().Get("Error").New(
+				"invalid arguments: expected one string (request JSON)",
+			))
 		}
-
-		requestJSON := args[0].String()
 
 		var req AutocompletionRequest
-		if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-			return toJS(AutocompletionResponse{
-				Error:       "Failed to parse request JSON: " + err.Error(),
-				Completions: nil,
-				Success:     false,
-			})
+		if err := json.Unmarshal([]byte(args[0].String()), &req); err != nil {
+			panic(js.Global().Get("Error").New(
+				"failed to parse request JSON: " + err.Error(),
+			))
 		}
 
-		response := generateAutocompletion(env, req)
+		completions, err := generateAutocompletion(env, req)
+		if err != nil {
+			panic(js.Global().Get("Error").New(err.Error()))
+		}
 
-		return toJS(response)
+		return toJS(completions)
 	})
 }
 
@@ -116,7 +116,7 @@ func toJS(data any) js.Value {
 
 	b, err := json.Marshal(data)
 	if err != nil {
-		return js.ValueOf("error: " + err.Error())
+		return toJS("error: " + err.Error())
 	}
 
 	return js.Global().Get("JSON").Call("parse", string(b))
@@ -133,5 +133,5 @@ func InitWASM(env *bloblang.Environment) {
 	api.Set("autocomplete", autocompleteHandler(env))
 
 	js.Global().Set("bloblangApi", api)
-	js.Global().Set("wasmReady", js.ValueOf(true))
+	js.Global().Set("wasmReady", toJS(true))
 }

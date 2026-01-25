@@ -193,7 +193,11 @@ func (s *server) handleFormat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := formatBloblangMapping(s.env, request.Mapping)
+	response, err := formatBloblangMapping(s.env, request.Mapping)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -213,7 +217,11 @@ func (s *server) handleAutocomplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := generateAutocompletion(s.env, request)
+	response, err := generateAutocompletion(s.env, request)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -239,7 +247,6 @@ func (s *server) handleSyntax(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Note: Not currently used by the playground UI ('execute' already validates)
 func (s *server) handleValidate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -255,7 +262,11 @@ func (s *server) handleValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := validateBloblangMapping(s.env, request.Mapping)
+	response, err := validateBloblangMapping(s.env, request.Mapping)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {

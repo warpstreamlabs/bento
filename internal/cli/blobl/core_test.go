@@ -108,9 +108,28 @@ func TestValidateBloblangMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := validateBloblangMapping(env, tt.mapping)
-			if result.Valid != tt.valid {
-				t.Errorf("validateBloblangMapping() = %v, want %v (error: %s)", result.Valid, tt.valid, result.Error)
+			valid, err := validateBloblangMapping(env, tt.mapping)
+
+			if valid != tt.valid {
+				t.Errorf(
+					"validateBloblangMapping() valid = %v, want %v (err=%v)",
+					valid,
+					tt.valid,
+					err,
+				)
+			}
+
+			if tt.valid && err != nil {
+				t.Errorf(
+					"validateBloblangMapping() unexpected error: %v",
+					err,
+				)
+			}
+
+			if !tt.valid && err == nil {
+				t.Errorf(
+					"validateBloblangMapping() expected error, got nil",
+				)
 			}
 		})
 	}
@@ -177,21 +196,22 @@ func TestFormatBloblangMapping(t *testing.T) {
 	tests := []struct {
 		name        string
 		mapping     string
+		expected    string
 		expectError bool
 	}{
 		{
-			name:        "valid mapping",
-			mapping:     `root.name = "test"`,
-			expectError: false,
+			name:     "valid mapping",
+			mapping:  `root.name = "test"`,
+			expected: `root.name = "test"`,
 		},
 		{
-			name:        "mapping with this",
-			mapping:     `root = this`,
-			expectError: false,
+			name:     "mapping with this",
+			mapping:  `root = this`,
+			expected: `root = this`,
 		},
 		{
 			name:        "empty mapping",
-			mapping:     "",
+			mapping:     ``,
 			expectError: true,
 		},
 		{
@@ -199,18 +219,59 @@ func TestFormatBloblangMapping(t *testing.T) {
 			mapping:     `root.bad =`,
 			expectError: true,
 		},
+		{
+			name: "method chain spacing",
+			mapping: `root.about = "%s 🍱 is a %s %s".format(
+				this.name.capitalize(),
+				this.features.join(" & "),
+				this.type. split("_").join(" ")
+			)`,
+			expected: `root.about = "%s 🍱 is a %s %s".format(
+  this.name.capitalize(),
+  this.features.join(" & "),
+  this.type.split("_").join(" ")
+)`,
+		},
+		{
+			name: "method call spacing",
+			mapping: `
+				root.stars = "★". repeat((this.stars / 100) )
+			`,
+			expected: `root.stars = "★".repeat((this.stars / 100))`,
+		},
+		{
+			name: "no formatting inside strings",
+			mapping: `
+				root.msg = "this . should not . change"
+			`,
+			expected: `root.msg = "this . should not . change"`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatBloblangMapping(bloblang.GlobalEnvironment(), tt.mapping)
+			formatted, err := formatBloblangMapping(
+				bloblang.GlobalEnvironment(),
+				tt.mapping,
+			)
 
-			if result.Success == tt.expectError {
-				t.Errorf("formatBloblangMapping() success = %v, expectError = %v", result.Success, tt.expectError)
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
 			}
 
-			if !tt.expectError && result.Formatted == "" {
-				t.Error("formatBloblangMapping() returned empty formatted result")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if formatted != tt.expected {
+				t.Errorf(
+					"formatted output mismatch\nexpected:\n%s\n\ngot:\n%s",
+					tt.expected,
+					formatted,
+				)
 			}
 		})
 	}
@@ -296,19 +357,26 @@ func TestGenerateAutocompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateAutocompletion(env, tt.request)
+			completions, err := generateAutocompletion(env, tt.request)
 
-			if result.Success == tt.expectError {
-				t.Errorf("generateAutocompletion() success = %v, expectError = %v", result.Success, tt.expectError)
+			if tt.expectError && err == nil {
+				t.Errorf("generateAutocompletion() expected error, got nil")
+			}
+
+			if !tt.expectError && err != nil {
+				t.Errorf("generateAutocompletion() unexpected error: %v", err)
 			}
 
 			if tt.expectCompletions {
-				if len(result.Completions) < tt.minCompletions {
-					t.Errorf("Expected at least %d completions, got %d", tt.minCompletions, len(result.Completions))
+				if len(completions) < tt.minCompletions {
+					t.Errorf(
+						"Expected at least %d completions, got %d",
+						tt.minCompletions,
+						len(completions),
+					)
 				}
 
-				// Verify completion structure
-				for _, comp := range result.Completions {
+				for _, comp := range completions {
 					if comp.Caption == "" {
 						t.Error("Completion missing Caption")
 					}
@@ -321,18 +389,16 @@ func TestGenerateAutocompletion(t *testing.T) {
 					if comp.Meta == "" {
 						t.Error("Completion missing Meta")
 					}
-					// Either Value or Snippet should be set
 					if comp.Value == "" && comp.Snippet == "" {
 						t.Error("Completion missing both Value and Snippet")
 					}
 				}
 
-				// Verify expected types are present
 				hasKeyword := false
 				hasFunction := false
 				hasMethod := false
 
-				for _, comp := range result.Completions {
+				for _, comp := range completions {
 					switch comp.Type {
 					case "keyword":
 						hasKeyword = true
@@ -353,8 +419,11 @@ func TestGenerateAutocompletion(t *testing.T) {
 					t.Error("Expected method completions but found none")
 				}
 			} else {
-				if len(result.Completions) > 0 {
-					t.Errorf("Expected no completions, got %d", len(result.Completions))
+				if len(completions) > 0 {
+					t.Errorf(
+						"Expected no completions, got %d",
+						len(completions),
+					)
 				}
 			}
 		})

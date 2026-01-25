@@ -328,9 +328,11 @@ func formatBloblang(originalMapping string) (string, error) {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Handle empty lines
+		// Handle empty lines - only preserve if content exists
 		if trimmed == "" {
-			formatted = append(formatted, "")
+			if len(formatted) > 0 {
+				formatted = append(formatted, "")
+			}
 			continue
 		}
 
@@ -366,6 +368,11 @@ func formatBloblang(originalMapping string) (string, error) {
 		if countOpeningBraces(trimmed) > countClosingBraces(trimmed) {
 			indentLevel += (countOpeningBraces(trimmed) - countClosingBraces(trimmed))
 		}
+	}
+
+	// Trim trailing empty lines
+	for len(formatted) > 0 && formatted[len(formatted)-1] == "" {
+		formatted = formatted[:len(formatted)-1]
 	}
 
 	return strings.Join(formatted, "\n"), nil
