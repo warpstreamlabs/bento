@@ -6,8 +6,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
-// executionResult represents the result of executing a Bloblang mapping.
-type executionResult struct {
+// ExecutionResult represents the result of executing a Bloblang mapping.
+type ExecutionResult struct {
 	Result       any `json:"result"`
 	ParseError   any `json:"parse_error"`
 	MappingError any `json:"mapping_error"`
@@ -21,7 +21,7 @@ type execCache struct {
 
 // completionCache holds cached syntax data to avoid repeated environment walks.
 type completionCache struct {
-	syntax *bloblangSyntax
+	syntax *BloblangSyntax
 	env    *bloblang.Environment
 }
 
@@ -45,8 +45,8 @@ type methodSpecWithHTML struct {
 	DocHTML string `json:"docHTML"`
 }
 
-// bloblangSyntax contains syntax metadata and highlighting rules.
-type bloblangSyntax struct {
+// BloblangSyntax contains syntax metadata and highlighting rules.
+type BloblangSyntax struct {
 	// Rich function and method data with pre-generated documentation HTML
 	Functions map[string]functionSpecWithHTML `json:"functions"`
 	Methods   map[string]methodSpecWithHTML   `json:"methods"`

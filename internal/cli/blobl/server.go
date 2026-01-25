@@ -157,7 +157,7 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 	s.fSync.update(req.Input, req.Mapping)
 
-	response := executeBloblangMapping(s.env, req.Input, req.Mapping)
+	response := ExecuteBloblangMapping(s.env, req.Input, req.Mapping)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(struct {
@@ -193,7 +193,7 @@ func (s *server) handleFormat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := formatBloblangMapping(s.env, request.Mapping)
+	response, err := FormatBloblangMapping(s.env, request.Mapping)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -217,7 +217,7 @@ func (s *server) handleAutocomplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := generateAutocompletion(s.env, request)
+	response, err := GenerateAutocompletion(s.env, request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -235,7 +235,7 @@ func (s *server) handleSyntax(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := generateBloblangSyntax(s.env)
+	response, err := GenerateBloblangSyntax(s.env)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -262,7 +262,7 @@ func (s *server) handleValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := validateBloblangMapping(s.env, request.Mapping)
+	response, err := ValidateBloblangMapping(s.env, request.Mapping)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -275,7 +275,7 @@ func (s *server) handleValidate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) generateSyntaxTemplate() (template.JS, error) {
-	syntax, err := generateBloblangSyntax(s.env)
+	syntax, err := GenerateBloblangSyntax(s.env)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
 	}

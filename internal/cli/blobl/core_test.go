@@ -50,16 +50,16 @@ func TestExecuteMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := executeBloblangMapping(env, tt.input, tt.mapping)
+			result := ExecuteBloblangMapping(env, tt.input, tt.mapping)
 
 			hasError := result.ParseError != nil || result.MappingError != nil
 			if hasError != tt.expectError {
-				t.Errorf("executeBloblangMapping() error = %v, expectError = %v", hasError, tt.expectError)
+				t.Errorf("ExecuteBloblangMapping() error = %v, expectError = %v", hasError, tt.expectError)
 			}
 
 			hasResult := result.Result != nil
 			if hasResult != tt.expectResult {
-				t.Errorf("executeBloblangMapping() hasResult = %v, expectResult = %v", hasResult, tt.expectResult)
+				t.Errorf("ExecuteBloblangMapping() hasResult = %v, expectResult = %v", hasResult, tt.expectResult)
 			}
 		})
 	}
@@ -108,11 +108,11 @@ func TestValidateBloblangMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid, err := validateBloblangMapping(env, tt.mapping)
+			valid, err := ValidateBloblangMapping(env, tt.mapping)
 
 			if valid != tt.valid {
 				t.Errorf(
-					"validateBloblangMapping() valid = %v, want %v (err=%v)",
+					"ValidateBloblangMapping() valid = %v, want %v (err=%v)",
 					valid,
 					tt.valid,
 					err,
@@ -121,14 +121,14 @@ func TestValidateBloblangMapping(t *testing.T) {
 
 			if tt.valid && err != nil {
 				t.Errorf(
-					"validateBloblangMapping() unexpected error: %v",
+					"ValidateBloblangMapping() unexpected error: %v",
 					err,
 				)
 			}
 
 			if !tt.valid && err == nil {
 				t.Errorf(
-					"validateBloblangMapping() expected error, got nil",
+					"ValidateBloblangMapping() expected error, got nil",
 				)
 			}
 		})
@@ -139,24 +139,24 @@ func TestValidateBloblangMapping(t *testing.T) {
 func TestGenerateBloblangSyntax(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
 
-	syntax, err := generateBloblangSyntax(env)
+	syntax, err := GenerateBloblangSyntax(env)
 	if err != nil {
-		t.Fatalf("generateBloblangSyntax() error = %v", err)
+		t.Fatalf("GenerateBloblangSyntax() error = %v", err)
 	}
 
 	// Check functions exist
 	if len(syntax.Functions) == 0 {
-		t.Error("generateBloblangSyntax() returned no functions")
+		t.Error("GenerateBloblangSyntax() returned no functions")
 	}
 
 	// Check methods exist
 	if len(syntax.Methods) == 0 {
-		t.Error("generateBloblangSyntax() returned no methods")
+		t.Error("GenerateBloblangSyntax() returned no methods")
 	}
 
 	// Check highlighting rules generated
 	if len(syntax.Rules) == 0 {
-		t.Error("generateBloblangSyntax() returned no syntax rules")
+		t.Error("GenerateBloblangSyntax() returned no syntax rules")
 	}
 
 	// Check that DocHTML is pre-generated for functions
@@ -172,7 +172,7 @@ func TestGenerateBloblangSyntax(t *testing.T) {
 		}
 	}
 	if !foundDocHTML {
-		t.Error("generateBloblangSyntax() did not pre-generate DocHTML for functions")
+		t.Error("GenerateBloblangSyntax() did not pre-generate DocHTML for functions")
 	}
 
 	// Check that DocHTML is pre-generated for methods
@@ -187,7 +187,7 @@ func TestGenerateBloblangSyntax(t *testing.T) {
 		}
 	}
 	if !foundMethodDocHTML {
-		t.Error("generateBloblangSyntax() did not pre-generate DocHTML for methods")
+		t.Error("GenerateBloblangSyntax() did not pre-generate DocHTML for methods")
 	}
 }
 
@@ -250,7 +250,7 @@ func TestFormatBloblangMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatted, err := formatBloblangMapping(
+			formatted, err := FormatBloblangMapping(
 				bloblang.GlobalEnvironment(),
 				tt.mapping,
 			)
@@ -357,14 +357,14 @@ func TestGenerateAutocompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			completions, err := generateAutocompletion(env, tt.request)
+			completions, err := GenerateAutocompletion(env, tt.request)
 
 			if tt.expectError && err == nil {
-				t.Errorf("generateAutocompletion() expected error, got nil")
+				t.Errorf("GenerateAutocompletion() expected error, got nil")
 			}
 
 			if !tt.expectError && err != nil {
-				t.Errorf("generateAutocompletion() unexpected error: %v", err)
+				t.Errorf("GenerateAutocompletion() unexpected error: %v", err)
 			}
 
 			if tt.expectCompletions {

@@ -26,9 +26,9 @@ func buildSyntaxHighlightingRules(functionNames, methodNames []string) []highlig
 
 // getOrGenerateSyntax returns cached syntax data, or generates and caches it on first call.
 // Caching prevents expensive regeneration (100+ functions/methods with HTML docs) on every keystroke.
-func getOrGenerateSyntax(env *bloblang.Environment) (*bloblangSyntax, error) {
+func getOrGenerateSyntax(env *bloblang.Environment) (*BloblangSyntax, error) {
 	if globalCompletionCache == nil || globalCompletionCache.env != env {
-		syntax, err := generateBloblangSyntax(env)
+		syntax, err := GenerateBloblangSyntax(env)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate Bloblang syntax: %w", err)
 		}
