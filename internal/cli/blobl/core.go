@@ -205,7 +205,7 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	methods := make(map[string]methodSpecWithHTML)
 
 	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
-		wrapper := FunctionSpecWrapper{spec}
+		wrapper := spec.BaseSpec
 		functions[name] = functionSpecWithHTML{
 			FunctionSpec: spec,
 			DocHTML:      createSpecDocHTML(name, wrapper, false),
@@ -214,7 +214,7 @@ func generateBloblangSyntax(env *bloblang.Environment) (bloblangSyntax, error) {
 	})
 
 	env.WalkMethods(func(name string, spec query.MethodSpec) {
-		wrapper := MethodSpecWrapper{spec}
+		wrapper := spec.BaseSpec
 		methods[name] = methodSpecWithHTML{
 			MethodSpec: spec,
 			DocHTML:    createSpecDocHTML(name, wrapper, true),
