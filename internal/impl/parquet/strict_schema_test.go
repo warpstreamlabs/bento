@@ -248,3 +248,432 @@ paths: [ "%v/test.parquet" ]
 
 	require.NoError(t, in.Close(tCtx))
 }
+
+// TestNestedStructSupport tests that strict_schema: false properly handles nested structs
+func TestNestedStructSupport(t *testing.T) {
+	t.Run("simple 2-level nested struct", func(t *testing.T) {
+		// Create a schema with nested struct: cloud.account.uid
+		nestedSchema := parquet.NewSchema("test", parquet.Group{
+			"id": parquet.Int(64),
+			"cloud": parquet.Group{
+				"account": parquet.Group{
+					"uid": parquet.String(),
+				},
+			},
+		})
+
+		buf := bytes.NewBuffer(nil)
+		pWtr := parquet.NewGenericWriter[any](buf, nestedSchema)
+
+		testData := []any{
+			map[string]any{
+				"id": int64(1),
+				"cloud": map[string]any{
+					"account": map[string]any{
+						"uid": "353785743975",
+					},
+				},
+			},
+			map[string]any{
+				"id": int64(2),
+				"cloud": map[string]any{
+					"account": map[string]any{
+						"uid": "123456789012",
+					},
+				},
+			},
+		}
+
+		_, err := pWtr.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, pWtr.Close())
+
+		// Test with strict_schema: false
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 2)
+
+		// Verify first record
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+		assert.Equal(t, int64(1), resultMap["id"])
+		
+		// Check nested structure
+		cloud, ok := resultMap["cloud"].(map[string]any)
+		require.True(t, ok, "cloud should be a map")
+		account, ok := cloud["account"].(map[string]any)
+		require.True(t, ok, "account should be a map")
+		assert.Equal(t, "353785743975", account["uid"])
+
+		// Verify second record
+		result, err = resBatch[1].AsStructured()
+		require.NoError(t, err)
+		resultMap = result.(map[string]any)
+		assert.Equal(t, int64(2), resultMap["id"])
+		
+		cloud, ok = resultMap["cloud"].(map[string]any)
+		require.True(t, ok)
+		account, ok = cloud["account"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "123456789012", account["uid"])
+	})
+
+	t.Run("3-level nested struct with multiple fields", func(t *testing.T) {
+		// Create a deeper nested structure
+		deepSchema := parquet.NewSchema("test", parquet.Group{
+			"id": parquet.Int(64),
+			"metadata": parquet.Group{
+				"product": parquet.Group{
+					"name":    parquet.String(),
+					"version": parquet.String(),
+				},
+			},
+			"time": parquet.Int(64),
+		})
+
+		buf := bytes.NewBuffer(nil)
+		pWtr := parquet.NewGenericWriter[any](buf, deepSchema)
+
+		testData := []any{
+			map[string]any{
+				"id": int64(100),
+				"metadata": map[string]any{
+					"product": map[string]any{
+						"name":    "TestProduct",
+						"version": "1.0.0",
+					},
+				},
+				"time": int64(1234567890),
+			},
+		}
+
+		_, err := pWtr.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, pWtr.Close())
+
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 1)
+
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+		
+		assert.Equal(t, int64(100), resultMap["id"])
+		assert.Equal(t, int64(1234567890), resultMap["time"])
+		
+		metadata, ok := resultMap["metadata"].(map[string]any)
+		require.True(t, ok)
+		product, ok := metadata["product"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "TestProduct", product["name"])
+		assert.Equal(t, "1.0.0", product["version"])
+	})
+
+	t.Run("complex multi-level nested structs", func(t *testing.T) {
+		// Test multiple nested structs at the same level with various field types
+		complexSchema := parquet.NewSchema("test", parquet.Group{
+			"time": parquet.Int(64),
+			"cloud": parquet.Group{
+				"account": parquet.Group{
+					"uid": parquet.String(),
+				},
+				"region": parquet.String(),
+			},
+			"src_endpoint": parquet.Group{
+				"ip": parquet.String(),
+				"port": parquet.Int(32),
+			},
+			"dst_endpoint": parquet.Group{
+				"ip": parquet.String(),
+				"port": parquet.Int(32),
+			},
+			"traffic": parquet.Group{
+				"bytes": parquet.Int(64),
+				"packets": parquet.Int(64),
+			},
+		})
+
+		buf := bytes.NewBuffer(nil)
+		pWtr := parquet.NewGenericWriter[any](buf, complexSchema)
+
+		testData := []any{
+			map[string]any{
+				"time": int64(1737561600000),
+				"cloud": map[string]any{
+					"account": map[string]any{
+						"uid": "353785743975",
+					},
+					"region": "us-west-2",
+				},
+				"src_endpoint": map[string]any{
+					"ip":   "10.0.1.100",
+					"port": int32(443),
+				},
+				"dst_endpoint": map[string]any{
+					"ip":   "10.0.2.200",
+					"port": int32(80),
+				},
+				"traffic": map[string]any{
+					"bytes":   int64(1024),
+					"packets": int64(10),
+				},
+			},
+		}
+
+		_, err := pWtr.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, pWtr.Close())
+
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 1)
+
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+
+		// Verify all nested structures are properly reconstructed
+		assert.Equal(t, int64(1737561600000), resultMap["time"])
+
+		cloud, ok := resultMap["cloud"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "us-west-2", cloud["region"])
+		account, ok := cloud["account"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "353785743975", account["uid"])
+
+		srcEndpoint, ok := resultMap["src_endpoint"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "10.0.1.100", srcEndpoint["ip"])
+		assert.Equal(t, int32(443), srcEndpoint["port"])
+
+		dstEndpoint, ok := resultMap["dst_endpoint"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "10.0.2.200", dstEndpoint["ip"])
+		assert.Equal(t, int32(80), dstEndpoint["port"])
+
+		traffic, ok := resultMap["traffic"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, int64(1024), traffic["bytes"])
+		assert.Equal(t, int64(10), traffic["packets"])
+	})
+
+	t.Run("nested struct with arrays", func(t *testing.T) {
+		// Test nested struct with repeated fields
+		schema := parquet.NewSchema("test", parquet.Group{
+			"id": parquet.Int(64),
+			"metadata": parquet.Group{
+				"tags": parquet.Repeated(parquet.String()),
+			},
+		})
+
+		buf := bytes.NewBuffer(nil)
+		pWtr := parquet.NewGenericWriter[any](buf, schema)
+
+		testData := []any{
+			map[string]any{
+				"id": int64(1),
+				"metadata": map[string]any{
+					"tags": []any{"production", "critical", "monitored"},
+				},
+			},
+		}
+
+		_, err := pWtr.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, pWtr.Close())
+
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 1)
+
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+
+		metadata, ok := resultMap["metadata"].(map[string]any)
+		require.True(t, ok)
+		tags, ok := metadata["tags"].([]any)
+		require.True(t, ok)
+		assert.Equal(t, []any{"production", "critical", "monitored"}, tags)
+	})
+}
+
+// TestStandardParquetGoListEncoding tests that strict_schema: false properly handles
+// standard parquet-go LIST encoding which uses .list.element wrapper
+func TestStandardParquetGoListEncoding(t *testing.T) {
+	t.Run("standard list encoding with multiple elements", func(t *testing.T) {
+		// Define a Go struct with slice field - parquet-go will create .list.element wrapper
+		type TestRecord struct {
+			ID       int64    `parquet:"id"`
+			Profiles []string `parquet:"profiles,list"`
+		}
+
+		buf := bytes.NewBuffer(nil)
+		writer := parquet.NewGenericWriter[TestRecord](buf)
+
+		testData := []TestRecord{
+			{ID: 1, Profiles: []string{"cloud", "security_control"}},
+			{ID: 2, Profiles: []string{"cloud"}}, // Single element
+			{ID: 3, Profiles: []string{}},        // Empty array
+		}
+
+		_, err := writer.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 3)
+
+		// Record 1: Multiple elements
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+		assert.Equal(t, int64(1), resultMap["id"])
+		profiles, ok := resultMap["profiles"].([]any)
+		require.True(t, ok, "profiles should be an array")
+		assert.Equal(t, []any{"cloud", "security_control"}, profiles)
+
+		// Record 2: Single element (should still be array, not string)
+		result, err = resBatch[1].AsStructured()
+		require.NoError(t, err)
+		resultMap = result.(map[string]any)
+		assert.Equal(t, int64(2), resultMap["id"])
+		profiles, ok = resultMap["profiles"].([]any)
+		require.True(t, ok, "single-element profiles should still be an array")
+		assert.Equal(t, []any{"cloud"}, profiles)
+
+		// Record 3: Empty array (should be null in OCSF style)
+		result, err = resBatch[2].AsStructured()
+		require.NoError(t, err)
+		resultMap = result.(map[string]any)
+		assert.Equal(t, int64(3), resultMap["id"])
+		assert.Nil(t, resultMap["profiles"], "empty array should be null")
+	})
+
+	t.Run("nested struct with standard list encoding", func(t *testing.T) {
+		type Metadata struct {
+			Version  string   `parquet:"version"`
+			Profiles []string `parquet:"profiles,list"`
+		}
+
+		type TestRecord struct {
+			ID       int64    `parquet:"id"`
+			Metadata Metadata `parquet:"metadata"`
+		}
+
+		buf := bytes.NewBuffer(nil)
+		writer := parquet.NewGenericWriter[TestRecord](buf)
+
+		testData := []TestRecord{
+			{
+				ID: 1,
+				Metadata: Metadata{
+					Version:  "1.7.0",
+					Profiles: []string{"cloud", "security_control", "datetime"},
+				},
+			},
+		}
+
+		_, err := writer.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 1)
+
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+
+		metadata, ok := resultMap["metadata"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "1.7.0", metadata["version"])
+
+		profiles, ok := metadata["profiles"].([]any)
+		require.True(t, ok, "nested profiles should be properly unwrapped array")
+		assert.Equal(t, []any{"cloud", "security_control", "datetime"}, profiles)
+	})
+}
+
+// TestAWSSecurityLakeArrayEncoding tests handling of AWS Security Lake's non-standard
+// .array wrapper pattern
+func TestAWSSecurityLakeArrayEncoding(t *testing.T) {
+	t.Run("non-standard array wrapper", func(t *testing.T) {
+		// Manually create AWS Security Lake style schema with .array wrapper
+		schema := parquet.NewSchema("test", parquet.Group{
+			"id": parquet.Int(64),
+			"metadata": parquet.Group{
+				"profiles": parquet.Group{
+					"array": parquet.Repeated(parquet.String()),
+				},
+			},
+		})
+
+		buf := bytes.NewBuffer(nil)
+		writer := parquet.NewGenericWriter[any](buf, schema)
+
+		testData := []any{
+			map[string]any{
+				"id": int64(1),
+				"metadata": map[string]any{
+					"profiles": map[string]any{
+						"array": []any{"cloud", "security_control"},
+					},
+				},
+			},
+		}
+
+		_, err := writer.Write(testData)
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		processor := &parquetDecodeProcessor{
+			strictSchema: false,
+		}
+
+		resBatch, err := processor.Process(context.Background(), service.NewMessage(buf.Bytes()))
+		require.NoError(t, err)
+		require.Len(t, resBatch, 1)
+
+		result, err := resBatch[0].AsStructured()
+		require.NoError(t, err)
+		resultMap := result.(map[string]any)
+
+		metadata, ok := resultMap["metadata"].(map[string]any)
+		require.True(t, ok)
+
+		// Should unwrap .array wrapper
+		profiles, ok := metadata["profiles"].([]any)
+		require.True(t, ok, "AWS Security Lake .array wrapper should be unwrapped")
+		assert.Equal(t, []any{"cloud", "security_control"}, profiles)
+	})
+}
