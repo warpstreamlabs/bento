@@ -1,4 +1,4 @@
-//go:build ((darwin || linux) && (amd64 || arm64)) || (windows && amd64)
+//go:build x_bento_extra
 
 package sql
 
