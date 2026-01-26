@@ -104,7 +104,7 @@ this output streams data directly to S3, reducing memory usage from gigabytes to
 ## When to Use
 
 Use this output instead of `aws_s3` + `parquet_encode` when:
-- Writing large Parquet files (>1GB) that would consume too much memory
+- Writing large Parquet files (over 1GB) that would consume too much memory
 - Streaming continuous data that needs to be partitioned into files
 - You need fine-grained control over file rotation (by row count or time)
 
@@ -112,7 +112,7 @@ Use this output instead of `aws_s3` + `parquet_encode` when:
 
 For a typical OCSF event dataset (84,265 events):
 - Standard approach: ~9GB memory usage
-- Streaming approach: <100MB memory usage
+- Streaming approach: under 100MB memory usage
 
 ### Credentials
 
