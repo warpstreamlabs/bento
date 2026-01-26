@@ -19,9 +19,9 @@ import (
 func TestStreamingParquetWriter_BasicFunctionality(t *testing.T) {
 	// Define a simple test schema
 	type TestRecord struct {
-		ID      int64  `parquet:"id"`
-		Name    string `parquet:"name"`
-		Value   float64 `parquet:"value"`
+		ID    int64   `parquet:"id"`
+		Name  string  `parquet:"name"`
+		Value float64 `parquet:"value"`
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
@@ -35,20 +35,10 @@ func TestStreamingParquetWriter_BasicFunctionality(t *testing.T) {
 	}
 
 	t.Run("row buffering", func(t *testing.T) {
-		config := StreamingWriterConfig{
-			Schema:          schema,
-			MessageType:     messageType,
-			CompressionType: &parquet.Snappy,
-			RowGroupSize:    10, // Large enough to not flush
-		}
+		rowGroupSize := int64(10) // Large enough to not flush
 
 		writer := &StreamingParquetWriter{
-			schema:          config.Schema,
-			messageType:     config.MessageType,
-			compressionType: config.CompressionType,
-			rowGroupSize:    config.RowGroupSize,
-			uploadBuffer:    bytes.NewBuffer(nil),
-			rowBuffer:       make([]any, 0, config.RowGroupSize),
+			rowBuffer: make([]any, 0, rowGroupSize),
 		}
 
 		// Write events
@@ -61,7 +51,7 @@ func TestStreamingParquetWriter_BasicFunctionality(t *testing.T) {
 		}
 
 		// Verify buffering
-		assert.Equal(t, 3, len(writer.rowBuffer))
+		assert.Len(t, writer.rowBuffer, 3)
 		assert.Equal(t, int64(0), writer.totalRows) // Not yet flushed
 	})
 
@@ -96,9 +86,9 @@ func TestStreamingParquetWriter_BasicFunctionality(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify flush occurred
-		assert.Equal(t, 0, len(writer.rowBuffer)) // Buffer cleared
+		assert.Empty(t, writer.rowBuffer) // Buffer cleared
 		assert.Equal(t, int64(2), writer.totalRows)
-		assert.Equal(t, 1, len(writer.rowGroupsMeta))
+		assert.Len(t, writer.rowGroupsMeta, 1)
 		assert.Greater(t, writer.uploadSize, int64(0))
 	})
 
@@ -129,7 +119,7 @@ func TestStreamingParquetWriter_BasicFunctionality(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify footer structure
-		assert.Greater(t, len(footer), 0, "Footer should have content")
+		assert.NotEmpty(t, footer, "Footer should have content")
 
 		// Footer should end with 4 bytes for length + 4 bytes "PAR1" magic
 		// But generateFooter only returns footer + length, not the final "PAR1"
@@ -189,8 +179,12 @@ func TestStreamingParquetWriter_MapToStruct(t *testing.T) {
 // TestStreamingParquetWriter_Stats tests writer statistics
 func TestStreamingParquetWriter_Stats(t *testing.T) {
 	config := StreamingWriterConfig{
-		Schema:          parquet.SchemaOf(new(struct{ ID int64 `parquet:"id"` })),
-		MessageType:     reflect.TypeOf(struct{ ID int64 `parquet:"id"` }{}),
+		Schema: parquet.SchemaOf(new(struct {
+			ID int64 `parquet:"id"`
+		})),
+		MessageType: reflect.TypeOf(struct {
+			ID int64 `parquet:"id"`
+		}{}),
 		CompressionType: &parquet.Snappy,
 		RowGroupSize:    10,
 	}
@@ -208,8 +202,12 @@ func TestStreamingParquetWriter_Stats(t *testing.T) {
 	}
 
 	// Add some buffered rows
-	writer.rowBuffer = append(writer.rowBuffer, &struct{ ID int64 `parquet:"id"` }{ID: 1})
-	writer.rowBuffer = append(writer.rowBuffer, &struct{ ID int64 `parquet:"id"` }{ID: 2})
+	writer.rowBuffer = append(writer.rowBuffer, &struct {
+		ID int64 `parquet:"id"`
+	}{ID: 1})
+	writer.rowBuffer = append(writer.rowBuffer, &struct {
+		ID int64 `parquet:"id"`
+	}{ID: 2})
 
 	stats := writer.Stats()
 
@@ -441,7 +439,7 @@ func TestParquetStreamingWriter_PartUploadTracking(t *testing.T) {
 	require.NoError(t, err)
 
 	// At least the final part should have been uploaded during Close
-	assert.Greater(t, len(uploadedParts), 0)
+	assert.NotEmpty(t, uploadedParts)
 }
 
 // TestParquetStreamingWriter_CompleteMultipartUpload tests that CompleteMultipartUpload is called on Close
@@ -493,7 +491,7 @@ func TestParquetStreamingWriter_CompleteMultipartUpload(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, completeCalled)
-	assert.Greater(t, len(capturedParts), 0)
+	assert.NotEmpty(t, capturedParts)
 	assert.True(t, writer.closed)
 }
 
