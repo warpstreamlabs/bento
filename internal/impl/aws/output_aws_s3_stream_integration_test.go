@@ -24,17 +24,11 @@ func getTestS3Client(ctx context.Context, t *testing.T, servicePort string) *s3.
 	conf, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("us-east-1"),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "test")),
-		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           endpoint,
-				SigningRegion: "us-east-1",
-			}, nil
-		})),
 	)
 	require.NoError(t, err)
 
 	return s3.NewFromConfig(conf, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpoint)
 		o.UsePathStyle = true
 	})
 }
@@ -107,7 +101,7 @@ max_buffer_period: 1s
 	require.NoError(t, err)
 
 	// Verify we have data
-	assert.Greater(t, len(content), 0, "File should have content")
+	assert.NotEmpty(t, content, "File should have content")
 
 	// Verify first and last lines
 	contentStr := string(content)
@@ -213,16 +207,17 @@ max_buffer_period: 1s
 
 		// Each partition should have 25 messages
 		contentStr := string(content)
-		assert.Greater(t, len(contentStr), 0, "Partition %s should have content", key)
+		assert.NotEmpty(t, contentStr, "Partition %s should have content", key)
 
 		// Verify content contains correct partition values
-		if key == partitionKeys[0] {
+		switch key {
+		case partitionKeys[0]:
 			assert.Contains(t, contentStr, "log 2026-01-20 us-east-1")
-		} else if key == partitionKeys[1] {
+		case partitionKeys[1]:
 			assert.Contains(t, contentStr, "log 2026-01-20 eu-west-1")
-		} else if key == partitionKeys[2] {
+		case partitionKeys[2]:
 			assert.Contains(t, contentStr, "log 2026-01-21 us-east-1")
-		} else if key == partitionKeys[3] {
+		case partitionKeys[3]:
 			assert.Contains(t, contentStr, "log 2026-01-21 eu-west-1")
 		}
 	}

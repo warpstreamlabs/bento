@@ -216,7 +216,7 @@ partition_by:
 			partitionParts[j], err = batch.TryInterpolatedString(i, partExpr)
 			require.NoError(t, err)
 		}
-		partitionKey := string(partitionParts[0])
+		partitionKey := partitionParts[0]
 
 		var fullPath string
 		if pg, exists := partitionMap[partitionKey]; exists {
@@ -256,11 +256,11 @@ partition_by:
 
 func TestS3StreamOutputBufferSettings(t *testing.T) {
 	tests := []struct {
-		name               string
-		config             string
-		expectedBytes      int64
-		expectedCount      int
-		expectedPeriodStr  string
+		name              string
+		config            string
+		expectedBytes     int64
+		expectedCount     int
+		expectedPeriodStr string
 	}{
 		{
 			name: "default values",
@@ -349,7 +349,7 @@ path: 'logs/${! meta("filename") }.log'
 	conf, err := s3StreamConfigFromParsed(parsedConf)
 	require.NoError(t, err)
 
-	assert.Len(t, conf.PartitionBy, 0, "Should have no partition_by expressions")
+	assert.Empty(t, conf.PartitionBy, "Should have no partition_by expressions")
 
 	// When partition_by is empty, path should be evaluated per message
 	batch := service.MessageBatch{

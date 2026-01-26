@@ -15,10 +15,10 @@ import (
 
 // mockS3Client is a mock S3 client for testing
 type mockS3Client struct {
-	createMultipartUploadFunc func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
-	uploadPartFunc            func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
+	createMultipartUploadFunc   func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
+	uploadPartFunc              func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	completeMultipartUploadFunc func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
-	abortMultipartUploadFunc  func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
+	abortMultipartUploadFunc    func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
 }
 
 func (m *mockS3Client) CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
@@ -99,10 +99,10 @@ func TestS3StreamingWriterInitialize(t *testing.T) {
 	mockClient := &mockS3Client{}
 
 	config := S3StreamingWriterConfig{
-		S3Client:       mockClient,
-		Bucket:         "test-bucket",
-		Key:            "test-key",
-		ContentType:    "application/json",
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		ContentType:     "application/json",
 		ContentEncoding: "gzip",
 	}
 
@@ -294,8 +294,8 @@ func TestS3StreamingWriterStats(t *testing.T) {
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			// Capture uploaded data
 			data := make([]byte, 6*1024*1024)
-			input.Body.Read(data)
-			uploadedData.Write(data)
+			n, _ := input.Body.Read(data)
+			uploadedData.Write(data[:n])
 			return &s3.UploadPartOutput{
 				ETag: aws.String("test-etag"),
 			}, nil

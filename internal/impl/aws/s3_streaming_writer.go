@@ -3,6 +3,7 @@ package aws
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -110,7 +111,7 @@ func (w *S3StreamingWriter) Initialize(ctx context.Context) error {
 	defer w.mu.Unlock()
 
 	if w.uploadID != nil {
-		return fmt.Errorf("writer already initialized")
+		return errors.New("writer already initialized")
 	}
 
 	// Start multipart upload
@@ -145,11 +146,11 @@ func (w *S3StreamingWriter) WriteBytes(ctx context.Context, data []byte) error {
 	defer w.mu.Unlock()
 
 	if w.closed {
-		return fmt.Errorf("writer is closed")
+		return errors.New("writer is closed")
 	}
 
 	if w.uploadID == nil {
-		return fmt.Errorf("writer not initialized")
+		return errors.New("writer not initialized")
 	}
 
 	// Add to message buffer
@@ -305,7 +306,7 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	}
 
 	if w.uploadID == nil {
-		return fmt.Errorf("writer not initialized")
+		return errors.New("writer not initialized")
 	}
 
 	// Stop flush timer

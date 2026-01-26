@@ -144,7 +144,7 @@ output:
 output:
   aws_s3_stream:
     bucket: data-lake
-    path: 'events/date=${! timestamp().format("2006-01-02") }/${! uuid_v4() }.json'
+    path: 'events/date=${! now().ts_format("2006-01-02") }/${! uuid_v4() }.json'
     content_type: application/json
 
     batching:
