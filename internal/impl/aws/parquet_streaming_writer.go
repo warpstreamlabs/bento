@@ -49,11 +49,13 @@ type StreamingParquetWriter struct {
 	// Buffering
 	rowBuffer    []any
 	uploadBuffer *bytes.Buffer
-	uploadSize   int64
+	uploadSize   int64 // Size of data in upload buffer (resets after each part upload)
 
 	// Metadata tracking for footer
-	rowGroupsMeta []RowGroupMetadata
-	totalRows     int64
+	rowGroupsMeta  []RowGroupMetadata
+	totalRows      int64
+	filePosition   int64    // Absolute position in the final file (never resets)
+	pageIndexParts [][]byte // Page index data from each row group (written at end)
 
 	// Lifecycle
 	created   time.Time
@@ -130,6 +132,7 @@ func (w *StreamingParquetWriter) Initialize(ctx context.Context) error {
 	header := []byte("PAR1")
 	w.uploadBuffer.Write(header)
 	w.uploadSize = int64(len(header))
+	w.filePosition = int64(len(header))
 
 	return nil
 }
@@ -228,34 +231,77 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 		return fmt.Errorf("failed to parse temporary file footer: %w", err)
 	}
 
-	// Extract column chunks from the first (and only) row group in the temp file
+	// Extract column chunks and page index data from the temp file
 	var columnChunks []format.ColumnChunk
+	var pageIndexData []byte
+
 	if len(fileMeta.RowGroups) > 0 {
 		columnChunks = make([]format.ColumnChunk, len(fileMeta.RowGroups[0].Columns))
-		for i, col := range fileMeta.RowGroups[0].Columns {
-			// Adjust file offsets to account for new position in streaming file
-			adjustedCol := col
-			adjustedCol.MetaData.DataPageOffset = w.uploadSize + col.MetaData.DataPageOffset - 4 // Subtract temp file header size
-			if adjustedCol.MetaData.DictionaryPageOffset != 0 {
-				adjustedCol.MetaData.DictionaryPageOffset = w.uploadSize + adjustedCol.MetaData.DictionaryPageOffset - 4
+
+		// Collect page index data from temp file
+		// Important: Parquet format requires all ColumnIndex data first, then all OffsetIndex data
+		pageIndexBuffer := bytes.NewBuffer(nil)
+
+		// First pass: collect all ColumnIndex data
+		for _, col := range fileMeta.RowGroups[0].Columns {
+			if col.ColumnIndexOffset > 0 && col.ColumnIndexLength > 0 {
+				columnIndexData := fullFileData[col.ColumnIndexOffset : col.ColumnIndexOffset+int64(col.ColumnIndexLength)]
+				pageIndexBuffer.Write(columnIndexData)
 			}
+		}
+
+		// Second pass: collect all OffsetIndex data
+		for _, col := range fileMeta.RowGroups[0].Columns {
+			if col.OffsetIndexOffset > 0 && col.OffsetIndexLength > 0 {
+				offsetIndexData := fullFileData[col.OffsetIndexOffset : col.OffsetIndexOffset+int64(col.OffsetIndexLength)]
+				pageIndexBuffer.Write(offsetIndexData)
+			}
+		}
+
+		pageIndexData = pageIndexBuffer.Bytes()
+
+		// Store page index data for this row group to write later (after all row groups)
+		w.pageIndexParts = append(w.pageIndexParts, pageIndexData)
+
+		// Adjust column metadata - page index will be written after all row groups
+		// We don't know the exact position yet, so we'll fix it up later in Close()
+		for i, col := range fileMeta.RowGroups[0].Columns {
+			adjustedCol := col
+			adjustedCol.MetaData.DataPageOffset = w.filePosition + col.MetaData.DataPageOffset - 4 // Subtract temp file header size
+			if adjustedCol.MetaData.DictionaryPageOffset != 0 {
+				adjustedCol.MetaData.DictionaryPageOffset = w.filePosition + adjustedCol.MetaData.DictionaryPageOffset - 4
+			}
+
+			// Clear page index offsets/lengths if not present (to avoid incorrect offset calculations)
+			if col.ColumnIndexOffset == 0 || col.ColumnIndexLength == 0 {
+				adjustedCol.ColumnIndexOffset = 0
+				adjustedCol.ColumnIndexLength = 0
+			}
+			if col.OffsetIndexOffset == 0 || col.OffsetIndexLength == 0 {
+				adjustedCol.OffsetIndexOffset = 0
+				adjustedCol.OffsetIndexLength = 0
+			}
+
+			// Leave page index offsets as placeholders for now - will be fixed in Close()
 			columnChunks[i] = adjustedCol
 		}
 	}
+
+	// Add row group data to upload buffer
+	rowGroupFileOffset := w.filePosition
+	w.uploadBuffer.Write(rowGroupData)
+	w.uploadSize += rowGroupSize
+	w.filePosition += rowGroupSize
 
 	// Track metadata for footer
 	w.rowGroupsMeta = append(w.rowGroupsMeta, RowGroupMetadata{
 		NumRows:       int64(len(w.rowBuffer)),
 		TotalByteSize: rowGroupSize,
-		FileOffset:    w.uploadSize,
+		FileOffset:    rowGroupFileOffset,
 		ColumnChunks:  columnChunks,
 	})
 
 	w.totalRows += int64(len(w.rowBuffer))
-
-	// Add to upload buffer
-	w.uploadBuffer.Write(rowGroupData)
-	w.uploadSize += rowGroupSize
 
 	// Clear row buffer
 	w.rowBuffer = w.rowBuffer[:0]
@@ -328,6 +374,81 @@ func (w *StreamingParquetWriter) Close(ctx context.Context) error {
 		if err := w.flushRowGroup(ctx); err != nil {
 			w.abortMultipartUpload(ctx)
 			return fmt.Errorf("failed to flush final row group: %w", err)
+		}
+	}
+
+	// Write all page index data after row groups (before footer)
+	// Parquet format: all ColumnIndex for all row groups, then all OffsetIndex for all row groups
+	if len(w.pageIndexParts) > 0 {
+		// First pass: write all ColumnIndex data for all row groups and update offsets
+		for rgIndex := range w.pageIndexParts {
+			numCols := len(w.rowGroupsMeta[rgIndex].ColumnChunks)
+
+			for colIdx := 0; colIdx < numCols; colIdx++ {
+				col := &w.rowGroupsMeta[rgIndex].ColumnChunks[colIdx]
+
+				// Write ColumnIndex if present
+				if col.ColumnIndexLength > 0 {
+					// Extract ColumnIndex data from pageIndexParts
+					// pageIndexParts contains [all ColumnIndex, all OffsetIndex] for this row group
+					// We need to find the specific ColumnIndex for this column
+					// Calculate the offset within the pageIndexParts buffer
+					colIndexDataOffset := int64(0)
+					for c := 0; c < colIdx; c++ {
+						if w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength > 0 {
+							colIndexDataOffset += int64(w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength)
+						}
+					}
+
+					colIndexData := w.pageIndexParts[rgIndex][colIndexDataOffset : colIndexDataOffset+int64(col.ColumnIndexLength)]
+					col.ColumnIndexOffset = w.filePosition
+					w.uploadBuffer.Write(colIndexData)
+					w.uploadSize += int64(len(colIndexData))
+					w.filePosition += int64(len(colIndexData))
+				}
+			}
+		}
+
+		// Second pass: write all OffsetIndex data for all row groups and update offsets
+		for rgIndex := range w.pageIndexParts {
+			numCols := len(w.rowGroupsMeta[rgIndex].ColumnChunks)
+
+			// Calculate where OffsetIndex data starts in pageIndexParts
+			offsetIndexStartInPart := int64(0)
+			for c := 0; c < numCols; c++ {
+				if w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength > 0 {
+					offsetIndexStartInPart += int64(w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength)
+				}
+			}
+
+			for colIdx := 0; colIdx < numCols; colIdx++ {
+				col := &w.rowGroupsMeta[rgIndex].ColumnChunks[colIdx]
+
+				// Write OffsetIndex if present
+				if col.OffsetIndexLength > 0 {
+					// Calculate offset of this column's OffsetIndex within the OffsetIndex section
+					offsetIndexDataOffset := offsetIndexStartInPart
+					for c := 0; c < colIdx; c++ {
+						if w.rowGroupsMeta[rgIndex].ColumnChunks[c].OffsetIndexLength > 0 {
+							offsetIndexDataOffset += int64(w.rowGroupsMeta[rgIndex].ColumnChunks[c].OffsetIndexLength)
+						}
+					}
+
+					offsetIndexData := w.pageIndexParts[rgIndex][offsetIndexDataOffset : offsetIndexDataOffset+int64(col.OffsetIndexLength)]
+					col.OffsetIndexOffset = w.filePosition
+					w.uploadBuffer.Write(offsetIndexData)
+					w.uploadSize += int64(len(offsetIndexData))
+					w.filePosition += int64(len(offsetIndexData))
+				}
+			}
+		}
+
+		// Check if we need to upload the page index part
+		if w.uploadSize >= 5*1024*1024 {
+			if err := w.uploadPart(ctx); err != nil {
+				w.abortMultipartUpload(ctx)
+				return fmt.Errorf("failed to upload page index part: %w", err)
+			}
 		}
 	}
 
