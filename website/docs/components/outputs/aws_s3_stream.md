@@ -107,22 +107,6 @@ Use this output instead of `aws_s3` when:
 - You need dynamic partition routing (e.g., one file per account/date combination)
 - Memory-constrained environments (containers, Lambda, ECS)
 
-## Partition Routing
-
-The `partition_by` parameter evaluates expressions per message to determine routing.
-Messages with identical partition values are written to the same file:
-
-```yaml
-partition_by:
-  - '${! meta("date") }'
-  - '${! meta("account") }'
-```
-
-This ensures:
-- Messages routed to correct writer based on partition key
-- Path (including uuid_v4()) evaluated once per partition
-- Multiple concurrent writers for different partitions
-
 ### Credentials
 
 By default Bento will use a shared credentials file when connecting to AWS services.
