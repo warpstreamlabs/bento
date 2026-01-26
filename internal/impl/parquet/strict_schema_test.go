@@ -302,7 +302,7 @@ func TestNestedStructSupport(t *testing.T) {
 		require.NoError(t, err)
 		resultMap := result.(map[string]any)
 		assert.Equal(t, int64(1), resultMap["id"])
-		
+
 		// Check nested structure
 		cloud, ok := resultMap["cloud"].(map[string]any)
 		require.True(t, ok, "cloud should be a map")
@@ -315,7 +315,7 @@ func TestNestedStructSupport(t *testing.T) {
 		require.NoError(t, err)
 		resultMap = result.(map[string]any)
 		assert.Equal(t, int64(2), resultMap["id"])
-		
+
 		cloud, ok = resultMap["cloud"].(map[string]any)
 		require.True(t, ok)
 		account, ok = cloud["account"].(map[string]any)
@@ -367,10 +367,10 @@ func TestNestedStructSupport(t *testing.T) {
 		result, err := resBatch[0].AsStructured()
 		require.NoError(t, err)
 		resultMap := result.(map[string]any)
-		
+
 		assert.Equal(t, int64(100), resultMap["id"])
 		assert.Equal(t, int64(1234567890), resultMap["time"])
-		
+
 		metadata, ok := resultMap["metadata"].(map[string]any)
 		require.True(t, ok)
 		product, ok := metadata["product"].(map[string]any)
@@ -390,15 +390,15 @@ func TestNestedStructSupport(t *testing.T) {
 				"region": parquet.String(),
 			},
 			"src_endpoint": parquet.Group{
-				"ip": parquet.String(),
+				"ip":   parquet.String(),
 				"port": parquet.Int(32),
 			},
 			"dst_endpoint": parquet.Group{
-				"ip": parquet.String(),
+				"ip":   parquet.String(),
 				"port": parquet.Int(32),
 			},
 			"traffic": parquet.Group{
-				"bytes": parquet.Int(64),
+				"bytes":   parquet.Int(64),
 				"packets": parquet.Int(64),
 			},
 		})
