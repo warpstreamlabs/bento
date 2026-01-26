@@ -14,7 +14,7 @@ import (
 )
 
 // S3API defines the S3 operations required by the streaming writer
-type S3API interface {
+type s3StreamingAPI interface {
 	CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
 	UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
@@ -32,7 +32,7 @@ type S3StreamingWriter struct {
 	contentEncoding string
 
 	// S3 client and upload state
-	s3Client       S3API
+	s3Client       s3StreamingAPI
 	bucket         string
 	key            string
 	uploadID       *string
@@ -61,7 +61,7 @@ type S3StreamingWriter struct {
 
 // S3StreamingWriterConfig contains configuration for creating an S3StreamingWriter
 type S3StreamingWriterConfig struct {
-	S3Client        S3API
+	S3Client        s3StreamingAPI
 	Bucket          string
 	Key             string
 	MaxBufferBytes  int64         // Maximum bytes to buffer before flushing (default: 10MB)
@@ -375,7 +375,7 @@ func (w *S3StreamingWriter) abortMultipartUpload(ctx context.Context) {
 }
 
 // WriterStats contains statistics about the writer
-type WriterStats struct {
+type S3StreamWriterStats struct {
 	TotalMessages int64
 	TotalBytes    int64
 	PartsUploaded int32
@@ -384,11 +384,11 @@ type WriterStats struct {
 }
 
 // Stats returns current writer statistics
-func (w *S3StreamingWriter) Stats() WriterStats {
+func (w *S3StreamingWriter) Stats() S3StreamWriterStats {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	return WriterStats{
+	return S3StreamWriterStats{
 		TotalMessages: w.totalMessages,
 		TotalBytes:    w.totalBytes,
 		PartsUploaded: w.partNumber,

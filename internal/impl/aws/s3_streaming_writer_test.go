@@ -13,15 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockS3Client is a mock S3 client for testing
-type mockS3Client struct {
+// mockS3StreamClient is a mock S3 client for testing
+type mockS3StreamClient struct {
 	createMultipartUploadFunc   func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
 	uploadPartFunc              func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	completeMultipartUploadFunc func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	abortMultipartUploadFunc    func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
 }
 
-func (m *mockS3Client) CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
+func (m *mockS3StreamClient) CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
 	if m.createMultipartUploadFunc != nil {
 		return m.createMultipartUploadFunc(ctx, input, opts...)
 	}
@@ -30,7 +30,7 @@ func (m *mockS3Client) CreateMultipartUpload(ctx context.Context, input *s3.Crea
 	}, nil
 }
 
-func (m *mockS3Client) UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+func (m *mockS3StreamClient) UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 	if m.uploadPartFunc != nil {
 		return m.uploadPartFunc(ctx, input, opts...)
 	}
@@ -39,14 +39,14 @@ func (m *mockS3Client) UploadPart(ctx context.Context, input *s3.UploadPartInput
 	}, nil
 }
 
-func (m *mockS3Client) CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+func (m *mockS3StreamClient) CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
 	if m.completeMultipartUploadFunc != nil {
 		return m.completeMultipartUploadFunc(ctx, input, opts...)
 	}
 	return &s3.CompleteMultipartUploadOutput{}, nil
 }
 
-func (m *mockS3Client) AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
+func (m *mockS3StreamClient) AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
 	if m.abortMultipartUploadFunc != nil {
 		return m.abortMultipartUploadFunc(ctx, input, opts...)
 	}
@@ -54,7 +54,7 @@ func (m *mockS3Client) AbortMultipartUpload(ctx context.Context, input *s3.Abort
 }
 
 func TestS3StreamingWriterCreation(t *testing.T) {
-	mockClient := &mockS3Client{}
+	mockClient := &mockS3StreamClient{}
 
 	config := S3StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -77,7 +77,7 @@ func TestS3StreamingWriterCreation(t *testing.T) {
 }
 
 func TestS3StreamingWriterDefaults(t *testing.T) {
-	mockClient := &mockS3Client{}
+	mockClient := &mockS3StreamClient{}
 
 	config := S3StreamingWriterConfig{
 		S3Client: mockClient,
@@ -96,7 +96,7 @@ func TestS3StreamingWriterDefaults(t *testing.T) {
 }
 
 func TestS3StreamingWriterInitialize(t *testing.T) {
-	mockClient := &mockS3Client{}
+	mockClient := &mockS3StreamClient{}
 
 	config := S3StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -118,7 +118,7 @@ func TestS3StreamingWriterInitialize(t *testing.T) {
 }
 
 func TestS3StreamingWriterDoubleInitialize(t *testing.T) {
-	mockClient := &mockS3Client{}
+	mockClient := &mockS3StreamClient{}
 
 	config := S3StreamingWriterConfig{
 		S3Client: mockClient,
@@ -140,7 +140,7 @@ func TestS3StreamingWriterDoubleInitialize(t *testing.T) {
 }
 
 func TestS3StreamingWriterWriteBeforeInitialize(t *testing.T) {
-	mockClient := &mockS3Client{}
+	mockClient := &mockS3StreamClient{}
 
 	config := S3StreamingWriterConfig{
 		S3Client: mockClient,
@@ -159,7 +159,7 @@ func TestS3StreamingWriterWriteBeforeInitialize(t *testing.T) {
 
 func TestS3StreamingWriterBufferFlushOnSize(t *testing.T) {
 	uploadedParts := make([]int32, 0)
-	mockClient := &mockS3Client{
+	mockClient := &mockS3StreamClient{
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			uploadedParts = append(uploadedParts, *input.PartNumber)
 			return &s3.UploadPartOutput{
@@ -195,7 +195,7 @@ func TestS3StreamingWriterBufferFlushOnSize(t *testing.T) {
 
 func TestS3StreamingWriterBufferFlushOnCount(t *testing.T) {
 	uploadedParts := make([]int32, 0)
-	mockClient := &mockS3Client{
+	mockClient := &mockS3StreamClient{
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			uploadedParts = append(uploadedParts, *input.PartNumber)
 			return &s3.UploadPartOutput{
@@ -232,7 +232,7 @@ func TestS3StreamingWriterBufferFlushOnCount(t *testing.T) {
 
 func TestS3StreamingWriterClose(t *testing.T) {
 	completeCalled := false
-	mockClient := &mockS3Client{
+	mockClient := &mockS3StreamClient{
 		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
 			completeCalled = true
 			return &s3.CompleteMultipartUploadOutput{}, nil
@@ -264,7 +264,7 @@ func TestS3StreamingWriterClose(t *testing.T) {
 }
 
 func TestS3StreamingWriterWriteAfterClose(t *testing.T) {
-	mockClient := &mockS3Client{}
+	mockClient := &mockS3StreamClient{}
 
 	config := S3StreamingWriterConfig{
 		S3Client: mockClient,
@@ -290,7 +290,7 @@ func TestS3StreamingWriterWriteAfterClose(t *testing.T) {
 
 func TestS3StreamingWriterStats(t *testing.T) {
 	uploadedData := bytes.NewBuffer(nil)
-	mockClient := &mockS3Client{
+	mockClient := &mockS3StreamClient{
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			// Capture uploaded data
 			data := make([]byte, 6*1024*1024)
@@ -329,7 +329,7 @@ func TestS3StreamingWriterStats(t *testing.T) {
 
 func TestS3StreamingWriterMultipleParts(t *testing.T) {
 	uploadedParts := make([]types.CompletedPart, 0)
-	mockClient := &mockS3Client{
+	mockClient := &mockS3StreamClient{
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			return &s3.UploadPartOutput{
 				ETag: aws.String("test-etag"),
@@ -374,7 +374,7 @@ func TestS3StreamingWriterMultipleParts(t *testing.T) {
 
 func TestS3StreamingWriterContentEncoding(t *testing.T) {
 	var capturedInput *s3.CreateMultipartUploadInput
-	mockClient := &mockS3Client{
+	mockClient := &mockS3StreamClient{
 		createMultipartUploadFunc: func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
 			capturedInput = input
 			return &s3.CreateMultipartUploadOutput{
