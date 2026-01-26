@@ -54,8 +54,8 @@ schema:
 		conf, err := s3ParquetStreamConfigFromParsed(parsed)
 		require.NoError(t, err)
 
-		assert.Equal(t, int64(10000), conf.RowGroupSize)       // Default
-		assert.False(t, conf.UsePathStyle)                     // Default
+		assert.Equal(t, int64(10000), conf.RowGroupSize) // Default
+		assert.False(t, conf.UsePathStyle)               // Default
 	})
 
 	t.Run("compression types", func(t *testing.T) {
@@ -116,7 +116,7 @@ schema:
 		assert.NotNil(t, conf.Schema)
 		assert.NotNil(t, conf.MessageType)
 		// Verify schema has the expected number of fields
-		assert.Equal(t, 4, len(conf.Schema.Fields()))
+		assert.Len(t, conf.Schema.Fields(), 4)
 	})
 
 	t.Run("missing required fields", func(t *testing.T) {
@@ -181,7 +181,7 @@ schema:
 
 		// MessageType should use pointers for optionals
 		// This is reflected in the messageType generation
-		assert.Equal(t, 2, len(conf.Schema.Fields()))
+		assert.Len(t, conf.Schema.Fields(), 2)
 	})
 
 	t.Run("repeated fields", func(t *testing.T) {
@@ -202,7 +202,7 @@ schema:
 		require.NoError(t, err)
 
 		assert.NotNil(t, conf.Schema)
-		assert.Equal(t, 2, len(conf.Schema.Fields()))
+		assert.Len(t, conf.Schema.Fields(), 2)
 	})
 }
 
@@ -216,7 +216,7 @@ func TestS3ParquetStreamOutput_WriterPooling(t *testing.T) {
 		}
 
 		// Verify initial state
-		assert.Equal(t, 0, len(output.writers))
+		assert.Empty(t, output.writers)
 
 		// Writer pooling is tested in integration tests
 		// This is just a structural test

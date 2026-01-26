@@ -26,8 +26,8 @@ func TestFlushRowGroup_PreservesColumnMetadata(t *testing.T) {
 		Account  *Account `parquet:"account,optional"`
 	}
 	type TestRecord struct {
-		ID    int64   `parquet:"id"`
-		Cloud *Cloud  `parquet:"cloud,optional"`
+		ID    int64  `parquet:"id"`
+		Cloud *Cloud `parquet:"cloud,optional"`
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
@@ -61,7 +61,7 @@ func TestFlushRowGroup_PreservesColumnMetadata(t *testing.T) {
 			"id": int64(2),
 			"cloud": map[string]any{
 				"provider": provider,
-				"account": nil, // Test null nested field
+				"account":  nil, // Test null nested field
 			},
 		},
 	}
@@ -82,7 +82,7 @@ func TestFlushRowGroup_PreservesColumnMetadata(t *testing.T) {
 	meta := writer.rowGroupsMeta[0]
 
 	// Should have extracted column chunks from temp file
-	assert.Greater(t, len(meta.ColumnChunks), 0, "ColumnChunks should be populated from temp file footer")
+	assert.NotEmpty(t, meta.ColumnChunks, "ColumnChunks should be populated from temp file footer")
 
 	// Verify each column chunk has proper metadata
 	for i, col := range meta.ColumnChunks {
@@ -98,7 +98,7 @@ func TestFlushRowGroup_PreservesColumnMetadata(t *testing.T) {
 	}
 
 	// Verify row buffer was cleared
-	assert.Len(t, writer.rowBuffer, 0)
+	assert.Empty(t, writer.rowBuffer)
 	assert.Equal(t, int64(2), writer.totalRows)
 }
 
@@ -149,7 +149,7 @@ func TestFlushRowGroup_ExtractsActualFooterMetadata(t *testing.T) {
 	meta := writer.rowGroupsMeta[0]
 
 	// Should have 3 columns (id, name, value)
-	assert.Equal(t, 3, len(meta.ColumnChunks), "Should have extracted column chunks for all 3 fields")
+	assert.Len(t, meta.ColumnChunks, 3, "Should have extracted column chunks for all 3 fields")
 
 	// Verify each column has correct path
 	paths := make([][]string, len(meta.ColumnChunks))
@@ -344,11 +344,11 @@ func TestGenerateFooter_WithPreservedMetadata(t *testing.T) {
 	mockColumnChunks := []format.ColumnChunk{
 		{
 			MetaData: format.ColumnMetaData{
-				Type:             format.Int64,
-				PathInSchema:     []string{"id"},
-				Codec:            format.Snappy,
-				NumValues:        50,
-				DataPageOffset:   1000,
+				Type:           format.Int64,
+				PathInSchema:   []string{"id"},
+				Codec:          format.Snappy,
+				NumValues:      50,
+				DataPageOffset: 1000,
 			},
 		},
 	}
@@ -478,7 +478,7 @@ func TestNestedOptionalStructs_EndToEnd(t *testing.T) {
 			"metadata": nil, // Null top-level struct
 		},
 		{
-			"time": int64(1768980923000),
+			"time":  int64(1768980923000),
 			"cloud": nil, // All null
 			"metadata": map[string]any{
 				"version": version,
@@ -503,12 +503,12 @@ func TestNestedOptionalStructs_EndToEnd(t *testing.T) {
 	meta := writer.rowGroupsMeta[0]
 
 	// Should have column chunks for all leaf fields
-	assert.Greater(t, len(meta.ColumnChunks), 0)
+	assert.NotEmpty(t, meta.ColumnChunks)
 
 	// Each column should have proper definition level metadata
 	for i, col := range meta.ColumnChunks {
 		assert.NotNil(t, col.MetaData.PathInSchema, "Column %d should have path", i)
-		assert.Greater(t, len(col.MetaData.PathInSchema), 0, "Column %d should have non-empty path", i)
+		assert.NotEmpty(t, col.MetaData.PathInSchema, "Column %d should have non-empty path", i)
 
 		// For optional nested fields, NumValues may differ from NumRows
 		// (because some rows may have null values)

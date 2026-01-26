@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -20,16 +21,16 @@ import (
 
 const (
 	// S3 Parquet Stream Output Fields
-	spsoFieldBucket              = "bucket"
-	spsoFieldPath                = "path"
-	spsoFieldPartitionBy         = "partition_by"
-	spsoFieldForcePathStyleURLs  = "force_path_style_urls"
-	spsoFieldSchema              = "schema"
-	spsoFieldSchemaFile          = "schema_file"
-	spsoFieldDefaultCompression  = "default_compression"
-	spsoFieldDefaultEncoding     = "default_encoding"
-	spsoFieldRowGroupSize        = "row_group_size"
-	spsoFieldBatching            = "batching"
+	spsoFieldBucket             = "bucket"
+	spsoFieldPath               = "path"
+	spsoFieldPartitionBy        = "partition_by"
+	spsoFieldForcePathStyleURLs = "force_path_style_urls"
+	spsoFieldSchema             = "schema"
+	spsoFieldSchemaFile         = "schema_file"
+	spsoFieldDefaultCompression = "default_compression"
+	spsoFieldDefaultEncoding    = "default_encoding"
+	spsoFieldRowGroupSize       = "row_group_size"
+	spsoFieldBatching           = "batching"
 )
 
 func s3ParquetStreamOutputSpec() *service.ConfigSpec {
@@ -40,19 +41,19 @@ func s3ParquetStreamOutputSpec() *service.ConfigSpec {
 		Summary(`Streams Parquet data directly to S3 using multipart uploads with minimal memory overhead.`).
 		Description(`
 This output writes Parquet files to S3 by streaming row groups incrementally using S3 multipart uploads.
-Unlike the standard ` + "`aws_s3`" + ` output with ` + "`parquet_encode`" + ` processor (which buffers the entire file in memory),
+Unlike the standard `+"`aws_s3`"+` output with `+"`parquet_encode`"+` processor (which buffers the entire file in memory),
 this output streams data directly to S3, reducing memory usage from gigabytes to under 100MB.
 
 ## Key Features
 
 - **Memory Efficient**: Streams row groups to S3 as they're generated, minimal memory footprint
 - **Automatic File Rotation**: Files are automatically closed and new ones started based on row count or duration
-- **Dynamic Paths**: Supports Bloblang interpolation for partition paths (e.g., ` + "`logs/${! timestamp_unix() }`" + `)
+- **Dynamic Paths**: Supports Bloblang interpolation for partition paths (e.g., `+"`logs/${! timestamp_unix() }`"+`)
 - **S3 Multipart Upload**: Leverages S3 multipart uploads for reliable large file transfers
 
 ## When to Use
 
-Use this output instead of ` + "`aws_s3`" + ` + ` + "`parquet_encode`" + ` when:
+Use this output instead of `+"`aws_s3`"+` + `+"`parquet_encode`"+` when:
 - Writing large Parquet files (>1GB) that would consume too much memory
 - Streaming continuous data that needs to be partitioned into files
 - You need fine-grained control over file rotation (by row count or time)
@@ -74,7 +75,7 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 			service.NewInterpolatedStringField(spsoFieldPath).
 				Description("The path for each Parquet file. Supports Bloblang interpolation for dynamic partitioning.").
 				Example(`logs/${! timestamp_unix() }-${! uuid_v4() }.parquet`).
-				Example(`data/year=${! timestamp().format("2006") }/month=${! timestamp().format("01") }/data.parquet`),
+				Example(`data/year=${! now().ts_format("2006") }/month=${! now().ts_format("01") }/data.parquet`),
 			service.NewInterpolatedStringListField(spsoFieldPartitionBy).
 				Description("Optional list of interpolated string expressions that determine writer partitioning. Messages with the same partition values are written to the same file. The full path is only evaluated once when a new partition is encountered. This allows using functions like uuid_v4() in the path for unique filenames per partition. If omitted, the full path is evaluated per message for backwards compatibility.").
 				Example([]any{
@@ -136,7 +137,7 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 output:
   aws_s3_parquet_stream:
     bucket: my-data-bucket
-    path: 'events/date=${! timestamp().format("2006-01-02") }/${! uuid_v4() }.parquet'
+    path: 'events/date=${! now().ts_format("2006-01-02") }/${! uuid_v4() }.parquet'
     schema:
       - name: id
         type: INT64
@@ -308,12 +309,12 @@ func loadSchemaFromFile(filePath string) (*service.ParsedConfig, error) {
 	}
 
 	if len(fileContent.ProcessorResources) == 0 {
-		return nil, fmt.Errorf("file does not contain processor_resources")
+		return nil, errors.New("file does not contain processor_resources")
 	}
 
 	schema := fileContent.ProcessorResources[0].ParquetEncode.Schema
 	if len(schema) == 0 {
-		return nil, fmt.Errorf("file does not contain a schema definition")
+		return nil, errors.New("file does not contain a schema definition")
 	}
 
 	// Create a minimal config with just the schema field
@@ -370,8 +371,8 @@ func init() {
 }
 
 type s3ParquetStreamOutput struct {
-	conf s3ParquetStreamConfig
-	log  *service.Logger
+	conf     s3ParquetStreamConfig
+	log      *service.Logger
 	s3Client *s3.Client
 
 	// Writer pool for managing multiple partition paths

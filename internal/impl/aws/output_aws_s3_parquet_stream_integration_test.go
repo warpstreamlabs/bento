@@ -130,7 +130,7 @@ row_group_size: 100
 	assert.Equal(t, 1, n, "Should read one row")
 
 	// Verify the row has data
-	assert.Greater(t, len(buffer[0]), 0, "Row should have values")
+	assert.NotEmpty(t, buffer[0], "Row should have values")
 }
 
 // TestS3ParquetStreamOutput_IntegrationPartitionBy tests partition_by parameter with LocalStack
@@ -246,18 +246,11 @@ func createLocalS3Client(t *testing.T, servicePort string) *s3.Client {
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithRegion("eu-west-1"),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
-		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{
-					PartitionID:   "aws",
-					URL:           endpoint,
-					SigningRegion: "eu-west-1",
-				}, nil
-			})),
 	)
 	require.NoError(t, err)
 
 	return s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpoint)
 		o.UsePathStyle = true
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -111,7 +112,7 @@ func (w *StreamingParquetWriter) Initialize(ctx context.Context) error {
 	defer w.mu.Unlock()
 
 	if w.uploadID != nil {
-		return fmt.Errorf("writer already initialized")
+		return errors.New("writer already initialized")
 	}
 
 	// Start multipart upload
@@ -139,11 +140,11 @@ func (w *StreamingParquetWriter) WriteEvent(ctx context.Context, event map[strin
 	defer w.mu.Unlock()
 
 	if w.closed {
-		return fmt.Errorf("writer is closed")
+		return errors.New("writer is closed")
 	}
 
 	if w.uploadID == nil {
-		return fmt.Errorf("writer not initialized")
+		return errors.New("writer not initialized")
 	}
 
 	// Convert event to Parquet struct
@@ -319,7 +320,7 @@ func (w *StreamingParquetWriter) Close(ctx context.Context) error {
 	}
 
 	if w.uploadID == nil {
-		return fmt.Errorf("writer not initialized")
+		return errors.New("writer not initialized")
 	}
 
 	// Flush any remaining rows
@@ -632,25 +633,25 @@ func (w *StreamingParquetWriter) Stats() WriterStats {
 	defer w.mu.Unlock()
 
 	return WriterStats{
-		TotalRows:      w.totalRows,
-		RowGroups:      len(w.rowGroupsMeta),
-		PartsUploaded:  int(w.partNumber),
-		BufferedRows:   len(w.rowBuffer),
-		BufferedBytes:  w.uploadSize,
-		Age:            time.Since(w.created),
-		LastWriteAge:   time.Since(w.lastWrite),
+		TotalRows:     w.totalRows,
+		RowGroups:     len(w.rowGroupsMeta),
+		PartsUploaded: int(w.partNumber),
+		BufferedRows:  len(w.rowBuffer),
+		BufferedBytes: w.uploadSize,
+		Age:           time.Since(w.created),
+		LastWriteAge:  time.Since(w.lastWrite),
 	}
 }
 
 // WriterStats contains statistics about a streaming writer
 type WriterStats struct {
-	TotalRows      int64
-	RowGroups      int
-	PartsUploaded  int
-	BufferedRows   int
-	BufferedBytes  int64
-	Age            time.Duration
-	LastWriteAge   time.Duration
+	TotalRows     int64
+	RowGroups     int
+	PartsUploaded int
+	BufferedRows  int
+	BufferedBytes int64
+	Age           time.Duration
+	LastWriteAge  time.Duration
 }
 
 // mapToStruct is a helper function to convert map[string]any to a struct
