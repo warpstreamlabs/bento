@@ -135,7 +135,7 @@ A database [driver](#drivers) to use.
 
 
 Type: `string`  
-Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`.
+Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`, `duckdb`.
 
 ### `dsn`
 
@@ -157,6 +157,7 @@ The following is a list of supported drivers, their placeholder style, and their
 | `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |
 | `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |
 | `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |
+| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` |
 
 Please note that the `postgres` driver enforces SSL by default, you can override this with the parameter `sslmode=disable` if required.
 
@@ -177,6 +178,8 @@ dsn: foouser:foopassword@tcp(localhost:3306)/foodb
 dsn: postgres://foouser:foopass@localhost:5432/foodb?sslmode=disable
 
 dsn: oracle://foouser:foopass@localhost:1521/service_name
+
+dsn: db_file.duckdb?threads=4&access_mode=READ_ONLY
 ```
 
 ### `table`
