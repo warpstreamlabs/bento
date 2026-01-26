@@ -77,7 +77,7 @@ logger:
 	strmBuilder := service.NewStreamBuilder()
 	require.NoError(t, strmBuilder.SetYAML(config))
 
-	strm, trace, err := strmBuilder.BuildTraced()
+	strm, trace, err := strmBuilder.BuildTracedV2()
 	require.NoError(t, err)
 
 	require.NoError(t, strm.Run(context.Background()))
@@ -135,7 +135,7 @@ logger:
 	strmBuilder := service.NewStreamBuilder()
 	require.NoError(t, strmBuilder.SetYAML(config))
 
-	strm, trace, err := strmBuilder.BuildTraced()
+	strm, trace, err := strmBuilder.BuildTracedV2()
 	require.NoError(t, err)
 
 	require.NoError(t, strm.Run(context.Background()))
