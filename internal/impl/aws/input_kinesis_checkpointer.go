@@ -180,6 +180,33 @@ type awsKinesisClientClaim struct {
 	LeaseTimeout time.Time
 }
 
+// AllCheckpoints returns a set of all shard IDs that have checkpoint records
+// in DynamoDB for the given stream, regardless of whether they are claimed or not.
+func (k *awsKinesisCheckpointer) AllCheckpoints(ctx context.Context, streamID string) (map[string]bool, error) {
+	checkpoints := make(map[string]bool)
+
+	scanRes, err := k.svc.Scan(ctx, &dynamodb.ScanInput{
+		TableName:        aws.String(k.conf.Table),
+		FilterExpression: aws.String("StreamID = :stream_id"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":stream_id": &types.AttributeValueMemberS{
+				Value: streamID,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range scanRes.Items {
+		if s, ok := i["ShardID"].(*types.AttributeValueMemberS); ok {
+			checkpoints[s.Value] = true
+		}
+	}
+
+	return checkpoints, nil
+}
+
 // AllClaims returns a map of client IDs to shards claimed by that client,
 // including the lease timeout of the claim.
 func (k *awsKinesisCheckpointer) AllClaims(ctx context.Context, streamID string) (map[string][]awsKinesisClientClaim, error) {
