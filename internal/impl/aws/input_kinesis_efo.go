@@ -228,15 +228,24 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 		recordsChan := make(chan []types.Record, bufferCap)
 		errorsChan := make(chan error, 1)
 		resubscribeChan := make(chan string, 1)
+		shardFinishedChan := make(chan struct{}, 1)
 
 		var subscriptionWg sync.WaitGroup
 		subscriptionWg.Add(1)
 		go func() {
 			defer subscriptionWg.Done()
 			for sequence := range subscriptionTrigger {
-				continuationSeq, err := k.efoSubscribeAndStream(k.ctx, info, shardID, sequence, recordsChan)
+				continuationSeq, shardFinished, err := k.efoSubscribeAndStream(k.ctx, info, shardID, sequence, recordsChan)
 				if err != nil {
 					errorsChan <- err
+				} else if shardFinished {
+					// Shard is closed, signal to main loop
+					// Don't resubscribe to closed shards
+					select {
+					case shardFinishedChan <- struct{}{}:
+					default:
+					}
+					return
 				} else {
 					// Schedule resubscription with continuation sequence
 					if continuationSeq != "" {
@@ -359,6 +368,10 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 				case <-k.ctx.Done():
 				}
 
+			case <-shardFinishedChan:
+				// Shard is closed, mark as finished so we can drain pending records
+				state = awsKinesisConsumerFinished
+
 			case <-k.ctx.Done():
 				state = awsKinesisConsumerClosing
 				close(subscriptionTrigger)
@@ -372,9 +385,10 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 }
 
 // efoSubscribeAndStream subscribes to a shard and streams records to a channel
-func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamInfo, shardID, startingSequence string, recordsChan chan<- []types.Record) (string, error) {
+// Returns: continuationSequence, shardFinished, error
+func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamInfo, shardID, startingSequence string, recordsChan chan<- []types.Record) (string, bool, error) {
 	if info.efoManager == nil || info.efoManager.consumerARN == "" {
-		return "", errors.New("EFO manager or consumer ARN not initialized")
+		return "", false, errors.New("EFO manager or consumer ARN not initialized")
 	}
 
 	// Build starting position
@@ -408,7 +422,7 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 
 	output, err := k.svc.SubscribeToShard(ctx, input)
 	if err != nil {
-		return "", fmt.Errorf("failed to subscribe to shard: %w", err)
+		return "", false, fmt.Errorf("failed to subscribe to shard: %w", err)
 	}
 
 	// Process the event stream
@@ -416,6 +430,7 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 	defer eventStream.Close()
 
 	continuationSeq := ""
+	shardFinished := false
 	for event := range eventStream.Events() {
 		switch e := event.(type) {
 		case *types.SubscribeToShardEventStreamMemberSubscribeToShardEvent:
@@ -427,13 +442,19 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 				select {
 				case recordsChan <- shardEvent.Records:
 				case <-ctx.Done():
-					return continuationSeq, ctx.Err()
+					return continuationSeq, false, ctx.Err()
 				}
 			}
 
 			// Update continuation sequence for next subscription
 			if shardEvent.ContinuationSequenceNumber != nil {
 				continuationSeq = *shardEvent.ContinuationSequenceNumber
+			}
+
+			// Check if shard is closed (has child shards)
+			if len(shardEvent.ChildShards) > 0 {
+				k.log.Infof("Shard %v is closed, child shards: %v", shardID, len(shardEvent.ChildShards))
+				shardFinished = true
 			}
 
 			if shardEvent.MillisBehindLatest != nil {
@@ -449,10 +470,10 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 	if err := eventStream.Err(); err != nil {
 		// Check if it's just end of stream
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return continuationSeq, nil
+			return continuationSeq, shardFinished, nil
 		}
-		return continuationSeq, fmt.Errorf("error receiving event: %w", err)
+		return continuationSeq, shardFinished, fmt.Errorf("error receiving event: %w", err)
 	}
 
-	return continuationSeq, nil
+	return continuationSeq, shardFinished, nil
 }
