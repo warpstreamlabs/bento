@@ -145,6 +145,51 @@ http:
 	}
 }
 
+func TestHTTPClientAlternativePayload(t *testing.T) {
+	i := 0
+	expPayloads := []string{"bar"}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if exp, act := expPayloads[i], string(reqBytes); exp != act {
+			t.Errorf("Wrong payload value: %v != %v", act, exp)
+		}
+		i++
+		w.Header().Add("foobar", "baz")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("foobar"))
+	}))
+	defer ts.Close()
+
+	conf := parseYAMLProcConf(t, `
+http:
+  url: %v/testpost
+  retry_period: 1ms
+  retries: 3
+  payload: ${!"ba" + "r"}
+`, ts.URL)
+
+	h, err := mock.NewManager().NewProcessor(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msgs, res := h.ProcessBatch(context.Background(), message.QuickBatch([][]byte{[]byte("foo")}))
+	if res != nil {
+		t.Error(res)
+	} else if expC, actC := 1, msgs[0].Len(); actC != expC {
+		t.Errorf("Wrong result count: %v != %v", actC, expC)
+	} else if exp, act := "foobar", string(message.GetAllBytes(msgs[0])[0]); act != exp {
+		t.Errorf("Wrong result: %v != %v", act, exp)
+	} else if exp, act := "201", msgs[0].Get(0).MetaGetStr("http_status_code"); exp != act {
+		t.Errorf("Wrong response code metadata: %v != %v", act, exp)
+	} else if exp, act := "", msgs[0].Get(0).MetaGetStr("foobar"); exp != act {
+		t.Errorf("Wrong metadata value: %v != %v", act, exp)
+	}
+}
+
 func TestHTTPClientEmptyResponse(t *testing.T) {
 	i := 0
 	expPayloads := []string{"foo", "bar", "baz"}
