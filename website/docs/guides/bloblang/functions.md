@@ -407,7 +407,7 @@ root.doc.status = if errored() { 400 } else { 200 }
 :::caution EXPERIMENTAL
 This function is experimental and therefore breaking changes could be made to it outside of major version releases.
 :::
-Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer.
+Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer. Note, that this is only available within those streams built with `BuildTracedV2`
 
 #### Examples
 
