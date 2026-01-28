@@ -657,9 +657,9 @@ func (k *kinesisReader) runBalancedShards() {
 	for {
 		for _, info := range k.streams {
 			allShards, err := collectShards(k.ctx, info.arn, k.svc)
-			var clientClaims map[string][]awsKinesisClientClaim
+			var checkpointData *awsKinesisCheckpointData
 			if err == nil {
-				clientClaims, err = k.checkpointer.AllClaims(k.ctx, info.id)
+				checkpointData, err = k.checkpointer.GetCheckpointsAndClaims(k.ctx, info.id)
 			}
 			if err != nil {
 				if k.ctx.Err() != nil {
@@ -669,11 +669,18 @@ func (k *kinesisReader) runBalancedShards() {
 				continue
 			}
 
+			clientClaims := checkpointData.ClientClaims
+			shardsWithCheckpoints := checkpointData.ShardsWithCheckpoints
+
 			totalShards := len(allShards)
 			unclaimedShards := make(map[string]string, totalShards)
 			for _, s := range allShards {
-				if !isShardFinished(s) {
-					unclaimedShards[*s.ShardId] = ""
+				// Include shard if:
+				// 1. It's not finished (still open), OR
+				// 2. It's finished but has a checkpoint (meaning it hasn't been fully consumed yet)
+				shardID := *s.ShardId
+				if !isShardFinished(s) || shardsWithCheckpoints[shardID] {
+					unclaimedShards[shardID] = ""
 				}
 			}
 			for clientID, claims := range clientClaims {
