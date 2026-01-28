@@ -728,13 +728,9 @@ func (k *kinesisReader) runBalancedShards() {
 	for {
 		for _, info := range k.streams {
 			allShards, err := collectShards(k.ctx, info.arn, k.svc)
-			var clientClaims map[string][]awsKinesisClientClaim
-			var shardsWithCheckpoints map[string]bool
+			var checkpointData *awsKinesisCheckpointData
 			if err == nil {
-				clientClaims, err = k.checkpointer.AllClaims(k.ctx, info.id)
-			}
-			if err == nil {
-				shardsWithCheckpoints, err = k.checkpointer.AllCheckpoints(k.ctx, info.id)
+				checkpointData, err = k.checkpointer.GetCheckpointsAndClaims(k.ctx, info.id)
 			}
 			if err != nil {
 				if k.ctx.Err() != nil {
@@ -743,6 +739,9 @@ func (k *kinesisReader) runBalancedShards() {
 				k.log.Errorf("Failed to obtain stream '%v' shards or claims: %v", info.id, err)
 				continue
 			}
+
+			clientClaims := checkpointData.ClientClaims
+			shardsWithCheckpoints := checkpointData.ShardsWithCheckpoints
 
 			totalShards := len(allShards)
 			unclaimedShards := make(map[string]string, totalShards)

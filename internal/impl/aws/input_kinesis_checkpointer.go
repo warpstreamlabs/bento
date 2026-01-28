@@ -180,81 +180,86 @@ type awsKinesisClientClaim struct {
 	LeaseTimeout time.Time
 }
 
-// AllCheckpoints returns a set of all shard IDs that have checkpoint records
-// in DynamoDB for the given stream, regardless of whether they are claimed or not.
-func (k *awsKinesisCheckpointer) AllCheckpoints(ctx context.Context, streamID string) (map[string]bool, error) {
-	checkpoints := make(map[string]bool)
-
-	scanRes, err := k.svc.Scan(ctx, &dynamodb.ScanInput{
-		TableName:        aws.String(k.conf.Table),
-		FilterExpression: aws.String("StreamID = :stream_id"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":stream_id": &types.AttributeValueMemberS{
-				Value: streamID,
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, i := range scanRes.Items {
-		if s, ok := i["ShardID"].(*types.AttributeValueMemberS); ok {
-			checkpoints[s.Value] = true
-		}
-	}
-
-	return checkpoints, nil
+// awsKinesisCheckpointData contains both the set of all shards with checkpoints
+// and the map of client claims, retrieved in a single DynamoDB query.
+type awsKinesisCheckpointData struct {
+	// ShardsWithCheckpoints is a set of all shard IDs that have checkpoint records
+	ShardsWithCheckpoints map[string]bool
+	// ClientClaims is a map of client IDs to shards claimed by that client
+	ClientClaims map[string][]awsKinesisClientClaim
 }
 
-// AllClaims returns a map of client IDs to shards claimed by that client,
-// including the lease timeout of the claim.
-func (k *awsKinesisCheckpointer) AllClaims(ctx context.Context, streamID string) (map[string][]awsKinesisClientClaim, error) {
-	clientClaims := make(map[string][]awsKinesisClientClaim)
-	var scanErr error
+// GetCheckpointsAndClaims retrieves all checkpoint data for a stream.
+//
+// Returns:
+//   - ShardsWithCheckpoints: set of all shard IDs that have checkpoint records
+//   - ClientClaims: map of client IDs to their claimed shards (excludes entries without ClientID)
+func (k *awsKinesisCheckpointer) GetCheckpointsAndClaims(ctx context.Context, streamID string) (*awsKinesisCheckpointData, error) {
+	result := &awsKinesisCheckpointData{
+		ShardsWithCheckpoints: make(map[string]bool),
+		ClientClaims:          make(map[string][]awsKinesisClientClaim),
+	}
 
-	scanRes, err := k.svc.Scan(ctx, &dynamodb.ScanInput{
-		TableName:        aws.String(k.conf.Table),
-		FilterExpression: aws.String("StreamID = :stream_id"),
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(k.conf.Table),
+		KeyConditionExpression: aws.String("StreamID = :stream_id"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":stream_id": &types.AttributeValueMemberS{
 				Value: streamID,
 			},
 		},
-	})
-	if err != nil {
-		return nil, err
 	}
 
-	for _, i := range scanRes.Items {
-		var clientID string
-		if s, ok := i["ClientID"].(*types.AttributeValueMemberS); ok {
-			clientID = s.Value
-		} else {
-			continue
+	paginator := dynamodb.NewQueryPaginator(k.svc, input)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query checkpoints: %w", err)
 		}
 
-		var claim awsKinesisClientClaim
-		if s, ok := i["ShardID"].(*types.AttributeValueMemberS); ok {
-			claim.ShardID = s.Value
-		}
-		if claim.ShardID == "" {
-			return nil, errors.New("failed to extract shard id from claim")
-		}
-
-		if s, ok := i["LeaseTimeout"].(*types.AttributeValueMemberS); ok {
-			if claim.LeaseTimeout, scanErr = time.Parse(time.RFC3339Nano, s.Value); scanErr != nil {
-				return nil, fmt.Errorf("failed to parse claim lease: %w", scanErr)
+		for _, item := range page.Items {
+			// Extract ShardID - required for all checkpoint entries
+			var shardID string
+			if s, ok := item["ShardID"].(*types.AttributeValueMemberS); ok {
+				shardID = s.Value
 			}
-		}
-		if claim.LeaseTimeout.IsZero() {
-			return nil, errors.New("failed to extract lease timeout from claim")
-		}
+			if shardID == "" {
+				continue
+			}
 
-		clientClaims[clientID] = append(clientClaims[clientID], claim)
+			// Track all shards with checkpoints
+			result.ShardsWithCheckpoints[shardID] = true
+
+			// Extract client claim if ClientID exists
+			var clientID string
+			if s, ok := item["ClientID"].(*types.AttributeValueMemberS); ok {
+				clientID = s.Value
+			}
+			if clientID == "" {
+				// No client ID means this is an orphaned checkpoint (from final=true)
+				continue
+			}
+
+			// Extract lease timeout for claims
+			var claim awsKinesisClientClaim
+			claim.ShardID = shardID
+
+			if s, ok := item["LeaseTimeout"].(*types.AttributeValueMemberS); ok {
+				var parseErr error
+				if claim.LeaseTimeout, parseErr = time.Parse(time.RFC3339Nano, s.Value); parseErr != nil {
+					return nil, fmt.Errorf("failed to parse claim lease for shard %s: %w", shardID, parseErr)
+				}
+			}
+			if claim.LeaseTimeout.IsZero() {
+				return nil, fmt.Errorf("failed to extract lease timeout from claim for shard %s", shardID)
+			}
+
+			result.ClientClaims[clientID] = append(result.ClientClaims[clientID], claim)
+		}
 	}
 
-	return clientClaims, scanErr
+	return result, nil
 }
 
 // Claim attempts to claim a shard for a particular stream ID. If fromClientID
