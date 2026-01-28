@@ -176,9 +176,6 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 	state := awsKinesisConsumerConsuming
 	var pendingMsg asyncMessage
 
-	// Buffer for pending records from the subscription
-	var pending []types.Record
-
 	// Channels for subscription control
 	subscriptionTrigger := make(chan string, 1) // Trigger for initial subscription or resubscription
 	subscriptionTrigger <- startingSequence     // Start with initial sequence
@@ -261,9 +258,8 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 		// Main consumer loop (similar to polling consumer)
 		for {
 			if pendingMsg.msg == nil {
-				// If our consumer is finished and we've run out of pending
-				// records then we're done.
-				if len(pending) == 0 && state == awsKinesisConsumerFinished {
+				// If our consumer is finished then we're done.
+				if state == awsKinesisConsumerFinished {
 					if pendingMsg, _ = recordBatcher.FlushMessage(k.ctx); pendingMsg.msg == nil {
 						close(subscriptionTrigger)
 						subscriptionWg.Wait()
@@ -274,19 +270,6 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 					if pendingMsg, err = recordBatcher.FlushMessage(commitCtx); err != nil {
 						k.log.Errorf("Failed to dispatch message due to checkpoint error: %v\n", err)
 					}
-				} else if len(pending) > 0 {
-					var i int
-					var r types.Record
-					for i, r = range pending {
-						if recordBatcher.AddRecord(r) {
-							var err error
-							if pendingMsg, err = recordBatcher.FlushMessage(commitCtx); err != nil {
-								k.log.Errorf("Failed to dispatch message due to checkpoint error: %v\n", err)
-							}
-							break
-						}
-					}
-					pending = pending[i+1:]
 				}
 			}
 
@@ -333,8 +316,19 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 				pendingMsg = asyncMessage{}
 
 			case records := <-recordsChan:
-				// Received records from subscription
-				pending = append(pending, records...)
+				// Received records from subscription, process immediately to maintain backpressure
+				for _, r := range records {
+					if recordBatcher.AddRecord(r) {
+						var err error
+						if pendingMsg, err = recordBatcher.FlushMessage(commitCtx); err != nil {
+							k.log.Errorf("Failed to dispatch message due to checkpoint error: %v\n", err)
+						}
+						// If we have a message ready, break to flush it before accepting more records
+						if pendingMsg.msg != nil {
+							break
+						}
+					}
+				}
 				boff.Reset()
 
 			case err := <-errorsChan:
