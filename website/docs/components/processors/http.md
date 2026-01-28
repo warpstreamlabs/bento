@@ -34,6 +34,7 @@ http:
   headers: {}
   rate_limit: "" # No default (optional)
   timeout: 5s
+  payload: "" # No default (optional)
   parallel: false
 ```
 
@@ -103,6 +104,7 @@ http:
     idle_connection_timeout: 90s
     tls_handshake_timeout: 10s
     expect_continue_timeout: 1s
+  payload: "" # No default (optional)
   batch_as_multipart: false
   parallel: false
 ```
@@ -803,6 +805,14 @@ Time to wait for a server's first response headers after sending request headers
 Type: `string`  
 Default: `"1s"`  
 Requires version 1.13.0 or newer  
+
+### `payload`
+
+An alternative payload to deliver for each request.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
 
 ### `batch_as_multipart`
 

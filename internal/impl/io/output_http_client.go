@@ -23,6 +23,7 @@ The body of the HTTP request is the raw contents of the message payload. If the 
 
 It's possible to propagate the response from each HTTP request back to the input source by setting ` + "`propagate_response` to `true`" + `. Only inputs that support [synchronous responses](/docs/guides/sync_responses) are able to make use of these propagated responses.` + service.OutputPerformanceDocs(true, true)).
 		Field(httpclient.ConfigField("POST", true,
+			service.NewInterpolatedStringField("payload").Description("An alternative payload to deliver for each request.").Optional(),
 			service.NewBoolField("batch_as_multipart").
 				Description("Send message batches as a single request using [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). If disabled messages in batches will be sent as individual requests.").
 				Advanced().Default(false),
@@ -87,6 +88,16 @@ func newHTTPClientOutputFromParsed(conf *service.ParsedConfig, mgr *service.Reso
 	propResponse, err := conf.FieldBool("propagate_response")
 	if err != nil {
 		return nil, err
+	}
+
+	if payloadStr, _ := conf.FieldString("payload"); payloadStr != "" {
+		payloadExpr, err := conf.FieldInterpolatedString("payload")
+
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, httpclient.WithExplicitBody(payloadExpr))
 	}
 
 	if multiPartObjs, _ := conf.FieldObjectList("multipart"); len(multiPartObjs) > 0 {
