@@ -922,6 +922,18 @@ func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
 	return strm, &TracingSummary{summary}, err
 }
 
+// BuildTracedV2 is the same as BuildTraced, but also ensures flow IDs are
+// initialized for all messages.
+//
+// Experimental: The behaviour of this method could change outside of major
+// version releases.
+func (s *StreamBuilder) BuildTracedV2() (*Stream, *TracingSummary, error) {
+	flowEnv := tracing.FlowIDBundle(s.env.internal)
+	tenv, summary := tracing.TracedBundle(flowEnv)
+	strm, err := s.buildWithEnv(tenv, false)
+	return strm, &TracingSummary{summary}, err
+}
+
 // BuildStrict creates a Bento stream pipeline according to the components
 // specified by this stream builder, where each processor components is wrapped
 // to cause any message-level error to fail an entire batch. These failed batches

@@ -432,6 +432,20 @@ Returns a boolean value indicating whether an error has occurred during the proc
 root.doc.status = if errored() { 400 } else { 200 }
 ```
 
+### `flow_id`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer. Note, that this is only available within those streams built with `BuildTracedV2`
+
+#### Examples
+
+
+```coffee
+meta flow_id = flow_id()
+```
+
 ### `json`
 
 Returns the value of a field within a JSON message located by a [dot path][field_paths] argument. This function always targets the entire source JSON document regardless of the mapping context.
