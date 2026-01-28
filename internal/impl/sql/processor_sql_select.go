@@ -117,7 +117,7 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		shutSig: shutdown.NewSignaller(),
 	}
 
-	driverStr, err := conf.FieldString("driver")
+	driverStr, err := getDriver(conf, s.logger)
 	if err != nil {
 		return nil, err
 	}
