@@ -1,4 +1,4 @@
-.PHONY: all serverless deps docker docker-cgo clean docs protos test test-race test-integration fmt lint install deploy-docs playground
+.PHONY: all serverless deps docker docker-cgo clean docs generate protos test test-race test-integration fmt lint install deploy-docs playground
 TAGS ?=
 
 GOMAXPROCS         ?= 1
@@ -38,6 +38,9 @@ install: $(APPS) ## Install binaries to $(INSTALL_DIR)
 
 deps: ## Go mod tidy
 	@go mod tidy
+
+generate: ## Run all go generate directives
+	@go generate ./...
 
 SOURCE_FILES = $(shell find internal public cmd -type f)
 TEMPLATE_FILES = $(shell find internal/impl -type f -name "template_*.yaml")
