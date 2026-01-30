@@ -186,6 +186,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 	// Channels for timed batches and message flush
 	var nextTimedBatchChan <-chan time.Time
 	var nextFlushChan chan<- asyncMessage
+	var nextRecordsChan <-chan []types.Record
 	commitCtx, commitCtxClose := context.WithTimeout(k.ctx, k.commitPeriod)
 
 	go func() {
@@ -292,8 +293,14 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 
 			if pendingMsg.msg != nil {
 				nextFlushChan = k.msgChan
+				nextRecordsChan = nil
 			} else {
 				nextFlushChan = nil
+				if len(pending) == 0 {
+					nextRecordsChan = recordsChan
+				} else {
+					nextRecordsChan = nil
+				}
 			}
 
 			if nextTimedBatchChan == nil {
@@ -332,7 +339,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 			case nextFlushChan <- pendingMsg:
 				pendingMsg = asyncMessage{}
 
-			case records := <-recordsChan:
+			case records := <-nextRecordsChan:
 				// Received records from subscription
 				pending = append(pending, records...)
 				boff.Reset()
