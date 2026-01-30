@@ -237,23 +237,39 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 			defer subscriptionWg.Done()
 			for sequence := range subscriptionTrigger {
 				continuationSeq, shardFinished, err := k.efoSubscribeAndStream(k.ctx, info, shardID, sequence, recordsChan)
+				// Check if context was cancelled before attempting to send on any channels
+				select {
+				case <-k.ctx.Done():
+					return
+				default:
+				}
 				if err != nil {
-					errorsChan <- err
+					select {
+					case <-k.ctx.Done():
+						return
+					case errorsChan <- err:
+					}
 				} else if shardFinished {
 					// Shard is closed, signal to main loop
 					// Don't resubscribe to closed shards
 					select {
+					case <-k.ctx.Done():
+						return
 					case shardFinishedChan <- struct{}{}:
 					default:
 					}
 					return
 				} else {
 					// Schedule resubscription with continuation sequence
-					if continuationSeq != "" {
-						resubscribeChan <- continuationSeq
-					} else {
+					nextSeq := continuationSeq
+					if nextSeq == "" {
 						// Use latest checkpointed sequence
-						resubscribeChan <- recordBatcher.GetSequence()
+						nextSeq = recordBatcher.GetSequence()
+					}
+					select {
+					case <-k.ctx.Done():
+						return
+					case resubscribeChan <- nextSeq:
 					}
 				}
 			}
