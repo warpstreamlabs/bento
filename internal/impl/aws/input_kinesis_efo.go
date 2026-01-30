@@ -360,10 +360,13 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 				// Retryable error - backoff and retry
 				k.log.Warnf("EFO subscription error for shard %v, will retry: %v", shardID, err)
 				backoffDuration := boff.NextBackOff()
+				sequence := recordBatcher.GetSequence()
 				time.AfterFunc(backoffDuration, func() {
-					// Trigger resubscription after backoff
+					// Trigger resubscription after backoff, unless context has been cancelled
 					select {
-					case subscriptionTrigger <- recordBatcher.GetSequence():
+					case <-k.ctx.Done():
+						return
+					case subscriptionTrigger <- sequence:
 					default:
 					}
 				})
