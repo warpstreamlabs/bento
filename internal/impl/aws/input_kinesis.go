@@ -384,11 +384,6 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 	if k.conf.EnhancedFanOut != nil && k.conf.EnhancedFanOut.Enabled {
 		k.efoEnabled = true
 		k.log.Debugf("Enhanced Fan Out enabled")
-
-		// Validate EFO configuration
-		if k.conf.EnhancedFanOut.ConsumerName != "" && k.conf.EnhancedFanOut.ConsumerARN != "" {
-			return nil, errors.New("cannot specify both consumer_name and consumer_arn in enhanced_fan_out config")
-		}
 	}
 
 	return &k, nil
