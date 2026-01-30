@@ -57,7 +57,7 @@ input:
 </TabItem>
 </Tabs>
 
-Reads from a file continuously with handling of log rotation.
+Reads lines from a file continuously with handling of log rotation.
 
 ### Metadata
 

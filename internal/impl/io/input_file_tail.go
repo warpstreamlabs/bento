@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Jeffail/shutdown"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -26,7 +27,7 @@ func fileTailInputSpec() *service.ConfigSpec {
 		Categories("Local").
 		Summary("Tails a file").
 		Description(`
-Reads from a file continuously with handling of log rotation.
+Reads lines from a file continuously with handling of log rotation.
 
 ### Metadata
 
@@ -111,7 +112,7 @@ func NewFileTailInput(pConf *service.ParsedConfig, mgr *service.Resources) (*Fil
 		withLogger(mgr.Logger()),
 	}
 
-	tail, err := newTail(path, tailOpts...)
+	tail, err := newTail(path, mgr.FS(), tailOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -167,16 +168,22 @@ func (fti *FileTailInput) Read(ctx context.Context) (*service.Message, service.A
 }
 
 func (fti *FileTailInput) Close(ctx context.Context) error {
+	if fti.shutSig.IsHardStopSignalled() {
+		return nil
+	}
 	fti.shutSig.TriggerHardStop()
 	fti.tail.cancel()
 
-	<-fti.tail.doneChan
-
-	close(fti.tail.errChan)
-	close(fti.tail.lineChan)
-
-	fti.tail.file.Close()
-	return nil
+	select {
+	case <-fti.tail.doneChan:
+		close(fti.tail.errChan)
+		close(fti.tail.lineChan)
+		defer close(fti.tail.doneChan)
+		fti.tail.file.Close()
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -185,6 +192,7 @@ type tail struct {
 	path         string
 	pollInterval time.Duration
 
+	fs       ifs.FS
 	file     *os.File
 	fileInfo os.FileInfo
 
@@ -237,8 +245,8 @@ func withLogger(logger *service.Logger) tailOpt {
 	}
 }
 
-func newTail(path string, opts ...tailOpt) (tail, error) {
-	file, err := os.Open(path)
+func newTail(path string, fs ifs.FS, opts ...tailOpt) (tail, error) {
+	file, err := fs.Open(path)
 	if err != nil {
 		return tail{}, err
 	}
@@ -251,11 +259,17 @@ func newTail(path string, opts ...tailOpt) (tail, error) {
 
 	reader := bufio.NewReader(file)
 
+	osFile, ok := file.(*os.File)
+	if !ok {
+		return tail{}, fmt.Errorf("expected *os.File, got %T", file)
+	}
+
 	t := &tail{
 		path:         path,
 		pollInterval: time.Second,
 
-		file:     file,
+		fs:       fs,
+		file:     osFile,
 		fileInfo: fileInfo,
 
 		reader:   reader,
@@ -335,14 +349,14 @@ func (t *tail) watch(ctx context.Context) {
 }
 
 func (t *tail) reopenIfMovedOrTruncated() error {
-	tempInfo, err := os.Stat(t.path)
+	tempInfo, err := t.fs.Stat(t.path)
 	if err != nil {
-		return fmt.Errorf("stat file: %w", err)
+		return fmt.Errorf("failed to get file stats for %s: %w", t.file.Name(), err)
 	}
 
 	pos, err := t.file.Seek(0, io.SeekCurrent)
 	if err != nil {
-		return fmt.Errorf("seek file: %w", err)
+		return fmt.Errorf("failed to set seek on %s: %w", t.file.Name(), err)
 	}
 
 	var truncation bool
@@ -350,14 +364,14 @@ func (t *tail) reopenIfMovedOrTruncated() error {
 
 	if !os.SameFile(t.fileInfo, tempInfo) {
 		if t.logger != nil {
-			t.logger.Info(fmt.Sprintf("Handling rotation for %v", t.path))
+			t.logger.Debug(fmt.Sprintf("Handling rotation for %v", t.path))
 		}
 		moved = true
 	}
 
 	if pos > tempInfo.Size() && !moved {
 		if t.logger != nil {
-			t.logger.Info(fmt.Sprintf("Handling truncation for %v", t.path))
+			t.logger.Debug(fmt.Sprintf("Handling truncation for %v", t.path))
 		}
 		truncation = true
 	}
@@ -368,26 +382,31 @@ func (t *tail) reopenIfMovedOrTruncated() error {
 
 	err = t.handleMoveOrTruncation()
 	if err != nil {
-		return fmt.Errorf("handle rotation: %w", err)
+		return fmt.Errorf("failed to handle rotation for %s: %w", t.file.Name(), err)
 	}
 
 	return nil
 }
 
 func (t *tail) handleMoveOrTruncation() error {
-	file, err := os.Open(t.path)
+	file, err := t.fs.Open(t.path)
 	if err != nil {
 		return err
 	}
 
-	fileInfo, err := os.Stat(t.path)
+	fileInfo, err := t.fs.Stat(t.path)
 	if err != nil {
 		return err
 	}
 
 	t.file.Close()
 
-	t.file = file
+	var ok bool
+	t.file, ok = file.(*os.File)
+	if !ok {
+		return fmt.Errorf("expected *os.File, got %T", file)
+	}
+
 	t.fileInfo = fileInfo
 	t.reader = bufio.NewReader(file)
 
