@@ -183,12 +183,10 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 				Default(false),
 			service.NewStringField(kiEFOFieldConsumerName).
 				Description("Consumer name for EFO registration. Auto-generated if empty: bento-clientID.").
-				Default("").
-				Optional(),
+				Default(""),
 			service.NewStringField(kiEFOFieldConsumerARN).
 				Description("Existing consumer ARN to use. If provided, skips registration.").
 				Default("").
-				Optional().
 				Advanced(),
 			service.NewIntField(kiEFOFieldRecordBufferCap).
 				Description("Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 0 for unbuffered channel (minimal memory footprint).").
