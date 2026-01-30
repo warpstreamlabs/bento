@@ -51,11 +51,11 @@ func newKinesisEFOManager(conf *kiEFOConfig, streamARN, clientID string, svc *ki
 // ensureConsumerRegistered registers the consumer if needed and returns the consumer ARN
 func (m *kinesisEFOManager) ensureConsumerRegistered(ctx context.Context) (string, error) {
 	if m.consumerARN != "" {
-		m.log.Infof("Using provided consumer ARN: %s", m.consumerARN)
+		m.log.Debugf("Using provided consumer ARN: %s", m.consumerARN)
 		return m.consumerARN, nil
 	}
 
-	m.log.Infof("Registering Enhanced Fan Out consumer: %s for stream: %s", m.consumerName, m.streamARN)
+	m.log.Debugf("Registering Enhanced Fan Out consumer: %s for stream: %s", m.consumerName, m.streamARN)
 
 	registerInput := &kinesis.RegisterStreamConsumerInput{
 		StreamARN:    aws.String(m.streamARN),
@@ -66,7 +66,7 @@ func (m *kinesisEFOManager) ensureConsumerRegistered(ctx context.Context) (strin
 	if err != nil {
 		var resourceInUse *types.ResourceInUseException
 		if errors.As(err, &resourceInUse) {
-			m.log.Infof("Consumer %s already exists, describing to get ARN", m.consumerName)
+			m.log.Debugf("Consumer %s already exists, describing to get ARN", m.consumerName)
 			return m.describeAndWaitForActive(ctx)
 		}
 		return "", fmt.Errorf("failed to register consumer: %w", err)
@@ -77,7 +77,7 @@ func (m *kinesisEFOManager) ensureConsumerRegistered(ctx context.Context) (strin
 	}
 
 	m.consumerARN = *output.Consumer.ConsumerARN
-	m.log.Infof("Registered consumer with ARN: %s, waiting for ACTIVE status", m.consumerARN)
+	m.log.Debugf("Registered consumer with ARN: %s, waiting for ACTIVE status", m.consumerARN)
 
 	if err := m.waitForActiveConsumer(ctx); err != nil {
 		return "", fmt.Errorf("failed waiting for consumer to become active: %w", err)
@@ -103,10 +103,10 @@ func (m *kinesisEFOManager) describeAndWaitForActive(ctx context.Context) (strin
 	}
 
 	m.consumerARN = *output.ConsumerDescription.ConsumerARN
-	m.log.Infof("Found existing consumer with ARN: %s", m.consumerARN)
+	m.log.Debugf("Found existing consumer with ARN: %s", m.consumerARN)
 
 	if output.ConsumerDescription.ConsumerStatus == types.ConsumerStatusActive {
-		m.log.Infof("Consumer is already ACTIVE")
+		m.log.Debugf("Consumer is already ACTIVE")
 		return m.consumerARN, nil
 	}
 
@@ -144,7 +144,7 @@ func (m *kinesisEFOManager) waitForActiveConsumer(ctx context.Context) error {
 				m.log.Debugf("Consumer status: %s", status)
 
 				if status == types.ConsumerStatusActive {
-					m.log.Infof("Consumer is now ACTIVE")
+					m.log.Debugf("Consumer is now ACTIVE")
 					return nil
 				}
 
@@ -460,7 +460,7 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 
 			// Check if shard is closed (has child shards)
 			if len(shardEvent.ChildShards) > 0 {
-				k.log.Infof("Shard %v is closed, child shards: %v", shardID, len(shardEvent.ChildShards))
+				k.log.Debugf("Shard %v is closed, child shards: %v", shardID, len(shardEvent.ChildShards))
 				shardFinished = true
 			}
 

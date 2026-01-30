@@ -382,7 +382,7 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 	// Check if Enhanced Fan Out is enabled
 	if k.conf.EnhancedFanOut != nil && k.conf.EnhancedFanOut.Enabled {
 		k.efoEnabled = true
-		k.log.Infof("Enhanced Fan Out enabled")
+		k.log.Debugf("Enhanced Fan Out enabled")
 
 		// Validate EFO configuration
 		if k.conf.EnhancedFanOut.ConsumerName != "" && k.conf.EnhancedFanOut.ConsumerARN != "" {
@@ -976,7 +976,7 @@ func (k *kinesisReader) Connect(ctx context.Context) error {
 			}
 
 			stream.efoManager = efoMgr
-			k.log.Infof("Enhanced Fan Out consumer registered for stream %s with ARN: %s", stream.id, consumerARN)
+			k.log.Debugf("Enhanced Fan Out consumer registered for stream %s with ARN: %s", stream.id, consumerARN)
 		}
 	}
 
