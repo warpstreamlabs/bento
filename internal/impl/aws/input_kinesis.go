@@ -200,7 +200,10 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 			Advanced(),
 	).
 		Fields(config.SessionFields()...).
-		Field(service.NewBatchPolicyField(kiFieldBatching))
+		Field(service.NewBatchPolicyField(kiFieldBatching)).
+		LintRule(`root = match {
+this.` + kiFieldEnhancedFanOut + `.` + kiEFOFieldConsumerName + ` != "" && this.` + kiFieldEnhancedFanOut + `.` + kiEFOFieldConsumerARN + ` != "" => ["cannot specify both ` + kiEFOFieldConsumerName + ` and ` + kiEFOFieldConsumerARN + ` in ` + kiFieldEnhancedFanOut + ` config"]
+}`)
 	return spec
 }
 
