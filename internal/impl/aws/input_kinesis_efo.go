@@ -456,6 +456,7 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 	defer eventStream.Close()
 
 	continuationSeq := ""
+	lastReceivedSeq := ""
 	shardFinished := false
 	for event := range eventStream.Events() {
 		switch e := event.(type) {
@@ -463,11 +464,20 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 			// Got records event
 			shardEvent := e.Value
 
-			// Send records to channel
+			// Send records to channel and track last received sequence
 			if len(shardEvent.Records) > 0 {
+				// Track the last record's sequence number for fallback
+				lastRecord := shardEvent.Records[len(shardEvent.Records)-1]
+				if lastRecord.SequenceNumber != nil {
+					lastReceivedSeq = *lastRecord.SequenceNumber
+				}
 				select {
 				case recordsChan <- shardEvent.Records:
 				case <-ctx.Done():
+					// Use lastReceivedSeq as fallback if continuationSeq not set
+					if continuationSeq == "" {
+						continuationSeq = lastReceivedSeq
+					}
 					return continuationSeq, false, ctx.Err()
 				}
 			}
@@ -490,6 +500,11 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 		default:
 			k.log.Warnf("Unknown event type received: %T", event)
 		}
+	}
+
+	// Use lastReceivedSeq as fallback if continuationSeq not set
+	if continuationSeq == "" {
+		continuationSeq = lastReceivedSeq
 	}
 
 	// Check for stream errors
