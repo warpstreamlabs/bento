@@ -263,26 +263,27 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 		// Store page index data for this row group to write later (after all row groups)
 		w.pageIndexParts = append(w.pageIndexParts, pageIndexData)
 
-		// Adjust column metadata - page index will be written after all row groups
-		// We don't know the exact position yet, so we'll fix it up later in Close()
+		// Adjust column metadata offsets
 		for i, col := range fileMeta.RowGroups[0].Columns {
 			adjustedCol := col
 			adjustedCol.MetaData.DataPageOffset = w.filePosition + col.MetaData.DataPageOffset - 4 // Subtract temp file header size
 			if adjustedCol.MetaData.DictionaryPageOffset != 0 {
 				adjustedCol.MetaData.DictionaryPageOffset = w.filePosition + adjustedCol.MetaData.DictionaryPageOffset - 4
 			}
+			// CRITICAL: Clear page index and bloom filter offsets from temp file
+			// The streaming writer doesn't include page indexes or bloom filters,
+			// so these offsets are invalid. If left set, parquet-go will try to
+			// read them and panic with "slice bounds out of range" errors.
+			adjustedCol.MetaData.IndexPageOffset = 0
+			adjustedCol.MetaData.BloomFilterOffset = 0
 
-			// Clear page index offsets/lengths if not present (to avoid incorrect offset calculations)
-			if col.ColumnIndexOffset == 0 || col.ColumnIndexLength == 0 {
-				adjustedCol.ColumnIndexOffset = 0
-				adjustedCol.ColumnIndexLength = 0
-			}
-			if col.OffsetIndexOffset == 0 || col.OffsetIndexLength == 0 {
-				adjustedCol.OffsetIndexOffset = 0
-				adjustedCol.OffsetIndexLength = 0
-			}
+			// CRITICAL: Also clear ColumnChunk-level page index offsets
+			// These are separate from the ColumnMetaData offsets and must also be cleared
+			adjustedCol.OffsetIndexOffset = 0
+			adjustedCol.OffsetIndexLength = 0
+			adjustedCol.ColumnIndexOffset = 0
+			adjustedCol.ColumnIndexLength = 0
 
-			// Leave page index offsets as placeholders for now - will be fixed in Close()
 			columnChunks[i] = adjustedCol
 		}
 	}
@@ -569,6 +570,13 @@ func (w *StreamingParquetWriter) appendFieldToThrift(elements []format.SchemaEle
 		// Group/struct type - has children
 		numChildren := int32(len(field.Fields()))
 		elem.NumChildren = numChildren
+	}
+
+	// Preserve LogicalType from the field for ALL types (leaf and group)
+	// This is critical for systems like Apache Iceberg that validate types
+	// and rely on modern LogicalType annotations (STRING, INT, TIMESTAMP, LIST, MAP, etc.)
+	if field.Type().LogicalType() != nil {
+		elem.LogicalType = field.Type().LogicalType()
 	}
 
 	// Append this element
