@@ -1,4 +1,4 @@
-.PHONY: all serverless deps docker docker-cgo clean docs protos test test-race test-integration fmt lint install deploy-docs playground
+.PHONY: all serverless deps docker docker-cgo clean docs generate protos test test-race test-integration fmt lint install deploy-docs playground
 TAGS ?=
 
 GOMAXPROCS         ?= 1
@@ -11,7 +11,7 @@ PATHINSTSERVERLESS = $(DEST_DIR)/serverless
 PATHINSTDOCKER     = $(DEST_DIR)/docker
 DOCKER_IMAGE       ?= ghcr.io/warpstreamlabs/bento
 
-VERSION   := $(shell git describe --tags || echo "v0.0.0")
+VERSION   := $(shell git describe --tags 2>/dev/null || echo "v0.0.0")
 VER_CUT   := $(shell echo $(VERSION) | cut -c2-)
 VER_MAJOR := $(shell echo $(VER_CUT) | cut -f1 -d.)
 VER_MINOR := $(shell echo $(VER_CUT) | cut -f2 -d.)
@@ -38,6 +38,9 @@ install: $(APPS) ## Install binaries to $(INSTALL_DIR)
 
 deps: ## Go mod tidy
 	@go mod tidy
+
+generate: ## Run all go generate directives
+	@go generate ./...
 
 SOURCE_FILES = $(shell find internal public cmd -type f)
 TEMPLATE_FILES = $(shell find internal/impl -type f -name "template_*.yaml")
