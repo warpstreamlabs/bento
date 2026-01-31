@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -1064,6 +1065,31 @@ workflow:
 	mu.Unlock()
 
 	assert.Equal(t, `{"content":"waddup","id":"HELLO WORLD","meta":{"workflow":{"succeeded":["fooproc"]}}}`, outValue)
+
+	normalizeEvents := func(events map[string][]service.TracingEvent) map[string][]service.TracingEvent {
+		normalized := make(map[string][]service.TracingEvent)
+		for k, evs := range events {
+			normalizedEvs := make([]service.TracingEvent, len(evs))
+			for i, ev := range evs {
+				normalizedEvs[i] = service.TracingEvent{
+					Type:      ev.Type,
+					Content:   ev.Content,
+					FlowID:    "",
+					Timestamp: time.Time{},
+				}
+
+				if ev.Meta == nil {
+					normalizedEvs[i].Meta = map[string]any{}
+				} else {
+					normalizedEvs[i].Meta = make(map[string]any)
+					maps.Copy(normalizedEvs[i].Meta, ev.Meta)
+				}
+			}
+			normalized[k] = normalizedEvs
+		}
+		return normalized
+	}
+
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"barproc": {
 			{Type: "CONSUME", Content: "{\"id\":\"hello world\",\"content\":\"waddup\"}", Meta: map[string]interface{}{}},
@@ -1074,5 +1100,5 @@ workflow:
 			{Type: "CONSUME", Content: "hello world", Meta: map[string]interface{}{}},
 			{Type: "PRODUCE", Content: "{\"id\":\"HELLO WORLD\"}", Meta: map[string]interface{}{}},
 		},
-	}, tracer.ProcessorEvents(false))
+	}, normalizeEvents(tracer.ProcessorEvents(false)))
 }

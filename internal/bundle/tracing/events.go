@@ -3,8 +3,10 @@ package tracing
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/tracing"
 )
 
 // EventType describes the type of event a component might experience during
@@ -21,9 +23,11 @@ var (
 
 // NodeEvent represents a single event that occurred within the stream.
 type NodeEvent struct {
-	Type    EventType
-	Content string
-	Meta    map[string]any
+	Type      EventType
+	Content   string
+	Meta      map[string]any
+	FlowID    string
+	Timestamp time.Time
 }
 
 // EventProduceOf creates a produce event from a message part.
@@ -35,9 +39,11 @@ func EventProduceOf(part *message.Part) NodeEvent {
 	})
 
 	return NodeEvent{
-		Type:    EventProduce,
-		Content: string(part.AsBytes()),
-		Meta:    meta,
+		Type:      EventProduce,
+		Content:   string(part.AsBytes()),
+		Meta:      meta,
+		FlowID:    getFlowID(part),
+		Timestamp: time.Now(),
 	}
 }
 
@@ -50,25 +56,60 @@ func EventConsumeOf(part *message.Part) NodeEvent {
 	})
 
 	return NodeEvent{
-		Type:    EventConsume,
-		Content: string(part.AsBytes()),
-		Meta:    meta,
+		Type:      EventConsume,
+		Content:   string(part.AsBytes()),
+		Meta:      meta,
+		FlowID:    getFlowID(part),
+		Timestamp: time.Now(),
 	}
 }
 
 // EventDeleteOf creates a deleted event from a message part.
+//
+// Deprecated: Use EventDeleteOfPart instead. This function cannot track flow IDs.
 func EventDeleteOf() NodeEvent {
 	return NodeEvent{
-		Type: EventDelete,
+		Type:      EventDelete,
+		FlowID:    "",
+		Timestamp: time.Now(),
+	}
+}
+
+// EventDeleteOfPart creates a deleted event with flow ID from a message part.
+func EventDeleteOfPart(part *message.Part) NodeEvent {
+	return NodeEvent{
+		Type:      EventDelete,
+		FlowID:    getFlowID(part),
+		Timestamp: time.Now(),
 	}
 }
 
 // EventErrorOf creates an error event from a message part.
+//
+// Deprecated: Use EventErrorOfPart instead. This function cannot track flow IDs.
 func EventErrorOf(err error) NodeEvent {
 	return NodeEvent{
-		Type:    EventError,
-		Content: err.Error(),
+		Type:      EventError,
+		Content:   err.Error(),
+		FlowID:    "",
+		Timestamp: time.Now(),
 	}
+}
+
+// EventErrorOfPart creates an error event with flow ID from a message part.
+func EventErrorOfPart(part *message.Part, err error) NodeEvent {
+	return NodeEvent{
+		Type:      EventError,
+		Content:   err.Error(),
+		FlowID:    getFlowID(part),
+		Timestamp: time.Now(),
+	}
+}
+
+// getFlowID retrieves the flow ID from a message part.
+// Flow IDs are initialized at the input layer, so this should always return a value.
+func getFlowID(part *message.Part) string {
+	return tracing.GetFlowID(message.GetContext(part))
 }
 
 type control struct {

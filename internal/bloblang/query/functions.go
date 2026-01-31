@@ -263,6 +263,21 @@ var _ = registerSimpleFunction(
 	},
 )
 
+var _ = registerSimpleFunction(
+	NewFunctionSpec(
+		FunctionCategoryMessage, "flow_id",
+		"Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer. Note, that this is only available within those streams built with `BuildTracedV2`",
+		NewExampleSpec("",
+			`meta flow_id = flow_id()`,
+		),
+	).Experimental(),
+	func(fCtx FunctionContext) (any, error) {
+		part := fCtx.MsgBatch.Get(fCtx.Index)
+		ctx := part.GetContext()
+		return tracing.GetFlowID(ctx), nil
+	},
+)
+
 //------------------------------------------------------------------------------
 
 var _ = registerFunction(
