@@ -309,7 +309,12 @@ func wrapType(
 				return nil, fmt.Errorf("getting optional flag: %w", err)
 			}
 			if optional {
-				return reflect.PointerTo(baseType), nil
+				// FIX: Don't wrap LIST types (slices) in pointers
+				// The parquet-go library requires "list" tag on slice types, not pointer types
+				// LIST types already handle nullability through 3-level encoding
+				if baseType.Kind() != reflect.Slice {
+					return reflect.PointerTo(baseType), nil
+				}
 			}
 		}
 	}
