@@ -33,8 +33,7 @@ The fields 'key', 'exchange' and 'type' can be dynamically set using function in
 				Description("A list of URLs to connect to. The first URL to successfully establish a connection will be used until the connection is closed. If an item of the list contains commas it will be expanded into multiple URLs.").
 				Example([]string{"amqp://guest:guest@127.0.0.1:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
-				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
-				Version("1.0.0"),
+				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}),
 			service.NewInterpolatedStringField(exchangeField).
 				Description("An AMQP exchange to publish to."),
 			service.NewObjectField(exchangeDeclareField,
@@ -185,7 +184,7 @@ func amqp09WriterFromParsed(conf *service.ParsedConfig, mgr *service.Resources) 
 		return nil, errors.New("must specify at least one URL")
 	}
 	for _, u := range urlStrs {
-		for _, splitURL := range strings.Split(u, ",") {
+		for splitURL := range strings.SplitSeq(u, ",") {
 			if trimmed := strings.TrimSpace(splitURL); trimmed != "" {
 				a.urls = append(a.urls, trimmed)
 			}

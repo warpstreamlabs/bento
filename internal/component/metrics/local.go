@@ -186,7 +186,7 @@ func ReverseLabelledPath(path string) (name string, tagNames, tagValues []string
 	}
 
 	name = path[:labelsStart]
-	for _, tagKVStr := range strings.Split(path[labelsStart+1:len(path)-1], tagEncodingSeparator) {
+	for tagKVStr := range strings.SplitSeq(path[labelsStart+1:len(path)-1], tagEncodingSeparator) {
 		tagKV := strings.Split(tagKVStr, "=")
 		if len(tagKV) != 2 {
 			continue

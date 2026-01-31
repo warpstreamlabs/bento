@@ -46,7 +46,6 @@ A list of regular expressions (re2) where if the child output returns an error t
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

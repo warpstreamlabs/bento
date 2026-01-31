@@ -110,7 +110,6 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 
 func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Version("1.0.0").
 		Stable().
 		Categories("Integration").
 		Summary("Executes a `SELECT` query against BigQuery and replaces messages with the rows returned.").

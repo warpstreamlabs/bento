@@ -70,6 +70,32 @@ pipeline:
           root.meta.error = error()
 ```
 
+### Error Introspection
+
+It's also possible to capture additional context about where the error originated using [`error_source_label`][bloblang.functions#error_source_label], [`error_source_type`][bloblang.functions#error_source_type], and [`error_source_path`][bloblang.functions#error_source_path]:
+
+```yaml
+pipeline:
+  processors:
+    - resource: foo # Processor that might fail
+    - catch:
+      - log:
+          message: "Processor ${!error_source_label()} failed: ${!error()}"
+```
+
+Or add this context to the message:
+```yaml
+pipeline:
+  processors:
+    - resource: foo # Processor that might fail
+    - catch:
+      - mapping: |
+          root = this
+          root.error.message = error()
+          root.error.source = error_source_label()
+          root.error.type = error_source_type()
+```
+
 ## Attempt Until Success
 
 It's possible to reattempt a processor for a particular message until it is successful with a [`retry`][processor.retry] processor:
@@ -143,6 +169,11 @@ output:
           resource: baz
 ```
 
+[bloblang.functions#errored]: /docs/guides/bloblang/functions#errored
+[bloblang.functions#error]: /docs/guides/bloblang/functions#error
+[bloblang.functions#error_source_label]: /docs/guides/bloblang/functions#error_source_label
+[bloblang.functions#error_source_type]: /docs/guides/bloblang/functions#error_source_type
+[bloblang.functions#error_source_path]: /docs/guides/bloblang/functions#error_source_path
 [processors]: /docs/components/processors/about
 [processor.mapping]: /docs/components/processors/mapping
 [processor.switch]: /docs/components/processors/switch

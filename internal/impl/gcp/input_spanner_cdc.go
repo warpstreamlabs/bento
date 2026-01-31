@@ -362,7 +362,7 @@ FROM READ_%s (
     @partition_token,
     @heartbeat_milliseconds
 )`, c.conf.StreamName),
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"start_timestamp":        startTimestamp.UTC(),
 			"end_timestamp":          c.conf.EndTime,
 			"partition_token":        partitionToken,

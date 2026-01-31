@@ -9,10 +9,10 @@ import (
 // AuthResponse represents the NSQ authentication response format.
 // See: https://nsq.io/components/nsqd.html#auth
 type AuthResponse struct {
-	TTL            int              `json:"ttl"`
-	Identity       string           `json:"identity"`
-	IdentityURL    string           `json:"identity_url"`
-	Authorizations []Authorization  `json:"authorizations"`
+	TTL            int             `json:"ttl"`
+	Identity       string          `json:"identity"`
+	IdentityURL    string          `json:"identity_url"`
+	Authorizations []Authorization `json:"authorizations"`
 }
 
 // Authorization defines permissions for topics and channels.
@@ -79,8 +79,8 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		IdentityURL: "",
 		Authorizations: []Authorization{
 			{
-				Topic:       ".*", // Allow all topics (regex pattern)
-				Channels:    []string{".*"}, // Allow all channels (regex pattern)
+				Topic:       ".*",                             // Allow all topics (regex pattern)
+				Channels:    []string{".*"},                   // Allow all channels (regex pattern)
 				Permissions: []string{"subscribe", "publish"}, // Full permissions
 			},
 		},

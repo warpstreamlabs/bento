@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"time"
@@ -35,7 +36,6 @@ const (
 func ConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("1.0.0").
 		Summary(`Send metrics to InfluxDB 1.x using the `+"`/write`"+` endpoint.`).
 		Description(`See https://docs.influxdata.com/influxdb/v1.8/tools/api/#write-http-endpoint for further details on the write API.`).
 		Fields(
@@ -274,13 +274,9 @@ func (i *influxDBMetrics) publishRegistry() error {
 		name, normalTags := decodeInfluxDBName(k)
 		tags := make(map[string]string, len(i.tags)+len(normalTags))
 		// apply normal tags
-		for k, v := range normalTags {
-			tags[k] = v
-		}
+		maps.Copy(tags, normalTags)
 		// override with any global
-		for k, v := range i.tags {
-			tags[k] = v
-		}
+		maps.Copy(tags, i.tags)
 		p, err := client.NewPoint(name, tags, v, now)
 		if err != nil {
 			i.log.Debugf("problem formatting metrics on %s: %s", name, err)

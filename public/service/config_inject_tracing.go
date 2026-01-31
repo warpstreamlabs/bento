@@ -21,7 +21,6 @@ func NewInjectTracingSpanMappingField() *ConfigField {
 			`meta = @.assign(this)`,
 			`root.meta.span = this`,
 		).
-		Version("1.0.0").
 		Optional().
 		Advanced()
 }
@@ -67,7 +66,7 @@ func (s *spanExtractBatchOutput) Connect(ctx context.Context) error {
 }
 
 func (s *spanExtractBatchOutput) WriteBatch(ctx context.Context, batch MessageBatch) error {
-	for i := 0; i < len(batch); i++ {
+	for i := range batch {
 		span := tracing.GetSpanFromContext(batch[i].Context())
 		spanMapGeneric, err := span.TextMap()
 		if err != nil {

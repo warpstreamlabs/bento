@@ -23,7 +23,6 @@ const (
 
 func cloudTraceSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Version("1.0.0").
 		Summary(`Send tracing events to a [Google Cloud Trace](https://cloud.google.com/trace).`).
 		Fields(
 			service.NewStringField(ctFieldProject).

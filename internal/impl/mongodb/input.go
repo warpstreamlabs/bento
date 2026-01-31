@@ -21,7 +21,6 @@ const (
 func mongoConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services").
 		Summary("Executes a query and creates a message for each document received.").
 		Description(`
@@ -44,8 +43,7 @@ You can access these metadata fields using
 		Field(service.NewStringField("collection").Description("The collection to select from.")).
 		Field(service.NewStringEnumField("operation", FindInputOperation, AggregateInputOperation).
 			Description("The mongodb operation to perform.").
-			Default(FindInputOperation).Advanced().
-			Version("1.0.0")).
+			Default(FindInputOperation).Advanced()).
 		Field(service.NewStringAnnotatedEnumField("json_marshal_mode", map[string]string{
 			string(JSONMarshalModeCanonical): "A string format that emphasizes type preservation at the expense of readability and interoperability. " +
 				"That is, conversion from canonical to BSON will generally preserve type information except in certain specific cases. ",
@@ -54,8 +52,7 @@ You can access these metadata fields using
 		}).
 			Description("The json_marshal_mode setting is optional and controls the format of the output message.").
 			Default(string(JSONMarshalModeCanonical)).
-			Advanced().
-			Version("1.0.0")).
+			Advanced()).
 		Field(service.NewBloblangField("query").
 			Description("Bloblang expression describing MongoDB query.").
 			Example(`
@@ -66,18 +63,15 @@ You can access these metadata fields using
 		Field(service.NewIntField("batch_size").
 			Description("A explicit number of documents to batch up before flushing them for processing. Must be greater than `0`. Operations: `find`, `aggregate`").
 			Optional().
-			Example(1000).
-			Version("1.0.0")).
+			Example(1000)).
 		Field(service.NewIntMapField("sort").
 			Description("An object specifying fields to sort by, and the respective sort order (`1` ascending, `-1` descending). Note: The driver currently appears to support only one sorting key. Operations: `find`").
 			Optional().
 			Example(map[string]int{"name": 1}).
-			Example(map[string]int{"age": -1}).
-			Version("1.0.0")).
+			Example(map[string]int{"age": -1})).
 		Field(service.NewIntField("limit").
 			Description("An explicit maximum number of documents to return. Operations: `find`").
-			Optional().
-			Version("1.0.0"))
+			Optional())
 }
 
 func init() {

@@ -16,7 +16,7 @@ import (
 
 type DSNBuilder func(dsn, driver string) (builtDSN string, err error)
 
-var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner").
+var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb").
 	Description("A database [driver](#drivers) to use.")
 
 var dsnField = service.NewStringField("dsn").
@@ -38,16 +38,21 @@ The following is a list of supported drivers, their placeholder style, and their
 ` + "| `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |" + `
 ` + "| `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |" + `
 ` + "| `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |" + `
+` + "| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` or `:memory:` for ephemeral in-process storage. |" + `
 
 Please note that the ` + "`postgres`" + ` driver enforces SSL by default, you can override this with the parameter ` + "`sslmode=disable`" + ` if required.
 
 The ` + "`snowflake`" + ` driver supports multiple DSN formats. Please consult [the docs](https://pkg.go.dev/github.com/snowflakedb/gosnowflake#hdr-Connection_String) for more details. For [key pair authentication](https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication), the DSN has the following format: ` + "`<snowflake_user>@<snowflake_account>/<db_name>/<schema_name>?warehouse=<warehouse>&role=<role>&authenticator=snowflake_jwt&privateKey=<base64_url_encoded_private_key>`" + `, where the value for the ` + "`privateKey`" + ` parameter can be constructed from an unencrypted RSA private key file ` + "`rsa_key.p8`" + ` using ` + "`openssl enc -d -base64 -in rsa_key.p8 | basenc --base64url -w0`" + ` (you can use ` + "`gbasenc`" + ` insted of ` + "`basenc`" + ` on OSX if you install ` + "`coreutils`" + ` via Homebrew). If you have a password-encrypted private key, you can decrypt it using ` + "`openssl pkcs8 -in rsa_key_encrypted.p8 -out rsa_key.p8`" + `. Also, make sure fields such as the username are URL-encoded.
 
-The ` + "[`gocosmos`](https://pkg.go.dev/github.com/microsoft/gocosmos)" + ` driver is still experimental, but it has support for [hierarchical partition keys](https://learn.microsoft.com/en-us/azure/cosmos-db/hierarchical-partition-keys) as well as [cross-partition queries](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/how-to-query-container#cross-partition-query). Please refer to the [SQL notes](https://github.com/microsoft/gocosmos/blob/main/SQL.md) for details.`).
+The ` + "[`gocosmos`](https://pkg.go.dev/github.com/microsoft/gocosmos)" + ` driver is still experimental, but it has support for [hierarchical partition keys](https://learn.microsoft.com/en-us/azure/cosmos-db/hierarchical-partition-keys) as well as [cross-partition queries](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/how-to-query-container#cross-partition-query). Please refer to the [SQL notes](https://github.com/microsoft/gocosmos/blob/main/SQL.md) for details.
+
+The ` + "[`duckdb`](https://github.com/duckdb/duckdb-go)" + ` driver requires cgo to link the DuckDB static library. It is only available in builds with the ` + "`x_bento_extra`" + ` build tag or the CGO-enabled Docker image (-cgo tag postfix).`).
 	Example("clickhouse://username:password@host1:9000,host2:9000/database?dial_timeout=200ms&max_execution_time=60").
 	Example("foouser:foopassword@tcp(localhost:3306)/foodb").
 	Example("postgres://foouser:foopass@localhost:5432/foodb?sslmode=disable").
-	Example("oracle://foouser:foopass@localhost:1521/service_name")
+	Example("oracle://foouser:foopass@localhost:1521/service_name").
+	Example("db_file.duckdb?threads=4&access_mode=READ_ONLY").
+	Example(":memory:")
 
 func connFields() []*service.ConfigField {
 
@@ -63,8 +68,7 @@ If a statement fails for any reason a warning log will be emitted but the operat
 			Example([]any{`./init/*.sql`}).
 			Example([]any{`./foo.sql`, `./bar.sql`}).
 			Optional().
-			Advanced().
-			Version("1.0.0"),
+			Advanced(),
 		service.NewStringField("init_statement").
 			Description(`
 An optional SQL statement to execute immediately upon the first connection to the target database. This is a useful way to initialise tables before processing data. Care should be taken to ensure that the statement is idempotent, and therefore would not cause issues when run multiple times after service restarts.
@@ -82,8 +86,7 @@ CREATE TABLE IF NOT EXISTS some_table (
 ) WITHOUT ROWID;
 `).
 			Optional().
-			Advanced().
-			Version("1.0.0"),
+			Advanced(),
 		service.NewBoolField("init_verify_conn").
 			Description("Whether to verify the database connection on startup by performing a simple ping, by default this is disabled.").
 			Default(false).
@@ -179,6 +182,7 @@ func rawQueryField() *service.ConfigField {
 ` + "| `spanner` | Question mark |" + `
 ` + "| `trino` | Question mark |" + `
 ` + "| `gocosmos` | Colon |" + `
+` + "| `duckdb` | Question mark |" + `
 `)
 }
 
@@ -395,4 +399,31 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 	}
 
 	return db, nil
+}
+
+// isAuthError detects authentication failures so the connection can be
+// re-established with fresh credentials. Only postgres and mysql are handled
+// because they are the only drivers that support IAM token rotation;
+// reconnecting with static credentials would just fail again.
+func isAuthError(driver string, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch driver {
+	case "postgres":
+		// pq.Error has a SQLState() method that returns the PostgreSQL error code.
+		// SQLSTATE class 28 = Invalid Authorization Specification
+		// (e.g. 28P01 for PAM/password auth failure).
+		var stateErr interface{ SQLState() string }
+		if errors.As(err, &stateErr) {
+			return strings.HasPrefix(stateErr.SQLState(), "28")
+		}
+	case "mysql":
+		// MySQLError has SQLState as a [5]byte field (not a method),
+		// so we match the canonical error message instead.
+		return strings.Contains(strings.ToLower(err.Error()), "access denied")
+	}
+
+	return false
 }

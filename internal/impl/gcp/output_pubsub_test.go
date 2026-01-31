@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub" //nolint:staticcheck
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 

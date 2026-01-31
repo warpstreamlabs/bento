@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	frand "math/rand/v2"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,7 +27,6 @@ func init() {
 		Beta().
 		Category("String Manipulation").
 		Description(`Creates a "slug" from a given string. Wraps the github.com/gosimple/slug package. See its [docs](https://pkg.go.dev/github.com/gosimple/slug) for more information.`).
-		Version("1.0.0").
 		Example("Creates a slug from an English string",
 			`root.slug = this.value.slug()`,
 			[2]string{
@@ -333,10 +333,5 @@ func registerULID() error {
 }
 
 func hasMember(arr []string, member string) bool {
-	for _, v := range arr {
-		if v == member {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(arr, member)
 }

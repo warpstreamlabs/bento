@@ -91,6 +91,7 @@ input:
       rebalance_timeout: 60s
     fetch_buffer_cap: 256
     multi_header: false
+    debug: false
     batching:
       count: 0
       byte_size: 0
@@ -171,7 +172,6 @@ A list of topics to consume from. Multiple comma separated topics can be listed 
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -502,7 +502,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `sasl.aws.credentials.role`
 
@@ -567,7 +566,6 @@ The maximum number of messages of the same topic and partition that can be proce
 
 Type: `int`  
 Default: `1024`  
-Requires version 1.0.0 or newer  
 
 ### `auto_replay_nacks`
 
@@ -599,7 +597,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -663,6 +660,15 @@ Decode headers into lists to allow handling of multiple values with the same key
 
 Type: `bool`  
 Default: `false`  
+
+### `debug`
+
+Enable sarama's internal protocol logging (connection, rebalances, fetches, SASL, etc.). Log lines are forwarded to the Bento logger at debug level.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.16.0 or newer  
 
 ### `batching`
 

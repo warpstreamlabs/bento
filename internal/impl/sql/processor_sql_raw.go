@@ -46,7 +46,7 @@ If the query fails to execute then the message will remain unchanged and the err
 		spec = spec.Field(f)
 	}
 
-	spec = spec.Version("1.0.0").
+	spec = spec.
 		Example(
 			"Table Insert (MySQL)",
 			"The following example inserts rows into the table footable with the columns foo, bar and baz populated with values extracted from messages.",
@@ -75,6 +75,44 @@ pipeline:
               query: "SELECT * FROM footable WHERE user_id = $1;"
               args_mapping: '[ this.user.id ]'
         result_map: 'root.foo_rows = this'
+`,
+		).
+		Example(
+			"Enrichment Lookup (DuckDB)",
+			"Enrich each message with a field from a DuckDB lookup table. The table is seeded once via `init_statement` and queried per message.",
+			`
+# BENTO LINT DISABLE
+pipeline:
+  processors:
+    - branch:
+        processors:
+          - sql_raw:
+              driver: duckdb
+              dsn: /tmp/duckburg.duckdb
+              query: "SELECT occupation FROM duckburg WHERE name = ?"
+              args_mapping: "root = [this.name]"
+              init_statement: |
+                CREATE TABLE IF NOT EXISTS duckburg (name VARCHAR PRIMARY KEY, occupation VARCHAR);
+                INSERT OR IGNORE INTO duckburg VALUES
+                  ('Scrooge McDuck','Billionaire'),('Donald Duck','Sailor'),
+                  ('Huey Duck','Junior Woodchuck'),('Launchpad McQuack','Pilot');
+              conn_max_open: 1
+        result_map: "root.occupation = this.index(0).occupation"
+`,
+		).
+		Example(
+			"In-Memory Computation (DuckDB)",
+			"Run SQL expressions against message fields using a DuckDB `:memory:` database(no external file required).",
+			`
+# BENTO LINT DISABLE
+pipeline:
+  processors:
+    - sql_raw:
+        driver: duckdb
+        dsn: ":memory:"
+        query: "SELECT ? * 2 + 1 AS result"
+        args_mapping: "root = [this.random]"
+        conn_max_open: 1
 `,
 		)
 	return spec

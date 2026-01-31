@@ -29,7 +29,6 @@ func genInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Utility").
-		Version("1.0.0").
 		Summary("Generates messages at a given interval using a [Bloblang](/docs/guides/bloblang/about) mapping executed without a context. This allows you to generate messages for testing your pipeline configs.").
 		Fields(
 			service.NewBloblangField(giFieldMapping).
@@ -236,10 +235,7 @@ func (b *generateReader) ReadBatch(ctx context.Context) (message.Batch, input.As
 
 				tNext := (*b.schedule).Next(t)
 				tNow := time.Now()
-				duration := tNext.Sub(tNow)
-				if duration < 1 {
-					duration = 1
-				}
+				duration := max(tNext.Sub(tNow), 1)
 
 				b.schedulePrev = &tNext
 				b.timer.Reset(duration)

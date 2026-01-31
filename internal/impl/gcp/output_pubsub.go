@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub" //nolint:staticcheck
 	"github.com/sourcegraph/conc/pool"
 	"google.golang.org/api/option"
 
@@ -224,7 +224,6 @@ func (out *pubsubOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 	}
 
 	for i, msg := range batch {
-		i := i
 		res, err := out.writeMessage(ctx, topics, msg)
 		if err != nil {
 			batchErrFailed(i, err)

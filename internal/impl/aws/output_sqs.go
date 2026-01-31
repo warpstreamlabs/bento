@@ -79,7 +79,6 @@ func sqsoConfigFromParsed(pConf *service.ParsedConfig) (conf sqsoConfig, err err
 func sqsoOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends messages to an SQS queue.`).
 		Description(`
@@ -258,7 +257,7 @@ func (a *sqsWriter) WriteBatch(ctx context.Context, batch service.MessageBatch) 
 	entries := []types.SendMessageBatchRequestEntry{}
 	attrMap := map[string]sqsAttributes{}
 
-	for i := 0; i < len(batch); i++ {
+	for i := range batch {
 		id := strconv.Itoa(i)
 		attrs, err := a.getSQSAttributes(batch, i)
 		if err != nil {

@@ -40,7 +40,6 @@ func cwmConfigFromParsed(pConf *service.ParsedConfig) (conf cwmConfig, err error
 func cwMetricsSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Summary(`Send metrics to AWS CloudWatch using the PutMetricData endpoint.`).
 		Description(`
 ### Timing Metrics
@@ -233,10 +232,7 @@ type cloudWatchStatVec struct {
 }
 
 func (c *cloudWatchStatVec) with(labelValues ...string) *cloudWatchStat {
-	lDim := len(c.labelNames)
-	if lDim >= maxCloudWatchDimensions {
-		lDim = maxCloudWatchDimensions
-	}
+	lDim := min(len(c.labelNames), maxCloudWatchDimensions)
 	dimensions := make([]types.Dimension, 0, lDim)
 	for i, k := range c.labelNames {
 		if len(labelValues) <= i || i >= maxCloudWatchDimensions {

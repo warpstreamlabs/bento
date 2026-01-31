@@ -20,7 +20,6 @@ import (
 func schemaRegistryEncoderConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Parsing", "Integration").
 		Summary("Automatically encodes and validates messages with schemas from a Confluent Schema Registry service.").
 		Description(`
@@ -70,14 +69,14 @@ We will be considering alternative approaches in future so please [get in touch]
 			Example("1h")).
 		Field(service.NewBoolField("avro_raw_json").
 			Description("Whether messages encoded in Avro format should be parsed as normal JSON (\"json that meets the expectations of regular internet json\") rather than [Avro JSON](https://avro.apache.org/docs/current/specification/_print/#json-encoding). If `true` the schema returned from the subject should be parsed as [standard json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) instead of as [avro json](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodec). There is a [comment in goavro](https://github.com/linkedin/goavro/blob/5ec5a5ee7ec82e16e6e2b438d610e1cab2588393/union.go#L224-L249), the [underlining library used for avro serialization](https://github.com/linkedin/goavro), that explains in more detail the difference between standard json and avro json.").
-			Advanced().Default(false).Version("1.0.0")).
+			Advanced().Default(false)).
 		Field(service.NewBoolField("avro_nested_schemas").
 			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
 			Advanced().Default(false).Version("1.2.0")).
 		Field(service.NewTransportField("transport")).Version("1.13.0")
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
-		spec = spec.Field(f.Version("1.0.0"))
+		spec = spec.Field(f)
 	}
 
 	return spec.Field(service.NewTLSField("tls"))
@@ -138,10 +137,7 @@ func newSchemaRegistryEncoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse refresh period: %v", err)
 	}
-	refreshTicker := refreshPeriod / 10
-	if refreshTicker < time.Second {
-		refreshTicker = time.Second
-	}
+	refreshTicker := max(refreshPeriod/10, time.Second)
 	authSigner, err := conf.HTTPRequestAuthSignerFromParsed()
 	if err != nil {
 		return nil, err

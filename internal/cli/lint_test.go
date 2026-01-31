@@ -153,7 +153,6 @@ output:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			for name, c := range test.files {
 				require.NoError(t, os.WriteFile(tFile(name), []byte(c), 0o644))

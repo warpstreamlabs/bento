@@ -20,6 +20,11 @@ The `+"`rate_limit`"+` field can be used to specify a rate limit [resource](/doc
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
 
 In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the `+"[`branch` processor](/docs/components/processors/branch)"+`.
+The URL, header and payload values of this processor can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. It's also possible to set the body of the HTTP request using the optional field `+"[`payload`](#payload)"+`, which (if set) will take precedent.
+
+In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the `+"[`branch` processor](/docs/components/processors/branch)"+`.
 
 ## Response Codes
 
@@ -56,6 +61,7 @@ pipeline:
 `,
 		).
 		Field(httpclient.ConfigField("POST", false,
+			service.NewInterpolatedStringField("payload").Description("An alternative payload to deliver for each request.").Optional().Advanced().Version("1.16.0"),
 			service.NewBoolField("batch_as_multipart").Description("Send message batches as a single request using [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html).").Advanced().Default(false),
 			service.NewBoolField("parallel").Description("When processing batched messages, whether to send messages of the batch in parallel, otherwise they are sent serially.").Default(false)),
 		)
@@ -73,20 +79,32 @@ func init() {
 }
 
 type httpProc struct {
-	client      *httpclient.Client
-	asMultipart bool
-	parallel    bool
-	rawURL      string
-	log         *service.Logger
+	client           *httpclient.Client
+	batchAsMultipart bool
+	parallel         bool
+	rawURL           string
+	log              *service.Logger
 }
 
 func newHTTPProcFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (*httpProc, error) {
+	opts := []httpclient.RequestOpt{}
+
 	oldConf, err := httpclient.ConfigFromParsed(conf)
 	if err != nil {
 		return nil, err
 	}
 
-	asMultipart, err := conf.FieldBool("batch_as_multipart")
+	if payloadStr, _ := conf.FieldString("payload"); payloadStr != "" {
+		payloadExpr, err := conf.FieldInterpolatedString("payload")
+
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, httpclient.WithExplicitBody(payloadExpr))
+	}
+
+	batchAsMultipart, err := conf.FieldBool("batch_as_multipart")
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +117,12 @@ func newHTTPProcFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (
 	rawURL, _ := conf.FieldString("url")
 
 	g := &httpProc{
-		rawURL:      rawURL,
-		log:         mgr.Logger(),
-		asMultipart: asMultipart,
-		parallel:    parallel,
+		rawURL:           rawURL,
+		log:              mgr.Logger(),
+		batchAsMultipart: batchAsMultipart,
+		parallel:         parallel,
 	}
-	if g.client, err = httpclient.NewClientFromOldConfig(oldConf, mgr); err != nil {
+	if g.client, err = httpclient.NewClientFromOldConfig(oldConf, mgr, opts...); err != nil {
 		return nil, err
 	}
 	return g, nil
@@ -113,7 +131,7 @@ func newHTTPProcFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (
 func (h *httpProc) ProcessBatch(ctx context.Context, msg service.MessageBatch) ([]service.MessageBatch, error) {
 	var responseMsg service.MessageBatch
 
-	if h.asMultipart || len(msg) == 1 {
+	if h.batchAsMultipart || len(msg) == 1 {
 		// Easy, just do a single request.
 		resultMsg, err := h.client.Send(context.Background(), msg)
 		if err != nil {
@@ -188,7 +206,7 @@ func (h *httpProc) ProcessBatch(ctx context.Context, msg service.MessageBatch) (
 		}
 		reqChan, resChan := make(chan int), make(chan error)
 
-		for i := 0; i < len(msg); i++ {
+		for range msg {
 			go func() {
 				for index := range reqChan {
 					tmpMsg := service.MessageBatch{msg[index]}
@@ -215,11 +233,11 @@ func (h *httpProc) ProcessBatch(ctx context.Context, msg service.MessageBatch) (
 			}()
 		}
 		go func() {
-			for i := 0; i < len(msg); i++ {
+			for i := range msg {
 				reqChan <- i
 			}
 		}()
-		for i := 0; i < len(msg); i++ {
+		for range msg {
 			if err := <-resChan; err != nil {
 				h.log.Errorf("HTTP parallel request to '%v' failed: %v", h.rawURL, err)
 			}

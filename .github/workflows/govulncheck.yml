@@ -1,35 +1,38 @@
 name: govulncheck
 on:
-  schedule:
-    # Mondays at 0000
-    - cron: "0 0 * * 1"
-
+  # TODO(gregfurman): Uncomment once vulns are sorted, since this will block everyone's CI. 
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - go.mod
+  #     - go.sum
+  # pull_request:
+  #   paths:
+  #     - go.mod
+  #     - go.sum
+  schedule: 
+    # Daily at 8:00 UTC
+    - cron: '0 8 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  check-for-vulnerabilities:
-    name: Check for vulnerabilities using `govulncheck`
+  govulncheck:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
+    env:
+      # The job is being killed early, so we need to optimise the resource usage.
+      GOMAXPROCS: 4
+      GOMEMLIMIT: 12GiB
+      GOGC: off
     steps:
-      - uses: golang/govulncheck-action@v1.0.4
+      - uses: actions/checkout@v6
         with:
-          output-format: sarif
-          output-file: govulncheck.sarif
-
-      # Clean up duplicate stacks in SARIF file
-      - name: Clean SARIF file
-        run: |
-          if [ -f govulncheck.sarif ]; then
-            # Use jq to remove duplicate stacks while preserving the rest of the SARIF structure
-            jq '.runs[].results[]?.stacks |= if type == "array" then unique else . end' govulncheck.sarif > govulncheck_clean.sarif
-            mv govulncheck_clean.sarif govulncheck.sarif
-          fi
-
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v4.31.10
+          persist-credentials: false
+      - uses: actions/setup-go@v6
         with:
-          sarif_file: govulncheck.sarif
-          category: govulncheck
+          go-version-file: go.mod
+      - run: |
+          go run golang.org/x/vuln/cmd/govulncheck@latest ./...

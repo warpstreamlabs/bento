@@ -2,7 +2,7 @@ package huggingface
 
 import (
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelineBackends"
+	"github.com/knights-analytics/hugot/backends"
 	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -62,8 +62,8 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-func getTextClassificationOptions(conf *service.ParsedConfig) ([]pipelineBackends.PipelineOption[*pipelines.TextClassificationPipeline], error) {
-	var options []pipelineBackends.PipelineOption[*pipelines.TextClassificationPipeline]
+func getTextClassificationOptions(conf *service.ParsedConfig) ([]backends.PipelineOption[*pipelines.TextClassificationPipeline], error) {
+	var options []backends.PipelineOption[*pipelines.TextClassificationPipeline]
 
 	aggregationFunction, err := conf.FieldString("aggregation_function")
 	if err != nil {

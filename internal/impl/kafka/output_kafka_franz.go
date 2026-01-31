@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -20,7 +21,6 @@ func franzKafkaOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Services").
-		Version("1.0.0").
 		Summary("A Kafka output using the [Franz Kafka client library](https://github.com/twmb/franz-go).").
 		Description(`
 Writes a batch of messages to Kafka brokers and waits for acknowledgement before propagating it back to the input.
@@ -175,10 +175,8 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
 	}
 
-	for _, b := range f.seedBrokers {
-		if b == "" {
-			return nil, errInvalidSeedBrokerValue
-		}
+	if slices.Contains(f.seedBrokers, "") {
+		return nil, errInvalidSeedBrokerValue
 	}
 
 	if len(f.seedBrokers) == 0 {

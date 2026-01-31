@@ -20,8 +20,6 @@ This component is deprecated and will be removed in the next major version relea
 :::
 Runs an arbitrary SQL query against a database and (optionally) returns the result as an array of objects, one for each row returned.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -73,7 +71,7 @@ A database [driver](#drivers) to use.
 
 
 Type: `string`  
-Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`.
+Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`, `duckdb`.
 
 ### `data_source_name`
 
@@ -98,6 +96,7 @@ The query to execute. The style of placeholder to use depends on the driver, som
 | `spanner` | Question mark |
 | `trino` | Question mark |
 | `gocosmos` | Colon |
+| `duckdb` | Question mark |
 
 
 Type: `string`  

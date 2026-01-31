@@ -19,8 +19,6 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Send metrics to InfluxDB 1.x using the `/write` endpoint.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

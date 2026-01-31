@@ -103,7 +103,6 @@ You can access these metadata fields using
 				Advanced(),
 			service.NewBoolField(sqsiFieldResetVisibility).
 				Description("Whether to set the visibility timeout of the consumed message to zero once it is nacked. Disabling honors the preset visibility timeout specified for the queue.").
-				Version("1.0.0").
 				Default(true).
 				Advanced(),
 			service.NewBoolField(sqsiFieldUpdateVisibility).
@@ -438,7 +437,6 @@ func (a *awsSQSReader) deleteMessages(ctx context.Context, msgs ...sqsMessageHan
 		}
 
 		for _, msg := range msgs {
-			msg := msg
 			input.Entries = append(input.Entries, types.DeleteMessageBatchRequestEntry{
 				Id:            &msg.id,
 				ReceiptHandle: &msg.receiptHandle,
@@ -480,7 +478,6 @@ func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int
 		}
 
 		for _, msg := range msgs {
-			msg := msg
 			input.Entries = append(input.Entries, types.ChangeMessageVisibilityBatchRequestEntry{
 				Id:                &msg.id,
 				ReceiptHandle:     &msg.receiptHandle,

@@ -38,8 +38,7 @@ func amqp1InputSpec() *service.ConfigSpec {
 				Example([]string{"amqp://guest:guest@127.0.0.1:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
-				Optional().
-				Version("1.0.0"),
+				Optional(),
 			service.NewStringField(sourceAddrField).
 				Description("The source address to consume from.").
 				Example("/foo").
@@ -47,17 +46,14 @@ func amqp1InputSpec() *service.ConfigSpec {
 				Example("topic:/baz"),
 			service.NewBoolField(azureRenewLockField).
 				Description("Experimental: Azure service bus specific option to renew lock if processing takes more then configured lock time").
-				Version("1.0.0").
 				Default(false).
 				Advanced(),
 			service.NewBoolField(getMessageHeaderField).
 				Description("Read additional message header fields into `amqp_*` metadata properties.").
-				Version("1.0.0").
 				Default(false).Advanced(),
 			service.NewIntField(creditField).
 				Description("Specifies the maximum number of unacknowledged messages the sender can transmit. Once this limit is reached, no more messages will arrive until messages are acknowledged and settled.").
 				LintRule(`root = if this < 1 { [ "`+creditField+` must be at least 1" ] }`).
-				Version("1.0.0").
 				Default(64).
 				Advanced(),
 			service.NewTLSToggledField(tlsField),
@@ -106,7 +102,7 @@ func amqp1ReaderFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (
 	}
 
 	for _, u := range urlStrs {
-		for _, splitURL := range strings.Split(u, ",") {
+		for splitURL := range strings.SplitSeq(u, ",") {
 			if trimmed := strings.TrimSpace(splitURL); trimmed != "" {
 				a.urls = append(a.urls, trimmed)
 			}
@@ -253,6 +249,7 @@ func (a *amqp1Reader) ReadBatch(ctx context.Context) (service.MessageBatch, serv
 		amqpSetMetadata(part, "amqp_content_type", amqpMsg.Properties.ContentType)
 		amqpSetMetadata(part, "amqp_content_encoding", amqpMsg.Properties.ContentEncoding)
 		amqpSetMetadata(part, "amqp_creation_time", amqpMsg.Properties.CreationTime)
+		amqpSetMetadata(part, "amqp_to", amqpMsg.Properties.To)
 	}
 	if a.getHeader && amqpMsg.Header != nil {
 		amqpSetMetadata(part, "amqp_durable", amqpMsg.Header.Durable)

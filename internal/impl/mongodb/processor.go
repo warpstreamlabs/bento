@@ -23,7 +23,6 @@ const (
 func ProcessorSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services").
 		Summary("Performs operations against MongoDB for each message, allowing you to store or retrieve data within message payloads.").
 		Description("").
@@ -41,7 +40,6 @@ func ProcessorSpec() *service.ConfigSpec {
 		}).
 			Description("The json_marshal_mode setting is optional and controls the format of the output message.").
 			Advanced().
-			Version("1.0.0").
 			Default(string(JSONMarshalModeCanonical)))
 	for _, f := range retries.CommonRetryBackOffFields(3, "1s", "5s", "30s") {
 		spec = spec.Field(f.Deprecated())

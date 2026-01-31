@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends messages to an Azure Storage Queue.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

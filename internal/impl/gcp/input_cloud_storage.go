@@ -48,7 +48,6 @@ func csiConfigFromParsed(pConf *service.ParsedConfig) (conf csiConfig, err error
 func csiSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "GCP").
 		Summary(`Downloads objects within a Google Cloud Storage bucket, optionally filtered by a prefix.`).
 		Description(`
@@ -180,7 +179,7 @@ func newGCPCloudStorageTargetReader(
 
 	it := bucket.Objects(ctx, &storage.Query{Prefix: interpolatedPrefix})
 
-	for count := 0; count < maxGCPCloudStorageListObjectsResults; count++ {
+	for range maxGCPCloudStorageListObjectsResults {
 		obj, err := it.Next()
 		if errors.Is(err, iterator.Done) {
 			break
@@ -203,7 +202,7 @@ func (r *gcpCloudStorageTargetReader) Pop(ctx context.Context) (*gcpCloudStorage
 	if len(r.pending) == 0 && r.startAfter != nil {
 		r.pending = nil
 
-		for count := 0; count < maxGCPCloudStorageListObjectsResults; count++ {
+		for range maxGCPCloudStorageListObjectsResults {
 			obj, err := r.startAfter.Next()
 			if errors.Is(err, iterator.Done) {
 				break

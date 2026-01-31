@@ -69,7 +69,6 @@ rate_limit_resources:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			conf, err := testutil.ManagerFromYAML(test.input)
 			if test.errContains == "" {

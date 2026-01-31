@@ -3,7 +3,7 @@ package gcp
 import (
 	"context"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub" //nolint:staticcheck
 	"github.com/stretchr/testify/mock"
 )
 

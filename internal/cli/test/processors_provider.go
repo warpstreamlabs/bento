@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -291,9 +292,7 @@ func (p *ProcessorsProvider) getConfs(jsonPtr string, environment map[string]str
 	}
 
 	remainingMocks := map[string]any{}
-	for k, v := range mocks {
-		remainingMocks[k] = v
-	}
+	maps.Copy(remainingMocks, mocks)
 
 	configBytes, _, _, err := config.ReadFileEnvSwap(ifs.OS(), targetPath, envVarLookup)
 	if err != nil {

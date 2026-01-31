@@ -573,9 +573,6 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Creates a "slug" from a given string. Wraps the github.com/gosimple/slug package. See its [docs](https://pkg.go.dev/github.com/gosimple/slug) for more information.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`lang`** &lt;(optional) string, default `"en"`&gt;   
@@ -1595,9 +1592,6 @@ root.doc.timestamp = this.doc.timestamp.ts_parse("2006-Jan-02")
 
 Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`duration`** &lt;integer&gt; A duration measured in nanoseconds to round by.  
@@ -1689,9 +1683,6 @@ root.doc.timestamp = this.doc.timestamp.ts_strptime("%Y-%b-%d %H:%M:%S.%f")
 
 Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`t2`** &lt;timestamp&gt; The second timestamp to be subtracted from the method target.  
@@ -1719,9 +1710,6 @@ Parse parameter string as ISO 8601 period and subtract it from value with high p
 ### `ts_tz`
 
 Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
-
-Introduced in version 1.0.0.
-
 
 #### Parameters
 
@@ -2127,9 +2115,6 @@ root.has_bar = this.thing.contains(20)
 This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
 :::
 Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.
-
-Introduced in version 1.0.0.
-
 
 #### Parameters
 
@@ -2612,12 +2597,49 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`changelog`** &lt;unknown&gt; The changelog to apply.  
+
+### `set`
+
+Set a field value, identified via a [dot path][field_paths], of an object.
+
+#### Parameters
+
+**`path`** &lt;string&gt; A [dot path][field_paths] identifying a field to write.  
+**`value`** &lt;unknown&gt; The value to write.  
+
+#### Examples
+
+
+```coffee
+root = this.set("nested.field", "foo")
+
+# In:  {"bar":"value"}
+# Out: {"bar":"value","nested":{"field":"foo"}}
+```
+
+```coffee
+root = this.set("field", deleted())
+
+# In:  {"bar":"value", "field":"foo"}
+# Out: {"bar":"value"}
+```
+
+```coffee
+root = this.set("field", "foo").set("another_field", "data")
+
+# In:  {"bar":"value"}
+# Out: {"another_field":"data","bar":"value","field":"foo"}
+```
+
+```coffee
+root = this.set("arr.0", "foo")
+
+# In:  {"bar":"value", "arr": ["value"]}
+# Out: {"arr":["foo"],"bar":"value"}
+```
 
 ### `slice`
 
@@ -3210,19 +3232,12 @@ Decodes a [Parquet file](https://parquet.apache.org/docs/) into an array of obje
 #### Parameters
 
 **`byte_array_as_string`** &lt;bool, default `false`&gt; Deprecated: This parameter is no longer used.  
-**`strict_schema`** &lt;bool, default `true`&gt; Whether to enforce strict Parquet schema validation. When set to false, allows reading files with non-standard schema structures (such as non-standard LIST formats).  
 
 #### Examples
 
 
 ```coffee
 root = content().parse_parquet()
-```
-
-With lenient schema validation
-
-```coffee
-root = content().parse_parquet(strict_schema: false)
 ```
 
 ### `parse_url`

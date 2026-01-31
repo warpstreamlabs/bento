@@ -250,7 +250,6 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Default(""),
 			service.NewStringListField(hsiFieldAllowedVerbs).
 				Description("An array of verbs that are allowed for the `path` endpoint.").
-				Version("1.0.0").
 				Default([]any{"POST"}),
 			service.NewDurationField(hsiFieldTimeout).
 				Description("Timeout for requests. If a consumed messages takes longer than this to be delivered the connection is closed, but the message may still be delivered.").
@@ -627,7 +626,7 @@ func (h *httpServerInput) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	var svcBatch service.MessageBatch
 	for _, resMsg := range store.Get() {
-		for i := 0; i < len(resMsg); i++ {
+		for i := range resMsg {
 			svcBatch = append(svcBatch, service.NewInternalMessage(resMsg[i]))
 		}
 	}

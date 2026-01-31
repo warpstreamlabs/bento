@@ -55,8 +55,7 @@ These values can be overridden during execution.`).
 			Default(ttlruCacheFieldCapDefaultValue)).
 		Field(service.NewDurationField(ttlruCacheFieldDefaultTTLLabel).
 			Description("The cache ttl of each element").
-			Default(ttlruCacheFieldDefaultTTLDefaultValue.String()).
-			Version("1.0.0")).
+			Default(ttlruCacheFieldDefaultTTLDefaultValue.String())).
 		Field(service.NewDurationField(ttlruCacheFieldDeprecatedTTLLabel).
 			Description("Deprecated. Please use `" + ttlruCacheFieldDefaultTTLLabel + "` field").
 			Optional().Advanced()).

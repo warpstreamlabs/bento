@@ -1,4 +1,3 @@
-//nolint:staticcheck // Ignore SA1019
 package aws
 
 import (
@@ -156,20 +155,11 @@ aws_s3:
 }
 
 func uploadFile(s3Port string, bucketName string, objectKey string, objectData string) (*s3.Client, error) {
-	endpoint := fmt.Sprintf("http://localhost:%v", s3Port)
-
 	ctx := context.TODO()
 
 	conf, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("eu-west-1"),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
-		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           endpoint,
-				SigningRegion: "eu-west-1",
-			}, nil
-		})),
 	)
 	if err != nil {
 		return nil, err
@@ -177,6 +167,7 @@ func uploadFile(s3Port string, bucketName string, objectKey string, objectData s
 
 	client := s3.NewFromConfig(conf, func(o *s3.Options) {
 		o.UsePathStyle = true
+		o.BaseEndpoint = aws.String(fmt.Sprintf("http://localhost:%v", s3Port))
 	})
 
 	_, err = client.PutObject(ctx, &s3.PutObjectInput{

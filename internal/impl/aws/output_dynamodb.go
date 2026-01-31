@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"sync"
 	"time"
@@ -94,7 +95,6 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 func ddboOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Inserts items into or deletes items from a DynamoDB table.`).
 		Description(`
@@ -593,9 +593,7 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			if attr, err := jsonToMap(v, jRoot); err == nil {
 				if k == "" {
 					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
-						for ak, av := range mv.Value {
-							items[ak] = av
-						}
+						maps.Copy(items, mv.Value)
 					} else {
 						items[k] = attr
 					}
