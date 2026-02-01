@@ -5,6 +5,8 @@ sidebar_label: Fields
 
 The `plugin.yaml` manifest defines your plugin's configuration schema and runtime behavior.
 
+### `plugins.yaml`
+
 ### `name`
 
 The name of the plugin.

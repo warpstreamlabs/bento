@@ -127,10 +127,9 @@ func doTemplates(dir string) {
 }
 
 func doPlugins(dir string) {
-	mdSpec, err := plugin.DocsMarkdown()
+	mdSpec, err := plugin.DocsFieldsMarkdown()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to generate docs for plugin: %v", err))
+		panic(fmt.Sprintf("Failed to generate docs for plugin fields: %v", err))
 	}
-
-	create("plugin docs", filepath.Join(dir, "..", "configuration", "plugins.md"), mdSpec)
+	create("plugin fields", filepath.Join("..", "guides", "plugins", "fields.md"), mdSpec)
 }
