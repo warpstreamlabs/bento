@@ -1,8 +1,6 @@
 name: reverse
 type: processor
 status: stable
-categories:
-  - Utility
 summary: Converts message content to uppercase using WebAssembly
 description: "foo"
 
@@ -11,7 +9,4 @@ fields: []
 runtime:
   wasm:
     memory:
-      max_pages: 1024
-    timeout: 5000
-    
-
+      max_pages: 128
