@@ -128,6 +128,17 @@ protos:
 		--go_opt=module=github.com/warpstreamlabs/bento \
 		$(PROTO_FILES)
 
+.PHONY: protos-lite
+protos-lite:
+	@echo "Generating lite protocol buffer files..."
+	protoc \
+		--proto_path=resources/protos \
+		--go-lite_out=. \
+		--go-lite_opt=module=github.com/warpstreamlabs/bento \
+		--go-lite_opt=features=marshal+unmarshal+size \
+		--go-lite_opt=Mmessage.proto=github.com/warpstreamlabs/bento/internal/message/messagepblite \
+		$(PROTO_FILES)
+
 # HACK:(gregfurman): Change misc/wasm/wasm_exec.js => lib/wasm/wasm_exec.js when using Go 1.24
 playground:
 	@cp -r "internal/cli/blobl/playground" "$(WEBSITE_DIR)/static/playground"

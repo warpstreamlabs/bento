@@ -28,6 +28,7 @@ require (
 	github.com/PaesslerAG/gval v1.2.3
 	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/apache/pulsar-client-go v0.17.0
+	github.com/aperturerobotics/protobuf-go-lite v0.12.0
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
 	github.com/aws/aws-sdk-go-v2 v1.40.0
@@ -162,7 +163,7 @@ require (
 	golang.org/x/text v0.31.0
 	google.golang.org/api v0.247.0
 	google.golang.org/grpc v1.77.0
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.34.2
@@ -175,6 +176,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0 // indirect
 	github.com/apache/arrow-go/v18 v18.4.0 // indirect
 	github.com/apache/thrift v0.22.0 // indirect
+	github.com/aperturerobotics/json-iterator-lite v1.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/daulet/tokenizers v1.22.1 // indirect
