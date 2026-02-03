@@ -26,6 +26,7 @@ func fileTailInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Local").
 		Summary("Tails a file").
+		Version("1.15.0").
 		Description(`
 Reads lines from a file continuously with handling of log rotation.
 
