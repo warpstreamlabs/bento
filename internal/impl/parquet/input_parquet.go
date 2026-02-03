@@ -28,10 +28,6 @@ func parquetInputConfig() *service.ConfigSpec {
 			Description(`Optionally process records in batches. This can help to speed up the consumption of exceptionally large files. When the end of the file is reached the remaining records are processed as a (potentially smaller) batch.`).
 			Default(1).
 			Advanced()).
-		Field(service.NewBoolField("strict_schema").
-			Description("Whether to enforce strict Parquet schema validation. When set to false, allows reading files with non-standard schema structures (such as non-standard LIST formats). Disabling strict mode may reduce validation but increases compatibility.").
-			Default(true).
-			Advanced()).
 		Field(service.NewAutoRetryNacksToggleField()).
 		Description(`
 This input uses [https://github.com/parquet-go/parquet-go](https://github.com/parquet-go/parquet-go), which is itself experimental. Therefore changes could be made into how this processor functions outside of major version releases.
@@ -82,14 +78,8 @@ func newParquetInputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 		return nil, fmt.Errorf("batch_size must be >0, got %v", batchSize)
 	}
 
-	strictSchema, err := conf.FieldBool("strict_schema")
-	if err != nil {
-		return nil, err
-	}
-
 	rdr := &parquetReader{
 		batchSize:      batchSize,
-		strictSchema:   strictSchema,
 		pathsRemaining: pathsRemaining,
 		log:            mgr.Logger(),
 		mgr:            mgr,
@@ -98,21 +88,13 @@ func newParquetInputFromConfig(conf *service.ParsedConfig, mgr *service.Resource
 }
 
 type openParquetFile struct {
-	schema         *parquet.Schema
-	handle         fs.File
-	rdr            *parquet.GenericReader[any]
-	lenientRGs     []parquet.RowGroup
-	lenientRGIdx   int
-	lenientRowsRdr parquet.Rows
-	strictSchema   bool
+	schema *parquet.Schema
+	handle fs.File
+	rdr    *parquet.GenericReader[any]
 }
 
 func (p *openParquetFile) Close() error {
-	if p.strictSchema {
-		_ = p.rdr.Close()
-	} else if p.lenientRowsRdr != nil {
-		_ = p.lenientRowsRdr.Close()
-	}
+	_ = p.rdr.Close()
 	return p.handle.Close()
 }
 
@@ -121,7 +103,6 @@ type parquetReader struct {
 	log *service.Logger
 
 	batchSize      int
-	strictSchema   bool
 	pathsRemaining []string
 
 	mut      sync.Mutex
@@ -169,26 +150,15 @@ func (r *parquetReader) getOpenFile() (*openParquetFile, error) {
 		return nil, err
 	}
 
-	if r.strictSchema {
-		rdr, err := newReaderWithoutPanic(inFile)
-		if err != nil {
-			return nil, err
-		}
+	rdr, err := newReaderWithoutPanic(inFile)
+	if err != nil {
+		return nil, err
+	}
 
-		r.openFile = &openParquetFile{
-			schema:       rdr.Schema(),
-			handle:       fileHandle,
-			rdr:          rdr,
-			strictSchema: true,
-		}
-	} else {
-		r.openFile = &openParquetFile{
-			schema:       inFile.Schema(),
-			handle:       fileHandle,
-			lenientRGs:   inFile.RowGroups(),
-			lenientRGIdx: 0,
-			strictSchema: false,
-		}
+	r.openFile = &openParquetFile{
+		schema: rdr.Schema(),
+		handle: fileHandle,
+		rdr:    rdr,
 	}
 
 	r.log.Debugf("Consuming parquet data from file '%v'", path)
@@ -221,51 +191,13 @@ func (r *parquetReader) ReadBatch(ctx context.Context) (service.MessageBatch, se
 			return nil, nil, err
 		}
 
-		if f.strictSchema {
-			if n, err = readWithoutPanic(f.rdr, rowBuf); errors.Is(err, io.EOF) {
-				// If we finished this file we close the handle and forget it so
-				// that the next call moves on.
-				if closeErr := f.Close(); closeErr != nil {
-					r.log.Errorf("Failed to close file cleanly: %v", closeErr)
-				}
-				r.openFile = nil
+		if n, err = readWithoutPanic(f.rdr, rowBuf); errors.Is(err, io.EOF) {
+			// If we finished this file we close the handle and forget it so
+			// that the next call moves on.
+			if closeErr := f.Close(); closeErr != nil {
+				r.log.Errorf("Failed to close file cleanly: %v", closeErr)
 			}
-		} else {
-			// Lenient mode: iterate through RowGroups
-			for f.lenientRGIdx < len(f.lenientRGs) {
-				// Open the current row group if needed
-				if f.lenientRowsRdr == nil {
-					f.lenientRowsRdr = f.lenientRGs[f.lenientRGIdx].Rows()
-				}
-
-				n, err = readLenient(f.lenientRowsRdr, f.schema, rowBuf)
-				if errors.Is(err, io.EOF) {
-					// Finished this row group, close it and move to next
-					_ = f.lenientRowsRdr.Close()
-					f.lenientRowsRdr = nil
-					f.lenientRGIdx++
-					if n > 0 {
-						break // We got some rows, return them
-					}
-					// No rows in this batch, try next row group
-					continue
-				}
-				if err != nil {
-					return nil, nil, err
-				}
-				if n > 0 {
-					break // Got rows, return them
-				}
-			}
-
-			// If we've exhausted all row groups, close the file
-			if f.lenientRGIdx >= len(f.lenientRGs) && n == 0 {
-				if closeErr := f.Close(); closeErr != nil {
-					r.log.Errorf("Failed to close file cleanly: %v", closeErr)
-				}
-				r.openFile = nil
-				err = io.EOF
-			}
+			r.openFile = nil
 		}
 
 		// If we got rows then break and yield them.

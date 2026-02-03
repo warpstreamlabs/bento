@@ -159,9 +159,7 @@ func TestParquetDecodeProcessor(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, pWtr.Close())
 
-			reader := &parquetDecodeProcessor{
-				strictSchema: true,
-			}
+			reader := &parquetDecodeProcessor{}
 
 			readerResBatch, err := reader.Process(context.Background(), service.NewMessage(buf.Bytes()))
 			require.NoError(t, err)
@@ -189,9 +187,7 @@ func TestParquetDecodeProcessor(t *testing.T) {
 			expected = append(expected, test.input)
 		}
 
-		reader := &parquetDecodeProcessor{
-			strictSchema: true,
-		}
+		reader := &parquetDecodeProcessor{}
 
 		readerResBatch, err := reader.Process(context.Background(), service.NewMessage(buf.Bytes()))
 		require.NoError(t, err)
@@ -233,9 +229,7 @@ func TestDecodeCompressionStringParsing(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, pWtr.Close())
 
-	reader := &parquetDecodeProcessor{
-		strictSchema: true,
-	}
+	reader := &parquetDecodeProcessor{}
 
 	readerResBatch, err := reader.Process(context.Background(), service.NewMessage(buf.Bytes()))
 	require.NoError(t, err)
@@ -272,9 +266,7 @@ func TestDecodeCompression(t *testing.T) {
 	assert.NotEqual(t, bufCompressed.String(), bufUncompressed.String())
 	assert.Less(t, bufCompressed.Len(), bufUncompressed.Len())
 
-	reader := &parquetDecodeProcessor{
-		strictSchema: true,
-	}
+	reader := &parquetDecodeProcessor{}
 
 	readerResBatch, err := reader.Process(context.Background(), service.NewMessage(bufCompressed.Bytes()))
 	require.NoError(t, err)
