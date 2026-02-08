@@ -1,0 +1,44 @@
+# File Processor Example
+# This example demonstrates the file processor with different operations
+
+input:
+  generate:
+    count: 1
+    interval: ""
+    mapping: '{"filename": "example", "content": "Hello, Bento!"}'
+
+pipeline:
+  processors:
+    # Example 1: Write content to a file
+    - file:
+        operation: write
+        path: '/tmp/bento_example_${! json("filename") }.txt'
+        content: '${! json("content") }'
+        dest: ""
+
+    # Example 2: Read the file back
+    - file:
+        operation: read
+        path: '/tmp/bento_example_${! json("filename") }.txt'
+        content: ""
+        dest: ""
+
+    # Example 3: Move the file to a backup location
+    - file:
+        operation: move
+        path: '/tmp/bento_example_${! json("filename") }.txt'
+        content: ""
+        dest: '/tmp/backup/bento_example_${! json("filename") }_backup.txt'
+
+    # Example 4: Delete the backup file
+    - file:
+        operation: delete
+        path: '/tmp/backup/bento_example_${! json("filename") }_backup.txt'
+        content: ""
+        dest: ""
+
+output:
+  stdout: {}
+
+# Note: Make sure the directories exist before running this example
+# mkdir -p /tmp/backup
