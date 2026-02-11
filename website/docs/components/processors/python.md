@@ -2,7 +2,7 @@
 title: python
 slug: python
 type: processor
-status: stable
+status: experimental
 categories: ["Mapping"]
 ---
 
@@ -15,6 +15,9 @@ categories: ["Mapping"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+:::caution EXPERIMENTAL
+This component is experimental and therefore subject to change or removal outside of major version releases.
+:::
 
 Executes a Python script against each message in a stream.
 

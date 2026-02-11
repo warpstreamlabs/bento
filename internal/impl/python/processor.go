@@ -44,7 +44,6 @@ func init() {
 
 func pythonProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Stable().
 		Categories("Mapping").
 		Summary(`
 Executes a Python script against each message in a stream.
