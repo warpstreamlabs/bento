@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,31 @@ const (
 	iskFieldFetchBufferCap                = "fetch_buffer_cap"
 	iskFieldMultiHeader                   = "multi_header"
 	iskFieldBatching                      = "batching"
+	iskFieldDebug                         = "debug"
 )
+
+// bentoSaramaLogger implements sarama.StdLogger and forwards to a Bento logger at debug level.
+type bentoSaramaLogger struct {
+	log *service.Logger
+}
+
+func (b *bentoSaramaLogger) Print(v ...interface{}) {
+	if b.log != nil {
+		b.log.Debug(fmt.Sprint(v...))
+	}
+}
+
+func (b *bentoSaramaLogger) Printf(format string, v ...interface{}) {
+	if b.log != nil {
+		b.log.Debugf(format, v...)
+	}
+}
+
+func (b *bentoSaramaLogger) Println(v ...interface{}) {
+	if b.log != nil {
+		b.log.Debug(fmt.Sprintln(v...))
+	}
+}
 
 func iskConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
@@ -145,6 +170,9 @@ Unfortunately this error message will appear for a wide range of connection prob
 				Advanced().Default(256),
 			service.NewBoolField(iskFieldMultiHeader).
 				Description("Decode headers into lists to allow handling of multiple values with the same key").
+				Advanced().Default(false),
+			service.NewBoolField(iskFieldDebug).
+				Description("Enable sarama's internal protocol logging (connection, rebalances, fetches, SASL, etc.). Log lines are forwarded to the Bento logger at debug level.").
 				Advanced().Default(false),
 			service.NewBatchPolicyField(iskFieldBatching).Advanced(),
 		)
@@ -501,6 +529,11 @@ func (k *kafkaReader) saramaConfigFromParsed(conf *service.ParsedConfig) (*saram
 	if err := ApplySaramaSASLFromParsed(conf, k.mgr, config); err != nil {
 		return nil, err
 	}
+
+	if debug, _ := conf.FieldBool(iskFieldDebug); debug {
+		sarama.Logger = &bentoSaramaLogger{log: k.mgr.Logger()}
+	}
+
 	return config, nil
 }
 
