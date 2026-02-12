@@ -15,6 +15,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+// errBackpressureTimeout is returned when WaitForSpace times out due to sustained backpressure.
+// This is a retryable error that should trigger a backoff before resubscribing.
+var errBackpressureTimeout = errors.New("backpressure timeout waiting for space in pending pool")
+
 // kinesisEFOManager handles Enhanced Fan Out consumer registration and lifecycle
 type kinesisEFOManager struct {
 	streamARN    string
@@ -169,9 +173,6 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 		return err
 	}
 
-	// Backoff for error handling
-	boff := k.boffPool.Get().(backoff.BackOff)
-
 	// Track consumer state
 	state := awsKinesisConsumerConsuming
 	var pendingMsg asyncMessage
@@ -193,8 +194,11 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 		defer func() {
 			commitCtxClose()
 			recordBatcher.Close(context.Background(), state == awsKinesisConsumerFinished)
-			boff.Reset()
-			k.boffPool.Put(boff)
+
+			// Release any remaining pending records back to the global pool
+			if len(pending) > 0 {
+				k.globalPendingPool.Release(len(pending))
+			}
 
 			reason := ""
 			switch state {
@@ -227,50 +231,114 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 			bufferCap = k.conf.EnhancedFanOut.RecordBufferCap
 		}
 		recordsChan := make(chan []types.Record, bufferCap)
+		// errorsChan is used for logging/monitoring only - subscription goroutine
+		// handles its own retries. Non-blocking sends handle overflow gracefully.
 		errorsChan := make(chan error, 1)
 		resubscribeChan := make(chan string, 1)
 		shardFinishedChan := make(chan struct{}, 1)
+
+		// drainRecordsChan drains any remaining records from recordsChan after
+		// the subscription goroutine has stopped, releasing their pool capacity.
+		// This prevents leaking pool capacity when the consumer exits with buffered records.
+		drainRecordsChan := func() {
+			for {
+				select {
+				case records := <-recordsChan:
+					k.globalPendingPool.Release(len(records))
+				default:
+					return
+				}
+			}
+		}
 
 		var subscriptionWg sync.WaitGroup
 		subscriptionWg.Add(1)
 		go func() {
 			defer subscriptionWg.Done()
+
+			// Subscription goroutine manages its own backoff for retries
+			subBoff := backoff.NewExponentialBackOff()
+			subBoff.InitialInterval = 300 * time.Millisecond
+			subBoff.MaxInterval = 5 * time.Second
+			subBoff.MaxElapsedTime = 0 // Never stop retrying
+
 			for sequence := range subscriptionTrigger {
-				continuationSeq, shardFinished, err := k.efoSubscribeAndStream(k.ctx, info, shardID, sequence, recordsChan)
-				// Check if context was cancelled before attempting to send on any channels
-				select {
-				case <-k.ctx.Done():
-					return
-				default:
-				}
-				if err != nil {
+				currentSeq := sequence
+
+				// Inner retry loop - keeps trying until success or context cancellation
+				for {
 					select {
 					case <-k.ctx.Done():
 						return
-					case errorsChan <- err:
-					}
-				} else if shardFinished {
-					// Shard is closed, signal to main loop
-					// Don't resubscribe to closed shards
-					select {
-					case <-k.ctx.Done():
-						return
-					case shardFinishedChan <- struct{}{}:
 					default:
 					}
-					return
-				} else {
-					// Schedule resubscription with continuation sequence
-					nextSeq := continuationSeq
-					if nextSeq == "" {
-						// Use latest checkpointed sequence
-						nextSeq = recordBatcher.GetSequence()
+
+					continuationSeq, shardFinished, err := k.efoSubscribeAndStream(k.ctx, info, shardID, currentSeq, recordsChan)
+
+					if err != nil {
+						// Check for non-retryable errors - these should stop the subscription
+						var resourceNotFound *types.ResourceNotFoundException
+						var invalidArg *types.InvalidArgumentException
+						if errors.As(err, &resourceNotFound) || errors.As(err, &invalidArg) {
+							// Send to errorsChan for main loop to handle shutdown.
+							// Use blocking send (with context) to ensure fatal errors are not dropped.
+							k.log.Errorf("Non-retryable EFO error for shard %v: %v", shardID, err)
+							select {
+							case <-k.ctx.Done():
+							case errorsChan <- err:
+							}
+							return // Stop retrying
+						}
+
+						// Log retryable error (non-blocking)
+						select {
+						case errorsChan <- err:
+						default:
+							// Channel full, just log locally
+							if errors.Is(err, errBackpressureTimeout) {
+								k.log.Debugf("EFO backpressure timeout for shard %v, will retry", shardID)
+							} else {
+								k.log.Warnf("EFO subscription error for shard %v, will retry: %v", shardID, err)
+							}
+						}
+
+						// Update sequence for retry if we got a continuation
+						if continuationSeq != "" {
+							currentSeq = continuationSeq
+						}
+
+						// Backoff before retry
+						backoffDuration := subBoff.NextBackOff()
+						select {
+						case <-k.ctx.Done():
+							return
+						case <-time.After(backoffDuration):
+						}
+						continue // Retry the subscription
+					}
+
+					// Success - reset backoff
+					subBoff.Reset()
+
+					if shardFinished {
+						// Shard is closed, signal to main loop
+						select {
+						case shardFinishedChan <- struct{}{}:
+						default:
+						}
+						return
+					}
+
+					// Subscription completed normally, update sequence and notify main loop
+					if continuationSeq != "" {
+						currentSeq = continuationSeq
 					}
 					select {
 					case <-k.ctx.Done():
 						return
-					case resubscribeChan <- nextSeq:
+					case resubscribeChan <- currentSeq:
 					}
+					break // Exit retry loop, wait for next trigger from main loop
 				}
 			}
 		}()
@@ -284,6 +352,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 					if pendingMsg, _ = recordBatcher.FlushMessage(k.ctx); pendingMsg.msg == nil {
 						close(subscriptionTrigger)
 						subscriptionWg.Wait()
+						drainRecordsChan()
 						return
 					}
 				} else if recordBatcher.HasPendingMessage() {
@@ -303,21 +372,23 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 							break
 						}
 					}
-					pending = pending[i+1:]
+					// Release processed records back to the global pool
+					processedCount := i + 1
+					k.globalPendingPool.Release(processedCount)
+					pending = pending[processedCount:]
 				}
 			}
 
+			// Decide whether to flush
 			if pendingMsg.msg != nil {
 				nextFlushChan = k.msgChan
-				nextRecordsChan = nil
 			} else {
 				nextFlushChan = nil
-				if len(pending) == 0 {
-					nextRecordsChan = recordsChan
-				} else {
-					nextRecordsChan = nil
-				}
 			}
+
+			// Always listen for records - backpressure is applied in efoSubscribeAndStream
+			// via globalPendingPool.Acquire() before sending to recordsChan
+			nextRecordsChan = recordsChan
 
 			if nextTimedBatchChan == nil {
 				if tNext, exists := recordBatcher.UntilNext(); exists {
@@ -331,6 +402,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 					state = awsKinesisConsumerClosing
 					close(subscriptionTrigger)
 					subscriptionWg.Wait()
+					drainRecordsChan()
 					return
 				}
 
@@ -345,6 +417,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 						state = awsKinesisConsumerYielding
 						close(subscriptionTrigger)
 						subscriptionWg.Wait()
+						drainRecordsChan()
 						return
 					}
 				}
@@ -357,35 +430,32 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 
 			case records := <-nextRecordsChan:
 				// Received records from subscription
+				// Space was already acquired in efoSubscribeAndStream before sending
 				pending = append(pending, records...)
-				boff.Reset()
 
 			case err := <-errorsChan:
-				// Subscription error occurred
+				// Subscription error received - log it.
+				// The subscription goroutine handles its own retry logic with backoff,
+				// so we don't need to trigger resubscription from here.
 				var resourceNotFound *types.ResourceNotFoundException
 				var invalidArg *types.InvalidArgumentException
 
 				if errors.As(err, &resourceNotFound) || errors.As(err, &invalidArg) {
+					// Non-retryable errors are still fatal
 					k.log.Errorf("Non-retryable EFO error for shard %v: %v", shardID, err)
 					state = awsKinesisConsumerClosing
 					close(subscriptionTrigger)
 					subscriptionWg.Wait()
+					drainRecordsChan()
 					return
 				}
 
-				// Retryable error - backoff and retry
-				k.log.Warnf("EFO subscription error for shard %v, will retry: %v", shardID, err)
-				backoffDuration := boff.NextBackOff()
-				sequence := recordBatcher.GetSequence()
-				time.AfterFunc(backoffDuration, func() {
-					// Trigger resubscription after backoff, unless context has been cancelled
-					select {
-					case <-k.ctx.Done():
-						return
-					case subscriptionTrigger <- sequence:
-					default:
-					}
-				})
+				// Log retryable errors (subscription goroutine handles retry)
+				if errors.Is(err, errBackpressureTimeout) {
+					k.log.Debugf("EFO backpressure timeout for shard %v, subscription goroutine will retry", shardID)
+				} else {
+					k.log.Warnf("EFO subscription error for shard %v, subscription goroutine will retry: %v", shardID, err)
+				}
 
 			case sequence := <-resubscribeChan:
 				// Subscription completed successfully, resubscribe immediately to maintain continuous data flow
@@ -402,6 +472,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 				state = awsKinesisConsumerClosing
 				close(subscriptionTrigger)
 				subscriptionWg.Wait()
+				drainRecordsChan()
 				return
 			}
 		}
@@ -458,7 +529,42 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 	continuationSeq := ""
 	lastReceivedSeq := ""
 	shardFinished := false
-	for event := range eventStream.Events() {
+	eventsChan := eventStream.Events()
+
+	// Timeout for waiting on backpressure - if we wait too long, close the subscription
+	// cleanly and resubscribe rather than letting AWS forcibly terminate the connection.
+	// 30 seconds is well under the 5-minute EFO subscription timeout.
+	const backpressureTimeout = 30 * time.Second
+
+	for {
+		// Wait for space in the global pool before fetching the next event
+		// This applies backpressure to Kinesis before data enters memory
+		switch k.globalPendingPool.WaitForSpace(ctx, backpressureTimeout) {
+		case WaitForSpaceCancelled:
+			// Context cancelled
+			if continuationSeq == "" {
+				continuationSeq = lastReceivedSeq
+			}
+			return continuationSeq, false, ctx.Err()
+		case WaitForSpaceTimeout:
+			// Backpressure timeout - close subscription cleanly and return error to trigger backoff
+			// This prevents AWS from forcibly terminating the connection after extended inactivity
+			// and ensures we don't immediately resubscribe while backpressure persists
+			k.log.Debugf("Backpressure timeout for shard %v, closing subscription to resubscribe with backoff", shardID)
+			if continuationSeq == "" {
+				continuationSeq = lastReceivedSeq
+			}
+			return continuationSeq, false, errBackpressureTimeout
+		case WaitForSpaceOK:
+			// Space available, continue
+		}
+
+		// Now fetch the next event
+		event, ok := <-eventsChan
+		if !ok {
+			break
+		}
+
 		switch e := event.(type) {
 		case *types.SubscribeToShardEventStreamMemberSubscribeToShardEvent:
 			// Got records event
@@ -466,6 +572,15 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 
 			// Send records to channel and track last received sequence
 			if len(shardEvent.Records) > 0 {
+				// Acquire the actual space for this batch
+				if !k.globalPendingPool.Acquire(ctx, len(shardEvent.Records)) {
+					// Context cancelled, return with current sequence
+					if continuationSeq == "" {
+						continuationSeq = lastReceivedSeq
+					}
+					return continuationSeq, false, ctx.Err()
+				}
+
 				// Track the last record's sequence number for fallback
 				lastRecord := shardEvent.Records[len(shardEvent.Records)-1]
 				if lastRecord.SequenceNumber != nil {
@@ -474,6 +589,8 @@ func (k *kinesisReader) efoSubscribeAndStream(ctx context.Context, info streamIn
 				select {
 				case recordsChan <- shardEvent.Records:
 				case <-ctx.Done():
+					// Release the acquired space since we couldn't send
+					k.globalPendingPool.Release(len(shardEvent.Records))
 					// Use lastReceivedSeq as fallback if continuationSeq not set
 					if continuationSeq == "" {
 						continuationSeq = lastReceivedSeq
