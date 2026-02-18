@@ -139,7 +139,7 @@ func TestKinesisFirehoseWriteChunkWithThrottling(t *testing.T) {
 				output := firehose.PutRecordBatchOutput{
 					RequestResponses: make([]types.PutRecordBatchResponseEntry, count),
 				}
-				for i := 0; i < count; i++ {
+				for i := range count {
 					var entry types.PutRecordBatchResponseEntry
 					if i >= 300 {
 						failed++
@@ -155,7 +155,7 @@ func TestKinesisFirehoseWriteChunkWithThrottling(t *testing.T) {
 	)
 
 	msg := service.MessageBatch{}
-	for i := 0; i < n; i++ {
+	for range n {
 		part := service.NewMessage([]byte(`{"foo":"bar","id":123}`))
 		msg = append(msg, part)
 	}

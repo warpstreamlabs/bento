@@ -438,7 +438,6 @@ func (a *awsSQSReader) deleteMessages(ctx context.Context, msgs ...sqsMessageHan
 		}
 
 		for _, msg := range msgs {
-			msg := msg
 			input.Entries = append(input.Entries, types.DeleteMessageBatchRequestEntry{
 				Id:            &msg.id,
 				ReceiptHandle: &msg.receiptHandle,
@@ -480,7 +479,6 @@ func (a *awsSQSReader) updateVisibilityMessages(ctx context.Context, timeout int
 		}
 
 		for _, msg := range msgs {
-			msg := msg
 			input.Entries = append(input.Entries, types.ChangeMessageVisibilityBatchRequestEntry{
 				Id:                &msg.id,
 				ReceiptHandle:     &msg.receiptHandle,

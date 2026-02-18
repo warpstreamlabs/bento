@@ -258,8 +258,8 @@ func partReader(codec string, conf ReaderConfig) (ReaderConstructor, bool, error
 		return newTarReader, true, nil
 	}
 
-	if strings.HasPrefix(codec, "avro-ocf:") {
-		jsonEncoder := strings.TrimPrefix(codec, "avro-ocf:")
+	if after, ok := strings.CutPrefix(codec, "avro-ocf:"); ok {
+		jsonEncoder := after
 		switch jsonEncoder {
 		case "marshaler=json":
 			return func(path string, r io.ReadCloser, fn ReaderAckFn) (Reader, error) {
@@ -274,8 +274,8 @@ func partReader(codec string, conf ReaderConfig) (ReaderConstructor, bool, error
 		}
 	}
 
-	if strings.HasPrefix(codec, "delim:") {
-		by := strings.TrimPrefix(codec, "delim:")
+	if after, ok := strings.CutPrefix(codec, "delim:"); ok {
+		by := after
 		if by == "" {
 			return nil, false, errors.New("custom delimiter codec requires a non-empty delimiter")
 		}
@@ -283,8 +283,8 @@ func partReader(codec string, conf ReaderConfig) (ReaderConstructor, bool, error
 			return newCustomDelimReader(conf, r, by, fn)
 		}, true, nil
 	}
-	if strings.HasPrefix(codec, "csv:") {
-		by := strings.TrimPrefix(codec, "csv:")
+	if after, ok := strings.CutPrefix(codec, "csv:"); ok {
+		by := after
 		if by == "" {
 			return nil, false, errors.New("csv codec requires a non-empty delimiter")
 		}
@@ -297,8 +297,8 @@ func partReader(codec string, conf ReaderConfig) (ReaderConstructor, bool, error
 			return newCSVReader(r, fn, &byRune)
 		}, true, nil
 	}
-	if strings.HasPrefix(codec, "csv-safe:") {
-		by := strings.TrimPrefix(codec, "csv-safe:")
+	if after, ok := strings.CutPrefix(codec, "csv-safe:"); ok {
+		by := after
 		if by == "" {
 			return nil, false, errors.New("csv-safe codec requires a non-empty delimiter")
 		}
@@ -311,8 +311,8 @@ func partReader(codec string, conf ReaderConfig) (ReaderConstructor, bool, error
 			return newCSVSafeReader(r, fn, &byRune)
 		}, true, nil
 	}
-	if strings.HasPrefix(codec, "chunker:") {
-		chunkSize, err := strconv.ParseInt(strings.TrimPrefix(codec, "chunker:"), 10, 64)
+	if after, ok := strings.CutPrefix(codec, "chunker:"); ok {
+		chunkSize, err := strconv.ParseInt(after, 10, 64)
 		if err != nil {
 			return nil, false, fmt.Errorf("invalid chunk size for chunker codec: %w", err)
 		}
@@ -320,8 +320,8 @@ func partReader(codec string, conf ReaderConfig) (ReaderConstructor, bool, error
 			return newChunkerReader(conf, r, chunkSize, fn)
 		}, true, nil
 	}
-	if strings.HasPrefix(codec, "regex:") {
-		by := strings.TrimPrefix(codec, "regex:")
+	if after, ok := strings.CutPrefix(codec, "regex:"); ok {
+		by := after
 		if by == "" {
 			return nil, false, errors.New("regex codec requires a non-empty delimiter")
 		}

@@ -193,17 +193,17 @@ func TestExtractSchemasRecursive(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		jsonData        interface{}
+		jsonData        any
 		expectedSchemas []string
 	}{
 		{
 			name: "nested schemas",
-			jsonData: map[string]interface{}{
+			jsonData: map[string]any{
 				"schema": "iglu:com.example/outer/jsonschema/1-0-0",
-				"data": map[string]interface{}{
-					"nested": map[string]interface{}{
+				"data": map[string]any{
+					"nested": map[string]any{
 						"schema": "iglu:com.example/inner/jsonschema/1-0-0",
-						"data":   map[string]interface{}{},
+						"data":   map[string]any{},
 					},
 				},
 			},
@@ -214,11 +214,11 @@ func TestExtractSchemasRecursive(t *testing.T) {
 		},
 		{
 			name: "array of schemas",
-			jsonData: []interface{}{
-				map[string]interface{}{
+			jsonData: []any{
+				map[string]any{
 					"schema": "iglu:com.example/schema1/jsonschema/1-0-0",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"schema": "iglu:com.example/schema2/jsonschema/1-0-0",
 				},
 			},
@@ -229,7 +229,7 @@ func TestExtractSchemasRecursive(t *testing.T) {
 		},
 		{
 			name: "no schema fields",
-			jsonData: map[string]interface{}{
+			jsonData: map[string]any{
 				"data": "some data",
 				"id":   123,
 			},

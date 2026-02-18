@@ -44,7 +44,7 @@ var randSource = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func randomFieldName(length int) string {
 	var builder strings.Builder
-	for i := 0; i < length; i++ {
+	for range length {
 		builder.WriteRune(rune(randSource.Intn(26) + 'A'))
 	}
 

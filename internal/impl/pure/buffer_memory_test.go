@@ -47,18 +47,18 @@ limit: 100000
 `)
 	defer block.Close(ctx)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if err := block.WriteBatch(ctx, service.MessageBatch{
 			service.NewMessage([]byte("hello")),
 			service.NewMessage([]byte("world")),
 			service.NewMessage([]byte("12345")),
-			service.NewMessage([]byte(fmt.Sprintf("test%v", i))),
+			service.NewMessage(fmt.Appendf(nil, "test%v", i)),
 		}, func(ctx context.Context, err error) error { return nil }); err != nil {
 			t.Error(err)
 		}
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		m, ackFunc, err := block.ReadBatch(ctx)
 		require.NoError(t, err)
 		require.Len(t, m, 4)
@@ -119,19 +119,19 @@ limit: 2285
 
 	n, iter := 50, 5
 
-	for j := 0; j < iter; j++ {
-		for i := 0; i < n; i++ {
+	for range iter {
+		for i := range n {
 			if err := block.WriteBatch(ctx, service.MessageBatch{
 				service.NewMessage([]byte("hello")),
 				service.NewMessage([]byte("world")),
 				service.NewMessage([]byte("12345")),
-				service.NewMessage([]byte(fmt.Sprintf("test%v", i))),
+				service.NewMessage(fmt.Appendf(nil, "test%v", i)),
 			}, func(ctx context.Context, err error) error { return nil }); err != nil {
 				t.Error(err)
 			}
 		}
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			m, ackFunc, err := block.ReadBatch(ctx)
 			require.NoError(t, err)
 			require.Len(t, m, 4)
@@ -150,21 +150,21 @@ limit: 8000
 
 	n, iter := 50, 5
 
-	for j := 0; j < iter; j++ {
-		for i := 0; i < n; i++ {
+	for range iter {
+		for i := range n {
 			b := make([]byte, rand.Int()%100)
 			for k := range b {
 				b[k] = '0'
 			}
 			if err := block.WriteBatch(ctx, service.MessageBatch{
 				service.NewMessage(b),
-				service.NewMessage([]byte(fmt.Sprintf("test%v", i))),
+				service.NewMessage(fmt.Appendf(nil, "test%v", i)),
 			}, func(ctx context.Context, err error) error { return nil }); err != nil {
 				t.Error(err)
 			}
 		}
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			m, ackFunc, err := block.ReadBatch(ctx)
 			require.NoError(t, err)
 			require.Len(t, m, 2)
@@ -184,26 +184,24 @@ limit: 1000
 	n := 10000
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 
-	go func() {
-		defer wg.Done()
-		for i := 0; i < n; i++ {
+	wg.Go(func() {
+		for i := range n {
 			m, ackFunc, err := block.ReadBatch(ctx)
 			require.NoError(t, err)
 			require.Len(t, m, 4)
 			msgEqual(t, fmt.Sprintf("test%v", i), m[3])
 			require.NoError(t, ackFunc(ctx, nil))
 		}
-	}()
+	})
 
 	go func() {
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if err := block.WriteBatch(ctx, service.MessageBatch{
 				service.NewMessage([]byte("hello")),
 				service.NewMessage([]byte("world")),
 				service.NewMessage([]byte("12345")),
-				service.NewMessage([]byte(fmt.Sprintf("test%v", i))),
+				service.NewMessage(fmt.Appendf(nil, "test%v", i)),
 			}, func(ctx context.Context, err error) error { return nil }); err != nil {
 				t.Error(err)
 			}
@@ -267,7 +265,7 @@ limit: 1000
 `)
 	defer block.Close(ctx)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if err := block.WriteBatch(ctx, service.MessageBatch{
 			service.NewMessage([]byte("hello world")),
 		}, func(ctx context.Context, err error) error { return nil }); err != nil {
@@ -276,15 +274,13 @@ limit: 1000
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 
-	go func() {
+	wg.Go(func() {
 		block.EndOfInput()
-		wg.Done()
-	}()
+	})
 
 	<-time.After(time.Millisecond * 100)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		m, ackFunc, err := block.ReadBatch(ctx)
 		require.NoError(t, err)
 		require.Len(t, m, 1)

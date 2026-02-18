@@ -106,7 +106,7 @@ func BuildAWSDsnFromSecret(dsn, driver string, getAWSCredentialsFromSecret func(
 		return "", fmt.Errorf("error retrieving secret: %w", err)
 	}
 
-	var secrets map[string]interface{}
+	var secrets map[string]any
 	if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
 		return "", fmt.Errorf("error unmarshalling secret: %w", err)
 	}

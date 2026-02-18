@@ -37,7 +37,7 @@ func (f FieldSpec) AnyToValue(v any, conf ToValueConfig) (any, error) {
 		subSpec := f.Array()
 
 		var s []any
-		for i := 0; i < len(a); i++ {
+		for i := range a {
 			v, err := subSpec.AnyToValue(a[i], conf)
 			if err != nil {
 				return nil, err
@@ -53,7 +53,7 @@ func (f FieldSpec) AnyToValue(v any, conf ToValueConfig) (any, error) {
 		subSpec := f.Scalar()
 
 		var s []any
-		for i := 0; i < len(a); i++ {
+		for i := range a {
 			v, err := subSpec.AnyToValue(a[i], conf)
 			if err != nil {
 				return nil, err

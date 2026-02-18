@@ -174,7 +174,6 @@ foo = bar.apply("foo")`, goodMapFile),
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			exec, err := ParseMapping(GlobalContext(), test.mapping)
 			require.NotNil(t, err)
@@ -553,7 +552,6 @@ from "%v"`, directMapFile),
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			msg := message.QuickBatch(nil)
 			for _, p := range test.input {

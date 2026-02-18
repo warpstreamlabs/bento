@@ -31,7 +31,7 @@ func TestStaticBasicDynamicFanIn(t *testing.T) {
 	mockInputs := []*mock.Input{}
 	resChan := make(chan error)
 
-	for i := 0; i < nInputs; i++ {
+	for i := range nInputs {
 		mockInputs = append(mockInputs, &mock.Input{
 			TChan: make(chan message.Transaction),
 		})
@@ -44,9 +44,9 @@ func TestStaticBasicDynamicFanIn(t *testing.T) {
 		return
 	}
 
-	for i := 0; i < nMsgs; i++ {
-		for j := 0; j < nInputs; j++ {
-			content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		for j := range nInputs {
+			content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 			select {
 			case mockInputs[j].TChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 			case <-time.After(time.Second):
@@ -108,8 +108,8 @@ func TestBasicDynamicFanIn(t *testing.T) {
 	wg := sync.WaitGroup{}
 	sendAllTestMessages := func(input *mock.Input, label string) {
 		rChan := make(chan error)
-		for i := 0; i < nMsgs; i++ {
-			content := [][]byte{[]byte(fmt.Sprintf("%v-%v", label, i))}
+		for i := range nMsgs {
+			content := [][]byte{fmt.Appendf(nil, "%v-%v", label, i)}
 			input.TChan <- message.NewTransaction(message.QuickBatch(content), rChan)
 			select {
 			case <-rChan:
@@ -125,7 +125,7 @@ func TestBasicDynamicFanIn(t *testing.T) {
 	go sendAllTestMessages(inputOne, "inputOne")
 	go sendAllTestMessages(inputTwo, "inputTwo")
 
-	for i := 0; i < nMsgs; i++ {
+	for i := range nMsgs {
 		var ts message.Transaction
 		expContent := fmt.Sprintf("inputOne-%v", i)
 		select {
@@ -144,7 +144,7 @@ func TestBasicDynamicFanIn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < nMsgs; i++ {
+	for i := range nMsgs {
 		var ts message.Transaction
 		expContent := fmt.Sprintf("inputTwo-%v", i)
 		select {
@@ -173,7 +173,7 @@ func TestStaticDynamicFanInShutdown(t *testing.T) {
 
 	expInputAddedList := []string{}
 	expInputRemovedList := []string{}
-	for i := 0; i < nInputs; i++ {
+	for i := range nInputs {
 		mockInputs = append(mockInputs, &mock.Input{
 			TChan: make(chan message.Transaction),
 		})
@@ -261,7 +261,7 @@ func TestStaticDynamicFanInAsync(t *testing.T) {
 	Inputs := map[string]input.Streamed{}
 	mockInputs := []*mock.Input{}
 
-	for i := 0; i < nInputs; i++ {
+	for i := range nInputs {
 		mockInputs = append(mockInputs, &mock.Input{
 			TChan: make(chan message.Transaction),
 		})
@@ -278,11 +278,11 @@ func TestStaticDynamicFanInAsync(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(nInputs)
 
-	for j := 0; j < nInputs; j++ {
+	for j := range nInputs {
 		go func(index int) {
 			rChan := make(chan error)
-			for i := 0; i < nMsgs; i++ {
-				content := [][]byte{[]byte(fmt.Sprintf("hello world %v %v", i, index))}
+			for i := range nMsgs {
+				content := [][]byte{fmt.Appendf(nil, "hello world %v %v", i, index)}
 				select {
 				case mockInputs[index].TChan <- message.NewTransaction(message.QuickBatch(content), rChan):
 				case <-time.After(time.Second):

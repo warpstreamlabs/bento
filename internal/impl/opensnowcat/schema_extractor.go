@@ -37,7 +37,7 @@ func (o *opensnowcatProcessor) extractSchemasFromField(columns []string, fieldNa
 		return
 	}
 
-	var data interface{}
+	var data any
 	if err := json.Unmarshal([]byte(jsonValue), &data); err != nil {
 		// Silently skip invalid JSON
 		return
@@ -47,9 +47,9 @@ func (o *opensnowcatProcessor) extractSchemasFromField(columns []string, fieldNa
 	o.extractSchemasRecursive(data, schemasMap)
 }
 
-func (o *opensnowcatProcessor) extractSchemasRecursive(data interface{}, schemasMap map[string]bool) {
+func (o *opensnowcatProcessor) extractSchemasRecursive(data any, schemasMap map[string]bool) {
 	switch v := data.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		// Check if this object has a "schema" field with an Iglu URI
 		if schemaVal, ok := v["schema"].(string); ok {
 			if strings.HasPrefix(schemaVal, "iglu:") {
@@ -61,7 +61,7 @@ func (o *opensnowcatProcessor) extractSchemasRecursive(data interface{}, schemas
 			o.extractSchemasRecursive(value, schemasMap)
 		}
 
-	case []interface{}:
+	case []any:
 		for _, item := range v {
 			o.extractSchemasRecursive(item, schemasMap)
 		}

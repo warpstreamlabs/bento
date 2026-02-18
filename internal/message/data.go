@@ -1,5 +1,7 @@
 package message
 
+import "maps"
+
 // Contains underlying allocated data for messages.
 type messageData struct {
 	rawBytes []byte // Contents are always read-only
@@ -146,10 +148,8 @@ func (m *messageData) writeableMeta() {
 	var clonedMeta map[string]any
 	if m.metadata != nil {
 		clonedMeta = make(map[string]any, len(m.metadata))
-		for k, v := range m.metadata {
-			// NOTE: All metadata is store as mutable so no need to deep clone.
-			clonedMeta[k] = v
-		}
+		// NOTE: All metadata is store as mutable so no need to deep clone.
+		maps.Copy(clonedMeta, m.metadata)
 	}
 
 	m.metadata = clonedMeta

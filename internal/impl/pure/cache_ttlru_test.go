@@ -91,7 +91,7 @@ func BenchmarkTTLRU(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		j := i % ttlruCacheFieldCapDefaultValue
-		key, value := fmt.Sprintf("key%v", j), []byte(fmt.Sprintf("foo%v", j))
+		key, value := fmt.Sprintf("key%v", j), fmt.Appendf(nil, "foo%v", j)
 
 		assert.NoError(b, c.Set(ctx, key, value, nil))
 
@@ -117,7 +117,7 @@ func BenchmarkTTLRUParallel(b *testing.B) {
 	b.RunParallel(func(p *testing.PB) {
 		for i := 0; p.Next(); i++ {
 			j := i % ttlruCacheFieldCapDefaultValue
-			key, value := fmt.Sprintf("key%v", j), []byte(fmt.Sprintf("foo%v", j))
+			key, value := fmt.Sprintf("key%v", j), fmt.Appendf(nil, "foo%v", j)
 
 			assert.NoError(b, c.Set(ctx, key, value, nil))
 

@@ -185,7 +185,6 @@ processors:
 			},
 		},
 	} {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			builder := service.NewEnvironment().NewStreamBuilder()
 			require.NoError(t, builder.AddInputYAML(test.config))

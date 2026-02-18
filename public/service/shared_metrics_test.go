@@ -71,7 +71,7 @@ func TestSharedMetricsEmission(t *testing.T) {
 
 	// Create two streams with shared local metrics directly
 	var streams []*service.Stream
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		builder := service.NewStreamBuilder()
 		builder.SetStreamName(fmt.Sprintf("stream-%d", i))
 		builder.SetSharedMetrics(namespacedMetrics)

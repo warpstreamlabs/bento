@@ -34,7 +34,6 @@ func TestFunctionExamples(t *testing.T) {
 	t.Setenv(key, tmpJSONFile.Name())
 
 	for _, spec := range query.FunctionDocs() {
-		spec := spec
 		t.Run(spec.Name, func(t *testing.T) {
 			t.Parallel()
 			for i, e := range spec.Examples {
@@ -89,7 +88,6 @@ func TestMethodExamples(t *testing.T) {
 	t.Setenv(key, tmpJSONFile.Name())
 
 	for _, spec := range query.MethodDocs() {
-		spec := spec
 		t.Run(spec.Name, func(t *testing.T) {
 			t.Parallel()
 			for i, e := range spec.Examples {

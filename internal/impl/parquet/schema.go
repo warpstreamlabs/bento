@@ -239,27 +239,27 @@ func generateMapType(
 func getReflectType(typeStr string) (reflect.Type, error) {
 	switch strings.ToUpper(typeStr) {
 	case "UTF8":
-		return reflect.TypeOf(""), nil
+		return reflect.TypeFor[string](), nil
 	case "BYTE_ARRAY":
-		return reflect.TypeOf([]byte(nil)), nil
+		return reflect.TypeFor[[]byte](), nil
 	case "INT8":
-		return reflect.TypeOf(int8(0)), nil
+		return reflect.TypeFor[int8](), nil
 	case "INT16":
-		return reflect.TypeOf(int16(0)), nil
+		return reflect.TypeFor[int16](), nil
 	case "INT32":
-		return reflect.TypeOf(int32(0)), nil
+		return reflect.TypeFor[int32](), nil
 	case "INT64":
-		return reflect.TypeOf(int64(0)), nil
+		return reflect.TypeFor[int64](), nil
 	case "FLOAT":
-		return reflect.TypeOf(float32(0)), nil
+		return reflect.TypeFor[float32](), nil
 	case "BOOLEAN":
-		return reflect.TypeOf(false), nil
+		return reflect.TypeFor[bool](), nil
 	case "DOUBLE":
-		return reflect.TypeOf(float64(0)), nil
+		return reflect.TypeFor[float64](), nil
 	case "DECIMAL32":
-		return reflect.TypeOf(int32(0)), nil
+		return reflect.TypeFor[int32](), nil
 	case "DECIMAL64":
-		return reflect.TypeOf(int64(0)), nil
+		return reflect.TypeFor[int64](), nil
 	default:
 		return nil, fmt.Errorf("unsupported type: %s", typeStr)
 	}

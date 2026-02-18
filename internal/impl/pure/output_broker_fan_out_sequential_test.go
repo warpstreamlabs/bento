@@ -21,7 +21,7 @@ func TestBasicFanOutSequential(t *testing.T) {
 	outputs := []output.Streamed{}
 	mockOutputs := []*mock.OutputChanneled{}
 
-	for i := 0; i < nOutputs; i++ {
+	for i := range nOutputs {
 		mockOutputs = append(mockOutputs, &mock.OutputChanneled{})
 		outputs = append(outputs, mockOutputs[i])
 	}
@@ -38,14 +38,14 @@ func TestBasicFanOutSequential(t *testing.T) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*5)
 	defer done()
 
-	for i := 0; i < nMsgs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):
 			t.Fatal("Timed out waiting for broker send")
 		}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			select {
 			case ts := <-mockOutputs[j].TChan:
 				if !bytes.Equal(ts.Payload.Get(0).AsBytes(), content[0]) {

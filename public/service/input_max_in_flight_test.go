@@ -42,13 +42,13 @@ func TestMaxInFlightLimit(t *testing.T) {
 
 	go func() {
 		readerImpl.connChan <- nil
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			readerImpl.readChan <- nil
 		}
 		readerImpl.closeChan <- nil
 	}()
 	go func() {
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			readerImpl.ackChan <- nil
 		}
 	}()
@@ -138,13 +138,13 @@ func TestMaxInFlightLimitBatched(t *testing.T) {
 
 	go func() {
 		readerImpl.connChan <- nil
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			readerImpl.readChan <- nil
 		}
 		readerImpl.closeChan <- nil
 	}()
 	go func() {
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			readerImpl.ackChan <- nil
 		}
 	}()

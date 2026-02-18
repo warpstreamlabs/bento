@@ -268,13 +268,13 @@ func (r *Reader) Close(ctx context.Context) error {
 
 func applyOverrides(specs docs.FieldSpecs, root *yaml.Node, overrides ...string) error {
 	for _, override := range overrides {
-		eqIndex := strings.Index(override, "=")
-		if eqIndex == -1 {
+		before, after, ok := strings.Cut(override, "=")
+		if !ok {
 			return fmt.Errorf("invalid set expression '%v': expected foo=bar syntax", override)
 		}
 
-		path := override[:eqIndex]
-		value := override[eqIndex+1:]
+		path := before
+		value := after
 		if path == "" || value == "" {
 			return fmt.Errorf("invalid set expression '%v': expected foo=bar syntax", override)
 		}

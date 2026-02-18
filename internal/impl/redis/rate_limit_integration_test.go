@@ -78,7 +78,7 @@ url: `+url, nil)
 
 	ctx := context.Background()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		period, err := rl.Access(ctx)
 		require.NoError(t, err)
 		assert.LessOrEqual(t, period, time.Duration(0))
@@ -108,7 +108,7 @@ url: `+url, nil)
 
 	wg := sync.WaitGroup{}
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			defer wg.Done()
 			period, err := rl.Access(ctx)
@@ -131,7 +131,7 @@ url: `+url, nil)
 	<-time.After(150 * time.Millisecond)
 
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		i := i
 		go func() {
 			defer wg.Done()

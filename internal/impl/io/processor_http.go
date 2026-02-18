@@ -188,7 +188,7 @@ func (h *httpProc) ProcessBatch(ctx context.Context, msg service.MessageBatch) (
 		}
 		reqChan, resChan := make(chan int), make(chan error)
 
-		for i := 0; i < len(msg); i++ {
+		for range msg {
 			go func() {
 				for index := range reqChan {
 					tmpMsg := service.MessageBatch{msg[index]}
@@ -215,11 +215,11 @@ func (h *httpProc) ProcessBatch(ctx context.Context, msg service.MessageBatch) (
 			}()
 		}
 		go func() {
-			for i := 0; i < len(msg); i++ {
+			for i := range msg {
 				reqChan <- i
 			}
 		}()
-		for i := 0; i < len(msg); i++ {
+		for range msg {
 			if err := <-resChan; err != nil {
 				h.log.Errorf("HTTP parallel request to '%v' failed: %v", h.rawURL, err)
 			}

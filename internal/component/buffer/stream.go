@@ -193,10 +193,8 @@ func (m *Stream) outputLoop() {
 
 		mSent.Incr(int64(batchLen))
 		mSentBatch.Incr(1)
-		ackGroup.Add(1)
 
-		go func() {
-			defer ackGroup.Done()
+		ackGroup.Go(func() {
 			select {
 			case res, open := <-resChan:
 				if !open {
@@ -212,7 +210,7 @@ func (m *Stream) outputLoop() {
 			case <-m.shutSig.HardStopChan():
 				return
 			}
-		}()
+		})
 	}
 }
 

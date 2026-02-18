@@ -16,7 +16,7 @@ import (
 )
 
 func TestInsertBoundaries(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		for j := -5; j <= 5; j++ {
 			conf, err := testutil.ProcessorFromYAML(fmt.Sprintf(`
 insert_part:
@@ -217,13 +217,13 @@ insert_part:
 			out: [][]byte{
 				[]byte("0"),
 				[]byte("1"),
-				[]byte(fmt.Sprintf("hello %v world", hostname)),
+				fmt.Appendf(nil, "hello %v world", hostname),
 			},
 		},
 		{
 			in: [][]byte{},
 			out: [][]byte{
-				[]byte(fmt.Sprintf("hello %v world", hostname)),
+				fmt.Appendf(nil, "hello %v world", hostname),
 			},
 		},
 	}

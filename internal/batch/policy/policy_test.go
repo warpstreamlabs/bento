@@ -147,7 +147,7 @@ func TestPolicyPeriodJitter(t *testing.T) {
 	// Set RNG seed to ensure deterministic test runs
 	//nolint:staticcheck
 	rand.Seed(1)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 
 		if pol.Add(message.NewPart(nil)) {
 			t.Error("Unexpected batch ready")

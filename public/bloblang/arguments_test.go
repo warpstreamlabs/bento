@@ -83,7 +83,6 @@ func TestArgumentTypes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			err := set.Extract(test.args)
 			if test.err != "" {

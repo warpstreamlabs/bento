@@ -37,7 +37,6 @@ root.bar = this.bar.uppercase().replace("something)`,
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			_, err := Parse(test.mapping)
 			require.Error(t, err)

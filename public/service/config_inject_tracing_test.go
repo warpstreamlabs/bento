@@ -51,7 +51,6 @@ func TestSpanBatchWriter(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			var connCalled, closeCalled, waitCalled bool
 
@@ -134,7 +133,6 @@ func TestSpanWriter(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			var connCalled, closeCalled, waitCalled bool
 

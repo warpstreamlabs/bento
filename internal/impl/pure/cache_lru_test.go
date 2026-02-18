@@ -75,7 +75,6 @@ func TestLRUCacheAlgorithms(t *testing.T) {
 	algorithms := []string{"standard", "arc", "two_queues"}
 
 	for _, algorithm := range algorithms {
-		algorithm := algorithm
 		t.Run(algorithm, func(t *testing.T) {
 			t.Parallel()
 
@@ -105,7 +104,7 @@ func BenchmarkLRU(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		j := i % lruCacheFieldCapDefaultValue
-		key, value := fmt.Sprintf("key%v", j), []byte(fmt.Sprintf("foo%v", j))
+		key, value := fmt.Sprintf("key%v", j), fmt.Appendf(nil, "foo%v", j)
 
 		assert.NoError(b, c.Set(ctx, key, value, nil))
 
@@ -129,7 +128,7 @@ func BenchmarkLRUParallel(b *testing.B) {
 	b.RunParallel(func(p *testing.PB) {
 		for i := 0; p.Next(); i++ {
 			j := i % lruCacheFieldCapDefaultValue
-			key, value := fmt.Sprintf("key%v", j), []byte(fmt.Sprintf("foo%v", j))
+			key, value := fmt.Sprintf("key%v", j), fmt.Appendf(nil, "foo%v", j)
 
 			assert.NoError(b, c.Set(ctx, key, value, nil))
 

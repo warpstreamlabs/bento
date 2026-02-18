@@ -74,7 +74,6 @@ drop_on: [ 7, 8, 9 ]
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			verb := "POST"
 			if test.verbOverride != "" {
