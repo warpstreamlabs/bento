@@ -23,26 +23,19 @@ import (
 )
 
 const (
-	grpcClientOutputAddress                = "address"
-	grpcClientOutputService                = "service"
-	grpcClientOutputMethod                 = "method"
-	grpcClientOutputRPCType                = "rpc_type"
-	grpcClientOutputReflection             = "reflection"
-	grpcClientOutputProtoFiles             = "proto_files"
-	grpcClientOutputBatching               = "batching"
+	grpcClientOutputAddress                = "address"     // duplicate
+	grpcClientOutputService                = "service"     // duplicate
+	grpcClientOutputMethod                 = "method"      // duplicate
+	grpcClientOutputRPCType                = "rpc_type"    // duplicate
+	grpcClientOutputReflection             = "reflection"  // duplicate
+	grpcClientOutputProtoFiles             = "proto_files" // duplicate
+	grpcClientOutputBatching               = "batching"    // duplicate
 	grpcClientOutputPropRes                = "propagate_response"
+	grpcClientOutputTls                    = "tls"          // duplicate
+	grpcClientOutputHealthCheck            = "health_check" // duplicate
+	grpcClientOutputHealthCheckToggle      = "enabled"      // duplicate
+	grpcClientOutputHealthCheckServiceName = "service"      // duplicate
 	grpcClientOutputMetadata               = "metadata"
-	grpcClientOutputTls                    = "tls"
-	grpcClientOutputHealthCheck            = "health_check"
-	grpcClientOutputHealthCheckToggle      = "enabled"
-	grpcClientOutputHealthCheckServiceName = "service"
-)
-
-const (
-	rpcTypeUnary        = "unary"
-	rpcTypeClientStream = "client_stream"
-	rpcTypeServerStream = "server_stream"
-	rpcTypeBidi         = "bidi"
 )
 
 const grpcClientOutputDescription = `

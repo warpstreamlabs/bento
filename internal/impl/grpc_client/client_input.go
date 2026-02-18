@@ -2,15 +2,25 @@ package grpc_client
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/jhump/protoreflect/desc"
+	"github.com/jhump/protoreflect/dynamic"
+	"github.com/jhump/protoreflect/dynamic/grpcdynamic"
+	"github.com/jhump/protoreflect/grpcreflect"
 	"github.com/warpstreamlabs/bento/public/service"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	grpcClientInputAddress = "address"
-	grpcClientInputService = "service"
-	grpcClientInputMethod  = "method"
-	grpcClientInputPayload = "payload"
+	grpcClientInputAddress    = "address"    // duplicate
+	grpcClientInputService    = "service"    // duplicate
+	grpcClientInputMethod     = "method"     // duplicate
+	grpcClientInputRPCType    = "rpc_type"   // duplicate
+	grpcClientInputReflection = "reflection" // duplicate
+	grpcClientInputPayload    = "payload"
 )
 
 func grpcClientInputSpec() *service.ConfigSpec {
@@ -28,6 +38,13 @@ func grpcClientInputSpec() *service.ConfigSpec {
 			service.NewStringField(grpcClientInputMethod).
 				Description("TODO").
 				Example("TODO"),
+			service.NewStringEnumField(
+				grpcClientInputRPCType,
+				[]string{rpcTypeUnary, rpcTypeClientStream, rpcTypeServerStream, rpcTypeBidi}...,
+			).Default("unary"),
+			service.NewBoolField(grpcClientInputReflection).
+				Description("If set to true, Bento will acquire the protobuf schema for the method from the server via [gRPC Reflection](https://grpc.io/docs/guides/reflection/).").
+				Default(false),
 			service.NewInterpolatedStringField(grpcClientInputPayload).
 				Description("TODO").
 				Example("TODO"),
@@ -47,7 +64,17 @@ func init() {
 //------------------------------------------------------------------------------
 
 type grpcClientInput struct {
-	address string
+	address       string
+	serviceName   string
+	methodName    string
+	rpcType       string
+	reflection    bool
+	reflectClient *grpcreflect.Client
+
+	conn *grpc.ClientConn
+
+	stub   grpcdynamic.Stub
+	method *desc.MethodDescriptor
 }
 
 func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientInput, error) {
@@ -55,19 +82,89 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resourc
 	if err != nil {
 		return nil, err
 	}
+	serviceName, err := conf.FieldString(grpcClientInputService)
+	if err != nil {
+		return nil, err
+	}
+	methodName, err := conf.FieldString(grpcClientInputMethod)
+	if err != nil {
+		return nil, err
+	}
+	rpcType, err := conf.FieldString(grpcClientInputRPCType)
+	if err != nil {
+		return nil, err
+	}
+	reflection, err := conf.FieldBool(grpcClientInputReflection)
+	if err != nil {
+		return nil, err
+	}
 
 	return &grpcClientInput{
-		address: address,
+		address:     address,
+		serviceName: serviceName,
+		methodName:  methodName,
+		rpcType:     rpcType,
+		reflection:  reflection,
 	}, nil
 }
 
 func (gci *grpcClientInput) Connect(ctx context.Context) error {
+	var err error
+
+	dialOpts := []grpc.DialOption{}
+	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	gci.conn, err = grpc.NewClient(gci.address, dialOpts...)
+	if err != nil {
+		return err
+	}
+
+	if gci.reflection {
+		gci.reflectClient = grpcreflect.NewClientAuto(ctx, gci.conn)
+
+		serviceDescriptor, err := gci.reflectClient.ResolveService(gci.serviceName)
+		if err != nil {
+			return err
+		}
+
+		if method := serviceDescriptor.FindMethodByName(gci.methodName); method != nil {
+			gci.method = method
+		} else {
+			return fmt.Errorf("method: %v not found", gci.methodName)
+		}
+	} else {
+		return errors.New("NOT IMPL.")
+	}
+
+	gci.stub = grpcdynamic.NewStub(gci.conn)
+
 	return nil
 }
 
 func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
-	msgB := service.MessageBatch{service.NewMessage([]byte("hello world"))}
-	return msgB, nil, nil
+	request := dynamic.NewMessage(gci.method.GetInputType())
+	if err := request.UnmarshalJSON([]byte("{\"name\": \"Jem\"}")); err != nil {
+		return nil, nil, err
+	}
+
+	resProtoMessage, err := gci.stub.InvokeRpc(ctx, gci.method, request)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dynMsg, ok := resProtoMessage.(*dynamic.Message)
+	if !ok {
+		return nil, nil, err
+	}
+
+	jsonBytes, err := dynMsg.MarshalJSON()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	responseMsg := service.MessageBatch{service.NewMessage(jsonBytes)}
+
+	return responseMsg, nil, nil
 }
 
 func (gci *grpcClientInput) Close(ctx context.Context) error {

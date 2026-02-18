@@ -14,15 +14,16 @@ import (
 
 func TestGrpcClientInput(t *testing.T) {
 	// arrange
-	testServer := startGRPCServer(t)
+	testServer := startGRPCServer(t, withReflection())
 
 	config := fmt.Sprintf(`
 grpc_client:
   address: localhost:%v
   service: helloworld.Greeter
   method: SayHello
-  payload: 
-    name: Jem
+  rpc_type: unary
+  reflection: true
+  payload: "Jem"
 `, testServer.port)
 
 	msgCh := startGrpcClientInput(t, config)
@@ -31,13 +32,12 @@ grpc_client:
 	var msg message.Transaction
 	select {
 	case msg = <-msgCh:
-		fmt.Printf("msg: %v\n", msg.Payload.Get(0).AsBytes())
 	case <-time.After(time.Second * 10):
 		t.FailNow()
 	}
 
 	// assert
-	assert.Equal(t, "Hello Jem", string(msg.Payload.Get(0).AsBytes()))
+	assert.Equal(t, "{\"message\":\"Hello Jem\"}", string(msg.Payload.Get(0).AsBytes()))
 }
 
 func startGrpcClientInput(t *testing.T, yamlConf string) (ch <-chan (message.Transaction)) {
