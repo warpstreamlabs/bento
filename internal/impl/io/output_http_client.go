@@ -17,7 +17,11 @@ When the number of retries expires the output will reject the message, the behav
 
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
 
-The body of the HTTP request is the raw contents of the message payload. If the message has multiple parts (is a batch) the request will be sent according to [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). This behaviour can be disabled by setting the field ` + "[`batch_as_multipart`](#batch_as_multipart) to `false`" + `.
+The URL, header and payload values of this output can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. If the message has multiple parts (is a batch) the request will be sent according to [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). This behaviour can be disabled by setting the field ` + "[`batch_as_multipart`](#batch_as_multipart) to `false`" + `.
+
+It's also possible to set the body of the HTTP request using the optional field ` + "[`payload`](#payload)" + `, which (if set) will take precedent.
 
 ### Propagating Responses
 
