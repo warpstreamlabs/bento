@@ -17,9 +17,9 @@ type globalPendingPool struct {
 }
 
 // newGlobalPendingPool creates a new pool with the specified maximum capacity.
-func newGlobalPendingPool(max int) *globalPendingPool {
+func newGlobalPendingPool(maximum int) *globalPendingPool {
 	p := &globalPendingPool{
-		max: max,
+		max: maximum,
 	}
 	p.cond = sync.NewCond(&p.mu)
 	return p
