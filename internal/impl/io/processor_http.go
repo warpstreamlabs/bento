@@ -20,6 +20,11 @@ The `+"`rate_limit`"+` field can be used to specify a rate limit [resource](/doc
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
 
 In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the `+"[`branch` processor](/docs/components/processors/branch)"+`.
+The URL, header and payload values of this processor can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. It's also possible to set the body of the HTTP request using the optional field `+"[`payload`](#payload)"+`, which (if set) will take precedent.
+
+In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the `+"[`branch` processor](/docs/components/processors/branch)"+`.
 
 ## Response Codes
 
