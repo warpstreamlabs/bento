@@ -2333,6 +2333,81 @@ func TestNewIndexMethod(t *testing.T) {
 	}
 }
 
+func TestNewSetMethod(t *testing.T) {
+	literalFn := func(val any) Function {
+		return NewLiteralFunction("", val)
+	}
+
+	tests := []struct {
+		name    string
+		target  any
+		path    string
+		value   any
+		wantErr bool
+		errMsg  string
+	}{
+		// arrays
+		{
+			name:   "array positive index",
+			target: []any{"a", "b", "c"},
+			path:   "0",
+			value:  "a",
+		},
+		{
+			name:    "array negative index",
+			target:  []any{"a", "b", "c"},
+			path:    "-1",
+			wantErr: true,
+			errMsg:  "failed to resolve path segment '0': found array but index '-1' is invalid",
+		},
+		{
+			name:    "array index out of bounds",
+			target:  []any{"a", "b", "c"},
+			path:    "5",
+			wantErr: true,
+			errMsg:  `failed to resolve path segment '0': found array but index '5' exceeded target array size of '3'`,
+		},
+		// objects
+		{
+			name:   "object a key",
+			target: map[string]any{"a": "a", "b": "b", "c": "c"},
+			path:   "a",
+			value:  "a",
+		},
+		{
+			name:   "object new key",
+			target: map[string]any{"a": "a", "b": "b", "c": "c"},
+			path:   "d",
+			value:  "d",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targetFn := literalFn(tt.target)
+
+			method, err := NewSetMethod(targetFn, tt.path, tt.value)
+			require.NoError(t, err)
+
+			ctx := FunctionContext{}
+			result, err := method.Exec(ctx)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+
+			resultGabs, ok := result.(*gabs.Container)
+			if assert.True(t, ok, "underlying result not a gabs Container") {
+				assert.Equal(t, tt.value, resultGabs.Data())
+			}
+		})
+	}
+}
+
 func TestNewSliceMethod(t *testing.T) {
 	literalFn := func(val any) Function {
 		return NewLiteralFunction("", val)

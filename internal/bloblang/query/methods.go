@@ -294,7 +294,7 @@ func (g *getMethod) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPa
 	paths := make([]TargetPath, len(basePaths))
 	for i, p := range basePaths {
 		paths[i] = p
-		paths[i].Path = append(paths[i].Path, g.path...)
+		paths[i].Path = append(p.Path, g.path...)
 	}
 	ctx = ctx.WithValues(paths)
 
@@ -327,6 +327,89 @@ func getMethodCtor(target Function, args *ParsedParams) (Function, error) {
 		return nil, err
 	}
 	return NewGetMethod(target, pathStr)
+}
+
+//------------------------------------------------------------------------------
+
+var _ = registerMethod(
+	NewMethodSpec(
+		"set",
+		"Set a field value, identified via a [dot path][field_paths], of an object.",
+	).InCategory(
+		MethodCategoryObjectAndArray, "",
+		NewExampleSpec("",
+			`root.result = this.foo.set(this.target)`,
+			`{"foo":{"bar":"from bar","baz":"from baz"},"target":"bar"}`,
+			`{"result":"from bar"}`,
+			`{"foo":{"bar":"from bar","baz":"from baz"},"target":"baz"}`,
+			`{"result":"from baz"}`,
+		),
+	).Param(ParamString("path", "A [dot path][field_paths] identifying a field to write.")).Param(ParamAny("value", "The value to write.")),
+	setMethodCtor,
+)
+
+type setMethod struct {
+	fn    Function
+	path  []string
+	value any
+}
+
+func (g *setMethod) Annotation() string {
+	return "set path `" + SliceToDotPath(g.path...) + "` with " + fmt.Sprintf("%v", g.value)
+}
+
+func (g *setMethod) Exec(ctx FunctionContext) (any, error) {
+	v, err := g.fn.Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return gabs.Wrap(v).Set(g.value, g.path...)
+}
+
+func (g *setMethod) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPath) {
+	ctx, fnPaths := g.fn.QueryTargets(ctx)
+
+	basePaths := ctx.Value()
+	paths := make([]TargetPath, len(basePaths))
+	for i, p := range basePaths {
+		paths[i] = p
+		paths[i].Path = append(p.Path, g.path...)
+	}
+	ctx = ctx.WithValues(paths)
+
+	return ctx, append(fnPaths, paths...)
+}
+
+// NewSetMethod creates a new set method.
+func NewSetMethod(target Function, pathStr string, value any) (Function, error) {
+	path := gabs.DotPathToSlice(pathStr)
+	switch t := target.(type) {
+	case *setMethod:
+		newPath := append([]string{}, t.path...)
+		newPath = append(newPath, path...)
+		return &setMethod{
+			fn:    t.fn,
+			path:  newPath,
+			value: value,
+		}, nil
+	}
+	return &setMethod{
+		fn:    target,
+		path:  path,
+		value: value,
+	}, nil
+}
+
+func setMethodCtor(target Function, args *ParsedParams) (Function, error) {
+	pathStr, err := args.FieldString("path")
+	if err != nil {
+		return nil, err
+	}
+	value, err := args.Field("value")
+	if err != nil {
+		return nil, err
+	}
+	return NewSetMethod(target, pathStr, value)
 }
 
 //------------------------------------------------------------------------------
