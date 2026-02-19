@@ -61,7 +61,7 @@ pipeline:
 `,
 		).
 		Field(httpclient.ConfigField("POST", false,
-			service.NewInterpolatedStringField("payload").Description("An alternative payload to deliver for each request.").Optional(),
+			service.NewInterpolatedStringField("payload").Description("An alternative payload to deliver for each request.").Optional().Advanced(),
 			service.NewBoolField("batch_as_multipart").Description("Send message batches as a single request using [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html).").Advanced().Default(false),
 			service.NewBoolField("parallel").Description("When processing batched messages, whether to send messages of the batch in parallel, otherwise they are sent serially.").Default(false)),
 		)
