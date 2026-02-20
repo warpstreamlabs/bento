@@ -817,6 +817,7 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
+Requires version 1.16.0 or newer  
 
 ### `batch_as_multipart`
 
