@@ -1,6 +1,7 @@
 package value
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -68,4 +69,18 @@ func TestIToInt(t *testing.T) {
 			assert.Equal(t, test.out, i)
 		}
 	}
+}
+
+func TestErrorUnwrap(t *testing.T) {
+	derr := &DetailedError{
+		err: &DetailedError{
+			err: errors.New("foo"),
+		},
+	}
+
+	err := derr.Unwrap()
+
+	_, ok := err.(*DetailedError)
+	assert.False(t, ok)
+	assert.Equal(t, "foo", err.Error())
 }

@@ -421,6 +421,39 @@ If an error has occurred during the processing of a message this function return
 root.doc.error = error()
 ```
 
+### `error_source_label`
+
+Returns the label of the `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].
+
+#### Examples
+
+
+```coffee
+root.doc.error = error_source_label()
+```
+
+### `error_source_path`
+
+Returns the path to the `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].
+
+#### Examples
+
+
+```coffee
+root.doc.error = error_source_path()
+```
+
+### `error_source_type`
+
+Returns the type of `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].
+
+#### Examples
+
+
+```coffee
+root.doc.error = error_source_type()
+```
+
 ### `errored`
 
 Returns a boolean value indicating whether an error has occurred during the processing of a message. For more information about error handling patterns read [here][error_handling].

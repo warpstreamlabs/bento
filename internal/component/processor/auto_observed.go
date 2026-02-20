@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/warpstreamlabs/bento/internal/component"
@@ -9,6 +10,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/tracing"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // AutoObserved is a simpler processor interface to implement than V1 as it is
@@ -144,6 +146,10 @@ type BatchProcContext struct {
 
 	mError metrics.StatCounter
 	logger log.Modular
+
+	pPath  string
+	pType  string
+	pLabel string
 }
 
 // Context returns the underlying processor context.Context.
@@ -181,6 +187,9 @@ func (b *BatchProcContext) OnError(err error, index int, p *message.Part) {
 	if p == nil && len(b.parts) > index && index >= 0 {
 		p = b.parts[index]
 	}
+	err = value.NewDetailedError(
+		err, b.pType, b.pLabel, b.pPath,
+	)
 	MarkErr(p, span, err)
 }
 
@@ -226,12 +235,19 @@ func (a *v2BatchedToV1Processor) ProcessBatch(ctx context.Context, msg message.B
 		parts:  msg,
 		mError: a.mError,
 		logger: a.mgr.Logger(),
+
+		pType:  a.typeStr,
+		pLabel: a.mgr.Label(),
+		pPath:  strings.Join(a.mgr.Path(), "."),
 	}, msg)
 	if err != nil {
 		a.mError.Incr(int64(msg.Len()))
 		a.mgr.Logger().Debug("Processor failed: %v", err)
 		_ = msg.Iter(func(i int, p *message.Part) error {
-			MarkErr(p, spans[i], err)
+			procErr := value.NewDetailedError(
+				err, a.typeStr, a.mgr.Label(), a.mgr.Path()...,
+			)
+			MarkErr(p, spans[i], procErr)
 			return nil
 		})
 		outputBatches = append(outputBatches, msg)
