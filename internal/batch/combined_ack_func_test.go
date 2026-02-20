@@ -109,20 +109,20 @@ func TestCombinedAckErrorSync(t *testing.T) {
 	})
 
 	var derivedFuncs []AckFunc
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		derivedFuncs = append(derivedFuncs, combined.Derive())
 	}
 
 	startChan := make(chan struct{})
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		i := i
 		go func() {
 			defer wg.Done()
 			<-startChan
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				assert.NoError(t, derivedFuncs[(i*100)+j](context.Background(), nil))
 			}
 		}()

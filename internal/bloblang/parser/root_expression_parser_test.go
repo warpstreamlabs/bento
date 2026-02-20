@@ -116,7 +116,6 @@ if this.foo > this.bar {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			for _, io := range test.io {
 				inPart := message.NewPart([]byte(io[0].Content))

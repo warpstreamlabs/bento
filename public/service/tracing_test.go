@@ -224,7 +224,7 @@ func BenchmarkStreamTracingOutputN100(b *testing.B) {
 
 func benchmarkStreamTracingOutputNX(b *testing.B, size int) {
 	var outputsBuf bytes.Buffer
-	for i := 0; i < size; i++ {
+	for range size {
 		outputsBuf.WriteString("      - custom: {}\n")
 	}
 

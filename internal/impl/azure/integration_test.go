@@ -433,13 +433,13 @@ enable_content_response_on_write: true
 		t.Cleanup(func() { patchProc.Close(ctx) })
 
 		var insertBatch service.MessageBatch
-		for i := 0; i < 10; i++ {
-			insertBatch = append(insertBatch, service.NewMessage([]byte(
-				fmt.Sprintf(`{
+		for i := range 10 {
+			insertBatch = append(insertBatch, service.NewMessage(
+				fmt.Appendf(nil, `{
   "%s": "%s",
   "id": "%d",
   "foo": %d
-}`, dummyPartitionKeyField, dummyPartitionKeyValue, i, i))),
+}`, dummyPartitionKeyField, dummyPartitionKeyValue, i, i)),
 			)
 		}
 
@@ -452,9 +452,9 @@ enable_content_response_on_write: true
 		}
 
 		var readBatch service.MessageBatch
-		for i := 0; i < 10; i++ {
-			readBatch = append(readBatch, service.NewMessage([]byte(
-				fmt.Sprintf(`{"id": "%d"}`, i))),
+		for i := range 10 {
+			readBatch = append(readBatch, service.NewMessage(
+				fmt.Appendf(nil, `{"id": "%d"}`, i)),
 			)
 		}
 		resBatches, err = readProc.ProcessBatch(ctx, readBatch)
@@ -487,9 +487,9 @@ enable_content_response_on_write: true
 		}
 
 		var patchBatch service.MessageBatch
-		for i := 0; i < 10; i++ {
-			patchBatch = append(patchBatch, service.NewMessage([]byte(
-				fmt.Sprintf(`{"id": "%d", "blobfish": "are cool"}`, i))),
+		for i := range 10 {
+			patchBatch = append(patchBatch, service.NewMessage(
+				fmt.Appendf(nil, `{"id": "%d", "blobfish": "are cool"}`, i)),
 			)
 		}
 		resBatches, err = patchProc.ProcessBatch(ctx, patchBatch)
@@ -711,7 +711,7 @@ max_in_flight: 10
 
 		// Read and verify messages
 		receivedCount := 0
-		for i := 0; i < len(testMessages); i++ {
+		for range testMessages {
 			msg, ackFn, err := input.Read(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, msg)
@@ -769,7 +769,7 @@ auto_ack: true
 		})
 
 		receivedCount := 0
-		for i := 0; i < len(testMessages); i++ {
+		for range testMessages {
 			msg, ackFn, err := input.Read(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, msg)

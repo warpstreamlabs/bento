@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
@@ -152,9 +153,7 @@ func walkForHashFields(msg *service.Message, fields map[string]any) error {
 	if !ok {
 		return fmt.Errorf("expected JSON object, found '%T'", jVal)
 	}
-	for k, v := range jObj {
-		fields[k] = v
-	}
+	maps.Copy(fields, jObj)
 	return nil
 }
 

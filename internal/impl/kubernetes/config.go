@@ -48,21 +48,22 @@ func LabelSelectorFromMap(labels map[string]string) string {
 
 // metadataDescription returns the standard metadata documentation block.
 func metadataDescription(fields ...string) string {
-	result := `
+	var result strings.Builder
+	result.WriteString(`
 
 ### Metadata
 
 This input adds the following metadata fields to each message:
 
 ` + "```text" + `
-`
+`)
 	for _, f := range fields {
-		result += "- " + f + "\n"
+		result.WriteString("- " + f + "\n")
 	}
-	result += "```" + `
+	result.WriteString("```" + `
 
 You can access these metadata fields using
 [function interpolation](/docs/configuration/interpolation#bloblang-queries).
-`
-	return result
+`)
+	return result.String()
 }

@@ -256,7 +256,7 @@ http_client:
 	tChan := make(chan message.Transaction)
 	require.NoError(t, h.Consume(tChan))
 
-	for i := 0; i < nTestLoops; i++ {
+	for i := range nTestLoops {
 		testStr := fmt.Sprintf("test%v", i)
 		testMsg := message.QuickBatch([][]byte{[]byte(testStr)})
 
@@ -376,7 +376,7 @@ http_client:
 	tChan := make(chan message.Transaction)
 	require.NoError(t, h.Consume(tChan))
 
-	for i := 0; i < nTestLoops; i++ {
+	for i := range nTestLoops {
 		testStr := fmt.Sprintf("test%v", i)
 
 		resultStore := transaction.NewResultStore()
@@ -431,7 +431,7 @@ http_client:
 	tChan := make(chan message.Transaction)
 	require.NoError(t, h.Consume(tChan))
 
-	for i := 0; i < nTestLoops; i++ {
+	for i := range nTestLoops {
 		testStr := fmt.Sprintf("test%v", i)
 
 		resultStore := transaction.NewResultStore()
@@ -514,7 +514,7 @@ http_client:
 	tChan := make(chan message.Transaction)
 	require.NoError(t, h.Consume(tChan))
 
-	for i := 0; i < nTestLoops; i++ {
+	for i := range nTestLoops {
 		testStr := fmt.Sprintf("test%v", i)
 		testMsg := message.QuickBatch([][]byte{
 			[]byte(testStr + "PART-A"),
@@ -608,7 +608,7 @@ http_client:
 	tChan := make(chan message.Transaction)
 	require.NoError(t, h.Consume(tChan))
 
-	for i := 0; i < nTestLoops; i++ {
+	for range nTestLoops {
 		require.NoError(t, writeBatchToChan(ctx, t, message.QuickBatch([][]byte{[]byte("test")}), tChan))
 
 		select {

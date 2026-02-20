@@ -51,7 +51,7 @@ interval: 1s
 
 	ctx := context.Background()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		exceeded := rl.Add(ctx, nil)
 		assert.False(t, exceeded)
 
@@ -80,7 +80,7 @@ interval: 1s
 
 	msgBytes := make([][]byte, 10)
 
-	for i := 0; i < len(msgBytes); i++ {
+	for i := range msgBytes {
 		msgBytes[i] = make([]byte, 10)
 	}
 	batch := message.QuickBatch(msgBytes)
@@ -111,7 +111,7 @@ interval: 10ms
 
 	ctx := context.Background()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		assert.False(t, rl.Add(ctx, nil))
 		period, _ := rl.Access(ctx)
 		if period > 0 {
@@ -127,7 +127,7 @@ interval: 10ms
 
 	<-time.After(time.Millisecond * 15)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		assert.False(t, rl.Add(ctx, nil))
 		period, _ := rl.Access(ctx)
 		if period != 0 {
@@ -156,7 +156,7 @@ interval: 10ms
 
 	msgBytes := make([][]byte, 10)
 
-	for i := 0; i < len(msgBytes); i++ {
+	for i := range msgBytes {
 		msgBytes[i] = make([]byte, 10)
 	}
 	batch := message.QuickBatch(msgBytes)
@@ -208,7 +208,7 @@ interval: 10ms
 	msgWith10Bytes := message.NewPart(make([]byte, 10))
 	msgWith5Bytes := message.NewPart(make([]byte, 5))
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		assert.False(t, rl.Add(ctx, msgWith10Bytes))
 		period, _ := rl.Access(ctx)
 		assert.LessOrEqual(t, period, time.Duration(0))
@@ -227,7 +227,7 @@ interval: 10ms
 
 	<-time.After(time.Millisecond * 15)
 
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		assert.False(t, rl.Add(ctx, msgWith5Bytes))
 		period, _ := rl.Access(ctx)
 		if period != 0 {
@@ -278,7 +278,7 @@ interval: 1ns
 
 	ctx := context.Background()
 
-	for i := 0; i < nParallel; i++ {
+	for range nParallel {
 		go func() {
 			<-startChan
 			for j := 0; j < b.N; j++ {

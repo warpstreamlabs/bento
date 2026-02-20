@@ -25,7 +25,7 @@ type Property struct {
 	Description string              `json:"description,omitempty"`
 	Properties  map[string]Property `json:"properties,omitempty"`
 	Items       *Property           `json:"items,omitempty"`
-	Examples    []interface{}       `json:"examples,omitempty"`
+	Examples    []any               `json:"examples,omitempty"`
 }
 
 // convertFieldSpecToProperty converts a FieldSpec to a JSON Schema Property

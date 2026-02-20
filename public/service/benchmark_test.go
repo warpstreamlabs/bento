@@ -422,14 +422,9 @@ output:
 			},
 		},
 	} {
-		test := test
 		for _, batchSize := range []int{1, 10, 50} {
-			batchSize := batchSize
 			b.Run(fmt.Sprintf("%v/%v", test.name, batchSize), func(b *testing.B) {
-				iterations := b.N / batchSize
-				if iterations < 1 {
-					iterations = 1
-				}
+				iterations := max(b.N/batchSize, 1)
 
 				builder := service.NewStreamBuilder()
 				require.NoError(b, builder.SetYAML(test.confFn(iterations, batchSize)))

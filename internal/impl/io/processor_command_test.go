@@ -77,7 +77,6 @@ args_mapping: '[ "-n" ]'
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			pConf, err := commandProcSpec().ParseYAML(test.config, nil)
 			require.NoError(t, err)

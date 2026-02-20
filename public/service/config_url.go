@@ -50,7 +50,7 @@ func NewURLListField(name string) *ConfigField {
 }
 
 func urlsFromStr(str string) (urls []*url.URL, err error) {
-	for _, s := range strings.Split(str, ",") {
+	for s := range strings.SplitSeq(str, ",") {
 		if s = strings.TrimSpace(s); s == "" {
 			continue
 		}

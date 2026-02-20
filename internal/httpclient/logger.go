@@ -47,7 +47,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	)
 
 	var (
-		reqBodyCaptured interface{}
+		reqBodyCaptured any
 		reqBodyBuf      = &bytes.Buffer{}
 		reqBodyErr      error
 	)
@@ -78,7 +78,7 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	var (
-		respBodyCaptured interface{}
+		respBodyCaptured any
 		respBodyBuf      = &bytes.Buffer{}
 		respErrBody      error
 	)

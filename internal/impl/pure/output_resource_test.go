@@ -42,7 +42,7 @@ func TestResourceOutput(t *testing.T) {
 	tChan := make(chan message.Transaction)
 	assert.NoError(t, p.Consume(tChan))
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		msg := fmt.Sprintf("foo:%v", i)
 		select {
 		case tChan <- message.NewTransaction(message.QuickBatch([][]byte{[]byte(msg)}), nil):
@@ -59,7 +59,7 @@ func TestResourceOutput(t *testing.T) {
 	}, time.Second*5, time.Millisecond*100)
 
 	outLock.Lock()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		exp := fmt.Sprintf("foo:%v", i)
 		require.NotNil(t, outTS[i])
 		require.NotNil(t, outTS[i].Payload)

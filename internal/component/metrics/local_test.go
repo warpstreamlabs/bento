@@ -122,7 +122,6 @@ func TestReverseName(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			res, tagNames, tagValues := ReverseLabelledPath(test.input)
 			assert.Equal(t, test.name, res)

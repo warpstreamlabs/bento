@@ -54,7 +54,7 @@ http_server:
 	<-time.After(time.Millisecond * 100)
 
 	// Test both single and multipart messages.
-	for i := 0; i < nTestLoops; i++ {
+	for i := range nTestLoops {
 		testStr := fmt.Sprintf("test%v", i)
 
 		go func() {
@@ -573,11 +573,11 @@ func extractSSEMessage(data string) int {
 // parseSSEData extracts the data content from an SSE message
 func parseSSEData(sseMsg string) string {
 	var result strings.Builder
-	lines := strings.Split(sseMsg, "\n")
+	lines := strings.SplitSeq(sseMsg, "\n")
 
-	for _, line := range lines {
-		if strings.HasPrefix(line, "data: ") {
-			data := strings.TrimPrefix(line, "data: ")
+	for line := range lines {
+		if after, ok := strings.CutPrefix(line, "data: "); ok {
+			data := after
 			result.WriteString(data)
 		}
 	}

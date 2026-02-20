@@ -183,7 +183,7 @@ func (l *lambdaProc) ProcessBatch(ctx context.Context, batch service.MessageBatc
 		wg := sync.WaitGroup{}
 		wg.Add(len(batch))
 
-		for i := 0; i < len(batch); i++ {
+		for i := range batch {
 			go func(index int) {
 				err := l.client.InvokeV2(batch[index])
 				if err != nil {

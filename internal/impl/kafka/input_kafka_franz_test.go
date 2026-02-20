@@ -70,7 +70,6 @@ topic: foo
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			conf, err := franzKafkaInputConfig().ParseYAML(test.conf, nil)
 			require.NoError(t, err)
@@ -281,8 +280,7 @@ func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	ctx, cc := context.WithCancel(context.Background())
-	defer cc()
+	ctx := t.Context()
 
 	pool, err := dockertest.NewPool("")
 	if err != nil {

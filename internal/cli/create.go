@@ -19,7 +19,7 @@ func addExpression(conf map[string]any, expression string) error {
 	var inputTypes, processorTypes, outputTypes []string
 	componentTypes := strings.Split(expression, "/")
 	for i, str := range componentTypes {
-		for _, t := range strings.Split(str, ",") {
+		for t := range strings.SplitSeq(str, ",") {
 			if t = strings.TrimSpace(t); t != "" {
 				switch i {
 				case 0:

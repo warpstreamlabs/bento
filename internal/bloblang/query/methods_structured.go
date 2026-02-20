@@ -1479,10 +1479,7 @@ func sliceMethod(args *ParsedParams) (simpleMethod, error) {
 		}
 		lowV = low
 		if lowV < 0 {
-			lowV = l + lowV
-			if lowV < 0 {
-				lowV = 0
-			}
+			lowV = max(l+lowV, 0)
 		}
 		if lowV > highV {
 			err = fmt.Errorf("lower slice bound %v must be lower than or equal to upper bound (%v) and target length (%v)", lowV, highV, l)

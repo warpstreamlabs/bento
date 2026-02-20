@@ -222,7 +222,7 @@ func TestGcpSpannerCDCInput_ReadMetadata(t *testing.T) {
 			ModType:             "DELETE",
 		},
 		mod: &types.Mod{
-			Keys: spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": "123"}},
+			Keys: spanner.NullJSON{Valid: true, Value: map[string]any{"id": "123"}},
 		},
 		modType: "DELETE",
 	}
@@ -316,8 +316,8 @@ func TestGcpSpannerCDCInput_ReadValidMessage(t *testing.T) {
 			ModType:             "INSERT",
 		},
 		mod: &types.Mod{
-			Keys:      spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": "1"}},
-			NewValues: spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": "1", "name": "John Doe"}},
+			Keys:      spanner.NullJSON{Valid: true, Value: map[string]any{"id": "1"}},
+			NewValues: spanner.NullJSON{Valid: true, Value: map[string]any{"id": "1", "name": "John Doe"}},
 		},
 		modType: "INSERT",
 	}
@@ -409,7 +409,7 @@ func TestGcpSpannerCDCInput_ReadMultipleMessages(t *testing.T) {
 				ModType:             "INSERT",
 			},
 			mod: &types.Mod{
-				Keys: spanner.NullJSON{Valid: true, Value: map[string]interface{}{"id": fmt.Sprintf("%d", i)}},
+				Keys: spanner.NullJSON{Valid: true, Value: map[string]any{"id": fmt.Sprintf("%d", i)}},
 			},
 			modType: "INSERT",
 		}

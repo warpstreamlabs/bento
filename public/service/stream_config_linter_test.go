@@ -151,7 +151,6 @@ input:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			if test.linter == nil {
 				test.linter = schema.NewStreamConfigLinter()

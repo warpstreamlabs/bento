@@ -132,7 +132,7 @@ func (r *localRatelimit) Add(ctx context.Context, parts ...*message.Part) bool {
 
 	// Rate limiting bytes is enabled
 	if r.byteSize > 0 {
-		for i := 0; i < len(parts); i++ {
+		for i := range parts {
 			if parts[i] == nil {
 				continue
 			}

@@ -61,8 +61,8 @@ func TestBasicGreedy(t *testing.T) {
 	}
 
 	// Only read from a single output.
-	for i := 0; i < nMsgs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 		go func() {
 			var ts message.Transaction
 			select {

@@ -238,7 +238,6 @@ func TestExpressions(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -253,7 +252,7 @@ func TestExpressions(t *testing.T) {
 				msg = append(msg, part)
 			}
 
-			for i := 0; i < 10; i++ {
+			for range 10 {
 				res, err := test.input.Exec(FunctionContext{
 					Maps:     map[string]Function{},
 					Index:    test.index,
@@ -432,7 +431,6 @@ func TestExpressionTargets(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

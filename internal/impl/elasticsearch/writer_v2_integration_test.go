@@ -373,7 +373,7 @@ urls: %v
 	var testMsg [][]byte
 	var testBatch service.MessageBatch
 	for i := range N {
-		testMsg = append(testMsg, []byte(fmt.Sprintf(`{"message":"hello world","user":"%v"}`, i)))
+		testMsg = append(testMsg, fmt.Appendf(nil, `{"message":"hello world","user":"%v"}`, i))
 		testBatch = append(testBatch, service.NewMessage(testMsg[i]))
 		testBatch[i].MetaSetMut("index", "test_index")
 	}
@@ -418,7 +418,7 @@ action: ${! @elastic_action }
 	var testMsg [][]byte
 	var testBatch service.MessageBatch
 	for i := range N {
-		testMsg = append(testMsg, []byte(fmt.Sprintf(`{"message":"hello world","user":"%v"}`, i)))
+		testMsg = append(testMsg, fmt.Appendf(nil, `{"message":"hello world","user":"%v"}`, i))
 		testBatch = append(testBatch, service.NewMessage(testMsg[i]))
 		testBatch[i].MetaSetMut("index", "test_index")
 		testBatch[i].MetaSetMut("elastic_action", "index")

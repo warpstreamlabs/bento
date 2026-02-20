@@ -212,7 +212,7 @@ func NewKafkaWriterFromParsed(conf *service.ParsedConfig, mgr *service.Resources
 		return nil, err
 	}
 	for _, addr := range cAddresses {
-		for _, splitAddr := range strings.Split(addr, ",") {
+		for splitAddr := range strings.SplitSeq(addr, ",") {
 			if trimmed := strings.TrimSpace(splitAddr); trimmed != "" {
 				k.addresses = append(k.addresses, trimmed)
 			}
@@ -482,7 +482,7 @@ func (k *kafkaWriter) WriteBatch(ctx context.Context, msg service.MessageBatch) 
 	userDefinedHeaders := k.buildUserDefinedHeaders(k.staticHeaders)
 	msgs := []*sarama.ProducerMessage{}
 
-	for i := 0; i < len(msg); i++ {
+	for i := range msg {
 		key, err := msg.TryInterpolatedBytes(i, k.key)
 		if err != nil {
 			return fmt.Errorf("key interpolation error: %w", err)
@@ -664,7 +664,7 @@ func (mur *murmur2) Sum32() uint32 {
 	h := int32(seed ^ uint32(length))
 	length4 := length / 4
 
-	for i := int32(0); i < length4; i++ {
+	for i := range length4 {
 		i4 := i * 4
 		k := int32(mur.data[i4+0]&0xff) +
 			(int32(mur.data[i4+1]&0xff) << 8) +

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"time"
 
@@ -410,9 +411,7 @@ func newAWKProcFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (s
 		return nil, fmt.Errorf("unrecognised codec: %v", codec)
 	}
 	functionOverrides := make(map[string]any, len(awkFunctionsMap))
-	for k, v := range awkFunctionsMap {
-		functionOverrides[k] = v
-	}
+	maps.Copy(functionOverrides, awkFunctionsMap)
 	functionOverrides["print_log"] = func(value, level string) {
 		switch level {
 		default:
@@ -605,15 +604,11 @@ func flattenForAWK(path string, data any) map[string]string {
 			if path != "" {
 				newPath = path + "." + k
 			}
-			for k2, v2 := range flattenForAWK(newPath, v) {
-				m[k2] = v2
-			}
+			maps.Copy(m, flattenForAWK(newPath, v))
 		}
 	case []any:
 		for _, ele := range t {
-			for k, v := range flattenForAWK(path, ele) {
-				m[k] = v
-			}
+			maps.Copy(m, flattenForAWK(path, ele))
 		}
 	default:
 		m[path] = fmt.Sprintf("%v", t)
@@ -630,9 +625,7 @@ func (a *awkProc) Process(ctx context.Context, msg *service.Message) (service.Me
 	var mutableJSONPart any
 
 	customFuncs := make(map[string]any, len(a.functions))
-	for k, v := range a.functions {
-		customFuncs[k] = v
-	}
+	maps.Copy(customFuncs, a.functions)
 
 	var outBuf, errBuf bytes.Buffer
 

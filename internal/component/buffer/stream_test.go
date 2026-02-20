@@ -183,7 +183,7 @@ func TestStreamBufferClosing(t *testing.T) {
 	close(tChan)
 
 	// Receive all of those messages from the buffer
-	for i = 0; i < total; i++ {
+	for i = range total {
 		select {
 		case val := <-b.TransactionChan():
 			assert.Equal(t, i, val.Payload.Get(0).AsBytes()[0])

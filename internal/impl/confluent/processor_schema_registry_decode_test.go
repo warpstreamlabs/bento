@@ -274,7 +274,6 @@ func TestSchemaRegistryDecodeAvro(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			outMsgs, err := decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			if test.errContains != "" {
@@ -377,7 +376,6 @@ func TestSchemaRegistryDecodeAvroRawJson(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			outMsgs, err := decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			if test.errContains != "" {
@@ -477,7 +475,6 @@ func TestSchemaRegistryDecodeProtobuf(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			outMsgs, err := decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			if test.errContains != "" {
@@ -545,7 +542,6 @@ func TestSchemaRegistryDecodeJson(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			outMsgs, err := decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			if test.errContains != "" {

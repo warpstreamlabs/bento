@@ -78,7 +78,6 @@ message bar {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)
@@ -208,7 +207,6 @@ message bar {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)

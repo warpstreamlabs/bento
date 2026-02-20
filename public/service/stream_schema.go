@@ -258,7 +258,7 @@ func expandBloblEnvWithSchema(schema *rawMessageSchema, bEnv *bloblang.Environme
 			continue
 		}
 		if err = bEnv.RegisterFunctionV2(name, pluginSpec, func(args *bloblang.ParsedParams) (bloblang.Function, error) {
-			return func() (interface{}, error) {
+			return func() (any, error) {
 				return nil, fmt.Errorf("function %v not enabled", name)
 			}, nil
 		}); err != nil {
@@ -277,7 +277,7 @@ func expandBloblEnvWithSchema(schema *rawMessageSchema, bEnv *bloblang.Environme
 			continue
 		}
 		if err = bEnv.RegisterMethodV2(name, pluginSpec, func(args *bloblang.ParsedParams) (bloblang.Method, error) {
-			return func(v interface{}) (interface{}, error) {
+			return func(v any) (any, error) {
 				return nil, fmt.Errorf("method %v not enabled", name)
 			}, nil
 		}); err != nil {

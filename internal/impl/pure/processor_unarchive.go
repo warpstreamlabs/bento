@@ -355,8 +355,8 @@ func strToUnarchiver(str string) (unarchiveFunc, error) {
 		return csvUnarchive(nil), nil
 	}
 
-	if strings.HasPrefix(str, "csv:") {
-		by := strings.TrimPrefix(str, "csv:")
+	if after, ok := strings.CutPrefix(str, "csv:"); ok {
+		by := after
 		if by == "" {
 			return nil, errors.New("csv format requires a non-empty delimiter")
 		}

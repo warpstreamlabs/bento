@@ -41,11 +41,11 @@ output:
 	require.NoError(t, err)
 
 	wg := sync.WaitGroup{}
-	for j := 0; j < 1000; j++ {
+	for j := range 1000 {
 		wg.Add(1)
 		go func(threadID int) {
 			defer wg.Done()
-			for i := 0; i < 100; i++ {
+			for i := range 100 {
 				streamID := fmt.Sprintf("foo-%v-%v", threadID, i)
 				require.NoError(t, mgr.Create(streamID, conf))
 

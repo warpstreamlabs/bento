@@ -641,7 +641,6 @@ bar""")`,
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -707,7 +706,7 @@ func TestCountersFunction(t *testing.T) {
 func TestUUIDV4Function(t *testing.T) {
 	results := map[string]struct{}{}
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		e, perr := tryParseQuery("uuid_v4()")
 		require.Nil(t, perr)
 

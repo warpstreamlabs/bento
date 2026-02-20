@@ -129,7 +129,7 @@ func TestPoolMultiMsgs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		expMsgs := map[string]struct{}{
 			"foo test": {},
 			"bar test": {},
@@ -147,7 +147,7 @@ func TestPoolMultiMsgs(t *testing.T) {
 			t.Fatal("Timed out")
 		}
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			// Receive messages
 			var procT message.Transaction
 			var open bool

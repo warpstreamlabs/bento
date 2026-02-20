@@ -190,10 +190,10 @@ sql_select:
 }
 
 func mockGetSecretFromAWS(secretName string) (secretString string, err error) {
-	var secret map[string]interface{}
+	var secret map[string]any
 	switch secretName {
 	case "validFullSecret":
-		secret = map[string]interface{}{
+		secret = map[string]any{
 			"username": "testUser",
 			"password": "testPassword",
 			"host":     "testHost",
@@ -201,7 +201,7 @@ func mockGetSecretFromAWS(secretName string) (secretString string, err error) {
 			"dbName":   "testDB",
 		}
 	case "validUserPassSecret":
-		secret = map[string]interface{}{
+		secret = map[string]any{
 			"username": "testUser",
 			"password": "testPassword",
 		}

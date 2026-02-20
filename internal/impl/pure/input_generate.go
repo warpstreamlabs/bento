@@ -236,10 +236,7 @@ func (b *generateReader) ReadBatch(ctx context.Context) (message.Batch, input.As
 
 				tNext := (*b.schedule).Next(t)
 				tNow := time.Now()
-				duration := tNext.Sub(tNow)
-				if duration < 1 {
-					duration = 1
-				}
+				duration := max(tNext.Sub(tNow), 1)
 
 				b.schedulePrev = &tNext
 				b.timer.Reset(duration)

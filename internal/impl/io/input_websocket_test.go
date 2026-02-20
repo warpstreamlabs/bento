@@ -258,7 +258,6 @@ func TestWebsocketHeaders(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 
 			for k, v := range test.envVar {
@@ -367,11 +366,9 @@ url: %v
 	}
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		require.NoError(t, m.Close(ctx))
-		wg.Done()
-	}()
+	})
 
 	if _, _, err = m.ReadBatch(ctx); err != component.ErrTypeClosed && err != component.ErrNotConnected {
 		t.Errorf("Wrong error: %v != %v", err, component.ErrTypeClosed)
