@@ -284,6 +284,66 @@ http_client:
 	require.NoError(t, h.WaitForClose(ctx))
 }
 
+func TestHTTPClientAlternativePayload(t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	resultChan := make(chan message.Batch, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		msg := message.QuickBatch(nil)
+		defer func() {
+			resultChan <- msg
+		}()
+
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		msg = append(msg, message.NewPart(b))
+	}))
+	defer ts.Close()
+
+	conf := parseYAMLOutputConf(t, `
+http_client:
+  url: %v/testpost
+  payload: ${!"ba" + "r"}
+`, ts.URL)
+
+	h, err := mock.NewManager().NewOutput(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tChan := make(chan message.Transaction)
+	require.NoError(t, h.Consume(tChan))
+
+	testStr := "bar"
+	testMsg := message.QuickBatch([][]byte{[]byte("foo")})
+
+	if err = writeBatchToChan(ctx, t, testMsg, tChan); err != nil {
+		t.Error(err)
+	}
+
+	select {
+	case resMsg := <-resultChan:
+		if resMsg.Len() != 1 {
+			t.Errorf("Wrong # parts: %v != %v", resMsg.Len(), 1)
+			return
+		}
+		if exp, actual := testStr, string(resMsg.Get(0).AsBytes()); exp != actual {
+			t.Errorf("Wrong result, %v != %v", exp, actual)
+			return
+		}
+	case <-time.After(time.Second):
+		t.Errorf("Action timed out")
+		return
+	}
+
+	h.TriggerCloseNow()
+	require.NoError(t, h.WaitForClose(ctx))
+}
+
 func TestHTTPClientSyncResponse(t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()

@@ -111,6 +111,7 @@ output:
       idle_connection_timeout: 90s
       tls_handshake_timeout: 10s
       expect_continue_timeout: 1s
+    payload: "" # No default (optional)
     batch_as_multipart: false
     propagate_response: false
     max_in_flight: 64
@@ -131,7 +132,11 @@ When the number of retries expires the output will reject the message, the behav
 
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
 
-The body of the HTTP request is the raw contents of the message payload. If the message has multiple parts (is a batch) the request will be sent according to [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). This behaviour can be disabled by setting the field [`batch_as_multipart`](#batch_as_multipart) to `false`.
+The URL, header and payload values of this output can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. If the message has multiple parts (is a batch) the request will be sent according to [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). This behaviour can be disabled by setting the field [`batch_as_multipart`](#batch_as_multipart) to `false`.
+
+It's also possible to set the body of the HTTP request using the optional field [`payload`](#payload), which (if set) will take precedent.
 
 ### Propagating Responses
 
@@ -785,6 +790,15 @@ Time to wait for a server's first response headers after sending request headers
 Type: `string`  
 Default: `"1s"`  
 Requires version 1.13.0 or newer  
+
+### `payload`
+
+An alternative payload to deliver for each request.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+Requires version 1.16.0 or newer  
 
 ### `batch_as_multipart`
 
