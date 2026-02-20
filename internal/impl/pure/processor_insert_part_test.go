@@ -32,7 +32,7 @@ insert_part:
 			}
 
 			var parts [][]byte
-			for k := 0; k < i; k++ {
+			for range i {
 				parts = append(parts, []byte("foo"))
 			}
 
