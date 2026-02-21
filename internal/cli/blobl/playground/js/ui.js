@@ -5,7 +5,7 @@ class UIManager {
     this.horizontalResizer = document.getElementById("horizontalResizer");
     this.themeToggle = document.getElementById("themeToggle");
     this.currentTheme = this.getInitialTheme();
-    this.rotationAngle = 0; // Track current rotation for smooth animations
+    this.rotationAngle = 0;
   }
 
   init() {
@@ -36,12 +36,11 @@ class UIManager {
   }
 
   toggleTheme() {
-    // Smooth rotation using CSS transforms
     if (this.themeToggle) {
       const icon = this.themeToggle.querySelector(".theme-icon");
 
       if (icon) {
-        this.rotationAngle += 360; // Add 360 degrees to current rotation
+        this.rotationAngle += 360;
         icon.style.transform = `rotate(${this.rotationAngle}deg)`;
       }
     }
@@ -51,17 +50,14 @@ class UIManager {
   }
 
   setupTheme() {
-    // Apply initial theme
     this.setTheme(this.currentTheme);
 
-    // Setup dark mode toggle button
     if (this.themeToggle) {
       this.themeToggle.addEventListener("click", () => {
         this.toggleTheme();
       });
     }
 
-    // Listen for system theme changes when no stored preference
     if (!this.getStoredTheme()) {
       window
         .matchMedia("(prefers-color-scheme: dark)")
@@ -77,6 +73,11 @@ class UIManager {
     let startY = 0;
 
     this.horizontalResizer.addEventListener("mousedown", (e) => {
+      // Disable resizer in mobile view
+      if (window.innerWidth <= 768) {
+        return;
+      }
+
       this.isResizing = true;
       startY = e.clientY;
       document.addEventListener("mousemove", doResize);
@@ -118,51 +119,18 @@ class UIManager {
 
   showNotification(message, type = "info") {
     const notification = document.createElement("div");
-    notification.className = `notification ${type}`;
+    notification.className = `notification notification-${type}`;
     notification.textContent = message;
-
-    const colors = {
-      success: { bg: "#E8F5E8", color: "#2E7D32", border: "#2E7D32" },
-      error: { bg: "#FFEBEE", color: "#D32F2F", border: "#D32F2F" },
-      warning: { bg: "#FFF3E0", color: "#F57C00", border: "#F57C00" },
-      info: { bg: "#FDE5D8", color: "#553630", border: "#EB8788" },
-    };
-
-    const style = colors[type] || colors.info;
-
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${style.bg};
-      color: ${style.color};
-      padding: 12px 16px;
-      border-radius: 6px;
-      border: 1px solid ${style.border};
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      z-index: 1000;
-      opacity: 0;
-      transform: translateX(100%);
-      transition: all 0.3s ease;
-      max-width: 300px;
-    `;
 
     document.body.appendChild(notification);
 
-    // Animate in
-    setTimeout(() => {
-      notification.style.opacity = "1";
-      notification.style.transform = "translateX(0)";
-    }, 10);
+    requestAnimationFrame(() => {
+      notification.classList.add("notification-show");
+    });
 
-    // Animate out and remove
     const duration = type === "warning" ? 5000 : 3000;
-
     setTimeout(() => {
-      notification.style.opacity = "0";
-      notification.style.transform = "translateX(100%)";
+      notification.classList.remove("notification-show");
       setTimeout(() => {
         if (notification.parentNode) {
           document.body.removeChild(notification);
@@ -178,7 +146,6 @@ class UIManager {
       badge.textContent = message;
       badge.className = `status-badge show ${status}`;
 
-      // Auto-hide after delay (except for errors)
       setTimeout(() => {
         if (!badge.classList.contains("error")) {
           badge.classList.remove("show");
