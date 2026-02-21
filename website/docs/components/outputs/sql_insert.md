@@ -175,7 +175,7 @@ The `snowflake` driver supports multiple DSN formats. Please consult [the docs](
 
 The [`gocosmos`](https://pkg.go.dev/github.com/microsoft/gocosmos) driver is still experimental, but it has support for [hierarchical partition keys](https://learn.microsoft.com/en-us/azure/cosmos-db/hierarchical-partition-keys) as well as [cross-partition queries](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/how-to-query-container#cross-partition-query). Please refer to the [SQL notes](https://github.com/microsoft/gocosmos/blob/main/SQL.md) for details.
 
-The [`duckdb`](https://github.com/duckdb/duckdb-go) driver require cgo to link the DuckDB static library. It is only available in builds with the `x_bento_extra` build tag or the CGO-enabled Docker image (-cgo tag postfix).
+The [`duckdb`](https://github.com/duckdb/duckdb-go) driver requires cgo to link the DuckDB static library. It is only available in builds with the `x_bento_extra` build tag or the CGO-enabled Docker image (-cgo tag postfix).
 
 
 Type: `string`  
