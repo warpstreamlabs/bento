@@ -2619,6 +2619,25 @@ Introduced in version 1.0.0.
 
 **`changelog`** &lt;unknown&gt; The changelog to apply.  
 
+### `set`
+
+Set a field value, identified via a [dot path][field_paths], of an object.
+
+#### Parameters
+
+**`path`** &lt;string&gt; A [dot path][field_paths] identifying a field to write.  
+**`value`** &lt;unknown&gt; The value to write.  
+
+#### Examples
+
+
+```coffee
+root = this.set("nested.field", "foo")
+
+# In:  {"bar":"value"}
+# Out: {"bar":"value","nested":{"field":"foo"}}
+```
+
 ### `slice`
 
 Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
