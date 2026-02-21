@@ -65,13 +65,19 @@ type StreamBuilder struct {
 	consumerFunc MessageBatchHandlerFunc
 	consumerID   string
 
-	apiMut       manager.APIReg
-	customLogger log.Modular
+	apiMut        manager.APIReg
+	customLogger  log.Modular
+	sharedMetrics *metrics.Namespaced
+	streamName    string
 
 	configSpec      docs.FieldSpecs
 	env             *Environment
 	lintingDisabled bool
 	envVarLookupFn  func(string) (string, bool)
+
+	// lintWarns caches warnings from AddInputYaml, SetYaml etc. until .Build()
+	// is called and a logger becomes available.
+	lintWarns []Lint
 }
 
 // NewStreamBuilder creates a new StreamBuilder.
@@ -100,6 +106,7 @@ func (s *StreamBuilder) getLintContext() docs.LintContext {
 	conf := docs.NewLintConfig(s.env.internal)
 	conf.DocsProvider = s.env.internal
 	conf.BloblangEnv = s.env.bloblangEnv.Deactivated()
+	conf.WarnDeprecated = true
 	return docs.NewLintContext(conf)
 }
 
@@ -162,10 +169,29 @@ func (s *StreamBuilder) SetPrintLogger(l PrintLogger) {
 	s.customLogger = log.Wrap(l)
 }
 
-// SetLogger sets a customer logger via Go's standard logging interface,
+// LeveledLogger is an interface supported by most loggers.
+type LeveledLogger interface {
+	Error(format string, v ...any)
+	Warn(format string, v ...any)
+	Info(format string, v ...any)
+	Debug(format string, v ...any)
+}
+
+var (
+	_ LeveledLogger = (*slog.Logger)(nil)
+	_ LeveledLogger = (log.Modular)(nil)
+)
+
+// SetLogger sets a slog logger via Bento's standard logging interface,
 // allowing you to replace the default Bento logger with your own.
 func (s *StreamBuilder) SetLogger(l *slog.Logger) {
 	s.customLogger = log.NewBentoLogAdapter(l)
+}
+
+// SetLeveledLogger sets a custom logger via Bento's standard logging interface,
+// allowing you to replace the default Bento logger with your own.
+func (s *StreamBuilder) SetLeveledLogger(l LeveledLogger) {
+	s.customLogger = newAirGapLogger(l)
 }
 
 // HTTPMultiplexer is an interface supported by most HTTP multiplexers.
@@ -669,6 +695,56 @@ func (s *StreamBuilder) SetMetricsYAML(conf string) error {
 	return nil
 }
 
+// SetStreamName sets a name for this stream that will be used as a label
+// in metrics when using shared metrics. This follows the same pattern as
+// Bento's streams mode, where each stream gets a "stream" label with its name.
+//
+// This is particularly useful when multiple StreamBuilders share the same
+// metrics registry via SharedMetricsSetup, as it allows you to distinguish
+// metrics from different streams.
+//
+// Example usage:
+//
+//	builder := service.NewStreamBuilder()
+//	builder.SetStreamName("orders-processor")
+//	sharedMetrics.ConfigureStreamBuilder(builder)
+//	// All metrics will have label "stream": "orders-processor"
+func (s *StreamBuilder) SetStreamName(name string) {
+	s.streamName = name
+}
+
+// SetSharedMetrics configures this stream to use a shared metrics instance
+// in addition to its own metrics. This allows multiple streams to aggregate
+// metrics to the same destination (e.g., shared Prometheus registry).
+//
+// When shared metrics are set, this stream will emit metrics to both its own
+// metrics registry and the shared one. This is typically used with
+// SharedMetricsSetup.ConfigureStreamBuilder() to enable multiple streams to
+// share a single metrics endpoint, avoiding port conflicts.
+//
+// Example usage:
+//
+//	sharedMetrics, _ := service.NewSharedMetricsSetup("prometheus: {}", 9090)
+//	builder := service.NewStreamBuilder()
+//	builder.SetSharedMetrics(sharedMetrics.GetMetrics())
+func (s *StreamBuilder) SetSharedMetrics(shared *metrics.Namespaced) {
+	s.sharedMetrics = shared
+}
+
+// GetMetricsHandler returns an HTTP handler for metrics if available from
+// the shared metrics instance, or nil if no shared metrics are configured.
+//
+// This handler can be used to expose metrics from a custom HTTP server if
+// you're not using SharedMetricsSetup's built-in server. The handler will
+// serve metrics in the format configured in the shared metrics setup
+// (e.g., Prometheus format).
+func (s *StreamBuilder) GetMetricsHandler() http.HandlerFunc {
+	if s.sharedMetrics != nil {
+		return s.sharedMetrics.Child().HandlerFunc()
+	}
+	return nil
+}
+
 // SetTracerYAML parses a tracer YAML configuration and adds it to the builder
 // such that all stream components emit tracing spans through it.
 func (s *StreamBuilder) SetTracerYAML(conf string) error {
@@ -846,6 +922,18 @@ func (s *StreamBuilder) BuildTraced() (*Stream, *TracingSummary, error) {
 	return strm, &TracingSummary{summary}, err
 }
 
+// BuildTracedV2 is the same as BuildTraced, but also ensures flow IDs are
+// initialized for all messages.
+//
+// Experimental: The behaviour of this method could change outside of major
+// version releases.
+func (s *StreamBuilder) BuildTracedV2() (*Stream, *TracingSummary, error) {
+	flowEnv := tracing.FlowIDBundle(s.env.internal)
+	tenv, summary := tracing.TracedBundle(flowEnv)
+	strm, err := s.buildWithEnv(tenv, false)
+	return strm, &TracingSummary{summary}, err
+}
+
 // BuildStrict creates a Bento stream pipeline according to the components
 // specified by this stream builder, where each processor components is wrapped
 // to cause any message-level error to fail an entire batch. These failed batches
@@ -868,6 +956,10 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 		if logger, err = log.New(os.Stdout, s.env.fs, s.logger); err != nil {
 			return nil, err
 		}
+	}
+
+	for _, lw := range s.lintWarns {
+		logger.Warn(lw.Error())
 	}
 
 	engVer := s.engineVersion
@@ -908,6 +1000,11 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 		return nil, err
 	}
 
+	// Use shared metrics as primary if provided (preserving labels)
+	if s.sharedMetrics != nil {
+		stats = s.sharedMetrics
+	}
+
 	apiMut := s.apiMut
 	var apiType *api.Type
 	if apiMut == nil {
@@ -938,9 +1035,10 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 	// Let's read the strategy from the config, but ONLY IF we are not already in a strict build mode
 	// (because in a strict build, we don't want to override the strategy from the config).
 	if !isStrictBuild {
-		if s.errHandler.Strategy == "reject" {
+		switch s.errHandler.Strategy {
+		case "reject":
 			managerOpts = append(managerOpts, strict.OptSetStrictModeFromManager()...)
-		} else if s.errHandler.Strategy == "retry" {
+		case "retry":
 			managerOpts = append(managerOpts, manager.OptSetPipelineCtor(strict.NewRetryFeedbackPipelineCtor()))
 			managerOpts = append(managerOpts, strict.OptSetRetryModeFromManager()...)
 		}
@@ -1044,16 +1142,20 @@ func (s *StreamBuilder) getYAMLNode(b []byte) (*yaml.Node, error) {
 	return docs.UnmarshalYAML(b)
 }
 
-func (s *StreamBuilder) lintYAMLSpec(spec docs.FieldSpecs, node *yaml.Node) error {
+func (s *StreamBuilder) lintYAMLSpec(spec docs.FieldSpecs, node *yaml.Node) (err error) {
 	if s.lintingDisabled {
 		return nil
 	}
-	return lintsToErr(spec.LintYAML(s.getLintContext(), node))
+	lintWarns, err := lintsToErr(spec.LintYAML(s.getLintContext(), node))
+	s.lintWarns = append(s.lintWarns, lintWarns...)
+	return err
 }
 
-func (s *StreamBuilder) lintYAMLComponent(node *yaml.Node, ctype docs.Type) error {
+func (s *StreamBuilder) lintYAMLComponent(node *yaml.Node, ctype docs.Type) (err error) {
 	if s.lintingDisabled {
 		return nil
 	}
-	return lintsToErr(docs.LintYAML(s.getLintContext(), ctype, node))
+	lintWarns, err := lintsToErr(docs.LintYAML(s.getLintContext(), ctype, node))
+	s.lintWarns = append(s.lintWarns, lintWarns...)
+	return err
 }

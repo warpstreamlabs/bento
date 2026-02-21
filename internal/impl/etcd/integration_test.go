@@ -1,4 +1,4 @@
-package etcd
+package etcd_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,12 +25,16 @@ func setupEtcd(t testing.TB) (*clientv3.Client, string) {
 	pool.MaxWait = time.Second * 60
 
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "bitnami/etcd",
-		Tag:        "latest",
-		Env: []string{
-			"ALLOW_NONE_AUTHENTICATION=yes",
-			"ETCD_ADVERTISE_CLIENT_URLS=http://localhost:2379",
+		Repository: "gcr.io/etcd-development/etcd",
+		Tag:        "v3.6.5",
+		Cmd: []string{
+			"/usr/local/bin/etcd",
+			"--listen-client-urls=http://0.0.0.0:2379",
+			"--advertise-client-urls=http://0.0.0.0:2379",
 		},
+	}, func(config *docker.HostConfig) {
+		config.AutoRemove = true
+		config.RestartPolicy = docker.RestartPolicy{Name: "no"}
 	})
 	require.NoError(t, err)
 

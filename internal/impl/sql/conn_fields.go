@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+type DSNBuilder func(dsn, driver string) (builtDSN string, err error)
 
 var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb").
 	Description("A database [driver](#drivers) to use.")
@@ -117,6 +120,43 @@ CREATE TABLE IF NOT EXISTS some_table (
 			Default(false).
 			Version("1.8.0").
 			Advanced(),
+		service.NewObjectField("azure",
+			service.NewBoolField("entra_enabled").
+				Description("An optional field used to generate an entra token to connect to 'Azure Database for PostgreSQL flexible server', This will create a new connection string with the host, user and database from the DSN field - you may need to URL encode the dsn! The [Default Azure Credential Chain](https://learn.microsoft.com/en-gb/azure/developer/go/sdk/authentication/authentication-overview#defaultazurecredential) is used from the Azure SDK.").
+				Optional().
+				Default(false).
+				Version("1.10.0").
+				Advanced(),
+			service.NewObjectField("token_request_options",
+				service.NewStringField("claims").
+					Description("Set additional claims for the token.").
+					Optional().
+					Default("").
+					Version("1.10.0").
+					Advanced(),
+				service.NewBoolField("enable_cae").
+					Description("Indicates whether to enable Continuous Access Evaluation (CAE) for the requested token").
+					Optional().
+					Default(false).
+					Version("1.10.0").
+					Advanced(),
+				service.NewStringListField("scopes").
+					Description("Scopes contains the list of permission scopes required for the token.").
+					Optional().
+					Default([]string{"https://ossrdbms-aad.database.windows.net/.default"}).
+					Version("1.10.0").
+					Advanced(),
+				service.NewStringField("tenant_id").
+					Description("tenant_id identifies the tenant from which to request the token. azure credentials authenticate in their configured default tenants when this field isn't set.").
+					Optional().
+					Default("").
+					Version("1.10.0").
+					Advanced(),
+			)).
+			Description("Optional Fields that can be set to use Azure based authentication for Azure Postgres SQL").
+			Optional().
+			Version("1.10.0").
+			Advanced(),
 	}
 
 	connFields = append(connFields, config.SessionFields()...)
@@ -155,6 +195,8 @@ type connSettings struct {
 	initFileStatements [][2]string // (path,statement)
 	initStatement      string
 	initVerifyConn     bool
+
+	getCredentials func(string, string) (string, string, error)
 }
 
 func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logger) {
@@ -178,7 +220,49 @@ func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logge
 				log.Debug("Successfully ran init_statement")
 			}
 		}
+
 	})
+}
+
+func getDsnBuilder(
+	conf *service.ParsedConfig,
+) (func(dsn, driver string) (builtDSN, provider string, err error), error) {
+	awsEnabled, err := IsAWSEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	azureEnabled, err := IsAzureEnabled(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case awsEnabled && azureEnabled:
+		return nil, errors.New("cannot enable both AWS and Azure authentication")
+	case awsEnabled:
+		builder, err := AWSGetCredentialsGeneratorFn(conf)
+		if err != nil {
+			return nil, err
+		}
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			result, err := builder(dsn, driver)
+			return result, "AWS", err
+		}, nil
+	case azureEnabled:
+		builder, err := AzureGetCredentialsGeneratorFn(conf)
+		if err != nil {
+			return nil, err
+		}
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			result, err := builder(dsn, driver)
+			return result, "Azure", err
+		}, nil
+	default:
+		return func(dsn, driver string) (builtDSN, provider string, err error) {
+			return dsn, "", nil
+		}, nil
+	}
 }
 
 func connSettingsFromParsed(
@@ -243,14 +327,8 @@ func connSettingsFromParsed(
 		}
 	}
 
-	awsEnabled, err := IsAWSEnabled(conf)
-	if err != nil {
+	if c.getCredentials, err = getDsnBuilder(conf); err != nil {
 		return
-	}
-	if awsEnabled {
-		if BuildAwsDsn, err = AWSGetCredentialsGeneratorFn(conf); err != nil {
-			return
-		}
 	}
 
 	return
@@ -298,13 +376,13 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 		logger.Warnf("Detected old-style Clickhouse Data Source Name: '%v', replacing with new style: '%v'", dsn, updatedDSN)
 	}
 
-	updatedDSN, err = BuildAwsDsn(dsn, driver)
+	updatedDSN, provider, err := connSettings.getCredentials(updatedDSN, driver)
 	if err != nil {
 		return nil, err
 	}
 
-	if updatedDSN != dsn {
-		logger.Info("Updated dsn with info from AWS")
+	if provider != "" {
+		logger.Infof("Updated DSN with info from %s", provider)
 	}
 
 	db, err := sql.Open(driver, updatedDSN)

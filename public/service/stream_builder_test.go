@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -50,6 +51,33 @@ func TestStreamBuilderDefault(t *testing.T) {
 	for _, str := range exp {
 		assert.Contains(t, act, str)
 	}
+}
+
+func TestStreamBuilderReadinessCheck(t *testing.T) {
+	b := service.NewStreamBuilder()
+	require.NoError(t, b.AddInputYAML(`
+generate:
+  mapping: 'root = "test"'
+`))
+
+	strm, err := b.Build()
+	require.NoError(t, err)
+
+	ready := strm.IsReady()
+	require.False(t, ready)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		require.Eventually(t, func() bool {
+			ready = strm.IsReady()
+			return ready
+		}, time.Second*5, time.Millisecond*10)
+
+		require.NoError(t, strm.StopWithin(time.Second*5))
+	})
+
+	require.NoError(t, strm.Run(context.Background()))
+	wg.Wait()
 }
 
 func TestStreamBuilderProducerFunc(t *testing.T) {
@@ -1403,7 +1431,7 @@ error_handling:
 pipeline:
   processors:
     - bloblang: |
-        root = content().parse_json(use_number: false)
+        root = content().parse_json()
 
 error_handling:
   strategy: reject
@@ -1474,7 +1502,6 @@ error_handling:
 
 	for _, test := range tests {
 		t.Run(test.configYAML, func(t *testing.T) {
-
 			sb := service.NewStreamBuilder()
 
 			mockedPrintLogger := &mockPrintLogger{}
@@ -1536,5 +1563,123 @@ error_handling:
 			}
 		})
 	}
+}
 
+// implements a Bento Processor
+type foobar struct{}
+
+func (f foobar) Close(ctx context.Context) error {
+	return nil
+}
+
+func (f foobar) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
+	return nil, nil
+}
+
+func TestStreamBuilder_LintWarningDeprecatedComponent(t *testing.T) {
+	err := service.RegisterProcessor(
+		"deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.SetYAML(`
+input:
+  stdin: {}
+pipeline: 
+  processors: 
+   - deprecated: {}
+output:
+  stdout: {}
+`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(6,1) component deprecated is deprecated"`)
+}
+
+func TestStreamBuilder_LintWarningDeprecatedField(t *testing.T) {
+	err := service.RegisterProcessor(
+		"field_deprecated",
+		service.NewConfigSpec().Field(service.NewStringField("foo").Deprecated()),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.SetYAML(`
+input:
+  stdin: {}
+pipeline: 
+  processors: 
+   - field_deprecated:
+       foo: bar
+output:
+  stdout: {}
+`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(7,1) field foo is deprecated"`)
+}
+
+func TestStreamBuilder_LintWarningDeprecatedMultiComponents(t *testing.T) {
+	err := service.RegisterProcessor(
+		"deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	err = service.RegisterProcessor(
+		"also_deprecated",
+		service.NewConfigSpec().Deprecated(),
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
+			return foobar{}, nil
+		},
+	)
+	require.NoError(t, err)
+
+	b := service.NewStreamBuilder()
+
+	buffer := new(bytes.Buffer)
+	logger := slog.New(slog.NewTextHandler(buffer, nil))
+
+	b.SetLogger(logger)
+
+	err = b.AddProcessorYAML(`deprecated: {}`)
+	require.NoError(t, err)
+
+	err = b.AddProcessorYAML(`also_deprecated: {}`)
+	require.NoError(t, err)
+
+	_, err = b.Build()
+	require.NoError(t, err)
+
+	assert.Contains(t, buffer.String(), `level=WARN msg="(1,1) component deprecated is deprecated"`)
+	assert.Contains(t, buffer.String(), `level=WARN msg="(1,1) component also_deprecated is deprecated"`)
 }

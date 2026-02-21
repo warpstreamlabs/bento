@@ -2,7 +2,7 @@
 title: aws_dynamodb_partiql
 slug: aws_dynamodb_partiql
 type: processor
-status: experimental
+status: stable
 categories: ["Integration"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Integration"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Executes a PartiQL expression against a DynamoDB table for each message.
 
 Introduced in version 1.0.0.
@@ -58,6 +55,7 @@ aws_dynamodb_partiql:
     from_ec2_role: false
     role: ""
     role_external_id: ""
+    expiry_window: ""
 ```
 
 </TabItem>
@@ -194,6 +192,14 @@ Default: `""`
 ### `credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

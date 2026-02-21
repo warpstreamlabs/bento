@@ -68,7 +68,7 @@ output:
       user_credentials_file: ./user.creds # No default (optional)
       user_jwt: "" # No default (optional)
       user_nkey_seed: "" # No default (optional)
-    inject_tracing_map: meta = @.merge(this) # No default (optional)
+    inject_tracing_map: meta = @.assign(this) # No default (optional)
 ```
 
 </TabItem>
@@ -421,12 +421,12 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) used to inject a
 
 
 Type: `string`  
-Requires version 4.23.0 or newer  
+Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
 
-inject_tracing_map: meta = @.merge(this)
+inject_tracing_map: meta = @.assign(this)
 
 inject_tracing_map: root.meta.span = this
 ```

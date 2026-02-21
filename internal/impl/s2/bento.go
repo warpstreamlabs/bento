@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	basinField     = "basin"
-	authTokenField = "auth_token"
+	basinField       = "basin"
+	accessTokenField = "access_token"
 )
 
 func newConfig(conf *service.ParsedConfig) (*s2bentobox.Config, error) {
@@ -16,14 +16,14 @@ func newConfig(conf *service.ParsedConfig) (*s2bentobox.Config, error) {
 		return nil, err
 	}
 
-	authToken, err := conf.FieldString(authTokenField)
+	accessToken, err := conf.FieldString(accessTokenField)
 	if err != nil {
 		return nil, err
 	}
 
 	return &s2bentobox.Config{
-		Basin:     basin,
-		AuthToken: authToken,
+		Basin:       basin,
+		AccessToken: accessToken,
 	}, nil
 }
 

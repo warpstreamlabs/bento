@@ -22,9 +22,14 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+var (
+	errInvalidSeedBrokerCount = errors.New("you must provide at least one address in 'seed_brokers'")
+	errInvalidSeedBrokerValue = errors.New("seed broker address cannot be empty")
+)
+
 func franzKafkaInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Services").
 		Version("1.0.0").
 		Summary(`A Kafka input using the [Franz Kafka client library](https://github.com/twmb/franz-go).`).
@@ -291,6 +296,16 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	}
 	for _, b := range brokerList {
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
+	}
+
+	for _, b := range f.seedBrokers {
+		if b == "" {
+			return nil, errInvalidSeedBrokerValue
+		}
+	}
+
+	if len(f.seedBrokers) == 0 {
+		return nil, errInvalidSeedBrokerCount
 	}
 
 	if f.autoOffsetReset, err = getOffsetReset(conf); err != nil {

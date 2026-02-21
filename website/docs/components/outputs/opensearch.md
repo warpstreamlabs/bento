@@ -88,6 +88,7 @@ output:
         from_ec2_role: false
         role: ""
         role_external_id: ""
+        expiry_window: ""
 ```
 
 </TabItem>
@@ -153,7 +154,7 @@ Type: `string`
 
 ### `action`
 
-The action to take on the document. This field must resolve to one of the following action types: `index`, `update` or `delete`.
+The action to take on the document. This field must resolve to one of the following action types: `create`, `index`, `update` or `delete`. To write to a data stream, the action must be set to `create`.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
@@ -585,6 +586,14 @@ Default: `""`
 ### `aws.credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `aws.credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

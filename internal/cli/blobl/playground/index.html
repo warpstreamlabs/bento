@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bloblang Playground</title>
+    <meta
+      name="description"
+      content="Interactive playground for Bloblang data transformation language"
+    />
+
+    <!-- Preconnect for better performance -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="./assets/css/theme.css" />
+    <link rel="stylesheet" href="./assets/css/editor.css" />
+    <link rel="stylesheet" href="./assets/css/components.css" />
+  </head>
+  <body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-spinner"></div>
+      <div>Loading Bloblang Playground...</div>
+    </div>
+
+    <!-- Dark mode toggle -->
+    <button
+      class="floating-theme-toggle"
+      id="themeToggle"
+      data-action="toggle-theme"
+      title="Toggle dark mode"
+      aria-label="Toggle dark mode"
+    >
+      <span class="theme-icon"></span>
+    </button>
+
+    <main class="container" id="container">
+      <!-- Input Panel -->
+      <section class="panel input-panel" id="inputPanel">
+        <header class="panel-header">
+          <div class="header-left">
+            <span>Input JSON</span>
+          </div>
+          <div class="header-actions">
+            <span class="status-badge" id="inputStatus">Ready</span>
+            <button
+              class="action-btn"
+              data-action="copy-input"
+              title="Copy input to clipboard"
+              aria-label="Copy input to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn"
+              data-action="load-input"
+              title="Load JSON from file"
+              aria-label="Load JSON from file"
+            >
+              Load
+            </button>
+          </div>
+        </header>
+        <div class="panel-content">
+          <div
+            id="aceInput"
+            class="ace-editor"
+            role="textbox"
+            aria-label="JSON input editor"
+          ></div>
+          <textarea
+            id="fallbackInput"
+            class="editor fallback-editor"
+            placeholder="Enter your JSON input here..."
+            aria-label="JSON input editor (fallback)"
+          ></textarea>
+        </div>
+        <footer class="formatter-section">
+          <div class="formatter-left">
+            <span class="lint-indicator valid" id="inputLint">Valid JSON</span>
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              id="toggleFormatInputBtn"
+              data-action="toggle-format-input"
+              title="Format and prettify JSON"
+              aria-label="Format JSON input"
+            >
+              Format
+            </button>
+          </div>
+        </footer>
+      </section>
+
+      <!-- Mapping Panel -->
+      <section class="panel mapping-panel" id="mappingPanel">
+        <header class="panel-header">
+          <div class="header-left">
+            <span>Bloblang Mapping</span>
+          </div>
+          <div class="header-actions">
+            <span class="status-badge" id="mappingStatus">Ready</span>
+            <button
+              class="action-btn"
+              data-action="copy-mapping"
+              title="Copy mapping to clipboard"
+              aria-label="Copy mapping to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn"
+              data-action="load-mapping"
+              title="Load mapping from file"
+              aria-label="Load mapping from file"
+            >
+              Load
+            </button>
+          </div>
+        </header>
+        <div class="panel-content">
+          <div
+            id="aceMapping"
+            class="ace-editor"
+            role="textbox"
+            aria-label="Bloblang mapping editor"
+          ></div>
+          <textarea
+            id="fallbackMapping"
+            class="editor fallback-editor"
+            placeholder="Enter your Bloblang mapping here..."
+            aria-label="Bloblang mapping editor (fallback)"
+          ></textarea>
+        </div>
+        <footer class="formatter-section">
+          <div class="formatter-left">
+            <span class="lint-indicator valid" id="mappingLint"
+              >Valid Syntax</span
+            >
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              data-action="format-mapping"
+              title="Format Bloblang mapping"
+              aria-label="Format Bloblang mapping"
+            >
+              Format
+            </button>
+          </div>
+        </footer>
+      </section>
+
+      <!-- Horizontal Resizer -->
+      <div
+        class="horizontal-resizer"
+        id="horizontalResizer"
+        role="separator"
+        aria-label="Resize panels"
+      ></div>
+
+      <!-- Output Panel -->
+      <section class="panel output-panel">
+        <header class="panel-header">
+          <div class="header-left">
+            <span>Output</span>
+          </div>
+          <div class="header-actions">
+            <span class="status-badge" id="outputStatus">Ready</span>
+            <button
+              class="action-btn"
+              data-action="copy-output"
+              title="Copy output to clipboard"
+              aria-label="Copy output to clipboard"
+            >
+              Copy
+            </button>
+            <button
+              class="action-btn primary"
+              data-action="save-output"
+              title="Save output to file"
+              aria-label="Save output to file"
+            >
+              Save
+            </button>
+          </div>
+        </header>
+        <div class="panel-content">
+          <div
+            id="output"
+            class="output success"
+            role="log"
+            aria-label="Transformation output"
+            aria-live="polite"
+          >
+            Ready to execute your first mapping...
+          </div>
+        </div>
+        <footer class="formatter-section">
+          <div class="formatter-left">
+            <span class="lint-indicator" id="outputLint">Ready</span>
+          </div>
+          <div class="formatter-right">
+            <button
+              class="format-btn"
+              id="toggleFormatOutputBtn"
+              data-action="toggle-format-output"
+              title="Toggle output formatting"
+              aria-label="Toggle output formatting"
+            >
+              Minify
+            </button>
+          </div>
+        </footer>
+      </section>
+    </main>
+
+    <!-- Hidden file inputs -->
+    <input
+      type="file"
+      id="inputFileInput"
+      accept=".json,.txt"
+      style="display: none"
+      aria-hidden="true"
+    />
+    <input
+      type="file"
+      id="mappingFileInput"
+      accept=".blobl,.txt"
+      style="display: none"
+      aria-hidden="true"
+    />
+
+    <!-- ACE Editor Scripts -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/ace.js"
+      crossorigin="anonymous"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/mode-json.js"
+      crossorigin="anonymous"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/mode-coffee.js"
+      crossorigin="anonymous"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/ace-builds@1.15.0/src-min-noconflict/ext-language_tools.js"
+      crossorigin="anonymous"
+      defer
+    ></script>
+
+    <!-- Application scripts -->
+    <script src="./js/utils.js" defer></script>
+    <script src="./js/editor.js" defer></script>
+    <script src="./js/ui.js" defer></script>
+    <script src="./js/playground.js" defer></script>
+
+    {{if .WasmMode}}
+    <script src="./js/wasm.js" defer></script>
+    <script src="./js/wasm_exec.js"></script>
+    {{else}}
+    <!-- BEGIN SERVER MODE -->
+    <!-- Go server injects the Bloblang syntax and initial values into the global JS context -->
+    <script>
+      window.BLOBLANG_SYNTAX = {{.BloblangSyntax}};
+      window.INITIAL_INPUT = {{.InitialInput}};
+      window.INITIAL_MAPPING = {{.InitialMapping}};
+    </script>
+    {{end}}
+    <!-- END SERVER MODE -->
+  </body>
+</html>

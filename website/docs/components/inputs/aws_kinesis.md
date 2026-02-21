@@ -79,6 +79,7 @@ input:
       from_ec2_role: false
       role: ""
       role_external_id: ""
+      expiry_window: ""
     batching:
       count: 0
       byte_size: 0
@@ -299,6 +300,14 @@ Default: `""`
 ### `credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

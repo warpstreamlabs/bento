@@ -3,6 +3,189 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.15.0 2026-02-08
+
+### Added
+
+- json schema generator tool that produces a json schema for Bento config, available from schemastore.org @mueckinger
+- `set_metadata` field to `opensnowcat` processor @joaolcorreia
+- updated internal message proto spec for multi-batch support @gregfurman
+- `kubernetes_watch` input watches kubernetes resources for changes @aronchick
+- `couchbase` output component @sapk
+- input `file_tail` consumes lines written to local files @jem-davies
+
+### Changed
+
+- `s2` input & output component updated (`auth_token` field replaced with `access_token`) @infiniteregrets 
+- Added flow IDs and timestamps to tracing events, plus `EventsByFlowID` grouping @sananguliyev
+
+### Fixed
+
+- Scanner: handle nil AckFunc in AckOnce @ksinica
+
+## 1.14.1 - 2026-01-12
+
+### Fixed
+
+- `error_handling.strategy` override now correctly parses bloblang named arguments @gregfurman
+
+
+## 1.14.0 - 2026-01-02
+
+### Fixed
+
+- reconnect logic for `mongodb` output @mladBlum
+
+### Added
+
+- `parquet_encode` processor now includes support for native Struct types @triddell
+- `file_rel_json` bloblang function which loads, parses & caches JSON files @triddell
+- `ttl` field to `couchbase` processor enabling optional setting of TTL for couchbase items @sapk
+- `LeveledLogger` interface added to service package enabling simpler use of custom loggers @gregfurman
+- `opensnowcat` processor includes `enriched_json` option for `output_format` @joaolcorreia
+- `RegisterManagedConstructor` added enabling registration of initialisation functions with access to service resources @gregfurman
+- `cache_get`, `cache_set`, `cache_delete` & `cache_add` bloblang functions (made possible by `RegisterManagedConstructor`) @gregfurman
+- `couchbase` increment & decrement operations @sapk
+- `new_root_span_with_link` field added to various `kafka` & `nats` components @gregfurman 
+- `expiry_window` added to AWS `credentials` config allowing the credentials to trigger refreshing prior to the credentials actually expiring @gitphill
+- `grpc_client` output component @jem-davies
+
+## 1.13.1 - 2025-12-04
+
+### Fixed 
+
+- `parquet_encode` processor adds safeguard for schema fields beginning with non-alphabetic characters @gregfurman
+
+## 1.13.0 - 2025-12-02
+
+### Added 
+
+- `allow_headers` & `allow_methods` to cors config for `http_server` @jem-davies
+- `transport` field exposes options to enable custom http transports with `http` components & `schema_registry_encode/decode` components @jem-davies
+- `slack_webhook` output publishes messages to Slack via webhook @bhataprameya
+- `memory` buffer includes 'spillover' and 'active' metrics to track: bytes dropped and bytes in the buffer @alecmerdler 
+- `auth_secret` field added to `nsq` input & output enables connection with authentication @danrjohnson
+- new input `azure_service_bus_queue` with azure default credentials support @adrianhaj
+- `spillover` field to `memory` cache allows option of dropping incoming messages that would exceed the cache limit @alecmerdler
+
+### Changed
+
+- ServiceBuilder API now logs lint warnings @jem-davies
+- upgrade sarama dependency for `kafka` components @gitphill
+
+### Fixed
+
+- `aws_kinesis` input now properly handles pagination over kinesis shards @gregfurman
+- sql outputs reconnect logic avoids race condition @gregfurman
+
+## 1.12.1 - 2025-10-24
+
+### Fixed 
+
+- `gcp_bigquery_write_api` now propagates error when failing to acquire a stream
+
+## 1.12.0 - 2025-10-21
+
+### Added 
+
+- `use_default_registry` field to Prometheus metrics config to expose stream metrics on the default registry @alecmerdler
+- 'Python-like' slices added to Bloblang using a square bracket syntax @iamramtin
+- `cosine_similarity` function added to Bloblang @gregfurman
+- simple perfomance benchmark test for `kafka_franz` @jem-davies
+- readiness check `IsReady()` add to StreamBuilder API @alecmerdler
+- `opensnowcat` experimental processor @joaolcorreia
+- `headers` field added to `websocket` input enabling specification of custom headers to add to the websocket handshake @exside
+
+### Changed
+
+ - Go version increased to 1.25 @gregfurman & @jem-davies
+ - review various component Statuses & promote various to Stable @jem-davies
+
+### Fixed
+
+ - flaky test `TestHTTPServerOutputSSEHeartbeat` in output_http_server_test.go @HankStat
+ - flaky test `TestRetryParallel` in output_retry_test.go @HankStat
+ - flaky test `TestHealthCheck` in serverless/lambda @HankStat
+ - integration_bigquery_test.go @jem-davies
+ - flaky test `TestWorkflowUnwrapResourceBranches` @HankStat
+ - update container image for integration tests pertaining to `etcd` & `kafka` components,  @gregfurman
+ - race condition on cockroachdb input `Close()` & port-confict with test @gregfurman
+
+## 1.11.0 - 2025-09-19
+
+### Added
+
+- new bloblang method `split_by`, similar to `split` but takes a predicate rather than a value for the delimiter @iamramtin
+- `nlp_classify_text`, `nlp_classify_tokens`, `nlp_extract_features` & `nlp_zero_shot_classify` processors enable use of ONNX NLP models @gregfurman
+- `elasticsearch_v2` output component, uses official elasticsearch go client @jem-davies
+- `gcp_spanner_cdc` consumes Spanner Change Stream Events from a GCP Spanner instance @anicoll & @gregfurman
+
+### Changed
+
+- deprecated `elasticsearch` output @jem-davies
+- deprecated `parquet` processor removed @jem-davies
+- `golangci-lint` upgraded to V2 @miparnisari
+- bloblang method `split` can now operate on arrays as well as strings @iamramtin
+
+### Fixed
+
+- fix input `azure_blob_storage` failing to delete blobs when using `targets_input` & `delete_object: true` @adrianhag
+- fix `inject_tracing_map` config examples @eastnine90
+- fix data-race in config/schema.go @miparnisari
+- fix data-race in sql dsn building @gregfurman
+- fix validation for the seed_brokers config field in `kafka_franz` @gregfurman
+- fix oracle integration tests @jem-davies
+
+## 1.10.2 - 2025-09-15
+
+### Fixed 
+
+- `sql_insert` & `sql_raw` output components check connection, and will attempt reconnection via Components' Connect() func @jem-davies
+
+## 1.10.1 - 2025-09-10
+
+### Fixed 
+
+ - fix data-race in sql dsn building @gregfurman
+ - fix issue connecting to RDS via IAM Auth @gregfurman
+
+## 1.10.0 - 2025-08-14
+
+### Added
+
+- `SharedMetricsSetup` added to service package enabling multiple streams created with StreamBuilder to share the same metric registry @ecordell
+- `azure` fields added to SQL components enabling using Azure based auth for Azure Postgres SQL @jem-davies
+- `aws_dynamodb` output also supports deleting items from a dynamodb table @rohankumardubey & @jem-davies
+- WASM bloblang playground to doc site @iamramtin
+- reconnect config options to `zmq4n` output @gregfurman
+- `MockResourcesOptUseSlogger` function to enable setting a logger on MockResources @jem-davies
+
+### Changed
+
+- Bento will emit warning logs if a config is using a deprecated component/field @jem-davies
+- CSV scanner & input will now error if a config sets `parse_header_row` is false & `expected_headers` is non-empty @rohankumardubey
+
+## 1.9.1 - 2025-07-29
+
+### Fixed 
+
+- multipart s3 uploads for `aws_s3` output destination @Towerthousand
+
+## 1.9.0 - 2025-07-07
+
+- update `parquet-go` dependency from `0.23.0` to `0.24.0` @gregfurman
+
+### Added 
+
+- `create` added to `opensearch`'s `action` field to support write to data streams @arnitolog
+- `message_format` to `gcp_bigquery_write_api` enabling protobuf messages to be sent without need for marshalling to json @gregfurman
+- `use_parquet_list_format` flag to `parquet_decode` allowing a `LIST` column to return as either a Parquet logical type or Go slice @gregfurman
+
+### Changed 
+
+- Full rework of local bloblang editor/playground to be shinier, prettier, and more interactive @iamramtin
+- metadata `gcp_pubsub_message_id` & `gcp_pubsub_ordering_key` added to `gcp_pubsub` input @anicoll
+
 ## 1.8.2 - 2025-06-25
 
 ### Fixed 

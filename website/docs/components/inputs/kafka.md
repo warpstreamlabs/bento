@@ -74,6 +74,7 @@ input:
           from_ec2_role: false
           role: ""
           role_external_id: ""
+          expiry_window: ""
     consumer_group: ""
     client_id: bento
     rack_id: ""
@@ -83,6 +84,7 @@ input:
     commit_period: 1s
     max_processing_period: 100ms
     extract_tracing_map: root = @ # No default (optional)
+    new_root_span_with_link: false # No default (optional)
     group:
       session_timeout: 10s
       heartbeat_interval: 3s
@@ -518,6 +520,14 @@ An external ID to provide when assuming a role.
 Type: `string`  
 Default: `""`  
 
+### `sasl.aws.credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
+
+
+Type: `string`  
+Default: `""`  
+
 ### `consumer_group`
 
 An identifier for the consumer group of the connection. This field can be explicitly made empty in order to disable stored offsets for the consumed topic partitions.
@@ -598,6 +608,14 @@ extract_tracing_map: root = @
 
 extract_tracing_map: root = this.meta.span
 ```
+
+### `new_root_span_with_link`
+
+EXPERIMENTAL: Starts a new root span with link to parent.
+
+
+Type: `bool`  
+Requires version 1.14.0 or newer  
 
 ### `group`
 

@@ -54,7 +54,11 @@ This scanner adds the following metadata to each message:
 				Version("1.6.0").
 				LintRule(`root = if this < 1 { [ "`+scsvFieldExpectedNumberOfFields+` must be at least 1" ] }`).
 				Optional(),
-		)
+		).LintRule(`
+root = if this.parse_header_row == false && this.expected_headers.or([]).length() > 0 {
+  "expected_headers is set but parse_header_row is false"
+}
+`)
 }
 
 func init() {
@@ -86,6 +90,15 @@ func csvScannerFromParsed(conf *service.ParsedConfig) (l *csvScannerCreator, err
 	if conf.Contains(scsvFieldExpectedHeaders) {
 		if l.expectedHeaders, err = conf.FieldStringList(scsvFieldExpectedHeaders); err != nil {
 			return
+		}
+	}
+	// Runtime‐guard: reject expected_headers when header parsing is off
+	if parseHeaderRow, err := conf.FieldBool(scsvFieldParseHeaderRow); err == nil && !parseHeaderRow {
+		if expectedHeaders, err := conf.FieldStringList(scsvFieldExpectedHeaders); err == nil && len(expectedHeaders) > 0 {
+			return nil, errors.New(
+				"parse_header_row=false but expected_headers is set; " +
+					"headers won’t be checked. Either set parse_header_row=true or remove expected_headers",
+			)
 		}
 	}
 	if conf.Contains(scsvFieldExpectedNumberOfFields) {

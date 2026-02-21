@@ -3,6 +3,7 @@ package confluent
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 
@@ -91,10 +92,10 @@ func TestAvroReferences(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, time.Minute*10, time.Minute, service.MockResources())
+			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)
 
-			decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, service.MockResources())
+			decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, &http.Transport{}, service.MockResources())
 			require.NoError(t, err)
 
 			t.Cleanup(func() {
@@ -266,7 +267,7 @@ func TestAvroReferencesNested(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, true, time.Minute*10, time.Minute, service.MockResources())
+			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, true, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)
 
 			t.Cleanup(func() {
@@ -431,7 +432,7 @@ func TestAvroReferencesNestedCircularDependency(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, true, time.Minute*10, time.Minute, service.MockResources())
+			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, true, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)
 
 			t.Cleanup(func() {

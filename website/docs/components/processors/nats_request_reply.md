@@ -2,7 +2,7 @@
 title: nats_request_reply
 slug: nats_request_reply
 type: processor
-status: experimental
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Sends a message to a NATS subject and expects a reply, from a NATS subscriber acting as a responder, back.
 
 Introduced in version 1.0.0.

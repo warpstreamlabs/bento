@@ -29,10 +29,9 @@ func TestIntegrationExploration(t *testing.T) {
 
 	pool.MaxWait = time.Second * 30
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "cockroachdb/cockroach",
-		Tag:          "latest",
-		Cmd:          []string{"start-single-node", "--insecure"},
-		ExposedPorts: []string{"8080", "26257"},
+		Repository: "cockroachdb/cockroach",
+		Tag:        "latest",
+		Cmd:        []string{"start-single-node", "--insecure"},
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {

@@ -24,6 +24,24 @@ func brokerOutputSpec() *service.ConfigSpec {
 		Categories("Utility").
 		Summary(`Allows you to route messages to multiple child outputs using a range of brokering [patterns](#patterns).`).
 		Description(`
+Outputs can be defined inline with their full configuration or referenced by resource name. Both methods can be mixed:
+
+`+"```yaml"+`
+output:
+  broker:
+    pattern: fan_out
+    outputs:
+      # Inline output configurations
+      - kafka:
+          addresses: [ "localhost:9092" ]
+          topic: topic_a
+      - kafka:
+          addresses: [ "localhost:9092" ]
+          topic: topic_b
+      # Or use resource references
+      - resource: my_http_output
+`+"```"+`
+
 [Processors](/docs/components/processors/about) can be listed to apply across individual outputs or all outputs:
 
 `+"```yaml"+`
@@ -40,7 +58,7 @@ output:
   # Processors applied to messages sent to all brokered outputs.
   processors:
     - resource: general_processor
-`+"```"+``).
+`+"```").
 		Footnotes(`
 ## Patterns
 
@@ -85,9 +103,43 @@ The greedy pattern results in higher output throughput at the cost of potentiall
 				Description("The brokering pattern to use.").
 				Default("fan_out"),
 			service.NewOutputListField(boFieldOutputs).
-				Description("A list of child outputs to broker."),
+				Description("A list of child outputs to broker. Each item can be either a complete inline output configuration or a reference to an output resource."),
 			service.NewBatchPolicyField(boFieldBatching),
-		)
+		).Example(
+		"Send to Multiple Destinations",
+		"Send the same data to multiple outputs simultaneously.",
+		`
+output:
+  broker:
+    pattern: fan_out
+    outputs:
+      - gcp_bigquery:
+          project: my-project
+          dataset: raw_data
+          table: events
+      - gcp_bigquery:
+          project: my-project
+          dataset: analytics
+          table: events_aggregated
+      - file:
+          path: /backup/events.jsonl
+          codec: lines
+`,
+	).Example(
+		"Load Balance Across Endpoints", "Distribute messages across multiple targets.",
+		`
+output:
+  broker:
+    pattern: round_robin
+    outputs:
+      - http_client:
+          url: http://api1.example.com/data
+      - http_client:
+          url: http://api2.example.com/data
+      - http_client:
+          url: http://api3.example.com/data
+`,
+	)
 }
 
 // ErrBrokerNoOutputs is returned when creating a Broker type with zero

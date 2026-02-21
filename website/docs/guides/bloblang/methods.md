@@ -528,7 +528,7 @@ root = content().reverse()
 
 ### `slice`
 
-Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.
+Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **Consider using bracket syntax for more functionality: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
 
 #### Parameters
 
@@ -539,18 +539,28 @@ Extract a slice from a string by specifying two indices, a low and high bound, w
 
 
 ```coffee
+# Method syntax
 root.beginning = this.value.slice(0, 2)
 root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]  
+root.end = this.value[4:]
 
 # In:  {"value":"foo bar"}
 # Out: {"beginning":"fo","end":"bar"}
 ```
 
-A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.
+A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Consider bracket syntax for consistency: `this.value[-4:]` instead of `this.value.slice(-4)`.**
 
 ```coffee
+# Method syntax
 root.last_chunk = this.value.slice(-4)
 root.the_rest = this.value.slice(0, -4)
+
+# Bracket syntax (recommended)
+root.last_chunk = this.value[-4:]
+root.the_rest = this.value[:-4]
 
 # In:  {"value":"foo bar"}
 # Out: {"last_chunk":" bar","the_rest":"foo"}
@@ -593,20 +603,66 @@ root.slug = this.value.slug("fr")
 
 ### `split`
 
-Split a string value into an array of strings by splitting it on a string separator.
+Splits a string into segments by splitting on all occurrences of a delimiter string. Returns an array of string segments with delimiters excluded.
 
 #### Parameters
 
-**`delimiter`** &lt;string&gt; The delimiter to split with.  
+**`delimiter`** &lt;unknown&gt; The delimiter to split with.  
 
 #### Examples
 
 
+Split on space
+
 ```coffee
-root.new_value = this.value.split(",")
+root.words = this.sentence.split(" ")
+
+# In:  {"sentence":"Hello Bento!"}
+# Out: {"words":["Hello","Bento!"]}
+```
+
+Split string on delimiter
+
+```coffee
+root.words = this.value.split(",")
 
 # In:  {"value":"foo,bar,baz"}
-# Out: {"new_value":["foo","bar","baz"]}
+# Out: {"words":["foo","bar","baz"]}
+```
+
+### `split_by`
+
+:::caution EXPERIMENTAL
+This method is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Splits a string into segments where a query applied to each character resolves to true. Returns an array of string segments with matching characters excluded.
+
+Introduced in version 1.11.0.
+
+
+#### Parameters
+
+**`predicate`** &lt;query expression&gt; A query that returns true where splits should occur.  
+
+#### Examples
+
+
+Split string using character predicate
+
+```coffee
+root.words = this.sentence.split_by(c -> c == " ")
+
+# In:  {"sentence": "Hello Bento!"}
+# Out: {"words":["Hello","Bento!"]}
+```
+
+Split on punctuation
+
+```coffee
+root.tokens = this.text.split_by(c -> c == "," || c == ".")
+
+# In:  {"text": "foo,bar.baz"}
+# Out: {"tokens":["foo","bar","baz"]}
 ```
 
 ### `strip_html`
@@ -1427,9 +1483,6 @@ root.delay_for_s = this.delay_for.parse_duration() / 1000000000
 
 ### `parse_duration_iso8601`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to parse a string using ISO-8601 rules as a duration and returns an integer of nanoseconds. A duration string is represented by the format "P[n]Y[n]M[n]DT[n]H[n]M[n]S" or "P[n]W". In these representations, the "[n]" is replaced by the value for each of the date and time elements that follow the "[n]". For example, "P3Y6M4DT12H30M5S" represents a duration of "three years, six months, four days, twelve hours, thirty minutes, and five seconds". The last field of the format allows fractions with one decimal place, so "P3.5S" will return 3500000000ns. Any additional decimals will be truncated.
 
 #### Examples
@@ -1464,9 +1517,6 @@ root.delay_for_s = this.delay_for.parse_duration_iso8601() / 1000000000
 
 ### `ts_add_iso8601`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Parse parameter string as ISO 8601 period and add it to value with high precision for units larger than an hour.
 
 #### Parameters
@@ -1475,9 +1525,6 @@ Parse parameter string as ISO 8601 period and add it to value with high precisio
 
 ### `ts_format`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a string according to a specified format, or RFC 3339 by default. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format.
 
 The output format is defined by showing how the reference time, defined to be Mon Jan 2 15:04:05 -0700 MST 2006, would be displayed if it were the value. For an alternative way to specify formats check out the [`ts_strftime`](#ts_strftime) method.
@@ -1526,9 +1573,6 @@ root.something_at = this.created_at.ts_format("2006-Jan-02 15:04:05.999999", "UT
 
 ### `ts_parse`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to parse a string as a timestamp following a specified format and outputs a timestamp, which can then be fed into methods such as [`ts_format`](#ts_format).
 
 The input format is defined by showing how the reference time, defined to be Mon Jan 2 15:04:05 -0700 MST 2006, would be displayed if it were the value. For an alternative way to specify formats check out the [`ts_strptime`](#ts_strptime) method.
@@ -1549,9 +1593,6 @@ root.doc.timestamp = this.doc.timestamp.ts_parse("2006-Jan-02")
 
 ### `ts_round`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 Introduced in version 1.0.0.
@@ -1575,9 +1616,6 @@ root.created_at_hour = this.created_at.ts_round("1h".parse_duration())
 
 ### `ts_strftime`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a string according to a specified strftime-compatible format. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format.
 
 #### Parameters
@@ -1620,9 +1658,6 @@ root.something_at = this.created_at.ts_strftime("%Y-%b-%d %H:%M:%S.%f", "UTC")
 
 ### `ts_strptime`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to parse a string as a timestamp following a specified strptime-compatible format and outputs a timestamp, which can then be fed into [`ts_format`](#ts_format).
 
 #### Parameters
@@ -1652,9 +1687,6 @@ root.doc.timestamp = this.doc.timestamp.ts_strptime("%Y-%b-%d %H:%M:%S.%f")
 
 ### `ts_sub`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 Introduced in version 1.0.0.
@@ -1678,9 +1710,6 @@ root.between = this.started_at.ts_sub("2020-08-14T05:54:23Z").abs()
 
 ### `ts_sub_iso8601`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Parse parameter string as ISO 8601 period and subtract it from value with high precision for units larger than an hour.
 
 #### Parameters
@@ -1689,9 +1718,6 @@ Parse parameter string as ISO 8601 period and subtract it from value with high p
 
 ### `ts_tz`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 Introduced in version 1.0.0.
@@ -1713,9 +1739,6 @@ root.created_at_utc = this.created_at.ts_tz("UTC")
 
 ### `ts_unix`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -1730,9 +1753,6 @@ root.created_at_unix = this.created_at.ts_unix()
 
 ### `ts_unix_micro`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp with microsecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -1747,9 +1767,6 @@ root.created_at_unix = this.created_at.ts_unix_micro()
 
 ### `ts_unix_milli`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp with millisecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -1764,9 +1781,6 @@ root.created_at_unix = this.created_at.ts_unix_milli()
 
 ### `ts_unix_nano`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Attempts to format a timestamp value as a unix timestamp with nanosecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 #### Examples
@@ -2199,9 +2213,6 @@ root.new_dict = this.dict.filter(item -> item.value.contains("foo"))
 
 ### `find`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the index of the first occurrence of a value in an array. `-1` is returned if there are no matches. Numerical comparisons are made irrespective of the representation type (float versus integer).
 
 #### Parameters
@@ -2227,9 +2238,6 @@ root.index = this.things.find(this.goal)
 
 ### `find_all`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns an array containing the indexes of all occurrences of a value in an array. An empty array is returned if there are no matches. Numerical comparisons are made irrespective of the representation type (float versus integer).
 
 #### Parameters
@@ -2255,9 +2263,6 @@ root.indexes = this.things.find_all(this.goal)
 
 ### `find_all_by`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns an array containing the indexes of all occurrences of an array where the provided query resolves to a boolean `true`. An empty array is returned if there are no matches. Numerical comparisons are made irrespective of the representation type (float versus integer).
 
 #### Parameters
@@ -2276,9 +2281,6 @@ root.index = this.find_all_by(v -> v != "bar")
 
 ### `find_by`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Returns the index of the first occurrence of an array where the provided query resolves to a boolean `true`. `-1` is returned if there are no matches.
 
 #### Parameters
@@ -2446,9 +2448,6 @@ root.text_objects = this.json_path("$.body[?(@.type=='text')]")
 
 ### `json_schema`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Checks a [JSON schema](https://json-schema.org/) against a value and returns the value if it matches or throws and error if it does not.
 
 #### Parameters
@@ -2622,7 +2621,7 @@ Introduced in version 1.0.0.
 
 ### `slice`
 
-Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.
+Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
 
 #### Parameters
 
@@ -2633,18 +2632,28 @@ Extract a slice from an array by specifying two indices, a low and high bound, w
 
 
 ```coffee
+# Deprecated - use bracket syntax instead
 root.beginning = this.value.slice(0, 2)
 root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]
+root.end = this.value[4:]
 
 # In:  {"value":["foo","bar","baz","buz","bev"]}
 # Out: {"beginning":["foo","bar"],"end":["bev"]}
 ```
 
-A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.
+A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Use bracket syntax: `this.value[-2:]` instead of `this.value.slice(-2)`.**
 
 ```coffee
+# Deprecated - use bracket syntax instead
 root.last_chunk = this.value.slice(-2)
 root.the_rest = this.value.slice(0, -2)
+
+# New bracket syntax (recommended)
+root.last_chunk = this.value[-2:]
+root.the_rest = this.value[:-2]
 
 # In:  {"value":["foo","bar","baz","buz","bev"]}
 # Out: {"last_chunk":["buz","bev"],"the_rest":["foo","bar","baz"]}
@@ -2693,6 +2702,88 @@ root.sorted = this.foo.sort_by(ele -> ele.id)
 
 # In:  {"foo":[{"id":"bbb","message":"bar"},{"id":"aaa","message":"foo"},{"id":"ccc","message":"baz"}]}
 # Out: {"sorted":[{"id":"aaa","message":"foo"},{"id":"bbb","message":"bar"},{"id":"ccc","message":"baz"}]}
+```
+
+### `split`
+
+Splits an array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.
+
+#### Parameters
+
+**`delimiter`** &lt;unknown&gt; The delimiter to split with.  
+
+#### Examples
+
+
+Split array on value
+
+```coffee
+root.segments = this.villains.split("Kraven The Hunter")
+
+# In:  {"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"]}
+# Out: {"segments":[["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]}
+```
+
+Split an array of mixed types
+
+```coffee
+root.parts = this.mixed.split(0)
+
+# In:  {"mixed": [1, "a", 2, "b", 3, "c", 4, "d", 0, "e", 5, "f", 6, "g", 7, "h", 0, "i", 8, "j", 9]}
+# Out: {"parts":[[1,"a",2,"b",3,"c",4,"d"],["e",5,"f",6,"g",7,"h"],["i",8,"j",9]]}
+```
+
+Split array of objects by object separator
+
+```coffee
+root.groups = this.objects.split({"type": "separator"})
+
+# In:  {"objects": [{"id": 1, "name": "Spider-Man"}, {"type": "separator"}, {"id": 2, "name": "Daredevil"}]}
+# Out: {"groups":[[{"id":1,"name":"Spider-Man"}],[{"id":2,"name":"Daredevil"}]]}
+```
+
+### `split_by`
+
+:::caution EXPERIMENTAL
+This method is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Splits an array into segments where a query applied to each element resolves to true. Returns an array of segments with matching elements excluded.
+
+Introduced in version 1.11.0.
+
+
+#### Parameters
+
+**`predicate`** &lt;query expression&gt; A query that returns true where splits should occur.  
+
+#### Examples
+
+
+Split array using element predicate
+
+```coffee
+root.authors = this.writers.split_by(x -> x.contains("Kafka"))
+
+# In:  {"writers": ["George Orwell", "Franz Kafka", "Anton Chekhov"]}
+# Out: {"authors":[["George Orwell"],["Anton Chekhov"]]}
+```
+
+Split array using numeric predicate
+
+```coffee
+root.segments = this.numbers.split_by(x -> x > 50)
+
+# In:  {"numbers": [1, 2, 100, 3, 4, 200, 5]}
+# Out: {"segments":[[1,2],[3,4],[5]]}
+```
+
+Split array of objects using predicate
+
+```coffee
+root.groups = this.items.split_by(item -> item.type == "separator")
+
+# In:  {"items": [{"id": 1, "type": "data"}, {"id": 2, "type": "separator"}, {"id": 3, "type": "data"}]}
+# Out: {"groups":[[{"id":1,"type":"data"}],[{"id":3,"type":"data"}]]}
 ```
 
 ### `squash`
@@ -2805,9 +2896,6 @@ root.foo = this.foo.zip(this.bar, this.baz)
 
 ### `bloblang`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Executes an argument Bloblang mapping on the target. This method can be used in order to execute dynamic mappings. Imports and functions that interact with the environment, such as `file` and `env`, or that access message information directly, such as `content` or `json`, are not enabled for dynamic Bloblang mappings.
 
 #### Parameters
@@ -2829,9 +2917,6 @@ root.body = this.body.bloblang(this.mapping)
 
 ### `format_json`
 
-:::caution BETA
-This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
-:::
 Serializes a target value into a pretty-printed JSON byte array (with 4 space indentation by default).
 
 #### Parameters

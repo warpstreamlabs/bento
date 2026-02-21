@@ -188,6 +188,24 @@ An explicit list of origins that are allowed for CORS requests.
 Type: list of `string`  
 Default: `[]`  
 
+### `cors.allowed_headers`
+
+Appends additional headers to the list of default allowed headers: Accept, Accept-Language, Content-Language & Origin. These default headers are therefore always allowed.
+
+
+Type: list of `string`  
+Default: `[]`  
+Requires version 1.13.0 or newer  
+
+### `cors.allowed_methods`
+
+Used to explicitly set allowed methods in the Access-Control-Allow-Methods header.
+
+
+Type: list of `string`  
+Default: `["GET","HEAD","POST","PUT","PATCH","DELETE"]`  
+Requires version 1.13.0 or newer  
+
 ### `basic_auth`
 
 Allows you to enforce and customise basic authentication for requests to the HTTP server.

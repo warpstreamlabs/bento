@@ -94,6 +94,16 @@ http:
   drop_on: []
   successful_on: []
   proxy_url: "" # No default (optional)
+  transport:
+    dial_context:
+      timeout: 30s
+      keep_alive: 30s
+    force_http2: true
+    max_idle_connections: 100
+    idle_connection_timeout: 90s
+    tls_handshake_timeout: 10s
+    expect_continue_timeout: 1s
+  payload: "" # No default (optional)
   batch_as_multipart: false
   parallel: false
 ```
@@ -104,6 +114,11 @@ http:
 The `rate_limit` field can be used to specify a rate limit [resource](/docs/components/rate_limits/about) to cap the rate of requests across all parallel components service wide.
 
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the [`branch` processor](/docs/components/processors/branch).
+The URL, header and payload values of this processor can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. It's also possible to set the body of the HTTP request using the optional field [`payload`](#payload), which (if set) will take precedent.
 
 In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the [`branch` processor](/docs/components/processors/branch).
 
@@ -715,6 +730,94 @@ An optional HTTP proxy URL.
 
 
 Type: `string`  
+
+### `transport`
+
+Custom transport options.
+
+
+Type: `object`  
+Requires version 1.13.0 or newer  
+
+### `transport.dial_context`
+
+Settings for the dialer used to create new connections.
+
+
+Type: `object`  
+Requires version 1.13.0 or newer  
+
+### `transport.dial_context.timeout`
+
+Timeout for establishing new network connections.
+
+
+Type: `string`  
+Default: `"30s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.dial_context.keep_alive`
+
+Keep-alive period for active network connections used by the dialer.
+
+
+Type: `string`  
+Default: `"30s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.force_http2`
+
+If true, the transport will attempt to use HTTP/2.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.13.0 or newer  
+
+### `transport.max_idle_connections`
+
+Maximum number of idle keep-alive connections. Zero = unlimited.
+
+
+Type: `int`  
+Default: `100`  
+Requires version 1.13.0 or newer  
+
+### `transport.idle_connection_timeout`
+
+Maximum time an idle keep-alive connection remains open before closing itself.
+
+
+Type: `string`  
+Default: `"90s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.tls_handshake_timeout`
+
+Maximum time allowed for TLS handshake to complete.
+
+
+Type: `string`  
+Default: `"10s"`  
+Requires version 1.13.0 or newer  
+
+### `transport.expect_continue_timeout`
+
+Time to wait for a server's first response headers after sending request headers when 'Expect: 100-continue' is used. Zero means send body immediately.
+
+
+Type: `string`  
+Default: `"1s"`  
+Requires version 1.13.0 or newer  
+
+### `payload`
+
+An alternative payload to deliver for each request.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+Requires version 1.16.0 or newer  
 
 ### `batch_as_multipart`
 

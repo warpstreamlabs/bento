@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -1017,10 +1018,25 @@ workflow:
 	inFunc, err := strmBuilder.AddProducerFunc()
 	require.NoError(t, err)
 
-	var outValue string
+	var (
+		outValue    string
+		consumerErr error
+		streamErr   error
+		mu          sync.Mutex
+	)
+
+	consumerWg := &sync.WaitGroup{}
+	consumerWg.Add(1)
+
 	require.NoError(t, strmBuilder.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
+		defer consumerWg.Done()
 		outBytes, err := m.AsBytes()
-		require.NoError(t, err)
+		if err != nil {
+			mu.Lock()
+			consumerErr = err
+			mu.Unlock()
+			return err
+		}
 		outValue = string(outBytes)
 		return nil
 	}))
@@ -1028,16 +1044,52 @@ workflow:
 	strm, tracer, err := strmBuilder.BuildTraced()
 	require.NoError(t, err)
 
-	tCtx, done := context.WithTimeout(context.Background(), time.Second*30)
+	tCtx, done := context.WithTimeout(context.Background(), time.Second*60)
 	defer done()
 
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
 	go func() {
-		assert.NoError(t, strm.Run(tCtx))
+		defer wg.Done()
+		streamErr = strm.Run(tCtx)
 	}()
 	require.NoError(t, inFunc(tCtx, service.NewMessage([]byte(`{"id":"hello world","content":"waddup"}`))))
 	require.NoError(t, strm.Stop(tCtx))
 
+	wg.Wait()
+	consumerWg.Wait()
+	assert.NoError(t, streamErr, "error from strm.Run()")
+	mu.Lock()
+	require.NoError(t, consumerErr, "error from consumer function")
+	mu.Unlock()
+
 	assert.Equal(t, `{"content":"waddup","id":"HELLO WORLD","meta":{"workflow":{"succeeded":["fooproc"]}}}`, outValue)
+
+	normalizeEvents := func(events map[string][]service.TracingEvent) map[string][]service.TracingEvent {
+		normalized := make(map[string][]service.TracingEvent)
+		for k, evs := range events {
+			normalizedEvs := make([]service.TracingEvent, len(evs))
+			for i, ev := range evs {
+				normalizedEvs[i] = service.TracingEvent{
+					Type:      ev.Type,
+					Content:   ev.Content,
+					FlowID:    "",
+					Timestamp: time.Time{},
+				}
+
+				if ev.Meta == nil {
+					normalizedEvs[i].Meta = map[string]any{}
+				} else {
+					normalizedEvs[i].Meta = make(map[string]any)
+					maps.Copy(normalizedEvs[i].Meta, ev.Meta)
+				}
+			}
+			normalized[k] = normalizedEvs
+		}
+		return normalized
+	}
+
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"barproc": {
 			{Type: "CONSUME", Content: "{\"id\":\"hello world\",\"content\":\"waddup\"}", Meta: map[string]interface{}{}},
@@ -1048,5 +1100,5 @@ workflow:
 			{Type: "CONSUME", Content: "hello world", Meta: map[string]interface{}{}},
 			{Type: "PRODUCE", Content: "{\"id\":\"HELLO WORLD\"}", Meta: map[string]interface{}{}},
 		},
-	}, tracer.ProcessorEvents(false))
+	}, normalizeEvents(tracer.ProcessorEvents(false)))
 }

@@ -32,6 +32,7 @@ const (
 	pmFieldPushInterval                = "push_interval"
 	pmFieldPushJobName                 = "push_job_name"
 	pmFieldFileOutputPath              = "file_output_path"
+	pmFieldDefaultRegistryPath         = "use_default_registry"
 )
 
 func ConfigSpec() *service.ConfigSpec {
@@ -112,6 +113,10 @@ If the Push Gateway requires HTTP Basic Authentication it can be configured with
 				Description("An optional file path to write all prometheus metrics on service shutdown.").
 				Advanced().
 				Default(""),
+			service.NewBoolField(pmFieldDefaultRegistryPath).
+				Description("Whether to use the same Prometheus registry as the main process or create a new one. Most useful when using the StreamBuilder API and you want the stream metrics to be scraped from the same port as the metrics of the parent process.").
+				Advanced().
+				Default(false),
 		)
 }
 
@@ -278,6 +283,14 @@ func FromParsed(conf *service.ParsedConfig, log *service.Logger) (p *Metrics, er
 		gauges:     map[string]*promGaugeVec{},
 		timers:     map[string]*promTimingVec{},
 		timersHist: map[string]*promTimingHistVec{},
+	}
+
+	useDefaultRegistry, err := conf.FieldBool("use_default_registry")
+	if err != nil {
+		return
+	}
+	if useDefaultRegistry {
+		p.reg = prometheus.DefaultRegisterer.(*prometheus.Registry)
 	}
 
 	if p.useHistogramTiming, err = conf.FieldBool(pmFieldUseHistogramTiming); err != nil {

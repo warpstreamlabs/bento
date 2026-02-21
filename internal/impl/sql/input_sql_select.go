@@ -20,7 +20,7 @@ import (
 
 func sqlSelectInputConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
-		Beta().
+		Stable().
 		Categories("Services").
 		Summary("Executes a select query and creates a message for each row received.").
 		Description(`Once the rows from the query are exhausted this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a [sequence](/docs/components/inputs/sequence) to execute).`).
@@ -153,9 +153,10 @@ func newSQLSelectInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 	}
 
 	s.builder = squirrel.Select(columns...).From(tableStr)
-	if s.driver == "postgres" || s.driver == "clickhouse" {
+	switch s.driver {
+	case "postgres", "clickhouse":
 		s.builder = s.builder.PlaceholderFormat(squirrel.Dollar)
-	} else if s.driver == "oracle" || s.driver == "gocosmos" {
+	case "oracle", "gocosmos":
 		s.builder = s.builder.PlaceholderFormat(squirrel.Colon)
 	}
 

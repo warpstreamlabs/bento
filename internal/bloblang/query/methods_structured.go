@@ -444,7 +444,7 @@ var _ = registerSimpleMethod(
 			`{"goal":"bar","things":["foo", "bar", "baz"]}`,
 			`{"index":1}`,
 		),
-	).Beta().Param(ParamAny("value", "A value to find.")),
+	).Param(ParamAny("value", "A value to find.")),
 	func(args *ParsedParams) (simpleMethod, error) {
 		val, err := args.Field("value")
 		if err != nil {
@@ -485,7 +485,7 @@ var _ = registerSimpleMethod(
 			`{"goal":"bar","things":["foo", "bar", "baz", "bar", "buz"]}`,
 			`{"indexes":[1,3]}`,
 		),
-	).Beta().Param(ParamAny("value", "A value to find.")),
+	).Param(ParamAny("value", "A value to find.")),
 	func(args *ParsedParams) (simpleMethod, error) {
 		val, err := args.Field("value")
 		if err != nil {
@@ -523,7 +523,7 @@ var _ = registerSimpleMethod(
 			`["foo", "bar", "baz"]`,
 			`{"index":0}`,
 		),
-	).Beta().Param(ParamQuery("query", "A query to execute for each element.", false)),
+	).Param(ParamQuery("query", "A query to execute for each element.", false)),
 	func(args *ParsedParams) (simpleMethod, error) {
 		queryFn, err := args.FieldQuery("query")
 		if err != nil {
@@ -567,7 +567,7 @@ var _ = registerSimpleMethod(
 			`["foo", "bar", "baz"]`,
 			`{"index":[0,2]}`,
 		),
-	).Beta().Param(ParamQuery("query", "A query to execute for each element.", false)),
+	).Param(ParamQuery("query", "A query to execute for each element.", false)),
 	func(args *ParsedParams) (simpleMethod, error) {
 		queryFn, err := args.FieldQuery("query")
 		if err != nil {
@@ -769,7 +769,7 @@ var _ = registerSimpleMethod(
 			"In order to load a schema from a file use the `file` function.",
 			`root = this.json_schema(file(env("BENTO_TEST_BLOBLANG_SCHEMA_FILE")))`,
 		),
-	).Beta().Param(ParamString("schema", "The schema to check values against.")),
+	).Param(ParamString("schema", "The schema to check values against.")),
 	func(args *ParsedParams) (simpleMethod, error) {
 		schemaStr, err := args.FieldString("schema")
 		if err != nil {
@@ -1392,35 +1392,55 @@ func sortByMethod(target Function, args *ParsedParams) (Function, error) {
 
 var _ = registerSimpleMethod(
 	NewMethodSpec(
-		"slice", "",
+		"slice", "consider bracket syntax for more functionality: this.value[0:2] instead of this.value.slice(0, 2)",
 	).InCategory(
 		MethodCategoryStrings,
-		"Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.",
+		"Extract a slice from a string by specifying two indices, a low and high bound, which selects a half-open range that includes the first character, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **Consider using bracket syntax for more functionality: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**",
 		NewExampleSpec("",
-			`root.beginning = this.value.slice(0, 2)
-root.end = this.value.slice(4)`,
+			`# Method syntax
+root.beginning = this.value.slice(0, 2)
+root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]  
+root.end = this.value[4:]`,
 			`{"value":"foo bar"}`,
 			`{"beginning":"fo","end":"bar"}`,
 		),
-		NewExampleSpec(`A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.`,
-			`root.last_chunk = this.value.slice(-4)
-root.the_rest = this.value.slice(0, -4)`,
+		NewExampleSpec("A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Consider bracket syntax for consistency: `this.value[-4:]` instead of `this.value.slice(-4)`.**",
+			`# Method syntax
+root.last_chunk = this.value.slice(-4)
+root.the_rest = this.value.slice(0, -4)
+
+# Bracket syntax (recommended)
+root.last_chunk = this.value[-4:]
+root.the_rest = this.value[:-4]`,
 			`{"value":"foo bar"}`,
 			`{"last_chunk":" bar","the_rest":"foo"}`,
 		),
 	).InCategory(
 		MethodCategoryObjectAndArray,
-		"Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence.",
+		"Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**",
 		NewExampleSpec("",
-			`root.beginning = this.value.slice(0, 2)
-root.end = this.value.slice(4)`,
+			`# Deprecated - use bracket syntax instead
+root.beginning = this.value.slice(0, 2)
+root.end = this.value.slice(4)
+
+# Bracket syntax (recommended)
+root.beginning = this.value[0:2]
+root.end = this.value[4:]`,
 			`{"value":["foo","bar","baz","buz","bev"]}`,
 			`{"beginning":["foo","bar"],"end":["bev"]}`,
 		),
 		NewExampleSpec(
-			`A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned.`,
-			`root.last_chunk = this.value.slice(-2)
-root.the_rest = this.value.slice(0, -2)`,
+			"A negative low index can be used, indicating an offset from the end of the sequence. If the low index is greater than the length of the sequence then an empty result is returned. **Use bracket syntax: `this.value[-2:]` instead of `this.value.slice(-2)`.**",
+			`# Deprecated - use bracket syntax instead
+root.last_chunk = this.value.slice(-2)
+root.the_rest = this.value.slice(0, -2)
+
+# New bracket syntax (recommended)
+root.last_chunk = this.value[-2:]
+root.the_rest = this.value[:-2]`,
 			`{"value":["foo","bar","baz","buz","bev"]}`,
 			`{"last_chunk":["buz","bev"],"the_rest":["foo","bar","baz"]}`,
 		),
@@ -1733,3 +1753,244 @@ func mapWithout(m map[string]any, paths [][]string) map[string]any {
 	}
 	return newMap
 }
+
+//------------------------------------------------------------------------------
+
+var _ = registerSimpleMethod(
+	NewMethodSpec(
+		"split",
+		"Splits a string or array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.",
+	).InCategory(
+		MethodCategoryObjectAndArray,
+		"Splits an array into segments by splitting on all occurrences of a delimiter value. Returns an array of segments with delimiters excluded.",
+		NewExampleSpec("Split array on value",
+			`root.segments = this.villains.split("Kraven The Hunter")`,
+			`{"villains": ["Doctor Octopus", "Electro", "Kraven The Hunter", "Mysterio", "Sandman", "Vulture"]}`,
+			`{"segments":[["Doctor Octopus","Electro"],["Mysterio","Sandman","Vulture"]]}`,
+		),
+		NewExampleSpec("Split an array of mixed types",
+			`root.parts = this.mixed.split(0)`,
+			`{"mixed": [1, "a", 2, "b", 3, "c", 4, "d", 0, "e", 5, "f", 6, "g", 7, "h", 0, "i", 8, "j", 9]}`,
+			`{"parts":[[1,"a",2,"b",3,"c",4,"d"],["e",5,"f",6,"g",7,"h"],["i",8,"j",9]]}`,
+		),
+		NewExampleSpec("Split array of objects by object separator",
+			`root.groups = this.objects.split({"type": "separator"})`,
+			`{"objects": [{"id": 1, "name": "Spider-Man"}, {"type": "separator"}, {"id": 2, "name": "Daredevil"}]}`,
+			`{"groups":[[{"id":1,"name":"Spider-Man"}],[{"id":2,"name":"Daredevil"}]]}`,
+		),
+	).InCategory(
+		MethodCategoryStrings,
+		"Splits a string into segments by splitting on all occurrences of a delimiter string. Returns an array of string segments with delimiters excluded.",
+		NewExampleSpec("Split on space",
+			`root.words = this.sentence.split(" ")`,
+			`{"sentence":"Hello Bento!"}`,
+			`{"words":["Hello","Bento!"]}`,
+		),
+		NewExampleSpec("Split string on delimiter",
+			`root.words = this.value.split(",")`,
+			`{"value":"foo,bar,baz"}`,
+			`{"words":["foo","bar","baz"]}`,
+		),
+	).Param(ParamAny("delimiter", "The delimiter to split with.")), func(args *ParsedParams) (simpleMethod, error) {
+		delim, err := args.Field("delimiter")
+		if err != nil {
+			return nil, err
+		}
+
+		return func(v any, ctx FunctionContext) (any, error) {
+			switch t := v.(type) {
+			case string:
+				delimStr, ok := delim.(string)
+				if !ok {
+					return nil, fmt.Errorf("delimiter type: %T must match type of list elements: %T", delim, v)
+				}
+
+				parts := strings.Split(t, delimStr)
+				vals := make([]any, 0, len(parts))
+				for _, b := range parts {
+					vals = append(vals, b)
+				}
+				return vals, nil
+
+			case []byte:
+				delimStr, ok := delim.(string)
+				if !ok {
+					return nil, fmt.Errorf("delimiter type: %T must match type of list elements: %T", delim, v)
+				}
+
+				parts := bytes.Split(t, []byte(delimStr))
+				vals := make([]any, 0, len(parts))
+				for _, b := range parts {
+					vals = append(vals, b)
+				}
+				return vals, nil
+
+			case []any:
+				if len(t) == 0 {
+					return []any{[]any{}}, nil
+				}
+
+				var segments []any
+				var currentSegment []any
+
+				for _, elem := range t {
+					if !value.ICompare(delim, elem) {
+						currentSegment = append(currentSegment, elem)
+						continue
+					}
+
+					segments = append(segments, currentSegment)
+					currentSegment = []any{}
+				}
+
+				segments = append(segments, currentSegment)
+				return segments, nil
+			}
+
+			return nil, value.NewTypeError(v, value.TString, value.TArray, value.TBytes)
+		}, nil
+	},
+)
+
+//------------------------------------------------------------------------------
+
+var _ = registerSimpleMethod(
+	NewMethodSpec(
+		"split_by",
+		"Splits a string or array into segments where a query resolves to true. Returns an array of segments with matching elements excluded.",
+	).InCategory(
+		MethodCategoryObjectAndArray,
+		"Splits an array into segments where a query applied to each element resolves to true. Returns an array of segments with matching elements excluded.",
+		NewExampleSpec("Split array using element predicate",
+			`root.authors = this.writers.split_by(x -> x.contains("Kafka"))`,
+			`{"writers": ["George Orwell", "Franz Kafka", "Anton Chekhov"]}`,
+			`{"authors":[["George Orwell"],["Anton Chekhov"]]}`,
+		),
+		NewExampleSpec("Split array using numeric predicate",
+			`root.segments = this.numbers.split_by(x -> x > 50)`,
+			`{"numbers": [1, 2, 100, 3, 4, 200, 5]}`,
+			`{"segments":[[1,2],[3,4],[5]]}`,
+		),
+		NewExampleSpec("Split array of objects using predicate",
+			`root.groups = this.items.split_by(item -> item.type == "separator")`,
+			`{"items": [{"id": 1, "type": "data"}, {"id": 2, "type": "separator"}, {"id": 3, "type": "data"}]}`,
+			`{"groups":[[{"id":1,"type":"data"}],[{"id":3,"type":"data"}]]}`,
+		),
+	).InCategory(
+		MethodCategoryStrings,
+		"Splits a string into segments where a query applied to each character resolves to true. Returns an array of string segments with matching characters excluded.",
+		NewExampleSpec("Split string using character predicate",
+			`root.words = this.sentence.split_by(c -> c == " ")`,
+			`{"sentence": "Hello Bento!"}`,
+			`{"words":["Hello","Bento!"]}`,
+		),
+		NewExampleSpec("Split on punctuation",
+			`root.tokens = this.text.split_by(c -> c == "," || c == ".")`,
+			`{"text": "foo,bar.baz"}`,
+			`{"tokens":["foo","bar","baz"]}`,
+		),
+	).Param(ParamQuery("predicate", "A query that returns true where splits should occur.", false)).Experimental().AtVersion("1.11.0"),
+	func(args *ParsedParams) (simpleMethod, error) {
+		queryFn, err := args.FieldQuery("predicate")
+		if err != nil {
+			return nil, err
+		}
+
+		return func(v any, ctx FunctionContext) (any, error) {
+			switch t := v.(type) {
+			case string:
+				if t == "" {
+					return []any{""}, nil
+				}
+
+				var segments []any
+				runes := []rune(t)
+				start := 0
+
+				for i, r := range runes {
+					result, err := queryFn.Exec(ctx.WithValue(string(r)))
+					if err != nil {
+						return nil, fmt.Errorf("predicate returned an error for character at position %v: %w", i, err)
+					}
+
+					if found, ok := result.(bool); !ok || !found {
+						continue
+					}
+
+					segment := ""
+					if i > start {
+						segment = string(runes[start:i])
+					}
+					segments = append(segments, segment)
+					start = i + 1
+				}
+
+				finalSegment := ""
+				if start < len(runes) {
+					finalSegment = string(runes[start:])
+				}
+				return append(segments, finalSegment), nil
+
+			case []byte:
+				if len(t) == 0 {
+					return []any{[]byte{}}, nil
+				}
+
+				var segments []any
+				start := 0
+
+				for i, b := range t {
+					result, err := queryFn.Exec(ctx.WithValue(b))
+					if err != nil {
+						return nil, fmt.Errorf("predicate returned an error for byte at position %v: %w", i, err)
+					}
+
+					if found, ok := result.(bool); !ok || !found {
+						continue
+					}
+
+					segment := []byte{}
+					if i > start {
+						segment = t[start:i]
+					}
+					segments = append(segments, segment)
+					start = i + 1
+				}
+
+				finalSegment := []byte{}
+				if start < len(t) {
+					finalSegment = t[start:]
+				}
+				return append(segments, finalSegment), nil
+
+			case []any:
+				if len(t) == 0 {
+					return []any{[]any{}}, nil
+				}
+
+				var segments []any
+				var currentSegment []any
+
+				for i, elem := range t {
+					result, err := queryFn.Exec(ctx.WithValue(elem))
+					if err != nil {
+						return nil, fmt.Errorf("predicate returned an error for index %v: %w", i, err)
+					}
+
+					if found, ok := result.(bool); !ok || !found {
+						currentSegment = append(currentSegment, elem)
+						continue
+					}
+
+					segments = append(segments, currentSegment)
+					currentSegment = []any{}
+				}
+
+				return append(segments, currentSegment), nil
+
+			}
+
+			return nil, value.NewTypeError(v, value.TString, value.TArray, value.TBytes)
+		}, nil
+	},
+)

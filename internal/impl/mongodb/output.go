@@ -21,6 +21,7 @@ const (
 
 func outputSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
+		Stable().
 		Version("1.0.0").
 		Categories("Services").
 		Summary("Inserts items into a MongoDB collection.").
@@ -106,7 +107,6 @@ func (m *outputWriter) Connect(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if err := m.client.Ping(ctx, nil); err != nil {
-		_ = m.client.Disconnect(ctx)
 		return fmt.Errorf("ping failed: %v", err)
 	}
 	return nil

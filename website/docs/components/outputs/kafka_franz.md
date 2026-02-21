@@ -2,7 +2,7 @@
 title: kafka_franz
 slug: kafka_franz
 type: output
-status: beta
+status: stable
 categories: ["Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 A Kafka output using the [Franz Kafka client library](https://github.com/twmb/franz-go).
 
 Introduced in version 1.0.0.
@@ -743,6 +740,14 @@ Default: `""`
 ### `sasl[].aws.credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].aws.credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

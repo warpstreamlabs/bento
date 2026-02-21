@@ -32,6 +32,36 @@ root.values_two = range(0, this.max, 2)
 
 ## General
 
+### `cosine_similarity`
+
+Calculates the cosine similarity between two vectors a and b. Vectors must be the same length and neither vector can be null (all zeros).
+
+#### Parameters
+
+**`a`** &lt;unknown&gt; Vector of numbers.  
+**`b`** &lt;unknown&gt; Vector of numbers.  
+
+#### Examples
+
+
+Calculate similarity between vectors
+
+```coffee
+root.similarity = cosine_similarity([1, 2, 3], [2, 4, 6])
+
+# In:  {}
+# Out: {"similarity":1}
+```
+
+Orthogonal vectors have zero similarity
+
+```coffee
+root.similarity = cosine_similarity([1, 0], [0, 1])
+
+# In:  {}
+# Out: {"similarity":0}
+```
+
 ### `counter`
 
 :::caution EXPERIMENTAL
@@ -402,6 +432,20 @@ Returns a boolean value indicating whether an error has occurred during the proc
 root.doc.status = if errored() { 400 } else { 200 }
 ```
 
+### `flow_id`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer. Note, that this is only available within those streams built with `BuildTracedV2`
+
+#### Examples
+
+
+```coffee
+meta flow_id = flow_id()
+```
+
 ### `json`
 
 Returns the value of a field within a JSON message located by a [dot path][field_paths] argument. This function always targets the entire source JSON document regardless of the mapping context.
@@ -483,6 +527,56 @@ root.headers.traceparent = tracing_span().traceparent
 
 ## Environment
 
+### `cache_add`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Set a key in the cache resource to a value. If the key already exists the action fails with a 'key already exists' error.
+
+#### Parameters
+
+**`resource`** &lt;string&gt; The name of the `cache` resource to target.  
+**`key`** &lt;string&gt; A key to use with the `cache`.  
+**`value`** &lt;string&gt; A value to use with the `cache`.  
+
+### `cache_delete`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Delete a key and its contents from the cache. If the key does not exist the action is a no-op and will not fail with an error.
+
+#### Parameters
+
+**`resource`** &lt;string&gt; The name of the `cache` resource to target.  
+**`key`** &lt;string&gt; A key to use with the `cache`.  
+
+### `cache_get`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Used to retrieve a cached value from a cache resource.
+
+#### Parameters
+
+**`resource`** &lt;string&gt; The name of the `cache` resource to target.  
+**`key`** &lt;string&gt; The key of the value to retrieve from the `cache` resource.  
+
+### `cache_set`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Set a key in the cache resource to a value. If the key already exists the contents are overridden.
+
+#### Parameters
+
+**`resource`** &lt;string&gt; The name of the `cache` resource to target.  
+**`key`** &lt;string&gt; A key to use with the `cache`.  
+**`value`** &lt;string&gt; A value to use with the `cache`.  
+
 ### `env`
 
 Returns the value of an environment variable, or `null` if the environment variable does not exist.
@@ -560,6 +654,24 @@ When the path parameter is static this function will only read the specified fil
 
 ```coffee
 root.doc = file_rel(path: env("BENTO_TEST_BLOBLANG_FILE"), no_cache: true).parse_json()
+
+# In:  {}
+# Out: {"doc":{"foo":"bar"}}
+```
+
+### `file_rel_json`
+
+Reads a JSON file and returns the parsed object. The file is read and parsed only once, with the result cached for all subsequent calls. Relative paths are resolved from the directory of the mapping. This is significantly more efficient than `file_rel().parse_json()` which parses the JSON on every invocation.
+
+#### Parameters
+
+**`path`** &lt;string&gt; The path of the target JSON file.  
+
+#### Examples
+
+
+```coffee
+root.doc = file_rel_json(env("BENTO_TEST_BLOBLANG_FILE"))
 
 # In:  {}
 # Out: {"doc":{"foo":"bar"}}

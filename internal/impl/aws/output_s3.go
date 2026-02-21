@@ -127,6 +127,14 @@ func s3oConfigFromParsed(pConf *service.ParsedConfig) (conf s3oConfig, err error
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
 	}
+
+	// Starting on v1.29 of the github.com/aws/aws-sdk-go-v2/config package,
+	// the default value for RequestChecksumCalculation is RequestChecksumCalculationWhenSupported.
+	// This breaks the behavior of the aws_s3 output during multipart uploads, since we're not adding
+	// a checksum to the request. We're setting it back to RequestChecksumCalculationWhenRequired.
+	// See https://github.com/aws/aws-sdk-go-v2/discussions/2960#discussioncomment-12077210
+	conf.aconf.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+
 	return
 }
 
@@ -195,6 +203,21 @@ output:
         - archive:
             format: json_array
 `+"```"+``+service.OutputPerformanceDocs(true, false)).
+		Example(
+			"Connection to S3 API-Compatable services",
+			`This example shows how to connect to "S3 API-Compatable services" - for instance minio.`,
+			`
+output:
+  aws_s3: 
+    bucket: mybucket
+    path: "events-json-stream/${!timestamp_unix_nano()}.json"
+    endpoint: http://localhost:9000
+    force_path_style_urls: true
+    region: us-east-1
+    credentials:
+      id: minioadmin
+      secret: minioadmin
+`).
 		Fields(
 			service.NewStringField(s3oFieldBucket).
 				Description("The bucket to upload messages to."),

@@ -1,0 +1,366 @@
+/* Bento Design System Variables */
+:root {
+  /* Color palette */
+  --bento-bg-main: #fff4e9;
+  --bento-accent: #5c6ac4;
+  --bento-bg-alt: #fde5d8;
+  --bento-bg-highlight: #eb8788;
+  --bento-text-body: #1c1e21;
+  --bento-text-heading: #553630;
+  --bento-text-highlight: #d32f2f;
+  --bento-button-selected: #ffbcba;
+  --bento-button-unselected: #fde5d8;
+  --bento-button-text: #333333;
+  --bento-panel-header-bg: #ffbcba;
+  --bento-success: #2e7d32;
+  --bento-success-bg: #e8f5e8;
+  --bento-error: #d32f2f;
+  --bento-error-bg: #ffebee;
+  --bento-warning: #eb8788;
+
+  /* Layout */
+  --bento-border-radius: 6px;
+  --bento-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --bento-shadow-3d: 0 3px 0 #e8908e;
+
+  /* Typography */
+  --bento-font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --bento-font-mono: "Monaco", "IBM Plex Mono", "SF Mono", "Consolas", monospace;
+}
+
+/* Dark mode color palette */
+[data-theme="dark"] {
+  --bento-bg-main: #2a1a17;
+  --bento-accent: #ff5252;
+  --bento-bg-alt: #3a2623;
+  --bento-bg-highlight: #eb8788;
+  --bento-text-body: #fff4e9;
+  --bento-text-heading: #fff4e9;
+  --bento-text-highlight: #ff5252;
+  --bento-button-selected: #5a453f;
+  --bento-button-unselected: #3a2623;
+  --bento-button-text: #fff4e9;
+  --bento-panel-header-bg: #4a3530;
+  --bento-success: #a9dc76;
+  --bento-success-bg: #2a2b25;
+  --bento-error: #ff6188;
+  --bento-error-bg: #3d1b1b;
+  --bento-warning: #ffd866;
+}
+
+/* Reset & Base Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  font-family: var(--bento-font-family);
+  background-color: var(--bento-bg-main);
+  color: var(--bento-text-body);
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  min-height: 600px; /* Minimum height for standalone version */
+  overflow: hidden;
+}
+
+/* Main Layout Grid */
+.container {
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  height: 100vh;
+  min-height: 600px; /* Minimum height for standalone version */
+  padding: 12px;
+}
+
+/* Enhanced sizing for embedded iframe */
+body.embedded {
+  height: 100vh;
+  min-height: auto;
+  overflow: hidden; /* No scrolling - fit to container */
+}
+
+body.embedded .container {
+  height: 100vh;
+  min-height: auto;
+  padding: 6px;
+  gap: 6px;
+}
+
+/* Compact panels for embedded mode */
+body.embedded .panel-header {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+body.embedded .formatter-section {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+body.embedded .action-btn {
+  padding: 2px 6px;
+  font-size: 9px;
+  margin-left: 2px;
+}
+
+body.embedded .format-btn {
+  padding: 2px 4px;
+  font-size: 9px;
+}
+
+/* Responsive adjustments for embedded mode */
+@media (max-width: 768px) {
+  body.embedded {
+    min-height: auto; /* No fixed height on mobile */
+  }
+
+  body.embedded .container {
+    min-height: auto; /* No fixed height on mobile */
+    padding: 4px;
+    gap: 4px;
+  }
+
+  body.embedded .panel-header {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  body.embedded .formatter-section {
+    padding: 3px 6px;
+    font-size: 9px;
+  }
+}
+
+/* Grid Positioning */
+.input-panel {
+  grid-area: 1 / 1 / 2 / 2;
+}
+
+.mapping-panel {
+  grid-area: 1 / 2 / 2 / 3;
+}
+
+.horizontal-resizer {
+  grid-area: 2 / 1 / 3 / 3;
+  height: 8px;
+  background: var(--bento-bg-highlight);
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--bento-border-radius);
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.horizontal-resizer:hover {
+  background: var(--bento-text-highlight);
+}
+
+.horizontal-resizer::before {
+  content: "⋯";
+  color: var(--bento-button-text);
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.output-panel {
+  grid-area: 3 / 1 / 4 / 3;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bento-bg-main);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--bento-text-heading);
+  transition: opacity 0.3s ease;
+}
+
+.loading-overlay.hidden {
+  display: none;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--bento-bg-alt);
+  border-top: 3px solid var(--bento-bg-highlight);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+/* Dark mode loading overlay */
+[data-theme="dark"] .loading-overlay {
+  background: var(--bento-bg-main);
+  color: var(--bento-text-heading);
+}
+
+[data-theme="dark"] .loading-spinner {
+  border: 3px solid var(--bento-bg-alt);
+  border-top: 3px solid var(--bento-bg-highlight);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Editor & Output Styles */
+.editor {
+  width: 100%;
+  height: 100%;
+  border: none;
+  font-family: var(--bento-font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 12px;
+  background: #ffffff;
+  color: var(--bento-text-body);
+  resize: none;
+  outline: none;
+  tab-size: 2;
+}
+
+/* Dark mode editor styles */
+[data-theme="dark"] .editor {
+  background: var(--bento-bg-alt);
+  color: var(--bento-text-body);
+}
+
+.fallback-editor {
+  display: none;
+}
+
+.panel-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Fallback editor for when ACE fails to load */
+.fallback-editor {
+  display: block !important;
+}
+
+.fallback-editor:focus {
+  outline: 2px solid var(--bento-text-heading) !important;
+  outline-offset: -2px !important;
+}
+
+/* ACE Editor container */
+.ace-editor {
+  width: 100%;
+  height: 100%;
+}
+
+/* Output display */
+.output {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  background: var(--bento-bg-alt) !important;
+  color: var(--bento-text-body);
+  font-family: var(--bento-font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow: auto;
+  border: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    grid-template-rows: auto auto auto auto;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .input-panel {
+    grid-area: 1 / 1 / 2 / 2;
+  }
+
+  .mapping-panel {
+    grid-area: 2 / 1 / 3 / 2;
+  }
+
+  .horizontal-resizer {
+    grid-area: 3 / 1 / 4 / 2;
+  }
+
+  .output-panel {
+    grid-area: 4 / 1 / 5 / 2;
+  }
+}
+
+/* Custom Scrollbar Styling */
+.output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.output::-webkit-scrollbar-track {
+  background: var(--bento-bg-alt);
+  border-radius: 4px;
+}
+
+.output::-webkit-scrollbar-thumb {
+  background: var(--bento-bg-highlight);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.output::-webkit-scrollbar-thumb:hover {
+  background: var(--bento-text-highlight);
+}
+
+/* Focus and accessibility improvements */
+.editor:focus,
+.output:focus {
+  outline: 2px solid var(--bento-accent);
+  outline-offset: -2px;
+}
+
+/* Print styles */
+@media print {
+  .loading-overlay {
+    display: none !important;
+  }
+
+  .container {
+    grid-template-rows: auto auto auto;
+    height: auto;
+  }
+
+  .horizontal-resizer {
+    display: none;
+  }
+}

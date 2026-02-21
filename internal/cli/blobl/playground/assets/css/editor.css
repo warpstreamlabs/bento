@@ -1,0 +1,553 @@
+/* Base ACE Editor Styling */
+.ace-bento {
+  --ace-selection-light: rgba(235, 135, 136, 0.2);
+  --ace-selection-dark: rgba(235, 135, 136, 0.15);
+  --ace-active-line-light: rgba(253, 229, 216, 0.3);
+  --ace-active-line-dark: rgba(255, 244, 233, 0.08);
+  --ace-bracket-bg: rgba(235, 135, 136, 0.3);
+}
+
+.ace-bento .ace_editor {
+  font-family: var(--bento-font-mono) !important;
+  background-color: #ffffff !important;
+  color: var(--bento-text-body) !important;
+}
+
+.ace-bento .ace_gutter {
+  background-color: var(--bento-bg-alt) !important;
+  color: var(--bento-text-heading) !important;
+  border-right: 1px solid var(--bento-bg-highlight) !important;
+}
+
+.ace-bento .ace_gutter-active-line {
+  background-color: var(--bento-button-selected) !important;
+}
+
+/* Editor Interaction Elements */
+.ace-bento .ace_cursor {
+  color: var(--bento-text-heading) !important;
+}
+
+.ace-bento .ace_selection {
+  background-color: var(--ace-selection-light) !important;
+}
+
+.ace-bento .ace_active-line {
+  background-color: var(--ace-active-line-light) !important;
+}
+
+.ace-bento .ace_marker-layer .ace_bracket {
+  background: var(--ace-bracket-bg);
+  border: 1px solid var(--bento-bg-highlight);
+}
+
+.ace-bento .ace_invisible {
+  color: var(--bento-bg-highlight);
+}
+
+/* Safari-only cursor and bracket positioning fixes */
+@supports (-webkit-hyphens: none) {
+  .ace-bento .ace_cursor {
+    margin-left: 3px;
+  }
+  
+  .ace-bento .ace_marker-layer .ace_bracket {
+    margin-left: 2.5px;
+  }
+}
+
+/* Compact styles for embedded display */
+@media (max-width: 768px) {
+  .ace-bento {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .editor {
+    min-height: 80px !important;
+  }
+  
+  .formatter-section {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
+
+/* Additional compact styles for very small displays */
+@media (max-width: 480px) {
+  .ace-bento {
+    font-size: 11px !important;
+  }
+}
+
+/* Light Theme Syntax Highlighting */
+.ace-bento .ace_string {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_constant.ace_numeric {
+  color: var(--bento-bg-highlight) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_constant.ace_language {
+  color: var(--bento-text-heading) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_constant.ace_language.ace_null {
+  color: #999999 !important;
+  font-style: italic !important;
+}
+
+.ace-bento .ace_keyword {
+  color: var(--bento-text-highlight) !important;
+  font-weight: 600 !important;
+}
+
+.ace-bento .ace_punctuation {
+  color: var(--bento-text-heading) !important;
+}
+
+.ace-bento .ace_support.ace_function {
+  color: var(--bento-success) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_support.ace_method {
+  color: var(--bento-accent) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_variable {
+  color: var(--bento-bg-highlight) !important;
+  font-weight: 500 !important;
+}
+
+.ace-bento .ace_comment {
+  color: #999999 !important;
+  font-style: italic !important;
+}
+
+/* Bloblang-specific Syntax Highlighting */
+.ace-bento .ace_bloblang_root {
+  color: var(--bento-text-highlight);
+  font-weight: 700;
+  background-color: rgba(211, 47, 47, 0.075);
+  border-radius: 3px;
+}
+
+.ace-bento .ace_bloblang_this {
+  color: var(--bento-success) !important;
+  font-weight: 700;
+  background-color: rgba(46, 125, 50, 0.075);
+  border-radius: 3px;
+}
+
+/* Dark Theme Styles */
+[data-theme="dark"] .ace-bento .ace_editor {
+  background-color: #272822 !important;
+  color: var(--bento-text-body) !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_gutter {
+  background-color: var(--bento-bg-alt) !important;
+  color: var(--bento-text-heading) !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_active-line {
+  background-color: var(--ace-active-line-dark) !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_selection {
+  background-color: var(--ace-selection-dark) !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_gutter-active-line {
+  background-color: var(--bento-button-selected) !important;
+}
+
+/* Dark Theme Syntax Highlighting - Monokai Colors */
+[data-theme="dark"] .ace-bento .ace_string {
+  color: rgb(230, 219, 116) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_constant.ace_numeric,
+[data-theme="dark"] .ace-bento .ace_constant.ace_language,
+[data-theme="dark"] .ace-bento .ace_constant.ace_language.ace_null {
+  color: rgb(174, 129, 255) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_constant.ace_language {
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_constant.ace_language.ace_null {
+  font-style: italic !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_keyword,
+[data-theme="dark"] .ace-bento .ace_punctuation {
+  color: rgb(249, 38, 114) !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_keyword {
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_support.ace_function,
+[data-theme="dark"] .ace-bento .ace_support.ace_method {
+  color: rgb(166, 226, 46) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_variable {
+  color: rgb(248, 248, 242) !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .ace-bento .ace_comment {
+  color: rgb(136, 132, 111) !important;
+  font-style: italic !important;
+}
+
+/* Documentation Tooltip Base */
+.ace_tooltip {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 50px;
+  border: none;
+  background-image: none;
+  white-space: normal;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  overflow: visible;
+  z-index: 10000;
+  max-width: min(400px, 85vw);
+  max-height: min(350px, 70vh);
+}
+
+/* Smaller tooltips for embedded mode */
+body.embedded .ace_tooltip {
+  max-width: min(320px, 80vw);
+  max-height: min(280px, 60vh);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+.ace-doc {
+  max-width: 100%;
+  width: 100%;
+  max-height: min(350px, 70vh);
+  padding: 14px;
+  background: white;
+  font-family: var(--bento-font-family);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--bento-text-body);
+  border: 1px solid var(--bento-bg-highlight);
+  border-radius: 8px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  hyphens: auto;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  /* Hide scrollbar */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Compact tooltips for embedded mode */
+body.embedded .ace-doc {
+  max-height: min(280px, 60vh);
+  padding: 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 6px;
+}
+
+.ace-doc::-webkit-scrollbar {
+  width: 0px;
+  background: transparent; /* Chrome, Safari, Opera */
+}
+
+.ace-doc:hover {
+  background-color: #fef3f1;
+  border-color: var(--bento-text-highlight);
+}
+
+.ace-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.ace-doc-header:hover {
+  background-color: rgba(235, 135, 136, 0.05);
+  transform: translateY(-1px);
+}
+
+.ace-doc-signature {
+  font-family: var(--bento-font-mono);
+  font-size: 11px;
+  color: var(--bento-text-heading);
+  padding: 8px 10px;
+  background-color: var(--bento-bg-alt);
+  border-radius: 4px;
+  border: 1px solid rgba(235, 135, 136, 0.2);
+  flex: 1;
+  min-width: 0;
+  transition: all 0.2s ease;
+}
+
+/* Even more compact signature for embedded mode */
+body.embedded .ace-doc-signature {
+  font-size: 10px;
+  padding: 6px 8px;
+}
+
+.ace-doc-header:hover .ace-doc-signature {
+  border-color: var(--bento-text-highlight);
+  background-color: rgba(235, 135, 136, 0.1);
+}
+
+.ace-doc-link-indicator {
+  font-size: 16px;
+  color: var(--bento-text-highlight);
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.ace-doc-header:hover .ace-doc-link-indicator {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.ace-doc-description {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.ace-doc-category {
+  font-size: 11px;
+  color: var(--bento-text-secondary);
+  margin-bottom: 6px;
+}
+
+/* Documentation Examples and Parameters */
+.ace-doc-examples,
+.ace-doc-parameters {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(235, 135, 136, 0.2);
+}
+
+.ace-doc-examples strong,
+.ace-doc-parameters strong {
+  color: var(--bento-text-heading);
+  font-size: 11px;
+  margin-bottom: 3px;
+  display: block;
+}
+
+/* Compact text for embedded mode */
+body.embedded .ace-doc-examples strong,
+body.embedded .ace-doc-parameters strong {
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.ace-doc-parameters strong {
+  margin-bottom: 6px;
+}
+
+.ace-doc-examples code,
+.ace-doc-param code {
+  display: block;
+  font-family: var(--bento-font-mono);
+  font-size: 11px;
+  background-color: var(--bento-bg-alt);
+  padding: 2px 4px;
+  border-radius: 2px;
+  color: var(--bento-text-heading);
+}
+
+/* Compact code blocks for embedded mode */
+body.embedded .ace-doc-examples code,
+body.embedded .ace-doc-param code {
+  font-size: 10px;
+  padding: 1px 3px;
+}
+
+.ace-doc-examples code {
+  margin: 2px 0;
+}
+
+.ace-doc-param code {
+  font-weight: 600;
+}
+
+.ace-doc-example-summary {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--bento-text-heading);
+  margin: 4px 0 2px 0;
+}
+
+.ace-doc-param-desc {
+  font-size: 11px;
+  color: var(--bento-text-body);
+  margin-left: 4px;
+  line-height: 1.3;
+}
+
+/* Compact descriptions for embedded mode */
+body.embedded .ace-doc-param-desc {
+  font-size: 10px;
+  line-height: 1.2;
+  margin-left: 2px;
+}
+
+.ace-doc a {
+  color: var(--bento-text-highlight);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--bento-text-highlight);
+}
+
+.ace-doc a:hover {
+  color: var(--bento-accent);
+  border-bottom-color: var(--bento-accent);
+}
+
+/* Status Badges */
+.ace-status-stable,
+.ace-status-beta,
+.ace-status-experimental,
+.ace-status-deprecated,
+.ace-impure-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  font-weight: 600;
+  color: white;
+}
+
+.ace-status-stable {
+  background-color: var(--bento-success);
+}
+
+.ace-status-beta {
+  background-color: #ff9800;
+}
+
+.ace-status-experimental {
+  background-color: #9c27b0;
+}
+
+.ace-status-deprecated {
+  background-color: var(--bento-error);
+}
+
+.ace-impure-badge {
+  background-color: #795548;
+}
+
+/* Dark Theme Documentation */
+[data-theme="dark"] .ace_tooltip {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .ace-doc {
+  background: #4a3530;
+  color: #f0f0f0;
+  border: 1px solid #6a5a55;
+}
+
+[data-theme="dark"] .ace-doc-header:hover {
+  background-color: rgba(106, 90, 85, 0.1);
+}
+
+[data-theme="dark"] .ace-doc-signature {
+  background-color: #5a453f;
+  color: #ffffff;
+  border: 1px solid #6a5a55;
+}
+
+[data-theme="dark"] .ace-doc-header:hover .ace-doc-signature {
+  border-color: var(--bento-text-highlight);
+  background-color: rgba(106, 90, 85, 0.2);
+}
+
+[data-theme="dark"] .ace-doc-link-indicator {
+  color: var(--bento-text-highlight);
+}
+
+[data-theme="dark"] .ace-doc-examples code,
+[data-theme="dark"] .ace-doc-param code {
+  background-color: #5a453f;
+  color: #e0e0e0;
+  border: 1px solid #6a5a55;
+}
+
+[data-theme="dark"] .ace-doc-category {
+  color: #cccccc;
+}
+
+[data-theme="dark"] .ace-status-stable {
+  background-color: #4a7c59;
+}
+
+[data-theme="dark"] .ace-status-beta {
+  background-color: #cc7a00;
+}
+
+[data-theme="dark"] .ace-status-experimental {
+  background-color: #7a1f7a;
+}
+
+[data-theme="dark"] .ace-status-deprecated {
+  background-color: #cc4444;
+}
+
+[data-theme="dark"] .ace-impure-badge {
+  background-color: #6a4c42;
+}
+
+[data-theme="dark"] .ace-doc a {
+  color: var(--bento-text-highlight);
+  border-bottom-color: var(--bento-text-highlight);
+}
+
+[data-theme="dark"] .ace-doc a:hover {
+  color: #ff7777;
+  border-bottom-color: #ff7777;
+}
+
+/* Dark Theme Tooltip */
+[data-theme="dark"] .ace_tooltip {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .ace-doc {
+  background: #3f2d29;
+  color: #f0f0f0;
+  border: 1px solid #6a5a55;
+}
+
+[data-theme="dark"] .ace-doc:hover {
+  background: #2b1c18;
+  border-color: var(--bento-text-highlight);
+}

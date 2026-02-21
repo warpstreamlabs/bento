@@ -229,5 +229,13 @@ output:
 
 	assert.NoError(t, strm.StopUnordered(stopCtx))
 
-	validateHealthCheckResponse(t, mockAPIReg.server.URL, "Stream terminated\n")
+	require.Eventually(t, func() bool {
+		res, err := http.Get(mockAPIReg.server.URL + "/ready")
+		require.NoError(t, err)
+		defer res.Body.Close()
+
+		data, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		return string(data) == "Stream terminated\n"
+	}, 5*time.Second, 100*time.Millisecond, "Expected stream to be terminated")
 }

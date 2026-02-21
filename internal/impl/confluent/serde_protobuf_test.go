@@ -3,6 +3,7 @@ package confluent
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 
@@ -79,10 +80,10 @@ message bar {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, time.Minute*10, time.Minute, service.MockResources())
+			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)
 
-			decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, service.MockResources())
+			decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, &http.Transport{}, service.MockResources())
 			require.NoError(t, err)
 
 			t.Cleanup(func() {
@@ -209,10 +210,10 @@ message bar {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, time.Minute*10, time.Minute, service.MockResources())
+			encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 			require.NoError(t, err)
 
-			decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, service.MockResources())
+			decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, &http.Transport{}, service.MockResources())
 			require.NoError(t, err)
 
 			t.Cleanup(func() {
@@ -268,7 +269,7 @@ func runEncoderAgainstInputsMultiple(t testing.TB, urlStr, subject string, input
 	subj, err := service.NewInterpolatedString(subject)
 	require.NoError(t, err)
 
-	encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, time.Minute*10, time.Minute, service.MockResources())
+	encoder, err := newSchemaRegistryEncoder(urlStr, noopReqSign, nil, subj, true, false, &http.Transport{}, time.Minute*10, time.Minute, service.MockResources())
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = encoder.Close(tCtx)

@@ -13,10 +13,11 @@ import (
 
 // CacheConfig export couchbase Cache specification.
 func CacheConfig() *service.ConfigSpec {
-	return client.NewConfigSpec().
+	return service.NewConfigSpec().
 		// TODO Stable().
 		Version("1.0.0").
 		Summary(`Use a Couchbase instance as a cache.`).
+		Fields(client.CommonFields()...).
 		Field(service.NewDurationField("default_ttl").
 			Description("An optional default TTL to set for items, calculated from the moment the item is cached.").
 			Optional().
@@ -25,8 +26,8 @@ func CacheConfig() *service.ConfigSpec {
 
 func init() {
 	err := service.RegisterCache("couchbase", CacheConfig(),
-		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Cache, error) {
-			return NewCache(conf, mgr)
+		func(conf *service.ParsedConfig, _ *service.Resources) (service.Cache, error) {
+			return NewCache(context.Background(), conf)
 		},
 	)
 	if err != nil {
@@ -44,8 +45,8 @@ type Cache struct {
 }
 
 // NewCache returns a Couchbase cache.
-func NewCache(conf *service.ParsedConfig, mgr *service.Resources) (*Cache, error) {
-	cl, err := getClient(conf, mgr)
+func NewCache(ctx context.Context, conf *service.ParsedConfig) (*Cache, error) {
+	cl, err := getClient(ctx, conf)
 	if err != nil {
 		return nil, err
 	}

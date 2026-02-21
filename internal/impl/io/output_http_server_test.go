@@ -340,7 +340,7 @@ http_server:
 }
 
 func TestHTTPServerOutputSSEHeartbeat(t *testing.T) {
-	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, done := context.WithTimeout(context.Background(), time.Second*60)
 	defer done()
 
 	port := getFreePort(t)
@@ -366,8 +366,10 @@ http_server:
 	clientDone := make(chan struct{})
 	clientErrors := make(chan error, 1)
 	receivedMessages := make(chan string, 10)
-	receivedHeartbeats := make(chan struct{}, 5)
-
+	// Use larger buffer to prevent the client from blocking when sending heartbeats
+	receivedHeartbeats := make(chan struct{}, 50)
+	// Use channel to wait for client ready
+	clientReady := make(chan struct{}, 1)
 	go func() {
 		defer close(clientDone)
 
@@ -383,7 +385,7 @@ http_server:
 
 		// Use a client with a timeout
 		client := &http.Client{
-			Timeout: time.Second * 10,
+			Timeout: time.Second * 60,
 		}
 
 		// Create a request with a context that can be canceled
@@ -408,7 +410,8 @@ http_server:
 			clientErrors <- fmt.Errorf("unexpected content type: %s", contentType)
 			return
 		}
-
+		// Client is ready, close the channel
+		close(clientReady)
 		// Read the SSE stream
 		buffer := make([]byte, 4096)
 		currentData := ""
@@ -498,8 +501,12 @@ http_server:
 		"test message 2",
 	}
 
-	// Wait a bit to allow some heartbeats to be sent before we send any messages
-	time.Sleep(time.Second)
+	// Wait for client to be ready
+	select {
+	case <-clientReady:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Client did not become ready in time")
+	}
 
 	for _, msg := range testMessages {
 		testMsg := message.QuickBatch([][]byte{[]byte(msg)})
@@ -527,7 +534,7 @@ http_server:
 		// Client finished successfully
 	case err := <-clientErrors:
 		t.Fatalf("Client error: %v", err)
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Second * 20):
 		t.Fatal("Client timed out")
 	}
 

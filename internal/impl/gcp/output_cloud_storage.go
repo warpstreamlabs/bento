@@ -77,7 +77,7 @@ func csoConfigFromParsed(pConf *service.ParsedConfig) (conf csoConfig, err error
 
 func csoSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
+		Stable().
 		Version("1.0.0").
 		Categories("Services", "GCP").
 		Summary(`Sends message parts as objects to a Google Cloud Storage bucket. Each object is uploaded with the path specified with the `+"`path`"+` field.`).
@@ -257,12 +257,13 @@ func (g *gcpCloudStorageOutput) WriteBatch(ctx context.Context, batch service.Me
 		} else {
 			isMerge = true
 
-			if g.conf.CollisionMode == GCPCloudStorageErrorIfExistsCollisionMode {
+			switch g.conf.CollisionMode {
+			case GCPCloudStorageErrorIfExistsCollisionMode:
 				if err == nil {
 					err = fmt.Errorf("file at path already exists: %s", outputPath)
 				}
 				return err
-			} else if g.conf.CollisionMode == GCPCloudStorageIgnoreCollisionMode {
+			case GCPCloudStorageIgnoreCollisionMode:
 				return nil
 			}
 

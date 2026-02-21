@@ -2,7 +2,7 @@
 title: aws_s3
 slug: aws_s3
 type: processor
-status: experimental
+status: stable
 categories: ["Services","AWS"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Services","AWS"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Performs an S3 GetObject operation using the `bucket` + `key` provided in the config and replaces the original message parts with the content retrieved from S3.
 
 Introduced in version 1.4.0.
@@ -62,6 +59,7 @@ aws_s3:
     from_ec2_role: false
     role: ""
     role_external_id: ""
+    expiry_window: ""
   scanner:
     to_the_end: {}
 ```
@@ -107,6 +105,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 
 <Tabs defaultValue="Amazon SQS Extended Client Library" values={[
 { label: 'Amazon SQS Extended Client Library', value: 'Amazon SQS Extended Client Library', },
+{ label: 'Connection to S3 API-Compatable services', value: 'Connection to S3 API-Compatable services', },
 ]}>
 
 <TabItem value="Amazon SQS Extended Client Library">
@@ -129,6 +128,25 @@ input:
             - aws_s3:
                 bucket: ${! this.1.s3BucketName }
                 key: ${! this.1.s3Key }
+```
+
+</TabItem>
+<TabItem value="Connection to S3 API-Compatable services">
+
+This example shows how to connect to "S3 API-Compatable services" - for instance minio.
+
+```yaml
+pipeline:
+  processors: 
+    - aws_s3: 
+        bucket: mybucket
+        key: events-json-stream/1756305057033860000.json
+        endpoint: http://localhost:9000
+        force_path_style_urls: true
+        region: us-east-1
+        credentials:
+          id: minioadmin
+          secret: minioadmin
 ```
 
 </TabItem>
@@ -247,6 +265,14 @@ Default: `""`
 ### `credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

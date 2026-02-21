@@ -47,6 +47,7 @@ buffer:
 buffer:
   memory:
     limit: 524288000
+    spillover: false
     batch_policy:
       enabled: false
       count: 0
@@ -72,6 +73,13 @@ This buffer intentionally weakens the delivery guarantees of the pipeline and th
 
 It is possible to batch up messages sent from this buffer using a [batch policy](/docs/configuration/batching#batch-policy).
 
+## Metrics 
+
+- `buffer_active` Gauge metric tracking the current number of bytes in the buffer.
+- `buffer_spillover` Counter metric tracking the total number of bytes dropped because of spillover.
+
+
+
 ## Fields
 
 ### `limit`
@@ -81,6 +89,15 @@ The maximum buffer size (in bytes) to allow before applying backpressure upstrea
 
 Type: `int`  
 Default: `524288000`  
+
+### `spillover`
+
+Whether to drop incoming messages that will exceed the buffer limit.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.13.0 or newer  
 
 ### `batch_policy`
 

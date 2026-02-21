@@ -89,6 +89,7 @@ output:
       from_ec2_role: false
       role: ""
       role_external_id: ""
+      expiry_window: ""
 ```
 
 </TabItem>
@@ -156,6 +157,32 @@ output:
 ## Performance
 
 This output benefits from sending multiple messages in flight in parallel for improved performance. You can tune the max number of in flight messages (or message batches) with the field `max_in_flight`.
+
+## Examples
+
+<Tabs defaultValue="Connection to S3 API-Compatable services" values={[
+{ label: 'Connection to S3 API-Compatable services', value: 'Connection to S3 API-Compatable services', },
+]}>
+
+<TabItem value="Connection to S3 API-Compatable services">
+
+This example shows how to connect to "S3 API-Compatable services" - for instance minio.
+
+```yaml
+output:
+  aws_s3: 
+    bucket: mybucket
+    path: "events-json-stream/${!timestamp_unix_nano()}.json"
+    endpoint: http://localhost:9000
+    force_path_style_urls: true
+    region: us-east-1
+    credentials:
+      id: minioadmin
+      secret: minioadmin
+```
+
+</TabItem>
+</Tabs>
 
 ## Fields
 
@@ -519,6 +546,14 @@ Default: `""`
 ### `credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

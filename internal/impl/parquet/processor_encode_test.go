@@ -710,12 +710,12 @@ func TestParquetEncodeProcessor(t *testing.T) {
 			require.NoError(t, err)
 
 			pRdr := parquet.NewGenericReader[any](bytes.NewReader(pqDataBytes), testPMSchema())
-			require.NoError(t, err)
 
 			outRows := make([]any, 1)
 			_, err = pRdr.Read(outRows)
-			require.NoError(t, err)
-			require.NoError(t, err)
+			if err != nil {
+				require.ErrorIs(t, err, io.EOF)
+			}
 
 			require.NoError(t, pRdr.Close())
 
@@ -763,13 +763,13 @@ func TestParquetEncodeProcessor(t *testing.T) {
 
 		var outRows []any
 		for {
-			outRowsTmp := make([]any, 1)
+			outRowsTmp := make([]any, 3)
 			_, err := pRdr.Read(outRowsTmp)
+			outRows = append(outRows, outRowsTmp...)
 			if err != nil {
 				require.ErrorIs(t, err, io.EOF)
 				break
 			}
-			outRows = append(outRows, outRowsTmp[0])
 		}
 		require.NoError(t, pRdr.Close())
 

@@ -2,7 +2,7 @@
 title: gcp_bigquery_write_api
 slug: gcp_bigquery_write_api
 type: output
-status: beta
+status: stable
 categories: ["GCP","Services"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["GCP","Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
-:::
 Sends messages as new rows to a Google Cloud BigQuery table using the BigQuery Storage Write API.
 
 Introduced in version 1.3.0.
@@ -38,6 +35,7 @@ output:
     project: ""
     dataset: "" # No default (required)
     table: "" # No default (required)
+    message_format: json
 ```
 
 </TabItem>
@@ -55,6 +53,7 @@ output:
       http: ""
       grpc: ""
     stream_type: DEFAULT
+    message_format: json
     batching:
       count: 0
       byte_size: 0
@@ -141,6 +140,20 @@ Default: `"DEFAULT"`
 | Option | Summary |
 |---|---|
 | `DEFAULT` | DefaultStream most closely mimics the legacy bigquery tabledata.insertAll semantics. Successful inserts are committed immediately, and there's no tracking offsets as all writes go into a `default` stream that always exists for a table. |
+
+
+### `message_format`
+
+Format of incoming messages
+
+
+Type: `string`  
+Default: `"json"`  
+
+| Option | Summary |
+|---|---|
+| `json` | Messages are in JSON format (default) |
+| `protobuf` | Messages are in protobuf format |
 
 
 ### `batching`

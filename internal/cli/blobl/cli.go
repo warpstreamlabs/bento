@@ -2,23 +2,17 @@ package blobl
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
 
-	"github.com/Jeffail/gabs/v2"
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
-	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
-	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/internal/message"
-	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var red = color.New(color.FgRed).SprintFunc()
@@ -67,45 +61,48 @@ Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1
 		Action: run,
 		Subcommands: []*cli.Command{
 			{
-				Name:        "server",
-				Usage:       "EXPERIMENTAL: Run a web server that hosts a Bloblang app",
-				Description: "Run a web server that provides an interactive application for writing and testing Bloblang mappings.",
-				Action:      runServer,
+				Name:    "server",
+				Aliases: []string{"playground"},
+				Usage:   "Run an interactive Bloblang playground with live editing and testing.",
+				Description: `Run a web server that provides an interactive Bloblang playground for writing and testing Bloblang mappings in real time.
+
+Example: bento blobl playground -m mapping.blobl -i input.json`,
+				Action: runPlayground,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "host",
 						Value: "localhost",
-						Usage: "the host to bind to.",
+						Usage: "host address to bind the playground server to.",
 					},
 					&cli.StringFlag{
 						Name:    "port",
 						Value:   "4195",
 						Aliases: []string{"p"},
-						Usage:   "the port to bind to.",
+						Usage:   "port number for the playground server (default: 4195).",
 					},
 					&cli.BoolFlag{
 						Name:    "no-open",
 						Value:   false,
 						Aliases: []string{"n"},
-						Usage:   "do not open the app in the browser automatically.",
-					},
-					&cli.StringFlag{
-						Name:    "mapping-file",
-						Value:   "",
-						Aliases: []string{"m"},
-						Usage:   "an optional path to a mapping file to load as the initial mapping within the app.",
+						Usage:   "prevent automatic browser opening when starting the playground.",
 					},
 					&cli.StringFlag{
 						Name:    "input-file",
 						Value:   "",
 						Aliases: []string{"i"},
-						Usage:   "an optional path to an input file to load as the initial input to the mapping within the app.",
+						Usage:   "preload sample input data into the playground.",
+					},
+					&cli.StringFlag{
+						Name:    "mapping-file",
+						Value:   "",
+						Aliases: []string{"m"},
+						Usage:   "preload a Bloblang mapping file into the playground editor.",
 					},
 					&cli.BoolFlag{
 						Name:    "write",
 						Value:   false,
 						Aliases: []string{"w"},
-						Usage:   "when editing a mapping and/or input file write changes made back to the respective source file, if the file does not exist it will be created.",
+						Usage:   "auto-save playground changes back to the source files.",
 					},
 				},
 			},
@@ -113,110 +110,8 @@ Find out more about Bloblang at: {{.DocumentationURL}}/guides/bloblang/about`)[1
 	}
 }
 
-type execCache struct {
-	msg  message.Batch
-	vars map[string]any
-}
-
-func newExecCache() *execCache {
-	return &execCache{
-		msg:  message.QuickBatch([][]byte{[]byte(nil)}),
-		vars: map[string]any{},
-	}
-}
-
-func (e *execCache) executeMapping(exec *mapping.Executor, rawInput, prettyOutput bool, input []byte) (string, error) {
-	e.msg.Get(0).SetBytes(input)
-
-	var valuePtr *any
-	var parseErr error
-
-	lazyValue := func() *any {
-		if valuePtr == nil && parseErr == nil {
-			if rawInput {
-				var value any = input
-				valuePtr = &value
-			} else {
-				if jObj, err := e.msg.Get(0).AsStructured(); err == nil {
-					valuePtr = &jObj
-				} else {
-					if errors.Is(err, message.ErrMessagePartNotExist) {
-						parseErr = errors.New("message is empty")
-					} else {
-						parseErr = fmt.Errorf("parse as json: %w", err)
-					}
-				}
-			}
-		}
-		return valuePtr
-	}
-
-	for k := range e.vars {
-		delete(e.vars, k)
-	}
-
-	var result any = value.Nothing(nil)
-	err := exec.ExecOnto(query.FunctionContext{
-		Maps:     exec.Maps(),
-		Vars:     e.vars,
-		MsgBatch: e.msg,
-		NewMeta:  e.msg.Get(0),
-		NewValue: &result,
-	}.WithValueFunc(lazyValue), mapping.AssignmentContext{
-		Vars:  e.vars,
-		Meta:  e.msg.Get(0),
-		Value: &result,
-	})
-	if err != nil {
-		var ctxErr query.ErrNoContext
-		if parseErr != nil && errors.As(err, &ctxErr) {
-			if ctxErr.FieldName != "" {
-				err = fmt.Errorf("unable to reference message as structured (with 'this.%v'): %w", ctxErr.FieldName, parseErr)
-			} else {
-				err = fmt.Errorf("unable to reference message as structured (with 'this'): %w", parseErr)
-			}
-		}
-		return "", err
-	}
-
-	var resultStr string
-	switch t := result.(type) {
-	case string:
-		resultStr = t
-	case []byte:
-		resultStr = string(t)
-	case value.Delete:
-		return "", nil
-	case value.Nothing:
-		// Do not change the original contents
-		if v := lazyValue(); v != nil {
-			gObj := gabs.Wrap(v)
-			if prettyOutput {
-				resultStr = gObj.StringIndent("", "  ")
-			} else {
-				resultStr = gObj.String()
-			}
-		} else {
-			resultStr = string(input)
-		}
-	default:
-		gObj := gabs.Wrap(result)
-		if prettyOutput {
-			resultStr = gObj.StringIndent("", "  ")
-		} else {
-			resultStr = gObj.String()
-		}
-	}
-
-	// TODO: Return metadata as well?
-	return resultStr, nil
-}
-
 func run(c *cli.Context) error {
-	t := c.Int("threads")
-	if t < 1 {
-		t = 1
-	}
+	t := max(c.Int("threads"), 1)
 	raw := c.Bool("raw")
 	pretty := c.Bool("pretty")
 	file := c.String("file")
@@ -271,7 +166,7 @@ func run(c *cli.Context) error {
 		close(resultsChan)
 	}()
 
-	for i := 0; i < t; i++ {
+	for range t {
 		go func() {
 			defer wg.Done()
 
@@ -282,7 +177,7 @@ func run(c *cli.Context) error {
 					return
 				}
 
-				resultStr, err := execCache.executeMapping(exec, raw, pretty, input)
+				resultStr, err := execCache.executeBloblangMapping(exec, raw, pretty, input)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, red(fmt.Sprintf("failed to execute map: %v", err)))
 					continue

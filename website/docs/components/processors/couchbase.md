@@ -40,8 +40,8 @@ couchbase:
   bucket: "" # No default (required)
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
-  operation: get
   cas_enabled: true
+  operation: get
 ```
 
 </TabItem>
@@ -60,8 +60,9 @@ couchbase:
   timeout: 15s
   id: ${! json("id") } # No default (required)
   content: "" # No default (optional)
-  operation: get
+  ttl: "" # No default (optional)
   cas_enabled: true
+  operation: get
 ```
 
 </TabItem>
@@ -165,6 +166,22 @@ Document content.
 
 Type: `string`  
 
+### `ttl`
+
+An optional TTL to set for items.
+
+
+Type: `string`  
+
+### `cas_enabled`
+
+Enable CAS validation.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.3.0 or newer  
+
 ### `operation`
 
 Couchbase operation to perform.
@@ -175,20 +192,13 @@ Default: `"get"`
 
 | Option | Summary |
 |---|---|
-| `get` | fetch a document. |
-| `insert` | insert a new document. |
-| `remove` | delete a document. |
-| `replace` | replace the contents of a document. |
-| `upsert` | creates a new document if it does not exist, if it does exist then it updates it. |
+| `decrement` | Decrement a counter by the value in content, if it does not exist then it creates a counter with an initial value equal to the negative of the value in content. If the initial value is less than or equal to 0, a document not found error is returned. |
+| `get` | Fetch a document. |
+| `increment` | Increment a counter by the value in content, if it does not exist then it creates a counter with an initial value equal to the value in content. If the initial value is less than or equal to 0, a document not found error is returned. |
+| `insert` | Insert a new document. |
+| `remove` | Delete a document. |
+| `replace` | Replace the contents of a document. |
+| `upsert` | Creates a new document if it does not exist, if it does exist then it updates it. |
 
-
-### `cas_enabled`
-
-Enable CAS validation.
-
-
-Type: `bool`  
-Default: `true`  
-Requires version 1.3.0 or newer  
 
 

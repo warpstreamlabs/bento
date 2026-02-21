@@ -59,7 +59,7 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 
 	h := Client{
 		reqCreator:        reqCreator,
-		client:            &http.Client{},
+		client:            &http.Client{Transport: conf.transport},
 		metaExtractFilter: conf.ExtractMetadata,
 
 		backoffOn: map[int]struct{}{},
@@ -76,7 +76,7 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 	}
 
 	if conf.TLSEnabled && conf.TLSConf != nil {
-		if c, ok := http.DefaultTransport.(*http.Transport); ok {
+		if c, ok := h.client.Transport.(*http.Transport); ok {
 			cloned := c.Clone()
 			cloned.TLSClientConfig = conf.TLSConf
 			h.client.Transport = cloned
@@ -94,7 +94,9 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 		}
 		if h.client.Transport != nil {
 			if tr, ok := h.client.Transport.(*http.Transport); ok {
-				tr.Proxy = http.ProxyURL(proxyURL)
+				cloned := tr.Clone()
+				cloned.Proxy = http.ProxyURL(proxyURL)
+				h.client.Transport = cloned
 			} else {
 				return nil, fmt.Errorf("unable to apply proxy_url to transport, unexpected type %T", h.client.Transport)
 			}

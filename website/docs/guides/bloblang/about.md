@@ -144,6 +144,50 @@ root.new_doc.type = this.thing.(article | comment | this).type
 
 Opening brackets on a field begins a query where the context of `this` changes to value of the path it is opened upon, therefore in the above example `this` within the brackets refers to the contents of `this.thing`.
 
+## Array and String Slicing
+
+Bloblang supports Python-style bracket notation for accessing array elements and string characters, as well as slicing with optional start, end, and step parameters:
+
+### Single Element Access
+
+Access individual elements using bracket notation with an index:
+
+```coffee
+root.first_char = this.message[0]
+root.last_char = this.message[-1]
+root.first_item = this.items[0]
+root.third_item = this.items[2]
+
+# In:  {"message":"hello","items":["a","b","c","d"]}
+# Out: {"first_char":"h","last_char":"o","first_item":"a","third_item":"c"}
+```
+
+### Slice Syntax
+
+Extract slices using the colon syntax `[start:end:step]`. All parameters are optional:
+
+```coffee
+# Basic slicing with start and end
+root.substring = this.message[1:4]
+root.subarray = this.items[1:3]
+
+# Slicing from start or to end
+root.from_start = this.message[:3]
+root.to_end = this.message[2:]
+
+# Step slicing
+root.every_second = this.message[::2]
+root.reverse = this.message[::-1]
+
+# Complex slicing with all parameters
+root.complex_slice = this.items[1:5:2]
+
+# In:  {"message":"hello world","items":["a","b","c","d","e","f"]}
+# Out: {"substring":"ell","subarray":["b","c"],"from_start":"hel","to_end":"llo world","every_second":"hlowrd","reverse":"dlrow olleh","complex_slice":["b","d"]}
+```
+
+This bracket syntax works with strings, byte arrays, and regular arrays, and supports negative indexing like Python.
+
 ## Literals
 
 Bloblang supports number, boolean, string, null, array and object literals:

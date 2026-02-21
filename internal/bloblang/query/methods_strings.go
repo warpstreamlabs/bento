@@ -1270,7 +1270,6 @@ var _ = registerSimpleMethod(
 }`,
 		),
 	).
-		Beta().
 		Param(ParamString(
 			"indent",
 			"Indentation string. Each element in a JSON object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.",
@@ -1888,48 +1887,6 @@ func reReplaceAllImpl(args *ParsedParams) (simpleMethod, error) {
 		return result, nil
 	}, nil
 }
-
-//------------------------------------------------------------------------------
-
-var _ = registerSimpleMethod(
-	NewMethodSpec(
-		"split", "",
-	).InCategory(
-		MethodCategoryStrings,
-		"Split a string value into an array of strings by splitting it on a string separator.",
-		NewExampleSpec("",
-			`root.new_value = this.value.split(",")`,
-			`{"value":"foo,bar,baz"}`,
-			`{"new_value":["foo","bar","baz"]}`,
-		),
-	).Param(ParamString("delimiter", "The delimiter to split with.")),
-	func(args *ParsedParams) (simpleMethod, error) {
-		delim, err := args.FieldString("delimiter")
-		if err != nil {
-			return nil, err
-		}
-		delimB := []byte(delim)
-		return func(v any, ctx FunctionContext) (any, error) {
-			switch t := v.(type) {
-			case string:
-				bits := strings.Split(t, delim)
-				vals := make([]any, 0, len(bits))
-				for _, b := range bits {
-					vals = append(vals, b)
-				}
-				return vals, nil
-			case []byte:
-				bits := bytes.Split(t, delimB)
-				vals := make([]any, 0, len(bits))
-				for _, b := range bits {
-					vals = append(vals, b)
-				}
-				return vals, nil
-			}
-			return nil, value.NewTypeError(v, value.TString)
-		}, nil
-	},
-)
 
 //------------------------------------------------------------------------------
 

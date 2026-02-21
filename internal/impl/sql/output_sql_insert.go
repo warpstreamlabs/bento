@@ -3,6 +3,8 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -152,9 +154,10 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 	}
 
 	s.builder = squirrel.Insert(tableStr).Columns(columns...)
-	if s.driver == "postgres" || s.driver == "clickhouse" {
+	switch s.driver {
+	case "postgres", "clickhouse":
 		s.builder = s.builder.PlaceholderFormat(squirrel.Dollar)
-	} else if s.driver == "oracle" || s.driver == "gocosmos" {
+	case "oracle", "gocosmos":
 		s.builder = s.builder.PlaceholderFormat(squirrel.Colon)
 	}
 
@@ -219,8 +222,12 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 		<-s.shutSig.HardStopChan()
 
 		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
+		defer s.dbMut.Unlock()
+
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
 
 		s.shutSig.TriggerHasStopped()
 	}()
@@ -228,8 +235,28 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 }
 
 func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
+	err := s.writeBatch(ctx, batch)
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, driver.ErrBadConn) {
+		s.dbMut.Lock()
+		s.db = nil
+		s.dbMut.Unlock()
+		return service.ErrNotConnected
+	}
+
+	return err
+}
+
+func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageBatch) error {
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
+
+	if s.db == nil {
+		return service.ErrNotConnected
+	}
 
 	insertBuilder := s.builder
 

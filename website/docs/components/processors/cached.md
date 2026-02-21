@@ -2,7 +2,7 @@
 title: cached
 slug: cached
 type: processor
-status: experimental
+status: stable
 categories: ["Utility"]
 ---
 
@@ -15,9 +15,6 @@ categories: ["Utility"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution EXPERIMENTAL
-This component is experimental and therefore subject to change or removal outside of major version releases.
-:::
 Cache the result of applying one or more processors to messages identified by a key. If the key already exists within the cache the contents of the message will be replaced with the cached result instead of applying the processors. This component is therefore useful in situations where an expensive set of processors need only be executed periodically.
 
 Introduced in version 1.0.0.

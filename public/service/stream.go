@@ -179,3 +179,15 @@ func (s *Stream) Stop(ctx context.Context) (err error) {
 	err = closeHTTP(ctx)
 	return
 }
+
+// IsReady returns a boolean indicating whether both the input and output layers
+// of the stream are connected.
+func (s *Stream) IsReady() bool {
+	s.strmMut.Lock()
+	strm := s.strm
+	s.strmMut.Unlock()
+	if strm == nil {
+		return false
+	}
+	return strm.IsReady()
+}

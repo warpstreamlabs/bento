@@ -60,7 +60,7 @@ func bsoConfigFromParsed(pConf *service.ParsedConfig) (conf bsoConfig, err error
 
 func bsoSpec() *service.ConfigSpec {
 	return azureComponentSpec(true).
-		Beta().
+		Stable().
 		Version("1.0.0").
 		Summary(`Sends message parts as objects to an Azure Blob Storage Account container. Each object is uploaded with the filename specified with the `+"`container`"+` field.`).
 		Description(`

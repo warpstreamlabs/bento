@@ -21,6 +21,13 @@ func int64Field(conf *service.ParsedConfig, path ...string) (int64, error) {
 	return int64(i), nil
 }
 
+func getCredentialsCacheOptions(conf *service.ParsedConfig) func(*aws.CredentialsCacheOptions) {
+	expiryWindow, _ := conf.FieldDuration("expiry_window")
+	return func(cco *aws.CredentialsCacheOptions) {
+		cco.ExpiryWindow = expiryWindow
+	}
+}
+
 func GetSession(ctx context.Context, parsedConf *service.ParsedConfig, opts ...func(*config.LoadOptions) error) (aws.Config, error) {
 	if region, _ := parsedConf.FieldString("region"); region != "" {
 		opts = append(opts, config.WithRegion(region))
@@ -36,6 +43,9 @@ func GetSession(ctx context.Context, parsedConf *service.ParsedConfig, opts ...f
 			id, secret, token,
 		)))
 	}
+
+	credsCacheOpts := getCredentialsCacheOptions(credsConf)
+	opts = append(opts, config.WithCredentialsCacheOptions(credsCacheOpts))
 
 	conf, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
@@ -57,11 +67,11 @@ func GetSession(ctx context.Context, parsedConf *service.ParsedConfig, opts ...f
 		}
 
 		creds := stscreds.NewAssumeRoleProvider(stsSvc, role, stsOpts...)
-		conf.Credentials = aws.NewCredentialsCache(creds)
+		conf.Credentials = aws.NewCredentialsCache(creds, credsCacheOpts)
 	}
 
 	if useEC2, _ := credsConf.FieldBool("from_ec2_role"); useEC2 {
-		conf.Credentials = aws.NewCredentialsCache(ec2rolecreds.New())
+		conf.Credentials = aws.NewCredentialsCache(ec2rolecreds.New(), credsCacheOpts)
 	}
 	return conf, nil
 }

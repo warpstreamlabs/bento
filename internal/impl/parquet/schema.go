@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -43,6 +44,11 @@ func generateStructTypeFromFields(
 			exportedName = strings.ToUpper(name[:1]) + name[1:]
 			components   = []string{name}
 		)
+
+		if !unicode.IsUpper(rune(exportedName[0])) {
+			// HACK(gregfurman): 1/26^15 chance of collision. Should be fine ¯\_(ツ)_/¯
+			exportedName = randomFieldName(15)
+		}
 
 		if field.Contains("type") {
 			typeStr, err := field.FieldString("type")
@@ -129,6 +135,11 @@ func generateFieldType(
 			if err != nil {
 				return nil, err
 			}
+		case "STRUCT":
+			outputType, err = generateStructType(field, schemaOpts)
+			if err != nil {
+				return nil, fmt.Errorf("generating STRUCT: %w", err)
+			}
 		default:
 			outputType, err = getReflectType(typeStr)
 			if err != nil {
@@ -139,7 +150,7 @@ func generateFieldType(
 		return wrapType(outputType, field, schemaOpts)
 	}
 
-	// Handle nested struct
+	// Handle nested struct without explicit type (backwards compatibility)
 	if field.Contains("fields") {
 		subfields, err := field.FieldAnyList("fields")
 		if err != nil {
@@ -155,6 +166,27 @@ func generateFieldType(
 	}
 
 	return nil, errors.New("field has neither type nor fields")
+}
+
+func generateStructType(
+	field *service.ParsedConfig,
+	schemaOpts schemaOpts,
+) (reflect.Type, error) {
+	subfields, err := field.FieldAnyList("fields")
+	if err != nil {
+		return nil, fmt.Errorf("struct type requires 'fields' to be specified: %w", err)
+	}
+
+	if len(subfields) == 0 {
+		return nil, errors.New("struct type requires at least one field in 'fields'")
+	}
+
+	structValueType, err := generateStructTypeFromFields(subfields, schemaOpts)
+	if err != nil {
+		return nil, fmt.Errorf("generating struct: %w", err)
+	}
+
+	return structValueType, nil
 }
 
 func generateListType(

@@ -76,6 +76,126 @@ func parseMapExpression(fn query.Function, pCtx Context) Func[query.Function] {
 	}
 }
 
+func parseBracketExpression(fn query.Function, pCtx Context) Func[query.Function] {
+	return func(input []rune) Result[query.Function] {
+		openRes := charSquareOpen(input)
+		if openRes.Err != nil {
+			return Fail[query.Function](openRes.Err, input)
+		}
+
+		remaining := DiscardedWhitespaceNewlineComments(openRes.Remaining).Remaining
+
+		return OneOf(
+			parseSliceExpression(fn, pCtx), // [start:end:step]
+			parseIndexExpression(fn, pCtx), // [i] (single number)
+		)(remaining)
+	}
+}
+
+func parseIndexExpression(fn query.Function, pCtx Context) Func[query.Function] {
+	return func(input []rune) Result[query.Function] {
+		remaining := input
+		indexRes := queryParser(pCtx)(remaining)
+		if indexRes.Err != nil {
+			return Fail[query.Function](indexRes.Err, input)
+		}
+
+		indexExpr := indexRes.Payload
+		remaining = indexRes.Remaining
+
+		wsRes := DiscardedWhitespaceNewlineComments(remaining)
+		remaining = wsRes.Remaining
+
+		colonRes := charColon(remaining)
+		if colonRes.Err == nil {
+			return Fail[query.Function](NewError(input, "slice syntax should use parseSliceExpression"), input)
+		}
+
+		closeRes := Expect(charSquareClose, "closing bracket")(remaining)
+		if closeRes.Err != nil {
+			return Fail[query.Function](closeRes.Err, input)
+		}
+
+		method, err := query.NewIndexMethod(fn, indexExpr)
+		if err != nil {
+			return Fail[query.Function](NewFatalError(input, err), input)
+		}
+
+		return Success(method, closeRes.Remaining)
+	}
+}
+
+func parseSliceExpression(fn query.Function, pCtx Context) Func[query.Function] {
+	return func(input []rune) Result[query.Function] {
+		// Parse start bound
+		var startBound query.Function
+		colonRes := charColon(input)
+		if colonRes.Err != nil {
+			// Not colon -> parse start expression
+			startRes := queryParser(pCtx)(input)
+			if startRes.Err != nil {
+				return Fail[query.Function](startRes.Err, input)
+			}
+
+			startBound = startRes.Payload
+			remaining := DiscardedWhitespaceNewlineComments(startRes.Remaining).Remaining
+
+			colonRes = charColon(remaining)
+			if colonRes.Err != nil {
+				// Must have colon after start bound, otherwise it's an index
+				return Fail[query.Function](colonRes.Err, input)
+			}
+		}
+
+		remaining := DiscardedWhitespaceNewlineComments(colonRes.Remaining).Remaining
+
+		// Parse end bound
+		var endBound query.Function
+		colonRes2 := charColon(remaining)
+		closeRes := charSquareClose(remaining)
+		if colonRes2.Err != nil && closeRes.Err != nil {
+			// Not colon or close bracket -> parse end expression
+			endRes := queryParser(pCtx)(remaining)
+			if endRes.Err != nil {
+				return Fail[query.Function](endRes.Err, input)
+			}
+
+			endBound = endRes.Payload
+			remaining = DiscardedWhitespaceNewlineComments(endRes.Remaining).Remaining
+		}
+
+		// Parse step bound
+		var stepBound query.Function
+		colonRes3 := charColon(remaining)
+		if colonRes3.Err == nil {
+			remaining = DiscardedWhitespaceNewlineComments(colonRes3.Remaining).Remaining
+
+			closeRes2 := charSquareClose(remaining)
+			if closeRes2.Err != nil {
+				// Not close bracket -> parse step expression
+				stepRes := queryParser(pCtx)(remaining)
+				if stepRes.Err != nil {
+					return Fail[query.Function](stepRes.Err, input)
+				}
+
+				stepBound = stepRes.Payload
+				remaining = DiscardedWhitespaceNewlineComments(stepRes.Remaining).Remaining
+			}
+		}
+
+		closeRes = Expect(charSquareClose, "closing bracket")(remaining)
+		if closeRes.Err != nil {
+			return Fail[query.Function](closeRes.Err, input)
+		}
+
+		method, err := query.NewSliceMethod(fn, startBound, endBound, stepBound)
+		if err != nil {
+			return Fail[query.Function](NewFatalError(input, err), input)
+		}
+		return Success(method, closeRes.Remaining)
+	}
+}
+
 func parseFunctionTail(fn query.Function, pCtx Context) Func[query.Function] {
 	return OneOf(
 		// foo.(bar | baz)
@@ -115,6 +235,14 @@ func parseWithTails(fnParser Func[query.Function], pCtx Context) Func[query.Func
 		isNot := seq[0].(string) == "!"
 		fn := seq[1].(query.Function)
 		for {
+			// Parse bracket expressions: foo[*] -> i.e. foo[0, 1]
+			if res := parseBracketExpression(fn, pCtx)(remaining); res.Err == nil {
+				fn = res.Payload
+				remaining = res.Remaining
+				continue
+			}
+
+			// Parse dot-delimited expressions: foo.* -> i.e. foo.bar()
 			if res := delimPattern(remaining); res.Err != nil {
 				if isNot {
 					fn = query.Not(fn)
@@ -257,11 +385,12 @@ func fieldReferenceRootParser(pCtx Context) Func[query.Function] {
 		var fn query.Function
 
 		path := res.Payload
-		if path == "this" {
+		switch path {
+		case "this":
 			fn = query.NewFieldFunction("")
-		} else if path == "root" {
+		case "root":
 			fn = query.NewRootFieldFunction("")
-		} else {
+		default:
 			if pCtx.HasNamedContext(path) {
 				fn = query.NewNamedContextFieldFunction(path, "")
 			} else {

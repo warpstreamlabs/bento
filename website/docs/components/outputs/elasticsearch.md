@@ -2,7 +2,7 @@
 title: elasticsearch
 slug: elasticsearch
 type: output
-status: stable
+status: deprecated
 categories: ["Services"]
 ---
 
@@ -15,6 +15,10 @@ categories: ["Services"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+:::warning DEPRECATED
+This component is deprecated and will be removed in the next major version release. Please consider moving onto [alternative components](#alternatives).
+:::
+	
 Publishes messages into an Elasticsearch index. If the index does not exist then it is created with a dynamic mapping.
 
 
@@ -97,11 +101,16 @@ output:
         from_ec2_role: false
         role: ""
         role_external_id: ""
+        expiry_window: ""
     gzip_compression: false
 ```
 
 </TabItem>
 </Tabs>
+
+## Alternatives
+
+For elasticsearch use the new [`elasticsearch_v2`](/docs/components/outputs/elasticsearch_v2) output. To connect to AWS Opensearch use [`opensearch`](/docs/components/outputs/opensearch)
 
 Both the `id` and `index` fields can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries). When sending batched messages these interpolations are performed per message part.
 
@@ -641,6 +650,14 @@ Default: `""`
 ### `aws.credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `aws.credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

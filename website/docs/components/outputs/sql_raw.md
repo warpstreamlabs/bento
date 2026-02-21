@@ -74,6 +74,14 @@ output:
     conn_max_open: 0 # No default (optional)
     secret_name: "" # No default (optional)
     iam_enabled: false
+    azure:
+      entra_enabled: false
+      token_request_options:
+        claims: ""
+        enable_cae: false
+        scopes:
+          - https://ossrdbms-aad.database.windows.net/.default
+        tenant_id: ""
     region: ""
     endpoint: ""
     credentials:
@@ -84,6 +92,7 @@ output:
       from_ec2_role: false
       role: ""
       role_external_id: ""
+      expiry_window: ""
     batching:
       count: 0
       byte_size: 0
@@ -132,7 +141,7 @@ A database [driver](#drivers) to use.
 
 
 Type: `string`  
-Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`.
+Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`, `duckdb`.
 
 ### `dsn`
 
@@ -339,6 +348,66 @@ Type: `bool`
 Default: `false`  
 Requires version 1.8.0 or newer  
 
+### `azure`
+
+Optional Fields that can be set to use Azure based authentication for Azure Postgres SQL
+
+
+Type: `object`  
+Requires version 1.10.0 or newer  
+
+### `azure.entra_enabled`
+
+An optional field used to generate an entra token to connect to 'Azure Database for PostgreSQL flexible server', This will create a new connection string with the host, user and database from the DSN field - you may need to URL encode the dsn! The [Default Azure Credential Chain](https://learn.microsoft.com/en-gb/azure/developer/go/sdk/authentication/authentication-overview#defaultazurecredential) is used from the Azure SDK.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options`
+
+Sorry! This field is missing documentation.
+
+
+Type: `object`  
+
+### `azure.token_request_options.claims`
+
+Set additional claims for the token.
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options.enable_cae`
+
+Indicates whether to enable Continuous Access Evaluation (CAE) for the requested token
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options.scopes`
+
+Scopes contains the list of permission scopes required for the token.
+
+
+Type: `array`  
+Default: `["https://ossrdbms-aad.database.windows.net/.default"]`  
+Requires version 1.10.0 or newer  
+
+### `azure.token_request_options.tenant_id`
+
+tenant_id identifies the tenant from which to request the token. azure credentials authenticate in their configured default tenants when this field isn't set.
+
+
+Type: `string`  
+Default: `""`  
+Requires version 1.10.0 or newer  
+
 ### `region`
 
 The AWS region to target.
@@ -417,6 +486,14 @@ Default: `""`
 ### `credentials.role_external_id`
 
 An external ID to provide when assuming a role.
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.expiry_window`
+
+Allow the credentials to trigger refreshing prior to the credentials actually expiring. This is beneficial so race conditions with expiring credentials do not cause requests to fail. For example '10s' would refresh credentials ten seconds before expiration. Setting to a duration of `0` disables the expiry window.
 
 
 Type: `string`  

@@ -54,6 +54,7 @@ module.exports = {
       items: [
         {to: 'docs/about', label: 'Docs', position: 'left'},
         {to: 'cookbooks', label: 'Cookbooks', position: 'left'},
+        {to: 'docs/guides/bloblang/playground', label: 'Playground', position: 'left'},
         {
           type: 'html',
           position: 'right',
@@ -125,7 +126,7 @@ module.exports = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} <a href="https://warpstream.com" target="_blank" rel="external follow" style="font-weight: bold; color: var(--ifm-color-white); color: #d32f2f;">WarpStream</a>. Portions used under MIT License from Ashley Jeffs.`,
+      copyright: `Copyright © ${new Date().getFullYear()} <a href="https://warpstream.com" target="_blank" rel="external follow" style="font-weight: bold; color: var(--ifm-color-white); color: #d32f2f;">WarpStream - A diskless, Apache Kafka compatible data streaming platform</a>. Portions used under MIT License from Ashley Jeffs.`,
     },
     announcementBar: {
       id: 'star_the_dang_repo',

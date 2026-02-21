@@ -1,3 +1,5 @@
+//go:build !openbsd
+
 package pulsar
 
 import (
