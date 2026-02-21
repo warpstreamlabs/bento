@@ -16,16 +16,38 @@ type schemaOpts struct {
 	defaultEncoding       string
 }
 
+// SchemaOpts configures how struct types are generated from Parquet schema definitions.
+// Exported for use by output plugins that need schema generation.
+type SchemaOpts struct {
+	OptionalsAsStructTags bool
+	OptionalAsPtrs        bool
+	DefaultEncoding       string
+}
+
 func GenerateStructType(
 	config *service.ParsedConfig,
-	schemaOpts schemaOpts,
+	opts interface{},
 ) (reflect.Type, error) {
+	// Support both exported and internal schemaOpts
+	var internalOpts schemaOpts
+	switch v := opts.(type) {
+	case schemaOpts:
+		internalOpts = v
+	case SchemaOpts:
+		internalOpts = schemaOpts{
+			optionalsAsStructTags: v.OptionalsAsStructTags,
+			optionalAsPtrs:        v.OptionalAsPtrs,
+			defaultEncoding:       v.DefaultEncoding,
+		}
+	default:
+		return nil, fmt.Errorf("invalid schemaOpts type: %T", opts)
+	}
 	fields, err := config.FieldAnyList("schema")
 	if err != nil {
 		return nil, fmt.Errorf("getting schema fields: %w", err)
 	}
 
-	return generateStructTypeFromFields(fields, schemaOpts)
+	return generateStructTypeFromFields(fields, internalOpts)
 }
 
 func generateStructTypeFromFields(
@@ -287,7 +309,12 @@ func wrapType(
 				return nil, fmt.Errorf("getting optional flag: %w", err)
 			}
 			if optional {
-				return reflect.PointerTo(baseType), nil
+				// FIX: Don't wrap LIST types (slices) in pointers
+				// The parquet-go library requires "list" tag on slice types, not pointer types
+				// LIST types already handle nullability through 3-level encoding
+				if baseType.Kind() != reflect.Slice {
+					return reflect.PointerTo(baseType), nil
+				}
 			}
 		}
 	}
