@@ -2638,6 +2638,27 @@ root = this.set("nested.field", "foo")
 # Out: {"bar":"value","nested":{"field":"foo"}}
 ```
 
+```coffee
+root = this.set("field", deleted())
+
+# In:  {"bar":"value", "field":"foo"}
+# Out: {"bar":"value"}
+```
+
+```coffee
+root = this.set("field", "foo").set("another_field", "data")
+
+# In:  {"bar":"value"}
+# Out: {"bar":"value","field":"foo", "another_field":"foo"}
+```
+
+```coffee
+root = this.set("arr.0", "foo")
+
+# In:  {"bar":"value", "arr": []}
+# Out: {"bar":"value", "arr": ["foo"]}
+```
+
 ### `slice`
 
 Extract a slice from an array by specifying two indices, a low and high bound, which selects a half-open range that includes the first element, but excludes the last one. If the second index is omitted then it defaults to the length of the input sequence. **This method is deprecated, use bracket syntax: `this.value[0:2]` instead of `this.value.slice(0, 2)`.**
