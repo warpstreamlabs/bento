@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var linebreakStr = `foo
@@ -2420,6 +2421,13 @@ func TestNewSetMethod(t *testing.T) {
 			value:   "value",
 			wantErr: true,
 			errMsg:  "encountered value collision whilst building path",
+		},
+		{
+			name:     "set invalid path",
+			target:   map[string]any{"a": "hello", "b": "world"},
+			path:     "b",
+			value:    value.Delete(nil),
+			expected: map[string]any{"a": "hello"},
 		},
 	}
 

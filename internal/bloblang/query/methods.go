@@ -362,9 +362,16 @@ func (g *setMethod) Exec(ctx FunctionContext) (any, error) {
 		return nil, err
 	}
 	result := gabs.Wrap(v)
-	_, err = result.Set(g.value, g.path...)
-	if err != nil {
-		return nil, err
+	if _, ok := g.value.(value.Delete); ok {
+		err = result.Delete(g.path...)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		_, err = result.Set(g.value, g.path...)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return result.Data(), nil
 }
