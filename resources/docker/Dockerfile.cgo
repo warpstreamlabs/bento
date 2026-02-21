@@ -1,72 +1,36 @@
 FROM golang:1.25 AS build
 
-ARG TARGETARCH
-ARG GO_VERSION=1.24.2
-
-ENV CGO_ENABLED=1 \
-    GOOS=linux \
-    GOARCH=${TARGETARCH} \
-    DEBIAN_FRONTEND=noninteractive \
-    CGO_CFLAGS="-I/usr/include" \
-    CGO_LDFLAGS="-L/usr/lib/x86_64-linux-gnu -lzmq"
-
-RUN useradd -r -u 10001 -g nogroup -d /app -s /bin/sh bento
-# Install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential ca-certificates curl git pkg-config libzmq3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Go
-RUN case "${TARGETARCH}" in \
-        'amd64') export GOARCH='amd64' ;; \
-        'arm64') export GOARCH='arm64' ;; \
-        *) echo "Unsupported: ${TARGETARCH}"; exit 1 ;; \
-    esac && \
-    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o go.tar.gz && \
-    tar -C /usr/local -xzf go.tar.gz && \
-    rm go.tar.gz
-ENV PATH="/usr/local/go/bin:${PATH}"
+ENV CGO_ENABLED=1
+ENV GOOS=linux
 
 WORKDIR /go/src/github.com/warpstreamlabs/bento/
-
-# Separate go.mod copy for cache
-COPY go.mod go.sum ./
+# Update dependencies: On unchanged dependencies, cached layer will be reused
+COPY go.* /go/src/github.com/warpstreamlabs/bento/
 RUN go mod download
 
-# Copy the full source and build
-COPY . ./
+RUN apt-get update && apt-get install -y --no-install-recommends libzmq3-dev
+
+# Build
+COPY . /go/src/github.com/warpstreamlabs/bento/
+
 RUN make TAGS=x_bento_extra
 
 # Pack
-FROM ubuntu:24.04 AS final
+FROM debian:latest
 
 LABEL maintainer="WarpStream Labs <security@warpstreamlabs.com>"
 LABEL org.opencontainers.image.source="https://github.com/warpstreamlabs/bento"
 
-WORKDIR /app
+WORKDIR /root/
 
-# Install minimal runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libzmq5 ca-certificates \
-    && ldconfig \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libzmq3-dev
 
-COPY --from=build /etc/passwd /etc/passwd
-COPY --from=build /etc/group /etc/group
-
-RUN rm -rf /var/cache/apt/* \
-    && rm -rf /usr/share/{doc,man,info}/* \
-    && rm -rf /var/log/* /tmp/* /var/tmp/*
-
-
-COPY --from=build --chown=bento:nogroup /go/src/github.com/warpstreamlabs/bento/target/bin/bento ./bento
-COPY --chown=bento:nogroup ./config/docker.yaml ./bento.yaml
-# Switch to the non-root user
-USER bento
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build /go/src/github.com/warpstreamlabs/bento/target/bin/bento .
+COPY ./config/docker.yaml /bento.yaml
 
 EXPOSE 4195
 
 ENTRYPOINT ["./bento"]
 
-CMD ["-c", "./bento.yaml"]
+CMD ["-c", "/bento.yaml"]
