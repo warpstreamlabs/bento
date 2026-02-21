@@ -294,7 +294,7 @@ func (g *getMethod) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPa
 	paths := make([]TargetPath, len(basePaths))
 	for i, p := range basePaths {
 		paths[i] = p
-		paths[i].Path = append(paths[i].Path, g.path...)
+		paths[i].Path = append(p.Path, g.path...)
 	}
 	ctx = ctx.WithValues(paths)
 
@@ -327,6 +327,103 @@ func getMethodCtor(target Function, args *ParsedParams) (Function, error) {
 		return nil, err
 	}
 	return NewGetMethod(target, pathStr)
+}
+
+//------------------------------------------------------------------------------
+
+var _ = registerMethod(
+	NewMethodSpec(
+		"set",
+		"Set a field value, identified via a [dot path][field_paths], of an object.",
+	).InCategory(
+		MethodCategoryObjectAndArray, "",
+		NewExampleSpec("",
+			`root = this.set("nested.field", "foo")`,
+			`{"bar":"value"}`,
+			`{"bar":"value","nested":{"field":"foo"}}`,
+		),
+		NewExampleSpec("",
+			`root = this.set("field", deleted())`,
+			`{"bar":"value", "field":"foo"}`,
+			`{"bar":"value"}`,
+		),
+		NewExampleSpec("",
+			`root = this.set("field", "foo").set("another_field", "data")`,
+			`{"bar":"value"}`,
+			`{"another_field":"data","bar":"value","field":"foo"}`,
+		),
+		NewExampleSpec("",
+			`root = this.set("arr.0", "foo")`,
+			`{"bar":"value", "arr": ["value"]}`,
+			`{"arr":["foo"],"bar":"value"}`,
+		),
+	).Param(ParamString("path", "A [dot path][field_paths] identifying a field to write.")).Param(ParamAny("value", "The value to write.")),
+	setMethodCtor,
+)
+
+type setMethod struct {
+	fn    Function
+	path  []string
+	value any
+}
+
+func (g *setMethod) Annotation() string {
+	return "set path `" + SliceToDotPath(g.path...) + "` with " + fmt.Sprintf("%v", g.value)
+}
+
+func (g *setMethod) Exec(ctx FunctionContext) (any, error) {
+	v, err := g.fn.Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := gabs.Wrap(v)
+	if _, ok := g.value.(value.Delete); ok {
+		err = result.Delete(g.path...)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		_, err = result.Set(g.value, g.path...)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result.Data(), nil
+}
+
+func (g *setMethod) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPath) {
+	ctx, fnPaths := g.fn.QueryTargets(ctx)
+
+	basePaths := ctx.Value()
+	paths := make([]TargetPath, len(basePaths))
+	for i, p := range basePaths {
+		paths[i] = p
+		paths[i].Path = append(p.Path, g.path...)
+	}
+	ctx = ctx.WithValues(paths)
+
+	return ctx, append(fnPaths, paths...)
+}
+
+// NewSetMethod creates a new set method.
+func NewSetMethod(target Function, pathStr string, value any) (Function, error) {
+	return &setMethod{
+		fn:    target,
+		path:  gabs.DotPathToSlice(pathStr),
+		value: value,
+	}, nil
+}
+
+func setMethodCtor(target Function, args *ParsedParams) (Function, error) {
+	pathStr, err := args.FieldString("path")
+	if err != nil {
+		return nil, err
+	}
+	value, err := args.Field("value")
+	if err != nil {
+		return nil, err
+	}
+	return NewSetMethod(target, pathStr, value)
 }
 
 //------------------------------------------------------------------------------

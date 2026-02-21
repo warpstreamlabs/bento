@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var linebreakStr = `foo
@@ -2328,6 +2329,126 @@ func TestNewIndexMethod(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestNewSetMethod(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   any
+		path     string
+		value    any
+		expected any
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name:     "set simple field",
+			target:   map[string]any{"a": 1},
+			path:     "b",
+			value:    2,
+			expected: map[string]any{"a": 1, "b": 2},
+		},
+		{
+			name:     "set nested field",
+			target:   map[string]any{"a": map[string]any{"b": 1}},
+			path:     "a.c",
+			value:    3,
+			expected: map[string]any{"a": map[string]any{"b": 1, "c": 3}},
+		},
+		{
+			name:     "set deeply nested field",
+			target:   map[string]any{"a": map[string]any{"b": map[string]any{"c": 1}}},
+			path:     "a.b.d",
+			value:    4,
+			expected: map[string]any{"a": map[string]any{"b": map[string]any{"c": 1, "d": 4}}},
+		},
+		{
+			name:     "set array element",
+			target:   map[string]any{"a": []any{1, 2, 3}},
+			path:     "a.1",
+			value:    5,
+			expected: map[string]any{"a": []any{1, 5, 3}},
+		},
+		{
+			name:     "set field in array of objects",
+			target:   map[string]any{"a": []any{map[string]any{"b": 1}}},
+			path:     "a.0.c",
+			value:    2,
+			expected: map[string]any{"a": []any{map[string]any{"b": 1, "c": 2}}},
+		},
+		{
+			name:     "set string value",
+			target:   map[string]any{"a": "hello"},
+			path:     "b",
+			value:    "world",
+			expected: map[string]any{"a": "hello", "b": "world"},
+		},
+		{
+			name:     "set boolean value",
+			target:   map[string]any{"a": true},
+			path:     "b",
+			value:    false,
+			expected: map[string]any{"a": true, "b": false},
+		},
+		{
+			name:     "set number value",
+			target:   map[string]any{"a": 10},
+			path:     "b",
+			value:    20.5,
+			expected: map[string]any{"a": 10, "b": 20.5},
+		},
+		{
+			name:     "set null value",
+			target:   map[string]any{"a": "hello"},
+			path:     "b",
+			value:    nil,
+			expected: map[string]any{"a": "hello", "b": nil},
+		},
+		{
+			name:     "set complex nested structure",
+			target:   map[string]any{"a": map[string]any{"b": []any{1, 2}}},
+			path:     "a.b.1",
+			value:    5,
+			expected: map[string]any{"a": map[string]any{"b": []any{1, 5}}},
+		},
+		{
+			name:    "set invalid path",
+			target:  map[string]any{"a": "hello"},
+			path:    "a.b.c.d",
+			value:   "value",
+			wantErr: true,
+			errMsg:  "encountered value collision whilst building path",
+		},
+		{
+			name:     "set invalid path",
+			target:   map[string]any{"a": "hello", "b": "world"},
+			path:     "b",
+			value:    value.Delete(nil),
+			expected: map[string]any{"a": "hello"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			targetFunc := NewFieldFunction("")
+
+			setMethod, err := NewSetMethod(targetFunc, tt.path, tt.value)
+			require.NoError(t, err)
+
+			result, err := setMethod.Exec(FunctionContext{}.WithValue(tt.target))
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+
 			assert.Equal(t, tt.expected, result)
 		})
 	}
