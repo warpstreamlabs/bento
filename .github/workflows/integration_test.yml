@@ -3,40 +3,153 @@ name: Integration Test
 on:
   schedule:
     - cron: '0 1 * * *' # run at 1 AM UTC
-
   # Allow to trigger the integration tests manually
   workflow_dispatch:
+  # Allow this workflow to be called from other workflows
+  workflow_call:
+
 
 jobs:
-  integration-test:
+  deps:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
+    name: Check dependencies
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: 0
     steps:
-
     - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@v1.3.1
-      with:
-        tool-cache: false
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        docker-images: true
-        swap-storage: true
+      uses: actions/checkout@v5
 
     - name: Install Go
       uses: actions/setup-go@v6
       with:
         go-version: 1.25.x
         check-latest: true
+        cache: true
 
     - name: Deps
       run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
 
-    - name: Integration Test
-      run: go test -run "^Test.*Integration.*$" -timeout 60m ./...
+  prepare-tests:
+    name: Determine affected tests
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
+    needs: [deps]
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.affected_tests.outputs.packages }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: ${{ github.ref_name == 'main' && 1 || 0 }}
+
+    - name: Determine Affected Tests
+      id: affected_tests
+      # If running on 'main', ensure we run all int tests.
+      # Otherwise, determine which packages are affected and only run tests for those.
+      run: |
+        if [ "${{ github.ref_name }}" == "main" ]; then
+          echo "packages=./..." >> $GITHUB_OUTPUT
+          echo "Running all tests."
+        else
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          # HACK: gets affected directory names of modified files using some sed magic
+          affected_dirs=($(git diff --dirstat=files,0 "$BASE_SHA...$HEAD_SHA" | sed 's/^[^%]*% //' | tr '\n' ' '))
+          packages=$(find "${affected_dirs[@]}" -name "*_test.go" -exec dirname {} \; | sort -u | sed 's|^\./||' | sed 's|^|./|')
+          echo "packages=${packages:-./...}" >> $GITHUB_OUTPUT
+          echo "Running integration tests for services in the following locations: $packages"
+        fi
+
+  integration-test:
+    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
+    name: Integration Test - ${{ matrix.index }}/${{ matrix.parallel }}
+    needs: [deps, prepare-tests]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # split tests into 8 parallel runs based on test durations.
+        parallel: [8]
+        index: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      CGO_ENABLED: 0
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: ${{ github.ref_name == 'main' && 1 || 0 }}
+
+    - name: Install Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: 1.25.x
+        check-latest: true
+        cache: true
+
+    - name: Deps
+      run: make deps
+
+    - name: Install gotestsum
+      run: go install gotest.tools/gotestsum@latest
+
+    - name: Download JUnit Summary from Previous Workflow
+      id: download-artifact
+      uses: dawidd6/action-download-artifact@v6
+      continue-on-error: true
+      with:
+        workflow_conclusion: success
+        name: junit-integration-summary
+        if_no_artifact_found: warn
+
+    - name: Split integration tests
+      id: test_split
+      uses: hashicorp-forge/go-test-split-action@v2.0.0 
+      with:
+        index: ${{ matrix.index }}
+        total: ${{ matrix.parallel }}
+        junit-summary: ./junit-integration-summary.xml
+        packages: ${{ needs.prepare-tests.outputs.packages }}
+        working-directory: './internal/impl'
+        list: '^Test.*Integration.*$'
+
+    - name: Run Integration Test (Shard ${{ matrix.index }})
+      run: |
+        gotestsum --junitfile shard-summary.xml --format short-verbose -- -p 1 -run "${{ steps.test_split.outputs.run }}" -timeout 60m ./...
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: junit-integration-summary-${{ matrix.index }}
+        path: shard-summary.xml
+        retention-days: 1
+
+  # Since we're sharding integration test runs, we need a way to combine the results back 
+  # together again before being used to calculate the next split strategy.
+  integration-combine-summaries:
+    name: Combine Integration Test Reports
+    # if: ${{ !cancelled() && github.ref_name == 'main' }}
+    needs: [integration-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Install junit-report-merger
+        run: npm install -g junit-report-merger
+
+      - name: Merge reports
+        run: jrm ./junit-integration-summary.xml "junit-integration-summary-*/*.xml"
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-integration-summary
+          path: ./junit-integration-summary.xml
+          retention-days: 7
