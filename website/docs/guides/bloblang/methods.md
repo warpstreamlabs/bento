@@ -2649,13 +2649,13 @@ root = this.set("field", deleted())
 root = this.set("field", "foo").set("another_field", "data")
 
 # In:  {"bar":"value"}
-# Out: {"bar":"value","field":"foo", "another_field":"foo"}
+# Out: {"another_field": "data","bar":"value","field":"foo"}
 ```
 
 ```coffee
 root = this.set("arr.0", "foo")
 
-# In:  {"bar":"value", "arr": []}
+# In:  {"bar":"value", "arr": ["value"]}
 # Out: {"bar":"value", "arr": ["foo"]}
 ```
 
