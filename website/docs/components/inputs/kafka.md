@@ -91,6 +91,7 @@ input:
       rebalance_timeout: 60s
     fetch_buffer_cap: 256
     multi_header: false
+    debug: false
     batching:
       count: 0
       byte_size: 0
@@ -659,6 +660,14 @@ Default: `256`
 ### `multi_header`
 
 Decode headers into lists to allow handling of multiple values with the same key
+
+
+Type: `bool`  
+Default: `false`  
+
+### `debug`
+
+Enable sarama's internal protocol logging (connection, rebalances, fetches, SASL, etc.). Log lines are forwarded to the Bento logger at debug level.
 
 
 Type: `bool`  
