@@ -3,5 +3,6 @@
 package sql
 
 import (
-	_ "github.com/marcboeker/go-duckdb/v2"
+	// Import only for supported pre-built binaries.
+	_ "github.com/duckdb/duckdb-go/v2"
 )
