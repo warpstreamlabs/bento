@@ -2334,64 +2334,105 @@ func TestNewIndexMethod(t *testing.T) {
 }
 
 func TestNewSetMethod(t *testing.T) {
-	literalFn := func(val any) Function {
-		return NewLiteralFunction("", val)
-	}
-
 	tests := []struct {
-		name    string
-		target  any
-		path    string
-		value   any
-		wantErr bool
-		errMsg  string
+		name     string
+		target   any
+		path     string
+		value    any
+		expected any
+		wantErr  bool
+		errMsg   string
 	}{
-		// arrays
 		{
-			name:   "array positive index",
-			target: []any{"a", "b", "c"},
-			path:   "0",
-			value:  "a",
+			name:     "set simple field",
+			target:   map[string]any{"a": 1},
+			path:     "b",
+			value:    2,
+			expected: map[string]any{"a": 1, "b": 2},
 		},
 		{
-			name:    "array negative index",
-			target:  []any{"a", "b", "c"},
-			path:    "-1",
+			name:     "set nested field",
+			target:   map[string]any{"a": map[string]any{"b": 1}},
+			path:     "a.c",
+			value:    3,
+			expected: map[string]any{"a": map[string]any{"b": 1, "c": 3}},
+		},
+		{
+			name:     "set deeply nested field",
+			target:   map[string]any{"a": map[string]any{"b": map[string]any{"c": 1}}},
+			path:     "a.b.d",
+			value:    4,
+			expected: map[string]any{"a": map[string]any{"b": map[string]any{"c": 1, "d": 4}}},
+		},
+		{
+			name:     "set array element",
+			target:   map[string]any{"a": []any{1, 2, 3}},
+			path:     "a.1",
+			value:    5,
+			expected: map[string]any{"a": []any{1, 5, 3}},
+		},
+		{
+			name:     "set field in array of objects",
+			target:   map[string]any{"a": []any{map[string]any{"b": 1}}},
+			path:     "a.0.c",
+			value:    2,
+			expected: map[string]any{"a": []any{map[string]any{"b": 1, "c": 2}}},
+		},
+		{
+			name:     "set string value",
+			target:   map[string]any{"a": "hello"},
+			path:     "b",
+			value:    "world",
+			expected: map[string]any{"a": "hello", "b": "world"},
+		},
+		{
+			name:     "set boolean value",
+			target:   map[string]any{"a": true},
+			path:     "b",
+			value:    false,
+			expected: map[string]any{"a": true, "b": false},
+		},
+		{
+			name:     "set number value",
+			target:   map[string]any{"a": 10},
+			path:     "b",
+			value:    20.5,
+			expected: map[string]any{"a": 10, "b": 20.5},
+		},
+		{
+			name:     "set null value",
+			target:   map[string]any{"a": "hello"},
+			path:     "b",
+			value:    nil,
+			expected: map[string]any{"a": "hello", "b": nil},
+		},
+		{
+			name:     "set complex nested structure",
+			target:   map[string]any{"a": map[string]any{"b": []any{1, 2}}},
+			path:     "a.b.1",
+			value:    5,
+			expected: map[string]any{"a": map[string]any{"b": []any{1, 5}}},
+		},
+		{
+			name:    "set invalid path",
+			target:  map[string]any{"a": "hello"},
+			path:    "a.b.c.d",
+			value:   "value",
 			wantErr: true,
-			errMsg:  "failed to resolve path segment '0': found array but index '-1' is invalid",
-		},
-		{
-			name:    "array index out of bounds",
-			target:  []any{"a", "b", "c"},
-			path:    "5",
-			wantErr: true,
-			errMsg:  `failed to resolve path segment '0': found array but index '5' exceeded target array size of '3'`,
-		},
-		// objects
-		{
-			name:   "object a key",
-			target: map[string]any{"a": "a", "b": "b", "c": "c"},
-			path:   "a",
-			value:  "a",
-		},
-		{
-			name:   "object new key",
-			target: map[string]any{"a": "a", "b": "b", "c": "c"},
-			path:   "d",
-			value:  "d",
+			errMsg:  "encountered value collision whilst building path",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			targetFn := literalFn(tt.target)
+			t.Parallel()
 
-			method, err := NewSetMethod(targetFn, tt.path, tt.value)
+			targetFunc := NewFieldFunction("")
+
+			setMethod, err := NewSetMethod(targetFunc, tt.path, tt.value)
 			require.NoError(t, err)
 
-			ctx := FunctionContext{}
-			result, err := method.Exec(ctx)
-
+			result, err := setMethod.Exec(FunctionContext{}.WithValue(tt.target))
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -2400,10 +2441,7 @@ func TestNewSetMethod(t *testing.T) {
 
 			require.NoError(t, err)
 
-			resultGabs, ok := result.(*gabs.Container)
-			if assert.True(t, ok, "underlying result not a gabs Container") {
-				assert.Equal(t, tt.value, resultGabs.Data())
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
