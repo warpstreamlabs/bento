@@ -392,20 +392,9 @@ func (g *setMethod) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPa
 
 // NewSetMethod creates a new set method.
 func NewSetMethod(target Function, pathStr string, value any) (Function, error) {
-	path := gabs.DotPathToSlice(pathStr)
-	switch t := target.(type) {
-	case *setMethod:
-		newPath := append([]string{}, t.path...)
-		newPath = append(newPath, path...)
-		return &setMethod{
-			fn:    t.fn,
-			path:  newPath,
-			value: value,
-		}, nil
-	}
 	return &setMethod{
 		fn:    target,
-		path:  path,
+		path:  gabs.DotPathToSlice(pathStr),
 		value: value,
 	}, nil
 }
