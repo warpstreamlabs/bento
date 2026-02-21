@@ -338,11 +338,9 @@ var _ = registerMethod(
 	).InCategory(
 		MethodCategoryObjectAndArray, "",
 		NewExampleSpec("",
-			`root.result = this.foo.set(this.target)`,
-			`{"foo":{"bar":"from bar","baz":"from baz"},"target":"bar"}`,
-			`{"result":"from bar"}`,
-			`{"foo":{"bar":"from bar","baz":"from baz"},"target":"baz"}`,
-			`{"result":"from baz"}`,
+			`root = this.set("nested.field", "foo")`,
+			`{"bar":"value"}`,
+			`{"bar":"value","nested":{"field":"foo"}}`,
 		),
 	).Param(ParamString("path", "A [dot path][field_paths] identifying a field to write.")).Param(ParamAny("value", "The value to write.")),
 	setMethodCtor,
@@ -363,7 +361,12 @@ func (g *setMethod) Exec(ctx FunctionContext) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return gabs.Wrap(v).Set(g.value, g.path...)
+	result := gabs.Wrap(v)
+	_, err = result.Set(g.value, g.path...)
+	if err != nil {
+		return nil, err
+	}
+	return result.Data(), nil
 }
 
 func (g *setMethod) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPath) {
