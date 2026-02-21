@@ -37,7 +37,23 @@ const (
 	kiFieldRebalancePeriod = "rebalance_period"
 	kiFieldStartFromOldest = "start_from_oldest"
 	kiFieldBatching        = "batching"
+	kiFieldEnhancedFanOut  = "enhanced_fan_out"
+
+	// Enhanced Fan Out Fields
+	kiEFOFieldEnabled                 = "enabled"
+	kiEFOFieldConsumerName            = "consumer_name"
+	kiEFOFieldConsumerARN             = "consumer_arn"
+	kiEFOFieldRecordBufferCap         = "record_buffer_cap"
+	kiEFOFieldMaxPendingRecordsGlobal = "max_pending_records"
 )
+
+type kiEFOConfig struct {
+	Enabled                 bool
+	ConsumerName            string
+	ConsumerARN             string
+	RecordBufferCap         int
+	MaxPendingRecordsGlobal int
+}
 
 type kiConfig struct {
 	Streams         []string
@@ -47,6 +63,7 @@ type kiConfig struct {
 	LeasePeriod     string
 	RebalancePeriod string
 	StartFromOldest bool
+	EnhancedFanOut  *kiEFOConfig
 }
 
 func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, err error) {
@@ -72,6 +89,34 @@ func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, e
 	}
 	if conf.StartFromOldest, err = pConf.FieldBool(kiFieldStartFromOldest); err != nil {
 		return
+	}
+	if pConf.Contains(kiFieldEnhancedFanOut) {
+		efoConf := &kiEFOConfig{}
+		efoNs := pConf.Namespace(kiFieldEnhancedFanOut)
+		if efoConf.Enabled, err = efoNs.FieldBool(kiEFOFieldEnabled); err != nil {
+			return
+		}
+		if efoConf.ConsumerName, err = efoNs.FieldString(kiEFOFieldConsumerName); err != nil {
+			return
+		}
+		if efoConf.ConsumerARN, err = efoNs.FieldString(kiEFOFieldConsumerARN); err != nil {
+			return
+		}
+		if efoConf.RecordBufferCap, err = efoNs.FieldInt(kiEFOFieldRecordBufferCap); err != nil {
+			return
+		}
+		if efoConf.RecordBufferCap < 0 {
+			err = errors.New("enhanced_fan_out.record_buffer_cap must be at least 0")
+			return
+		}
+		if efoConf.MaxPendingRecordsGlobal, err = efoNs.FieldInt(kiEFOFieldMaxPendingRecordsGlobal); err != nil {
+			return
+		}
+		if efoConf.MaxPendingRecordsGlobal < 1 {
+			err = errors.New("enhanced_fan_out.max_pending_records must be at least 1")
+			return
+		}
+		conf.EnhancedFanOut = efoConf
 	}
 	return
 }
@@ -141,9 +186,35 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 		service.NewBoolField(kiFieldStartFromOldest).
 			Description("Whether to consume from the oldest message when a sequence does not yet exist for the stream.").
 			Default(true),
+		service.NewObjectField(kiFieldEnhancedFanOut,
+			service.NewBoolField(kiEFOFieldEnabled).
+				Description("Enable Enhanced Fan Out mode for push-based streaming with dedicated throughput.").
+				Default(false),
+			service.NewStringField(kiEFOFieldConsumerName).
+				Description("Consumer name for EFO registration. Auto-generated if empty: bento-clientID.").
+				Default(""),
+			service.NewStringField(kiEFOFieldConsumerARN).
+				Description("Existing consumer ARN to use. If provided, skips registration.").
+				Default("").
+				Advanced(),
+			service.NewIntField(kiEFOFieldRecordBufferCap).
+				Description("Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 0 for unbuffered channel (minimal memory footprint).").
+				Default(0).
+				Advanced(),
+			service.NewIntField(kiEFOFieldMaxPendingRecordsGlobal).
+				Description("Maximum total number of records to buffer across all shards before applying backpressure to Kinesis subscriptions. This provides a global memory bound regardless of shard count. Higher values improve throughput by allowing shards to continue receiving data while processing, but increase memory usage. Total memory usage is approximately max_pending_records × average_record_size.").
+				Default(50000).
+				Advanced(),
+		).
+			Description("Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.").
+			Optional().
+			Advanced(),
 	).
 		Fields(config.SessionFields()...).
-		Field(service.NewBatchPolicyField(kiFieldBatching))
+		Field(service.NewBatchPolicyField(kiFieldBatching)).
+		LintRule(`root = match {
+this.` + kiFieldEnhancedFanOut + `.` + kiEFOFieldConsumerName + ` != "" && this.` + kiFieldEnhancedFanOut + `.` + kiEFOFieldConsumerARN + ` != "" => ["cannot specify both ` + kiEFOFieldConsumerName + ` and ` + kiEFOFieldConsumerARN + ` in ` + kiFieldEnhancedFanOut + ` config"]
+}`)
 	return spec
 }
 
@@ -174,6 +245,7 @@ type streamInfo struct {
 	explicitShards []string
 	id             string // Either a name or arn, extracted from config and used for balancing shards
 	arn            string
+	efoManager     *kinesisEFOManager // Enhanced Fan Out manager (if EFO is enabled)
 }
 
 type kinesisReader struct {
@@ -187,8 +259,10 @@ type kinesisReader struct {
 
 	boffPool sync.Pool
 
-	svc          *kinesis.Client
-	checkpointer *awsKinesisCheckpointer
+	svc               *kinesis.Client
+	checkpointer      *awsKinesisCheckpointer
+	efoEnabled        bool
+	globalPendingPool *globalPendingPool
 
 	streams []*streamInfo
 
@@ -319,6 +393,14 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 	if k.rebalancePeriod, err = time.ParseDuration(k.conf.RebalancePeriod); err != nil {
 		return nil, fmt.Errorf("failed to parse rebalance period string: %v", err)
 	}
+
+	// Check if Enhanced Fan Out is enabled
+	if k.conf.EnhancedFanOut != nil && k.conf.EnhancedFanOut.Enabled {
+		k.efoEnabled = true
+		k.globalPendingPool = newGlobalPendingPool(k.conf.EnhancedFanOut.MaxPendingRecordsGlobal)
+		k.log.Debugf("Enhanced Fan Out enabled with global pending pool max: %d", k.conf.EnhancedFanOut.MaxPendingRecordsGlobal)
+	}
+
 	return &k, nil
 }
 
@@ -657,9 +739,9 @@ func (k *kinesisReader) runBalancedShards() {
 	for {
 		for _, info := range k.streams {
 			allShards, err := collectShards(k.ctx, info.arn, k.svc)
-			var clientClaims map[string][]awsKinesisClientClaim
+			var checkpointData *awsKinesisCheckpointData
 			if err == nil {
-				clientClaims, err = k.checkpointer.AllClaims(k.ctx, info.id)
+				checkpointData, err = k.checkpointer.GetCheckpointsAndClaims(k.ctx, info.id)
 			}
 			if err != nil {
 				if k.ctx.Err() != nil {
@@ -669,11 +751,18 @@ func (k *kinesisReader) runBalancedShards() {
 				continue
 			}
 
+			clientClaims := checkpointData.ClientClaims
+			shardsWithCheckpoints := checkpointData.ShardsWithCheckpoints
+
 			totalShards := len(allShards)
 			unclaimedShards := make(map[string]string, totalShards)
 			for _, s := range allShards {
-				if !isShardFinished(s) {
-					unclaimedShards[*s.ShardId] = ""
+				// Include shard if:
+				// 1. It's not finished (still open), OR
+				// 2. It's finished but has a checkpoint (meaning it hasn't been fully consumed yet)
+				shardID := *s.ShardId
+				if !isShardFinished(s) || shardsWithCheckpoints[shardID] {
+					unclaimedShards[shardID] = ""
 				}
 			}
 			for clientID, claims := range clientClaims {
@@ -700,7 +789,12 @@ func (k *kinesisReader) runBalancedShards() {
 						continue
 					}
 					wg.Add(1)
-					if err = k.runConsumer(&wg, *info, shardID, sequence); err != nil {
+					if k.efoEnabled {
+						err = k.runEFOConsumer(&wg, *info, shardID, sequence)
+					} else {
+						err = k.runConsumer(&wg, *info, shardID, sequence)
+					}
+					if err != nil {
 						k.log.Errorf("Failed to start consumer: %v\n", err)
 					}
 				}
@@ -749,7 +843,12 @@ func (k *kinesisReader) runBalancedShards() {
 						info.id, randomShard, clientID, k.clientID,
 					)
 					wg.Add(1)
-					if err = k.runConsumer(&wg, *info, randomShard, sequence); err != nil {
+					if k.efoEnabled {
+						err = k.runEFOConsumer(&wg, *info, randomShard, sequence)
+					} else {
+						err = k.runConsumer(&wg, *info, randomShard, sequence)
+					}
+					if err != nil {
 						k.log.Errorf("Failed to start consumer: %v\n", err)
 					} else {
 						// If we successfully stole the shard then that's enough
@@ -790,7 +889,11 @@ func (k *kinesisReader) runExplicitShards() {
 				sequence, err := k.checkpointer.Claim(k.ctx, id, shardID, "")
 				if err == nil {
 					wg.Add(1)
-					err = k.runConsumer(&wg, info, shardID, sequence)
+					if k.efoEnabled {
+						err = k.runEFOConsumer(&wg, info, shardID, sequence)
+					} else {
+						err = k.runConsumer(&wg, info, shardID, sequence)
+					}
 				}
 				if err != nil {
 					if k.ctx.Err() != nil {
@@ -866,6 +969,26 @@ func (k *kinesisReader) Connect(ctx context.Context) error {
 
 	if err = k.waitUntilStreamsExists(ctx); err != nil {
 		return err
+	}
+
+	// Initialize Enhanced Fan Out if enabled
+	if k.efoEnabled {
+		for _, stream := range k.streams {
+			// Create EFO manager for this stream
+			efoMgr, err := newKinesisEFOManager(k.conf.EnhancedFanOut, stream.arn, k.clientID, k.svc, k.log)
+			if err != nil {
+				return fmt.Errorf("failed to create EFO manager for stream %s: %w", stream.id, err)
+			}
+
+			// Register consumer and wait for ACTIVE status
+			consumerARN, err := efoMgr.ensureConsumerRegistered(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to register EFO consumer for stream %s: %w", stream.id, err)
+			}
+
+			stream.efoManager = efoMgr
+			k.log.Debugf("Enhanced Fan Out consumer registered for stream %s with ARN: %s", stream.id, consumerARN)
+		}
 	}
 
 	if len(k.streams[0].explicitShards) > 0 {
