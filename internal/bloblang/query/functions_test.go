@@ -1,6 +1,7 @@
 package query
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 func TestFunctions(t *testing.T) {
@@ -490,4 +492,100 @@ func TestRandomIntWithinRange(t *testing.T) {
 	// Create a new random_int function with a max that will overflow
 	_, err = InitFunctionHelper("random_int", tsFn, 0, math.MaxInt64)
 	require.Error(t, err)
+}
+
+func TestErrorFunctions(t *testing.T) {
+	var (
+		stdErr         = errors.New("sad")
+		descriptiveErr = value.NewDetailedError(stdErr, "foo_type", "foo_label", "foo.bar")
+	)
+
+	tests := []struct {
+		name string
+		fn   string
+
+		inErr error
+
+		expects any
+	}{
+		// No error in batch
+		{
+			name: "no error with error()",
+			fn:   "error",
+		},
+		{
+			name: "no error with error_source_path()",
+			fn:   "error_source_path",
+		},
+		{
+			name: "no error with error_source_label()",
+			fn:   "error_source_label",
+		},
+		{
+			name: "no error with error_source_type()",
+			fn:   "error_source_type",
+		},
+		// Non-descriptive error returned
+		{
+			name:    "non-descriptive error returned",
+			fn:      "error",
+			inErr:   stdErr,
+			expects: "sad",
+		},
+		{
+			name:  "non-descriptive error with error_source_label()",
+			fn:    "error_source_label",
+			inErr: stdErr,
+		},
+		{
+			name:  "non-descriptive error with error_source_path()",
+			fn:    "error_source_path",
+			inErr: stdErr,
+		},
+		{
+			name:  "non-descriptive error with error_source_type()",
+			fn:    "error_source_type",
+			inErr: stdErr,
+		},
+		// Descriptive error returned
+		{
+			name:    "error returned",
+			fn:      "error",
+			inErr:   descriptiveErr,
+			expects: "sad",
+		},
+		{
+			name:    "descriptive error with error_source_label()",
+			fn:      "error_source_label",
+			inErr:   descriptiveErr,
+			expects: "foo_label",
+		},
+		{
+			name:    "non-descriptive error with error_source_path()",
+			fn:      "error_source_path",
+			inErr:   descriptiveErr,
+			expects: "foo.bar",
+		},
+		{
+			name:    "non-descriptive error with error_source_type()",
+			fn:      "error_source_type",
+			inErr:   descriptiveErr,
+			expects: "foo_type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e, err := InitFunctionHelper(tt.fn)
+			require.NoError(t, err)
+
+			batch := message.QuickBatch([][]byte{[]byte(`null`)})
+			batch[0].ErrorSet(tt.inErr)
+
+			res, err := e.Exec(FunctionContext{MsgBatch: batch})
+			require.NoError(t, err)
+
+			require.Equal(t, tt.expects, res)
+		})
+	}
 }
