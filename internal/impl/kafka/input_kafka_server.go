@@ -19,6 +19,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
+
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -138,11 +139,11 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Advanced().
 			Default("")).
 		Field(service.NewStringAnnotatedEnumField(ksfFieldMTLSAuth, map[string]string{
-			"none":                "Server will not request a client certificate",
-			"request":             "Server will request a client certificate but doesn't require the client to send one",
-			"require":             "Server will require any client certificate (doesn't verify it)",
-			"verify_if_given":     "Server will request a client certificate and verify it if provided",
-			"require_and_verify":  "Server requires a client certificate and will verify it against the mtls_cas_files",
+			"none":               "Server will not request a client certificate",
+			"request":            "Server will request a client certificate but doesn't require the client to send one",
+			"require":            "Server will require any client certificate (doesn't verify it)",
+			"verify_if_given":    "Server will request a client certificate and verify it if provided",
+			"require_and_verify": "Server requires a client certificate and will verify it against the mtls_cas_files",
 		}).
 			Description("Sets the policy the server will follow for mTLS client authentication. Only used when TLS is enabled.").
 			Default("").

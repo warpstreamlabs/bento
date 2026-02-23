@@ -776,7 +776,7 @@ address: "127.0.0.1:19099"
 
 	// Serialize the request
 	var requestBody []byte
-	requestBody = kbin.AppendInt16(requestBody, produceReq.Key())       // api key
+	requestBody = kbin.AppendInt16(requestBody, produceReq.Key())        // api key
 	requestBody = kbin.AppendInt16(requestBody, produceReq.GetVersion()) // api version
 	requestBody = kbin.AppendInt32(requestBody, 1)                       // correlation ID
 	requestBody = kbin.AppendInt16(requestBody, -1)                      // null client ID
@@ -1866,7 +1866,7 @@ func TestKafkaServerInputMTLSConfig(t *testing.T) {
 	certFile := tmpDir + "/test-cert.pem"
 	keyFile := tmpDir + "/test-key.pem"
 	caFile := tmpDir + "/test-ca.pem"
-	
+
 	// Generate real certificates for validation tests
 	// Create CA key and certificate
 	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -2107,15 +2107,15 @@ func TestKafkaServerInputMTLSIntegration(t *testing.T) {
 
 	// Write certificates to temp files
 	tmpDir := t.TempDir()
-	
+
 	serverCertFile := tmpDir + "/server-cert.pem"
 	err = os.WriteFile(serverCertFile, serverCertPEM, 0600)
 	require.NoError(t, err)
-	
+
 	serverKeyFile := tmpDir + "/server-key.pem"
 	err = os.WriteFile(serverKeyFile, serverKeyPEM, 0600)
 	require.NoError(t, err)
-	
+
 	clientCAFile := tmpDir + "/client-ca.pem"
 	err = os.WriteFile(clientCAFile, caCertPEM, 0600)
 	require.NoError(t, err)
@@ -2237,4 +2237,3 @@ mtls_cas_files:
 		t.Logf("Expected TLS error received: %v", results[0].Err)
 	})
 }
-
