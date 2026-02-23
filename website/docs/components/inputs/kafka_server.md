@@ -20,7 +20,7 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Runs a Kafka-protocol-compatible server that accepts produce requests from Kafka producers.
 
-Introduced in version 1.15.0.
+Introduced in version 1.16.0.
 
 
 <Tabs defaultValue="common" values={[

@@ -94,7 +94,7 @@ func saslServerField() *service.ConfigField {
 
 func kafkaServerInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Version("1.15.0").
+		Version("1.16.0").
 		Beta().
 		Categories("Services").
 		Summary("Runs a Kafka-protocol-compatible server that accepts produce requests from Kafka producers.").
