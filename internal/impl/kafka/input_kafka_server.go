@@ -114,6 +114,8 @@ This input adds the following metadata fields to each message:
 - kafka_server_timestamp
 - kafka_server_timestamp_unix
 - kafka_server_client_address
+- kafka_server_offset
+- kafka_server_tombstone_message
 `+"```"+`
 
 Message headers from Kafka records are also added as metadata fields.
