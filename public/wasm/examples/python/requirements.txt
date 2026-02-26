@@ -1,0 +1,9 @@
+cffi==2.0.0
+extism==1.0.4
+extism-sys==1.13.0
+grpcio==1.78.1
+grpcio-tools==1.78.1
+protobuf==6.33.5
+pycparser==3.0
+setuptools==82.0.0
+typing_extensions==4.15.0
