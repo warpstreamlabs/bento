@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,21 +25,43 @@ import (
 
 const (
 	// SQS Output Fields
-	sqsoFieldURL             = "url"
-	sqsoFieldMessageGroupID  = "message_group_id"
-	sqsoFieldMessageDedupeID = "message_deduplication_id"
-	sqsoFieldDelaySeconds    = "delay_seconds"
-	sqsoFieldMetadata        = "metadata"
-	sqsoFieldBatching        = "batching"
+	sqsoFieldURL                     = "url"
+	sqsoFieldMessageGroupID          = "message_group_id"
+	sqsoFieldMessageDedupeID         = "message_deduplication_id"
+	sqsoFieldDelaySeconds            = "delay_seconds"
+	sqsoFieldMetadata                = "metadata"
+	sqsoFieldBatching                = "batching"
+	sqsoFieldRemoveInvalidCodePoints = "remove_invalid_codepoints"
 
 	sqsMaxRecordsCount = 10
 )
 
+// This is from here:
+var sQSCodepointMap = func(r rune) rune {
+	switch {
+	case r == 0x0009:
+		return r
+	case r == 0x000A:
+		return r
+	case r == 0x000D:
+		return r
+	case r >= 0x0020 && r <= 0xD7FF:
+		return r
+	case r >= 0xE000 && r <= 0xFFFD:
+		return r
+	case r >= 0x10000 && r <= 0x10FFFF:
+		return r
+	default:
+		return -1
+	}
+}
+
 type sqsoConfig struct {
-	URL                    string
-	MessageGroupID         *service.InterpolatedString
-	MessageDeduplicationID *service.InterpolatedString
-	DelaySeconds           *service.InterpolatedString
+	URL                     string
+	MessageGroupID          *service.InterpolatedString
+	MessageDeduplicationID  *service.InterpolatedString
+	DelaySeconds            *service.InterpolatedString
+	RemoveInvalidCodepoints bool
 
 	Metadata    *service.MetadataExcludeFilter
 	aconf       aws.Config
@@ -63,6 +86,9 @@ func sqsoConfigFromParsed(pConf *service.ParsedConfig) (conf sqsoConfig, err err
 		if conf.DelaySeconds, err = pConf.FieldInterpolatedString(sqsoFieldDelaySeconds); err != nil {
 			return
 		}
+	}
+	if conf.RemoveInvalidCodepoints, err = pConf.FieldBool(sqsoFieldRemoveInvalidCodePoints); err != nil {
+		return
 	}
 	if conf.Metadata, err = pConf.FieldMetadataExcludeFilter(sqsoFieldMetadata); err != nil {
 		return
@@ -101,6 +127,9 @@ By default Bento will use a shared credentials file when connecting to AWS servi
 			service.NewInterpolatedStringField(sqsoFieldDelaySeconds).
 				Description("An optional delay time in seconds for message. Value between 0 and 900").
 				Optional(),
+			service.NewBoolField(sqsoFieldRemoveInvalidCodePoints).
+				Description("TODO").
+				Default(false),
 			service.NewOutputMaxInFlightField().
 				Description("The maximum number of parallel message batches to have in flight at any given time."),
 			service.NewMetadataExcludeFilterField(snsoFieldMetadata).
@@ -237,6 +266,17 @@ func (a *sqsWriter) getSQSAttributes(batch service.MessageBatch, i int) (sqsAttr
 	msgBytes, err := msg.AsBytes()
 	if err != nil {
 		return sqsAttributes{}, err
+	}
+
+	if a.conf.RemoveInvalidCodepoints {
+		msgBytes = bytes.Map(sQSCodepointMap, msgBytes)
+
+		for k, v := range values {
+			if v.StringValue != nil {
+				v.StringValue = aws.String(strings.Map(sQSCodepointMap, *v.StringValue))
+				values[k] = v
+			}
+		}
 	}
 
 	return sqsAttributes{
