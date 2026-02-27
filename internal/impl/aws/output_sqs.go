@@ -36,7 +36,9 @@ const (
 	sqsMaxRecordsCount = 10
 )
 
-// This is from here:
+// Mapping to ensure that the messages doesn't contain any unicode message outside
+// of the set: #x9 | #xA | #xD | #x20 to #xD7FF | #xE000 to #xFFFD | #x10000 to #x10FFFF
+// as per SendMessage docs: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html
 var sQSCodepointMap = func(r rune) rune {
 	switch {
 	case r == 0x0009:
