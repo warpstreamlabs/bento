@@ -36,6 +36,7 @@ output:
     message_group_id: "" # No default (optional)
     message_deduplication_id: "" # No default (optional)
     delay_seconds: "" # No default (optional)
+    remove_invalid_codepoints: false
     max_in_flight: 64
     metadata:
       exclude_prefixes: []
@@ -59,6 +60,7 @@ output:
     message_group_id: "" # No default (optional)
     message_deduplication_id: "" # No default (optional)
     delay_seconds: "" # No default (optional)
+    remove_invalid_codepoints: false
     max_in_flight: 64
     metadata:
       exclude_prefixes: []
@@ -136,6 +138,18 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
+
+### `remove_invalid_codepoints`
+
+:::caution 
+			AWS SQS rejects any message containing unicode characters outside of the set: #x9 | #xA | #xD | #x20 to #xD7FF | #xE000 to #xFFFD | #x10000 to #x10FFFF
+:::
+			
+			Setting this field to true will remove any unicode characters outside of the allowed set from both the messsage and metadata values before attempting to send to SQS
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `max_in_flight`
 

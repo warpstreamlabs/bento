@@ -128,7 +128,11 @@ By default Bento will use a shared credentials file when connecting to AWS servi
 				Description("An optional delay time in seconds for message. Value between 0 and 900").
 				Optional(),
 			service.NewBoolField(sqsoFieldRemoveInvalidCodePoints).
-				Description("TODO").
+				Description(`:::caution 
+			AWS SQS rejects any message containing unicode characters outside of the set: #x9 | #xA | #xD | #x20 to #xD7FF | #xE000 to #xFFFD | #x10000 to #x10FFFF
+:::
+			
+			Setting this field to true will remove any unicode characters outside of the allowed set from both the messsage and metadata values before attempting to send to SQS`).
 				Default(false),
 			service.NewOutputMaxInFlightField().
 				Description("The maximum number of parallel message batches to have in flight at any given time."),
