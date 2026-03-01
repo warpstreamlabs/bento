@@ -1,5 +1,4 @@
 //go:build x_bento_extra
-// +build x_bento_extra
 
 package zeromq
 

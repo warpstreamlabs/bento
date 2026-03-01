@@ -192,7 +192,7 @@ compaction_interval: ""
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		key, value := fmt.Sprintf("key%v", i), []byte(fmt.Sprintf("foo%v", i))
+		key, value := fmt.Sprintf("key%v", i), fmt.Appendf(nil, "foo%v", i)
 
 		assert.NoError(b, c.Set(ctx, key, value, nil))
 
@@ -218,7 +218,7 @@ shards: 10
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		key, value := fmt.Sprintf("key%v", i), []byte(fmt.Sprintf("foo%v", i))
+		key, value := fmt.Sprintf("key%v", i), fmt.Appendf(nil, "foo%v", i)
 
 		assert.NoError(b, c.Set(ctx, key, value, nil))
 
@@ -244,7 +244,7 @@ shards: 10
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		key, value := fmt.Sprintf("key%v", i), []byte(fmt.Sprintf("foo%v", i))
+		key, value := fmt.Sprintf("key%v", i), fmt.Appendf(nil, "foo%v", i)
 
 		assert.NoError(b, c.Set(ctx, key, value, nil))
 

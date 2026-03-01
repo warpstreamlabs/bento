@@ -101,7 +101,7 @@ func zmqOutputNFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*
 	}
 
 	for _, u := range urlStrs {
-		for _, splitU := range strings.Split(u, ",") {
+		for splitU := range strings.SplitSeq(u, ",") {
 			if len(splitU) > 0 {
 				z.urls = append(z.urls, splitU)
 			}

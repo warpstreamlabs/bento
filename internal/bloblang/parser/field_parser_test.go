@@ -73,7 +73,6 @@ func TestFieldExpressionParserErrors(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			_, err := ParseField(GlobalContext(), test.input)
@@ -194,7 +193,6 @@ func TestFieldExpressions(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

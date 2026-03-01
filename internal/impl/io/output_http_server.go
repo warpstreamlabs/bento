@@ -526,8 +526,8 @@ func (h *httpServerOutput) streamHandler(w http.ResponseWriter, r *http.Request)
 			for i := 0; i < ts.Payload.Len(); i++ {
 				data := ts.Payload.Get(i).AsBytes()
 				// For SSE, each line needs "data: " prefix
-				lines := bytes.Split(data, []byte("\n"))
-				for _, line := range lines {
+				lines := bytes.SplitSeq(data, []byte("\n"))
+				for line := range lines {
 					// Write the data: prefix and the content
 					if _, err := fmt.Fprintf(w, "data: %s\n", line); err != nil {
 						h.mStreamError.Incr(1)

@@ -330,7 +330,6 @@ func TestOneOfErrors(t *testing.T) {
 	for name, test := range tests {
 		childParsers := []Func[any]{}
 		for _, err := range test.resultErrs {
-			err := err
 			childParsers = append(childParsers, func([]rune) Result[any] {
 				return Result[any]{
 					Err: err,
@@ -426,7 +425,6 @@ func TestBestMatch(t *testing.T) {
 	for name, test := range tests {
 		childParsers := []Func[any]{}
 		for _, res := range test.inputResults {
-			res := res
 			childParsers = append(childParsers, func([]rune) Result[any] {
 				return res
 			})
@@ -920,7 +918,6 @@ func TestMustBe(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		childParser := func([]rune) Result[any] {
 			return test.inputRes
 		}
@@ -979,7 +976,6 @@ func TestInterceptExpectedError(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		childParser := func([]rune) Result[any] {
 			return test.inputRes
 		}

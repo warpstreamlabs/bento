@@ -424,7 +424,7 @@ func rangeFunction(args *ParsedParams) (Function, error) {
 		return nil, fmt.Errorf("with positive step arg start (%v) must be < stop (%v)", start, stop)
 	}
 	r := make([]any, (stop-start)/step)
-	for i := 0; i < len(r); i++ {
+	for i := range r {
 		r[i] = start + step*int64(i)
 	}
 	return ClosureFunction("function range", func(ctx FunctionContext) (any, error) {

@@ -201,7 +201,7 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 	threads := runtime.NumCPU()
 	var wg sync.WaitGroup
 	wg.Add(threads)
-	for i := 0; i < threads; i++ {
+	for i := range threads {
 		go func(threadID int) {
 			defer wg.Done()
 			for j, target := range targets {

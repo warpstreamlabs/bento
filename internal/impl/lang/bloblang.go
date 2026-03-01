@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	frand "math/rand/v2"
+	"slices"
 	"strings"
 	"time"
 
@@ -333,10 +334,5 @@ func registerULID() error {
 }
 
 func hasMember(arr []string, member string) bool {
-	for _, v := range arr {
-		if v == member {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(arr, member)
 }

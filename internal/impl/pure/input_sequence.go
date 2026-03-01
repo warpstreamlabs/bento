@@ -359,7 +359,6 @@ func newSequenceInputFromParsed(conf *service.ParsedConfig, res *service.Resourc
 
 	targets := make([]sequenceTarget, 0, len(pInputConfs))
 	for i, c := range pInputConfs {
-		c := c
 		targets = append(targets, sequenceTarget{
 			index:  i,
 			config: c,
@@ -487,9 +486,7 @@ func (r *sequenceInput) dispatchJoinedMessage(wg *sync.WaitGroup, msg message.Ba
 	case <-r.shutSig.HardStopChan():
 		return
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case res := <-resChan:
@@ -511,7 +508,7 @@ func (r *sequenceInput) dispatchJoinedMessage(wg *sync.WaitGroup, msg message.Ba
 				return
 			}
 		}
-	}()
+	})
 }
 
 func (r *sequenceInput) loop() {

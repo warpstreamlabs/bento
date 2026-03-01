@@ -187,7 +187,7 @@ func (c *schemaRegistryClient) doRequest(ctx context.Context, verb, reqPath stri
 		return
 	}
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		var res *http.Response
 		if res, err = c.client.Do(req); err != nil {
 			c.mgr.Logger().Errorf("request failed: %v", err)
