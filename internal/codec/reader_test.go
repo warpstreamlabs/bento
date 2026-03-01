@@ -252,7 +252,6 @@ func testReaderSuite(t *testing.T, codec, path string, data []byte, expected ...
 		wg.Add(len(expected))
 
 		for _, exp := range expected {
-			exp := exp
 			p, ackFn, err := r.Next(context.Background())
 			require.NoError(t, err)
 			require.Len(t, p, 1)
@@ -829,7 +828,6 @@ func testMultipartReaderSuite(t *testing.T, codec, path string, data []byte, exp
 		wg.Add(len(expected))
 
 		for _, exp := range expected {
-			exp := exp
 			p, ackFn, err := r.Next(context.Background())
 			require.NoError(t, err)
 			require.Len(t, p, len(exp))

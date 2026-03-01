@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"maps"
 	"net/http"
 	"sort"
 )
@@ -39,9 +40,7 @@ func (n *Namespaced) WithStats(s Type) *Namespaced {
 // which are added to any prior labels.
 func (n *Namespaced) WithLabels(labels ...string) *Namespaced {
 	newLabels := map[string]string{}
-	for k, v := range n.labels {
-		newLabels[k] = v
-	}
+	maps.Copy(newLabels, n.labels)
 	for i := 0; i < len(labels)-1; i += 2 {
 		newLabels[labels[i]] = labels[i+1]
 	}

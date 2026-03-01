@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func newSwitch(t testing.TB, mockOutputs []*mock.OutputChanneled, confStr string
 	s, err := switchOutputFromParsed(pConf, mgr)
 	require.NoError(t, err)
 
-	for i := 0; i < len(mockOutputs); i++ {
+	for i := range mockOutputs {
 		close(s.outputTSChans[i])
 		s.outputs[i] = mockOutputs[i]
 		s.outputTSChans[i] = make(chan message.Transaction)
@@ -42,35 +43,36 @@ func TestSwitchNoConditions(t *testing.T) {
 
 	nOutputs, nMsgs := 10, 1000
 
-	confStr := `
-cases:`
+	var confStr strings.Builder
+	confStr.WriteString(`
+cases:`)
 
 	mockOutputs := []*mock.OutputChanneled{}
-	for i := 0; i < nOutputs; i++ {
-		confStr += `
+	for range nOutputs {
+		confStr.WriteString(`
   - output:
       drop: {}
     continue: true
-`
+`)
 		mockOutputs = append(mockOutputs, &mock.OutputChanneled{})
 	}
 
-	s := newSwitch(t, mockOutputs, confStr)
+	s := newSwitch(t, mockOutputs, confStr.String())
 
 	readChan := make(chan message.Transaction)
 	resChan := make(chan error, 1)
 
 	require.NoError(t, s.Consume(readChan))
 
-	for i := 0; i < nMsgs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):
 			t.Fatal("Timed out waiting for broker send")
 		}
 		resFnSlice := []func(context.Context, error) error{}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			select {
 			case ts := <-mockOutputs[j].TChan:
 				if !bytes.Equal(ts.Payload.Get(0).AsBytes(), content[0]) {
@@ -81,7 +83,7 @@ cases:`
 				t.Fatal("Timed out waiting for broker propagate")
 			}
 		}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			require.NoError(t, resFnSlice[j](ctx, nil))
 		}
 		select {
@@ -102,36 +104,37 @@ func TestSwitchNoRetries(t *testing.T) {
 
 	nOutputs, nMsgs := 10, 1000
 
-	confStr := `
+	var confStr strings.Builder
+	confStr.WriteString(`
 retry_until_success: false
-cases:`
+cases:`)
 
 	mockOutputs := []*mock.OutputChanneled{}
-	for i := 0; i < nOutputs; i++ {
-		confStr += `
+	for range nOutputs {
+		confStr.WriteString(`
   - output:
       drop: {}
     continue: true
-`
+`)
 		mockOutputs = append(mockOutputs, &mock.OutputChanneled{})
 	}
 
-	s := newSwitch(t, mockOutputs, confStr)
+	s := newSwitch(t, mockOutputs, confStr.String())
 
 	readChan := make(chan message.Transaction)
 	resChan := make(chan error, 1)
 
 	require.NoError(t, s.Consume(readChan))
 
-	for i := 0; i < nMsgs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):
 			t.Fatal("Timed out waiting for broker send")
 		}
 		resFnSlice := []func(context.Context, error) error{}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			select {
 			case ts := <-mockOutputs[j].TChan:
 				if !bytes.Equal(ts.Payload.Get(0).AsBytes(), content[0]) {
@@ -142,7 +145,7 @@ cases:`
 				t.Fatal("Timed out waiting for broker propagate")
 			}
 		}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			var res error
 			if j == 1 {
 				res = errors.New("test")
@@ -271,7 +274,7 @@ cases:
 	}
 
 	transactions := []message.Transaction{}
-	for j := 0; j < 2; j++ {
+	for j := range 2 {
 		select {
 		case ts := <-mockOutputs[j].TChan:
 			transactions = append(transactions, ts)
@@ -279,7 +282,7 @@ cases:
 			t.Fatal("Timed out waiting for broker propagate")
 		}
 	}
-	for j := 0; j < 2; j++ {
+	for j := range 2 {
 		var res error
 		if j == 0 {
 			batchErr := batch.NewError(transactions[j].Payload, errors.New("not this"))
@@ -348,9 +351,7 @@ cases:
 	require.NoError(t, s.Consume(readChan))
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		closed := 0
 		bar := `{"foo":"bar"}`
 		baz := `{"foo":"baz"}`
@@ -394,16 +395,16 @@ cases:
 				break outputLoop
 			}
 		}
-	}()
+	})
 
-	for i := 0; i < nMsgs; i++ {
+	for i := range nMsgs {
 		foo := "bar"
 		if i%3 == 0 {
 			foo = "qux"
 		} else if i%2 == 0 {
 			foo = "baz"
 		}
-		content := [][]byte{[]byte(fmt.Sprintf("{\"foo\":%q}", foo))}
+		content := [][]byte{fmt.Appendf(nil, "{\"foo\":%q}", foo)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):
@@ -464,7 +465,7 @@ cases:
 
 	var ts message.Transaction
 
-	for i := 0; i < len(mockOutputs); i++ {
+	for range mockOutputs {
 		select {
 		case ts = <-mockOutputs[0].TChan:
 			assert.Equal(t, 1, ts.Payload.Len())
@@ -533,7 +534,7 @@ cases:
 
 	var ts message.Transaction
 
-	for i := 0; i < len(mockOutputs); i++ {
+	for range mockOutputs {
 		select {
 		case ts = <-mockOutputs[0].TChan:
 			assert.Equal(t, 1, ts.Payload.Len())
@@ -745,9 +746,7 @@ cases:
 	require.NoError(t, s.Consume(readChan))
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		closed := 0
 		bar := `{"foo":"bar"}`
@@ -792,14 +791,14 @@ cases:
 				require.NoError(t, resFns[i](ctx, nil))
 			}
 		}
-	}()
+	})
 
-	for i := 0; i < nMsgs; i++ {
+	for i := range nMsgs {
 		foo := "bar"
 		if i%2 == 0 {
 			foo = "baz"
 		}
-		content := [][]byte{[]byte(fmt.Sprintf("{\"foo\":%q}", foo))}
+		content := [][]byte{fmt.Appendf(nil, "{\"foo\":%q}", foo)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):

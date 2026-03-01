@@ -362,7 +362,6 @@ broker:
 			},
 		},
 	} {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			mOut := &mockOutput{
 				outputs: map[string]struct{}{},

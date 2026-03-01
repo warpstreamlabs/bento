@@ -40,7 +40,7 @@ generate:
 		t.Fatal(ctx.Err())
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		conf, err := testutil.InputFromYAML(fmt.Sprintf(`
 generate:
   interval: 10ms

@@ -77,7 +77,7 @@ func cosine(a, b []float64) (cosine float64, err error) {
 	}
 
 	var dotProduct, ssA, ssB float64
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		fa, fb := a[i], b[i]
 		dotProduct += fa * fb
 		ssA += fa * fa

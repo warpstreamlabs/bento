@@ -73,7 +73,7 @@ azure_renew_lock: true
 
 	tests := []struct {
 		data            string
-		value           interface{}
+		value           any
 		expectedContent string
 	}{
 		{"hello world: 0", nil, "hello world: 0"},
@@ -87,7 +87,7 @@ azure_renew_lock: true
 	for _, test := range tests {
 		wg.Add(1)
 
-		go func(data string, value interface{}) {
+		go func(data string, value any) {
 			defer wg.Done()
 
 			contentType := "plain/text"
@@ -114,10 +114,8 @@ azure_renew_lock: true
 	for range tests {
 		actM, ackFn, err := m.ReadBatch(ctx)
 		assert.NoError(t, err)
-		wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			content, err := actM[0].AsBytes()
 			require.NoError(t, err)
@@ -132,7 +130,7 @@ azure_renew_lock: true
 			time.Sleep(6 * time.Second) // Simulate long processing before ack so message lock expires and lock renewal is requires
 
 			assert.NoError(t, ackFn(ctx, nil))
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -159,11 +157,9 @@ azure_renew_lock: true
 	require.NoError(t, err)
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_ = m.Close(context.Background())
-		wg.Done()
-	}()
+	})
 
 	if _, _, err = m.ReadBatch(ctx); err != service.ErrNotConnected {
 		t.Errorf("Wrong error: %v != %v", err, service.ErrNotConnected)

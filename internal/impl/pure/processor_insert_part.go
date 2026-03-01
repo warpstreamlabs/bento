@@ -93,10 +93,7 @@ func (p *insertPart) ProcessBatch(ctx *processor.BatchProcContext, msg message.B
 	index := p.index
 	msgLen := msg.Len()
 	if index < 0 {
-		index = msgLen + index + 1
-		if index < 0 {
-			index = 0
-		}
+		index = max(msgLen+index+1, 0)
 	} else if index > msgLen {
 		index = msgLen
 	}
