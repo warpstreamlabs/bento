@@ -672,6 +672,7 @@ Enable sarama's internal protocol logging (connection, rebalances, fetches, SASL
 
 Type: `bool`  
 Default: `false`  
+Requires version 1.16.0 or newer  
 
 ### `batching`
 

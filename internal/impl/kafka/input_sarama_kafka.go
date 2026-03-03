@@ -42,19 +42,19 @@ type bentoSaramaLogger struct {
 	log *service.Logger
 }
 
-func (b *bentoSaramaLogger) Print(v ...interface{}) {
+func (b *bentoSaramaLogger) Print(v ...any) {
 	if b.log != nil {
 		b.log.Debug(fmt.Sprint(v...))
 	}
 }
 
-func (b *bentoSaramaLogger) Printf(format string, v ...interface{}) {
+func (b *bentoSaramaLogger) Printf(format string, v ...any) {
 	if b.log != nil {
 		b.log.Debugf(format, v...)
 	}
 }
 
-func (b *bentoSaramaLogger) Println(v ...interface{}) {
+func (b *bentoSaramaLogger) Println(v ...any) {
 	if b.log != nil {
 		b.log.Debug(fmt.Sprintln(v...))
 	}
@@ -173,7 +173,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 				Advanced().Default(false),
 			service.NewBoolField(iskFieldDebug).
 				Description("Enable sarama's internal protocol logging (connection, rebalances, fetches, SASL, etc.). Log lines are forwarded to the Bento logger at debug level.").
-				Advanced().Default(false),
+				Advanced().Version("1.16.0").Default(false),
 			service.NewBatchPolicyField(iskFieldBatching).Advanced(),
 		)
 }
