@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -34,9 +33,7 @@ func TestIntegrationDuckDB(t *testing.T) {
 		}
 	})
 
-	require.Eventually(t, func() bool {
-		return db.Ping() == nil
-	}, time.Second, 100*time.Millisecond, "duckdb did not respond to ping in time")
+	require.NoError(t, db.Ping())
 
 	createTable := func(name string) (string, error) {
 		_, err := db.Exec(fmt.Sprintf(`create table %s (
