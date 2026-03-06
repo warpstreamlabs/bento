@@ -17,6 +17,10 @@ type V1 interface {
 	// error if the key does not exist or if the command fails.
 	Get(ctx context.Context, key string) ([]byte, error)
 
+	// Exists attempts to locate a cached value by its key, returns
+	// false if the key does not exist, returns an if the command fails.
+	Exists(ctx context.Context, key string) (bool, error)
+
 	// Set attempts to set the value of a key, returns an error if the command
 	// fails.
 	Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error

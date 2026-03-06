@@ -66,6 +66,12 @@ func (c *noopCacheAdapter) Get(_ context.Context, key string) ([]byte, error) {
 	return nil, service.ErrKeyNotFound
 }
 
+func (c *noopCacheAdapter) Exists(_ context.Context, key string) (bool, error) {
+	c.logger.Tracef("pretend to check if key %q exists", key)
+
+	return false, nil
+}
+
 func (c *noopCacheAdapter) Close(context.Context) error {
 	c.logger.Debug("close cache")
 

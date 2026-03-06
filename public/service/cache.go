@@ -21,6 +21,9 @@ type Cache interface {
 	// Get a cache item.
 	Get(ctx context.Context, key string) ([]byte, error)
 
+	// Check if a cache item exists.
+	Exists(ctx context.Context, key string) (bool, error)
+
 	// Set a cache item, specifying an optional TTL. It is okay for caches to
 	// ignore the ttl parameter if it isn't possible to implement.
 	Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error
@@ -75,6 +78,10 @@ func (a *airGapCache) Get(ctx context.Context, key string) ([]byte, error) {
 		err = component.ErrKeyNotFound
 	}
 	return b, err
+}
+
+func (a *airGapCache) Exists(ctx context.Context, key string) (bool, error) {
+	return a.c.Exists(ctx, key)
 }
 
 func (a *airGapCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
@@ -134,6 +141,10 @@ func (r *reverseAirGapCache) Get(ctx context.Context, key string) ([]byte, error
 		err = ErrKeyNotFound
 	}
 	return b, err
+}
+
+func (r *reverseAirGapCache) Exists(ctx context.Context, key string) (bool, error) {
+	return r.c.Exists(ctx, key)
 }
 
 func (r *reverseAirGapCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {

@@ -99,6 +99,7 @@ type sqlCache struct {
 	keyColumn string
 
 	selectBuilder squirrel.SelectBuilder
+	existsBuilder squirrel.SelectBuilder
 	insertBuilder squirrel.InsertBuilder
 	upsertBuilder squirrel.InsertBuilder
 	deleteBuilder squirrel.DeleteBuilder
@@ -140,6 +141,7 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 	}
 
 	s.selectBuilder = squirrel.Select(valueColumn).From(tableStr)
+	s.existsBuilder = squirrel.Select().From(tableStr)
 	s.insertBuilder = squirrel.Insert(tableStr).Columns(s.keyColumn, valueColumn)
 	s.upsertBuilder = squirrel.Insert(tableStr).Columns(s.keyColumn, valueColumn)
 	s.deleteBuilder = squirrel.Delete(tableStr)
@@ -147,11 +149,13 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 	switch s.driver {
 	case "postgres", "clickhouse":
 		s.selectBuilder = s.selectBuilder.PlaceholderFormat(squirrel.Dollar)
+		s.existsBuilder = s.existsBuilder.PlaceholderFormat(squirrel.Dollar)
 		s.insertBuilder = s.insertBuilder.PlaceholderFormat(squirrel.Dollar)
 		s.upsertBuilder = s.upsertBuilder.PlaceholderFormat(squirrel.Dollar)
 		s.deleteBuilder = s.deleteBuilder.PlaceholderFormat(squirrel.Dollar)
 	case "oracle", "gocosmos":
 		s.selectBuilder = s.selectBuilder.PlaceholderFormat(squirrel.Colon)
+		s.existsBuilder = s.existsBuilder.PlaceholderFormat(squirrel.Colon)
 		s.insertBuilder = s.insertBuilder.PlaceholderFormat(squirrel.Colon)
 		s.upsertBuilder = s.upsertBuilder.PlaceholderFormat(squirrel.Colon)
 		s.deleteBuilder = s.deleteBuilder.PlaceholderFormat(squirrel.Colon)
@@ -204,6 +208,17 @@ func (s *sqlCache) Get(ctx context.Context, key string) (value []byte, err error
 		err = service.ErrKeyNotFound
 	}
 	return
+}
+
+func (s *sqlCache) Exists(ctx context.Context, key string) (exists bool, err error) {
+	err = s.existsBuilder.
+		Where(squirrel.Eq{s.keyColumn: key}).
+		RunWith(s.db).QueryRowContext(ctx).
+		Scan()
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return true, err
 }
 
 func (s *sqlCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {

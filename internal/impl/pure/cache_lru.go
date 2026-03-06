@@ -219,6 +219,7 @@ var (
 type lruCache interface {
 	Peek(key string) (value []byte, ok bool)
 	Get(key string) (value []byte, ok bool)
+	Contains(key string) (ok bool)
 	Add(key string, value []byte)
 	Remove(key string)
 }
@@ -254,6 +255,10 @@ func (ca *lruCacheAdapter) Get(_ context.Context, key string) ([]byte, error) {
 	}
 
 	return value, nil
+}
+
+func (ca *lruCacheAdapter) Exists(_ context.Context, key string) (bool, error) {
+	return ca.inner.Contains(key), nil
 }
 
 func (ca *lruCacheAdapter) Set(_ context.Context, key string, value []byte, _ *time.Duration) error {

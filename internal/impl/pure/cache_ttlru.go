@@ -179,6 +179,10 @@ func (ca *ttlruCacheAdapter) Get(_ context.Context, key string) ([]byte, error) 
 	return value, nil
 }
 
+func (ca *ttlruCacheAdapter) Exists(_ context.Context, key string) (bool, error) {
+	return ca.inner.Contains(key), nil
+}
+
 func (ca *ttlruCacheAdapter) Set(_ context.Context, key string, value []byte, _ *time.Duration) error {
 	_ = ca.inner.Add(key, value)
 

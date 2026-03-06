@@ -234,6 +234,47 @@ func (d *dynamodbCache) get(ctx context.Context, key string) ([]byte, error) {
 	return val.Value, nil
 }
 
+func (d *dynamodbCache) Exists(ctx context.Context, key string) (bool, error) {
+	boff := d.boffPool.Get().(backoff.BackOff)
+	defer func() {
+		boff.Reset()
+		d.boffPool.Put(boff)
+	}()
+
+	exists, err := d.exists(ctx, key)
+	for err != nil {
+		wait := boff.NextBackOff()
+		if wait == backoff.Stop {
+			break
+		}
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return false, err
+		}
+		exists, err = d.exists(ctx, key)
+	}
+
+	return exists, err
+}
+
+func (d *dynamodbCache) exists(ctx context.Context, key string) (bool, error) {
+	res, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
+		Key: map[string]types.AttributeValue{
+			d.hashKey: &types.AttributeValueMemberS{
+				Value: key,
+			},
+		},
+		TableName:            &d.table,
+		ConsistentRead:       aws.Bool(d.consistentRead),
+		ProjectionExpression: aws.String(d.hashKey), // only hashKey
+	})
+	if err != nil {
+		return false, err
+	}
+	return len(res.Item) > 0, nil
+}
+
 func (d *dynamodbCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	boff := d.boffPool.Get().(backoff.BackOff)
 	defer func() {

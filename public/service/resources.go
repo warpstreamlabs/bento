@@ -153,6 +153,11 @@ func (f *wrapperFS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, 
 	return f.fallback.OpenFile(name, flag, perm)
 }
 
+// Exists returns true if the named file exists.
+func (f *wrapperFS) Exists(name string) (bool, error) {
+	return f.fallback.Exists(name)
+}
+
 // Stat returns a FileInfo describing the named file.
 func (f *wrapperFS) Stat(name string) (fs.FileInfo, error) {
 	return f.fallback.Stat(name)
@@ -192,6 +197,11 @@ func (f *FS) Open(name string) (fs.File, error) {
 // OpenFile is the generalized open call.
 func (f *FS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
 	return f.i.OpenFile(name, flag, perm)
+}
+
+// Exists returns true if the named file exists.
+func (f *FS) Exists(name string) (bool, error) {
+	return f.i.Exists(name)
 }
 
 // Stat returns a FileInfo describing the named file.

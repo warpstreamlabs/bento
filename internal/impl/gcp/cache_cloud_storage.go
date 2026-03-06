@@ -87,6 +87,17 @@ func (c *gcpCloudStorageCache) Get(ctx context.Context, key string) ([]byte, err
 	return data, nil
 }
 
+func (c *gcpCloudStorageCache) Exists(ctx context.Context, key string) (bool, error) {
+	_, err := c.bucketHandle.Object(key).Attrs(ctx)
+	if err != nil {
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (c *gcpCloudStorageCache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) error {
 	writer := c.bucketHandle.Object(key).NewWriter(ctx)
 

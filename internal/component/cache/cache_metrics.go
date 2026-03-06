@@ -80,6 +80,22 @@ func (a *metricsCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return b, err
 }
 
+func (a *metricsCache) Exists(ctx context.Context, key string) (bool, error) {
+	started := time.Now()
+	b, err := a.c.Exists(ctx, key)
+	a.mGetLatency.Timing(int64(time.Since(started)))
+	if err != nil {
+		if errors.Is(err, component.ErrKeyNotFound) {
+			a.mGetNotFound.Incr(1)
+		} else {
+			a.mGetError.Incr(1)
+		}
+	} else {
+		a.mGetSuccess.Incr(1)
+	}
+	return b, err
+}
+
 func (a *metricsCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	started := time.Now()
 	err := a.c.Set(ctx, key, value, ttl)

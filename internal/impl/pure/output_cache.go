@@ -2,6 +2,7 @@ package pure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 const (
 	coFieldTarget = "target"
 	coFieldKey    = "key"
+	coFieldAppend = "append"
 	coFieldTTL    = "ttl"
 )
 
@@ -56,6 +58,7 @@ In order to create a unique `+"`key`"+` value per item you should use function i
 					`${!metadata("kafka_key")}`,
 				).
 				Default(`${!count("items")}-${!timestamp_unix_nano()}`),
+			service.NewBoolField(coFieldAppend).Default(false),
 			service.NewInterpolatedStringField(coFieldTTL).
 				Description("The TTL of each individual item as a duration string. After this period an item will be eligible for removal during the next compaction. Not all caches support per-key TTLs, and those that do not will fall back to their generally configured TTL setting.").
 				Examples("60s", "5m", "36h").
@@ -98,6 +101,7 @@ type CacheWriter struct {
 
 	target string
 	key    *field.Expression
+	append bool
 	ttl    *field.Expression
 
 	log log.Modular
@@ -111,6 +115,10 @@ func NewCacheWriter(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Cach
 	}
 
 	keyStr, err := conf.FieldString(coFieldKey)
+	if err != nil {
+		return nil, err
+	}
+	append, err := conf.FieldBool(coFieldAppend)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +140,7 @@ func NewCacheWriter(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Cach
 		mgr:    mgr,
 		target: target,
 		key:    key,
+		append: append,
 		ttl:    ttl,
 		log:    mgr.Logger(),
 	}, nil
@@ -203,7 +212,17 @@ func (c *CacheWriter) WriteBatch(ctx context.Context, msg message.Batch) (err er
 	}
 
 	if cerr := c.mgr.AccessCache(ctx, c.target, func(cache cache.V1) {
-		err = cache.Set(ctx, key, msg.Get(0).AsBytes(), ttl)
+		if c.append {
+			var current []byte
+			current, err = cache.Get(ctx, key)
+			if err == nil {
+				err = cache.Set(ctx, key, append(current, msg.Get(0).AsBytes()...), ttl)
+			} else if errors.Is(err, service.ErrKeyNotFound) {
+				err = cache.Set(ctx, key, msg.Get(0).AsBytes(), ttl)
+			}
+		} else {
+			err = cache.Set(ctx, key, msg.Get(0).AsBytes(), ttl)
+		}
 	}); cerr != nil {
 		err = cerr
 	}

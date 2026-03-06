@@ -123,6 +123,20 @@ func (p *kvCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return entry.Value(), nil
 }
 
+func (p *kvCache) Exists(ctx context.Context, key string) (bool, error) {
+	p.connMut.RLock()
+	defer p.connMut.RUnlock()
+
+	_, err := p.kv.Get(key)
+	if err != nil {
+		if errors.Is(err, nats.ErrKeyNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (p *kvCache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) error {
 	p.connMut.RLock()
 	defer p.connMut.RUnlock()

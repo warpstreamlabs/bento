@@ -157,6 +157,39 @@ func (s *s3Cache) Get(ctx context.Context, key string) (body []byte, err error) 
 	}
 }
 
+func (s *s3Cache) Exists(ctx context.Context, key string) (exists bool, err error) {
+	boff := s.boffPool.Get().(backoff.BackOff)
+	defer func() {
+		boff.Reset()
+		s.boffPool.Put(boff)
+	}()
+
+	for {
+		_, err = s.s3.HeadObject(ctx, &s3.HeadObjectInput{
+			Bucket: &s.bucket,
+			Key:    &key,
+		})
+		if err != nil {
+			var aerr *types.NoSuchKey
+			if errors.As(err, &aerr) {
+				return false, nil
+			}
+		} else {
+			return true, nil
+		}
+
+		wait := boff.NextBackOff()
+		if wait == backoff.Stop {
+			return false, err
+		}
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
+	}
+}
+
 // Set attempts to set the value of a key.
 func (s *s3Cache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) (err error) {
 	boff := s.boffPool.Get().(backoff.BackOff)

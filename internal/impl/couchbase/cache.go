@@ -82,6 +82,21 @@ func (c *Cache) Get(ctx context.Context, key string) (data []byte, err error) {
 	return data, err
 }
 
+// Check if cache value exists.
+func (c *Cache) Exists(ctx context.Context, key string) (data bool, err error) {
+	out, err := c.collection.Exists(key, &gocb.ExistsOptions{
+		Context: ctx, // this may change in future gocb.
+	})
+	if err != nil {
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return out.Exists(), nil
+}
+
 // Set update cache.
 func (c *Cache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	if ttl == nil {

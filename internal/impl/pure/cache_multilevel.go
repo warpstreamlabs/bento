@@ -126,6 +126,25 @@ func (l *multilevelCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return nil, service.ErrKeyNotFound
 }
 
+func (l *multilevelCache) Exists(ctx context.Context, key string) (bool, error) {
+	for _, name := range l.caches {
+		var exists bool
+		var err error
+		if cerr := l.mgr.AccessCache(ctx, name, func(c service.Cache) {
+			exists, err = c.Exists(ctx, key)
+		}); cerr != nil {
+			return false, fmt.Errorf("unable to access cache '%v': %v", name, cerr)
+		}
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (l *multilevelCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	for _, name := range l.caches {
 		var err error

@@ -100,6 +100,18 @@ func (m *mongodbCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return []byte(valueStr), nil
 }
 
+func (m *mongodbCache) Exists(ctx context.Context, key string) (bool, error) {
+	filter := bson.M{m.keyField: key}
+	err := m.collection.FindOne(ctx, filter).Err()
+	if err != nil {
+		if err == service.ErrKeyNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (m *mongodbCache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) error {
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{m.keyField: key}
