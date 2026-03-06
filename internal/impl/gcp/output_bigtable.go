@@ -50,7 +50,11 @@ func gcpBigTableOutputSpec() *service.ConfigSpec {
 		Description(`
 Each message is written as a [SetCell](https://cloud.google.com/bigtable/docs/reference/data/rpc/google.bigtable.v2#google.bigtable.v2.Mutation.SetCell) mutation into the specified column family and column qualifier.
 
-The `+"`table`"+`, `+"`row_key`"+`, `+"`column`"+`, and `+"`family`"+` fields support [interpolation functions](/docs/configuration/interpolation#bloblang-queries), allowing values to be resolved dynamically per message. This enables routing messages to different tables, rows, column families, or column qualifiers based on message content or metadata.
+The `+"`table`"+`, `+"`row_key`"+`, `+"`column`"+`, and `+"`family`"+` fields support [interpolation functions](/docs/configuration/interpolation#bloblang-queries), allowing values to be resolved dynamically. This enables routing messages to different tables, rows, column families, or column qualifiers based on message content or metadata.
+
+:::caution Interpolation of Message Batches
+The first message in the batch will resolve the bloblang query for the field `+"`table`"+` and that value will be used for all messages in the batch.
+:::
 
 ### Credentials
 
@@ -58,7 +62,7 @@ By default Bento will use a shared credentials file when connecting to GCP servi
 
 ### Batching
 
-Messages in a batch are written using BigTable's [ApplyBulk](https://docs.cloud.google.com/go/docs/reference/cloud.google.com/go/bigtable/latest#cloud_google_com_go_bigtable_Table_ApplyBulk) API call.`).
+This output benefits from sending messages as a batch for improved performance. Batches can be formed at both the input and output level. You can find out more [in this doc](/docs/configuration/batching).`).
 		Fields(
 			service.NewStringField(btoFieldProject).
 				Description("The GCP project ID that contains the Bigtable instance."),
