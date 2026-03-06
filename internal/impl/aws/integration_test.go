@@ -15,7 +15,11 @@ func TestIntegration(t *testing.T) {
 	servicePort := GetLocalStack(t, nil)
 
 	t.Run("kinesis", func(t *testing.T) {
-		kinesisIntegrationSuite(t, servicePort)
+		kinesisIntegrationSuite(t, servicePort, false)
+	})
+
+	t.Run("kinesis_efo", func(t *testing.T) {
+		kinesisIntegrationSuite(t, servicePort, true)
 	})
 
 	t.Run("s3", func(t *testing.T) {

@@ -69,7 +69,13 @@ func createKinesisShards(ctx context.Context, t testing.TB, awsPort, id string, 
 	return shards, nil
 }
 
-func kinesisIntegrationSuite(t *testing.T, lsPort string) {
+func kinesisIntegrationSuite(t *testing.T, lsPort string, efoEnabled bool) {
+	var efoYaml string
+	if efoEnabled {
+		efoYaml = `enhanced_fan_out:
+      enabled: true`
+	}
+
 	template := `
 output:
   aws_kinesis:
@@ -95,6 +101,7 @@ input:
       create: true
     start_from_oldest: true
     region: us-east-1
+    ` + efoYaml + `
     credentials:
       id: xxxxx
       secret: xxxxx
