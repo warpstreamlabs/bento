@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"unsafe"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/metadata"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -266,4 +268,77 @@ func TestSQSSendLimit(t *testing.T) {
 			{id: "14", content: "hello world 15"},
 		},
 	}, in)
+}
+func TestSQSRemoveInvalidCodepoints(t *testing.T) {
+	conf, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
+	)
+	require.NoError(t, err)
+
+	tests := map[string]struct {
+		removeInvalidCodepoints bool
+		msgBytes                []byte
+		expectedContent         string
+		metadataKey             string
+		metadataValue           string
+		expectedMetadataValue   string
+	}{
+		"remove_invalid_codepoints_enabled": {
+			removeInvalidCodepoints: true,
+			msgBytes:                []byte("{\"hello\":\"world\"\uFFFE}"),
+			expectedContent:         "{\"hello\":\"world\"}",
+			metadataKey:             "mykey",
+			metadataValue:           "valid-prefix\uFFFEvalid-suffix",
+			expectedMetadataValue:   "valid-prefixvalid-suffix",
+		},
+		"remove_invalid_codepoints_disabled": {
+			removeInvalidCodepoints: false,
+			msgBytes:                []byte("{\"hello\":\"world\"\uFFFE}"),
+			expectedContent:         "{\"hello\":\"world\"\uFFFE}",
+			metadataKey:             "mykey",
+			metadataValue:           "valid-prefix\uFFFEvalid-suffix",
+			expectedMetadataValue:   "valid-prefix\uFFFEvalid-suffix",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			w, err := newSQSWriter(sqsoConfig{
+				URL:                     "http://foo.example.com",
+				RemoveInvalidCodepoints: test.removeInvalidCodepoints,
+				aconf:                   conf,
+				Metadata:                newPassAllMetadataExcludeFilter(t),
+			}, service.MockResources())
+			require.NoError(t, err)
+
+			msg := service.NewMessage(test.msgBytes)
+			msg.MetaSet(test.metadataKey, test.metadataValue)
+			batch := service.MessageBatch{msg}
+
+			attr, err := w.getSQSAttributes(batch, 0)
+			require.NoError(t, err)
+
+			assert.Equal(t, test.expectedContent, *attr.content)
+
+			if test.metadataKey != "" {
+				metaAttr, ok := attr.attrMap[test.metadataKey]
+				require.True(t, ok, "expected metadata key %q to be present in attrMap", test.metadataKey)
+				require.NotNil(t, metaAttr.StringValue)
+				assert.Equal(t, test.expectedMetadataValue, *metaAttr.StringValue)
+			}
+		})
+	}
+}
+
+func newPassAllMetadataExcludeFilter(t *testing.T) *service.MetadataExcludeFilter {
+	t.Helper()
+	conf := metadata.NewExcludeFilterConfig()
+	filter, err := conf.Filter()
+	require.NoError(t, err)
+
+	mef := &service.MetadataExcludeFilter{}
+	p := (*struct{ f *metadata.ExcludeFilter })(unsafe.Pointer(mef))
+	p.f = filter
+	return mef
 }
