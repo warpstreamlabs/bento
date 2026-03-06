@@ -1,113 +1,96 @@
+/**
+ * Initializes Go WASM runtime and loading the compiled module.
+ */
 class WasmManager {
-  constructor() {
-    this.available = false;
-    this.failed = false;
-    this.go = null;
+  static WASM_PATH = "playground.wasm";
+  static READY_TIMEOUT_MS = 5000;
+  static READY_CHECK_INTERVAL_MS = 100;
 
-    // Check if Go WASM support is available
-    if (typeof Go !== "undefined") {
-      try {
-        this.go = new Go();
-      } catch (error) {
-        console.warn("Failed to initialize Go WASM runtime:", error.message);
-        this.failed = true;
-      }
-    } else {
-      console.warn(
-        "Go WASM runtime not available - wasm_exec.js not loaded or Go not defined"
-      );
-      this.failed = true;
-    }
+  constructor() {
+    this.isLoaded = false;
+    this.hasFailed = false;
+    this.goRuntime = this.#initializeGoRuntime();
   }
 
+  /**
+   * Loads and initializes the WebAssembly module.
+   * @returns {Promise<void>}
+   */
   async load() {
-    // If Go runtime failed to initialize, don't attempt WASM loading
-    if (this.failed || !this.go) {
+    if (this.hasFailed || !this.goRuntime) {
       console.warn("Skipping WASM load - Go runtime not available");
       return;
     }
 
     try {
-      const wasmPath = ["playground.wasm"];
-      const result = await this.loadWasmFromPath(wasmPath);
-      this.go.run(result.instance);
-
-      // Wait for WASM module to signal readiness
-      await this.waitForWasmReady();
-
-      this.available = true;
-      return;
+      const wasmModule = await this.#fetchAndInstantiate();
+      this.goRuntime.run(wasmModule.instance);
+      await this.#waitForReady();
+      this.isLoaded = true;
     } catch (error) {
-      console.warn("Failed to load WASM from", wasmPath, ":", error.message);
+      console.warn("WASM failed to load:", error.message);
+      this.hasFailed = true;
+      this.isLoaded = false;
     }
-
-    console.warn("WASM failed to load from all paths");
-    this.failed = true;
-    this.available = false;
   }
 
-  async loadWasmFromPath(path) {
-    const response = await fetch(path);
+  /**
+   * Initializes the Go WebAssembly runtime.
+   * @returns {Go|null} The Go runtime instance, or null if initialization failed
+   */
+  #initializeGoRuntime() {
+    if (typeof Go === "undefined") {
+      console.warn("Go WASM runtime not available - wasm_exec.js not loaded");
+      this.hasFailed = true;
+      return null;
+    }
+
+    try {
+      return new Go();
+    } catch (error) {
+      console.warn("Failed to initialize Go WASM runtime:", error.message);
+      this.hasFailed = true;
+      return null;
+    }
+  }
+
+  /**
+   * Fetches and instantiates the WebAssembly module.
+   * @returns {Promise<WebAssembly.Instance>}
+   */
+  async #fetchAndInstantiate() {
+    const response = await fetch(WasmManager.WASM_PATH);
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     return await WebAssembly.instantiateStreaming(
       response,
-      this.go.importObject
+      this.goRuntime.importObject
     );
   }
 
-  async waitForWasmReady() {
+  /**
+   * Waits for the WASM module to signal readiness via window.wasmReady.
+   * @returns {Promise<void>}
+   */
+  async #waitForReady() {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         reject(new Error("WASM initialization timeout"));
-      }, 5000); // 5 second timeout
+      }, WasmManager.READY_TIMEOUT_MS);
 
       const checkReady = () => {
         if (window.wasmReady) {
-          clearTimeout(timeout);
+          clearTimeout(timeoutId);
           resolve();
         } else {
-          setTimeout(checkReady, 100);
+          setTimeout(checkReady, WasmManager.READY_CHECK_INTERVAL_MS);
         }
       };
 
       checkReady();
     });
-  }
-
-  execute(input, mapping) {
-    if (this.failed) {
-      throw new Error(
-        "WASM not loaded. Bloblang functionality is unavailable."
-      );
-    }
-
-    if (!this.available) {
-      throw new Error("WASM not available. Please wait for initialization.");
-    }
-
-    if (window.executeBloblangMapping) {
-      return window.executeBloblangMapping(input, mapping);
-    } else {
-      throw new Error("Bloblang functionality not available in WASM context.");
-    }
-  }
-
-  getSyntax() {
-    if (this.failed) {
-      throw new Error("WASM not loaded. Syntax data is unavailable.");
-    }
-
-    if (!this.available) {
-      throw new Error("WASM not available. Please wait for initialization.");
-    }
-
-    if (window.generateBloblangSyntax) {
-      return window.generateBloblangSyntax();
-    } else {
-      throw new Error("Syntax functionality not available in WASM context.");
-    }
   }
 }
