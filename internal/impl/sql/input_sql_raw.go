@@ -53,6 +53,20 @@ input:
         now().ts_unix() - 3600
       ]
 `,
+		).
+		Example("Aggregate Query (DuckDB)",
+			"Read aggregated results from a DuckDB file as a stream of messages.",
+			`
+input:
+  sql_raw:
+    driver: duckdb
+    dsn: /tmp/duckburg.duckdb
+    query: |
+      SELECT duck, SUM(gold_coins) AS total_coins, COUNT(*) AS deposits
+      FROM vault_deposits
+      GROUP BY duck
+      ORDER BY total_coins DESC
+`,
 		)
 	return spec
 }
