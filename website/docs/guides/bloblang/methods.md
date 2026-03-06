@@ -3094,6 +3094,40 @@ root.doc = this.doc.format_yaml().string()
 # Out: {"doc":"foo: bar\n"}
 ```
 
+### `is_unicode`
+
+Returns whether a byte array consists entirely of valid Unicode characters. Checks both UTF-8 encoding validity and rejects Unicode noncharacters (U+FFFE, U+FFFF, etc.) and surrogates.
+
+#### Examples
+
+
+Invalid UTF-8 bytes return false.
+
+```coffee
+root = this.body.decode("base64").is_unicode()
+
+# In:  {"body":"//4A"}
+# Out: false
+```
+
+Valid Unicode string returns true.
+
+```coffee
+root = this.bytes().is_unicode()
+
+# In:  "I'm a simple string."
+# Out: true
+```
+
+Unicode non-characters return false.
+
+```coffee
+root = this.body.decode("base64").is_unicode()
+
+# In:  {"body":"77++"}
+# Out: false
+```
+
 ### `parse_csv`
 
 Attempts to parse a string into an array of objects by following the CSV format described in RFC 4180.
