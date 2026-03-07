@@ -373,6 +373,56 @@ func (f FieldSpec) LinterBlobl(blobl string) FieldSpec {
 	return f
 }
 
+func lintsFromAnyBuildConstraint(line int, v any) (lints []Lint) {
+	switch t := v.(type) {
+	case []any:
+		for _, e := range t {
+			lints = append(lints, lintsFromAnyBuildConstraint(line, e)...)
+		}
+	case string:
+		if t != "" {
+			lints = append(lints, NewLintWarning(line, LintBuildConstraint, t))
+		}
+	}
+	return
+}
+
+// LinterBuildConstraintBlobl adds a warning linting function to a field that
+// signals the field value requires a build constraint not available in the
+// current binary.
+func (f FieldSpec) LinterBuildConstraintBlobl(blobl string) FieldSpec {
+	if blobl == "" {
+		f.Linter = blobl
+		f.customLintFn = nil
+		return f
+	}
+
+	env := bloblang.NewEnvironment().OnlyPure()
+
+	m, err := env.Parse(blobl)
+	if err != nil {
+		f.customLintFn = func(ctx LintContext, line, col int, value any) (lints []Lint) {
+			return []Lint{NewLintWarning(line, LintBuildConstraint, fmt.Sprintf("build constraint lint mapping failed to parse: %v", err))}
+		}
+		return f
+	}
+
+	f.Linter = blobl
+	f.customLintFn = func(ctx LintContext, line, col int, value any) (lints []Lint) {
+		var res any
+		err := m.Overlay(value, &res)
+		if err != nil {
+			if errors.Is(err, bloblang.ErrRootDeleted) {
+				return
+			}
+			return []Lint{NewLintWarning(line, LintBuildConstraint, err.Error())}
+		}
+		lints = append(lints, lintsFromAnyBuildConstraint(line, res)...)
+		return
+	}
+	return f
+}
+
 // lintOptions enforces that a field value matches one of the provided options
 // and returns a linting error if that is not the case. This is currently opt-in
 // because some fields express options that are only a subset due to deprecated
@@ -783,6 +833,9 @@ const (
 
 	// LintDeprecated means a field is deprecated and should not be used.
 	LintDeprecated LintType = iota
+
+	// LintBuildConstraint means a build constraint was required but not used.
+	LintBuildConstraint LintType = iota
 )
 
 // Lint describes a single linting issue found with a Bento config.

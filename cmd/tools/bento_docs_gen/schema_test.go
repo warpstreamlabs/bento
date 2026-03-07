@@ -28,6 +28,9 @@ func TestComponentExamples(t *testing.T) {
 		lConf.RejectDeprecated = !deprecated
 		lints := confSpec.LintYAML(docs.NewLintContext(lConf), node)
 		for _, lint := range lints {
+			if lint.Level == docs.LintWarning && lint.Type == docs.LintBuildConstraint {
+				continue
+			}
 			t.Errorf("%v %v:%v:%v", lint, componentType, typeName, title)
 		}
 	}

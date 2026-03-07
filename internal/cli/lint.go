@@ -231,7 +231,8 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 	var lintErrors []pathLint
 
 	for _, lint := range pathLints {
-		if lint.lint.Level == docs.LintWarning && lint.lint.Type == docs.LintDeprecated {
+		showLintWarning := lint.lint.Type == docs.LintDeprecated || lint.lint.Type == docs.LintBuildConstraint
+		if showLintWarning && lint.lint.Level == docs.LintWarning {
 			fmt.Print(yellow(fmt.Sprintf("%v%v\n", lint.source, lint.lint.Error())))
 		} else {
 			lintErrors = append(lintErrors, lint)
