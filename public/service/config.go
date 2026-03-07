@@ -284,6 +284,22 @@ func (c *ConfigField) LintRule(blobl string) *ConfigField {
 	return c
 }
 
+// LintBuildConstraintRule adds a linting rule that warns when the field value
+// requires a build constraint not present in the current binary. Unlike
+// LintRule, violations are warnings and do not fail lint validation, allowing
+// docs and configs to be validated against binaries built without optional
+// components.
+//
+// For example, if we wanted to add a linting rule for a string field that
+// ensures the config requires a build constraint, we might add the following
+// linting rule:
+//
+// `root = if this == "duckdb" { [ "Requires x_bento_extra build tag" ] }`.
+func (c *ConfigField) LintBuildConstraintRule(blobl string) *ConfigField {
+	c.field = c.field.LinterBuildConstraintBlobl(blobl)
+	return c
+}
+
 //------------------------------------------------------------------------------
 
 // ConfigSpec describes the configuration specification for a plugin
