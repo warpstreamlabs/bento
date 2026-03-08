@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub" //nolint:staticcheck
 	"github.com/sourcegraph/conc/pool"
 	"google.golang.org/api/option"
 
