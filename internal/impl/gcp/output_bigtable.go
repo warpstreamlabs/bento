@@ -45,6 +45,7 @@ func init() {
 func gcpBigTableOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
+		Version("1.15.1").
 		Categories("Services", "GCP").
 		Summary("Writes messages to a GCP BigTable instance.").
 		Description(`
