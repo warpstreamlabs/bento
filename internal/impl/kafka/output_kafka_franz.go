@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -175,10 +176,8 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
 	}
 
-	for _, b := range f.seedBrokers {
-		if b == "" {
-			return nil, errInvalidSeedBrokerValue
-		}
+	if slices.Contains(f.seedBrokers, "") {
+		return nil, errInvalidSeedBrokerValue
 	}
 
 	if len(f.seedBrokers) == 0 {

@@ -27,7 +27,7 @@ func createBucket(ctx context.Context, s3Port, bucket string) error {
 	conf, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("eu-west-1"),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
-		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
 			return aws.Endpoint{
 				PartitionID:   "aws",
 				URL:           endpoint,
@@ -77,7 +77,7 @@ func createBucketQueue(ctx context.Context, s3Port, sqsPort, id string) error {
 		conf, err := config.LoadDefaultConfig(ctx,
 			config.WithRegion("eu-west-1"),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
-			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
 				return aws.Endpoint{
 					PartitionID:   "aws",
 					URL:           endpoint,

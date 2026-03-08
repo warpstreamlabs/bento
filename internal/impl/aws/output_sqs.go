@@ -258,7 +258,7 @@ func (a *sqsWriter) WriteBatch(ctx context.Context, batch service.MessageBatch) 
 	entries := []types.SendMessageBatchRequestEntry{}
 	attrMap := map[string]sqsAttributes{}
 
-	for i := 0; i < len(batch); i++ {
+	for i := range batch {
 		id := strconv.Itoa(i)
 		attrs, err := a.getSQSAttributes(batch, i)
 		if err != nil {

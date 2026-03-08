@@ -87,8 +87,8 @@ func ExecuteCatchAll(ctx context.Context, procs []V1, msgs ...message.Batch) ([]
 		}
 	}
 
-	for i := 0; i < len(procs); i++ {
-		for j := 0; j < len(catchBatches); j++ {
+	for i := range procs {
+		for j := range catchBatches {
 			if !catchBatches[j].caught || len(catchBatches[j].batches) == 0 {
 				continue
 			}

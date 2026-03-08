@@ -117,7 +117,7 @@ func newEtcdConfigFromParsed(parsedConf *service.ParsedConfig) (*clientv3.Config
 		return nil, errors.New("must specify at least one URL")
 	}
 	for _, u := range endpointStrs {
-		for _, splitURL := range strings.Split(u, ",") {
+		for splitURL := range strings.SplitSeq(u, ",") {
 			if trimmed := strings.TrimSpace(splitURL); trimmed != "" {
 				cfg.Endpoints = append(cfg.Endpoints, trimmed)
 			}
