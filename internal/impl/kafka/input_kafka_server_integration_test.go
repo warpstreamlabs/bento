@@ -416,7 +416,7 @@ input:
 		t.Logf("SASL PLAIN wrong password correctly rejected: %v", err)
 
 		msgs := capture.waitForMessages(1, 2*time.Second)
-		assert.Len(t, msgs, 0, "Expected no messages due to auth failure")
+		assert.Empty(t, msgs, "Expected no messages due to auth failure")
 	})
 }
 
@@ -498,7 +498,7 @@ input:
 		t.Logf("SASL SCRAM wrong password correctly rejected: %v", err)
 
 		msgs := capture.waitForMessages(1, 2*time.Second)
-		assert.Len(t, msgs, 0, "Expected no messages due to auth failure")
+		assert.Empty(t, msgs, "Expected no messages due to auth failure")
 	})
 }
 

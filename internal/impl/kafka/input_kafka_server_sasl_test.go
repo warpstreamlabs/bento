@@ -13,8 +13,8 @@ func TestGenerateSCRAMCredentials_SHA256(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify credentials structure
-	assert.NotEmpty(t, creds.KeyFactors.Salt)
-	assert.Equal(t, scramIterations, creds.KeyFactors.Iters)
+	assert.NotEmpty(t, creds.Salt)
+	assert.Equal(t, scramIterations, creds.Iters)
 	assert.Len(t, creds.StoredKey, 32) // SHA-256 produces 32-byte hash
 	assert.Len(t, creds.ServerKey, 32)
 }
@@ -24,8 +24,8 @@ func TestGenerateSCRAMCredentials_SHA512(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify credentials structure
-	assert.NotEmpty(t, creds.KeyFactors.Salt)
-	assert.Equal(t, scramIterations, creds.KeyFactors.Iters)
+	assert.NotEmpty(t, creds.Salt)
+	assert.Equal(t, scramIterations, creds.Iters)
 	assert.Len(t, creds.StoredKey, 64) // SHA-512 produces 64-byte hash
 	assert.Len(t, creds.ServerKey, 64)
 }
@@ -44,7 +44,7 @@ func TestGenerateSCRAMCredentials_DifferentSalts(t *testing.T) {
 	creds2, err := generateSCRAMCredentials(saslMechanismScramSha256, "testpassword")
 	require.NoError(t, err)
 
-	assert.NotEqual(t, creds1.KeyFactors.Salt, creds2.KeyFactors.Salt)
+	assert.NotEqual(t, creds1.Salt, creds2.Salt)
 }
 
 func TestNewSCRAMServer_SHA256(t *testing.T) {

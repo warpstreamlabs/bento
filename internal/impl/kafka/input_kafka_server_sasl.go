@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"hash"
 
@@ -244,7 +245,7 @@ func processSCRAMStep(clientMessage string, state *connectionState, scram256Cred
 		return SCRAMAuthResult{
 			ServerMessage: serverMessage,
 			AuthStatus:    saslAuthFailed,
-			Error:         fmt.Errorf("invalid credentials"),
+			Error:         errors.New("invalid credentials"),
 		}
 	}
 

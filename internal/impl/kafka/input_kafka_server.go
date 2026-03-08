@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -431,7 +432,7 @@ func newKafkaServerInputFromConfig(conf *service.ParsedConfig, mgr *service.Reso
 			}
 		}
 	} else if certFile != "" || keyFile != "" {
-		return nil, fmt.Errorf("both cert_file and key_file must be specified to enable TLS")
+		return nil, errors.New("both cert_file and key_file must be specified to enable TLS")
 	}
 
 	// Parse SASL configuration
@@ -793,7 +794,7 @@ func (k *kafkaServerInput) handleRequest(conn net.Conn, connID uint64, remoteAdd
 			// These are allowed before authentication
 		default:
 			k.logger.Warnf("[conn:%d] Rejecting unauthenticated request for API key %d", connID, apiKey)
-			return false, fmt.Errorf("authentication required")
+			return false, errors.New("authentication required")
 		}
 	}
 
@@ -859,7 +860,7 @@ func (k *kafkaServerInput) handleRequest(conn net.Conn, connID uint64, remoteAdd
 		// The response with ErrorCode has already been sent by handleSaslAuthenticate,
 		// so the client will receive the error before the connection closes.
 		if authStatus == saslAuthFailed && handleErr == nil {
-			handleErr = fmt.Errorf("SASL authentication failed")
+			handleErr = errors.New("SASL authentication failed")
 		}
 
 	case *kmsg.MetadataRequest:
@@ -998,7 +999,7 @@ func (k *kafkaServerInput) handleSaslAuthenticate(conn net.Conn, connID uint64, 
 		k.logger.Debugf("[conn:%d] Parsed SASL auth bytes as Bytes (len=%d)", connID, len(authBytes))
 	}
 
-	status := saslAuthInProgress
+	var status saslAuthStatus
 
 	// Check if mechanism was set during handshake
 	if connState.scramMechanism == "" {
@@ -1065,7 +1066,7 @@ func (k *kafkaServerInput) handleUnframedSaslPlain(conn net.Conn, connID uint64,
 
 	if !authenticated {
 		k.logger.Warnf("[conn:%d] Legacy SASL PLAIN authentication failed", connID)
-		return false, fmt.Errorf("authentication failed")
+		return false, errors.New("authentication failed")
 	}
 
 	// Send success response: 4-byte size = 0 (empty outcome for PLAIN success)
@@ -1114,7 +1115,7 @@ func (k *kafkaServerInput) handleUnframedSaslScram(conn net.Conn, connID uint64,
 		return true, nil
 	case saslAuthFailed:
 		k.logger.Warnf("[conn:%d] SCRAM authentication failed: invalid credentials", connID)
-		return false, fmt.Errorf("invalid credentials")
+		return false, errors.New("invalid credentials")
 	default:
 		// Conversation continues (need more steps)
 		return false, nil
@@ -1390,7 +1391,7 @@ func (k *kafkaServerInput) handleProduceReq(conn net.Conn, connID uint64, remote
 	msgChan := k.getMsgChan()
 	if msgChan == nil {
 		k.logger.Errorf("[conn:%d] msgChan is nil, cannot send batch", connID)
-		return fmt.Errorf("server not connected")
+		return errors.New("server not connected")
 	}
 	select {
 	case msgChan <- messageBatch{
@@ -1412,7 +1413,7 @@ func (k *kafkaServerInput) handleProduceReq(conn net.Conn, connID uint64, remote
 		resp.Topics = buildProduceResponseTopics(req.Topics, kerr.RequestTimedOut.Code, partErrors)
 		return k.sendResponse(conn, connID, correlationID, resp)
 	case <-k.shutdownCh:
-		return fmt.Errorf("shutting down")
+		return errors.New("shutting down")
 	}
 
 	// For proper backpressure, we wait for the pipeline to acknowledge processing
@@ -1432,7 +1433,7 @@ func (k *kafkaServerInput) handleProduceReq(conn net.Conn, connID uint64, remote
 		k.logger.Warnf("[conn:%d] Timeout waiting for pipeline acknowledgment", connID)
 		resp.Topics = buildProduceResponseTopics(req.Topics, kerr.RequestTimedOut.Code, partErrors)
 	case <-k.shutdownCh:
-		return fmt.Errorf("shutting down")
+		return errors.New("shutting down")
 	}
 
 	k.logger.Debugf("[conn:%d] Sending produce response, topics=%d", connID, len(resp.Topics))

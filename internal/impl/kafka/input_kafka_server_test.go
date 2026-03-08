@@ -791,7 +791,7 @@ address: "127.0.0.1:19099"
 	require.NoError(t, err)
 
 	// Read response
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
 	respSizeBuf := make([]byte, 4)
 	_, err = io.ReadFull(conn, respSizeBuf)
 	require.NoError(t, err)
@@ -930,10 +930,10 @@ func TestMetadataResponseRoundTrip(t *testing.T) {
 	}
 
 	// Verify parsed data
-	require.Equal(t, 1, len(parsed.Brokers), "should have 1 broker")
+	require.Len(t, parsed.Brokers, 1, "should have 1 broker")
 	require.Equal(t, "127.0.0.1", parsed.Brokers[0].Host, "broker host")
 	require.Equal(t, int32(19092), parsed.Brokers[0].Port, "broker port")
-	require.Equal(t, 1, len(parsed.Topics), "should have 1 topic")
+	require.Len(t, parsed.Topics, 1, "should have 1 topic")
 	if parsed.Topics[0].Topic != nil {
 		require.Equal(t, "test-topic", *parsed.Topics[0].Topic, "topic name")
 	}
@@ -1039,21 +1039,21 @@ func TestKafkaServerInputLegacyMessageSet(t *testing.T) {
 
 	var msgBuf bytes.Buffer
 	// Offset
-	binary.Write(&msgBuf, binary.BigEndian, int64(0))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int64(0)))
 	// MessageSize (CRC + Magic + Attributes + Key + Value = 4 + 1 + 1 + 4 + len(key) + 4 + len(value))
 	messageSize := int32(4 + 1 + 1 + 4 + len(key) + 4 + len(value))
-	binary.Write(&msgBuf, binary.BigEndian, messageSize)
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, messageSize))
 	// CRC (dummy value, we don't validate it)
-	binary.Write(&msgBuf, binary.BigEndian, int32(0x12345678))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int32(0x12345678)))
 	// Magic (0 for legacy format)
 	msgBuf.WriteByte(0)
 	// Attributes (0 = no compression)
 	msgBuf.WriteByte(0)
 	// Key length + key
-	binary.Write(&msgBuf, binary.BigEndian, int32(len(key)))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int32(len(key))))
 	msgBuf.Write(key)
 	// Value length + value
-	binary.Write(&msgBuf, binary.BigEndian, int32(len(value)))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int32(len(value))))
 	msgBuf.Write(value)
 
 	recordsData := msgBuf.Bytes()
@@ -1092,23 +1092,23 @@ func TestKafkaServerInputLegacyMessageSetMagic1(t *testing.T) {
 
 	var msgBuf bytes.Buffer
 	// Offset
-	binary.Write(&msgBuf, binary.BigEndian, int64(42))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int64(42)))
 	// MessageSize (CRC + Magic + Attributes + Timestamp + Key + Value)
 	messageSize := int32(4 + 1 + 1 + 8 + 4 + len(key) + 4 + len(value))
-	binary.Write(&msgBuf, binary.BigEndian, messageSize)
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, messageSize))
 	// CRC (dummy value)
-	binary.Write(&msgBuf, binary.BigEndian, uint32(0xDEADBEEF))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, uint32(0xDEADBEEF)))
 	// Magic (1 for v1 format with timestamp)
 	msgBuf.WriteByte(1)
 	// Attributes (0 = no compression)
 	msgBuf.WriteByte(0)
 	// Timestamp (only for magic >= 1)
-	binary.Write(&msgBuf, binary.BigEndian, timestamp)
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, timestamp))
 	// Key length + key
-	binary.Write(&msgBuf, binary.BigEndian, int32(len(key)))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int32(len(key))))
 	msgBuf.Write(key)
 	// Value length + value
-	binary.Write(&msgBuf, binary.BigEndian, int32(len(value)))
+	require.NoError(t, binary.Write(&msgBuf, binary.BigEndian, int32(len(value))))
 	msgBuf.Write(value)
 
 	recordsData := msgBuf.Bytes()
