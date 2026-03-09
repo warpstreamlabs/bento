@@ -78,7 +78,7 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 		endOfSnippet = nextSnippet + endOfSnippet + len(endTag)
 
 		configBytes := rawBytes[nextSnippet : endOfSnippet-len(endTag)]
-		if nextSnippet = bytes.Index(rawBytes[endOfSnippet:], []byte("```yaml")); nextSnippet != -1 {
+		if nextSnippet = bytes.Index(rawBytes[endOfSnippet:], startTag); nextSnippet != -1 {
 			nextSnippet += endOfSnippet
 		}
 
