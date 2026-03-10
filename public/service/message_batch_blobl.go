@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/warpstreamlabs/bento/internal/bloblang/field"
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
@@ -54,6 +56,31 @@ func (b MessageBatchBloblangExecutor) Query(index int) (*Message, error) {
 		return NewInternalMessage(res), nil
 	}
 	return nil, nil
+}
+
+// Query executes a parsed Bloblang mapping on a message batch, from the
+// perspective of a particular message index, and returns a bool back or an
+// error if the mapping fails, the message gets deleted or value is not a bool.
+//
+// This method allows mappings to perform windowed aggregations across message
+// batches.
+func (b MessageBatchBloblangExecutor) QueryBool(index int) (bool, error) {
+	newPart, err := b.Query(index)
+	if err != nil {
+		return false, err
+	}
+	if newPart == nil {
+		return false, errors.New("query mapping resulted in deleted message, expected a bool value")
+	}
+	newValue, err := newPart.AsStructured()
+	if err != nil {
+		return false, err
+	}
+	if b, ok := newValue.(bool); ok {
+		return b, nil
+	}
+
+	return false, value.NewTypeErrorFrom("mapping", newValue, value.TBool)
 }
 
 // QueryValue executes a parsed Bloblang mapping on a message batch,
