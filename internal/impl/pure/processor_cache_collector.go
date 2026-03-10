@@ -320,7 +320,11 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 		}
 	}
 
-	return []service.MessageBatch{newMsgs}, nil
+	if len(newMsgs) > 0 {
+		return []service.MessageBatch{newMsgs}, nil
+	}
+
+	return nil, nil
 }
 
 func (cc *cacheCollector) Close(ctx context.Context) error {
