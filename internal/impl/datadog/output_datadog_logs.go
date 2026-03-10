@@ -263,11 +263,12 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 
 	opts := datadogV2.NewSubmitLogOptionalParameters().WithContentEncoding(d.writerConf.contentEncoding)
 
-	_, _, err = d.client.SubmitLog(
+	_, resp, err := d.client.SubmitLog(
 		submitCtx,
 		items,
 		*opts,
 	)
+	defer resp.Body.Close()
 
 	return err
 }
