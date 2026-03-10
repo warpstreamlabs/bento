@@ -135,7 +135,7 @@ type datadogLogReaderConfig struct {
 	ddConf *datadog.Configuration
 }
 
-func buildDDContext(ctx context.Context, conf datadogLogReaderConfig) context.Context {
+func (conf *datadogLogReaderConfig) buildDDContext(ctx context.Context) context.Context {
 	ddCtx := datadog.NewDefaultContext(ctx)
 	if conf.site != "" {
 		ddCtx = context.WithValue(ddCtx, datadog.ContextServerVariables, map[string]string{
@@ -286,7 +286,7 @@ func (r *datadogLogReader) loop(client *datadogV2.LogsApi, conf datadogLogReader
 		}
 
 		req := buildRequest(cursor, conf)
-		ddCtx := buildDDContext(ctx, conf)
+		ddCtx := conf.buildDDContext(ctx)
 
 		resp, _, err := client.ListLogs(ddCtx, *datadogV2.NewListLogsOptionalParameters().WithBody(req))
 		if err != nil {
