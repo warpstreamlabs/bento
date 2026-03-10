@@ -252,10 +252,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 		}
 
 		var subscriptionWg sync.WaitGroup
-		subscriptionWg.Add(1)
-		go func() {
-			defer subscriptionWg.Done()
-
+		subscriptionWg.Go(func() {
 			// Subscription goroutine manages its own backoff for retries
 			subBoff := backoff.NewExponentialBackOff()
 			subBoff.InitialInterval = 300 * time.Millisecond
@@ -341,7 +338,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 					break // Exit retry loop, wait for next trigger from main loop
 				}
 			}
-		}()
+		})
 
 		// Main consumer loop (similar to polling consumer)
 		for {
