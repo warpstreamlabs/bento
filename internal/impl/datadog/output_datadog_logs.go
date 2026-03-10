@@ -265,8 +265,8 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 		items,
 		*opts,
 	)
-    if resp != nil {
-	    defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
 	}
 
 	return err
