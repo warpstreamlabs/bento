@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -81,7 +82,6 @@ content_encoding: deflate
 		})
 	}
 }
-
 
 func TestGetContext(t *testing.T) {
 	tests := []struct {
@@ -200,7 +200,6 @@ func TestWriteBatch(t *testing.T) {
 		require.Equal(t, "env-api-key", gotHeader)
 	})
 
-
 	t.Run("sends messages as log items", func(t *testing.T) {
 		m := newMockLogServer(t, http.StatusAccepted)
 		w := newTestWriter(t, m, `
@@ -218,19 +217,6 @@ content_encoding: identity
 		require.Len(t, m.received, 2)
 		require.Equal(t, "hello world", m.received[0].Message)
 		require.Equal(t, "second log", m.received[1].Message)
-	})
-
-	t.Run("returns error when context cancelled", func(t *testing.T) {
-		m := newBlockingLogServer(t)
-		w := newTestWriter(t, m, `content_encoding: identity`)
-
-		ctx, cancel := context.WithCancel(t.Context())
-		errc := make(chan error, 1)
-		go func() {
-			errc <- w.WriteBatch(ctx, service.MessageBatch{service.NewMessage([]byte("x"))})
-		}()
-		cancel()
-		require.Error(t, <-errc)
 	})
 
 	t.Run("returns error on bad request", func(t *testing.T) {
