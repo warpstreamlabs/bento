@@ -35,7 +35,7 @@ This processor works by storing an accumulated value in a cache, which is update
 2. `+"`append_check`"+`: For each message, if this expression evaluates to true, the value is updated using `+"`append_map`"+`.
 3. `+"`flush_check`"+`: When this expression evaluates to true, the accumulated value is emitted as a new message and the cache is optionally cleared.
 
-The `+"`append_map`"+` bloblang expression can access both the current cached value as `+"`this.old`"+` and the current message as `+"`this.new`"+`.`).
+The `+"`append_map`"+` bloblang expression can access both the current cached value as `+"`this.cached`"+` and the current message as `+"`this.current`"+`.`).
 		Fields(
 			service.NewStringField(cacheCollectorPFieldResource).
 				Description("The [`cache` resource](/docs/components/caches/about) to use for storing accumulated state."),
@@ -49,8 +49,8 @@ The `+"`append_map`"+` bloblang expression can access both the current cached va
 				Description("Bloblang expression that must evaluate to `true` for a message to be appended to the accumulated value.").
 				Examples(`this.process == "work"`, `batch_index() < 100`),
 			service.NewBloblangField(cacheCollectorPFieldAppendMap).
-				Description("Bloblang expression used to update the accumulated value. It receives the current value as `this.old` and the new message as `this.new`.").
-				Examples(`root = this.old.append(this.new)`, `root = {"count": this.old.count + 1, "total": this.old.total + this.new.value}`),
+				Description("Bloblang expression used to update the accumulated value. It receives the current value as `this.cached` and the new message as `this.current`.").
+				Examples(`root = this.cached.append(this.current)`, `root = {"count": this.cached.count + 1, "total": this.cached.total + this.current.value}`),
 			service.NewBloblangField(cacheCollectorPFieldFlushCheck).
 				Description("Bloblang expression that must evaluate to `true` to emit the accumulated value and potentially clear the cache.").
 				Examples(`this.process == "end"`, `batch_index() == 0 && message_index() > 0 && batch_index() % 100 == 0`),
