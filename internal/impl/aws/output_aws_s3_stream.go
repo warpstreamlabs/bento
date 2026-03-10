@@ -34,27 +34,23 @@ func s3StreamOutputSpec() *service.ConfigSpec {
 		Categories("Services", "AWS").
 		Summary(`Streams data to S3 using multipart uploads.`).
 		Description(`
-This output writes to S3 by streaming content incrementally using S3 multipart uploads.
-Unlike the standard `+"`aws_s3`"+` output (which buffers the entire file in memory),
-this output streams data directly to S3, reducing memory usage by 80-90% for large files.
+This output writes to S3 using multipart uploads, streaming content incrementally rather than
+buffering entire files in memory. This makes it ideal for writing large files or continuous streams
+where memory efficiency is critical.
 
-## Key Features
-
-- **Memory Efficient**: Streams content to S3 as buffer fills, minimal memory footprint
-- **Partition Routing**: `+"`partition_by`"+` parameter ensures messages with same partition values go to same file
-- **Dynamic Paths**: Supports Bloblang interpolation for partition paths (e.g., `+"`logs/${! timestamp_unix() }`"+`)
-- **S3 Multipart Upload**: Leverages S3 multipart uploads for reliable large file transfers
-- **Flexible Buffering**: Configure by bytes, message count, or time period
+The `+"`partition_by`"+` parameter allows you to maintain separate S3 multipart uploads for different
+partition values. Messages with matching partition values are written to the same file, and the full
+path expression is evaluated only once per partition (allowing use of functions like `+"`uuid_v4()`"+`
+for unique filenames). Without `+"`partition_by`"+`, each message evaluates the full path independently.
 
 ## When to Use
 
-Use this output instead of `+"`aws_s3`"+` when:
-- Writing large files (>1GB) that would consume too much memory
-- Streaming continuous data that needs to be partitioned into files
-- You need dynamic partition routing (e.g., one file per account/date combination)
-- Memory-constrained environments (containers, Lambda, ECS)
+Use `+"`aws_s3_stream`"+` instead of `+"`aws_s3`"+` when:
+- Writing large files (>100MB) where memory usage is a concern
+- Streaming continuous data in memory-constrained environments
+- You need per-partition file grouping with dynamic paths
 
-### Credentials
+## Credentials
 
 By default Bento will use a shared credentials file when connecting to AWS services.
 You can find out more [in this document](/docs/guides/cloud/aws).
@@ -86,7 +82,7 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Description("Maximum number of messages to buffer before flushing to S3.").
 				Default(10000).
 				Advanced(),
-			service.NewStringField(ssoFieldMaxBufferPeriod).
+			service.NewDurationField(ssoFieldMaxBufferPeriod).
 				Description("Maximum duration to buffer messages before flushing to S3.").
 				Default("10s").
 				Advanced(),
@@ -187,12 +183,8 @@ func s3StreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3StreamConfig,
 		return
 	}
 
-	var periodStr string
-	if periodStr, err = pConf.FieldString(ssoFieldMaxBufferPeriod); err != nil {
+	if conf.MaxBufferPeriod, err = pConf.FieldDuration(ssoFieldMaxBufferPeriod); err != nil {
 		return
-	}
-	if conf.MaxBufferPeriod, err = time.ParseDuration(periodStr); err != nil {
-		return conf, fmt.Errorf("failed to parse max_buffer_period: %w", err)
 	}
 
 	if conf.ContentType, err = pConf.FieldInterpolatedString(ssoFieldContentType); err != nil {
@@ -241,24 +233,22 @@ type s3StreamOutput struct {
 	s3Client *s3.Client
 
 	// Writer pool for managing multiple partition paths
-	writersMut sync.Mutex
+	writersMut sync.RWMutex
 	writers    map[string]*S3StreamingWriter
 }
 
 func newS3StreamOutput(conf s3StreamConfig, mgr *service.Resources) (*s3StreamOutput, error) {
-	s3Client := s3.NewFromConfig(conf.aconf, func(o *s3.Options) {
-		o.UsePathStyle = conf.UsePathStyle
-	})
-
 	return &s3StreamOutput{
-		conf:     conf,
-		log:      mgr.Logger(),
-		s3Client: s3Client,
-		writers:  make(map[string]*S3StreamingWriter),
+		conf:    conf,
+		log:     mgr.Logger(),
+		writers: make(map[string]*S3StreamingWriter),
 	}, nil
 }
 
 func (s *s3StreamOutput) Connect(ctx context.Context) error {
+	s.s3Client = s3.NewFromConfig(s.conf.aconf, func(o *s3.Options) {
+		o.UsePathStyle = s.conf.UsePathStyle
+	})
 	s.log.Infof("Streaming S3 output configured for bucket: %s", s.conf.Bucket)
 	return nil
 }
@@ -331,57 +321,64 @@ func (s *s3StreamOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 }
 
 func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey string, path string, batch service.MessageBatch) error {
-	// Get or create writer (with lock)
-	s.writersMut.Lock()
+	// Try to get existing writer with read lock
+	s.writersMut.RLock()
 	writer, exists := s.writers[partitionKey]
+	s.writersMut.RUnlock()
 
 	if !exists {
-		// Evaluate content type and encoding for this partition
-		var contentType string
-		var contentEncoding string
-		var err error
+		// Need to create writer - acquire write lock
+		s.writersMut.Lock()
+		// Double-check that another goroutine didn't create it while we were waiting
+		writer, exists = s.writers[partitionKey]
+		if !exists {
+			// Evaluate content type and encoding for this partition (uses first message in batch)
+			var contentType string
+			var contentEncoding string
+			var err error
 
-		if len(batch) > 0 {
-			contentType, err = batch.TryInterpolatedString(0, s.conf.ContentType)
-			if err != nil {
-				s.writersMut.Unlock()
-				return fmt.Errorf("failed to evaluate content_type: %w", err)
-			}
-
-			if s.conf.ContentEncoding != nil {
-				contentEncoding, err = batch.TryInterpolatedString(0, s.conf.ContentEncoding)
+			if len(batch) > 0 {
+				contentType, err = batch.TryInterpolatedString(0, s.conf.ContentType)
 				if err != nil {
 					s.writersMut.Unlock()
-					return fmt.Errorf("failed to evaluate content_encoding: %w", err)
+					return fmt.Errorf("failed to evaluate content_type: %w", err)
+				}
+
+				if s.conf.ContentEncoding != nil {
+					contentEncoding, err = batch.TryInterpolatedString(0, s.conf.ContentEncoding)
+					if err != nil {
+						s.writersMut.Unlock()
+						return fmt.Errorf("failed to evaluate content_encoding: %w", err)
+					}
 				}
 			}
-		}
 
-		newWriter, err := NewS3StreamingWriter(S3StreamingWriterConfig{
-			S3Client:        s.s3Client,
-			Bucket:          s.conf.Bucket,
-			Key:             path,
-			MaxBufferBytes:  s.conf.MaxBufferBytes,
-			MaxBufferCount:  s.conf.MaxBufferCount,
-			MaxBufferPeriod: s.conf.MaxBufferPeriod,
-			ContentType:     contentType,
-			ContentEncoding: contentEncoding,
-		})
-		if err != nil {
-			s.writersMut.Unlock()
-			return fmt.Errorf("failed to create writer: %w", err)
-		}
+			newWriter, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+				S3Client:        s.s3Client,
+				Bucket:          s.conf.Bucket,
+				Key:             path,
+				MaxBufferBytes:  s.conf.MaxBufferBytes,
+				MaxBufferCount:  s.conf.MaxBufferCount,
+				MaxBufferPeriod: s.conf.MaxBufferPeriod,
+				ContentType:     contentType,
+				ContentEncoding: contentEncoding,
+			})
+			if err != nil {
+				s.writersMut.Unlock()
+				return fmt.Errorf("failed to create writer: %w", err)
+			}
 
-		if err := newWriter.Initialize(ctx); err != nil {
-			s.writersMut.Unlock()
-			return fmt.Errorf("failed to initialize writer: %w", err)
-		}
+			if err := newWriter.Initialize(ctx); err != nil {
+				s.writersMut.Unlock()
+				return fmt.Errorf("failed to initialize writer: %w", err)
+			}
 
-		s.writers[partitionKey] = newWriter
-		writer = newWriter
-		s.log.Debugf("Created new streaming writer for path: %s", path)
+			s.writers[partitionKey] = newWriter
+			writer = newWriter
+			s.log.Debugf("Created new streaming writer for path: %s", path)
+		}
+		s.writersMut.Unlock()
 	}
-	s.writersMut.Unlock()
 
 	// Write messages to writer
 	for _, msg := range batch {
@@ -402,7 +399,7 @@ func (s *s3StreamOutput) Close(ctx context.Context) error {
 	s.writersMut.Lock()
 	defer s.writersMut.Unlock()
 
-	s.log.Infof("Closing %d active writers", len(s.writers))
+	s.log.Debugf("Closing %d active writers", len(s.writers))
 
 	var lastErr error
 	for path, writer := range s.writers {
