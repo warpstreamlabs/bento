@@ -244,19 +244,19 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 				return nil, err
 			}
 
-			if processAppend {
-				if cachedValue == nil {
-					initMsg, err := init.Query(i)
-					if err != nil {
-						return nil, fmt.Errorf("init evaluation error: %w", err)
-					}
-					initData, err := initMsg.AsBytes()
-					if err != nil {
-						return nil, fmt.Errorf("init data error: %w", err)
-					}
-					cachedValue = initData
+			if cachedValue == nil {
+				initMsg, err := init.Query(i)
+				if err != nil {
+					return nil, fmt.Errorf("init evaluation error: %w", err)
 				}
+				initData, err := initMsg.AsBytes()
+				if err != nil {
+					return nil, fmt.Errorf("init data error: %w", err)
+				}
+				cachedValue = initData
+			}
 
+			if processAppend {
 				currentValue, err := msg.AsBytes()
 				if err != nil {
 					return nil, err
@@ -293,24 +293,6 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 			}
 
 			if processFlush {
-				var cachedValue []byte
-				if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
-					cachedValue, err = cache.Get(ctx, key)
-					if err != nil {
-						if errors.Is(err, service.ErrKeyNotFound) {
-							cachedValue = nil
-						} else {
-							err = fmt.Errorf("failed to get cache key '%s': %v", key, err)
-						}
-					}
-				}); cerr != nil {
-					err = cerr
-				}
-
-				if err != nil {
-					return nil, err
-				}
-
 				flushMsg := service.NewMessage(cachedValue)
 
 				flushResult, err := flushMsg.BloblangQuery(cc.appendMap)
