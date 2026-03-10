@@ -218,7 +218,7 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 	ctx, cancel := d.shutSig.SoftStopCtx(ctx)
 	defer cancel()
 
-	items := make([]datadogV2.HTTPLogItem, len(batch))
+	items := make([]datadogV2.HTTPLogItem, 0, len(batch))
 
 	var ddsourceExec, ddtagsExec, hostnameExec, serviceExec *service.MessageBatchInterpolationExecutor
 	if d.writerConf.ddsource != nil {
@@ -234,42 +234,66 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 		serviceExec = batch.InterpolationExecutor(d.writerConf.service)
 	}
 
+	var batchErr *service.BatchError
+	batchErrFailed := func(i int, err error) {
+		if batchErr == nil {
+			batchErr = service.NewBatchError(batch, err)
+		}
+		batchErr.Failed(i, err)
+	}
+
 	for i, msg := range batch {
 		contents, err := msg.AsBytes()
 		if err != nil {
-			return fmt.Errorf("message %d reading body: %w", i, err)
+			batchErrFailed(i, fmt.Errorf("message %d reading body: %w", i, err))
+			continue
 		}
 		item := datadogV2.HTTPLogItem{
 			Message: string(contents),
 		}
 		if err := exec(i, ddsourceExec, item.SetDdsource); err != nil {
-			return fmt.Errorf("message %d resolving ddsource: %w", i, err)
+			batchErrFailed(i, fmt.Errorf("message %d resolving ddsource: %w", i, err))
+			continue
 		}
+
 		if err := exec(i, ddtagsExec, item.SetDdtags); err != nil {
-			return fmt.Errorf("message %d resolving ddtags: %w", i, err)
+			batchErrFailed(i, fmt.Errorf("message %d resolving ddtags: %w", i, err))
+			continue
 		}
 		if err := exec(i, hostnameExec, item.SetHostname); err != nil {
-			return fmt.Errorf("message %d resolving hostname: %w", i, err)
+			batchErrFailed(i, fmt.Errorf("message %d resolving hostname: %w", i, err))
+			continue
 		}
 		if err := exec(i, serviceExec, item.SetService); err != nil {
-			return fmt.Errorf("message %d resolving service: %w", i, err)
+			batchErrFailed(i, fmt.Errorf("message %d resolving service: %w", i, err))
+			continue
 		}
-		items[i] = item
+		items = append(items, item)
 	}
 
-	ddCtx := d.writerConf.buildDDContext(ctx)
-	opts := datadogV2.NewSubmitLogOptionalParameters().WithContentEncoding(d.writerConf.contentEncoding)
+	if len(items) > 0 {
+		ddCtx := d.writerConf.buildDDContext(ctx)
+		opts := datadogV2.NewSubmitLogOptionalParameters().WithContentEncoding(d.writerConf.contentEncoding)
 
-	_, resp, err := d.client.SubmitLog(
-		ddCtx,
-		items,
-		*opts,
-	)
-	if resp != nil {
-		defer resp.Body.Close()
+		_, resp, err := d.client.SubmitLog(
+			ddCtx,
+			items,
+			*opts,
+		)
+		if resp != nil {
+			defer resp.Body.Close()
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
-	return err
+	if batchErr != nil && batchErr.IndexedErrors() > 0 {
+		return batchErr
+	}
+
+	return nil
 }
 
 func (d *datadogLogWriter) Close(_ context.Context) error {
