@@ -19,13 +19,22 @@ import (
 // This is a retryable error that should trigger a backoff before resubscribing.
 var errBackpressureTimeout = errors.New("backpressure timeout waiting for space in pending pool")
 
+// kinesisEFOAPI is the subset of kinesis.Client methods used by kinesisEFOManager.
+type kinesisEFOAPI interface {
+	RegisterStreamConsumer(ctx context.Context, params *kinesis.RegisterStreamConsumerInput, optFns ...func(*kinesis.Options)) (*kinesis.RegisterStreamConsumerOutput, error)
+	DescribeStreamConsumer(ctx context.Context, params *kinesis.DescribeStreamConsumerInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamConsumerOutput, error)
+}
+
 // kinesisEFOManager handles Enhanced Fan Out consumer registration and lifecycle
 type kinesisEFOManager struct {
 	streamARN    string
 	consumerName string
 	consumerARN  string
-	svc          *kinesis.Client
+	svc          kinesisEFOAPI
 	log          *service.Logger
+	// pollInterval controls how long waitForActiveConsumer waits between status
+	// checks. Defaults to 2 seconds; overridable in tests for faster iteration.
+	pollInterval time.Duration
 }
 
 // newKinesisEFOManager creates a new EFO manager
@@ -126,36 +135,44 @@ func (m *kinesisEFOManager) waitForActiveConsumer(ctx context.Context) error {
 	waiterCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	ticker := time.NewTicker(2 * time.Second)
+	interval := m.pollInterval
+	if interval == 0 {
+		interval = 2 * time.Second
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
+		// Check consumer status immediately before waiting for the next tick
+		describeInput := &kinesis.DescribeStreamConsumerInput{
+			ConsumerARN: aws.String(m.consumerARN),
+		}
+
+		output, err := m.svc.DescribeStreamConsumer(waiterCtx, describeInput)
+		if err != nil {
+			return fmt.Errorf("failed to describe consumer: %w", err)
+		}
+
+		if output.ConsumerDescription != nil {
+			status := output.ConsumerDescription.ConsumerStatus
+			m.log.Debugf("Consumer status: %s", status)
+
+			if status == types.ConsumerStatusActive {
+				m.log.Debugf("Consumer is now ACTIVE")
+				return nil
+			}
+
+			if status == types.ConsumerStatusDeleting {
+				return errors.New("consumer is being deleted")
+			}
+		}
+
 		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled waiting for consumer to become ACTIVE: %w", ctx.Err())
 		case <-waiterCtx.Done():
 			return fmt.Errorf("timeout waiting for consumer to become ACTIVE: %w", waiterCtx.Err())
 		case <-ticker.C:
-			describeInput := &kinesis.DescribeStreamConsumerInput{
-				ConsumerARN: aws.String(m.consumerARN),
-			}
-
-			output, err := m.svc.DescribeStreamConsumer(waiterCtx, describeInput)
-			if err != nil {
-				return fmt.Errorf("failed to describe consumer: %w", err)
-			}
-
-			if output.ConsumerDescription != nil {
-				status := output.ConsumerDescription.ConsumerStatus
-				m.log.Debugf("Consumer status: %s", status)
-
-				if status == types.ConsumerStatusActive {
-					m.log.Debugf("Consumer is now ACTIVE")
-					return nil
-				}
-
-				if status == types.ConsumerStatusDeleting {
-					return errors.New("consumer is being deleted")
-				}
-			}
 		}
 	}
 }
