@@ -79,6 +79,7 @@ Set `+"`api_key`"+` explicitly or via the `+"`DD_API_KEY`"+` environment variabl
 				Optional(),
 			service.NewInterpolatedStringField(ddoFieldDDTags).
 				Description("A comma-separated list of tags to attach to the log.").
+				Example(`env:${!json("environment")},version:${!json("version")}`).
 				Optional(),
 			service.NewInterpolatedStringField(ddoFieldHostname).
 				Description("The hostname of the machine that produced the log.").
@@ -268,7 +269,9 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 		items,
 		*opts,
 	)
-	defer resp.Body.Close()
+    if resp != nil {
+	    defer resp.Body.Close()
+	}
 
 	return err
 }
