@@ -225,6 +225,11 @@ func (k *awsKinesisCheckpointer) GetCheckpointsAndClaims(ctx context.Context, st
 				shardID = s.Value
 			}
 			if shardID == "" {
+				// Skip malformed items without a ShardID rather than failing the
+				// whole query — this is intentionally lenient compared to the
+				// single-item getCheckpoint path which returns an error, because
+				// here we are scanning all checkpoints and a single bad row
+				// should not block progress for the rest.
 				continue
 			}
 
