@@ -198,14 +198,12 @@ func TestGlobalPendingPool_ConcurrentAccess(t *testing.T) {
 	acquireSize := 10
 
 	// Start many goroutines acquiring and releasing
-	for i := 0; i < acquireCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range acquireCount {
+		wg.Go(func() {
 			require.True(t, pool.Acquire(context.Background(), acquireSize))
 			time.Sleep(10 * time.Millisecond)
 			pool.Release(acquireSize)
-		}()
+		})
 	}
 
 	wg.Wait()
