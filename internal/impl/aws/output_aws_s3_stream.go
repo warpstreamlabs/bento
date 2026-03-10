@@ -30,11 +30,11 @@ const (
 func s3StreamOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("1.0.0").
+		Version("1.16.0").
 		Categories("Services", "AWS").
-		Summary(`Streams data directly to S3 using multipart uploads with minimal memory overhead.`).
+		Summary(`Streams data to S3 using multipart uploads.`).
 		Description(`
-This output writes files to S3 by streaming content incrementally using S3 multipart uploads.
+This output writes to S3 by streaming content incrementally using S3 multipart uploads.
 Unlike the standard `+"`aws_s3`"+` output (which buffers the entire file in memory),
 this output streams data directly to S3, reducing memory usage by 80-90% for large files.
 
@@ -63,7 +63,7 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 			service.NewStringField(ssoFieldBucket).
 				Description("The S3 bucket to upload files to."),
 			service.NewInterpolatedStringField(ssoFieldPath).
-				Description("The path for each file. Supports Bloblang interpolation for dynamic partitioning.").
+				Description("The path for each file.").
 				Example(`logs/${! timestamp_unix() }-${! uuid_v4() }.log`).
 				Example(`data/date=${! meta("date") }/account=${! meta("account") }/${! uuid_v4() }.json`),
 			service.NewInterpolatedStringListField(ssoFieldPartitionBy).
@@ -83,19 +83,19 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Default(10*1024*1024).
 				Advanced(),
 			service.NewIntField(ssoFieldMaxBufferCount).
-				Description("Maximum number of messages to buffer before flushing to S3. Default is 10000.").
+				Description("Maximum number of messages to buffer before flushing to S3.").
 				Default(10000).
 				Advanced(),
 			service.NewStringField(ssoFieldMaxBufferPeriod).
-				Description("Maximum duration to buffer messages before flushing to S3. Default is 10s.").
+				Description("Maximum duration to buffer messages before flushing to S3.").
 				Default("10s").
 				Advanced(),
 			service.NewInterpolatedStringField(ssoFieldContentType).
-				Description("The content type to set for uploaded files. Supports interpolation.").
+				Description("The content type to set for uploaded files.").
 				Default("application/octet-stream").
 				Advanced(),
 			service.NewInterpolatedStringField(ssoFieldContentEncoding).
-				Description("The content encoding to set for uploaded files (e.g., gzip). Supports interpolation.").
+				Description("The content encoding to set for uploaded files (e.g., gzip).").
 				Optional().
 				Advanced(),
 		).
