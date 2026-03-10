@@ -35,7 +35,7 @@ output:
   datadog_logs:
     api_key: "" # No default (optional)
     source: "" # No default (optional)
-    tags: "" # No default (optional)
+    tags: env:${!json("environment")},version:${!json("version")} # No default (optional)
     hostname: "" # No default (optional)
     service: "" # No default (optional)
     content_encoding: gzip
@@ -59,7 +59,7 @@ output:
     api_key: "" # No default (optional)
     site: datadoghq.com # No default (optional)
     source: "" # No default (optional)
-    tags: "" # No default (optional)
+    tags: env:${!json("environment")},version:${!json("version")} # No default (optional)
     hostname: "" # No default (optional)
     service: "" # No default (optional)
     content_encoding: gzip
@@ -87,7 +87,7 @@ Submits log entries to Datadog using the HTTP Logs intake API.
 Logs exceeding 1 MB are truncated by Datadog but still accepted (2xx). Payloads exceeding 5 MB are rejected with a 413.
 
 :::warning
-Log events can be submitted with a timestamp that is up to 18 hours in the past.
+Log events with a timestamp older than 18 hours in the past will be rejected.
 :::
 
 ### Authentication
@@ -140,6 +140,12 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
+
+```yml
+# Examples
+
+tags: env:${!json("environment")},version:${!json("version")}
+```
 
 ### `hostname`
 

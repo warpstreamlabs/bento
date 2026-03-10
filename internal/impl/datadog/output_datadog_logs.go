@@ -58,7 +58,7 @@ func datadogLogOutputSpec() *service.ConfigSpec {
 Logs exceeding 1 MB are truncated by Datadog but still accepted (2xx). Payloads exceeding 5 MB are rejected with a 413.
 
 :::warning
-Log events can be submitted with a timestamp that is up to 18 hours in the past.
+Log events with a timestamp older than 18 hours in the past will be rejected.
 :::
 
 ### Authentication
@@ -107,7 +107,7 @@ type datadogLogWriterConfig struct {
 	service  *service.InterpolatedString
 }
 
-func (c *datadogLogWriterConfig) GetContext(ctx context.Context) (context.Context, error) {
+func (c *datadogLogWriterConfig) buildDDContext(ctx context.Context) context.Context {
 	submitCtx := datadog.NewDefaultContext(ctx)
 	if c.site != "" {
 		submitCtx = context.WithValue(submitCtx, datadog.ContextServerVariables, map[string]string{
@@ -119,7 +119,7 @@ func (c *datadogLogWriterConfig) GetContext(ctx context.Context) (context.Contex
 			"apiKeyAuth": {Key: c.apiKey},
 		})
 	}
-	return submitCtx, nil
+	return submitCtx
 }
 
 type datadogLogWriter struct {
@@ -257,15 +257,11 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 		items[i] = item
 	}
 
-	submitCtx, err := d.writerConf.GetContext(ctx)
-	if err != nil {
-		return err
-	}
-
+	ddCtx := d.writerConf.buildDDContext(ctx)
 	opts := datadogV2.NewSubmitLogOptionalParameters().WithContentEncoding(d.writerConf.contentEncoding)
 
 	_, resp, err := d.client.SubmitLog(
-		submitCtx,
+		ddCtx,
 		items,
 		*opts,
 	)

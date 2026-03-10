@@ -126,8 +126,7 @@ func TestGetContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, err := tt.conf.GetContext(context.Background())
-			require.NoError(t, err)
+			ctx := tt.conf.buildDDContext(context.Background())
 			tt.assert(t, ctx)
 		})
 	}
@@ -150,16 +149,6 @@ func newMockLogServer(t *testing.T, statusCode int) *mockLogServer {
 
 		w.WriteHeader(statusCode)
 		_, _ = w.Write([]byte("{}"))
-	}))
-	t.Cleanup(m.Close)
-	return m
-}
-
-func newBlockingLogServer(t *testing.T) *mockLogServer {
-	t.Helper()
-	m := &mockLogServer{}
-	m.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
 	}))
 	t.Cleanup(m.Close)
 	return m
