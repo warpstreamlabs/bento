@@ -48,6 +48,23 @@ func CacheTestMissingKey() CacheTestDefinition {
 	)
 }
 
+// CacheTestMissingKeyExists checks that we get a false on missing key.
+func CacheTestMissingKeyExists() CacheTestDefinition {
+	return namedCacheTest(
+		"return false on missing key",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			cache := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, cache)
+			})
+
+			res, err := cache.Exists(env.ctx, "missingkey")
+			assert.NoError(t, err)
+			assert.False(t, res)
+		},
+	)
+}
+
 // CacheTestDoubleAdd ensures that a double add returns an error.
 func CacheTestDoubleAdd() CacheTestDefinition {
 	return namedCacheTest(
@@ -118,6 +135,33 @@ func CacheTestGetAndSet(n int) CacheTestDefinition {
 				res, err := cache.Get(env.ctx, key)
 				require.NoError(t, err)
 				assert.Equal(t, value, string(res))
+			}
+		},
+	)
+}
+
+// CacheTestExistsAndSet checks that we can set and then n items exists.
+func CacheTestExistsAndSet(n int) CacheTestDefinition {
+	return namedCacheTest(
+		"can exists and set",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			cache := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, cache)
+			})
+
+			for i := range n {
+				key := fmt.Sprintf("key%v", i)
+				value := fmt.Sprintf("value%v", i)
+				require.NoError(t, cache.Set(env.ctx, key, []byte(value), nil))
+			}
+
+			for i := range n {
+				key := fmt.Sprintf("key%v", i)
+
+				res, err := cache.Exists(env.ctx, key)
+				require.NoError(t, err)
+				assert.False(t, res)
 			}
 		},
 	)
