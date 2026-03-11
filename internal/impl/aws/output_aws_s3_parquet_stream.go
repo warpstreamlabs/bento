@@ -27,8 +27,8 @@ const (
 	spsoFieldForcePathStyleURLs = "force_path_style_urls"
 	spsoFieldSchema             = "schema"
 	spsoFieldSchemaFile         = "schema_file"
-	spsoFieldCompression = "compression"
-	spsoFieldEncoding    = "encoding"
+	spsoFieldCompression        = "compression"
+	spsoFieldEncoding           = "encoding"
 	spsoFieldRowGroupSize       = "row_group_size"
 	spsoFieldBatching           = "batching"
 )

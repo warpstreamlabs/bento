@@ -31,7 +31,7 @@ func TestFlushRowGroup_PreservesColumnMetadata(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	writer := &StreamingParquetWriter{
 		schema:          schema,
@@ -113,7 +113,7 @@ func TestFlushRowGroup_ExtractsActualFooterMetadata(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	writer := &StreamingParquetWriter{
 		schema:          schema,
@@ -175,7 +175,7 @@ func TestRowGroupsToThrift_UsesPreservedMetadata(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	// Create mock column metadata
 	mockColumnChunks := []format.ColumnChunk{
@@ -241,7 +241,7 @@ func TestRowGroupsToThrift_FallbackApproximation(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	writer := &StreamingParquetWriter{
 		schema:          schema,
@@ -284,7 +284,7 @@ func TestFlushRowGroup_AdjustsFileOffsets(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	// Simulate writer that already has data uploaded
 	existingSize := int64(10000)
@@ -341,7 +341,7 @@ func TestGenerateFooter_WithPreservedMetadata(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	mockColumnChunks := []format.ColumnChunk{
 		{
@@ -432,7 +432,7 @@ func TestNestedOptionalStructs_EndToEnd(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	writer := &StreamingParquetWriter{
 		schema:          schema,
@@ -531,7 +531,7 @@ func TestFlushRowGroup_PreservesPageIndex(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	writer := &StreamingParquetWriter{
 		schema:          schema,
@@ -608,7 +608,7 @@ func TestFlushRowGroup_PageIndexOffsetTracking(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	writer := &StreamingParquetWriter{
 		schema:          schema,
@@ -673,7 +673,7 @@ func TestClose_WritesPageIndexInCorrectOrder(t *testing.T) {
 
 	mockClient := &mockS3Client{}
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -781,7 +781,7 @@ func TestClose_PageIndexOffsetCalculation(t *testing.T) {
 
 	mockClient := &mockS3Client{}
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
