@@ -22,7 +22,7 @@ func cacheCollectorProc(confStr string) (service.BatchProcessor, *service.Resour
 	return proc, mgr, err
 }
 
-func TestCacheCollectorBasicAccumulationDeleteCache(t *testing.T) {
+func TestCacheCollectorProcessor_BasicAccumulationDeleteCache(t *testing.T) {
 	spec := `
 resource: test_cache
 key: test_key
@@ -63,7 +63,7 @@ flush_deletes: true
 	require.Error(t, err)
 }
 
-func TestCacheCollectorBasicAccumulatioKeepCache(t *testing.T) {
+func TestCacheCollectorProcessor_BasicAccumulatioKeepCache(t *testing.T) {
 	spec := `
 resource: test_cache
 key: test_key
@@ -106,7 +106,7 @@ flush_deletes: false
 	assert.JSONEq(t, `[{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"}]`, string(data))
 }
 
-func TestCacheCollectorWithDifferentKeys(t *testing.T) {
+func TestCacheCollectorProcessor_WithDifferentKeys(t *testing.T) {
 	t.Run("test_with_different_keys", func(t *testing.T) {
 		spec := `
 resource: test_cache
@@ -149,7 +149,7 @@ flush_deletes: true
 	})
 }
 
-func TestCacheCollectorWithMeta(t *testing.T) {
+func TestCacheCollectorProcessor_WithMeta(t *testing.T) {
 	t.Run("access_meta", func(t *testing.T) {
 		spec := `
 resource: test_cache
@@ -159,7 +159,7 @@ append_check: true
 append_map: |
   root = this.cached.append(metadata("meta_data"))
 flush_check: true
-flush_deletes: false
+flush_deletes: true
 `
 		processor, _, err := cacheCollectorProc(spec)
 		require.NoError(t, err)
