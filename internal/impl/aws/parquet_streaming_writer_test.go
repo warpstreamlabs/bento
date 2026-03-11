@@ -178,13 +178,12 @@ func TestStreamingParquetWriter_MapToStruct(t *testing.T) {
 
 // TestStreamingParquetWriter_Stats tests writer statistics
 func TestStreamingParquetWriter_Stats(t *testing.T) {
+	type StatsTestRecord struct {
+		ID int64 `parquet:"id"`
+	}
 	config := StreamingWriterConfig{
-		Schema: parquet.SchemaOf(new(struct {
-			ID int64 `parquet:"id"`
-		})),
-		MessageType: reflect.TypeOf(struct {
-			ID int64 `parquet:"id"`
-		}{}),
+		Schema:          parquet.SchemaOf(new(StatsTestRecord)),
+		MessageType:     reflect.TypeFor[StatsTestRecord](),
 		CompressionType: &parquet.Snappy,
 		RowGroupSize:    10,
 	}
@@ -428,7 +427,7 @@ func TestParquetStreamingWriter_PartUploadTracking(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write a few events
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := map[string]any{"ID": int64(i)}
 		err = writer.WriteEvent(ctx, event)
 		require.NoError(t, err)
@@ -480,7 +479,7 @@ func TestParquetStreamingWriter_CompleteMultipartUpload(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write a few events
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := map[string]any{"ID": int64(i)}
 		err = writer.WriteEvent(ctx, event)
 		require.NoError(t, err)
@@ -539,7 +538,7 @@ func TestParquetStreamingWriter_MultiplePartsWithCorrectNumbering(t *testing.T) 
 	require.NoError(t, err)
 
 	// Write enough data to create multiple parts (>10MB total)
-	for i := 0; i < 120000; i++ {
+	for i := range 120000 {
 		event := map[string]any{
 			"ID":   int64(i),
 			"Data": "This is test data that adds some size to the row for testing.",
@@ -605,7 +604,7 @@ func TestParquetStreamingWriter_AbortOnCloseError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write a few events
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := map[string]any{"ID": int64(i)}
 		err = writer.WriteEvent(ctx, event)
 		require.NoError(t, err)

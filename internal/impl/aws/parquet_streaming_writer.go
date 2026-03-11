@@ -327,7 +327,7 @@ func (w *StreamingParquetWriter) uploadPart(ctx context.Context) error {
 
 	// Upload part with retry
 	var uploadErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := range 3 {
 		resp, err := w.s3Client.UploadPart(ctx, &s3.UploadPartInput{
 			Bucket:     aws.String(w.bucket),
 			Key:        aws.String(w.key),
@@ -387,7 +387,7 @@ func (w *StreamingParquetWriter) Close(ctx context.Context) error {
 		for rgIndex := range w.pageIndexParts {
 			numCols := len(w.rowGroupsMeta[rgIndex].ColumnChunks)
 
-			for colIdx := 0; colIdx < numCols; colIdx++ {
+			for colIdx := range numCols {
 				col := &w.rowGroupsMeta[rgIndex].ColumnChunks[colIdx]
 
 				// Write ColumnIndex if present
@@ -397,7 +397,7 @@ func (w *StreamingParquetWriter) Close(ctx context.Context) error {
 					// We need to find the specific ColumnIndex for this column
 					// Calculate the offset within the pageIndexParts buffer
 					colIndexDataOffset := int64(0)
-					for c := 0; c < colIdx; c++ {
+					for c := range colIdx {
 						if w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength > 0 {
 							colIndexDataOffset += int64(w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength)
 						}
@@ -418,20 +418,20 @@ func (w *StreamingParquetWriter) Close(ctx context.Context) error {
 
 			// Calculate where OffsetIndex data starts in pageIndexParts
 			offsetIndexStartInPart := int64(0)
-			for c := 0; c < numCols; c++ {
+			for c := range numCols {
 				if w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength > 0 {
 					offsetIndexStartInPart += int64(w.rowGroupsMeta[rgIndex].ColumnChunks[c].ColumnIndexLength)
 				}
 			}
 
-			for colIdx := 0; colIdx < numCols; colIdx++ {
+			for colIdx := range numCols {
 				col := &w.rowGroupsMeta[rgIndex].ColumnChunks[colIdx]
 
 				// Write OffsetIndex if present
 				if col.OffsetIndexLength > 0 {
 					// Calculate offset of this column's OffsetIndex within the OffsetIndex section
 					offsetIndexDataOffset := offsetIndexStartInPart
-					for c := 0; c < colIdx; c++ {
+					for c := range colIdx {
 						if w.rowGroupsMeta[rgIndex].ColumnChunks[c].OffsetIndexLength > 0 {
 							offsetIndexDataOffset += int64(w.rowGroupsMeta[rgIndex].ColumnChunks[c].OffsetIndexLength)
 						}
