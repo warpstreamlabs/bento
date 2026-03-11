@@ -16,7 +16,7 @@ const (
 	tpFieldFunctions = "functions"
 )
 
-func templateProcSpec() *service.ConfigSpec {
+func TemplateProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Mapping").
 		Beta().
@@ -34,11 +34,7 @@ func templateProcSpec() *service.ConfigSpec {
 }
 
 func init() {
-	err := service.RegisterProcessor(
-		"template", templateProcSpec(),
-		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
-			return newTemplateProcessor(conf, mgr)
-		})
+	err := service.RegisterProcessor("template", TemplateProcessorSpec(), NewTemplateProcessorFromConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +45,7 @@ type templateProc struct {
 	log  *service.Logger
 }
 
-func newTemplateProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*templateProc, error) {
+func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
 	templateStr, err := conf.FieldString(tpFieldText)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package pure
+package pure_test
 
 import (
 	"context"
@@ -8,17 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service"
+
+	ipure "github.com/warpstreamlabs/bento/internal/impl/pure"
 )
 
-func testTemplateProc(confStr string) (service.Processor, error) {
-	pConf, err := templateProcSpec().ParseYAML(confStr, nil)
+func testTemplateProc(confStr string) (service.Processor, *service.Resources, error) {
+	pConf, err := ipure.TemplateProcessorSpec().ParseYAML(confStr, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return newTemplateProcessor(pConf, service.MockResources())
+	mgr := service.MockResources()
+	proc, err := ipure.NewTemplateProcessorFromConfig(pConf, mgr)
+	return proc, mgr, err
 }
 
-func TestTemplateProcessor(t *testing.T) {
+func TestTemplateProcessor_Templating(t *testing.T) {
 	tests := []struct {
 		name          string
 		template      string
@@ -88,7 +92,7 @@ functions:
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			proc, err := testTemplateProc(test.template)
+			proc, _, err := testTemplateProc(test.template)
 			if test.expectedError {
 				require.ErrorContains(t, err, test.errorValue)
 				return
