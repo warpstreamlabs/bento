@@ -139,23 +139,18 @@ func resInfoFromConfig(conf *manager.ResourceConfig) resourceFileInfo {
 
 	// New style
 	for _, c := range conf.ResourceInputs {
-		c := c
 		resInfo.inputs[c.Label] = &c
 	}
 	for _, c := range conf.ResourceProcessors {
-		c := c
 		resInfo.processors[c.Label] = &c
 	}
 	for _, c := range conf.ResourceOutputs {
-		c := c
 		resInfo.outputs[c.Label] = &c
 	}
 	for _, c := range conf.ResourceCaches {
-		c := c
 		resInfo.caches[c.Label] = &c
 	}
 	for _, c := range conf.ResourceRateLimits {
-		c := c
 		resInfo.rateLimits[c.Label] = &c
 	}
 

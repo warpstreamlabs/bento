@@ -210,7 +210,7 @@ func UntilTerm(term string) Func[string] {
 		i := 0
 		for ; i <= (len(input) - len(termRunes)); i++ {
 			matched := true
-			for j := 0; j < len(termRunes); j++ {
+			for j := range termRunes {
 				if input[i+j] != termRunes[j] {
 					matched = false
 					break

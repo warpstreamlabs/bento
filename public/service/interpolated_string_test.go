@@ -41,7 +41,6 @@ func TestInterpolatedString(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 
 		t.Run("deprecated api/"+test.name, func(t *testing.T) {
 			t.Parallel()

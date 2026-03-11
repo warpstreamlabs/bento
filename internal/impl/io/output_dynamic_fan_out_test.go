@@ -30,7 +30,7 @@ func TestBasicDynamicFanOut(t *testing.T) {
 	outputs := map[string]output.Streamed{}
 	mockOutputs := []*mock.OutputChanneled{}
 
-	for i := 0; i < nOutputs; i++ {
+	for i := range nOutputs {
 		mockOutputs = append(mockOutputs, &mock.OutputChanneled{})
 		outputs[fmt.Sprintf("out-%v", i)] = mockOutputs[i]
 	}
@@ -42,15 +42,15 @@ func TestBasicDynamicFanOut(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, oTM.Consume(readChan))
 
-	for i := 0; i < nMsgs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):
 			t.Fatal("Timed out waiting for broker send")
 		}
 		wg := sync.WaitGroup{}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			wg.Add(1)
 			go func(index int) {
 				defer wg.Done()
@@ -93,8 +93,8 @@ func TestDynamicFanOutChangeOutputs(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, oTM.Consume(readChan))
 
-	for i := 0; i < nOutputs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nOutputs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 
 		newOutput := &mock.OutputChanneled{}
 		newOutputName := fmt.Sprintf("output-%v", i)
@@ -137,8 +137,8 @@ func TestDynamicFanOutChangeOutputs(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < nOutputs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nOutputs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 
 		wg := sync.WaitGroup{}
 		wg.Add(len(outputs))

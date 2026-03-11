@@ -44,7 +44,7 @@ func TestProcessPageViewJSON(t *testing.T) {
 	// Parse JSON output
 	msgBytes, err := msgs[0].AsBytes()
 	require.NoError(t, err)
-	var jsonOutput map[string]interface{}
+	var jsonOutput map[string]any
 	err = json.Unmarshal(msgBytes, &jsonOutput)
 	require.NoError(t, err)
 
@@ -56,50 +56,50 @@ func TestProcessPageViewJSON(t *testing.T) {
 
 	// Verify contexts are arrays (not over-flattened)
 	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_ua_parser_context_1")
-	uaContexts := jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1"].([]interface{})
+	uaContexts := jsonOutput["contexts_com_snowplowanalytics_snowplow_ua_parser_context_1"].([]any)
 	require.Len(t, uaContexts, 1)
-	uaContext := uaContexts[0].(map[string]interface{})
+	uaContext := uaContexts[0].(map[string]any)
 	assert.Equal(t, "Chrome", uaContext["useragentFamily"])
 	assert.Equal(t, "Mac OS X", uaContext["osFamily"])
 
 	assert.Contains(t, jsonOutput, "contexts_com_snowplowanalytics_snowplow_web_page_1")
-	webPageContexts := jsonOutput["contexts_com_snowplowanalytics_snowplow_web_page_1"].([]interface{})
+	webPageContexts := jsonOutput["contexts_com_snowplowanalytics_snowplow_web_page_1"].([]any)
 	require.Len(t, webPageContexts, 1)
-	webPageContext := webPageContexts[0].(map[string]interface{})
+	webPageContext := webPageContexts[0].(map[string]any)
 	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", webPageContext["id"])
 
 	assert.Contains(t, jsonOutput, "contexts_com_fingerprintjs_fingerprint_1")
-	fpContexts := jsonOutput["contexts_com_fingerprintjs_fingerprint_1"].([]interface{})
+	fpContexts := jsonOutput["contexts_com_fingerprintjs_fingerprint_1"].([]any)
 	require.Len(t, fpContexts, 1)
-	fpContext := fpContexts[0].(map[string]interface{})
+	fpContext := fpContexts[0].(map[string]any)
 	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", fpContext["visitorId"])
 
 	// Verify nested objects are preserved
 	assert.Contains(t, jsonOutput, "contexts_com_dbip_location_1")
-	locationContexts := jsonOutput["contexts_com_dbip_location_1"].([]interface{})
+	locationContexts := jsonOutput["contexts_com_dbip_location_1"].([]any)
 	require.Len(t, locationContexts, 1)
-	locationContext := locationContexts[0].(map[string]interface{})
-	cityMap := locationContext["city"].(map[string]interface{})
-	namesMap := cityMap["names"].(map[string]interface{})
+	locationContext := locationContexts[0].(map[string]any)
+	cityMap := locationContext["city"].(map[string]any)
+	namesMap := cityMap["names"].(map[string]any)
 	assert.Equal(t, "Del Mar", namesMap["en"])
 
 	assert.Contains(t, jsonOutput, "contexts_com_clearbit_company_1")
-	clearbitContexts := jsonOutput["contexts_com_clearbit_company_1"].([]interface{})
+	clearbitContexts := jsonOutput["contexts_com_clearbit_company_1"].([]any)
 	require.Len(t, clearbitContexts, 1)
-	clearbitContext := clearbitContexts[0].(map[string]interface{})
+	clearbitContext := clearbitContexts[0].(map[string]any)
 	assert.Equal(t, "SnowcatCloud", clearbitContext["name"])
 
 	// Verify arrays within contexts are preserved
 	assert.Contains(t, jsonOutput, "contexts_org_ietf_http_cookie_1")
-	cookieContexts := jsonOutput["contexts_org_ietf_http_cookie_1"].([]interface{})
+	cookieContexts := jsonOutput["contexts_org_ietf_http_cookie_1"].([]any)
 	require.GreaterOrEqual(t, len(cookieContexts), 2)
-	cookie0 := cookieContexts[0].(map[string]interface{})
+	cookie0 := cookieContexts[0].(map[string]any)
 	assert.Equal(t, "_gaexp", cookie0["name"])
-	cookie1 := cookieContexts[1].(map[string]interface{})
+	cookie1 := cookieContexts[1].(map[string]any)
 	assert.Equal(t, "ajs_user_id", cookie1["name"])
 
 	// Verify nested arrays are preserved
-	techArray := clearbitContext["tech"].([]interface{})
+	techArray := clearbitContext["tech"].([]any)
 	require.GreaterOrEqual(t, len(techArray), 1)
 	assert.Equal(t, "google_apps", techArray[0])
 
@@ -463,7 +463,7 @@ func TestProcessPageViewJSON_TransformFields(t *testing.T) {
 	// Parse JSON output
 	msgBytes, err := msgs[0].AsBytes()
 	require.NoError(t, err)
-	var jsonOutput map[string]interface{}
+	var jsonOutput map[string]any
 	err = json.Unmarshal(msgBytes, &jsonOutput)
 	require.NoError(t, err)
 
@@ -511,7 +511,7 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	// Parse JSON output
 	msgBytes, err := msgs[0].AsBytes()
 	require.NoError(t, err)
-	var jsonOutput map[string]interface{}
+	var jsonOutput map[string]any
 	err = json.Unmarshal(msgBytes, &jsonOutput)
 	require.NoError(t, err)
 
@@ -523,12 +523,12 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 
 	// ========== VERIFY CONTEXTS STRUCTURE ==========
 	require.Contains(t, jsonOutput, "contexts", "Should have contexts field")
-	contextsMap, ok := jsonOutput["contexts"].(map[string]interface{})
+	contextsMap, ok := jsonOutput["contexts"].(map[string]any)
 	require.True(t, ok, "contexts should be a map[string]interface{}")
 
 	// ========== VERIFY DERIVED_CONTEXTS STRUCTURE ==========
 	require.Contains(t, jsonOutput, "derived_contexts", "Should have derived_contexts field")
-	derivedContextsMap, ok := jsonOutput["derived_contexts"].(map[string]interface{})
+	derivedContextsMap, ok := jsonOutput["derived_contexts"].(map[string]any)
 	require.True(t, ok, "derived_contexts should be a map[string]interface{}")
 	require.NotEmpty(t, derivedContextsMap, "Should have at least one derived context")
 
@@ -538,7 +538,7 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 		"Schema key should be 'com_snowplowanalytics_snowplow_ua_parser_context' without iglu: prefix")
 
 	// Test 2: Verify structure has version and data at the same level
-	uaContextSchema := derivedContextsMap["com_snowplowanalytics_snowplow_ua_parser_context"].(map[string]interface{})
+	uaContextSchema := derivedContextsMap["com_snowplowanalytics_snowplow_ua_parser_context"].(map[string]any)
 	require.Contains(t, uaContextSchema, "version", "Schema object should have 'version' field")
 	require.Contains(t, uaContextSchema, "data", "Schema object should have 'data' field")
 	assert.Len(t, uaContextSchema, 2, "Schema object should ONLY have 'version' and 'data' fields")
@@ -550,12 +550,12 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	assert.Equal(t, "1-0-0", uaContextSchema["version"], "Version should be in MODEL-REVISION-ADDITION format")
 
 	// Test 5: Verify data is an array
-	uaDataArray, ok := uaContextSchema["data"].([]interface{})
+	uaDataArray, ok := uaContextSchema["data"].([]any)
 	require.True(t, ok, "data should be an array")
 	require.Len(t, uaDataArray, 1, "Should have one ua_parser_context entry")
 
 	// Test 6: Verify data content is directly accessible (no extra nesting)
-	uaData := uaDataArray[0].(map[string]interface{})
+	uaData := uaDataArray[0].(map[string]any)
 	assert.Equal(t, "Chrome", uaData["useragentFamily"],
 		"Should directly access field without nested data wrapper")
 	assert.Equal(t, "Mac OS X", uaData["osFamily"])
@@ -563,50 +563,50 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 
 	// ========== TEST WEB PAGE CONTEXT ==========
 	require.Contains(t, contextsMap, "com_snowplowanalytics_snowplow_web_page")
-	webPageSchema := contextsMap["com_snowplowanalytics_snowplow_web_page"].(map[string]interface{})
+	webPageSchema := contextsMap["com_snowplowanalytics_snowplow_web_page"].(map[string]any)
 	assert.Equal(t, "1-0-0", webPageSchema["version"])
 	assert.Len(t, webPageSchema, 2, "Should only have version and data")
-	webPageDataArray := webPageSchema["data"].([]interface{})
+	webPageDataArray := webPageSchema["data"].([]any)
 	require.Len(t, webPageDataArray, 1)
-	webPageData := webPageDataArray[0].(map[string]interface{})
+	webPageData := webPageDataArray[0].(map[string]any)
 	assert.Equal(t, "9689656e-ebab-4c10-9413-59a6dcefadd2", webPageData["id"])
 
 	// ========== TEST FINGERPRINT CONTEXT ==========
 	require.Contains(t, contextsMap, "com_fingerprintjs_fingerprint")
-	fpSchema := contextsMap["com_fingerprintjs_fingerprint"].(map[string]interface{})
+	fpSchema := contextsMap["com_fingerprintjs_fingerprint"].(map[string]any)
 	assert.Equal(t, "1-0-0", fpSchema["version"])
-	fpDataArray := fpSchema["data"].([]interface{})
+	fpDataArray := fpSchema["data"].([]any)
 	require.Len(t, fpDataArray, 1)
-	fpData := fpDataArray[0].(map[string]interface{})
+	fpData := fpDataArray[0].(map[string]any)
 	assert.Equal(t, "nmnY3NEe0lGJc4tzh5KM", fpData["visitorId"])
 
 	// ========== TEST CLEARBIT COMPANY CONTEXT (in contexts field) ==========
 	require.Contains(t, contextsMap, "com_clearbit_company")
-	clearbitSchema := contextsMap["com_clearbit_company"].(map[string]interface{})
+	clearbitSchema := contextsMap["com_clearbit_company"].(map[string]any)
 	assert.Equal(t, "1-0-0", clearbitSchema["version"])
-	clearbitDataArray := clearbitSchema["data"].([]interface{})
+	clearbitDataArray := clearbitSchema["data"].([]any)
 	require.Len(t, clearbitDataArray, 1)
-	clearbitData := clearbitDataArray[0].(map[string]interface{})
+	clearbitData := clearbitDataArray[0].(map[string]any)
 	assert.Equal(t, "SnowcatCloud", clearbitData["name"])
 
 	// Verify arrays within data are preserved
-	techArray := clearbitData["tech"].([]interface{})
+	techArray := clearbitData["tech"].([]any)
 	require.GreaterOrEqual(t, len(techArray), 1)
 	assert.Equal(t, "google_apps", techArray[0])
 
 	// ========== TEST NESTED OBJECTS PRESERVATION (in derived_contexts field) ==========
 	// com_dbip_location is in derived_contexts, not contexts
 	require.Contains(t, derivedContextsMap, "com_dbip_location")
-	locationSchema := derivedContextsMap["com_dbip_location"].(map[string]interface{})
+	locationSchema := derivedContextsMap["com_dbip_location"].(map[string]any)
 	assert.Equal(t, "1-0-0", locationSchema["version"])
 	assert.Len(t, locationSchema, 2, "Should only have version and data")
-	locationDataArray := locationSchema["data"].([]interface{})
+	locationDataArray := locationSchema["data"].([]any)
 	require.Len(t, locationDataArray, 1)
-	locationData := locationDataArray[0].(map[string]interface{})
+	locationData := locationDataArray[0].(map[string]any)
 
 	// Verify nested objects work correctly (city.names.en path)
-	cityMap := locationData["city"].(map[string]interface{})
-	namesMap := cityMap["names"].(map[string]interface{})
+	cityMap := locationData["city"].(map[string]any)
+	namesMap := cityMap["names"].(map[string]any)
 	assert.Equal(t, "Del Mar", namesMap["en"],
 		"Nested objects should be accessible via path: data[0].city.names.en")
 
@@ -614,33 +614,33 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	// org_ietf_http_cookie should have multiple cookie entries in the data array
 	// http_cookie is in derived_contexts, not contexts
 	require.Contains(t, derivedContextsMap, "org_ietf_http_cookie")
-	cookieSchema := derivedContextsMap["org_ietf_http_cookie"].(map[string]interface{})
+	cookieSchema := derivedContextsMap["org_ietf_http_cookie"].(map[string]any)
 	assert.Equal(t, "1-0-0", cookieSchema["version"])
 	assert.Len(t, cookieSchema, 2, "Should only have version and data")
-	cookieDataArray := cookieSchema["data"].([]interface{})
+	cookieDataArray := cookieSchema["data"].([]any)
 	require.GreaterOrEqual(t, len(cookieDataArray), 2, "Should have multiple cookies in data array")
 
-	cookie0 := cookieDataArray[0].(map[string]interface{})
+	cookie0 := cookieDataArray[0].(map[string]any)
 	assert.Equal(t, "_gaexp", cookie0["name"])
-	cookie1 := cookieDataArray[1].(map[string]interface{})
+	cookie1 := cookieDataArray[1].(map[string]any)
 	assert.Equal(t, "ajs_user_id", cookie1["name"])
 
 	// ========== VERIFY DERIVED_CONTEXTS STRUCTURE ==========
 	require.Contains(t, jsonOutput, "derived_contexts", "Should have derived_contexts field")
-	derivedContextsMap, ok = jsonOutput["derived_contexts"].(map[string]interface{})
+	derivedContextsMap, ok = jsonOutput["derived_contexts"].(map[string]any)
 	require.True(t, ok, "derived_contexts should be a map[string]interface{}")
 	require.NotEmpty(t, derivedContextsMap, "Should have at least one derived context")
 
 	// Verify derived_contexts follow the same structure pattern
 	for schemaKey, schemaValue := range derivedContextsMap {
-		schemaObj := schemaValue.(map[string]interface{})
+		schemaObj := schemaValue.(map[string]any)
 		assert.Contains(t, schemaObj, "version", "Derived context %s should have version", schemaKey)
 		assert.Contains(t, schemaObj, "data", "Derived context %s should have data", schemaKey)
 		assert.Len(t, schemaObj, 2, "Derived context %s should only have version and data", schemaKey)
 		assert.NotContains(t, schemaObj, "schema", "Derived context %s should NOT have schema field", schemaKey)
 
 		// Verify data is an array
-		dataArray, ok := schemaObj["data"].([]interface{})
+		dataArray, ok := schemaObj["data"].([]any)
 		assert.True(t, ok, "Derived context %s data should be an array", schemaKey)
 		assert.NotEmpty(t, dataArray, "Derived context %s data array should not be empty", schemaKey)
 	}
@@ -657,12 +657,12 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	// ========== VERIFY UNSTRUCT_EVENT STRUCTURE (if present) ==========
 	// Note: The test data might not have an unstruct_event, but if it does, verify structure
 	if unstructEvent, exists := jsonOutput["unstruct_event"]; exists {
-		unstructMap, ok := unstructEvent.(map[string]interface{})
+		unstructMap, ok := unstructEvent.(map[string]any)
 		require.True(t, ok, "unstruct_event should be a map")
 
 		// Each unstruct_event schema should follow the same pattern
 		for schemaKey, schemaValue := range unstructMap {
-			schemaObj := schemaValue.(map[string]interface{})
+			schemaObj := schemaValue.(map[string]any)
 			assert.Contains(t, schemaObj, "version", "Unstruct event %s should have version", schemaKey)
 			assert.Contains(t, schemaObj, "data", "Unstruct event %s should have data", schemaKey)
 			assert.Len(t, schemaObj, 2, "Unstruct event %s should only have version and data", schemaKey)
@@ -673,8 +673,8 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	// ========== VERIFY SQL-FRIENDLY ACCESS PATTERN ==========
 	// This format enables queries like: SELECT derived_contexts['com_dbip_location'].data[0].city.names.en
 	// Verify the access path works as expected (using derived_contexts since that's where location is)
-	locationDataFromPath := derivedContextsMap["com_dbip_location"].(map[string]interface{})["data"].([]interface{})[0].(map[string]interface{})
-	cityNameFromPath := locationDataFromPath["city"].(map[string]interface{})["names"].(map[string]interface{})["en"]
+	locationDataFromPath := derivedContextsMap["com_dbip_location"].(map[string]any)["data"].([]any)[0].(map[string]any)
+	cityNameFromPath := locationDataFromPath["city"].(map[string]any)["names"].(map[string]any)["en"]
 	assert.Equal(t, "Del Mar", cityNameFromPath,
 		"Should be able to access nested data via: derived_contexts['com_dbip_location'].data[0].city.names.en")
 }

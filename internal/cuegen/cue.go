@@ -31,7 +31,7 @@ func doComponentSpec(cs docs.ComponentSpec) (*ast.Field, error) {
 func doComment(comment string) *ast.CommentGroup {
 	comments := []*ast.Comment{}
 
-	for _, v := range strings.Split(strings.TrimSpace(comment), "\n") {
+	for v := range strings.SplitSeq(strings.TrimSpace(comment), "\n") {
 		comments = append(comments, &ast.Comment{
 			Slash: token.NoPos,
 			Text:  "// " + v,

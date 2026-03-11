@@ -13,7 +13,7 @@ import (
 // The dest parameter must be a pointer to a struct.
 func MapToStruct(m map[string]any, dest any) error {
 	destValue := reflect.ValueOf(dest)
-	if destValue.Kind() != reflect.Ptr {
+	if destValue.Kind() != reflect.Pointer {
 		return fmt.Errorf("destination must be a pointer to struct, got %v", destValue.Kind())
 	}
 
@@ -64,7 +64,7 @@ func setField(field reflect.Value, value any) error {
 	fieldType := field.Type()
 
 	// Handle pointer types
-	if field.Kind() == reflect.Ptr {
+	if field.Kind() == reflect.Pointer {
 		if field.IsNil() {
 			field.Set(reflect.New(fieldType.Elem()))
 		}
@@ -286,7 +286,7 @@ func setField(field reflect.Value, value any) error {
 	case reflect.Slice:
 		// Fast path for string->[]byte.
 		str, ok := value.(string)
-		if ok && field.Type() == reflect.TypeOf([]byte(nil)) {
+		if ok && field.Type() == reflect.TypeFor[[]byte]() {
 			field.Set(reflect.ValueOf([]byte(str)))
 			return nil
 		}
