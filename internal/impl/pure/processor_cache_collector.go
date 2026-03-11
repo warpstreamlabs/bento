@@ -136,10 +136,7 @@ func newCacheCollector(conf *service.ParsedConfig, mgr *service.Resources) (*cac
 		return nil, err
 	}
 
-	ttl, err := conf.FieldInterpolatedString(cacheCollectorPFieldTTL)
-	if err != nil {
-		return nil, err
-	}
+	ttl, _ := conf.FieldInterpolatedString(cacheCollectorPFieldTTL)
 
 	return &cacheCollector{
 		key:         key,
@@ -159,8 +156,8 @@ func newCacheCollector(conf *service.ParsedConfig, mgr *service.Resources) (*cac
 }
 
 type cacheCollectorAppendMessageData struct {
-	cached  json.RawMessage
-	current json.RawMessage
+	Cached  json.RawMessage `json:"cached"`
+	Current json.RawMessage `json:"current"`
 }
 
 func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
@@ -173,7 +170,7 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 
 	var ttlInterp *service.MessageBatchInterpolationExecutor
 	if cc.ttl != nil {
-		keyInterp = batch.InterpolationExecutor(cc.ttl)
+		ttlInterp = batch.InterpolationExecutor(cc.ttl)
 	}
 
 	var appendCheck *service.MessageBatchBloblangExecutor
@@ -181,9 +178,19 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 		appendCheck = batch.BloblangExecutor(cc.appendCheck)
 	}
 
+	var appendMap *service.MessageBatchBloblangExecutor
+	if cc.appendMap != nil {
+		appendMap = batch.BloblangExecutor(cc.appendMap)
+	}
+
 	var flushCheck *service.MessageBatchBloblangExecutor
 	if cc.flushCheck != nil {
 		flushCheck = batch.BloblangExecutor(cc.flushCheck)
+	}
+
+	var flushMap *service.MessageBatchBloblangExecutor
+	if cc.flushMap != nil {
+		flushMap = batch.BloblangExecutor(cc.flushMap)
 	}
 
 	var init *service.MessageBatchBloblangExecutor
@@ -197,9 +204,12 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 			return nil, fmt.Errorf("key evaluation error: %w", err)
 		}
 
-		ttls, err := ttlInterp.TryString(i)
-		if err != nil {
-			return nil, err
+		var ttls string
+		if ttlInterp != nil {
+			ttls, err = ttlInterp.TryString(i)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		var ttl *time.Duration
@@ -232,6 +242,7 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 				if err != nil {
 					if errors.Is(err, service.ErrKeyNotFound) {
 						cachedValue = nil
+						err = nil
 					} else {
 						err = fmt.Errorf("failed to get cache key '%s': %v", key, err)
 					}
@@ -262,13 +273,21 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 					return nil, err
 				}
 
-				appendMsg := service.NewMessage(nil)
-				appendMsg.SetStructured(cacheCollectorAppendMessageData{
-					cached:  cachedValue,
-					current: currentValue,
+				appendMsgJson, err := json.Marshal(cacheCollectorAppendMessageData{
+					Cached:  json.RawMessage(cachedValue),
+					Current: json.RawMessage(currentValue),
 				})
 
-				appendResult, err := appendMsg.BloblangQuery(cc.appendMap)
+				if err != nil {
+					return nil, err
+				}
+
+				msg.SetBytes(appendMsgJson)
+
+				appendResult, err := appendMap.Query(i)
+
+				msg.SetBytes(currentValue)
+
 				if err != nil {
 					return nil, err
 				}
@@ -293,9 +312,9 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 			}
 
 			if processFlush {
-				flushMsg := service.NewMessage(cachedValue)
+				msg.SetBytes(cachedValue)
 
-				flushResult, err := flushMsg.BloblangQuery(cc.appendMap)
+				msg, err = flushMap.Query(i)
 				if err != nil {
 					return nil, err
 				}
@@ -315,7 +334,7 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 					}
 				}
 
-				newMsgs = append(newMsgs, flushResult)
+				newMsgs = append(newMsgs, msg)
 			}
 		}
 	}
