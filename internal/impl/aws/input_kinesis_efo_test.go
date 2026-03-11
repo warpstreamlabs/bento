@@ -152,8 +152,8 @@ func TestWaitForActiveConsumer_ParentContextCancelled(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context cancelled", "should report cancellation, not timeout")
-	assert.False(t, errors.Is(err, context.DeadlineExceeded), "should not be a deadline error")
-	assert.True(t, errors.Is(err, context.Canceled), "should wrap context.Canceled")
+	assert.NotErrorIs(t, err, context.DeadlineExceeded, "should not be a deadline error")
+	assert.ErrorIs(t, err, context.Canceled, "should wrap context.Canceled")
 }
 
 // TestWaitForActiveConsumer_InternalTimeoutDistinctFromCancellation checks that
