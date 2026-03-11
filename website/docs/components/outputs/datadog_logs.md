@@ -38,7 +38,10 @@ output:
     tags: env:${!json("environment")},version:${!json("version")} # No default (optional)
     hostname: "" # No default (optional)
     service: "" # No default (optional)
+    status: "" # No default (optional)
+    timestamp: "" # No default (optional)
     content_encoding: gzip
+    endpoint: "" # No default (optional)
     batching:
       count: 0
       byte_size: 0
@@ -62,7 +65,10 @@ output:
     tags: env:${!json("environment")},version:${!json("version")} # No default (optional)
     hostname: "" # No default (optional)
     service: "" # No default (optional)
+    status: "" # No default (optional)
+    timestamp: "" # No default (optional)
     content_encoding: gzip
+    endpoint: "" # No default (optional)
     batching:
       count: 0
       byte_size: 0
@@ -163,6 +169,22 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 Type: `string`  
 
+### `status`
+
+The status of the log (e.g. info, warn, error).
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+
+### `timestamp`
+
+The timestamp of the log in epoch milliseconds. Defaults to the current time.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+
 ### `content_encoding`
 
 HTTP content encoding used to compress log payloads.
@@ -171,6 +193,13 @@ HTTP content encoding used to compress log payloads.
 Type: `string`  
 Default: `"gzip"`  
 Options: `gzip`, `identity`, `deflate`.
+
+### `endpoint`
+
+Override the API's destination endpoint with a custom host. Protocol scheme defaults to 'http'.
+
+
+Type: `string`  
 
 ### `batching`
 

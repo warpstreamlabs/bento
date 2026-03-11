@@ -3,12 +3,14 @@ package datadog
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/Jeffail/shutdown"
-
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -19,9 +21,12 @@ const (
 	ddoFieldDDTags          = "tags"
 	ddoFieldHostname        = "hostname"
 	ddoFieldService         = "service"
+	ddoFieldTimestamp       = "timestamp"
+	ddoFieldStatus          = "status"
 	ddoFieldContentEncoding = "content_encoding"
 	ddoFieldBatching        = "batching"
 	ddoFieldMaxInFlight     = "max_in_flight"
+	ddoFieldEndpoint        = "endpoint"
 )
 
 func init() {
@@ -87,24 +92,36 @@ Set `+"`api_key`"+` explicitly or via the `+"`DD_API_KEY`"+` environment variabl
 			service.NewInterpolatedStringField(ddoFieldService).
 				Description("The name of the service that generated the log.").
 				Optional(),
+			service.NewInterpolatedStringField(ddoFieldStatus).
+				Description("The status of the log (e.g. info, warn, error).").
+				Optional(),
+			service.NewInterpolatedStringField(ddoFieldTimestamp).
+				Description("The timestamp of the log in epoch milliseconds. Defaults to the current time.").
+				Optional(),
 			service.NewStringEnumField(ddoFieldContentEncoding, "gzip", "identity", "deflate").
 				Description("HTTP content encoding used to compress log payloads.").
 				Default("gzip"),
+			service.NewURLField(ddoFieldEndpoint).
+				Description("Override the API's destination endpoint with a custom host. Protocol scheme defaults to 'http'.").
+				Optional(),
 			service.NewBatchPolicyField(ddoFieldBatching),
 			service.NewOutputMaxInFlightField(),
 		)
 }
 
 type datadogLogWriterConfig struct {
-	apiKey string
-	site   string
+	apiKey   string
+	site     string
+	endpoint string
 
 	contentEncoding datadogV2.ContentEncoding
 
-	ddsource *service.InterpolatedString
-	ddtags   *service.InterpolatedString
-	hostname *service.InterpolatedString
-	service  *service.InterpolatedString
+	ddsource  *service.InterpolatedString
+	ddtags    *service.InterpolatedString
+	hostname  *service.InterpolatedString
+	service   *service.InterpolatedString
+	status    *service.InterpolatedString
+	timestamp *service.InterpolatedString
 }
 
 func (c *datadogLogWriterConfig) buildDDContext(ctx context.Context) context.Context {
@@ -186,6 +203,38 @@ func newDatadogLogWriterFromParsed(conf *service.ParsedConfig, mgr *service.Reso
 		}
 	}
 
+	if conf.Contains(ddoFieldTimestamp) {
+		if wconf.timestamp, err = conf.FieldInterpolatedString(ddoFieldTimestamp); err != nil {
+			return nil, err
+		}
+	}
+
+	if conf.Contains(ddoFieldStatus) {
+		if wconf.status, err = conf.FieldInterpolatedString(ddoFieldStatus); err != nil {
+			return nil, err
+		}
+	}
+
+	if conf.Contains(ddoFieldEndpoint) {
+		raw, err := conf.FieldString(ddoFieldEndpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		if !strings.Contains(raw, "://") {
+			raw = "http://" + raw
+		}
+		u, err := url.Parse(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid endpoint %q: %w", raw, err)
+		}
+
+		mgr.Logger().Warnf("Setting '%s' will override the destination of DataDog to %s", ddoFieldEndpoint, u.String())
+
+		ddConf.Host = u.Host
+		ddConf.Scheme = u.Scheme
+	}
+
 	return &datadogLogWriter{
 		ddConf:     ddConf,
 		writerConf: wconf,
@@ -220,7 +269,14 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 
 	items := make([]datadogV2.HTTPLogItem, 0, len(batch))
 
-	var ddsourceExec, ddtagsExec, hostnameExec, serviceExec *service.MessageBatchInterpolationExecutor
+	var (
+		ddsourceExec,
+		ddtagsExec,
+		hostnameExec,
+		serviceExec,
+		statusExec,
+		timestampExec *service.MessageBatchInterpolationExecutor
+	)
 	if d.writerConf.ddsource != nil {
 		ddsourceExec = batch.InterpolationExecutor(d.writerConf.ddsource)
 	}
@@ -232,6 +288,12 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 	}
 	if d.writerConf.service != nil {
 		serviceExec = batch.InterpolationExecutor(d.writerConf.service)
+	}
+	if d.writerConf.status != nil {
+		statusExec = batch.InterpolationExecutor(d.writerConf.status)
+	}
+	if d.writerConf.timestamp != nil {
+		timestampExec = batch.InterpolationExecutor(d.writerConf.timestamp)
 	}
 
 	var batchErr *service.BatchError
@@ -249,7 +311,8 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 			continue
 		}
 		item := datadogV2.HTTPLogItem{
-			Message: string(contents),
+			Message:              string(contents),
+			AdditionalProperties: make(map[string]interface{}, 2),
 		}
 		if err := exec(i, ddsourceExec, item.SetDdsource); err != nil {
 			batchErrFailed(i, fmt.Errorf("message %d resolving ddsource: %w", i, err))
@@ -268,6 +331,23 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 			batchErrFailed(i, fmt.Errorf("message %d resolving service: %w", i, err))
 			continue
 		}
+
+		if err := exec(i, timestampExec, func(v string) {
+			if ts, err := strconv.ParseInt(v, 10, 64); err == nil {
+				item.AdditionalProperties["timestamp"] = ts
+			}
+		}); err != nil {
+			batchErrFailed(i, fmt.Errorf("message %d resolving timestamp: %w", i, err))
+			continue
+		}
+
+		if err := exec(i, statusExec, func(v string) {
+			item.AdditionalProperties["status"] = v
+		}); err != nil {
+			batchErrFailed(i, fmt.Errorf("message %d resolving service: %w", i, err))
+			continue
+		}
+
 		items = append(items, item)
 	}
 
@@ -285,6 +365,20 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 		}
 
 		if err != nil {
+			oaiErr, ok := err.(datadog.GenericOpenAPIError)
+			if !ok {
+				return err
+			}
+
+			ddErr, ok := oaiErr.Model().(datadogV2.HTTPLogErrors)
+			if !ok {
+				return err
+			}
+
+			for i, e := range ddErr.GetErrors() {
+				d.log.Debugf(`SubmitLogs call failed with error[%d]: status=%s title="%s" detail="%s"`, i, e.GetStatus(), e.GetTitle(), e.GetDetail())
+			}
+
 			return err
 		}
 	}
