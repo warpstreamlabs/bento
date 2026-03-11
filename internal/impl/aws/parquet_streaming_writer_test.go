@@ -25,7 +25,7 @@ func TestStreamingParquetWriter_BasicFunctionality(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	// Create test events
 	testEvents := []map[string]any{
@@ -267,7 +267,7 @@ func TestParquetStreamingWriter_Initialize(t *testing.T) {
 
 	mockClient := &mockS3Client{}
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -299,7 +299,7 @@ func TestParquetStreamingWriter_DoubleInitialize(t *testing.T) {
 
 	mockClient := &mockS3Client{}
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -332,7 +332,7 @@ func TestParquetStreamingWriter_WriteBeforeInitialize(t *testing.T) {
 
 	mockClient := &mockS3Client{}
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -362,7 +362,7 @@ func TestParquetStreamingWriter_WriteAfterClose(t *testing.T) {
 
 	mockClient := &mockS3Client{}
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -408,7 +408,7 @@ func TestParquetStreamingWriter_PartUploadTracking(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -460,7 +460,7 @@ func TestParquetStreamingWriter_CompleteMultipartUpload(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -519,7 +519,7 @@ func TestParquetStreamingWriter_MultiplePartsWithCorrectNumbering(t *testing.T) 
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,
@@ -585,7 +585,7 @@ func TestParquetStreamingWriter_AbortOnCloseError(t *testing.T) {
 	}
 
 	schema := parquet.SchemaOf(new(TestRecord))
-	messageType := reflect.TypeOf(TestRecord{})
+	messageType := reflect.TypeFor[TestRecord]()
 
 	config := StreamingWriterConfig{
 		S3Client:        mockClient,

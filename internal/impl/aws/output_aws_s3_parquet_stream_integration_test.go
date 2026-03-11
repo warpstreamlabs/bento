@@ -72,7 +72,7 @@ row_group_size: 100
 
 	// Write test data (250 events = 3 row groups with size 100)
 	batch := service.MessageBatch{}
-	for i := 0; i < 250; i++ {
+	for i := range 250 {
 		msg := service.NewMessage([]byte("{}"))
 		msg.SetStructuredMut(map[string]any{
 			"id":        int64(i),
@@ -189,7 +189,7 @@ row_group_size: 50
 	for _, date := range dates {
 		for _, region := range regions {
 			// 25 events per partition
-			for i := 0; i < 25; i++ {
+			for i := range 25 {
 				msg := service.NewMessage([]byte("{}"))
 				msg.MetaSetMut("date", date)
 				msg.MetaSetMut("region", region)
