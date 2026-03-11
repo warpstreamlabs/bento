@@ -26,7 +26,7 @@ type SchemaOpts struct {
 
 func GenerateStructType(
 	config *service.ParsedConfig,
-	opts interface{},
+	opts any,
 ) (reflect.Type, error) {
 	// Support both exported and internal schemaOpts
 	var internalOpts schemaOpts
