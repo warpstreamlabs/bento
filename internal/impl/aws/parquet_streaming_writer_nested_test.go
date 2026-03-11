@@ -547,7 +547,7 @@ func TestFlushRowGroup_PreservesPageIndex(t *testing.T) {
 	}
 
 	// Add test data - enough to trigger page index creation
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		event := map[string]any{
 			"id":    int64(i),
 			"name":  "test",
@@ -624,7 +624,7 @@ func TestFlushRowGroup_PageIndexOffsetTracking(t *testing.T) {
 	}
 
 	// Add test data with varying values to encourage page index generation
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		event := map[string]any{
 			"id":    int64(i),
 			"value": int64(i * 100),
@@ -693,7 +693,7 @@ func TestClose_WritesPageIndexInCorrectOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write enough data to create multiple row groups
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		event := map[string]any{
 			"id":   int64(i),
 			"name": "test-name",
@@ -801,7 +801,7 @@ func TestClose_PageIndexOffsetCalculation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write data
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		event := map[string]any{
 			"id":    int64(i),
 			"value": int64(i * 100),
