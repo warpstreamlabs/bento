@@ -15,7 +15,7 @@ import (
 // Setting the batch byte size max a bit conservatively since Bento does not
 // take metadata size into account. Moreover, the S2 metered size of a record
 // will be > bento message size.
-const maxBatchBytes = 256 * 1024
+const maxBatchBytesConservative = 256 * 1024
 
 var (
 	errInvalidBatchingByteSize = errors.New("invalid batch policy byte size")
@@ -59,13 +59,12 @@ const (
 
 func newOutputConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
 		Version("1.5.0").
 		Categories("Services").
 		Fields(
 			service.NewStringField(basinField).Description("Basin name"),
-			service.NewStringField(authTokenField).
-				Description("Authentication token for S2 account").
+			service.NewStringField(accessTokenField).
+				Description("Access token for S2 account").
 				Secret(),
 			service.NewStringField(streamField).Description("Stream name"),
 			service.NewStringField(fencingTokenField).
@@ -84,7 +83,7 @@ root = if this.byte_size > %d {
 }
 				`,
 						s2.MaxBatchRecords,
-						maxBatchBytes,
+						maxBatchBytesConservative,
 					),
 				),
 			service.NewOutputMaxInFlightField().Advanced(),
@@ -130,7 +129,7 @@ output:
   s2:
     basin: my-favorite-basin
     stream: starwars
-    auth_token: "${S2_AUTH_TOKEN}"
+    access_token: "${S2_ACCESS_TOKEN}"
 `,
 		)
 }
@@ -144,7 +143,7 @@ func parseBatchPolicy(conf *service.ParsedConfig) (service.BatchPolicy, error) {
 	// Set required defaults
 
 	if policy.ByteSize <= 0 {
-		policy.ByteSize = maxBatchBytes
+		policy.ByteSize = maxBatchBytesConservative
 	}
 
 	if policy.Count <= 0 {
@@ -159,8 +158,8 @@ func parseBatchPolicy(conf *service.ParsedConfig) (service.BatchPolicy, error) {
 
 	// Validate limits
 
-	if policy.ByteSize > maxBatchBytes {
-		return policy, fmt.Errorf("%w: must not exceed %d", errInvalidBatchingByteSize, s2.MaxBatchBytes)
+	if policy.ByteSize > maxBatchBytesConservative {
+		return policy, fmt.Errorf("%w: must not exceed %d", errInvalidBatchingByteSize, s2.MaxBatchMeteredBytes)
 	}
 
 	if policy.Count > s2.MaxBatchRecords {
@@ -186,7 +185,7 @@ func newOutputConfig(conf *service.ParsedConfig) (*s2bentobox.OutputConfig, erro
 		return nil, err
 	}
 
-	var fencingToken []byte
+	var fencingToken *string
 
 	if conf.Contains(fencingTokenField) {
 		field, err := conf.FieldString(fencingTokenField)
@@ -194,17 +193,20 @@ func newOutputConfig(conf *service.ParsedConfig) (*s2bentobox.OutputConfig, erro
 			return nil, err
 		}
 
-		fencingToken, err = base64.StdEncoding.DecodeString(field)
+		// Decode base64 to get the raw token string
+		decoded, err := base64.StdEncoding.DecodeString(field)
 		if err != nil {
 			return nil, err
 		}
+		decodedStr := string(decoded)
+		fencingToken = &decodedStr
 	}
 
 	return &s2bentobox.OutputConfig{
 		Config:       config,
 		Stream:       stream,
-		MaxInFlight:  maxInFlight,
 		FencingToken: fencingToken,
+		MaxInFlight:  maxInFlight,
 	}, nil
 }
 
@@ -261,12 +263,7 @@ func (o *Output) WriteBatch(ctx context.Context, batch service.MessageBatch) err
 		return err
 	}
 
-	recordBatch, leftOver := s2.NewAppendRecordBatch(records...)
-	if len(leftOver) > 0 {
-		return s2bentobox.ErrAppendRecordBatchFull
-	}
-
-	if err := o.inner.WriteBatch(ctx, recordBatch); err != nil {
+	if err := o.inner.WriteBatch(ctx, records); err != nil {
 		if errors.Is(err, s2bentobox.ErrOutputClosed) {
 			return service.ErrNotConnected
 		}

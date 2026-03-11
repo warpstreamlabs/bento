@@ -263,6 +263,21 @@ var _ = registerSimpleFunction(
 	},
 )
 
+var _ = registerSimpleFunction(
+	NewFunctionSpec(
+		FunctionCategoryMessage, "flow_id",
+		"Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer. Note, that this is only available within those streams built with `BuildTracedV2`",
+		NewExampleSpec("",
+			`meta flow_id = flow_id()`,
+		),
+	).Experimental(),
+	func(fCtx FunctionContext) (any, error) {
+		part := fCtx.MsgBatch.Get(fCtx.Index)
+		ctx := part.GetContext()
+		return tracing.GetFlowID(ctx), nil
+	},
+)
+
 //------------------------------------------------------------------------------
 
 var _ = registerFunction(
@@ -354,6 +369,60 @@ var _ = registerSimpleFunction(
 
 var _ = registerSimpleFunction(
 	NewFunctionSpec(
+		FunctionCategoryMessage, "error_source_label",
+		"Returns the label of the `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].",
+		NewExampleSpec("",
+			`root.doc.error = error_source_label()`,
+		),
+	),
+	func(ctx FunctionContext) (any, error) {
+		v := ctx.MsgBatch.Get(ctx.Index).ErrorGet()
+		switch t := v.(type) {
+		case *value.DetailedError:
+			return t.Label(), nil
+		}
+		return nil, nil
+	},
+)
+
+var _ = registerSimpleFunction(
+	NewFunctionSpec(
+		FunctionCategoryMessage, "error_source_path",
+		"Returns the path to the `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].",
+		NewExampleSpec("",
+			`root.doc.error = error_source_path()`,
+		),
+	),
+	func(ctx FunctionContext) (any, error) {
+		v := ctx.MsgBatch.Get(ctx.Index).ErrorGet()
+		switch t := v.(type) {
+		case *value.DetailedError:
+			return t.Path(), nil
+		}
+		return nil, nil
+	},
+)
+
+var _ = registerSimpleFunction(
+	NewFunctionSpec(
+		FunctionCategoryMessage, "error_source_type",
+		"Returns the type of `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].",
+		NewExampleSpec("",
+			`root.doc.error = error_source_type()`,
+		),
+	),
+	func(ctx FunctionContext) (any, error) {
+		v := ctx.MsgBatch.Get(ctx.Index).ErrorGet()
+		switch t := v.(type) {
+		case *value.DetailedError:
+			return t.Type(), nil
+		}
+		return nil, nil
+	},
+)
+
+var _ = registerSimpleFunction(
+	NewFunctionSpec(
 		FunctionCategoryMessage, "errored",
 		"Returns a boolean value indicating whether an error has occurred during the processing of a message. For more information about error handling patterns read [here][error_handling].",
 		NewExampleSpec("",
@@ -409,7 +478,7 @@ func rangeFunction(args *ParsedParams) (Function, error) {
 		return nil, fmt.Errorf("with positive step arg start (%v) must be < stop (%v)", start, stop)
 	}
 	r := make([]any, (stop-start)/step)
-	for i := 0; i < len(r); i++ {
+	for i := range r {
 		r[i] = start + step*int64(i)
 	}
 	return ClosureFunction("function range", func(ctx FunctionContext) (any, error) {

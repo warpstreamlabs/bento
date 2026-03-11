@@ -39,8 +39,8 @@ func GetWriter(codec string) (sFn SuffixFn, appendMode bool, err error) {
 	case "lines":
 		return customDelimSuffixFn("\n"), true, nil
 	}
-	if strings.HasPrefix(codec, "delim:") {
-		by := strings.TrimPrefix(codec, "delim:")
+	if after, ok := strings.CutPrefix(codec, "delim:"); ok {
+		by := after
 		if by == "" {
 			return nil, false, errors.New("custom delimiter codec requires a non-empty delimiter")
 		}

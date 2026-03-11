@@ -17,12 +17,17 @@ When the number of retries expires the output will reject the message, the behav
 
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
 
-The body of the HTTP request is the raw contents of the message payload. If the message has multiple parts (is a batch) the request will be sent according to [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). This behaviour can be disabled by setting the field ` + "[`batch_as_multipart`](#batch_as_multipart) to `false`" + `.
+The URL, header and payload values of this output can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. If the message has multiple parts (is a batch) the request will be sent according to [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). This behaviour can be disabled by setting the field ` + "[`batch_as_multipart`](#batch_as_multipart) to `false`" + `.
+
+It's also possible to set the body of the HTTP request using the optional field ` + "[`payload`](#payload)" + `, which (if set) will take precedent.
 
 ### Propagating Responses
 
 It's possible to propagate the response from each HTTP request back to the input source by setting ` + "`propagate_response` to `true`" + `. Only inputs that support [synchronous responses](/docs/guides/sync_responses) are able to make use of these propagated responses.` + service.OutputPerformanceDocs(true, true)).
 		Field(httpclient.ConfigField("POST", true,
+			service.NewInterpolatedStringField("payload").Description("An alternative payload to deliver for each request.").Optional().Advanced().Version("1.16.0"),
 			service.NewBoolField("batch_as_multipart").
 				Description("Send message batches as a single request using [RFC1341](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html). If disabled messages in batches will be sent as individual requests.").
 				Advanced().Default(false),
@@ -87,6 +92,16 @@ func newHTTPClientOutputFromParsed(conf *service.ParsedConfig, mgr *service.Reso
 	propResponse, err := conf.FieldBool("propagate_response")
 	if err != nil {
 		return nil, err
+	}
+
+	if payloadStr, _ := conf.FieldString("payload"); payloadStr != "" {
+		payloadExpr, err := conf.FieldInterpolatedString("payload")
+
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, httpclient.WithExplicitBody(payloadExpr))
 	}
 
 	if multiPartObjs, _ := conf.FieldObjectList("multipart"); len(multiPartObjs) > 0 {

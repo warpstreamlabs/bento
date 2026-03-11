@@ -103,6 +103,7 @@ http:
     idle_connection_timeout: 90s
     tls_handshake_timeout: 10s
     expect_continue_timeout: 1s
+  payload: "" # No default (optional)
   batch_as_multipart: false
   parallel: false
 ```
@@ -113,6 +114,11 @@ http:
 The `rate_limit` field can be used to specify a rate limit [resource](/docs/components/rate_limits/about) to cap the rate of requests across all parallel components service wide.
 
 The URL and header values of this type can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the [`branch` processor](/docs/components/processors/branch).
+The URL, header and payload values of this processor can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries).
+
+By default, the body of the HTTP request is the raw contents of the message payload. It's also possible to set the body of the HTTP request using the optional field [`payload`](#payload), which (if set) will take precedent.
 
 In order to map or encode the payload to a specific request body, and map the response back into the original payload instead of replacing it entirely, you can use the [`branch` processor](/docs/components/processors/branch).
 
@@ -803,6 +809,15 @@ Time to wait for a server's first response headers after sending request headers
 Type: `string`  
 Default: `"1s"`  
 Requires version 1.13.0 or newer  
+
+### `payload`
+
+An alternative payload to deliver for each request.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+Requires version 1.16.0 or newer  
 
 ### `batch_as_multipart`
 

@@ -14,6 +14,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/message"
+	internaltracing "github.com/warpstreamlabs/bento/internal/tracing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ generate:
 
 	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		select {
 		case tran := <-in.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -95,7 +96,7 @@ generate:
 
 	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		select {
 		case tran := <-in.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -145,7 +146,7 @@ generate:
 	in, err = mgr.NewInput(inConfig)
 	require.NoError(t, err)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		select {
 		case tran := <-in.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -193,7 +194,7 @@ generate:
 
 	ctx, done := context.WithTimeout(context.Background(), time.Second)
 	defer done()
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		select {
 		case tran := <-in.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -235,7 +236,7 @@ func TestBundleOutputTracing(t *testing.T) {
 	tranChan := make(chan message.Transaction)
 	require.NoError(t, out.Consume(tranChan))
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		resChan := make(chan error)
 		tran := message.NewTransaction(message.QuickBatch([][]byte{[]byte(strconv.Itoa(i))}), resChan)
 		select {
@@ -292,7 +293,7 @@ func TestBundleOutputTracingDisabled(t *testing.T) {
 	tranChan := make(chan message.Transaction)
 	require.NoError(t, out.Consume(tranChan))
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		resChan := make(chan error)
 		tran := message.NewTransaction(message.QuickBatch([][]byte{[]byte(strconv.Itoa(i))}), resChan)
 		select {
@@ -348,7 +349,7 @@ func TestBundleOutputWithProcessorsTracing(t *testing.T) {
 	tranChan := make(chan message.Transaction)
 	require.NoError(t, out.Consume(tranChan))
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		resChan := make(chan error)
 		tran := message.NewTransaction(message.QuickBatch([][]byte{[]byte("hello world " + strconv.Itoa(i))}), resChan)
 		select {
@@ -430,7 +431,7 @@ broker:
 	tranChan := make(chan message.Transaction)
 	require.NoError(t, out.Consume(tranChan))
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		resChan := make(chan error)
 		tran := message.NewTransaction(message.QuickBatch([][]byte{
 			[]byte("hello world " + strconv.Itoa(i*2)),
@@ -517,9 +518,10 @@ meta bar = "new bar value"
 	proc, err := mgr.NewProcessor(procConfig)
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		part := message.NewPart([]byte(strconv.Itoa(i)))
 		part.MetaSetMut("foo", fmt.Sprintf("foo value %v", i))
+		part = internaltracing.EnsureFlowID(part)
 		batch, res := proc.ProcessBatch(tCtx, message.Batch{part})
 		require.NoError(t, res)
 		require.Len(t, batch, 1)
@@ -540,7 +542,14 @@ meta bar = "new bar value"
 
 	type tMap = map[string]any
 
-	assert.Equal(t, []tracing.NodeEvent{
+	// Check that all events have flow IDs and timestamps
+	for i, event := range events {
+		assert.NotEmpty(t, event.FlowID, "Event %d should have a flow ID", i)
+		assert.False(t, event.Timestamp.IsZero(), "Event %d should have a timestamp", i)
+	}
+
+	// Check the event types and content (ignoring FlowID and Timestamp for exact comparison)
+	expectedEvents := []tracing.NodeEvent{
 		{Type: "CONSUME", Content: "0", Meta: tMap{"foo": "foo value 0"}},
 		{Type: "PRODUCE", Content: "0", Meta: tMap{"foo": "foo value 0"}},
 		{Type: "ERROR", Content: "failed assignment (line 3): nah 0"},
@@ -566,7 +575,21 @@ meta bar = "new bar value"
 		{Type: "ERROR", Content: "failed assignment (line 3): nah 8"},
 		{Type: "CONSUME", Content: "9", Meta: tMap{"foo": "foo value 9"}},
 		{Type: "PRODUCE", Content: "{\"count\":9}", Meta: tMap{"bar": "new bar value", "foo": "foo value 9"}},
-	}, events)
+	}
+
+	require.Len(t, expectedEvents, len(events))
+	for i, expected := range expectedEvents {
+		actual := events[i]
+		assert.Equal(t, expected.Type, actual.Type, "Event %d type mismatch", i)
+		assert.Equal(t, expected.Content, actual.Content, "Event %d content mismatch", i)
+
+		// For metadata comparison, we need to account for the flow ID that gets added
+		if expected.Meta != nil {
+			for key, value := range expected.Meta {
+				assert.Equal(t, value, actual.Meta[key], "Event %d meta[%s] mismatch", i, key)
+			}
+		}
+	}
 }
 
 func TestBundleProcessorTracingError(t *testing.T) {
@@ -612,7 +635,7 @@ meta bar = "new bar value"
 	proc, err := mgr.NewProcessor(procConfig)
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		part := message.NewPart([]byte(strconv.Itoa(i)))
 		part.MetaSetMut("foo", fmt.Sprintf("foo value %v", i))
 		batch, res := proc.ProcessBatch(tCtx, message.Batch{part})

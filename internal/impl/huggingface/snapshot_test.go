@@ -3,6 +3,7 @@ package huggingface_test
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -494,9 +495,7 @@ func saveSnapshot(t *testing.T, filename string, updates map[string]Snapshot) {
 	}
 
 	// Merge the new snapshot objects with what we retrieved from our saved file
-	for key, value := range updates {
-		existing[key] = value
-	}
+	maps.Copy(existing, updates)
 
 	jsonData, err := json.MarshalIndent(existing, "", "  ")
 	require.NoError(t, err, "Failed to marshal snapshot data")

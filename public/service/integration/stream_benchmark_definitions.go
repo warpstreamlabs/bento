@@ -31,8 +31,8 @@ func StreamBenchSend(batchSize, parallelism int) StreamBenchDefinition {
 			sends := b.N / batchSize
 
 			set := map[string][]string{}
-			for j := 0; j < sends; j++ {
-				for i := 0; i < batchSize; i++ {
+			for j := range sends {
+				for i := range batchSize {
 					payload := fmt.Sprintf("hello world %v", j*sends+i)
 					set[payload] = nil
 				}
@@ -43,10 +43,8 @@ func StreamBenchSend(batchSize, parallelism int) StreamBenchDefinition {
 			batchChan := make(chan []string)
 
 			var wg sync.WaitGroup
-			for k := 0; k < parallelism; k++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+			for range parallelism {
+				wg.Go(func() {
 					for {
 						batch, open := <-batchChan
 						if !open {
@@ -54,20 +52,18 @@ func StreamBenchSend(batchSize, parallelism int) StreamBenchDefinition {
 						}
 						assert.NoError(b, sendBatch(env.ctx, b, tranChan, batch))
 					}
-				}()
+				})
 			}
 
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for len(set) > 0 {
 					messagesInSet(b, true, true, receiveBatch(env.ctx, b, input.TransactionChan(), nil), set)
 				}
-			}()
+			})
 
-			for j := 0; j < sends; j++ {
+			for j := range sends {
 				payloads := []string{}
-				for i := 0; i < batchSize; i++ {
+				for i := range batchSize {
 					payload := fmt.Sprintf("hello world %v", j*sends+i)
 					payloads = append(payloads, payload)
 				}
@@ -114,9 +110,7 @@ func StreamBenchSendReportThroughput(batchSize, payloadSize, parallelism int) St
 
 			var wg sync.WaitGroup
 			for range parallelism {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					for {
 						batch, open := <-batchChan
 						if !open {
@@ -124,16 +118,14 @@ func StreamBenchSendReportThroughput(batchSize, payloadSize, parallelism int) St
 						}
 						assert.NoError(b, sendBatch(env.ctx, b, tranChan, batch))
 					}
-				}()
+				})
 			}
 
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for len(set) > 0 {
 					messagesInSet(b, true, true, receiveBatch(env.ctx, b, input.TransactionChan(), nil), set)
 				}
-			}()
+			})
 
 			for j := range sends {
 				payloads := []string{}
@@ -170,8 +162,8 @@ func StreamBenchWrite(batchSize int) StreamBenchDefinition {
 			b.ResetTimer()
 
 			batch := make([]string, batchSize)
-			for j := 0; j < sends; j++ {
-				for i := 0; i < batchSize; i++ {
+			for j := range sends {
+				for i := range batchSize {
 					batch[i] = fmt.Sprintf(`{"content":"hello world","id":%v}`, j*sends+i)
 				}
 				assert.NoError(b, sendBatch(env.ctx, b, tranChan, batch))

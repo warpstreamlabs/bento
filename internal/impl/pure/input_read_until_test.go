@@ -145,7 +145,7 @@ func testReadUntilRestart(inConf string, t *testing.T) {
 		"baz",
 	}
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		for _, expMsg := range expMsgs {
 			var tran message.Transaction
 			var open bool

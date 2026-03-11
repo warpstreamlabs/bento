@@ -476,11 +476,11 @@ func createSampleProtobufMessages(t *testing.T, msgDesc protoreflect.MessageDesc
 
 	var messages [][]byte
 
-	sampleData := []map[string]interface{}{
+	sampleData := []map[string]any{
 		{
 			"type":   "foo",
 			"public": true,
-			"repo": map[string]interface{}{
+			"repo": map[string]any{
 				"id":   int64(99),
 				"name": "repo_name_1",
 				"url":  "https://one.example.com",
@@ -489,7 +489,7 @@ func createSampleProtobufMessages(t *testing.T, msgDesc protoreflect.MessageDesc
 		{
 			"type":   "bar",
 			"public": false,
-			"repo": map[string]interface{}{
+			"repo": map[string]any{
 				"id":   int64(101),
 				"name": "repo_name_2",
 				"url":  "https://two.example.com",
@@ -505,7 +505,7 @@ func createSampleProtobufMessages(t *testing.T, msgDesc protoreflect.MessageDesc
 
 		repoDesc := msgDesc.Fields().ByName("repo").Message()
 		repoMsg := dynamicpb.NewMessage(repoDesc)
-		repoData := data["repo"].(map[string]interface{})
+		repoData := data["repo"].(map[string]any)
 
 		repoMsg.Set(repoDesc.Fields().ByName("id"), protoreflect.ValueOfInt64(repoData["id"].(int64)))
 		repoMsg.Set(repoDesc.Fields().ByName("name"), protoreflect.ValueOfString(repoData["name"].(string)))

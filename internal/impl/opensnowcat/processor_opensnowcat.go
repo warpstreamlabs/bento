@@ -93,6 +93,15 @@ All transformations support both direct TSV columns and schema property paths.`)
 			"tsv":           "Maintain enriched TSV format without conversion.",
 			"enriched_json": "Convert to database-optimized nested JSON with key-based schema structure. Each schema becomes a key (vendor_name) containing version and data array. Compatible with BigQuery, Snowflake, Databricks, Redshift, PostgreSQL, ClickHouse, and Iceberg tables. Enables simple queries without UNNEST and schema evolution without table mutations.",
 		}).Description("Output format for processed events.").Default("tsv")).
+		Field(service.NewStringMapField("set_metadata").
+			Description("Map metadata keys to OpenSnowcat canonical event model field names. Supports direct TSV column names (e.g., 'event_fingerprint', 'app_id') and schema property paths (e.g., 'com.vendor.schema.field'). Metadata is set before any filters or transformations are applied.").
+			Optional().
+			Example(map[string]any{
+				"fingerprint":      "event_fingerprint",
+				"eid":              "event_id",
+				"app_id":           "app_id",
+				"collector_tstamp": "collector_tstamp",
+			})).
 		Field(service.NewObjectField(oscFieldFilters,
 			service.NewAnyMapField(oscFieldFiltersDrop).
 				Description("Map of field names to filter criteria. Events matching ANY criteria will be dropped (OR logic). Supports both regular TSV columns (e.g., `user_ipaddress`, `useragent`) and schema property paths (e.g., `com.snowplowanalytics.snowplow.ua_parser_context.useragentFamily`). Each filter uses 'contains' for substring matching.").
@@ -242,6 +251,32 @@ pipeline:
                 strategy: hash
                 hash_algo: MD5
 `,
+		).
+		Example(
+			"Deduplication with Cache",
+			"Sets metadata from event fields to enable deduplication using Bento's cache processor. Parses TSV once, extracts fingerprint as metadata, then uses cache for deduplication. Duplicate events within 5 minutes are dropped.",
+			`
+pipeline:
+  processors:
+    - opensnowcat:
+        set_metadata:
+          fingerprint: event_fingerprint
+        output_format: json
+    
+    - cache:
+        resource: dedupe_cache
+        operator: add
+        key: ${! metadata("fingerprint") }
+        value: "1"
+    
+    - mapping: |
+        root = if !errored() { this } else { deleted() }
+
+cache_resources:
+  - label: dedupe_cache
+    memory:
+      default_ttl: 5m
+`,
 		)
 }
 
@@ -282,6 +317,7 @@ type opensnowcatProcessor struct {
 	transformConfig  *transformConfig
 	outputFormat     string
 	columnIndexMap   map[string]int
+	metadataMapping  map[string]string
 	log              *service.Logger
 	mDropped         *service.MetricCounter
 	schemaDiscovery  *schemaDelivery
@@ -316,13 +352,13 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 
 		if dropParsed, exists := filtersConf[oscFieldFiltersDrop]; exists {
 			dropAny, _ := dropParsed.FieldAny()
-			if dropConfig, ok := dropAny.(map[string]interface{}); ok {
+			if dropConfig, ok := dropAny.(map[string]any); ok {
 				for fieldName, criteria := range dropConfig {
-					if criteriaMap, ok := criteria.(map[string]interface{}); ok {
+					if criteriaMap, ok := criteria.(map[string]any); ok {
 						fc := &filterCriteria{}
 
 						if containsList, ok := criteriaMap["contains"]; ok {
-							if containsSlice, ok := containsList.([]interface{}); ok {
+							if containsSlice, ok := containsList.([]any); ok {
 								for _, item := range containsSlice {
 									if str, ok := item.(string); ok {
 										fc.contains = append(fc.contains, str)
@@ -332,7 +368,7 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 						}
 
 						if schemasList, ok := criteriaMap["schemas"]; ok {
-							if schemasSlice, ok := schemasList.([]interface{}); ok {
+							if schemasSlice, ok := schemasList.([]any); ok {
 								for _, item := range schemasSlice {
 									if str, ok := item.(string); ok {
 										fc.schemas = append(fc.schemas, str)
@@ -356,7 +392,7 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 
 		if transformParsed, exists := filtersConf["transform"]; exists {
 			transformAny, _ := transformParsed.FieldAny()
-			if transformMap, ok := transformAny.(map[string]interface{}); ok {
+			if transformMap, ok := transformAny.(map[string]any); ok {
 				transformCfg = &transformConfig{
 					fields: make(map[string]*fieldTransform),
 				}
@@ -371,9 +407,9 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 					transformCfg.hashAlgo = "SHA-256"
 				}
 
-				if fieldsMap, ok := transformMap["fields"].(map[string]interface{}); ok {
+				if fieldsMap, ok := transformMap["fields"].(map[string]any); ok {
 					for fieldName, fieldConfig := range fieldsMap {
-						if fieldCfgMap, ok := fieldConfig.(map[string]interface{}); ok {
+						if fieldCfgMap, ok := fieldConfig.(map[string]any); ok {
 							ft := &fieldTransform{}
 
 							if strategy, ok := fieldCfgMap["strategy"].(string); ok {
@@ -420,11 +456,21 @@ func newOpenSnowcatProcessorFromConfig(conf *service.ParsedConfig, res *service.
 
 	schemasCollected := make(map[string]bool)
 
+	metadataMapping := map[string]string{}
+	if conf.Contains("set_metadata") {
+		var err error
+		metadataMapping, err = conf.FieldStringMap("set_metadata")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	proc := &opensnowcatProcessor{
 		dropFilters:      dropFilters,
 		transformConfig:  transformCfg,
 		outputFormat:     outputFormat,
 		columnIndexMap:   columnIndexMap,
+		metadataMapping:  metadataMapping,
 		log:              res.Logger(),
 		mDropped:         res.Metrics().NewCounter("dropped"),
 		schemasCollected: schemasCollected,
@@ -504,6 +550,11 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 
 	columns := strings.Split(tsvString, "\t")
 
+	// Set metadata first (before any filters or transformations)
+	if len(o.metadataMapping) > 0 {
+		o.setMetadataFromFields(msg, columns)
+	}
+
 	if o.schemaDiscovery != nil && o.schemaDiscovery.config.enabled {
 		schemas := o.extractSchemasFromEvent(columns)
 		o.schemasMu.Lock()
@@ -526,7 +577,7 @@ func (o *opensnowcatProcessor) Process(ctx context.Context, msg *service.Message
 
 	if o.outputFormat == "tsv" {
 		transformedTSV := strings.Join(columns, "\t")
-		msg = service.NewMessage([]byte(transformedTSV))
+		msg.SetBytes([]byte(transformedTSV))
 		return service.MessageBatch{msg}, nil
 	}
 
@@ -580,6 +631,54 @@ func (o *opensnowcatProcessor) shouldDropEventFromTSV(columns []string) bool {
 	return false
 }
 
+func (o *opensnowcatProcessor) setMetadataFromFields(msg *service.Message, columns []string) {
+	for metaKey, fieldName := range o.metadataMapping {
+		// Check if it's a schema property path (contains dots, but not geo./metrics./site.)
+		if strings.Contains(fieldName, ".") &&
+			!strings.HasPrefix(fieldName, "geo.") &&
+			!strings.HasPrefix(fieldName, "metrics.") &&
+			!strings.HasPrefix(fieldName, "site.") {
+			// Extract from JSON context fields (preserve case for schema paths)
+			value := o.extractSchemaPropertyForMetadata(columns, fieldName)
+			if value != "" {
+				msg.MetaSet(metaKey, value)
+			}
+			continue
+		}
+
+		// Direct TSV column (normalize to lowercase)
+		fieldNameLower := strings.ToLower(fieldName)
+		if colIndex, exists := o.columnIndexMap[fieldNameLower]; exists && colIndex < len(columns) {
+			value := columns[colIndex]
+			if value != "" {
+				msg.MetaSet(metaKey, value)
+			}
+		}
+	}
+}
+
+func (o *opensnowcatProcessor) extractSchemaPropertyForMetadata(columns []string, schemaPath string) string {
+	// Check contexts field
+	if contextsIdx, ok := o.columnIndexMap["contexts"]; ok && contextsIdx < len(columns) {
+		if value := o.extractSchemaPropertyValue(columns[contextsIdx], schemaPath); value != "" {
+			return value
+		}
+	}
+	// Check derived_contexts field
+	if derivedIdx, ok := o.columnIndexMap["derived_contexts"]; ok && derivedIdx < len(columns) {
+		if value := o.extractSchemaPropertyValue(columns[derivedIdx], schemaPath); value != "" {
+			return value
+		}
+	}
+	// Check unstruct_event field
+	if unstructIdx, ok := o.columnIndexMap["unstruct_event"]; ok && unstructIdx < len(columns) {
+		if value := o.extractSchemaPropertyValue(columns[unstructIdx], schemaPath); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPath string, criteria *filterCriteria) bool {
 
 	jsonFields := []string{"contexts", "derived_contexts", "unstruct_event"}
@@ -609,7 +708,7 @@ func (o *opensnowcatProcessor) matchesSchemaProperty(columns []string, schemaPat
 }
 
 func (o *opensnowcatProcessor) extractSchemaPropertyValue(jsonValue string, schemaPath string) string {
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.Unmarshal([]byte(jsonValue), &data); err != nil {
 		return ""
 	}
@@ -617,9 +716,9 @@ func (o *opensnowcatProcessor) extractSchemaPropertyValue(jsonValue string, sche
 	return o.searchSchemaProperty(data, schemaPath)
 }
 
-func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath string) string {
+func (o *opensnowcatProcessor) searchSchemaProperty(data any, schemaPath string) string {
 	switch v := data.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		if schemaVal, ok := v["schema"].(string); ok && strings.HasPrefix(schemaVal, "iglu:") {
 			schemaURI := strings.TrimPrefix(schemaVal, "iglu:")
 			parts := strings.SplitN(schemaURI, "/", 2)
@@ -632,10 +731,10 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 					dottedSchema := vendor + "." + schemaName
 					fullSchema := strings.ReplaceAll(dottedSchema, ".", "_")
 
-					if strings.HasPrefix(schemaPath, fullSchema+".") {
-						propertyPath := strings.TrimPrefix(schemaPath, fullSchema+".")
+					if after, ok0 := strings.CutPrefix(schemaPath, fullSchema+"."); ok0 {
+						propertyPath := after
 
-						if dataObj, ok := v["data"].(map[string]interface{}); ok {
+						if dataObj, ok := v["data"].(map[string]any); ok {
 							return o.getNestedProperty(dataObj, propertyPath)
 						}
 					}
@@ -650,7 +749,7 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 			}
 		}
 
-	case []interface{}:
+	case []any:
 		for _, item := range v {
 			result := o.searchSchemaProperty(item, schemaPath)
 			if result != "" {
@@ -662,12 +761,12 @@ func (o *opensnowcatProcessor) searchSchemaProperty(data interface{}, schemaPath
 	return ""
 }
 
-func (o *opensnowcatProcessor) getNestedProperty(data map[string]interface{}, path string) string {
+func (o *opensnowcatProcessor) getNestedProperty(data map[string]any, path string) string {
 	parts := strings.Split(path, ".")
 
-	var current interface{} = data
+	var current any = data
 	for _, part := range parts {
-		if m, ok := current.(map[string]interface{}); ok {
+		if m, ok := current.(map[string]any); ok {
 			current = m[part]
 		} else {
 			return ""
@@ -798,8 +897,8 @@ func (o *opensnowcatProcessor) applyTransformations(columns []string) {
 	}
 }
 
-func (o *opensnowcatProcessor) restructureForEnrichedJSON(eventMap map[string]interface{}, columns []string) map[string]interface{} {
-	result := make(map[string]interface{})
+func (o *opensnowcatProcessor) restructureForEnrichedJSON(eventMap map[string]any, columns []string) map[string]any {
+	result := make(map[string]any)
 
 	contextsMap := o.parseContextsFromTSV(columns, "contexts")
 	derivedContextsMap := o.parseContextsFromTSV(columns, "derived_contexts")
@@ -826,8 +925,8 @@ func (o *opensnowcatProcessor) restructureForEnrichedJSON(eventMap map[string]in
 	return result
 }
 
-func (o *opensnowcatProcessor) parseContextsFromTSV(columns []string, fieldName string) map[string]map[string]interface{} {
-	contextsMap := make(map[string]map[string]interface{})
+func (o *opensnowcatProcessor) parseContextsFromTSV(columns []string, fieldName string) map[string]map[string]any {
+	contextsMap := make(map[string]map[string]any)
 
 	colIndex, exists := o.columnIndexMap[fieldName]
 	if !exists || colIndex >= len(columns) {
@@ -839,20 +938,20 @@ func (o *opensnowcatProcessor) parseContextsFromTSV(columns []string, fieldName 
 		return contextsMap
 	}
 
-	var data interface{}
+	var data any
 	if err := json.Unmarshal([]byte(jsonValue), &data); err != nil {
 		o.log.Warnf("Failed to parse %s JSON: %v", fieldName, err)
 		return contextsMap
 	}
 
 	switch v := data.(type) {
-	case []interface{}:
+	case []any:
 		for _, item := range v {
-			if m, ok := item.(map[string]interface{}); ok {
+			if m, ok := item.(map[string]any); ok {
 				o.processContextItem(m, contextsMap)
 			}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		o.processContextItem(v, contextsMap)
 	}
 
@@ -860,7 +959,7 @@ func (o *opensnowcatProcessor) parseContextsFromTSV(columns []string, fieldName 
 }
 
 // processContextItem processes a single context item and unwraps Snowplow wrapper schemas
-func (o *opensnowcatProcessor) processContextItem(item map[string]interface{}, contextsMap map[string]map[string]interface{}) {
+func (o *opensnowcatProcessor) processContextItem(item map[string]any, contextsMap map[string]map[string]any) {
 	schemaURI, ok := item["schema"].(string)
 	if !ok {
 		return
@@ -878,9 +977,9 @@ func (o *opensnowcatProcessor) processContextItem(item map[string]interface{}, c
 	// These wrapper schemas contain an array of actual contexts in their data field
 	if dottedSchemaKey == "com.snowplowanalytics.snowplow.contexts" {
 		// Unwrap: extract the actual contexts from inside the wrapper
-		if dataField, ok := item["data"].([]interface{}); ok {
+		if dataField, ok := item["data"].([]any); ok {
 			for _, nestedItem := range dataField {
-				if nestedMap, ok := nestedItem.(map[string]interface{}); ok {
+				if nestedMap, ok := nestedItem.(map[string]any); ok {
 					// Recursively process the unwrapped context
 					o.processContextItem(nestedMap, contextsMap)
 				}
@@ -896,20 +995,20 @@ func (o *opensnowcatProcessor) processContextItem(item map[string]interface{}, c
 
 	// Regular context - add it to the map
 	if _, exists := contextsMap[schemaKey]; !exists {
-		contextsMap[schemaKey] = map[string]interface{}{
+		contextsMap[schemaKey] = map[string]any{
 			"version": version,
-			"data":    []interface{}{},
+			"data":    []any{},
 		}
 	}
 
 	if dataField, ok := item["data"]; ok {
-		dataArray := contextsMap[schemaKey]["data"].([]interface{})
+		dataArray := contextsMap[schemaKey]["data"].([]any)
 		dataArray = append(dataArray, dataField)
 		contextsMap[schemaKey]["data"] = dataArray
 	}
 }
 
-func (o *opensnowcatProcessor) parseUnstructEventFromTSV(columns []string) map[string]interface{} {
+func (o *opensnowcatProcessor) parseUnstructEventFromTSV(columns []string) map[string]any {
 	colIndex, exists := o.columnIndexMap["unstruct_event"]
 	if !exists || colIndex >= len(columns) {
 		return nil
@@ -920,7 +1019,7 @@ func (o *opensnowcatProcessor) parseUnstructEventFromTSV(columns []string) map[s
 		return nil
 	}
 
-	var unstructMap map[string]interface{}
+	var unstructMap map[string]any
 	if err := json.Unmarshal([]byte(jsonValue), &unstructMap); err != nil {
 		o.log.Warnf("Failed to parse unstruct_event JSON: %v", err)
 		return nil
@@ -940,13 +1039,13 @@ func (o *opensnowcatProcessor) parseUnstructEventFromTSV(columns []string) map[s
 	dottedSchemaKey := vendor + "." + name
 	schemaKey := strings.ReplaceAll(dottedSchemaKey, ".", "_")
 
-	var dataArray []interface{}
+	var dataArray []any
 	if data, ok := unstructMap["data"]; ok {
-		dataArray = []interface{}{data}
+		dataArray = []any{data}
 	}
 
-	return map[string]interface{}{
-		schemaKey: map[string]interface{}{
+	return map[string]any{
+		schemaKey: map[string]any{
 			"version": version,
 			"data":    dataArray,
 		},

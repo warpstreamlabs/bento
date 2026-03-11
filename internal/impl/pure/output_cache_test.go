@@ -164,7 +164,7 @@ target: foo
 	tCtx := context.Background()
 
 	exp := map[string]string{}
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Sprintf("key%v", i)
 		value := fmt.Sprintf(`{"key":"%v","test":"hello world"}`, key)
 		exp[key] = value
@@ -208,9 +208,9 @@ target: foo
 	tCtx := context.Background()
 
 	exp := map[string]string{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		msg := message.QuickBatch(nil)
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			key := fmt.Sprintf("key%v", i*10+j)
 			value := fmt.Sprintf(`{"key":"%v","test":"hello world"}`, key)
 			exp[key] = value

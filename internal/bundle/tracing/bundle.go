@@ -71,3 +71,23 @@ func TracedBundle(b *bundle.Environment) (*bundle.Environment, *Summary) {
 
 	return tracedEnv, summary
 }
+
+// FlowIDBundle modifies a provided bundle environment so that all inputs
+// are wrapped to ensure flow IDs are initialized on all messages.
+// This is independent of tracing and should be applied to all builds.
+func FlowIDBundle(b *bundle.Environment) *bundle.Environment {
+	flowEnv := b.Clone()
+
+	for _, spec := range b.InputDocs() {
+		_ = flowEnv.InputAdd(func(conf input.Config, nm bundle.NewManagement) (input.Streamed, error) {
+			i, err := b.InputInit(conf, nm)
+			if err != nil {
+				return nil, err
+			}
+			i = wrapWithFlowID(i)
+			return i, err
+		}, spec)
+	}
+
+	return flowEnv
+}

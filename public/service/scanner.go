@@ -86,7 +86,9 @@ func ackOnce(fn AckFunc) AckFunc {
 	return func(ctx context.Context, err error) error {
 		var ackErr error
 		once.Do(func() {
-			ackErr = fn(ctx, err)
+			if fn != nil {
+				ackErr = fn(ctx, err)
+			}
 		})
 		return ackErr
 	}

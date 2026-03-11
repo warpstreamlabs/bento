@@ -78,7 +78,6 @@ func TestReadUpTo(t *testing.T) {
 			},
 		},
 	} {
-		test := test
 		for _, readWrapper := range []struct {
 			name string
 			fn   func(io.Reader) io.Reader

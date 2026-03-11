@@ -421,6 +421,39 @@ If an error has occurred during the processing of a message this function return
 root.doc.error = error()
 ```
 
+### `error_source_label`
+
+Returns the label of the `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].
+
+#### Examples
+
+
+```coffee
+root.doc.error = error_source_label()
+```
+
+### `error_source_path`
+
+Returns the path to the `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].
+
+#### Examples
+
+
+```coffee
+root.doc.error = error_source_path()
+```
+
+### `error_source_type`
+
+Returns the type of `processor` component where the error originates, otherwise `null`. For more information about error handling patterns read [here][error_handling].
+
+#### Examples
+
+
+```coffee
+root.doc.error = error_source_type()
+```
+
 ### `errored`
 
 Returns a boolean value indicating whether an error has occurred during the processing of a message. For more information about error handling patterns read [here][error_handling].
@@ -430,6 +463,20 @@ Returns a boolean value indicating whether an error has occurred during the proc
 
 ```coffee
 root.doc.status = if errored() { 400 } else { 200 }
+```
+
+### `flow_id`
+
+:::caution EXPERIMENTAL
+This function is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::
+Returns the message flow ID used for tracing the journey of a message through the pipeline. Flow IDs are automatically assigned at the input layer. Note, that this is only available within those streams built with `BuildTracedV2`
+
+#### Examples
+
+
+```coffee
+meta flow_id = flow_id()
 ```
 
 ### `json`
