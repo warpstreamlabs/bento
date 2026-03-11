@@ -129,20 +129,20 @@ func TestCloseDrainsEventsBeforeShutdown(t *testing.T) {
 	// Add some events to the channel before closing
 	testEvents := []watchEvent{
 		{eventType: "ADDED", object: &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-pod-1",
 					"namespace": "default",
 				},
 			},
 		}},
 		{eventType: "MODIFIED", object: &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-pod-2",
 					"namespace": "default",
 				},
@@ -158,7 +158,7 @@ func TestCloseDrainsEventsBeforeShutdown(t *testing.T) {
 	ctx := context.Background()
 	receivedEvents := 0
 
-	for i := 0; i < len(testEvents); i++ {
+	for range testEvents {
 		msg, ack, err := k.Read(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, msg)
@@ -232,14 +232,12 @@ func TestConcurrentReadsAndClose(t *testing.T) {
 	var wg sync.WaitGroup
 	errors := make(chan error, numReaders)
 
-	for i := 0; i < numReaders; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numReaders {
+		wg.Go(func() {
 			ctx := context.Background()
 			_, _, err := k.Read(ctx)
 			errors <- err
-		}()
+		})
 	}
 
 	// Give readers time to block

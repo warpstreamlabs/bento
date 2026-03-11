@@ -123,7 +123,6 @@ func TestTypedMethods(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			out, err := test.fn(test.in)
 			if test.err != "" {

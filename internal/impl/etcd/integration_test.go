@@ -128,7 +128,7 @@ etcd:
 	time.Sleep(time.Second)
 
 	key := "foobar"
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		value := fmt.Sprintf("bar-%d", i)
 
 		if _, err := etcdClient.Put(context.Background(), key, value); err != nil {
@@ -198,7 +198,7 @@ etcd:
 	time.Sleep(time.Second)
 	prefixes := []string{"/foo", "/foo/bar"}
 	for _, prefix := range prefixes {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 
 			value := fmt.Sprintf("bar-%d", i)
 			if _, err := etcdClient.Put(context.Background(), prefix, value); err != nil {
@@ -225,7 +225,7 @@ etcd:
 	require.NoError(t, streamOut.StopWithin(time.Second*10))
 
 	// First 100 with prefix /foo
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		putEvent, err := outBatches[i][0].AsBytes()
 		require.NoError(t, err)
 
@@ -239,7 +239,7 @@ etcd:
 	}
 
 	// Next 100 with prefix /foo/bar
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		offset := i + 100
 		putEvent, err := outBatches[offset][0].AsBytes()
 		require.NoError(t, err)

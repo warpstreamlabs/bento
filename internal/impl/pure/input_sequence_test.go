@@ -218,7 +218,6 @@ func TestSequenceJoinsMergeStrategies(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 
@@ -275,7 +274,7 @@ sequence:
 					m := tran.Payload.Get(0)
 					payload, err := m.AsStructured()
 					require.NoError(t, err)
-					require.IsType(t, map[string]interface{}{}, payload)
+					require.IsType(t, map[string]any{}, payload)
 					act = append(act, string(m.AsBytes()))
 					require.NoError(t, tran.Ack(ctx, nil))
 				case <-time.After(time.Minute):
@@ -317,7 +316,7 @@ func TestSequenceJoinsBig(t *testing.T) {
 
 	_, err = csvFile.WriteString("id,bar\n")
 	require.NoError(t, err)
-	for i := 0; i < totalRows; i++ {
+	for i := range totalRows {
 		exp = append(exp, fmt.Sprintf(`{"bar":["bar%v","baz%v"],"foo":"foo%v","id":"%v"}`, i, i, i, i))
 
 		_, err = fmt.Fprintf(ndjsonFile, "{\"id\":\"%v\",\"foo\":\"foo%v\"}\n", i, i)
@@ -326,7 +325,7 @@ func TestSequenceJoinsBig(t *testing.T) {
 		_, err = fmt.Fprintf(csvFile, "%v,bar%v\n", i, i)
 		require.NoError(t, err)
 	}
-	for i := 0; i < totalRows; i++ {
+	for i := range totalRows {
 		_, err = fmt.Fprintf(csvFile, "%v,baz%v\n", i, i)
 		require.NoError(t, err)
 	}

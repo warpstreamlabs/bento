@@ -62,7 +62,7 @@ func TestIntegrationCRDB(t *testing.T) {
 	})
 
 	// Create a backlog of rows
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		// Insert some rows
 		if _, err = pgpool.Exec(context.Background(), fmt.Sprintf("INSERT INTO foo VALUES (%v);", i)); err != nil {
 			return
@@ -106,7 +106,7 @@ file:
 		_ = streamOut.Run(context.Background())
 	}()
 
-	for i := 0; i < 900; i++ {
+	for i := range 900 {
 		// Insert some more rows in
 		if _, err = pgpool.Exec(context.Background(), fmt.Sprintf("INSERT INTO foo VALUES (%v);", 100+i)); err != nil {
 			t.Error(err)
@@ -147,7 +147,7 @@ file:
 	}()
 
 	time.Sleep(time.Second)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		// Insert some more rows
 		if _, err = pgpool.Exec(context.Background(), fmt.Sprintf("INSERT INTO foo VALUES (%v);", 1000+i)); err != nil {
 			t.Error(err)

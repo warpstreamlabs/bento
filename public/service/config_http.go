@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/fs"
+	"maps"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -376,9 +377,7 @@ func (j jwtConfig) Sign(f fs.FS, req *http.Request) error {
 		return fmt.Errorf("jwt signing method %s not acepted. Try with RS256, RS384, RS512 or EdDSA", j.SigningMethod)
 	}
 
-	for name, value := range j.Headers {
-		token.Header[name] = value
-	}
+	maps.Copy(token.Header, j.Headers)
 
 	ss, err := token.SignedString(*j.key)
 	if err != nil {

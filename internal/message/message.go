@@ -150,7 +150,7 @@ func DeserializeBytes(b []byte) ([][]byte, error) {
 
 	parts := make([][]byte, numParts)
 
-	for i := uint32(0); i < numParts; i++ {
+	for i := range numParts {
 		if len(b) < 4 {
 			return nil, ErrBadMessageBytes
 		}

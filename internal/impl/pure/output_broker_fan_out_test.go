@@ -25,7 +25,7 @@ func TestBasicFanOut(t *testing.T) {
 	outputs := []output.Streamed{}
 	mockOutputs := []*mock.OutputChanneled{}
 
-	for i := 0; i < nOutputs; i++ {
+	for i := range nOutputs {
 		mockOutputs = append(mockOutputs, &mock.OutputChanneled{})
 		outputs = append(outputs, mockOutputs[i])
 	}
@@ -42,8 +42,8 @@ func TestBasicFanOut(t *testing.T) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*10)
 	defer done()
 
-	for i := 0; i < nMsgs; i++ {
-		content := [][]byte{[]byte(fmt.Sprintf("hello world %v", i))}
+	for i := range nMsgs {
+		content := [][]byte{fmt.Appendf(nil, "hello world %v", i)}
 		select {
 		case readChan <- message.NewTransaction(message.QuickBatch(content), resChan):
 		case <-time.After(time.Second):
@@ -52,7 +52,7 @@ func TestBasicFanOut(t *testing.T) {
 		}
 
 		resFnSlice := []func(context.Context, error) error{}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			var ts message.Transaction
 			select {
 			case ts = <-mockOutputs[j].TChan:
@@ -65,7 +65,7 @@ func TestBasicFanOut(t *testing.T) {
 			}
 		}
 
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			require.NoError(t, resFnSlice[j](tCtx, err))
 		}
 
@@ -288,7 +288,7 @@ func BenchmarkBasicFanOut(b *testing.B) {
 	outputs := []output.Streamed{}
 	mockOutputs := []*mock.OutputChanneled{}
 
-	for i := 0; i < nOutputs; i++ {
+	for i := range nOutputs {
 		mockOutputs = append(mockOutputs, &mock.OutputChanneled{})
 		outputs = append(outputs, mockOutputs[i])
 	}
@@ -306,13 +306,13 @@ func BenchmarkBasicFanOut(b *testing.B) {
 	b.ReportAllocs()
 	b.StartTimer()
 
-	for i := 0; i < nMsgs; i++ {
+	for range nMsgs {
 		readChan <- message.NewTransaction(message.QuickBatch(content), resChan)
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			ts := <-mockOutputs[j].TChan
 			rFnSlice[j] = ts.Ack
 		}
-		for j := 0; j < nOutputs; j++ {
+		for j := range nOutputs {
 			require.NoError(b, rFnSlice[j](tCtx, nil))
 		}
 		res := <-resChan

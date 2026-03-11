@@ -571,7 +571,7 @@ func TestSystemWindowParallelReadAndWrites(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		<-startChan
-		for i := 0; i < 1000; i++ {
+		for i := range 1000 {
 			msg := fmt.Sprintf(`{"id":"%v","ts":10.5}`, i)
 			writeErr := w.WriteBatch(context.Background(), service.MessageBatch{
 				service.NewMessage([]byte(msg)),

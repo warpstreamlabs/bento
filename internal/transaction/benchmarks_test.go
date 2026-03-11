@@ -67,7 +67,7 @@ func benchmarkTransactionsChannelBased(b *testing.B, buffered int) {
 
 			rChan := make(chan error)
 			tChan <- transactionChanRes{
-				m:       messageDumb{raw: []byte(fmt.Sprintf("hello world %v", i))},
+				m:       messageDumb{raw: fmt.Appendf(nil, "hello world %v", i)},
 				resChan: rChan,
 			}
 
@@ -81,7 +81,7 @@ func benchmarkTransactionsChannelBased(b *testing.B, buffered int) {
 
 	rChans := make([]chan<- error, buffered)
 	ackAll := func() {
-		for j := 0; j < buffered; j++ {
+		for j := range buffered {
 			if rChans[j] == nil {
 				return
 			}
@@ -89,10 +89,10 @@ func benchmarkTransactionsChannelBased(b *testing.B, buffered int) {
 		}
 	}
 	for {
-		for j := 0; j < buffered; j++ {
+		for j := range buffered {
 			rChans[j] = nil
 		}
-		for j := 0; j < buffered; j++ {
+		for j := range buffered {
 			tran, open := <-tChan
 			if !open {
 				ackAll()
@@ -115,7 +115,7 @@ func benchmarkTransactionsFuncBased(b *testing.B, buffered int) {
 		for i := 0; i < b.N; i++ {
 			wg.Add(1)
 			tChan <- transactionFnRes{
-				m: messageDumb{raw: []byte(fmt.Sprintf("hello world %v", i))},
+				m: messageDumb{raw: fmt.Appendf(nil, "hello world %v", i)},
 				resFn: func(c context.Context, e error) error {
 					wg.Done()
 					return nil
@@ -127,7 +127,7 @@ func benchmarkTransactionsFuncBased(b *testing.B, buffered int) {
 
 	rFns := make([]func(context.Context, error) error, buffered)
 	ackAll := func() {
-		for j := 0; j < buffered; j++ {
+		for j := range buffered {
 			if rFns[j] == nil {
 				return
 			}
@@ -135,10 +135,10 @@ func benchmarkTransactionsFuncBased(b *testing.B, buffered int) {
 		}
 	}
 	for {
-		for j := 0; j < buffered; j++ {
+		for j := range buffered {
 			rFns[j] = nil
 		}
-		for j := 0; j < buffered; j++ {
+		for j := range buffered {
 			tran, open := <-tChan
 			if !open {
 				ackAll()

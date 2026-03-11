@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,31 @@ const (
 	iskFieldFetchBufferCap                = "fetch_buffer_cap"
 	iskFieldMultiHeader                   = "multi_header"
 	iskFieldBatching                      = "batching"
+	iskFieldDebug                         = "debug"
 )
+
+// bentoSaramaLogger implements sarama.StdLogger and forwards to a Bento logger at debug level.
+type bentoSaramaLogger struct {
+	log *service.Logger
+}
+
+func (b *bentoSaramaLogger) Print(v ...any) {
+	if b.log != nil {
+		b.log.Debug(fmt.Sprint(v...))
+	}
+}
+
+func (b *bentoSaramaLogger) Printf(format string, v ...any) {
+	if b.log != nil {
+		b.log.Debugf(format, v...)
+	}
+}
+
+func (b *bentoSaramaLogger) Println(v ...any) {
+	if b.log != nil {
+		b.log.Debug(fmt.Sprintln(v...))
+	}
+}
 
 func iskConfigSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
@@ -146,6 +171,9 @@ Unfortunately this error message will appear for a wide range of connection prob
 			service.NewBoolField(iskFieldMultiHeader).
 				Description("Decode headers into lists to allow handling of multiple values with the same key").
 				Advanced().Default(false),
+			service.NewBoolField(iskFieldDebug).
+				Description("Enable sarama's internal protocol logging (connection, rebalances, fetches, SASL, etc.). Log lines are forwarded to the Bento logger at debug level.").
+				Advanced().Version("1.16.0").Default(false),
 			service.NewBatchPolicyField(iskFieldBatching).Advanced(),
 		)
 }
@@ -222,7 +250,7 @@ func newKafkaReaderFromParsed(conf *service.ParsedConfig, mgr *service.Resources
 		return nil, err
 	}
 	for _, addr := range cAddresses {
-		for _, splitAddr := range strings.Split(addr, ",") {
+		for splitAddr := range strings.SplitSeq(addr, ",") {
 			if trimmed := strings.TrimSpace(splitAddr); trimmed != "" {
 				k.addresses = append(k.addresses, trimmed)
 			}
@@ -396,10 +424,7 @@ func dataToPart(highestOffset int64, data *sarama.ConsumerMessage, multiHeader b
 		}
 	}
 
-	lag := highestOffset - data.Offset - 1
-	if lag < 0 {
-		lag = 0
-	}
+	lag := max(highestOffset-data.Offset-1, 0)
 
 	part.MetaSetMut("kafka_key", string(data.Key))
 	part.MetaSetMut("kafka_partition", int(data.Partition))
@@ -501,6 +526,11 @@ func (k *kafkaReader) saramaConfigFromParsed(conf *service.ParsedConfig) (*saram
 	if err := ApplySaramaSASLFromParsed(conf, k.mgr, config); err != nil {
 		return nil, err
 	}
+
+	if debug, _ := conf.FieldBool(iskFieldDebug); debug {
+		sarama.Logger = &bentoSaramaLogger{log: k.mgr.Logger()}
+	}
+
 	return config, nil
 }
 
