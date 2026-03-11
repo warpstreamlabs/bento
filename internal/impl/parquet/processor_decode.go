@@ -130,7 +130,7 @@ func (s *parquetDecodeProcessor) Process(ctx context.Context, msg *service.Messa
 			break
 		}
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			newMsg := msg.Copy()
 
 			if s.useLegacyListFormat {
