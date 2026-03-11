@@ -53,10 +53,11 @@ flush_deletes: true
 		expected := `{"result":[{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"}],"count":4}`
 		assert.JSONEq(t, expected, string(result))
 
-		processor.mgr.AccessCache(t.Context(), "test_cache", func(c service.Cache) {
+		cerr := processor.mgr.AccessCache(t.Context(), "test_cache", func(c service.Cache) {
 			_, err = c.Get(t.Context(), "test_key")
 		})
 
+		require.Error(t, cerr)
 		require.Error(t, err)
 	})
 
@@ -94,9 +95,10 @@ flush_deletes: false
 
 		var data []byte
 
-		processor.mgr.AccessCache(t.Context(), "test_cache", func(c service.Cache) {
+		cerr := processor.mgr.AccessCache(t.Context(), "test_cache", func(c service.Cache) {
 			data, err = c.Get(t.Context(), "test_key")
 		})
+		require.NoError(t, cerr)
 		require.NoError(t, err)
 
 		assert.JSONEq(t, `[{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"}]`, string(data))
