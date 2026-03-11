@@ -1,7 +1,6 @@
 package pure_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,7 +97,7 @@ functions:
 				return
 			}
 			require.NoError(t, err)
-			t.Cleanup(func() { require.NoError(t, proc.Close(context.Background())) })
+			t.Cleanup(func() { require.NoError(t, proc.Close(t.Context())) })
 
 			msg := service.NewMessage(test.input)
 			for k, v := range test.metaKV {
