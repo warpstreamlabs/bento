@@ -162,16 +162,9 @@ func (w *S3StreamingWriter) WriteBytes(ctx context.Context, data []byte) error {
 	w.lastWrite = time.Now()
 
 	// Check if we should flush
-	shouldFlush := false
-	if w.uploadSize >= w.maxBufferBytes {
-		shouldFlush = true
-	} else if len(w.messageBuffer) >= w.maxBufferCount {
-		shouldFlush = true
-	}
-
-	if shouldFlush {
-		return w.flush(ctx)
-	}
+    if w.uploadSize >= w.maxBufferBytes || len(w.messageBuffer) >= w.maxBufferCount {
+        return w.flush(ctx)
+    }
 
 	return nil
 }
