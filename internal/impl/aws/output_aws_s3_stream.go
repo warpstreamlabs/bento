@@ -249,7 +249,6 @@ func (s *s3StreamOutput) Connect(ctx context.Context) error {
 	s.s3Client = s3.NewFromConfig(s.conf.aconf, func(o *s3.Options) {
 		o.UsePathStyle = s.conf.UsePathStyle
 	})
-	s.log.Infof("Streaming S3 output configured for bucket: %s", s.conf.Bucket)
 	return nil
 }
 
