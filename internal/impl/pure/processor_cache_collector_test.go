@@ -1,4 +1,4 @@
-package pure
+package pure_test
 
 import (
 	"testing"
