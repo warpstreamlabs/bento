@@ -160,11 +160,11 @@ schema:
 					tag:       `parquet:"mylist2,list" json:"mylist2"`,
 				},
 				"Mylist3": {
-					fieldType: reflect.SliceOf(reflect.PointerTo(reflect.TypeOf(""))),
+					fieldType: reflect.SliceOf(reflect.PointerTo(reflect.TypeFor[string]())),
 					tag:       `parquet:"mylist3,list" json:"mylist3"`,
 				},
 				"Mylist4": {
-					fieldType: reflect.SliceOf(reflect.TypeOf("")),
+					fieldType: reflect.SliceOf(reflect.TypeFor[string]()),
 					tag:       `parquet:"mylist4,list" json:"mylist4"`,
 				},
 			},
@@ -317,8 +317,8 @@ schema:
 			}{
 				"Metadata": {
 					fieldType: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
-						{Name: "Version", Type: reflect.TypeOf(""), Tag: `parquet:"version" json:"version"`},
-						{Name: "Profiles", Type: reflect.SliceOf(reflect.TypeOf("")), Tag: `parquet:"profiles,list" json:"profiles"`},
+						{Name: "Version", Type: reflect.TypeFor[string](), Tag: `parquet:"version" json:"version"`},
+						{Name: "Profiles", Type: reflect.SliceOf(reflect.TypeFor[string]()), Tag: `parquet:"profiles,list" json:"profiles"`},
 						{Name: "Product", Type: reflect.PointerTo(reflect.StructOf([]reflect.StructField{
 							{Name: "Name", Type: reflect.TypeFor[string](), Tag: `parquet:"name" json:"name"`},
 							{Name: "Version", Type: reflect.PointerTo(reflect.TypeFor[string]()), Tag: `parquet:"version" json:"version"`},
