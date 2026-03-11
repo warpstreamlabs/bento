@@ -110,9 +110,8 @@ Set `+"`api_key`"+` explicitly or via the `+"`DD_API_KEY`"+` environment variabl
 }
 
 type datadogLogWriterConfig struct {
-	apiKey   string
-	site     string
-	endpoint string
+	apiKey string
+	site   string
 
 	contentEncoding datadogV2.ContentEncoding
 
@@ -312,7 +311,7 @@ func (d *datadogLogWriter) WriteBatch(ctx context.Context, batch service.Message
 		}
 		item := datadogV2.HTTPLogItem{
 			Message:              string(contents),
-			AdditionalProperties: make(map[string]interface{}, 2),
+			AdditionalProperties: make(map[string]any, 2),
 		}
 		if err := exec(i, ddsourceExec, item.SetDdsource); err != nil {
 			batchErrFailed(i, fmt.Errorf("message %d resolving ddsource: %w", i, err))
