@@ -38,6 +38,9 @@ flush_deletes: true
 `
 	processor, mgr, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
 	batch := service.MessageBatch{
 		service.NewMessage([]byte(`{"id":"1"}`)),
 		service.NewMessage([]byte(`{"id":"2"}`)),
@@ -79,6 +82,9 @@ flush_deletes: false
 `
 	processor, mgr, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
 	batch := service.MessageBatch{
 		service.NewMessage([]byte(`{"id":"1"}`)),
 		service.NewMessage([]byte(`{"id":"2"}`)),
@@ -163,6 +169,9 @@ flush_deletes: true
 `
 		processor, _, err := cacheCollectorProc(spec)
 		require.NoError(t, err)
+
+		t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
 		msg := service.NewMessage([]byte(`{"meta":true}`))
 		msg.MetaSet("meta_data", "meta_value")
 
