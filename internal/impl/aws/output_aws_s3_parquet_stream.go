@@ -27,8 +27,8 @@ const (
 	spsoFieldForcePathStyleURLs = "force_path_style_urls"
 	spsoFieldSchema             = "schema"
 	spsoFieldSchemaFile         = "schema_file"
-	spsoFieldDefaultCompression = "default_compression"
-	spsoFieldDefaultEncoding    = "default_encoding"
+	spsoFieldCompression = "compression"
+	spsoFieldEncoding    = "encoding"
 	spsoFieldRowGroupSize       = "row_group_size"
 	spsoFieldBatching           = "batching"
 )
@@ -111,15 +111,15 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Description("Path to a YAML file containing a Parquet schema definition. The file should contain a parquet_encode processor resource with a schema section. Mutually exclusive with schema.").
 				Example("./schemas/ocsf_network_activity.yml").
 				Optional(),
-			service.NewStringEnumField(spsoFieldDefaultCompression,
+			service.NewStringEnumField(spsoFieldCompression,
 				"uncompressed", "snappy", "gzip", "brotli", "zstd", "lz4raw",
 			).
-				Description("The default compression type to use for Parquet columns.").
+				Description("The compression type to use for Parquet columns.").
 				Default("uncompressed"),
-			service.NewStringEnumField(spsoFieldDefaultEncoding,
+			service.NewStringEnumField(spsoFieldEncoding,
 				"DELTA_LENGTH_BYTE_ARRAY", "PLAIN",
 			).
-				Description("The default encoding type to use for fields.").
+				Description("The encoding type to use for fields.").
 				Default("DELTA_LENGTH_BYTE_ARRAY").
 				Advanced(),
 			service.NewIntField(spsoFieldRowGroupSize).
@@ -147,7 +147,7 @@ output:
         type: UTF8
       - name: level
         type: UTF8
-    default_compression: snappy
+    compression: snappy
 `,
 		).
 		Example(
@@ -163,7 +163,7 @@ output:
         type: INT64
       - name: data
         type: BYTE_ARRAY
-    default_compression: zstd
+    compression: zstd
     row_group_size: 5000  # Smaller row groups = less memory
 `,
 		)
@@ -204,7 +204,7 @@ func s3ParquetStreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3Parque
 	}
 
 	// Parse compression
-	compressStr, err := pConf.FieldString(spsoFieldDefaultCompression)
+	compressStr, err := pConf.FieldString(spsoFieldCompression)
 	if err != nil {
 		return conf, err
 	}
@@ -227,7 +227,7 @@ func s3ParquetStreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3Parque
 	}
 
 	// Parse encoding (for schema generation)
-	encodingStr, err := pConf.FieldString(spsoFieldDefaultEncoding)
+	encodingStr, err := pConf.FieldString(spsoFieldEncoding)
 	if err != nil {
 		return conf, err
 	}
