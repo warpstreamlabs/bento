@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.15.2 - 2026-03-11
+
+### Added
+
+- `datadog_logs` output component @gregfurman
+
 ## 1.15.1 - 2026-03-08
 
 ### Added
