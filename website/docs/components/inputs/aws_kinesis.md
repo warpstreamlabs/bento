@@ -234,6 +234,7 @@ Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB
 
 
 Type: `object`  
+Requires version 1.16.0 or newer  
 
 ### `enhanced_fan_out.enabled`
 
