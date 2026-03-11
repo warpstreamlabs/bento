@@ -240,8 +240,8 @@ func TestSQSSendLimit(t *testing.T) {
 	}
 
 	inMsg := service.MessageBatch{}
-	for i := 0; i < 15; i++ {
-		inMsg = append(inMsg, service.NewMessage([]byte(fmt.Sprintf("hello world %v", i+1))))
+	for i := range 15 {
+		inMsg = append(inMsg, service.NewMessage(fmt.Appendf(nil, "hello world %v", i+1)))
 	}
 	require.NoError(t, w.WriteBatch(tCtx, inMsg))
 

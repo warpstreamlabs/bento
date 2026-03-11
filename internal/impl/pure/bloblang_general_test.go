@@ -52,7 +52,7 @@ root.f = "f".apply("map_wide_counter")
 		"f": int64(8),
 	}, v)
 
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		v, err = exec.Query(nil)
 		require.NoError(t, err)
 

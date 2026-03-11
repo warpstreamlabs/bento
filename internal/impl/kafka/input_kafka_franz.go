@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -298,10 +299,8 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 		f.seedBrokers = append(f.seedBrokers, strings.Split(b, ",")...)
 	}
 
-	for _, b := range f.seedBrokers {
-		if b == "" {
-			return nil, errInvalidSeedBrokerValue
-		}
+	if slices.Contains(f.seedBrokers, "") {
+		return nil, errInvalidSeedBrokerValue
 	}
 
 	if len(f.seedBrokers) == 0 {

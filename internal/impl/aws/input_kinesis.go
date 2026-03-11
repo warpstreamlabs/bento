@@ -275,7 +275,7 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 
 	shardsByStream := map[string][]string{}
 	for _, t := range conf.Streams {
-		for _, splitStreams := range strings.Split(t, ",") {
+		for splitStreams := range strings.SplitSeq(t, ",") {
 			trimmed := strings.TrimSpace(splitStreams)
 			if trimmed == "" {
 				continue
@@ -819,7 +819,6 @@ func (k *kinesisReader) runExplicitShards() {
 func (k *kinesisReader) waitUntilStreamsExists(ctx context.Context) error {
 	results := make(chan error, len(k.streams))
 	for _, s := range k.streams {
-		s := s
 		go func(info *streamInfo) {
 			waiter := kinesis.NewStreamExistsWaiter(k.svc)
 			input := &kinesis.DescribeStreamInput{}

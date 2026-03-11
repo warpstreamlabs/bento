@@ -173,19 +173,19 @@ root.baz = this.baz`,
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			if test.inputOrdering == nil {
 				test.inputOrdering = [][]string{}
 			}
-			confStr := fmt.Sprintf(`
+			var confStr strings.Builder
+			fmt.Fprintf(&confStr, `
 workflow:
   order: %v
   branches:
 `, gabs.Wrap(test.inputOrdering).String())
 
 			for j, mappings := range test.branches {
-				confStr += fmt.Sprintf(`
+				fmt.Fprintf(&confStr, `
     %v:
       request_map: |
         %v
@@ -196,11 +196,10 @@ workflow:
 `,
 					strconv.Itoa(j),
 					strings.ReplaceAll(mappings[0], "\n", "\n        "),
-					strings.ReplaceAll(mappings[1], "\n", "\n        "),
-				)
+					strings.ReplaceAll(mappings[1], "\n", "\n        "))
 			}
 
-			conf, err := testutil.ProcessorFromYAML(confStr)
+			conf, err := testutil.ProcessorFromYAML(confStr.String())
 			require.NoError(t, err)
 
 			p, err := mock.NewManager().NewProcessor(conf)
@@ -461,19 +460,19 @@ root.name_upper = this.name.uppercase()`,
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			if test.order == nil {
 				test.order = [][]string{}
 			}
-			confStr := fmt.Sprintf(`
+			var confStr strings.Builder
+			fmt.Fprintf(&confStr, `
 workflow:
   order: %v
   branches:
 `, gabs.Wrap(test.order).String())
 
 			for j, mappings := range test.branches {
-				confStr += fmt.Sprintf(`
+				fmt.Fprintf(&confStr, `
     %v:
       request_map: |
         %v
@@ -486,11 +485,10 @@ workflow:
 					strconv.Itoa(j),
 					strings.ReplaceAll(mappings[0], "\n", "\n        "),
 					strings.ReplaceAll(mappings[1], "\n", "\n            "),
-					strings.ReplaceAll(mappings[2], "\n", "\n        "),
-				)
+					strings.ReplaceAll(mappings[2], "\n", "\n        "))
 			}
 
-			conf, err := testutil.ProcessorFromYAML(confStr)
+			conf, err := testutil.ProcessorFromYAML(confStr.String())
 			require.NoError(t, err)
 
 			p, err := mock.NewManager().NewProcessor(conf)
@@ -681,7 +679,6 @@ func TestWorkflowsWithResources(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			var branchNames []string
 			for _, b := range test.branches {
@@ -767,7 +764,7 @@ workflow:
 `, gabs.Wrap(branchNames).String()))
 	require.NoError(t, err)
 
-	for loops := 0; loops < 10; loops++ {
+	for range 10 {
 		mgr := newMockProcProvider(t, quickTestBranches(t, branches...))
 		p, err := mgr.NewProcessor(conf)
 		require.NoError(t, err)
@@ -775,13 +772,11 @@ workflow:
 		startChan := make(chan struct{})
 		wg := sync.WaitGroup{}
 
-		for i := 0; i < 10; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 10 {
+			wg.Go(func() {
 				<-startChan
 
-				for j := 0; j < 100; j++ {
+				for range 100 {
 					var parts [][]byte
 					for _, input := range input {
 						parts = append(parts, []byte(input))
@@ -796,7 +791,7 @@ workflow:
 					}
 					assert.Equal(t, output, actual)
 				}
-			}()
+			})
 		}
 
 		close(startChan)
@@ -955,7 +950,6 @@ func TestWorkflowsWithOrderResources(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			if test.order == nil {
 				test.order = [][]string{}
@@ -1048,12 +1042,10 @@ workflow:
 	defer done()
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		streamErr = strm.Run(tCtx)
-	}()
+	})
 	require.NoError(t, inFunc(tCtx, service.NewMessage([]byte(`{"id":"hello world","content":"waddup"}`))))
 	require.NoError(t, strm.Stop(tCtx))
 
@@ -1092,13 +1084,13 @@ workflow:
 
 	assert.Equal(t, map[string][]service.TracingEvent{
 		"barproc": {
-			{Type: "CONSUME", Content: "{\"id\":\"hello world\",\"content\":\"waddup\"}", Meta: map[string]interface{}{}},
-			{Type: "PRODUCE", Content: "{\"content\":\"waddup\",\"id\":\"HELLO WORLD\",\"meta\":{\"workflow\":{\"succeeded\":[\"fooproc\"]}}}", Meta: map[string]interface{}{}},
+			{Type: "CONSUME", Content: "{\"id\":\"hello world\",\"content\":\"waddup\"}", Meta: map[string]any{}},
+			{Type: "PRODUCE", Content: "{\"content\":\"waddup\",\"id\":\"HELLO WORLD\",\"meta\":{\"workflow\":{\"succeeded\":[\"fooproc\"]}}}", Meta: map[string]any{}},
 		},
 		"fooproc": {},
 		"innerproc": {
-			{Type: "CONSUME", Content: "hello world", Meta: map[string]interface{}{}},
-			{Type: "PRODUCE", Content: "{\"id\":\"HELLO WORLD\"}", Meta: map[string]interface{}{}},
+			{Type: "CONSUME", Content: "hello world", Meta: map[string]any{}},
+			{Type: "PRODUCE", Content: "{\"id\":\"HELLO WORLD\"}", Meta: map[string]any{}},
 		},
 	}, normalizeEvents(tracer.ProcessorEvents(false)))
 }

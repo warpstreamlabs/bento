@@ -1,6 +1,7 @@
 package docs
 
 import (
+	"maps"
 	"sync"
 )
 
@@ -57,33 +58,15 @@ func (m *MappedDocsProvider) Clone() *MappedDocsProvider {
 		scannerMap:   map[string]ComponentSpec{},
 	}
 
-	for k, v := range m.bufferMap {
-		newM.bufferMap[k] = v
-	}
-	for k, v := range m.cacheMap {
-		newM.cacheMap[k] = v
-	}
-	for k, v := range m.inputMap {
-		newM.inputMap[k] = v
-	}
-	for k, v := range m.metricsMap {
-		newM.metricsMap[k] = v
-	}
-	for k, v := range m.outputMap {
-		newM.outputMap[k] = v
-	}
-	for k, v := range m.processorMap {
-		newM.processorMap[k] = v
-	}
-	for k, v := range m.rateLimitMap {
-		newM.rateLimitMap[k] = v
-	}
-	for k, v := range m.tracerMap {
-		newM.tracerMap[k] = v
-	}
-	for k, v := range m.scannerMap {
-		newM.scannerMap[k] = v
-	}
+	maps.Copy(newM.bufferMap, m.bufferMap)
+	maps.Copy(newM.cacheMap, m.cacheMap)
+	maps.Copy(newM.inputMap, m.inputMap)
+	maps.Copy(newM.metricsMap, m.metricsMap)
+	maps.Copy(newM.outputMap, m.outputMap)
+	maps.Copy(newM.processorMap, m.processorMap)
+	maps.Copy(newM.rateLimitMap, m.rateLimitMap)
+	maps.Copy(newM.tracerMap, m.tracerMap)
+	maps.Copy(newM.scannerMap, m.scannerMap)
 	return newM
 }
 

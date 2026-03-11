@@ -1,6 +1,7 @@
 package query
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 func TestFunctions(t *testing.T) {
@@ -144,7 +146,6 @@ func TestFunctions(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -159,7 +160,7 @@ func TestFunctions(t *testing.T) {
 				msg = append(msg, part)
 			}
 
-			for i := 0; i < 10; i++ {
+			for range 10 {
 				res, err := test.input.Exec(FunctionContext{
 					Vars:     test.vars,
 					Maps:     map[string]Function{},
@@ -229,7 +230,6 @@ func TestFunctionTargets(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			t.Parallel()
 
@@ -283,7 +283,7 @@ func TestRandomInt(t *testing.T) {
 
 	tallies := map[int64]int64{}
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		res, err := e.Exec(FunctionContext{})
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
@@ -303,7 +303,7 @@ func TestRandomInt(t *testing.T) {
 
 	secondTallies := map[int64]int64{}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		res, err := e.Exec(FunctionContext{}.WithValue(i))
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
@@ -325,7 +325,7 @@ func TestRandomIntDynamic(t *testing.T) {
 
 	tallies := map[int64]int64{}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		res, err := e.Exec(FunctionContext{}.WithValue(i))
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
@@ -345,7 +345,7 @@ func TestRandomIntDynamic(t *testing.T) {
 
 	secondTallies := map[int64]int64{}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		res, err := e.Exec(FunctionContext{}.WithValue(i))
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
@@ -361,7 +361,7 @@ func TestRandomIntDynamic(t *testing.T) {
 
 	thirdTallies := map[int64]int64{}
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		input := i
 		if input > 0 {
 			input += 10
@@ -384,17 +384,15 @@ func TestRandomIntMilliDynamicParallel(t *testing.T) {
 
 	startChan := make(chan struct{})
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			<-startChan
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				res, err := e.Exec(FunctionContext{})
 				require.NoError(t, err)
 				require.IsType(t, int64(0), res)
 			}
-		}()
+		})
 	}
 
 	close(startChan)
@@ -410,17 +408,15 @@ func TestRandomIntMicroDynamicParallel(t *testing.T) {
 
 	startChan := make(chan struct{})
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			<-startChan
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				res, err := e.Exec(FunctionContext{})
 				require.NoError(t, err)
 				require.IsType(t, int64(0), res)
 			}
-		}()
+		})
 	}
 
 	close(startChan)
@@ -436,17 +432,15 @@ func TestRandomIntDynamicParallel(t *testing.T) {
 
 	startChan := make(chan struct{})
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			<-startChan
-			for j := 0; j < 100; j++ {
+			for range 100 {
 				res, err := e.Exec(FunctionContext{})
 				require.NoError(t, err)
 				require.IsType(t, int64(0), res)
 			}
-		}()
+		})
 	}
 
 	close(startChan)
@@ -460,7 +454,7 @@ func TestRandomIntWithinRange(t *testing.T) {
 	e, err := InitFunctionHelper("random_int", tsFn, minimum, maximum)
 	require.NoError(t, err)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		res, err := e.Exec(FunctionContext{})
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
@@ -472,7 +466,7 @@ func TestRandomIntWithinRange(t *testing.T) {
 	e, err = InitFunctionHelper("random_int", tsFn, 10, 10)
 	require.NoError(t, err)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		res, err := e.Exec(FunctionContext{})
 		require.NoError(t, err)
 		require.IsType(t, int64(0), res)
@@ -490,4 +484,100 @@ func TestRandomIntWithinRange(t *testing.T) {
 	// Create a new random_int function with a max that will overflow
 	_, err = InitFunctionHelper("random_int", tsFn, 0, math.MaxInt64)
 	require.Error(t, err)
+}
+
+func TestErrorFunctions(t *testing.T) {
+	var (
+		stdErr         = errors.New("sad")
+		descriptiveErr = value.NewDetailedError(stdErr, "foo_type", "foo_label", "foo.bar")
+	)
+
+	tests := []struct {
+		name string
+		fn   string
+
+		inErr error
+
+		expects any
+	}{
+		// No error in batch
+		{
+			name: "no error with error()",
+			fn:   "error",
+		},
+		{
+			name: "no error with error_source_path()",
+			fn:   "error_source_path",
+		},
+		{
+			name: "no error with error_source_label()",
+			fn:   "error_source_label",
+		},
+		{
+			name: "no error with error_source_type()",
+			fn:   "error_source_type",
+		},
+		// Non-descriptive error returned
+		{
+			name:    "non-descriptive error returned",
+			fn:      "error",
+			inErr:   stdErr,
+			expects: "sad",
+		},
+		{
+			name:  "non-descriptive error with error_source_label()",
+			fn:    "error_source_label",
+			inErr: stdErr,
+		},
+		{
+			name:  "non-descriptive error with error_source_path()",
+			fn:    "error_source_path",
+			inErr: stdErr,
+		},
+		{
+			name:  "non-descriptive error with error_source_type()",
+			fn:    "error_source_type",
+			inErr: stdErr,
+		},
+		// Descriptive error returned
+		{
+			name:    "error returned",
+			fn:      "error",
+			inErr:   descriptiveErr,
+			expects: "sad",
+		},
+		{
+			name:    "descriptive error with error_source_label()",
+			fn:      "error_source_label",
+			inErr:   descriptiveErr,
+			expects: "foo_label",
+		},
+		{
+			name:    "non-descriptive error with error_source_path()",
+			fn:      "error_source_path",
+			inErr:   descriptiveErr,
+			expects: "foo.bar",
+		},
+		{
+			name:    "non-descriptive error with error_source_type()",
+			fn:      "error_source_type",
+			inErr:   descriptiveErr,
+			expects: "foo_type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e, err := InitFunctionHelper(tt.fn)
+			require.NoError(t, err)
+
+			batch := message.QuickBatch([][]byte{[]byte(`null`)})
+			batch[0].ErrorSet(tt.inErr)
+
+			res, err := e.Exec(FunctionContext{MsgBatch: batch})
+			require.NoError(t, err)
+
+			require.Equal(t, tt.expects, res)
+		})
+	}
 }

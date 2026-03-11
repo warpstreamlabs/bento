@@ -32,7 +32,6 @@ func TestStaticExpressionOptimization(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.output, func(t *testing.T) {
 			e := NewExpression(test.input...)
 			assert.Equal(t, test.output, e.static)
@@ -342,7 +341,6 @@ func TestExpressions(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

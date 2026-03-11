@@ -85,7 +85,7 @@ A database [driver](#drivers) to use.
 
 
 Type: `string`  
-Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`.
+Options: `mysql`, `postgres`, `clickhouse`, `mssql`, `sqlite`, `oracle`, `snowflake`, `trino`, `gocosmos`, `spanner`, `duckdb`.
 
 ### `data_source_name`
 
@@ -110,6 +110,7 @@ The query to execute. The style of placeholder to use depends on the driver, som
 | `spanner` | Question mark |
 | `trino` | Question mark |
 | `gocosmos` | Colon |
+| `duckdb` | Question mark |
 
 
 Type: `string`  
