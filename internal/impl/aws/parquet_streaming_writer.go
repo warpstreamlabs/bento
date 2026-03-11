@@ -220,7 +220,9 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 		return fmt.Errorf("invalid row group boundaries: start=%d, end=%d", rowGroupStart, rowGroupEnd)
 	}
 
-	rowGroupData := fullFileData[rowGroupStart:rowGroupEnd]
+	// Copy row group data to avoid keeping fullFileData in memory
+	rowGroupData := make([]byte, rowGroupEnd-rowGroupStart)
+	copy(rowGroupData, fullFileData[rowGroupStart:rowGroupEnd])
 	rowGroupSize := int64(len(rowGroupData))
 
 	// Extract actual column metadata from the temporary file's footer

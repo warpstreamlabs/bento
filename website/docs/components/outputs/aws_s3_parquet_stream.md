@@ -39,7 +39,7 @@ output:
     path: logs/${! timestamp_unix() }-${! uuid_v4() }.parquet # No default (required)
     schema: [] # No default (optional)
     schema_file: ./schemas/ocsf_network_activity.yml # No default (optional)
-    default_compression: uncompressed
+    compression: uncompressed
     max_in_flight: 64
     batching:
       count: 0
@@ -63,8 +63,8 @@ output:
     force_path_style_urls: false
     schema: [] # No default (optional)
     schema_file: ./schemas/ocsf_network_activity.yml # No default (optional)
-    default_compression: uncompressed
-    default_encoding: DELTA_LENGTH_BYTE_ARRAY
+    compression: uncompressed
+    encoding: DELTA_LENGTH_BYTE_ARRAY
     row_group_size: 10000
     region: ""
     endpoint: ""
@@ -145,7 +145,7 @@ output:
         type: UTF8
       - name: level
         type: UTF8
-    default_compression: snappy
+    compression: snappy
 ```
 
 </TabItem>
@@ -163,7 +163,7 @@ output:
         type: INT64
       - name: data
         type: BYTE_ARRAY
-    default_compression: zstd
+    compression: zstd
     row_group_size: 5000  # Smaller row groups = less memory
 ```
 
@@ -303,18 +303,18 @@ Type: `string`
 schema_file: ./schemas/ocsf_network_activity.yml
 ```
 
-### `default_compression`
+### `compression`
 
-The default compression type to use for Parquet columns.
+The compression type to use for Parquet columns.
 
 
 Type: `string`  
 Default: `"uncompressed"`  
 Options: `uncompressed`, `snappy`, `gzip`, `brotli`, `zstd`, `lz4raw`.
 
-### `default_encoding`
+### `encoding`
 
-The default encoding type to use for fields.
+The encoding type to use for fields.
 
 
 Type: `string`  

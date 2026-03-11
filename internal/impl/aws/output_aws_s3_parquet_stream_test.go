@@ -22,7 +22,7 @@ schema:
   - name: value
     type: DOUBLE
     optional: true
-default_compression: snappy
+compression: snappy
 row_group_size: 5000
 max_file_rows: 100000
 max_file_duration: 5m
@@ -69,7 +69,7 @@ path: 'data.parquet'
 schema:
   - name: id
     type: INT64
-default_compression: ` + compType
+compression: ` + compType
 				parsed, err := spec.ParseYAML(configYAML, nil)
 				require.NoError(t, err)
 
@@ -242,7 +242,7 @@ schema:
     type: UTF8
   - name: level
     type: UTF8
-default_compression: snappy
+compression: snappy
 max_file_rows: 1000000
 max_file_duration: 10m
 `,
@@ -254,7 +254,7 @@ schema:
     type: INT64
   - name: data
     type: BYTE_ARRAY
-default_compression: zstd
+compression: zstd
 row_group_size: 5000
 max_file_rows: 10000000
 `,
@@ -311,7 +311,7 @@ schema:
     type: INT64
   - name: level
     type: UTF8
-default_compression: snappy
+compression: snappy
 `
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

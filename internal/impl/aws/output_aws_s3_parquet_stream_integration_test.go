@@ -53,7 +53,7 @@ schema:
     type: UTF8
   - name: timestamp
     type: INT64
-default_compression: snappy
+compression: snappy
 row_group_size: 100
 `, bucketName, testKey, servicePort)
 
@@ -163,7 +163,7 @@ schema:
     type: INT64
   - name: value
     type: UTF8
-default_compression: snappy
+compression: snappy
 row_group_size: 50
 `, bucketName, testPrefix, servicePort)
 
