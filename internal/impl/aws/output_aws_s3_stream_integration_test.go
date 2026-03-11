@@ -76,8 +76,8 @@ max_buffer_period: 1s
 
 	// Write test data (150 messages to trigger flush)
 	batch := service.MessageBatch{}
-	for i := 0; i < 150; i++ {
-		msg := service.NewMessage([]byte(fmt.Sprintf("log line %d\n", i)))
+	for i := range 150 {
+		msg := service.NewMessage(fmt.Appendf(nil, "log line %d\n", i))
 		batch = append(batch, msg)
 	}
 
@@ -161,8 +161,8 @@ max_buffer_period: 1s
 	messageCount := 0
 	for _, date := range dates {
 		for _, region := range regions {
-			for i := 0; i < 25; i++ { // 25 messages per partition
-				msg := service.NewMessage([]byte(fmt.Sprintf("log %s %s %d\n", date, region, i)))
+			for i := range 25 { // 25 messages per partition
+				msg := service.NewMessage(fmt.Appendf(nil, "log %s %s %d\n", date, region, i))
 				msg.MetaSet("date", date)
 				msg.MetaSet("region", region)
 				batch = append(batch, msg)
@@ -267,8 +267,8 @@ max_buffer_period: 1s
 
 	// Write JSON data
 	batch := service.MessageBatch{}
-	for i := 0; i < 50; i++ {
-		msg := service.NewMessage([]byte(fmt.Sprintf(`{"id": %d, "message": "test"}%s`, i, "\n")))
+	for i := range 50 {
+		msg := service.NewMessage(fmt.Appendf(nil, `{"id": %d, "message": "test"}%s`, i, "\n"))
 		batch = append(batch, msg)
 	}
 

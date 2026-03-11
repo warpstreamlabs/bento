@@ -221,7 +221,7 @@ func TestS3StreamingWriterBufferFlushOnCount(t *testing.T) {
 
 	// Write 100 messages with 100KB each = 10MB total (should trigger on count)
 	data := make([]byte, 100*1024)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		err = writer.WriteBytes(ctx, data)
 		require.NoError(t, err)
 	}
@@ -357,7 +357,7 @@ func TestS3StreamingWriterMultipleParts(t *testing.T) {
 
 	// Write 6MB three times (should create 3 parts)
 	data := make([]byte, 6*1024*1024)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		err = writer.WriteBytes(ctx, data)
 		require.NoError(t, err)
 	}

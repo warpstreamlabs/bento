@@ -162,9 +162,9 @@ func (w *S3StreamingWriter) WriteBytes(ctx context.Context, data []byte) error {
 	w.lastWrite = time.Now()
 
 	// Check if we should flush
-    if w.uploadSize >= w.maxBufferBytes || len(w.messageBuffer) >= w.maxBufferCount {
-        return w.flush(ctx)
-    }
+	if w.uploadSize >= w.maxBufferBytes || len(w.messageBuffer) >= w.maxBufferCount {
+		return w.flush(ctx)
+	}
 
 	return nil
 }
@@ -187,7 +187,7 @@ func (w *S3StreamingWriter) flush(ctx context.Context) error {
 
 	// Upload part with retry
 	var uploadErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := range 3 {
 		resp, err := w.s3Client.UploadPart(ctx, &s3.UploadPartInput{
 			Bucket:     aws.String(w.bucket),
 			Key:        aws.String(w.key),
