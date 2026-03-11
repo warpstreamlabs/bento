@@ -23,7 +23,7 @@ const (
 	cacheCollectorPFieldTTL          = "ttl"
 )
 
-func cacheCollectorSpec() *service.ConfigSpec {
+func CacheCollectorProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Mapping").
 		Stable().
@@ -69,7 +69,7 @@ The `+"`append_map`"+` bloblang expression can access both the current cached va
 		)
 }
 
-type cacheCollector struct {
+type cacheCollectorProcessor struct {
 	cacheName string
 
 	key          *service.InterpolatedString
@@ -85,17 +85,13 @@ type cacheCollector struct {
 }
 
 func init() {
-	err := service.RegisterBatchProcessor(
-		"cache_collector", cacheCollectorSpec(),
-		func(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
-			return newCacheCollector(conf, mgr)
-		})
+	err := service.RegisterBatchProcessor("cache_collector", CacheCollectorProcessorSpec(), NewCacheCollectorFromConfig)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func newCacheCollector(conf *service.ParsedConfig, mgr *service.Resources) (*cacheCollector, error) {
+func NewCacheCollectorFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
 	resource, err := conf.FieldString(cacheCollectorPFieldResource)
 	if err != nil {
 		return nil, err
@@ -138,7 +134,7 @@ func newCacheCollector(conf *service.ParsedConfig, mgr *service.Resources) (*cac
 
 	ttl, _ := conf.FieldInterpolatedString(cacheCollectorPFieldTTL)
 
-	return &cacheCollector{
+	return &cacheCollectorProcessor{
 		key:         key,
 		init:        init,
 		appendCheck: appendCheck,
@@ -160,7 +156,7 @@ type cacheCollectorAppendMessageData struct {
 	Current json.RawMessage `json:"current"`
 }
 
-func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
+func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 	var newMsgs []*service.Message
 
 	var keyInterp *service.MessageBatchInterpolationExecutor
@@ -346,6 +342,6 @@ func (cc *cacheCollector) ProcessBatch(ctx context.Context, batch service.Messag
 	return nil, nil
 }
 
-func (cc *cacheCollector) Close(ctx context.Context) error {
+func (cc *cacheCollectorProcessor) Close(ctx context.Context) error {
 	return nil
 }
