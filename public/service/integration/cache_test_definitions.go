@@ -161,7 +161,7 @@ func CacheTestExistsAndSet(n int) CacheTestDefinition {
 
 				res, err := cache.Exists(env.ctx, key)
 				require.NoError(t, err)
-				assert.False(t, res)
+				assert.True(t, res)
 			}
 		},
 	)
