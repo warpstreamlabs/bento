@@ -18,9 +18,9 @@ import TabItem from '@theme/TabItem';
 :::caution BETA
 This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
 :::
-Streams data directly to S3 using multipart uploads with minimal memory overhead.
+Streams data to S3 using multipart uploads.
 
-Introduced in version 1.0.0.
+Introduced in version 1.16.0.
 
 
 <Tabs defaultValue="common" values={[
@@ -87,27 +87,23 @@ output:
 </TabItem>
 </Tabs>
 
-This output writes files to S3 by streaming content incrementally using S3 multipart uploads.
-Unlike the standard `aws_s3` output (which buffers the entire file in memory),
-this output streams data directly to S3, reducing memory usage by 80-90% for large files.
+This output writes to S3 using multipart uploads, streaming content incrementally rather than
+buffering entire files in memory. This makes it ideal for writing large files or continuous streams
+where memory efficiency is critical.
 
-## Key Features
-
-- **Memory Efficient**: Streams content to S3 as buffer fills, minimal memory footprint
-- **Partition Routing**: `partition_by` parameter ensures messages with same partition values go to same file
-- **Dynamic Paths**: Supports Bloblang interpolation for partition paths (e.g., `logs/${! timestamp_unix() }`)
-- **S3 Multipart Upload**: Leverages S3 multipart uploads for reliable large file transfers
-- **Flexible Buffering**: Configure by bytes, message count, or time period
+The `partition_by` parameter allows you to maintain separate S3 multipart uploads for different
+partition values. Messages with matching partition values are written to the same file, and the full
+path expression is evaluated only once per partition (allowing use of functions like `uuid_v4()`
+for unique filenames). Without `partition_by`, each message evaluates the full path independently.
 
 ## When to Use
 
-Use this output instead of `aws_s3` when:
-- Writing large files (>1GB) that would consume too much memory
-- Streaming continuous data that needs to be partitioned into files
-- You need dynamic partition routing (e.g., one file per account/date combination)
-- Memory-constrained environments (containers, Lambda, ECS)
+Use `aws_s3_stream` instead of `aws_s3` when:
+- Writing large files (>100MB) where memory usage is a concern
+- Streaming continuous data in memory-constrained environments
+- You need per-partition file grouping with dynamic paths
 
-### Credentials
+## Credentials
 
 By default Bento will use a shared credentials file when connecting to AWS services.
 You can find out more [in this document](/docs/guides/cloud/aws).
@@ -174,7 +170,7 @@ Type: `string`
 
 ### `path`
 
-The path for each file. Supports Bloblang interpolation for dynamic partitioning.
+The path for each file.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
@@ -222,7 +218,7 @@ Default: `10485760`
 
 ### `max_buffer_count`
 
-Maximum number of messages to buffer before flushing to S3. Default is 10000.
+Maximum number of messages to buffer before flushing to S3.
 
 
 Type: `int`  
@@ -230,7 +226,7 @@ Default: `10000`
 
 ### `max_buffer_period`
 
-Maximum duration to buffer messages before flushing to S3. Default is 10s.
+Maximum duration to buffer messages before flushing to S3.
 
 
 Type: `string`  
@@ -238,7 +234,7 @@ Default: `"10s"`
 
 ### `content_type`
 
-The content type to set for uploaded files. Supports interpolation.
+The content type to set for uploaded files.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
@@ -247,7 +243,7 @@ Default: `"application/octet-stream"`
 
 ### `content_encoding`
 
-The content encoding to set for uploaded files (e.g., gzip). Supports interpolation.
+The content encoding to set for uploaded files (e.g., gzip).
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
