@@ -3,6 +3,36 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.16.0 - XXXX-XX-XX
+
+### Added 
+
+MERGE SOON:
+
+ - efo support
+ - aws_s3_stream 
+ - lubak clone transport once 700
+ - 
+
+
+CURRENT: 
+
+ - `duckdb` driver added to @sapk and james gilbert
+ - kafka field debug @gitphill
+ - error introspection @gregfurman
+ - payload option 
+ - python processor 
+
+
+
+### Changed 
+
+ - go fix 
+
+### Fixed 
+
+
+
 ## 1.15.1 - 2026-03-08
 
 ### Added
