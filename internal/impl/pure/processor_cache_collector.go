@@ -12,28 +12,30 @@ import (
 )
 
 const (
-	cacheCollectorPFieldResource     = "resource"
-	cacheCollectorPFieldKey          = "key"
-	cacheCollectorPFieldInit         = "init"
-	cacheCollectorPFieldAppendCheck  = "append_check"
-	cacheCollectorPFieldAppendMap    = "append_map"
-	cacheCollectorPFieldFlushCheck   = "flush_check"
-	cacheCollectorPFieldFlushDeletes = "flush_deletes"
-	cacheCollectorPFieldFlushMap     = "flush_map"
-	cacheCollectorPFieldTTL          = "ttl"
+	cacheCollectorPFieldResource        = "resource"
+	cacheCollectorPFieldKey             = "key"
+	cacheCollectorPFieldInitCheck       = "init_check"
+	cacheCollectorPFieldInitMap         = "init_map"
+	cacheCollectorPFieldAppendCheck     = "append_check"
+	cacheCollectorPFieldAppendMap       = "append_map"
+	cacheCollectorPFieldFlushCheck      = "flush_check"
+	cacheCollectorPFieldFlushDeletes    = "flush_deletes"
+	cacheCollectorPFieldFlushMap        = "flush_map"
+	cacheCollectorPFieldFilterUntreated = "filter_untreated"
+	cacheCollectorPFieldTTL             = "ttl"
 )
 
 func CacheCollectorProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Mapping").
-		Stable().
+		Beta().
 		Summary("Accumulates messages across batch boundaries using a cache resource, allowing you to build up state before emitting a final result as structed data.").
 		Description(`
 This processor works by storing an accumulated value in a cache, which is updated on each message based on bloblang expressions. It supports three phases:
 
-1. `+"`init`"+`: When the cache key doesn't exist, this bloblang expression is used to initialize the value.
-2. `+"`append_check`"+`: For each message, if this expression evaluates to true, the value is updated using `+"`append_map`"+`.
-3. `+"`flush_check`"+`: When this expression evaluates to true, the accumulated value is emitted as a new message and the cache is optionally cleared.
+1. `+"`init_check`"+`: When the cache key doesn't exist, if this expression evaluates to true, the value is initialize using `+"`init_map`"+`.
+2. `+"`append_check`"+`: For each message, if this expression evaluates to true and the cache was initialized, the value is updated using `+"`append_map`"+`.
+3. `+"`flush_check`"+`: When this expression evaluates to true and the cache was initialized, the accumulated value is emitted as a new message and the cache is optionally cleared.
 
 The `+"`append_map`"+` bloblang expression can access both the current cached value as `+"`this.cached`"+` and the current message as `+"`this.current`"+`.`).
 		Fields(
@@ -41,7 +43,11 @@ The `+"`append_map`"+` bloblang expression can access both the current cached va
 				Description("The [`cache` resource](/docs/components/caches/about) to use for storing accumulated state."),
 			service.NewInterpolatedStringField(cacheCollectorPFieldKey).
 				Description("A key for the cache entry. This should be consistent across messages that should be grouped together."),
-			service.NewBloblangField(cacheCollectorPFieldInit).
+			service.NewBloblangField(cacheCollectorPFieldInitCheck).
+				Description("Bloblang expression that must evaluate to `true` for a message to initialize the cache.").
+				Default("true").
+				Examples(`this.process == "start"`),
+			service.NewBloblangField(cacheCollectorPFieldInitMap).
 				Description("Bloblang expression to initialize the value when the cache key doesn't exist. Defaults to an empty array.").
 				Default("root = []").
 				Examples("root = []", `root = {"items": []}`, `root = {"count": 0, "total": 0}`),
@@ -61,6 +67,9 @@ The `+"`append_map`"+` bloblang expression can access both the current cached va
 				Description("Bloblang expression to transform the accumulated value before emitting. Defaults to `root`.").
 				Default("root = this").
 				Examples(`root = this`, `root = {"result": this}`, `root.items = this`),
+			service.NewBoolField(cacheCollectorPFieldFilterUntreated).
+				Description("When `true`, messages that have not been collected are automatically filtered. Defaults to `false`.").
+				Default(false),
 			service.NewInterpolatedStringField(cacheCollectorPFieldTTL).
 				Description("The TTL of each individual item as a duration string. After this period an item will be eligible for removal during the next compaction. Not all caches support per-key TTLs, those that do will have a configuration field `default_ttl`, and those that do not will fall back to their generally configured TTL setting.").
 				Examples("60s", "5m", "36h").
@@ -73,13 +82,17 @@ type cacheCollectorProcessor struct {
 	cacheName string
 
 	key          *service.InterpolatedString
-	init         *bloblang.Executor
+	initCheck    *bloblang.Executor
+	initMap      *bloblang.Executor
 	appendCheck  *bloblang.Executor
 	appendMap    *bloblang.Executor
 	flushCheck   *bloblang.Executor
 	flushDeletes bool
 	flushMap     *bloblang.Executor
-	ttl          *service.InterpolatedString
+
+	filterUntreated bool
+
+	ttl *service.InterpolatedString
 
 	mgr *service.Resources
 }
@@ -102,7 +115,12 @@ func NewCacheCollectorFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 		return nil, err
 	}
 
-	init, err := conf.FieldBloblang(cacheCollectorPFieldInit)
+	initCheck, err := conf.FieldBloblang(cacheCollectorPFieldInitCheck)
+	if err != nil {
+		return nil, err
+	}
+
+	initMap, err := conf.FieldBloblang(cacheCollectorPFieldInitMap)
 	if err != nil {
 		return nil, err
 	}
@@ -132,15 +150,23 @@ func NewCacheCollectorFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 		return nil, err
 	}
 
+	filterUntreated, err := conf.FieldBool(cacheCollectorPFieldFilterUntreated)
+	if err != nil {
+		return nil, err
+	}
+
 	ttl, _ := conf.FieldInterpolatedString(cacheCollectorPFieldTTL)
 
 	return &cacheCollectorProcessor{
 		key:         key,
-		init:        init,
+		initCheck:   initCheck,
+		initMap:     initMap,
 		appendCheck: appendCheck,
 		appendMap:   appendMap,
 		flushCheck:  flushCheck,
 		flushMap:    flushMap,
+
+		filterUntreated: filterUntreated,
 
 		cacheName:    resource,
 		flushDeletes: flushDeletes,
@@ -151,7 +177,7 @@ func NewCacheCollectorFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 	}, nil
 }
 
-type cacheCollectorAppendMessageData struct {
+type cacheCollectorMessageData struct {
 	Cached  json.RawMessage `json:"cached"`
 	Current json.RawMessage `json:"current"`
 }
@@ -189,9 +215,14 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 		flushMap = batch.BloblangExecutor(cc.flushMap)
 	}
 
-	var init *service.MessageBatchBloblangExecutor
-	if cc.init != nil {
-		init = batch.BloblangExecutor(cc.init)
+	var initCheck *service.MessageBatchBloblangExecutor
+	if cc.initCheck != nil {
+		initCheck = batch.BloblangExecutor(cc.initCheck)
+	}
+
+	var initMap *service.MessageBatchBloblangExecutor
+	if cc.initMap != nil {
+		initMap = batch.BloblangExecutor(cc.initMap)
 	}
 
 	for i, msg := range batch {
@@ -218,24 +249,29 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 			ttl = &td
 		}
 
-		var processAppend bool
-		var processFlush bool
+		processInit, err := initCheck.QueryBool(i)
+		if err != nil {
+			return nil, fmt.Errorf("init_check evaluation error: %w", err)
+		}
 
-		processAppend, err = appendCheck.QueryBool(i)
+		processAppend, err := appendCheck.QueryBool(i)
 		if err != nil {
 			return nil, fmt.Errorf("append_check evaluation error: %w", err)
 		}
 
-		processFlush, err = flushCheck.QueryBool(i)
+		processFlush, err := flushCheck.QueryBool(i)
 		if err != nil {
 			return nil, fmt.Errorf("flush_check evaluation error: %w", err)
 		}
 
 		if processAppend || processFlush {
 			var cachedValue []byte
+			cacheValueExists := true
+
 			if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
 				cachedValue, err = cache.Get(ctx, key)
 				if err != nil {
+					cacheValueExists = false
 					if errors.Is(err, service.ErrKeyNotFound) {
 						cachedValue = nil
 						err = nil
@@ -251,75 +287,56 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 				return nil, err
 			}
 
-			if cachedValue == nil {
-				initMsg, err := init.Query(i)
-				if err != nil {
-					return nil, fmt.Errorf("init evaluation error: %w", err)
+			if !cacheValueExists {
+				if processInit {
+					initMsg, err := initMap.Query(i)
+					if err != nil {
+						return nil, fmt.Errorf("init_map evaluation error: %w", err)
+					}
+					initData, err := initMsg.AsBytes()
+					if err != nil {
+						return nil, fmt.Errorf("init data error: %w", err)
+					}
+					cachedValue = initData
+					cacheValueExists = true
 				}
-				initData, err := initMsg.AsBytes()
-				if err != nil {
-					return nil, fmt.Errorf("init data error: %w", err)
-				}
-				cachedValue = initData
 			}
 
-			if processAppend {
+			if cacheValueExists {
 				currentValue, err := msg.AsBytes()
 				if err != nil {
 					return nil, err
 				}
 
-				appendMsgJson, err := json.Marshal(cacheCollectorAppendMessageData{
-					Cached:  json.RawMessage(cachedValue),
-					Current: json.RawMessage(currentValue),
-				})
+				if processAppend {
+					appendMsgJson, err := json.Marshal(cacheCollectorMessageData{
+						Cached:  json.RawMessage(cachedValue),
+						Current: json.RawMessage(currentValue),
+					})
 
-				if err != nil {
-					return nil, err
-				}
-
-				msg.SetBytes(appendMsgJson)
-
-				appendResult, err := appendMap.Query(i)
-
-				msg.SetBytes(currentValue)
-
-				if err != nil {
-					return nil, err
-				}
-
-				cachedValue, err = appendResult.AsBytes()
-				if err != nil {
-					return nil, err
-				}
-
-				if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
-					err = cache.Set(ctx, key, cachedValue, ttl)
 					if err != nil {
-						err = fmt.Errorf("failed to set cache key '%s': %v", key, err)
+						return nil, err
 					}
-				}); cerr != nil {
-					err = cerr
-				}
 
-				if err != nil {
-					return nil, err
-				}
-			}
+					msg.SetBytes(appendMsgJson)
 
-			if processFlush {
-				msg.SetBytes(cachedValue)
+					appendResult, err := appendMap.Query(i)
 
-				msg, err = flushMap.Query(i)
-				if err != nil {
-					return nil, err
-				}
+					msg.SetBytes(currentValue)
 
-				if cc.flushDeletes {
+					if err != nil {
+						return nil, err
+					}
+
+					cachedValue, err = appendResult.AsBytes()
+					if err != nil {
+						return nil, err
+					}
+
 					if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
-						err = cache.Delete(ctx, key)
+						err = cache.Set(ctx, key, cachedValue, ttl)
 						if err != nil {
-							err = fmt.Errorf("failed to delete cache key '%s': %v", key, err)
+							err = fmt.Errorf("failed to set cache key '%s': %v", key, err)
 						}
 					}); cerr != nil {
 						err = cerr
@@ -330,8 +347,66 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 					}
 				}
 
+				if processFlush {
+					msg.SetBytes(cachedValue)
+
+					msg, err = flushMap.Query(i)
+					if err != nil {
+						return nil, err
+					}
+
+					if cc.flushDeletes {
+						if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
+							err = cache.Delete(ctx, key)
+							if err != nil {
+								err = fmt.Errorf("failed to delete cache key '%s': %v", key, err)
+							}
+						}); cerr != nil {
+							err = cerr
+						}
+
+						if err != nil {
+							return nil, err
+						}
+					}
+
+					fmt.Println("write flush")
+
+					newMsgs = append(newMsgs, msg)
+				}
+			} else if !cc.filterUntreated {
+				fmt.Println("write raw")
 				newMsgs = append(newMsgs, msg)
 			}
+		} else if processInit {
+			initMsg, err := initMap.Query(i)
+			if err != nil {
+				return nil, fmt.Errorf("init_map evaluation error: %w", err)
+			}
+			initData, err := initMsg.AsBytes()
+			if err != nil {
+				return nil, fmt.Errorf("init data error: %w", err)
+			}
+
+			if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
+				err = cache.Add(ctx, key, initData, ttl)
+				if err != nil {
+					if errors.Is(err, service.ErrKeyAlreadyExists) {
+						err = nil
+					} else {
+						err = fmt.Errorf("failed to set cache key '%s': %v", key, err)
+					}
+				}
+			}); cerr != nil {
+				err = cerr
+			}
+
+			if err != nil {
+				return nil, err
+			}
+		} else if !cc.filterUntreated {
+			fmt.Println("write raw")
+			newMsgs = append(newMsgs, msg)
 		}
 	}
 

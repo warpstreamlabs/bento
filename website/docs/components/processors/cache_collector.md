@@ -2,7 +2,7 @@
 title: cache_collector
 slug: cache_collector
 type: processor
-status: stable
+status: beta
 categories: ["Mapping"]
 ---
 
@@ -15,6 +15,9 @@ categories: ["Mapping"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+:::caution BETA
+This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
+:::
 Accumulates messages across batch boundaries using a cache resource, allowing you to build up state before emitting a final result as structed data.
 
 
@@ -31,12 +34,14 @@ label: ""
 cache_collector:
   resource: "" # No default (required)
   key: "" # No default (required)
-  init: root = []
+  init_check: "true"
+  init_map: root = []
   append_check: this.process == "work" # No default (required)
   append_map: root = this.cached.append(this.current) # No default (required)
   flush_check: this.process == "end" # No default (required)
   flush_deletes: false
   flush_map: root = this
+  filter_untreated: false
 ```
 
 </TabItem>
@@ -48,12 +53,14 @@ label: ""
 cache_collector:
   resource: "" # No default (required)
   key: "" # No default (required)
-  init: root = []
+  init_check: "true"
+  init_map: root = []
   append_check: this.process == "work" # No default (required)
   append_map: root = this.cached.append(this.current) # No default (required)
   flush_check: this.process == "end" # No default (required)
   flush_deletes: false
   flush_map: root = this
+  filter_untreated: false
   ttl: 60s # No default (optional)
 ```
 
@@ -62,9 +69,9 @@ cache_collector:
 
 This processor works by storing an accumulated value in a cache, which is updated on each message based on bloblang expressions. It supports three phases:
 
-1. `init`: When the cache key doesn't exist, this bloblang expression is used to initialize the value.
-2. `append_check`: For each message, if this expression evaluates to true, the value is updated using `append_map`.
-3. `flush_check`: When this expression evaluates to true, the accumulated value is emitted as a new message and the cache is optionally cleared.
+1. `init_check`: When the cache key doesn't exist, if this expression evaluates to true, the value is initialize using `init_map`.
+2. `append_check`: For each message, if this expression evaluates to true and the cache was initialized, the value is updated using `append_map`.
+3. `flush_check`: When this expression evaluates to true and the cache was initialized, the accumulated value is emitted as a new message and the cache is optionally cleared.
 
 The `append_map` bloblang expression can access both the current cached value as `this.cached` and the current message as `this.current`.
 
@@ -85,7 +92,21 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 Type: `string`  
 
-### `init`
+### `init_check`
+
+Bloblang expression that must evaluate to `true` for a message to initialize the cache.
+
+
+Type: `string`  
+Default: `"true"`  
+
+```yml
+# Examples
+
+init_check: this.process == "start"
+```
+
+### `init_map`
 
 Bloblang expression to initialize the value when the cache key doesn't exist. Defaults to an empty array.
 
@@ -96,11 +117,11 @@ Default: `"root = []"`
 ```yml
 # Examples
 
-init: root = []
+init_map: root = []
 
-init: 'root = {"items": []}'
+init_map: 'root = {"items": []}'
 
-init: 'root = {"count": 0, "total": 0}'
+init_map: 'root = {"count": 0, "total": 0}'
 ```
 
 ### `append_check`
@@ -173,6 +194,14 @@ flush_map: 'root = {"result": this}'
 
 flush_map: root.items = this
 ```
+
+### `filter_untreated`
+
+When `true`, messages that have not been collected are automatically filtered. Defaults to `false`.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `ttl`
 

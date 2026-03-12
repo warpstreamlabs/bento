@@ -26,7 +26,7 @@ func TestCacheCollectorProcessor_BasicAccumulationDeleteCache(t *testing.T) {
 	spec := `
 resource: test_cache
 key: test_key
-init: root = [{"id":"0"}]
+init_map: root = [{"id":"0"}]
 append_check: true
 append_map: |
   root = this.cached.append(this.current)
@@ -55,8 +55,7 @@ flush_deletes: true
 
 	result, err := results[0][0].AsBytes()
 	require.NoError(t, err)
-	expected := `{"result":[{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"}],"count":4}`
-	assert.JSONEq(t, expected, string(result))
+	assert.JSONEq(t, `{"result":[{"id":"0"},{"id":"1"},{"id":"2"},{"id":"3"}],"count":4}`, string(result))
 
 	cerr := mgr.AccessCache(t.Context(), "test_cache", func(c service.Cache) {
 		_, err = c.Get(t.Context(), "test_key")
@@ -70,7 +69,7 @@ func TestCacheCollectorProcessor_BasicAccumulatioKeepCache(t *testing.T) {
 	spec := `
 resource: test_cache
 key: test_key
-init: root = [{"id":"0"}]
+init_map: root = [{"id":"0"}]
 append_check: true
 append_map: |
   root = this.cached.append(this.current)
@@ -117,7 +116,7 @@ func TestCacheCollectorProcessor_WithDifferentKeys(t *testing.T) {
 		spec := `
 resource: test_cache
 key: test_${! this.group }
-init: root = []
+init_map: root = []
 append_check: root = this.end == false
 append_map: root = this.cached.append(this.current.data)
 flush_check: this.end
@@ -160,7 +159,7 @@ func TestCacheCollectorProcessor_WithMeta(t *testing.T) {
 		spec := `
 resource: test_cache
 key: test_key
-init: root = []
+init_map: root = []
 append_check: true
 append_map: |
   root = this.cached.append(metadata("meta_data"))
@@ -189,4 +188,107 @@ flush_deletes: true
 		require.NoError(t, err)
 		assert.JSONEq(t, `["meta_value"]`, string(result))
 	})
+}
+
+func TestCacheCollectorProcessor_WithInitCheck(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_deletes: true
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"work","id":"1"}`)),
+
+		// start
+		service.NewMessage([]byte(`{"type":"start","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"3"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"4"}`)),
+		service.NewMessage([]byte(`{"type":"ignore","id":"5"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"6"}`)),
+		// end
+
+		service.NewMessage([]byte(`{"type":"work","id":"7"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"8"}`)),
+	}
+
+	results, err := processor.ProcessBatch(t.Context(), batch)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0], 5)
+
+	result, err := results[0][0].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"1"}`, string(result))
+
+	result, err = results[0][1].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"ignore","id":"5"}`, string(result))
+
+	result, err = results[0][2].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"type":"work","id":"3"},{"type":"work","id":"4"}]`, string(result))
+
+	result, err = results[0][3].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"7"}`, string(result))
+
+	result, err = results[0][4].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"end","id":"8"}`, string(result))
+}
+
+func TestCacheCollectorProcessor_WithInitCheckAndFilter(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_deletes: true
+filter_untreated: true
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"work","id":"1"}`)),
+
+		// start
+		service.NewMessage([]byte(`{"type":"start","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"3"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"4"}`)),
+		service.NewMessage([]byte(`{"type":"ignore","id":"5"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"6"}`)),
+		// end
+
+		service.NewMessage([]byte(`{"type":"work","id":"7"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"8"}`)),
+	}
+
+	results, err := processor.ProcessBatch(t.Context(), batch)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0], 1)
+
+	result, err := results[0][0].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"type":"work","id":"3"},{"type":"work","id":"4"}]`, string(result))
 }
