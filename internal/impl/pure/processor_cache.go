@@ -260,7 +260,7 @@ func newCacheAppendOperator() cacheOperator {
 	return func(ctx context.Context, part *message.Part, cache cache.V1, key string, value []byte, ttl *time.Duration) error {
 		result, err := cache.Get(ctx, key)
 		if err != nil {
-			if err == service.ErrKeyNotFound {
+			if errors.Is(err, service.ErrKeyNotFound) {
 				err = cache.Set(ctx, key, value, ttl)
 			}
 			return err

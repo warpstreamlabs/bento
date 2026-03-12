@@ -2,6 +2,7 @@ package pure_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -52,9 +53,59 @@ cache:
 		t.Errorf("Wrong result messages: %s != %s", act, exp)
 	}
 
+	fmt.Printf("%+v", mgr.Caches)
+
 	actV, ok := mgr.Caches["foocache"]["1"]
 	require.True(t, ok)
 	assert.Equal(t, "foo 3", actV.Value)
+
+	actV, ok = mgr.Caches["foocache"]["2"]
+	require.True(t, ok)
+	assert.Equal(t, "foo 2", actV.Value)
+}
+
+func TestCacheAppend(t *testing.T) {
+	mgr := mock.NewManager()
+	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
+
+	conf, err := testutil.ProcessorFromYAML(`
+cache:
+  operator: append
+  key: ${!json("key")}
+  value: ${!json("value")}
+  resource: foocache
+`)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := message.QuickBatch([][]byte{
+		[]byte(`{"key":"1","value":"foo 1"}`),
+		[]byte(`{"key":"2","value":"foo 2"}`),
+		[]byte(`{"key":"1","value":"foo 3"}`),
+	})
+
+	output, res := proc.ProcessBatch(context.Background(), input)
+	if res != nil {
+		t.Fatal(res)
+	}
+
+	if len(output) != 1 {
+		t.Fatalf("Wrong count of result messages: %v", len(output))
+	}
+
+	if exp, act := message.GetAllBytes(input), message.GetAllBytes(output[0]); !reflect.DeepEqual(exp, act) {
+		t.Errorf("Wrong result messages: %s != %s", act, exp)
+	}
+
+	fmt.Printf("%v", mgr.Caches["foocache"])
+
+	actV, ok := mgr.Caches["foocache"]["1"]
+	require.True(t, ok)
+	assert.Equal(t, "foo 1foo 3", actV.Value)
 
 	actV, ok = mgr.Caches["foocache"]["2"]
 	require.True(t, ok)
