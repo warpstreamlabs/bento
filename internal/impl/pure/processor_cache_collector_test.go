@@ -322,5 +322,5 @@ filter_untreated: true
 	results, err := processor.ProcessBatch(t.Context(), batch)
 
 	require.NoError(t, err)
-	require.Len(t, results, 0)
+	require.Empty(t, results)
 }
