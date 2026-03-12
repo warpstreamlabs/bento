@@ -63,6 +63,11 @@ output:
     max_buffer_period: 10s
     content_type: application/octet-stream
     content_encoding: "" # No default (optional)
+    max_retries: 2
+    backoff:
+      initial_interval: 1s
+      max_interval: 5s
+      max_elapsed_time: 30s
     region: ""
     endpoint: ""
     credentials:
@@ -248,6 +253,69 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
+
+### `max_retries`
+
+The maximum number of retries for each individual part upload. Set to zero to disable retries.
+
+
+Type: `int`  
+Default: `2`  
+
+### `backoff`
+
+Determine time intervals and cut offs for retry attempts.
+
+
+Type: `object`  
+
+### `backoff.initial_interval`
+
+The initial period to wait between retry attempts.
+
+
+Type: `string`  
+Default: `"1s"`  
+
+```yml
+# Examples
+
+initial_interval: 50ms
+
+initial_interval: 1s
+```
+
+### `backoff.max_interval`
+
+The maximum period to wait between retry attempts
+
+
+Type: `string`  
+Default: `"5s"`  
+
+```yml
+# Examples
+
+max_interval: 5s
+
+max_interval: 1m
+```
+
+### `backoff.max_elapsed_time`
+
+The maximum overall period of time to spend on retry attempts before the request is aborted.
+
+
+Type: `string`  
+Default: `"30s"`  
+
+```yml
+# Examples
+
+max_elapsed_time: 1m
+
+max_elapsed_time: 1h
+```
 
 ### `region`
 

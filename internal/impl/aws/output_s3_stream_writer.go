@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/cenkalti/backoff/v4"
 )
 
 // S3API defines the S3 operations required by the streaming writer
@@ -38,6 +39,7 @@ type S3StreamingWriter struct {
 	uploadID       *string
 	partNumber     int32
 	completedParts []types.CompletedPart
+	backoffCtor    func() backoff.BackOff
 
 	// Buffering
 	messageBuffer [][]byte
@@ -69,6 +71,7 @@ type S3StreamingWriterConfig struct {
 	MaxBufferPeriod time.Duration // Maximum time to buffer before flushing (default: 10s)
 	ContentType     string        // Content type for S3 object
 	ContentEncoding string        // Content encoding for S3 object (optional)
+	BackoffCtor     func() backoff.BackOff
 }
 
 // NewS3StreamingWriter creates a new streaming S3 writer
@@ -86,6 +89,21 @@ func NewS3StreamingWriter(config S3StreamingWriterConfig) (*S3StreamingWriter, e
 		config.ContentType = "application/octet-stream"
 	}
 
+	expBackoff := &backoff.ExponentialBackOff{
+		InitialInterval: time.Second * 1,
+		MaxInterval:     time.Second * 5,
+		MaxElapsedTime:  time.Second * 30,
+	}
+	maxRetries := 2
+
+	if config.BackoffCtor == nil {
+		config.BackoffCtor = func() backoff.BackOff {
+			boff := *expBackoff
+			boff.Reset()
+			return backoff.WithMaxRetries(&boff, uint64(maxRetries)) // Default
+		}
+	}
+
 	w := &S3StreamingWriter{
 		maxBufferBytes:  config.MaxBufferBytes,
 		maxBufferCount:  config.MaxBufferCount,
@@ -95,6 +113,7 @@ func NewS3StreamingWriter(config S3StreamingWriterConfig) (*S3StreamingWriter, e
 		s3Client:        config.S3Client,
 		bucket:          config.Bucket,
 		key:             config.Key,
+		backoffCtor:     config.BackoffCtor,
 		uploadBuffer:    bytes.NewBuffer(nil),
 		messageBuffer:   make([][]byte, 0, config.MaxBufferCount),
 		created:         time.Now(),
@@ -186,8 +205,11 @@ func (w *S3StreamingWriter) flush(ctx context.Context) error {
 	w.partNumber++
 
 	// Upload part with retry
+	boff := w.backoffCtor()
+
 	var uploadErr error
-	for attempt := range 3 {
+retryLoop:
+	for {
 		resp, err := w.s3Client.UploadPart(ctx, &s3.UploadPartInput{
 			Bucket:     aws.String(w.bucket),
 			Key:        aws.String(w.key),
@@ -221,7 +243,15 @@ func (w *S3StreamingWriter) flush(ctx context.Context) error {
 		}
 
 		uploadErr = err
-		time.Sleep(time.Second * time.Duration(1<<attempt)) // Exponential backoff
+		tNext := boff.NextBackOff()
+		if tNext == backoff.Stop {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			break retryLoop
+		case <-time.After(tNext):
+		}
 	}
 
 	// All retries failed
