@@ -184,7 +184,6 @@ func ScannerTestSuite(t *testing.T, codec *service.OwnedScannerCreator, details 
 		wg.Add(len(expected))
 
 		for _, exp := range expected {
-			exp := exp
 			p, ackFn, err := r.NextBatch(context.Background())
 			require.NoError(t, err)
 			require.Len(t, p, 1)

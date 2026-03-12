@@ -627,7 +627,7 @@ func (h *httpServerInput) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	var svcBatch service.MessageBatch
 	for _, resMsg := range store.Get() {
-		for i := 0; i < len(resMsg); i++ {
+		for i := range resMsg {
 			svcBatch = append(svcBatch, service.NewInternalMessage(resMsg[i]))
 		}
 	}

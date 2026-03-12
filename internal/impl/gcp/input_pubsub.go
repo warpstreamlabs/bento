@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub" //nolint:staticcheck
 	"google.golang.org/api/option"
 
 	"github.com/warpstreamlabs/bento/public/service"

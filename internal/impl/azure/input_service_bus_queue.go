@@ -265,10 +265,7 @@ func (a *azureServiceBusQueueReader) readLoop(ctx context.Context) {
 				continue
 			}
 
-			maxMessages := int32(a.conf.maxInFlight)
-			if maxMessages > 10 {
-				maxMessages = 10
-			}
+			maxMessages := min(int32(a.conf.maxInFlight), 10)
 
 			messages, err := receiver.ReceiveMessages(ctx, int(maxMessages), nil)
 			if err != nil {

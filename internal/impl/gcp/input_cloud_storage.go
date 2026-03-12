@@ -180,7 +180,7 @@ func newGCPCloudStorageTargetReader(
 
 	it := bucket.Objects(ctx, &storage.Query{Prefix: interpolatedPrefix})
 
-	for count := 0; count < maxGCPCloudStorageListObjectsResults; count++ {
+	for range maxGCPCloudStorageListObjectsResults {
 		obj, err := it.Next()
 		if errors.Is(err, iterator.Done) {
 			break
@@ -203,7 +203,7 @@ func (r *gcpCloudStorageTargetReader) Pop(ctx context.Context) (*gcpCloudStorage
 	if len(r.pending) == 0 && r.startAfter != nil {
 		r.pending = nil
 
-		for count := 0; count < maxGCPCloudStorageListObjectsResults; count++ {
+		for range maxGCPCloudStorageListObjectsResults {
 			obj, err := r.startAfter.Next()
 			if errors.Is(err, iterator.Done) {
 				break

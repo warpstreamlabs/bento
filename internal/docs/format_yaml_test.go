@@ -68,7 +68,6 @@ bevers:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			var node yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(test.input), &node))
@@ -644,7 +643,6 @@ bud: [] # No default (required)
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			n, err := test.spec.ToYAML(test.recurse)
 			require.NoError(t, err)
@@ -1016,7 +1014,6 @@ testlintfooinput:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			lConf := docs.NewLintConfig(bundle.GlobalEnvironment)
 			lConf.RejectDeprecated = test.rejectDeprecated
@@ -1167,7 +1164,6 @@ func TestYAMLLinting(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			var node yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(test.inputConf), &node))
@@ -1382,7 +1378,6 @@ processors:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			var node yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(test.inputConf), &node))

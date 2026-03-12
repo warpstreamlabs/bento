@@ -12,6 +12,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 type fnProcessor struct {
@@ -187,6 +188,15 @@ func TestBatchProcessorAirGapOneToError(t *testing.T) {
 	assert.Equal(t, "not a structured doc", string(msgs[0].Get(0).AsBytes()))
 	assert.Equal(t, "not a structured doc", string(msgs[0].Get(0).AsBytes()))
 	assert.EqualError(t, msgs[0].Get(0).ErrorGet(), "invalid character 'o' in literal null (expecting 'u')")
+
+	err := msgs[0].Get(0).ErrorGet()
+	dErr, ok := err.(*value.DetailedError)
+	require.True(t, ok)
+
+	require.Equal(t, "foo", dErr.Type())
+	// FIXME: the observability component is mocked out
+	require.Empty(t, dErr.Path())
+	require.Empty(t, dErr.Label())
 }
 
 func TestBatchProcessorAirGapOneToMany(t *testing.T) {

@@ -50,7 +50,6 @@ output:
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			conf, err := testutil.StreamFromYAML(test.input)
 			if test.errContains == "" {
