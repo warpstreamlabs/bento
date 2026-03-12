@@ -152,6 +152,8 @@ func (w *S3StreamingWriter) Initialize(ctx context.Context) error {
 
 	// Start flush timer
 	w.flushTimer = time.AfterFunc(w.maxBufferPeriod, func() {
+		// Use context.Background() because this runs in a timer goroutine
+		// that outlives individual write request contexts
 		w.flushIfNeeded(context.Background())
 	})
 
@@ -235,6 +237,8 @@ retryLoop:
 				w.flushTimer.Stop()
 			}
 			w.flushTimer = time.AfterFunc(w.maxBufferPeriod, func() {
+				// Use context.Background() because this runs in a timer goroutine
+				// that outlives individual write request contexts
 				w.flushIfNeeded(context.Background())
 			})
 
@@ -254,7 +258,7 @@ retryLoop:
 	}
 
 	// All retries failed
-	w.abortMultipartUpload(context.Background())
+	w.abortMultipartUpload(ctx)
 	return fmt.Errorf("failed to upload part after retries: %w", uploadErr)
 }
 
@@ -277,6 +281,8 @@ func (w *S3StreamingWriter) flushIfNeeded(ctx context.Context) {
 		w.flushTimer.Stop()
 	}
 	w.flushTimer = time.AfterFunc(w.maxBufferPeriod, func() {
+		// Use context.Background() because this runs in a timer goroutine
+		// that outlives individual write request contexts
 		w.flushIfNeeded(context.Background())
 	})
 }
@@ -299,7 +305,7 @@ func (w *S3StreamingWriter) forceFlush(ctx context.Context) error {
 	})
 
 	if err != nil {
-		w.abortMultipartUpload(context.Background())
+		w.abortMultipartUpload(ctx)
 		return fmt.Errorf("failed to force flush part: %w", err)
 	}
 
