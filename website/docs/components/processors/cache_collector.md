@@ -40,7 +40,7 @@ cache_collector:
   append_map: root = this.cached.append(this.current) # No default (required)
   flush_check: this.process == "end" # No default (required)
   flush_deletes: false
-  flush_map: root = this
+  flush_map: root = this.cached
   filter_untreated: false
 ```
 
@@ -59,7 +59,7 @@ cache_collector:
   append_map: root = this.cached.append(this.current) # No default (required)
   flush_check: this.process == "end" # No default (required)
   flush_deletes: false
-  flush_map: root = this
+  flush_map: root = this.cached
   filter_untreated: false
   ttl: 60s # No default (optional)
 ```
@@ -179,20 +179,20 @@ Default: `false`
 
 ### `flush_map`
 
-Bloblang expression to transform the accumulated value before emitting. Defaults to `root`.
+Bloblang expression to transform the accumulated value before emitting. It receives the current value as `this.cached` and the new message as `this.current`. Defaults to `this.cached`.
 
 
 Type: `string`  
-Default: `"root = this"`  
+Default: `"root = this.cached"`  
 
 ```yml
 # Examples
 
-flush_map: root = this
+flush_map: root = this.cached
 
-flush_map: 'root = {"result": this}'
+flush_map: 'root = {"result": this.current.append(this.cached)}'
 
-flush_map: root.items = this
+flush_map: root.items = this.cached
 ```
 
 ### `filter_untreated`

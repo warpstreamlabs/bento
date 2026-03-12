@@ -32,8 +32,8 @@ append_map: |
   root = this.cached.append(this.current)
 flush_check: "batch_index() == 2"
 flush_map: |
-  root.result = this
-  root.count = this.length()
+  root.result = this.cached
+  root.count = this.cached.length()
 flush_deletes: true
 `
 	processor, mgr, err := cacheCollectorProc(spec)
@@ -75,8 +75,8 @@ append_map: |
   root = this.cached.append(this.current)
 flush_check: "batch_index() == 2"
 flush_map: |
-  root.result = this
-  root.count = this.length()
+  root.result = this.cached
+  root.count = this.cached.length()
 flush_deletes: false
 `
 	processor, mgr, err := cacheCollectorProc(spec)

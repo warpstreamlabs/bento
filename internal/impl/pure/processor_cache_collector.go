@@ -64,9 +64,9 @@ The `+"`append_map`"+` bloblang expression can access both the current cached va
 				Description("When `true`, the cache entry is deleted after flushing. Defaults to `false`.").
 				Default(false),
 			service.NewBloblangField(cacheCollectorPFieldFlushMap).
-				Description("Bloblang expression to transform the accumulated value before emitting. Defaults to `root`.").
-				Default("root = this").
-				Examples(`root = this`, `root = {"result": this}`, `root.items = this`),
+				Description("Bloblang expression to transform the accumulated value before emitting. It receives the current value as `this.cached` and the new message as `this.current`. Defaults to `this.cached`.").
+				Default("root = this.cached").
+				Examples(`root = this.cached`, `root = {"result": this.current.append(this.cached)}`, `root.items = this.cached`),
 			service.NewBoolField(cacheCollectorPFieldFilterUntreated).
 				Description("When `true`, messages that have not been collected are automatically filtered. Defaults to `false`.").
 				Default(false),
@@ -348,9 +348,19 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 				}
 
 				if processFlush {
-					msg.SetBytes(cachedValue)
+					flushMsgJson, err := json.Marshal(cacheCollectorMessageData{
+						Cached:  json.RawMessage(cachedValue),
+						Current: json.RawMessage(currentValue),
+					})
+
+					if err != nil {
+						return nil, err
+					}
+
+					msg.SetBytes(flushMsgJson)
 
 					msg, err = flushMap.Query(i)
+
 					if err != nil {
 						return nil, err
 					}
