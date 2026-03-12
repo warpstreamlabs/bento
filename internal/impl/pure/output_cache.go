@@ -99,10 +99,10 @@ func init() {
 type CacheWriter struct {
 	mgr bundle.NewManagement
 
-	target string
-	key    *field.Expression
-	append bool
-	ttl    *field.Expression
+	target      string
+	key         *field.Expression
+	appendCache bool
+	ttl         *field.Expression
 
 	log log.Modular
 }
@@ -118,7 +118,7 @@ func NewCacheWriter(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Cach
 	if err != nil {
 		return nil, err
 	}
-	append, err := conf.FieldBool(coFieldAppend)
+	appendCache, err := conf.FieldBool(coFieldAppend)
 	if err != nil {
 		return nil, err
 	}
@@ -137,12 +137,12 @@ func NewCacheWriter(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Cach
 		return nil, fmt.Errorf("cache resource '%v' was not found", target)
 	}
 	return &CacheWriter{
-		mgr:    mgr,
-		target: target,
-		key:    key,
-		append: append,
-		ttl:    ttl,
-		log:    mgr.Logger(),
+		mgr:         mgr,
+		target:      target,
+		key:         key,
+		appendCache: appendCache,
+		ttl:         ttl,
+		log:         mgr.Logger(),
 	}, nil
 }
 
@@ -212,7 +212,7 @@ func (c *CacheWriter) WriteBatch(ctx context.Context, msg message.Batch) (err er
 	}
 
 	if cerr := c.mgr.AccessCache(ctx, c.target, func(cache cache.V1) {
-		if c.append {
+		if c.appendCache {
 			var current []byte
 			current, err = cache.Get(ctx, key)
 			if err == nil {
