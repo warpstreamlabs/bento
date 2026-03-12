@@ -370,12 +370,9 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 						}
 					}
 
-					fmt.Println("write flush")
-
 					newMsgs = append(newMsgs, msg)
 				}
 			} else if !cc.filterUntreated {
-				fmt.Println("write raw")
 				newMsgs = append(newMsgs, msg)
 			}
 		} else if processInit {
@@ -405,7 +402,6 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 				return nil, err
 			}
 		} else if !cc.filterUntreated {
-			fmt.Println("write raw")
 			newMsgs = append(newMsgs, msg)
 		}
 	}
