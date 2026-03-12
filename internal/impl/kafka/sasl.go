@@ -14,6 +14,8 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/oauth"
 	"github.com/twmb/franz-go/pkg/sasl/plain"
 	"github.com/twmb/franz-go/pkg/sasl/scram"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 func notImportedAWSFn(c *service.ParsedConfig) (sasl.Mechanism, error) {
@@ -50,6 +52,30 @@ func saslField() *service.ConfigField {
 		service.NewStringField("token").
 			Description("The token to use for a single session's OAUTHBEARER authentication.").
 			Default(""),
+		service.NewObjectField("oauth2",
+			service.NewBoolField("enabled").
+				Description("Whether to use OAuth version 2 in requests.").
+				Default(false),
+			service.NewStringField("client_key").
+				Description("A value used to identify the client to the token provider.").
+				Default(""),
+			service.NewStringField("client_secret").
+				Description("A secret used to establish ownership of the client key.").
+				Default("").Secret(),
+			service.NewURLField("token_url").
+				Description("The URL of the token provider.").
+				Default(""),
+			service.NewStringListField("scopes").
+				Description("A list of optional requested permissions.").
+				Default([]any{}).
+				Advanced(),
+			service.NewAnyMapField("endpoint_params").
+				Description("A list of optional endpoint parameters, values should be arrays of strings.").
+				Advanced().
+				Optional(),
+		).
+			Description("Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.").
+			Optional().Advanced(),
 		service.NewStringMapField("extensions").
 			Description("Key/value pairs to add to OAUTHBEARER authentication requests.").
 			Optional(),
@@ -136,6 +162,63 @@ func plainSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
 }
 
 func oauthSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
+	if c.Contains("oauth2") {
+		if enabled, _ := c.FieldBool("oauth2", "enabled"); enabled {
+			key, err := c.FieldString("oauth2", "client_key")
+			if err != nil {
+				return nil, err
+			}
+			secret, err := c.FieldString("oauth2", "client_secret")
+			if err != nil {
+				return nil, err
+			}
+			tokenURL, err := c.FieldString("oauth2", "token_url")
+			if err != nil {
+				return nil, err
+			}
+			scopes, err := c.FieldStringList("oauth2", "scopes")
+			if err != nil {
+				return nil, err
+			}
+			endpointParams := map[string][]string{}
+			if c.Contains("oauth2", "endpoint_params") {
+				params, err := c.FieldAnyMap("oauth2", "endpoint_params")
+				if err != nil {
+					return nil, err
+				}
+				for k, v := range params {
+					if endpointParams[k], err = v.FieldStringList(); err != nil {
+						return nil, err
+					}
+				}
+			}
+			var extensions map[string]string
+			if c.Contains("extensions") {
+				if extensions, err = c.FieldStringMap("extensions"); err != nil {
+					return nil, err
+				}
+			}
+			conf := &clientcredentials.Config{
+				ClientID:       key,
+				ClientSecret:   secret,
+				TokenURL:       tokenURL,
+				Scopes:         scopes,
+				EndpointParams: endpointParams,
+			}
+			ts := oauth2.ReuseTokenSource(nil, conf.TokenSource(context.Background()))
+			return oauth.Oauth(func(ctx context.Context) (oauth.Auth, error) {
+				tok, err := ts.Token()
+				if err != nil {
+					return oauth.Auth{}, err
+				}
+				return oauth.Auth{
+					Token:      tok.AccessToken,
+					Extensions: extensions,
+				}, nil
+			}), nil
+		}
+	}
+
 	token, err := c.FieldString("token")
 	if err != nil {
 		return nil, err
@@ -200,9 +283,11 @@ const (
 	saramaFieldSASLMechanism   = "mechanism"
 	saramaFieldSASLUser        = "user"
 	saramaFieldSASLPassword    = "password"
-	saramaFieldSASLAccessToken = "access_token"
-	saramaFieldSASLTokenCache  = "token_cache"
-	saramaFieldSASLTokenKey    = "token_key"
+	saramaFieldSASLAccessToken  = "access_token"
+	saramaFieldSASLTokenCache   = "token_cache"
+	saramaFieldSASLTokenKey     = "token_key"
+	saramaFieldSASLOAuth2       = "oauth2"
+	saramaFieldSASLExtensions   = "extensions"
 	saramaFieldSASLAws         = "aws"
 )
 
@@ -239,6 +324,34 @@ func SaramaSASLField() *service.ConfigField {
 		service.NewStringField(saramaFieldSASLTokenKey).
 			Description("Required when using a `token_cache`, the key to query the cache with for tokens.").
 			Default(""),
+		service.NewAnyMapField(saramaFieldSASLExtensions).
+			Description("A list of optional endpoint parameters, values should be arrays of strings.").
+			Advanced().
+			Optional(),
+		service.NewObjectField(saramaFieldSASLOAuth2,
+			service.NewBoolField("enabled").
+				Description("Whether to use OAuth version 2 in requests.").
+				Default(false),
+			service.NewStringField("client_key").
+				Description("A value used to identify the client to the token provider.").
+				Default(""),
+			service.NewStringField("client_secret").
+				Description("A secret used to establish ownership of the client key.").
+				Default("").Secret(),
+			service.NewURLField("token_url").
+				Description("The URL of the token provider.").
+				Default(""),
+			service.NewStringListField("scopes").
+				Description("A list of optional requested permissions.").
+				Default([]any{}).
+				Advanced(),
+			service.NewAnyMapField("endpoint_params").
+				Description("A list of optional endpoint parameters, values should be arrays of strings.").
+				Advanced().
+				Optional(),
+		).
+			Description("Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.").
+			Optional().Advanced(),
 		service.NewObjectField(saramaFieldSASLAws, config.SessionFields()...).
 			Description("Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.").
 			Optional(),
@@ -283,12 +396,27 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 		return nil
 	}
 
+	var extensions map[string]string
+	if pConf.Contains(saramaFieldSASLExtensions) {
+		if extensions, err = pConf.FieldStringMap(saramaFieldSASLExtensions); err != nil {
+			return err
+		}
+	}
+
 	switch mechanism {
 	case sarama.SASLTypeOAuth:
 		var tp sarama.AccessTokenProvider
 		var err error
 
-		if tokenCache != "" {
+		if pConf.Contains(saramaFieldSASLOAuth2) {
+			if enabled, _ := pConf.FieldBool(saramaFieldSASLOAuth2, "enabled"); enabled {
+				if tp, err = newOAuth2AccessTokenProvider(pConf.Namespace(saramaFieldSASLOAuth2), extensions); err != nil {
+					return err
+				}
+			}
+		}
+
+		if tp == nil && tokenCache != "" {
 			if tp, err = newCacheAccessTokenProvider(mgr, tokenCache, tokenKey); err != nil {
 				return err
 			}
@@ -382,4 +510,66 @@ func newStaticAccessTokenProvider(token string) (*staticAccessTokenProvider, err
 
 func (s *staticAccessTokenProvider) Token() (*sarama.AccessToken, error) {
 	return &sarama.AccessToken{Token: s.token}, nil
+}
+
+//------------------------------------------------------------------------------
+
+type oauth2AccessTokenProvider struct {
+	ts         oauth2.TokenSource
+	extensions map[string]string
+}
+
+func newOAuth2AccessTokenProvider(conf *service.ParsedConfig, extensions map[string]string) (*oauth2AccessTokenProvider, error) {
+	key, err := conf.FieldString("client_key")
+	if err != nil {
+		return nil, err
+	}
+	secret, err := conf.FieldString("client_secret")
+	if err != nil {
+		return nil, err
+	}
+	tokenURL, err := conf.FieldString("token_url")
+	if err != nil {
+		return nil, err
+	}
+	scopes, err := conf.FieldStringList("scopes")
+	if err != nil {
+		return nil, err
+	}
+	endpointParams := map[string][]string{}
+	if conf.Contains("endpoint_params") {
+		params, err := conf.FieldAnyMap("endpoint_params")
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range params {
+			if endpointParams[k], err = v.FieldStringList(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	oauthConf := &clientcredentials.Config{
+		ClientID:       key,
+		ClientSecret:   secret,
+		TokenURL:       tokenURL,
+		Scopes:         scopes,
+		EndpointParams: endpointParams,
+	}
+
+	return &oauth2AccessTokenProvider{
+		ts:         oauth2.ReuseTokenSource(nil, oauthConf.TokenSource(context.Background())),
+		extensions: extensions,
+	}, nil
+}
+
+func (o *oauth2AccessTokenProvider) Token() (*sarama.AccessToken, error) {
+	tok, err := o.ts.Token()
+	if err != nil {
+		return nil, err
+	}
+	return &sarama.AccessToken{
+		Token:      tok.AccessToken,
+		Extensions: o.extensions,
+	}, nil
 }

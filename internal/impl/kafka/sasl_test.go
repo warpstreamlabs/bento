@@ -179,3 +179,33 @@ sasl:
 		t.Errorf("Wrong SASL token: %v != %v", act, expected)
 	}
 }
+
+func TestApplyOAuth2ClientCredentialsSarama(t *testing.T) {
+	saslConf := service.NewConfigSpec().Field(kafka.SaramaSASLField())
+	pConf, err := saslConf.ParseYAML(`
+sasl:
+  mechanism: OAUTHBEARER
+  oauth2:
+    enabled: true
+    client_key: foo
+    client_secret: bar
+    token_url: http://localhost/token
+    scopes: [ a, b ]
+    endpoint_params:
+      foo: [ bar ]
+`, nil)
+	require.NoError(t, err)
+
+	conf := &sarama.Config{}
+	require.NoError(t, kafka.ApplySaramaSASLFromParsed(pConf, service.MockResources(), conf))
+
+	if !conf.Net.SASL.Enable {
+		t.Errorf("SASL not enabled")
+	}
+
+	if conf.Net.SASL.Mechanism != sarama.SASLTypeOAuth {
+		t.Errorf("Wrong SASL mechanism: %v != %v", conf.Net.SASL.Mechanism, sarama.SASLTypeOAuth)
+	}
+
+	require.NotNil(t, conf.Net.SASL.TokenProvider)
+}
