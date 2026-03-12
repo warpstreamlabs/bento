@@ -89,18 +89,17 @@ func NewS3StreamingWriter(config S3StreamingWriterConfig) (*S3StreamingWriter, e
 		config.ContentType = "application/octet-stream"
 	}
 
-	expBackoff := &backoff.ExponentialBackOff{
-		InitialInterval: time.Second * 1,
-		MaxInterval:     time.Second * 5,
-		MaxElapsedTime:  time.Second * 30,
-	}
-	maxRetries := 2
-
 	if config.BackoffCtor == nil {
+		maxRetries := 2
+		expBackoff := backoff.NewExponentialBackOff()
+		expBackoff.InitialInterval = time.Second
+		expBackoff.MaxInterval = time.Second * 5
+		expBackoff.MaxElapsedTime = time.Second * 30
+
 		config.BackoffCtor = func() backoff.BackOff {
 			boff := *expBackoff
 			boff.Reset()
-			return backoff.WithMaxRetries(&boff, uint64(maxRetries)) // Default
+			return backoff.WithMaxRetries(&boff, uint64(maxRetries))
 		}
 	}
 
