@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/cenkalti/backoff/v4"
 
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -25,6 +26,8 @@ const (
 	ssoFieldBatching           = "batching"
 	ssoFieldContentType        = "content_type"
 	ssoFieldContentEncoding    = "content_encoding"
+	ssoFieldBackoff            = "backoff"
+	ssoFieldMaxRetries         = "max_retries"
 )
 
 func s3StreamOutputSpec() *service.ConfigSpec {
@@ -94,6 +97,14 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Description("The content encoding to set for uploaded files (e.g., gzip).").
 				Optional().
 				Advanced(),
+			service.NewIntField(ssoFieldMaxRetries).
+				Description("The maximum number of retries for each individual part upload. Set to zero to disable retries.").
+				Advanced().Default(2),
+			service.NewBackOffField(ssoFieldBackoff, false, &backoff.ExponentialBackOff{
+				InitialInterval: time.Second * 1,
+				MaxInterval:     time.Second * 5,
+				MaxElapsedTime:  time.Second * 30,
+			}).Advanced(),
 		).
 		Fields(config.SessionFields()...).
 		Field(service.NewOutputMaxInFlightField()).
@@ -149,7 +160,8 @@ type s3StreamConfig struct {
 	ContentType     *service.InterpolatedString
 	ContentEncoding *service.InterpolatedString
 
-	aconf aws.Config
+	aconf       aws.Config
+	backoffCtor func() backoff.BackOff
 }
 
 func s3StreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3StreamConfig, err error) {
@@ -201,6 +213,21 @@ func s3StreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3StreamConfig,
 	// AWS config
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
+	}
+
+	var expBackoff *backoff.ExponentialBackOff
+	if expBackoff, err = pConf.FieldBackOff(ssoFieldBackoff); err != nil {
+		return
+	}
+	var maxRetries int
+	if maxRetries, err = pConf.FieldInt(ssoFieldMaxRetries); err != nil {
+		return
+	}
+
+	conf.backoffCtor = func() backoff.BackOff {
+		boff := *expBackoff
+		boff.Reset()
+		return backoff.WithMaxRetries(&boff, uint64(maxRetries))
 	}
 
 	return
@@ -361,6 +388,7 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 				MaxBufferPeriod: s.conf.MaxBufferPeriod,
 				ContentType:     contentType,
 				ContentEncoding: contentEncoding,
+				BackoffCtor:     s.conf.backoffCtor,
 			})
 			if err != nil {
 				s.writersMut.Unlock()
