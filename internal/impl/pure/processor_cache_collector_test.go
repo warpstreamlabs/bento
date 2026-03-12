@@ -292,3 +292,35 @@ filter_untreated: true
 	require.NoError(t, err)
 	assert.JSONEq(t, `[{"type":"work","id":"3"},{"type":"work","id":"4"}]`, string(result))
 }
+
+func TestCacheCollectorProcessor_FlushDeleted(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_map: |
+  root = deleted()
+flush_deletes: true
+filter_untreated: true
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"start","id":"1"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"3"}`)),
+	}
+
+	results, err := processor.ProcessBatch(t.Context(), batch)
+
+	require.NoError(t, err)
+	require.Len(t, results, 0)
+}

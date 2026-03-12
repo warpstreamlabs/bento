@@ -380,7 +380,9 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 						}
 					}
 
-					newMsgs = append(newMsgs, msg)
+					if msg != nil {
+						newMsgs = append(newMsgs, msg)
+					}
 				}
 			} else if !cc.filterUntreated {
 				newMsgs = append(newMsgs, msg)
