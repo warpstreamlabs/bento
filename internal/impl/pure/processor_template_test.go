@@ -87,6 +87,12 @@ functions:
 			expectedError: true,
 			errorValue:    "function \"nonexistent_function\" not defined",
 		},
+		{
+			name:     "template sprig functions",
+			template: `text: "{{ $inc := .inc }}{{ $inc = add1 $inc }}{{$inc}}{{ $inc = add1 $inc }}{{$inc}}{{ $inc = add1 $inc }}{{$inc}}"`,
+			input:    []byte(`{"inc":0}`),
+			expected: "123",
+		},
 	}
 
 	for _, test := range tests {

@@ -28,6 +28,12 @@ template:
   functions: {} # No default (optional)
 ```
 
+Transforms messages using Go template syntax.
+Supports built-in Go template functions,
+Sprig template functions (including string manipulation, math, date, and encoding utilities)
+and a custom `meta` function to access message metadata (e.g., `{{ meta \"key\" }}`).
+Additionally, users can define custom Bloblang-based functions via the `functions` field, which are available during template execution.
+
 ## Fields
 
 ### `text`

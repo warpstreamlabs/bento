@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -21,6 +22,11 @@ func TemplateProcessorSpec() *service.ConfigSpec {
 		Categories("Mapping").
 		Beta().
 		Summary("Transforms messages using Go template syntax.").
+		Description(`Transforms messages using Go template syntax.
+Supports built-in Go template functions,
+Sprig template functions (including string manipulation, math, date, and encoding utilities)
+and a custom `+"`"+`meta`+"`"+` function to access message metadata (e.g., `+"`"+`{{ meta \"key\" }}`+"`"+`).
+Additionally, users can define custom Bloblang-based functions via the `+"`"+`functions`+"`"+` field, which are available during template execution.`).
 		Fields(
 			service.NewStringField(tpFieldText).
 				Description("The Go template to apply to messages.").
@@ -83,7 +89,7 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 		}
 	}
 
-	tmpl, err := template.New("template").Funcs(functions).Parse(templateStr)
+	tmpl, err := template.New("template").Funcs(functions).Funcs(sprig.TxtFuncMap()).Parse(templateStr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse template: %w", err)
 	}
