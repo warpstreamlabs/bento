@@ -110,11 +110,12 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 				}
 
 				h.client.Transport = cloned
+			} else if tlsClientConfig == nil {
+				return nil, fmt.Errorf("unable to apply proxy_url to transport, unexpected type %T", h.client.Transport)
+			} else if proxy == nil {
+				return nil, fmt.Errorf("unable to apply tls to transport, unexpected type %T", h.client.Transport)
 			} else {
-				h.client.Transport = &http.Transport{
-					TLSClientConfig: tlsClientConfig,
-					Proxy:           proxy,
-				}
+				return nil, fmt.Errorf("unable to apply proxy_url or tls to transport, unexpected type %T", h.client.Transport)
 			}
 		}
 	}
