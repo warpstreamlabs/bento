@@ -70,7 +70,7 @@ func TestTemplateProcessor_Templating(t *testing.T) {
 			errorValue:    "Failed to parse template",
 		},
 		{
-			name: "template functions - basic usage",
+			name: "template functions",
 			template: `
 text: "{{ .foo }} - {{ uppercase .bar }}"
 functions:
@@ -81,14 +81,14 @@ functions:
 			expected: "hello - WORLD",
 		},
 		{
-			name:          "template functions - error handling",
+			name:          "template nonexistent functions",
 			template:      `text: "{{ nonexistent_function .foo }}"`,
 			input:         []byte(`{"foo":"hello","bar":"world"}`),
 			expectedError: true,
 			errorValue:    "function \"nonexistent_function\" not defined",
 		},
 		{
-			name:     "template sprig functions",
+			name:     "sprig functions",
 			template: `text: "{{ $inc := .inc }}{{ $inc = add1 $inc }}{{$inc}}{{ $inc = add1 $inc }}{{$inc}}{{ $inc = add1 $inc }}{{$inc}}"`,
 			input:    []byte(`{"inc":0}`),
 			expected: "123",

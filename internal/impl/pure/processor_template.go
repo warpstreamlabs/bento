@@ -48,7 +48,6 @@ func init() {
 
 type templateProc struct {
 	tmpl *template.Template
-	log  *service.Logger
 }
 
 func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
@@ -96,15 +95,13 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 
 	return &templateProc{
 		tmpl: tmpl,
-		log:  mgr.Logger(),
 	}, nil
 }
 
 func (t *templateProc) Process(ctx context.Context, msg *service.Message) (service.MessageBatch, error) {
 	obj, err := msg.AsStructured()
 	if err != nil {
-		t.log.Errorf("Failed to parse part into json: %v\n", err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to parse part into json: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -116,8 +113,7 @@ func (t *templateProc) Process(ctx context.Context, msg *service.Message) (servi
 			return nil
 		},
 	}).Execute(&buf, obj); err != nil {
-		t.log.Errorf("Failed to execute template: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Failed to execute template: %v", err)
 	}
 
 	msg.SetBytes(buf.Bytes())
