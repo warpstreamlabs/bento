@@ -7,31 +7,17 @@ All notable changes to this project will be documented in this file.
 
 ### Added 
 
-MERGE SOON:
-
- - efo support
- - aws_s3_stream 
- - lubak clone transport once 700
- - 
-
-
-CURRENT: 
-
- - `duckdb` driver added to @sapk and james gilbert
- - kafka field debug @gitphill
- - error introspection @gregfurman
- - payload option 
- - python processor 
-
-
+ - `enhanced_fan_out` configuration options for `aws_kinesis` input @jbeemster & @matus-tomlein
+ - `aws_s3_stream` output streams data to S3 using multipart uploads @triddell 
+ - `duckdb` driver option added to sql components; @sapk & @James-Gilbert-
+ - `debug` field added to `kafka` input; enabling will forward sarama's internal logs to Bento's logger @gitphill
+ - `error_source_label`, `error_source_path`, `error_source_type` bloblang functions @gregfurman
+ - `payload` field added to `http` processor & `http_client` output; alternative to using the message as the payload @lublak
+ - `python` processor; WASM-based Python processor @gregfurman
 
 ### Changed 
 
- - go fix 
-
-### Fixed 
-
-
+ - Modernize Go syntax with `go fix`; included 'modernize' linter in CI @gregfurman & @jem-davies
 
 ## 1.15.2 - 2026-03-11
 
@@ -70,7 +56,6 @@ CURRENT:
 ### Fixed
 
 - `error_handling.strategy` override now correctly parses bloblang named arguments @gregfurman
-
 
 ## 1.14.0 - 2026-01-02
 
