@@ -154,6 +154,31 @@ output:
             format: json_array
 ```
 
+:::caution archive processor
+The [archive](/docs/components/processors/archive) processor adopts the metadata of the first message part of the batch.
+:::
+
+Therefore if you are using bloblang interpolation that references metadata to evaluate `bucket` or `key` etc - take
+care - metadata from the first message will be used for the entire batch. This can result in messages being routed to 
+unintended destinations.
+
+The [group_by_value](/docs/components/processors/group_by_value)
+processor can be useful to deal with batches that require 'splitting' based on metadata values:
+
+```yaml
+output:
+  aws_s3:
+    bucket: bento-aws-s3-stream-test
+    path: ${! meta("key") }/${! uuid_v4() }.json
+    batching:
+      count: 100
+      processors:
+        - group_by_value:
+            value: ${! meta("key") }
+        - archive:
+            format: lines
+```
+
 ## Performance
 
 This output benefits from sending multiple messages in flight in parallel for improved performance. You can tune the max number of in flight messages (or message batches) with the field `max_in_flight`.
