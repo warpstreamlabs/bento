@@ -151,7 +151,7 @@ func TestWaitForActiveConsumer_ParentContextCancelled(t *testing.T) {
 	err := mgr.waitForActiveConsumer(ctx)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "context cancelled", "should report cancellation, not timeout")
+	assert.Contains(t, err.Error(), "context canceled", "should report cancellation, not timeout")
 	assert.NotErrorIs(t, err, context.DeadlineExceeded, "should not be a deadline error")
 	assert.ErrorIs(t, err, context.Canceled, "should wrap context.Canceled")
 }
