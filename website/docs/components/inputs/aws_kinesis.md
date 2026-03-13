@@ -231,6 +231,9 @@ Default: `true`
 ### `enhanced_fan_out`
 
 Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.
+:::warning
+	Enhanced Fan Out support is currently experimental.
+:::
 
 
 Type: `object`  

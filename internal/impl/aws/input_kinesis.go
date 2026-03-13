@@ -206,7 +206,11 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 				Default(50000).
 				Advanced(),
 		).
-			Description("Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.").
+			Description(`Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.
+:::warning
+	Enhanced Fan Out support is currently experimental.
+:::
+			`).
 			Version("1.16.0").
 			Optional().
 			Advanced(),
