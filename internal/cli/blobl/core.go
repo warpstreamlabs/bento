@@ -174,21 +174,6 @@ func ExecuteBloblangMapping(env *bloblang.Environment, input, mapping string) *E
 	return result
 }
 
-// ValidateBloblangMapping validates a Bloblang mapping without executing it.
-// Note: Not currently used by the playground UI ('execute' already validates).
-func ValidateBloblangMapping(env *bloblang.Environment, mapping string) (bool, error) {
-	if mapping == "" {
-		return false, errors.New("mapping cannot be empty")
-	}
-
-	_, err := env.NewMapping(mapping)
-	if err != nil {
-		return false, fmt.Errorf("could not parse mapping: %v", err)
-	}
-
-	return true, nil
-}
-
 // GenerateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
 // Iterates through all functions/methods in the environment and pre-generates HTML documentation.
 func GenerateBloblangSyntax(env *bloblang.Environment) (BloblangSyntax, error) {
@@ -200,7 +185,7 @@ func GenerateBloblangSyntax(env *bloblang.Environment) (BloblangSyntax, error) {
 		wrapper := spec.BaseSpec
 		functions[name] = functionSpecWithHTML{
 			FunctionSpec: spec,
-			DocHTML:      createSpecDocHTML(name, wrapper, false),
+			DocHTML:      createSpecDocHTML(name, wrapper, SpecFunction),
 		}
 		functionNames = append(functionNames, name)
 	})
@@ -209,7 +194,7 @@ func GenerateBloblangSyntax(env *bloblang.Environment) (BloblangSyntax, error) {
 		wrapper := spec.BaseSpec
 		methods[name] = methodSpecWithHTML{
 			MethodSpec: spec,
-			DocHTML:    createSpecDocHTML(name, wrapper, true),
+			DocHTML:    createSpecDocHTML(name, wrapper, SpecMethod),
 		}
 		methodNames = append(methodNames, name)
 	})

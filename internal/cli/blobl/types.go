@@ -67,14 +67,14 @@ type Walker interface {
 
 // CompletionItem represents an autocompletion suggestion.
 type CompletionItem struct {
-	Caption     string `json:"caption"`     // Display name
-	Value       string `json:"value"`       // Insert value
-	Snippet     string `json:"snippet"`     // Insert with cursor positioning
-	Meta        string `json:"meta"`        // Category/type description
-	Type        string `json:"type"`        // "function", "method", "keyword"
-	Score       int    `json:"score"`       // Priority score (higher = more important)
-	DocHTML     string `json:"docHTML"`     // Documentation HTML
-	Description string `json:"description"` // Simple description
+	Caption     string         `json:"caption"`     // Display name
+	Value       string         `json:"value"`       // Insert value
+	Snippet     string         `json:"snippet"`     // Insert with cursor positioning
+	Meta        string         `json:"meta"`        // Category/type description
+	Type        string         `json:"type"`        // "function", "method", "keyword"
+	Score       statusPriority `json:"score"`       // Priority score (higher = more important)
+	DocHTML     string         `json:"docHTML"`     // Documentation HTML
+	Description string         `json:"description"` // Simple description
 }
 
 // AutocompletionRequest represents a request for autocompletion.
