@@ -61,8 +61,8 @@ var (
 	lambdaExprRegex    = regexp.MustCompile(`(\w+)\s*->\s*([^,)}\]]+(?:\([^)]*\)[^,)}\]]*)*)`)
 
 	// Markdown processing
-	admonitionRegex  = regexp.MustCompile(`:::([a-zA-Z]+)[\s\S]*?:::`)
-	inlineCodeRegex  = regexp.MustCompile("`([^`]+)`")
+	admonitionRegex   = regexp.MustCompile(`:::([a-zA-Z]+)[\s\S]*?:::`)
+	inlineCodeRegex   = regexp.MustCompile("`([^`]+)`")
 	markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 
 	// Autocompletion
@@ -170,36 +170,37 @@ func (e *execCache) runBloblangExecutor(exec *mapping.Executor, rawInput, pretty
 // ExecuteBloblangMapping compiles and executes a Bloblang mapping against JSON input.
 // Returns an ExecutionResult with parsed result or error details.
 func ExecuteBloblangMapping(env *bloblang.Environment, input, mapping string) *ExecutionResult {
-	result := &ExecutionResult{
-		Result:       nil,
-		ParseError:   nil,
-		MappingError: nil,
-	}
+	result := &ExecutionResult{}
 
 	if input == "" {
-		result.MappingError = "Input JSON string cannot be empty"
+		s := "Input JSON string cannot be empty"
+		result.MappingError = &s
 		return result
 	}
 
 	if mapping == "" {
-		result.ParseError = "Mapping string cannot be empty"
+		s := "Mapping string cannot be empty"
+		result.ParseError = &s
 		return result
 	}
 
 	exec, err := env.NewMapping(mapping)
 	if err != nil {
+		var s string
 		if perr, ok := err.(*parser.Error); ok {
-			result.ParseError = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
+			s = fmt.Sprintf("failed to parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(mapping)))
 		} else {
-			result.ParseError = fmt.Sprintf("mapping error: %v", err.Error())
+			s = fmt.Sprintf("mapping error: %v", err.Error())
 		}
+		result.ParseError = &s
 		return result
 	}
 
 	execCache := newExecCache()
 	output, err := execCache.runBloblangExecutor(exec, false, true, []byte(input))
 	if err != nil {
-		result.MappingError = fmt.Sprintf("execution error: %v", err.Error())
+		s := fmt.Sprintf("execution error: %v", err.Error())
+		result.MappingError = &s
 	} else {
 		result.Result = output
 	}
