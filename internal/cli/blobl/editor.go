@@ -196,6 +196,11 @@ func createSpecDocHTML(name string, spec query.BaseSpec, kind SpecKind) string {
 		fmt.Fprintf(&b, `<div class="ace-doc-version">Since: v%s</div>`, spec.Version)
 	}
 
+	if spec.Description != "" {
+		desc := processMarkdownDescription(spec.Description)
+		fmt.Fprintf(&b, `<div class="ace-doc-description">%s</div>`, desc)
+	}
+
 	writeParamsSection(&b, spec)
 
 	b.WriteString(`</div>`)
