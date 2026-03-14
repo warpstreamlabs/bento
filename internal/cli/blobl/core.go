@@ -23,8 +23,8 @@ const (
 	docsBaseURL              = "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
 )
 
-// Compiled regex patterns for formatting.
 var (
+	// Operators
 	multipleSpacesRegex = regexp.MustCompile(`\s{2,}`)
 	logicalAndRegex     = regexp.MustCompile(`\s*&&\s*`)
 	logicalOrRegex      = regexp.MustCompile(`\s*\|\|\s*`)
@@ -34,6 +34,39 @@ var (
 	lessEqualRegex      = regexp.MustCompile(`\s*<=\s*`)
 	greaterThanRegex    = regexp.MustCompile(`\s*>\s*`)
 	lessThanRegex       = regexp.MustCompile(`\s*<\s*`)
+	matchArrowRegex     = regexp.MustCompile(`\s*=>\s*`)
+	pipeAssignRegex     = regexp.MustCompile(`\s*\|=\s*`)
+	assignmentRegex     = regexp.MustCompile(`\s*=\s*`)
+	addRegex            = regexp.MustCompile(`\s*\+\s*`)
+	subRegex            = regexp.MustCompile(`\s*-\s*`)
+	mulRegex            = regexp.MustCompile(`\s*\*\s*`)
+	divRegex            = regexp.MustCompile(`\s*/\s*`)
+	modRegex            = regexp.MustCompile(`\s*%\s*`)
+	pipeRegex           = regexp.MustCompile(`\s*\|\s*`)
+	lambdaArrowOpRegex  = regexp.MustCompile(`\s*-\s*>\s*`)
+	matchArrowOpRegex   = regexp.MustCompile(`\s*=\s*>\s*`)
+
+	// Function calls and method chains
+	commaSpaceRegex          = regexp.MustCompile(`,\s*`)
+	spaceBeforeParenRegex    = regexp.MustCompile(`\s+\(`)
+	spaceAfterOpenParenRegex = regexp.MustCompile(`\(\s+`)
+	spaceBeforeCloseRegex    = regexp.MustCompile(`\s+\)`)
+	dotSpaceRegex            = regexp.MustCompile(`\s*\.\s*`)
+	namedParamColonRegex     = regexp.MustCompile(`(\w+)\s*:\s*`)
+	namedParamValueRegex     = regexp.MustCompile(`(\w+)\s*:\s*([^,\s)]+)`)
+
+	// Lambda and string protection
+	stringLiteralRegex = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
+	lambdaArrowRegex   = regexp.MustCompile(`(\w+)\s*-\s*>\s*`)
+	lambdaExprRegex    = regexp.MustCompile(`(\w+)\s*->\s*([^,)}\]]+(?:\([^)]*\)[^,)}\]]*)*)`)
+
+	// Markdown processing
+	admonitionRegex  = regexp.MustCompile(`:::([a-zA-Z]+)[\s\S]*?:::`)
+	inlineCodeRegex  = regexp.MustCompile("`([^`]+)`")
+	markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+
+	// Autocompletion
+	methodContextRegex = regexp.MustCompile(`\.\w*$`)
 )
 
 // newExecCache creates a new execution cache for running mappings.
@@ -244,7 +277,7 @@ func GenerateAutocompletion(syntax *BloblangSyntax, req AutocompletionRequest) (
 	}
 
 	var completions []CompletionItem
-	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
+	isMethodContext := methodContextRegex.MatchString(req.BeforeCursor)
 
 	if isMethodContext {
 		completions = append(completions, getMethodCompletions(syntax.Methods)...)

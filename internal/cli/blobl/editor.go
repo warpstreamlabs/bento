@@ -2,7 +2,6 @@ package blobl
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -287,17 +286,9 @@ func processMarkdownDescription(description string) string {
 		return ""
 	}
 
-	// Strip admonitions (:::warning:::, etc.)
-	re := regexp.MustCompile(`:::([a-zA-Z]+)[\s\S]*?:::`)
-	processed := re.ReplaceAllString(description, "")
-
-	// Process inline code (backticks)
-	re = regexp.MustCompile("`([^`]+)`")
-	processed = re.ReplaceAllString(processed, "<code>$1</code>")
-
-	// Process markdown links [text](url)
-	re = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-	processed = re.ReplaceAllString(processed, `<a href="$2" target="_blank">$1</a>`)
+	processed := admonitionRegex.ReplaceAllString(description, "")
+	processed = inlineCodeRegex.ReplaceAllString(processed, "<code>$1</code>")
+	processed = markdownLinkRegex.ReplaceAllString(processed, `<a href="$2" target="_blank">$1</a>`)
 
 	return strings.TrimSpace(processed)
 }
@@ -390,10 +381,7 @@ func formatLineContent(line string) string {
 
 // formatLambdaExpressions preserves lambda arrow spacing
 func formatLambdaExpressions(content string) string {
-	// Preserve lambda arrows: item -> item.trim()
-	lambdaRegex := regexp.MustCompile(`(\w+)\s*-\s*>\s*`)
-	content = lambdaRegex.ReplaceAllString(content, "$1 -> ")
-	return content
+	return lambdaArrowRegex.ReplaceAllString(content, "$1 -> ")
 }
 
 // countOpeningBraces counts opening braces and parentheses
@@ -421,16 +409,11 @@ func countClosingBraces(line string) int {
 // protectStringLiterals replaces string literals with placeholders to prevent formatting inside strings
 func protectStringLiterals(content string) (string, []string) {
 	var literals []string
-
-	// Match double-quoted strings (escaped quotes allowed)
-	stringRegex := regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
-
-	protected := stringRegex.ReplaceAllStringFunc(content, func(match string) string {
+	protected := stringLiteralRegex.ReplaceAllStringFunc(content, func(match string) string {
 		index := len(literals)
 		literals = append(literals, match)
 		return stringLiteralPlaceholder + strconv.Itoa(index)
 	})
-
 	return protected, literals
 }
 
@@ -464,25 +447,13 @@ func formatLambdaOperators(content string) string {
 // protectLambdaExpressions replaces lambda expressions with placeholders to prevent operator formatting inside them
 func protectLambdaExpressions(content string) (string, []string) {
 	var lambdas []string
-
-	// Match lambda expressions like: c -> c == "," || c == " "
-	// This captures the parameter(s), arrow, and expression
-	lambdaRegex := regexp.MustCompile(`(\w+)\s*->\s*([^,)}\]]+(?:\([^)]*\)[^,)}\]]*)*)\s*`)
-
-	content = lambdaRegex.ReplaceAllStringFunc(content, func(match string) string {
-		formattedLambda := match
-		// Apply lambda-specific operator formatting
-		formattedLambda = formatLambdaOperators(formattedLambda)
-		// Ensure proper lambda arrow spacing
-		formattedLambda = formatLambdaExpressions(formattedLambda)
-		// Remove excessive whitespace
-		formattedLambda = multipleSpacesRegex.ReplaceAllString(formattedLambda, " ")
-		formattedLambda = strings.TrimSpace(formattedLambda)
-
-		lambdas = append(lambdas, formattedLambda)
+	content = lambdaExprRegex.ReplaceAllStringFunc(content, func(match string) string {
+		formatted := formatLambdaOperators(match)
+		formatted = formatLambdaExpressions(formatted)
+		formatted = strings.TrimSpace(multipleSpacesRegex.ReplaceAllString(formatted, " "))
+		lambdas = append(lambdas, formatted)
 		return lambdaPlaceholder + strconv.Itoa(len(lambdas)-1)
 	})
-
 	return content, lambdas
 }
 
@@ -500,75 +471,41 @@ func restoreLambdaExpressions(content string, lambdas []string) string {
 
 // formatOperators adds proper spacing around operators
 func formatOperators(content string) string {
-	// Handle multi-character operators first to avoid conflicts
-
-	// Logical operators
 	content = logicalAndRegex.ReplaceAllString(content, " && ")
 	content = logicalOrRegex.ReplaceAllString(content, " || ")
-
-	// Match arrows (handle before = operator)
-	content = regexp.MustCompile(`\s*=>\s*`).ReplaceAllString(content, " => ")
-
-	// Comparison operators
+	content = matchArrowRegex.ReplaceAllString(content, " => ")
 	content = equalityRegex.ReplaceAllString(content, " == ")
 	content = inequalityRegex.ReplaceAllString(content, " != ")
 	content = greaterEqualRegex.ReplaceAllString(content, " >= ")
 	content = lessEqualRegex.ReplaceAllString(content, " <= ")
-
-	// Pipe assignment (handle before single | and =)
-	content = regexp.MustCompile(`\s*\|=\s*`).ReplaceAllString(content, " |= ")
-
-	// Single character operators
+	content = pipeAssignRegex.ReplaceAllString(content, " |= ")
 	content = greaterThanRegex.ReplaceAllString(content, " > ")
 	content = lessThanRegex.ReplaceAllString(content, " < ")
-
-	// Assignment operator
-	content = regexp.MustCompile(`\s*=\s*`).ReplaceAllString(content, " = ")
-
-	// Arithmetic operators
-	content = regexp.MustCompile(`\s*\+\s*`).ReplaceAllString(content, " + ")
-	content = regexp.MustCompile(`\s*-\s*`).ReplaceAllString(content, " - ")
-	content = regexp.MustCompile(`\s*\*\s*`).ReplaceAllString(content, " * ")
-	content = regexp.MustCompile(`\s*/\s*`).ReplaceAllString(content, " / ")
-	content = regexp.MustCompile(`\s*%\s*`).ReplaceAllString(content, " % ")
-
-	// Pipe operator (for method chaining and data flow)
-	content = regexp.MustCompile(`\s*\|\s*`).ReplaceAllString(content, " | ")
-
-	// Lambda arrows
-	content = regexp.MustCompile(`\s*-\s*>\s*`).ReplaceAllString(content, " -> ")
-
-	// Match arrows
-	content = regexp.MustCompile(`\s*=\s*>\s*`).ReplaceAllString(content, " => ")
-
+	content = assignmentRegex.ReplaceAllString(content, " = ")
+	content = addRegex.ReplaceAllString(content, " + ")
+	content = subRegex.ReplaceAllString(content, " - ")
+	content = mulRegex.ReplaceAllString(content, " * ")
+	content = divRegex.ReplaceAllString(content, " / ")
+	content = modRegex.ReplaceAllString(content, " % ")
+	content = pipeRegex.ReplaceAllString(content, " | ")
+	content = lambdaArrowOpRegex.ReplaceAllString(content, " -> ")
+	content = matchArrowOpRegex.ReplaceAllString(content, " => ")
 	return content
 }
 
 // formatFunctionCalls formats function calls and method chains
 func formatFunctionCalls(content string) string {
-	// Add space after comma in function arguments
-	content = regexp.MustCompile(`,\s*`).ReplaceAllString(content, ", ")
-
-	// Remove space before opening parentheses of function calls
-	content = regexp.MustCompile(`\s+\(`).ReplaceAllString(content, "(")
-
-	// Remove space after opening parentheses and before closing parentheses
-	content = regexp.MustCompile(`\(\s+`).ReplaceAllString(content, "(")
-	content = regexp.MustCompile(`\s+\)`).ReplaceAllString(content, ")")
-
-	// Format method chains with proper spacing around dots
-	content = regexp.MustCompile(`\s*\.\s*`).ReplaceAllString(content, ".")
-
+	content = commaSpaceRegex.ReplaceAllString(content, ", ")
+	content = spaceBeforeParenRegex.ReplaceAllString(content, "(")
+	content = spaceAfterOpenParenRegex.ReplaceAllString(content, "(")
+	content = spaceBeforeCloseRegex.ReplaceAllString(content, ")")
+	content = dotSpaceRegex.ReplaceAllString(content, ".")
 	return content
 }
 
 // formatNamedParameters handles named parameters in function calls
 func formatNamedParameters(content string) string {
-	// Handle named parameters like min:10, max:20
-	content = regexp.MustCompile(`(\w+)\s*:\s*`).ReplaceAllString(content, "$1: ")
-
-	// Handle named parameters with no value (just the name)
-	content = regexp.MustCompile(`(\w+)\s*:\s*([^,\s)]+)`).ReplaceAllString(content, "$1: $2")
-
+	content = namedParamColonRegex.ReplaceAllString(content, "$1: ")
+	content = namedParamValueRegex.ReplaceAllString(content, "$1: $2")
 	return content
 }
