@@ -56,7 +56,6 @@ func newServer(inputFile, mappingFile string, writeBack bool) *server {
 func (s *server) registerRoutes() error {
 	// API endpoints
 	s.mux.HandleFunc("/execute", s.handleExecute)
-	s.mux.HandleFunc("/validate", s.handleValidate)
 	s.mux.HandleFunc("/syntax", s.handleSyntax)
 	s.mux.HandleFunc("/format", s.handleFormat)
 	s.mux.HandleFunc("/autocomplete", s.handleAutocomplete)
@@ -238,33 +237,6 @@ func (s *server) handleSyntax(w http.ResponseWriter, r *http.Request) {
 	response, err := GenerateBloblangSyntax(s.env)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func (s *server) handleValidate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var request struct {
-		Mapping string `json:"mapping"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	response, err := ValidateBloblangMapping(s.env, request.Mapping)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

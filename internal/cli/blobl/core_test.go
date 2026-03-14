@@ -7,7 +7,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 )
 
-// Test execute (Bloblang mapping execution)
 func TestExecuteMapping(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
 
@@ -65,77 +64,6 @@ func TestExecuteMapping(t *testing.T) {
 	}
 }
 
-// Test validate (Bloblang validation)
-func TestValidateBloblangMapping(t *testing.T) {
-	env := bloblang.GlobalEnvironment()
-
-	tests := []struct {
-		name    string
-		mapping string
-		valid   bool
-	}{
-		{
-			name:    "simple valid mapping",
-			mapping: `root.name = "test"`,
-			valid:   true,
-		},
-		{
-			name:    "valid with this",
-			mapping: `root.name = this.user.name`,
-			valid:   true,
-		},
-		{
-			name:    "valid with function",
-			mapping: `root = this.uppercase()`,
-			valid:   true,
-		},
-		{
-			name:    "empty mapping",
-			mapping: "",
-			valid:   false,
-		},
-		{
-			name:    "invalid syntax",
-			mapping: `root.bad =`,
-			valid:   false,
-		},
-		{
-			name:    "unknown function",
-			mapping: `root = fake_function()`,
-			valid:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			valid, err := ValidateBloblangMapping(env, tt.mapping)
-
-			if valid != tt.valid {
-				t.Errorf(
-					"ValidateBloblangMapping() valid = %v, want %v (err=%v)",
-					valid,
-					tt.valid,
-					err,
-				)
-			}
-
-			if tt.valid && err != nil {
-				t.Errorf(
-					"ValidateBloblangMapping() unexpected error: %v",
-					err,
-				)
-			}
-
-			if !tt.valid && err == nil {
-				t.Errorf(
-					"ValidateBloblangMapping() expected error, got nil",
-				)
-			}
-		})
-	}
-}
-
-// Test syntax (Syntax metadata generation)
 func TestGenerateBloblangSyntax(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
 
@@ -191,7 +119,6 @@ func TestGenerateBloblangSyntax(t *testing.T) {
 	}
 }
 
-// Test format (Bloblang formatting)
 func TestFormatBloblangMapping(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -277,7 +204,6 @@ func TestFormatBloblangMapping(t *testing.T) {
 	}
 }
 
-// Test autocomplete (Autocompletion)
 func TestGenerateAutocompletion(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
 

@@ -8,10 +8,16 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
-	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var globalCompletionCache *completionCache
+
+type SpecKind int
+
+const (
+	SpecFunction SpecKind = iota
+	SpecMethod
+)
 
 // buildSyntaxHighlightingRules creates regex patterns for ACE editor syntax highlighting.
 // Examples: "root" → bloblang_root, "uuid()" → support.function, ".uppercase()" → support.method
@@ -59,7 +65,7 @@ func getKeywordCompletions() []CompletionItem {
 	keywords := []struct {
 		name        string
 		description string
-		score       int
+		score       statusPriority
 	}{
 		{"root", "The root of the output document", 950},
 		{"this", "The current context value", 950},
@@ -75,17 +81,17 @@ func getKeywordCompletions() []CompletionItem {
 
 	var completions []CompletionItem
 
-	for _, keyword := range keywords {
-		docHTML := fmt.Sprintf(`
-			<div class="ace-doc">
-				<div class="ace-doc-header">
-					<div class="ace-doc-signature">
-						<strong>%s</strong>
-					</div>
-				</div>
-				<div class="ace-doc-description">%s</div>
-			</div>`, keyword.name, keyword.description)
+	const itemHTMLFormat = `<div class="ace-doc">
+	<div class="ace-doc-header">
+		<div class="ace-doc-signature">
+			<strong>%s</strong>
+		</div>
+	</div>
+	<div class="ace-doc-description">%s</div>
+</div>`
 
+	for _, keyword := range keywords {
+		docHTML := fmt.Sprintf(itemHTMLFormat, keyword.name, keyword.description)
 		completions = append(completions, CompletionItem{
 			Caption:     keyword.name,
 			Value:       keyword.name,
@@ -112,7 +118,7 @@ func getCompletions(specs any) []CompletionItem {
 				spec.BaseSpec,
 				spec.Category,
 				"function",
-				false, // isMethod
+				SpecFunction,
 			))
 		}
 
@@ -127,7 +133,7 @@ func getCompletions(specs any) []CompletionItem {
 				spec.BaseSpec,
 				category,
 				"method",
-				true, // isMethod
+				SpecMethod,
 			))
 		}
 	}
@@ -136,7 +142,13 @@ func getCompletions(specs any) []CompletionItem {
 }
 
 // buildCompletionItem creates a CompletionItem from a spec wrapper.
-func buildCompletionItem(name string, spec query.BaseSpec, category, itemType string, isMethod bool) CompletionItem {
+func buildCompletionItem(
+	name string,
+	spec query.BaseSpec,
+	category string,
+	itemType string,
+	kind SpecKind,
+) CompletionItem {
 	// Use "general" as default if no category provided
 	if category == "" {
 		category = "general"
@@ -148,7 +160,7 @@ func buildCompletionItem(name string, spec query.BaseSpec, category, itemType st
 		Type:        itemType,
 		Score:       getSpecScore(spec.Status),
 		Description: spec.Description,
-		DocHTML:     createSpecDocHTML(name, spec, isMethod),
+		DocHTML:     createSpecDocHTML(name, spec, kind),
 	}
 
 	// Use snippet for functions with params (enables cursor positioning), otherwise plain value
@@ -161,17 +173,26 @@ func buildCompletionItem(name string, spec query.BaseSpec, category, itemType st
 	return item
 }
 
-func getSpecScore(status query.Status) int {
+type statusPriority int
+
+const (
+	Unknown statusPriority = iota
+	Experimental
+	Beta
+	Stable
+)
+
+func getSpecScore(status query.Status) statusPriority {
 	// Prioritize by status (stable > beta > experimental)
 	switch status {
 	case query.StatusStable:
-		return 1000
+		return Stable
 	case query.StatusBeta:
-		return 800
+		return Beta
 	case query.StatusExperimental:
-		return 600
+		return Experimental
 	}
-	return 500
+	return Unknown
 }
 
 func hasSpecParameters(spec query.BaseSpec) bool {
@@ -179,114 +200,115 @@ func hasSpecParameters(spec query.BaseSpec) bool {
 }
 
 // createSpecDocHTML creates HTML documentation for Bloblang functions and methods
-func createSpecDocHTML(name string, spec query.BaseSpec, isMethod bool) string {
-	// Build signature with parameters
-	signature := buildSpecSignature(name, spec, isMethod)
+func createSpecDocHTML(name string, spec query.BaseSpec, kind SpecKind) string {
+	signature := buildSpecSignature(name, spec, kind)
 	status := strings.ToLower(string(spec.Status))
+	docURL := documentationURL(name, kind)
 
-	// Generate documentation URL
-	docUrl := generateDocumentationLink(name, isMethod)
+	var b strings.Builder
 
-	var html strings.Builder
-	html.WriteString(fmt.Sprintf(`<div class="ace-doc" data-docs-url="%s" data-function-name="%s" data-is-method="%t">`, docUrl, name, isMethod))
+	fmt.Fprintf(
+		&b,
+		`<div class="ace-doc" data-docs-url="%s" data-function-name="%s" data-kind="%d">`,
+		docURL,
+		name,
+		kind,
+	)
 
-	// Header with signature and status
-	html.WriteString(fmt.Sprintf(`
+	fmt.Fprintf(&b, `
 		<div class="ace-doc-header clickable-header" title="Click to view documentation">
 			<div class="ace-doc-signature">
 				<strong>%s</strong>
 				<span class="ace-status-%s">%s</span>
 			</div>
-		</div>`, signature, status, status))
+		</div>`,
+		signature,
+		status,
+		status,
+	)
 
-	// Version information
 	if spec.Version != "" {
-		html.WriteString(fmt.Sprintf(`
-		<div class="ace-doc-version">Since: v%s</div>`, spec.Version))
+		fmt.Fprintf(&b, `<div class="ace-doc-version">Since: v%s</div>`, spec.Version)
 	}
 
-	// Parameters section
+	writeParamsSection(&b, spec)
+
+	b.WriteString(`</div>`)
+	return b.String()
+}
+
+func writeParamsSection(b *strings.Builder, spec query.BaseSpec) {
 	params := spec.Params
-	if len(params.Definitions) > 0 {
-		html.WriteString(`
+	if len(params.Definitions) == 0 {
+		return
+	}
+
+	b.WriteString(`
 		<div class="ace-doc-parameters">
 			<strong>Parameters:</strong>`)
 
-		for _, param := range params.Definitions {
-			paramType := getParamTypeString(param)
-			html.WriteString(fmt.Sprintf(`
+	for _, p := range params.Definitions {
+		fmt.Fprintf(b, `
 			<div class="ace-doc-param">
-				<code>%s [%s]</code><br/>`, param.Name, paramType))
+				<code>%s [%s]</code><br/>`,
+			p.Name,
+			getParamTypeString(p),
+		)
 
-			if param.Description != "" {
-				processedDesc := processMarkdownDescription(param.Description)
-				html.WriteString(fmt.Sprintf(`
-				<span class="ace-doc-param-desc">%s</span>`, processedDesc))
-			}
-			html.WriteString(`</div>`)
+		if p.Description != "" {
+			desc := processMarkdownDescription(p.Description)
+			fmt.Fprintf(b, `<span class="ace-doc-param-desc">%s</span>`, desc)
 		}
-		html.WriteString(`</div>`)
+
+		b.WriteString(`</div>`)
 	}
 
-	html.WriteString(`</div>`)
-	return html.String()
+	b.WriteString(`</div>`)
 }
 
-// buildSpecSignature creates the signature with parameters for functions and methods
-func buildSpecSignature(name string, spec query.BaseSpec, isMethod bool) string {
-	var sig strings.Builder
+// buildSpecSignature creates the signature with parameters for functions and methods.
+func buildSpecSignature(name string, spec query.BaseSpec, kind SpecKind) string {
+	var b strings.Builder
 
-	if isMethod {
-		sig.WriteString(".")
-	}
-	sig.WriteString(name)
-
-	params := spec.Params
-	if len(params.Definitions) > 0 {
-		sig.WriteString("(")
-		for i, param := range params.Definitions {
-			if i > 0 {
-				sig.WriteString(", ")
-			}
-			paramType := getParamTypeString(param)
-			sig.WriteString(fmt.Sprintf("%s: %s", param.Name, paramType))
-		}
-		if params.Variadic {
-			if len(params.Definitions) > 0 {
-				sig.WriteString(", ")
-			}
-			sig.WriteString("...")
-		}
-		sig.WriteString(")")
-	} else if params.Variadic {
-		sig.WriteString("(...)")
-	} else {
-		sig.WriteString("()")
+	if kind == SpecMethod {
+		b.WriteString(".")
 	}
 
-	return sig.String()
+	b.WriteString(name)
+	writeParamsSignature(&b, spec.Params)
+
+	return b.String()
 }
 
-// getParamTypeString converts Bloblang parameter type to string
+func writeParamsSignature(b *strings.Builder, params query.Params) {
+	defs := params.Definitions
+
+	if len(defs) == 0 && !params.Variadic {
+		b.WriteString("()")
+		return
+	}
+
+	b.WriteString("(")
+
+	for i, p := range defs {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(b, "%s: %s", p.Name, getParamTypeString(p))
+	}
+
+	if params.Variadic {
+		if len(defs) > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString("...")
+	}
+
+	b.WriteString(")")
+}
+
 func getParamTypeString(param query.ParamDefinition) string {
-	switch param.ValueType {
-	case value.TString:
-		return "string"
-	case value.TInt:
-		return "integer"
-	case value.TFloat:
-		return "number"
-	case value.TBool:
-		return "boolean"
-	case value.TArray:
-		return "array"
-	case value.TObject:
-		return "object"
-	case value.TTimestamp:
-		return "timestamp"
-	default:
-		return "any"
-	}
+	return string(param.ValueType)
 }
 
 // processMarkdownDescription processes markdown in descriptions
@@ -310,12 +332,13 @@ func processMarkdownDescription(description string) string {
 	return strings.TrimSpace(processed)
 }
 
-// generateDocumentationLink creates the documentation URL
-func generateDocumentationLink(name string, isMethod bool) string {
-	if isMethod {
+func documentationURL(name string, kind SpecKind) string {
+	switch kind {
+	case SpecMethod:
 		return fmt.Sprintf("%s/methods#%s", docsBaseURL, name)
+	default:
+		return fmt.Sprintf("%s/functions#%s", docsBaseURL, name)
 	}
-	return fmt.Sprintf("%s/functions#%s", docsBaseURL, name)
 }
 
 // formatBloblang formats Bloblang code with indentation and consistent spacing
