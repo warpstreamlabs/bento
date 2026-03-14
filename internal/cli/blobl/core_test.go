@@ -488,20 +488,15 @@ func TestGenerateAutocompletion(t *testing.T) {
 	}{
 		{
 			name:           "function context returns functions",
-			req:            AutocompletionRequest{Line: "root = ", Column: 7, BeforeCursor: "root = "},
+			req:            AutocompletionRequest{Line: "root = ", Column: 7, IsMethodContext: false},
 			wantTypes:      []string{"function"},
 			minCompletions: 10,
 		},
 		{
 			name:           "method context returns methods",
-			req:            AutocompletionRequest{Line: "root = this.u", Column: 13, BeforeCursor: "root = this.u"},
+			req:            AutocompletionRequest{Line: "root = this.u", Column: 13, IsMethodContext: true},
 			wantTypes:      []string{"method"},
 			minCompletions: 5,
-		},
-		{
-			name:      "inside comment returns empty",
-			req:       AutocompletionRequest{Line: "# comment", Column: 5, BeforeCursor: "# com"},
-			wantEmpty: true,
 		},
 		{
 			name:    "negative column is error",
@@ -510,7 +505,7 @@ func TestGenerateAutocompletion(t *testing.T) {
 		},
 		{
 			name:    "column beyond line length is error",
-			req:     AutocompletionRequest{Line: "root", Column: 100, BeforeCursor: "root"},
+			req:     AutocompletionRequest{Line: "root", Column: 100},
 			wantErr: true,
 		},
 	}

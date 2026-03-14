@@ -158,7 +158,7 @@ class EditorManager {
     editor.commands.addCommand({
       name: "formatBloblang",
       bindKey: { mac: "Cmd-Shift-F", win: "Ctrl-Shift-F" },
-      exec: () => formatBloblang(),
+      exec: () => window.playground?.formatMapping(),
     });
     this.overrideCommentShortcut(editor);
   }
@@ -252,15 +252,6 @@ class EditorManager {
     });
   }
 
-  static BLOBLANG_KEYWORDS = [
-    { name: "root", description: "The root of the output document" },
-    { name: "this", description: "The current context value" },
-    { name: "if", description: "Conditional expression" },
-    { name: "else", description: "Alternative branch" },
-    { name: "match", description: "Pattern matching expression" },
-    { name: "let", description: "Variable assignment" },
-  ];
-
   configureAutocompletion() {
     if (!this.aceMappingEditor || !this.syntaxLoaded || !this.bloblangSyntax) return;
 
@@ -270,11 +261,15 @@ class EditorManager {
           const line = session.getLine(pos.row);
           const beforeCursor = line.substring(0, pos.column).trim();
 
+          if (beforeCursor.includes("#")) {
+            return callback(null, []);
+          }
+
+          const isMethodContext = /\.\w*$/.test(beforeCursor);
           const request = {
             line,
             column: pos.column,
-            prefix,
-            beforeCursor,
+            isMethodContext,
           };
 
           try {
