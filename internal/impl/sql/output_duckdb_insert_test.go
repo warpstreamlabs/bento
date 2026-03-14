@@ -48,10 +48,10 @@ func newOutput(t *testing.T, yaml string) service.BatchOutput {
 
 	env := service.NewEnvironment()
 
-	config, err := isql.DuckDBInsertOutputConfig().ParseYAML(yaml, env)
+	config, err := isql.DuckDBAppendOutputConfig().ParseYAML(yaml, env)
 	require.NoError(t, err)
 
-	out, err := isql.NewDuckDBInsertOutputFromConfig(config, service.MockResources())
+	out, err := isql.NewDuckDBAppendOutputFromConfig(config, service.MockResources())
 	require.NoError(t, err)
 
 	t.Cleanup(func() {

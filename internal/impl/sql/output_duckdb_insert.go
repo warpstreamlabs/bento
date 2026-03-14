@@ -17,7 +17,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func duckdbInsertOutputConfig() *service.ConfigSpec {
+func duckdbAppendOutputConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Beta().
 		Categories("Services").
@@ -57,7 +57,7 @@ Type coercions applied to ` + "`args_mapping`" + ` output before passing to the 
 Insert rows into a database by bulk-loading them directly into DuckDB's columnar storage via the Appender (no SQL parsing overhead).`,
 			`
 output:
-  duckdb_insert:
+  duckdb_append:
     dsn: /data/vault.duckdb
     table: vault_deposits
     columns: [ deposit_id, duck, coins, denomination, deposited_at ]
@@ -87,7 +87,7 @@ output:
 
 func init() {
 	err := service.RegisterBatchOutput(
-		"duckdb_insert", duckdbInsertOutputConfig(),
+		"duckdb_append", duckdbAppendOutputConfig(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (
 			out service.BatchOutput,
 			batchPolicy service.BatchPolicy,
@@ -100,7 +100,7 @@ func init() {
 
 			maxInFlight = 1 // DuckDB Appender uses single writer
 
-			out, err = newDuckDBInsertOutputFromConfig(conf, mgr)
+			out, err = newDuckDBAppendOutputFromConfig(conf, mgr)
 			return
 		},
 	)
@@ -111,7 +111,7 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-type duckdbInsertOutput struct {
+type duckdbAppendOutput struct {
 	mu       sync.Mutex
 	db       *sql.DB
 	sqlConn  *sql.Conn
@@ -129,22 +129,22 @@ type duckdbInsertOutput struct {
 	logger  *service.Logger
 }
 
-func DuckDBInsertOutputConfig() *service.ConfigSpec {
-	return duckdbInsertOutputConfig()
+func DuckDBAppendOutputConfig() *service.ConfigSpec {
+	return duckdbAppendOutputConfig()
 }
 
-func NewDuckDBInsertOutputFromConfig(
+func NewDuckDBAppendOutputFromConfig(
 	conf *service.ParsedConfig,
 	mgr *service.Resources,
 ) (service.BatchOutput, error) {
-	return newDuckDBInsertOutputFromConfig(conf, mgr)
+	return newDuckDBAppendOutputFromConfig(conf, mgr)
 }
 
-func newDuckDBInsertOutputFromConfig(
+func newDuckDBAppendOutputFromConfig(
 	conf *service.ParsedConfig,
 	mgr *service.Resources,
-) (*duckdbInsertOutput, error) {
-	d := &duckdbInsertOutput{
+) (*duckdbAppendOutput, error) {
+	d := &duckdbAppendOutput{
 		logger:  mgr.Logger(),
 		shutSig: shutdown.NewSignaller(),
 	}
@@ -179,7 +179,7 @@ func newDuckDBInsertOutputFromConfig(
 	return d, nil
 }
 
-func (d *duckdbInsertOutput) Connect(ctx context.Context) error {
+func (d *duckdbAppendOutput) Connect(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -251,7 +251,7 @@ func (d *duckdbInsertOutput) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (d *duckdbInsertOutput) Close(ctx context.Context) error {
+func (d *duckdbAppendOutput) Close(ctx context.Context) error {
 	d.shutSig.TriggerHardStop()
 
 	d.mu.Lock()
@@ -270,7 +270,7 @@ func (d *duckdbInsertOutput) Close(ctx context.Context) error {
 	return nil
 }
 
-func (d *duckdbInsertOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
+func (d *duckdbAppendOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

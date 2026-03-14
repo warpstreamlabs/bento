@@ -1,6 +1,6 @@
 ---
-title: duckdb_insert
-slug: duckdb_insert
+title: duckdb_append
+slug: duckdb_append
 type: output
 status: beta
 categories: ["Services"]
@@ -32,7 +32,7 @@ Inserts rows into a DuckDB database using the Appender API.
 # Common config fields, showing default values
 output:
   label: ""
-  duckdb_insert:
+  duckdb_append:
     dsn: /data/bento.duckdb # No default (required)
     table: "" # No default (required)
     schema: ""
@@ -53,7 +53,7 @@ output:
 # All config fields, showing default values
 output:
   label: ""
-  duckdb_insert:
+  duckdb_append:
     dsn: /data/bento.duckdb # No default (required)
     table: "" # No default (required)
     schema: ""
@@ -128,7 +128,7 @@ Insert rows into a database by bulk-loading them directly into DuckDB's columnar
 
 ```yaml
 output:
-  duckdb_insert:
+  duckdb_append:
     dsn: /data/vault.duckdb
     table: vault_deposits
     columns: [ deposit_id, duck, coins, denomination, deposited_at ]
