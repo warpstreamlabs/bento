@@ -91,7 +91,6 @@ class EditorManager {
     }
 
     this.setupTheme();
-    this.applyBloblangMode();
     this.configureAutocompletion();
     this.refreshSyntaxHighlighting();
   }
@@ -161,14 +160,6 @@ class EditorManager {
       exec: () => window.playground?.formatMapping(),
     });
     this.overrideCommentShortcut(editor);
-  }
-
-  applyBloblangMode() {
-    if (!this.aceMappingEditor) return;
-
-    this.aceMappingEditor.session.setMode(
-      this.currentBloblangMode || MODE_BLOBLANG
-    );
   }
 
   refreshSyntaxHighlighting() {
@@ -281,18 +272,7 @@ class EditorManager {
             const completions = await window.playground.api.autocomplete(request);
 
             if (completions && completions.length > 0) {
-              // Convert Go completion format to ACE editor format
-              const aceCompletions = completions.map((item) => ({
-                caption: item.caption,
-                value: item.value || item.caption,
-                snippet: item.snippet,
-                meta: item.meta,
-                type: item.type,
-                score: item.score,
-                docHTML: item.docHTML,
-              }));
-
-              callback(null, aceCompletions);
+              callback(null, completions);
             } else {
               callback(null, []);
             }

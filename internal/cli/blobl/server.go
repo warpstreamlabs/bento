@@ -55,10 +55,7 @@ func newServer(inputFile, mappingFile string, writeBack bool) *server {
 }
 
 func (s *server) registerRoutes() error {
-	syntax, err := GenerateBloblangSyntax(s.env)
-	if err != nil {
-		return fmt.Errorf("failed to generate bloblang syntax: %w", err)
-	}
+	syntax := GenerateBloblangSyntax(s.env)
 	s.syntax = &syntax
 
 	// API endpoints
@@ -183,11 +180,6 @@ func (s *server) handleFormat(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if request.Mapping == "" {
-		http.Error(w, "Mapping cannot be empty", http.StatusBadRequest)
 		return
 	}
 

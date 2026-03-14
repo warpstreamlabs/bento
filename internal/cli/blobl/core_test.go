@@ -30,10 +30,7 @@ func (w *testWalker) WalkMethods(fn func(string, query.MethodSpec)) {
 // --- GenerateBloblangSyntax ---
 
 func TestGenerateBloblangSyntax_Empty(t *testing.T) {
-	syntax, err := GenerateBloblangSyntax(&testWalker{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	syntax := GenerateBloblangSyntax(&testWalker{})
 	if len(syntax.Functions) != 0 {
 		t.Errorf("expected 0 functions, got %d", len(syntax.Functions))
 	}
@@ -61,7 +58,6 @@ func TestGenerateBloblangSyntax_FunctionDocHTML(t *testing.T) {
 			),
 			wantInDocHTML: []string{
 				`data-function-name="test_fn"`,
-				`data-kind="0"`,              // SpecFunction == 0
 				`functions#test_fn`,          // function URL anchor
 				`<strong>test_fn()</strong>`, // no params → ()
 				`ace-status-stable`,
@@ -131,10 +127,7 @@ func TestGenerateBloblangSyntax_FunctionDocHTML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			walker := &testWalker{functions: []query.FunctionSpec{tt.spec}}
-			syntax, err := GenerateBloblangSyntax(walker)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			syntax := GenerateBloblangSyntax(walker)
 
 			spec, ok := syntax.Functions[tt.spec.Name]
 			if !ok {
@@ -171,7 +164,6 @@ func TestGenerateBloblangSyntax_MethodDocHTML(t *testing.T) {
 				InCategory(query.MethodCategoryStrings, ""),
 			wantInDocHTML: []string{
 				`<strong>.test_method()</strong>`, // leading dot distinguishes method from function
-				`data-kind="1"`,                   // SpecMethod == 1
 				`methods#test_method`,             // method URL, not functions URL
 			},
 			wantNotInDocHTML: []string{
@@ -193,10 +185,7 @@ func TestGenerateBloblangSyntax_MethodDocHTML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			walker := &testWalker{methods: []query.MethodSpec{tt.spec}}
-			syntax, err := GenerateBloblangSyntax(walker)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			syntax := GenerateBloblangSyntax(walker)
 
 			spec, ok := syntax.Methods[tt.spec.Name]
 			if !ok {
@@ -230,10 +219,7 @@ func TestGenerateBloblangSyntax_HighlightingRules(t *testing.T) {
 		},
 	}
 
-	syntax, err := GenerateBloblangSyntax(walker)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	syntax := GenerateBloblangSyntax(walker)
 
 	byToken := map[string]string{}
 	for _, rule := range syntax.Rules {
@@ -264,10 +250,7 @@ func TestGenerateBloblangSyntax_NameLists(t *testing.T) {
 		},
 	}
 
-	syntax, err := GenerateBloblangSyntax(walker)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	syntax := GenerateBloblangSyntax(walker)
 
 	if len(syntax.FunctionNames) != 2 {
 		t.Errorf("expected 2 function names, got %d: %v", len(syntax.FunctionNames), syntax.FunctionNames)
@@ -473,10 +456,7 @@ func TestFormatBloblangMapping(t *testing.T) {
 
 func TestGenerateAutocompletion(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
-	syntax, err := GenerateBloblangSyntax(env)
-	if err != nil {
-		t.Fatalf("failed to generate syntax: %v", err)
-	}
+	syntax := GenerateBloblangSyntax(env)
 
 	tests := []struct {
 		name           string

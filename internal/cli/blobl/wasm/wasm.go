@@ -27,21 +27,11 @@ func toJSFunc(h wasmHandler) js.Func {
 func executeHandler(env *bloblang.Environment) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
 		if len(args) != 2 || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
-			return map[string]any{
-				"mapping_error": "Invalid arguments: expected two strings (input, mapping)",
-				"parse_error":   nil,
-				"result":        nil,
-			}, nil
+			msg := "Invalid arguments: expected two strings (input, mapping)"
+			return &blobl.ExecutionResult{MappingError: &msg}, nil
 		}
 
-		input, mapping := args[0].String(), args[1].String()
-		response := blobl.ExecuteBloblangMapping(env, input, mapping)
-
-		return map[string]any{
-			"mapping_error": response.MappingError,
-			"parse_error":   response.ParseError,
-			"result":        response.Result,
-		}, nil
+		return blobl.ExecuteBloblangMapping(env, args[0].String(), args[1].String()), nil
 	})
 }
 
@@ -92,10 +82,7 @@ func toJS(data any) js.Value {
 
 // Init registers the Bloblang WASM API on the global object.
 func Init(env *bloblang.Environment) {
-	syntax, err := blobl.GenerateBloblangSyntax(env)
-	if err != nil {
-		panic(js.Global().Get("Error").New(err.Error()))
-	}
+	syntax := blobl.GenerateBloblangSyntax(env)
 
 	api := js.Global().Get("Object").New()
 

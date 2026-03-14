@@ -33,7 +33,6 @@ var (
 	greaterThanRegex    = regexp.MustCompile(`\s*>\s*`)
 	lessThanRegex       = regexp.MustCompile(`\s*<\s*`)
 	matchArrowRegex     = regexp.MustCompile(`\s*=>\s*`)
-	pipeAssignRegex     = regexp.MustCompile(`\s*\|=\s*`)
 	assignmentRegex     = regexp.MustCompile(`\s*=\s*`)
 	addRegex            = regexp.MustCompile(`\s*\+\s*`)
 	subRegex            = regexp.MustCompile(`\s*-\s*`)
@@ -41,7 +40,6 @@ var (
 	divRegex            = regexp.MustCompile(`\s*/\s*`)
 	modRegex            = regexp.MustCompile(`\s*%\s*`)
 	pipeRegex           = regexp.MustCompile(`\s*\|\s*`)
-	lambdaArrowOpRegex  = regexp.MustCompile(`\s*-\s*>\s*`)
 	matchArrowOpRegex   = regexp.MustCompile(`\s*=\s*>\s*`)
 
 	// Function calls and method chains
@@ -51,7 +49,6 @@ var (
 	spaceBeforeCloseRegex    = regexp.MustCompile(`\s+\)`)
 	dotSpaceRegex            = regexp.MustCompile(`\s*\.\s*`)
 	namedParamColonRegex     = regexp.MustCompile(`(\w+)\s*:\s*`)
-	namedParamValueRegex     = regexp.MustCompile(`(\w+)\s*:\s*([^,\s)]+)`)
 
 	// Lambda and string protection
 	stringLiteralRegex = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
@@ -62,7 +59,6 @@ var (
 	admonitionRegex   = regexp.MustCompile(`:::([a-zA-Z]+)[\s\S]*?:::`)
 	inlineCodeRegex   = regexp.MustCompile("`([^`]+)`")
 	markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-
 )
 
 // newExecCache creates a new execution cache for running mappings.
@@ -206,25 +202,23 @@ func ExecuteBloblangMapping(env *bloblang.Environment, input, mapping string) *E
 
 // GenerateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
 // Iterates through all functions/methods in the environment and pre-generates HTML documentation.
-func GenerateBloblangSyntax(walker Walker) (BloblangSyntax, error) {
+func GenerateBloblangSyntax(walker Walker) BloblangSyntax {
 	var functionNames, methodNames []string
 	functions := make(map[string]functionSpecWithHTML)
 	methods := make(map[string]methodSpecWithHTML)
 
 	walker.WalkFunctions(func(name string, spec query.FunctionSpec) {
-		wrapper := spec.BaseSpec
 		functions[name] = functionSpecWithHTML{
 			FunctionSpec: spec,
-			DocHTML:      createSpecDocHTML(name, wrapper, SpecFunction),
+			DocHTML:      createSpecDocHTML(name, spec.BaseSpec, SpecFunction),
 		}
 		functionNames = append(functionNames, name)
 	})
 
 	walker.WalkMethods(func(name string, spec query.MethodSpec) {
-		wrapper := spec.BaseSpec
 		methods[name] = methodSpecWithHTML{
 			MethodSpec: spec,
-			DocHTML:    createSpecDocHTML(name, wrapper, SpecMethod),
+			DocHTML:    createSpecDocHTML(name, spec.BaseSpec, SpecMethod),
 		}
 		methodNames = append(methodNames, name)
 	})
@@ -235,7 +229,7 @@ func GenerateBloblangSyntax(walker Walker) (BloblangSyntax, error) {
 		Rules:         buildSyntaxHighlightingRules(functionNames, methodNames),
 		FunctionNames: functionNames,
 		MethodNames:   methodNames,
-	}, nil
+	}
 }
 
 // FormatBloblangMapping formats Bloblang mappings.
@@ -255,12 +249,7 @@ func FormatBloblangMapping(env *bloblang.Environment, mapping string) (string, e
 		return "", fmt.Errorf("could not parse mapping: %w", err)
 	}
 
-	formatted, err := formatBloblang(mapping)
-	if err != nil {
-		return "", fmt.Errorf("could not format mapping: %v", err)
-	}
-
-	return formatted, nil
+	return formatBloblang(mapping), nil
 }
 
 // GenerateAutocompletion provides context-aware autocompletion for Bloblang.

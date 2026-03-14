@@ -77,11 +77,15 @@ class WasmManager {
    */
   async #waitForReady() {
     return new Promise((resolve, reject) => {
+      let done = false;
+
       const timeoutId = setTimeout(() => {
+        done = true;
         reject(new Error("WASM initialization timeout"));
       }, WasmManager.READY_TIMEOUT_MS);
 
       const checkReady = () => {
+        if (done) return;
         if (window.wasmReady) {
           clearTimeout(timeoutId);
           resolve();
