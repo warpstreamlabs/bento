@@ -316,7 +316,6 @@ func formatBloblang(originalMapping string) (string, error) {
 	lines := strings.Split(originalMapping, "\n")
 	formatted := make([]string, 0, len(lines))
 	indentLevel := 0
-	inMapBlock := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -336,30 +335,21 @@ func formatBloblang(originalMapping string) (string, error) {
 			continue
 		}
 
-		// Handle map blocks (map create_foo {...)
-		if strings.HasPrefix(trimmed, "map ") && strings.HasSuffix(trimmed, " {") {
-			inMapBlock = true
-		}
+		// Protect string literals before counting braces to avoid counting braces inside strings.
+		protected, _ := protectStringLiterals(trimmed)
 
-		// Handle closing braces
-		if countClosingBraces(trimmed) > countOpeningBraces(trimmed) {
-			indentLevel -= (countClosingBraces(trimmed) - countOpeningBraces(trimmed))
+		if countClosingBraces(protected) > countOpeningBraces(protected) {
+			indentLevel -= countClosingBraces(protected) - countOpeningBraces(protected)
 			if indentLevel < 0 {
 				indentLevel = 0
 			}
-			if trimmed == "}" && inMapBlock {
-				inMapBlock = false
-			}
 		}
 
-		// Apply indentation and format content
 		indent := strings.Repeat(" ", indentLevel*indentSize)
-		formattedLine := formatLineContent(trimmed)
-		formatted = append(formatted, indent+formattedLine)
+		formatted = append(formatted, indent+formatLineContent(trimmed))
 
-		// Handle opening braces
-		if countOpeningBraces(trimmed) > countClosingBraces(trimmed) {
-			indentLevel += (countOpeningBraces(trimmed) - countClosingBraces(trimmed))
+		if countOpeningBraces(protected) > countClosingBraces(protected) {
+			indentLevel += countOpeningBraces(protected) - countClosingBraces(protected)
 		}
 	}
 
