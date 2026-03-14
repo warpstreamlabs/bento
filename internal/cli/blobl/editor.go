@@ -87,7 +87,7 @@ func getFunctionCompletions(specs map[string]functionSpecWithHTML) []CompletionI
 	completions := make([]CompletionItem, 0, len(specs))
 	for name, spec := range specs {
 		completions = append(completions, buildCompletionItem(
-			name, spec.BaseSpec, spec.Category, "function", SpecFunction,
+			name, spec.BaseSpec, spec.Category, "function", spec.DocHTML,
 		))
 	}
 	return completions
@@ -101,7 +101,7 @@ func getMethodCompletions(specs map[string]methodSpecWithHTML) []CompletionItem 
 			category = spec.Categories[0].Category
 		}
 		completions = append(completions, buildCompletionItem(
-			name, spec.BaseSpec, category, "method", SpecMethod,
+			name, spec.BaseSpec, category, "method", spec.DocHTML,
 		))
 	}
 	return completions
@@ -113,7 +113,7 @@ func buildCompletionItem(
 	spec query.BaseSpec,
 	category string,
 	itemType string,
-	kind SpecKind,
+	docHTML string,
 ) CompletionItem {
 	// Use "general" as default if no category provided
 	if category == "" {
@@ -126,7 +126,7 @@ func buildCompletionItem(
 		Type:        itemType,
 		Score:       getSpecScore(spec.Status),
 		Description: spec.Description,
-		DocHTML:     createSpecDocHTML(name, spec, kind),
+		DocHTML:     docHTML,
 	}
 
 	// Use snippet for functions with params (enables cursor positioning), otherwise plain value
@@ -175,10 +175,9 @@ func createSpecDocHTML(name string, spec query.BaseSpec, kind SpecKind) string {
 
 	fmt.Fprintf(
 		&b,
-		`<div class="ace-doc" data-docs-url="%s" data-function-name="%s" data-kind="%d">`,
+		`<div class="ace-doc" data-docs-url="%s" data-function-name="%s">`,
 		docURL,
 		name,
-		kind,
 	)
 
 	fmt.Fprintf(&b, `
@@ -300,7 +299,7 @@ func documentationURL(name string, kind SpecKind) string {
 }
 
 // formatBloblang formats Bloblang code with indentation and consistent spacing
-func formatBloblang(originalMapping string) (string, error) {
+func formatBloblang(originalMapping string) string {
 	lines := strings.Split(originalMapping, "\n")
 	formatted := make([]string, 0, len(lines))
 	indentLevel := 0
@@ -325,9 +324,10 @@ func formatBloblang(originalMapping string) (string, error) {
 
 		// Protect string literals before counting braces to avoid counting braces inside strings.
 		protected, _ := protectStringLiterals(trimmed)
+		opening, closing := countBraces(protected)
 
-		if countClosingBraces(protected) > countOpeningBraces(protected) {
-			indentLevel -= countClosingBraces(protected) - countOpeningBraces(protected)
+		if closing > opening {
+			indentLevel -= closing - opening
 			if indentLevel < 0 {
 				indentLevel = 0
 			}
@@ -336,8 +336,8 @@ func formatBloblang(originalMapping string) (string, error) {
 		indent := strings.Repeat(" ", indentLevel*indentSize)
 		formatted = append(formatted, indent+formatLineContent(trimmed))
 
-		if countOpeningBraces(protected) > countClosingBraces(protected) {
-			indentLevel += countOpeningBraces(protected) - countClosingBraces(protected)
+		if opening > closing {
+			indentLevel += opening - closing
 		}
 	}
 
@@ -346,7 +346,7 @@ func formatBloblang(originalMapping string) (string, error) {
 		formatted = formatted[:len(formatted)-1]
 	}
 
-	return strings.Join(formatted, "\n"), nil
+	return strings.Join(formatted, "\n")
 }
 
 func formatLineContent(line string) string {
@@ -376,31 +376,17 @@ func formatLineContent(line string) string {
 	return restoreStringLiterals(protected, literals)
 }
 
-// formatLambdaExpressions preserves lambda arrow spacing
-func formatLambdaExpressions(content string) string {
-	return lambdaArrowRegex.ReplaceAllString(content, "$1 -> ")
-}
-
-// countOpeningBraces counts opening braces and parentheses
-func countOpeningBraces(line string) int {
-	count := 0
+// countBraces counts opening and closing braces/brackets/parens in a single pass.
+func countBraces(line string) (opening, closing int) {
 	for _, char := range line {
-		if char == '{' || char == '(' || char == '[' {
-			count++
+		switch char {
+		case '{', '(', '[':
+			opening++
+		case '}', ')', ']':
+			closing++
 		}
 	}
-	return count
-}
-
-// countClosingBraces counts closing braces and parentheses
-func countClosingBraces(line string) int {
-	count := 0
-	for _, char := range line {
-		if char == '}' || char == ')' || char == ']' {
-			count++
-		}
-	}
-	return count
+	return
 }
 
 // protectStringLiterals replaces string literals with placeholders to prevent formatting inside strings
@@ -446,7 +432,7 @@ func protectLambdaExpressions(content string) (string, []string) {
 	var lambdas []string
 	content = lambdaExprRegex.ReplaceAllStringFunc(content, func(match string) string {
 		formatted := formatLambdaOperators(match)
-		formatted = formatLambdaExpressions(formatted)
+		formatted = lambdaArrowRegex.ReplaceAllString(formatted, "$1 -> ")
 		formatted = strings.TrimSpace(multipleSpacesRegex.ReplaceAllString(formatted, " "))
 		lambdas = append(lambdas, formatted)
 		return lambdaPlaceholder + strconv.Itoa(len(lambdas)-1)
@@ -456,13 +442,9 @@ func protectLambdaExpressions(content string) (string, []string) {
 
 // restoreLambdaExpressions restores lambda expressions (already formatted during protection)
 func restoreLambdaExpressions(content string, lambdas []string) string {
-
 	for i, lambda := range lambdas {
-		placeholderStr := lambdaPlaceholder + strconv.Itoa(i)
-		// Lambda is already properly formatted, just restore it
-		content = strings.ReplaceAll(content, placeholderStr, lambda)
+		content = strings.ReplaceAll(content, lambdaPlaceholder+strconv.Itoa(i), lambda)
 	}
-
 	return content
 }
 
@@ -475,7 +457,6 @@ func formatOperators(content string) string {
 	content = inequalityRegex.ReplaceAllString(content, " != ")
 	content = greaterEqualRegex.ReplaceAllString(content, " >= ")
 	content = lessEqualRegex.ReplaceAllString(content, " <= ")
-	content = pipeAssignRegex.ReplaceAllString(content, " |= ")
 	content = greaterThanRegex.ReplaceAllString(content, " > ")
 	content = lessThanRegex.ReplaceAllString(content, " < ")
 	content = assignmentRegex.ReplaceAllString(content, " = ")
@@ -485,7 +466,6 @@ func formatOperators(content string) string {
 	content = divRegex.ReplaceAllString(content, " / ")
 	content = modRegex.ReplaceAllString(content, " % ")
 	content = pipeRegex.ReplaceAllString(content, " | ")
-	content = lambdaArrowOpRegex.ReplaceAllString(content, " -> ")
 	content = matchArrowOpRegex.ReplaceAllString(content, " => ")
 	return content
 }
@@ -502,7 +482,5 @@ func formatFunctionCalls(content string) string {
 
 // formatNamedParameters handles named parameters in function calls
 func formatNamedParameters(content string) string {
-	content = namedParamColonRegex.ReplaceAllString(content, "$1: ")
-	content = namedParamValueRegex.ReplaceAllString(content, "$1: $2")
-	return content
+	return namedParamColonRegex.ReplaceAllString(content, "$1: ")
 }
