@@ -422,6 +422,17 @@ func TestFormatBloblangMapping(t *testing.T) {
 			expected: `root.msg = "this . should not . change"`,
 		},
 		{
+			name: "braces inside string do not affect indentation",
+			mapping: `map foo {
+  root.msg = "has { unbalanced brace"
+  root.other = this.name
+}`,
+			expected: `map foo {
+  root.msg = "has { unbalanced brace"
+  root.other = this.name
+}`,
+		},
+		{
 			name:     "spaces before method name and inside parens collapsed",
 			mapping:  `root.x = this.name.   uppercase(  )`,
 			expected: `root.x = this.name.uppercase()`,
