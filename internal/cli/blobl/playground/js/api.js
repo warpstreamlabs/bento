@@ -26,7 +26,11 @@ class BloblangAPI {
 
   async format(mapping) {
     if (this.mode === "wasm") {
-      return this.wasmApi.format(mapping);
+      const result = this.wasmApi.format(mapping);
+      if (result && result.error) {
+        throw new Error(result.error)
+      };
+      return result;
     }
 
     const response = await fetch("/format", {
@@ -41,27 +45,14 @@ class BloblangAPI {
     return response.json();
   }
 
-  async validate(mapping) {
-    if (this.mode === "wasm") {
-      return this.wasmApi.validate(mapping);
-    }
-
-    const response = await fetch("/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mapping }),
-    });
-
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return response.json();
-  }
-
   async autocomplete(request) {
     if (this.mode === "wasm") {
       const requestJSON = JSON.stringify(request);
-      return this.wasmApi.autocomplete(requestJSON);
+      const result = this.wasmApi.autocomplete(requestJSON);
+      if (result && result.error) {
+        throw new Error(result.error)
+      };
+      return result;
     }
   
     const response = await fetch("/autocomplete", {
