@@ -1,7 +1,6 @@
 package blobl
 
 import (
-	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
@@ -17,12 +16,6 @@ type ExecutionResult struct {
 type execCache struct {
 	msg  message.Batch
 	vars map[string]any
-}
-
-// completionCache holds cached syntax data to avoid repeated environment walks.
-type completionCache struct {
-	syntax *BloblangSyntax
-	env    *bloblang.Environment
 }
 
 // highlightRule represents a token type and regex pattern for syntax highlighting.

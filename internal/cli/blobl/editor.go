@@ -6,11 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
-
-var globalCompletionCache *completionCache
 
 type SpecKind int
 
@@ -28,22 +25,6 @@ func buildSyntaxHighlightingRules(functionNames, methodNames []string) []highlig
 		{Token: "support.function", Regex: `(?<![\.\w])(` + strings.Join(functionNames, "|") + `)(?=\s*\()`}, // Matches: uuid(), not .uuid()
 		{Token: "support.method", Regex: `\.(` + strings.Join(methodNames, "|") + `)(?=\s*\()`},              // Matches: .uppercase()
 	}
-}
-
-// getOrGenerateSyntax returns cached syntax data, or generates and caches it on first call.
-// Caching prevents expensive regeneration (100+ functions/methods with HTML docs) on every keystroke.
-func getOrGenerateSyntax(env *bloblang.Environment) (*BloblangSyntax, error) {
-	if globalCompletionCache == nil || globalCompletionCache.env != env {
-		syntax, err := GenerateBloblangSyntax(env)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate Bloblang syntax: %w", err)
-		}
-		globalCompletionCache = &completionCache{
-			syntax: &syntax,
-			env:    env,
-		}
-	}
-	return globalCompletionCache.syntax, nil
 }
 
 // validateAutocompletionRequest validates the autocompletion request
@@ -106,38 +87,27 @@ func getKeywordCompletions() []CompletionItem {
 	return completions
 }
 
-// getCompletions converts function/method specs with HTML into autocompletion items.
-func getCompletions(specs any) []CompletionItem {
-	var completions []CompletionItem
-
-	switch s := specs.(type) {
-	case map[string]functionSpecWithHTML:
-		for name, spec := range s {
-			completions = append(completions, buildCompletionItem(
-				name,
-				spec.BaseSpec,
-				spec.Category,
-				"function",
-				SpecFunction,
-			))
-		}
-
-	case map[string]methodSpecWithHTML:
-		for name, spec := range s {
-			category := "general"
-			if len(spec.Categories) > 0 {
-				category = spec.Categories[0].Category
-			}
-			completions = append(completions, buildCompletionItem(
-				name,
-				spec.BaseSpec,
-				category,
-				"method",
-				SpecMethod,
-			))
-		}
+func getFunctionCompletions(specs map[string]functionSpecWithHTML) []CompletionItem {
+	completions := make([]CompletionItem, 0, len(specs))
+	for name, spec := range specs {
+		completions = append(completions, buildCompletionItem(
+			name, spec.BaseSpec, spec.Category, "function", SpecFunction,
+		))
 	}
+	return completions
+}
 
+func getMethodCompletions(specs map[string]methodSpecWithHTML) []CompletionItem {
+	completions := make([]CompletionItem, 0, len(specs))
+	for name, spec := range specs {
+		category := "general"
+		if len(spec.Categories) > 0 {
+			category = spec.Categories[0].Category
+		}
+		completions = append(completions, buildCompletionItem(
+			name, spec.BaseSpec, category, "method", SpecMethod,
+		))
+	}
 	return completions
 }
 
