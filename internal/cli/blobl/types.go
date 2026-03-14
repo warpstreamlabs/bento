@@ -7,9 +7,9 @@ import (
 
 // ExecutionResult represents the result of executing a Bloblang mapping.
 type ExecutionResult struct {
-	Result       any `json:"result"`
-	ParseError   any `json:"parse_error"`
-	MappingError any `json:"mapping_error"`
+	Result       any     `json:"result"`
+	ParseError   *string `json:"parse_error"`
+	MappingError *string `json:"mapping_error"`
 }
 
 // execCache is used to execute Bloblang mappings with cached state.

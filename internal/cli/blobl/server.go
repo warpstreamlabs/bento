@@ -166,15 +166,7 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	response := ExecuteBloblangMapping(s.env, req.Input, req.Mapping)
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(struct {
-		Result       any `json:"result"`
-		ParseError   any `json:"parse_error"`
-		MappingError any `json:"mapping_error"`
-	}{
-		Result:       response.Result,
-		ParseError:   response.ParseError,
-		MappingError: response.MappingError,
-	}); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
