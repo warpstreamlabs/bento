@@ -234,28 +234,22 @@ func FormatBloblangMapping(env *bloblang.Environment, mapping string) (string, e
 }
 
 // GenerateAutocompletion provides context-aware autocompletion for Bloblang.
-func GenerateAutocompletion(env *bloblang.Environment, req AutocompletionRequest) ([]CompletionItem, error) {
+func GenerateAutocompletion(syntax *BloblangSyntax, req AutocompletionRequest) ([]CompletionItem, error) {
 	if err := validateAutocompletionRequest(req); err != nil {
 		return nil, err
 	}
 
-	// Don't suggest completions inside comments
 	if strings.Contains(req.BeforeCursor, "#") {
 		return []CompletionItem{}, nil
-	}
-
-	syntaxData, err := getOrGenerateSyntax(env)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get syntax data: %w", err)
 	}
 
 	var completions []CompletionItem
 	isMethodContext := regexp.MustCompile(`\.\w*$`).MatchString(req.BeforeCursor)
 
 	if isMethodContext {
-		completions = append(completions, getCompletions(syntaxData.Methods)...)
+		completions = append(completions, getMethodCompletions(syntax.Methods)...)
 	} else {
-		completions = append(completions, getCompletions(syntaxData.Functions)...)
+		completions = append(completions, getFunctionCompletions(syntax.Functions)...)
 		completions = append(completions, getKeywordCompletions()...)
 	}
 

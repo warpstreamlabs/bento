@@ -40,9 +40,10 @@ func init() {
 }
 
 type server struct {
-	env   *bloblang.Environment
-	fSync *fileSync
-	mux   *http.ServeMux
+	env    *bloblang.Environment
+	syntax *BloblangSyntax
+	fSync  *fileSync
+	mux    *http.ServeMux
 }
 
 func newServer(inputFile, mappingFile string, writeBack bool) *server {
@@ -54,6 +55,12 @@ func newServer(inputFile, mappingFile string, writeBack bool) *server {
 }
 
 func (s *server) registerRoutes() error {
+	syntax, err := GenerateBloblangSyntax(s.env)
+	if err != nil {
+		return fmt.Errorf("failed to generate bloblang syntax: %w", err)
+	}
+	s.syntax = &syntax
+
 	// API endpoints
 	s.mux.HandleFunc("/execute", s.handleExecute)
 	s.mux.HandleFunc("/syntax", s.handleSyntax)
@@ -216,7 +223,7 @@ func (s *server) handleAutocomplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := GenerateAutocompletion(s.env, request)
+	response, err := GenerateAutocompletion(s.syntax, request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -234,25 +241,14 @@ func (s *server) handleSyntax(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := GenerateBloblangSyntax(s.env)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(s.syntax); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (s *server) generateSyntaxTemplate() (template.JS, error) {
-	syntax, err := GenerateBloblangSyntax(s.env)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate bloblang syntax: %w", err)
-	}
-
-	jsonBytes, err := json.Marshal(syntax)
+	jsonBytes, err := json.Marshal(s.syntax)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal bloblang syntax: %w", err)
 	}

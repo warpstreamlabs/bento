@@ -45,9 +45,9 @@ func executeHandler(env *bloblang.Environment) js.Func {
 	})
 }
 
-func syntaxHandler(env *bloblang.Environment) js.Func {
+func syntaxHandler(syntax *blobl.BloblangSyntax) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
-		return blobl.GenerateBloblangSyntax(env)
+		return syntax, nil
 	})
 }
 
@@ -61,19 +61,18 @@ func formatHandler(env *bloblang.Environment) js.Func {
 	})
 }
 
-func autocompleteHandler(env *bloblang.Environment) js.Func {
+func autocompleteHandler(syntax *blobl.BloblangSyntax) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return nil, fmt.Errorf("invalid arguments: expected request JSON")
 		}
 
 		var req blobl.AutocompletionRequest
-
 		if err := json.Unmarshal([]byte(args[0].String()), &req); err != nil {
 			return nil, fmt.Errorf("failed to parse request JSON: %w", err)
 		}
 
-		return blobl.GenerateAutocompletion(env, req)
+		return blobl.GenerateAutocompletion(syntax, req)
 	})
 }
 
@@ -93,12 +92,17 @@ func toJS(data any) js.Value {
 
 // Init registers the Bloblang WASM API on the global object.
 func Init(env *bloblang.Environment) {
+	syntax, err := blobl.GenerateBloblangSyntax(env)
+	if err != nil {
+		panic(js.Global().Get("Error").New(err.Error()))
+	}
+
 	api := js.Global().Get("Object").New()
 
 	api.Set("execute", executeHandler(env))
-	api.Set("syntax", syntaxHandler(env))
+	api.Set("syntax", syntaxHandler(&syntax))
 	api.Set("format", formatHandler(env))
-	api.Set("autocomplete", autocompleteHandler(env))
+	api.Set("autocomplete", autocompleteHandler(&syntax))
 
 	js.Global().Set("bloblangApi", api)
 	js.Global().Set("wasmReady", toJS(true))

@@ -34,15 +34,12 @@ func TestGenerateBloblangSyntax_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
 	if len(syntax.Functions) != 0 {
 		t.Errorf("expected 0 functions, got %d", len(syntax.Functions))
 	}
-
 	if len(syntax.Methods) != 0 {
 		t.Errorf("expected 0 methods, got %d", len(syntax.Methods))
 	}
-
 	if syntax.Rules == nil {
 		t.Error("Rules must be non-nil even for empty environment")
 	}
@@ -435,6 +432,11 @@ func TestFormatBloblangMapping(t *testing.T) {
 
 func TestGenerateAutocompletion(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
+	syntax, err := GenerateBloblangSyntax(env)
+	if err != nil {
+		t.Fatalf("failed to generate syntax: %v", err)
+	}
+
 	tests := []struct {
 		name           string
 		req            AutocompletionRequest
@@ -474,7 +476,7 @@ func TestGenerateAutocompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			completions, err := GenerateAutocompletion(env, tt.req)
+			completions, err := GenerateAutocompletion(&syntax, tt.req)
 
 			if tt.wantErr {
 				if err == nil {
