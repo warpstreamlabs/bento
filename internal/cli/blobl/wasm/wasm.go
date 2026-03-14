@@ -18,7 +18,7 @@ func toJSFunc(h wasmHandler) js.Func {
 	return js.FuncOf(func(_ js.Value, args []js.Value) any {
 		res, err := h(args)
 		if err != nil {
-			panic(js.Global().Get("Error").New(err.Error()))
+			return toJS(map[string]any{"error": err.Error()})
 		}
 		return toJS(res)
 	})

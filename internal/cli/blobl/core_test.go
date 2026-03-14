@@ -380,6 +380,21 @@ func TestFormatBloblangMapping(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name:        "space after dot in assignment target",
+			mapping:     `root. x = this.nums.filter(num -> num > 5)`,
+			expectError: true,
+		},
+		{
+			name:        "space before dot in method chain",
+			mapping:     `root.x = this .nums.filter(num -> num > 5)`,
+			expectError: true,
+		},
+		{
+			name:        "space after dot before method name and broken arrow",
+			mapping:     `root.x = this.nums. filter(num - > num > 5)`,
+			expectError: true,
+		},
+		{
 			name: "method chain spacing",
 			mapping: `root.about = "%s 🍱 is a %s %s".format(
 				this.name.capitalize(),
@@ -405,6 +420,21 @@ func TestFormatBloblangMapping(t *testing.T) {
 				root.msg = "this . should not . change"
 			`,
 			expected: `root.msg = "this . should not . change"`,
+		},
+		{
+			name:     "spaces before method name and inside parens collapsed",
+			mapping:  `root.x = this.name.   uppercase(  )`,
+			expected: `root.x = this.name.uppercase()`,
+		},
+		{
+			name:     "spaces before method name with lambda",
+			mapping:  `root.y = this.items.   filter(item -> item > 2)`,
+			expected: `root.y = this.items.filter(item -> item > 2)`,
+		},
+		{
+			name:     "multi-line with spaces before methods",
+			mapping:  "root.x = this.name.   uppercase(  )\nroot.y = this.items.   filter(item -> item > 2)",
+			expected: "root.x = this.name.uppercase()\nroot.y = this.items.filter(item -> item > 2)",
 		},
 	}
 
