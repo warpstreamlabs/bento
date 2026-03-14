@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/warpstreamlabs/bento/internal/bloblang"
@@ -16,7 +15,6 @@ import (
 )
 
 const (
-	maxBeforeCursorLength    = 1000
 	indentSize               = 2
 	stringLiteralPlaceholder = "BLOBLANG_STRING_LITERAL_"
 	lambdaPlaceholder        = "BLOBLANG_LAMBDA_"
@@ -65,8 +63,6 @@ var (
 	inlineCodeRegex   = regexp.MustCompile("`([^`]+)`")
 	markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 
-	// Autocompletion
-	methodContextRegex = regexp.MustCompile(`\.\w*$`)
 )
 
 // newExecCache creates a new execution cache for running mappings.
@@ -273,14 +269,8 @@ func GenerateAutocompletion(syntax *BloblangSyntax, req AutocompletionRequest) (
 		return nil, err
 	}
 
-	if strings.Contains(req.BeforeCursor, "#") {
-		return []CompletionItem{}, nil
-	}
-
 	var completions []CompletionItem
-	isMethodContext := methodContextRegex.MatchString(req.BeforeCursor)
-
-	if isMethodContext {
+	if req.IsMethodContext {
 		completions = append(completions, getMethodCompletions(syntax.Methods)...)
 	} else {
 		completions = append(completions, getFunctionCompletions(syntax.Functions)...)

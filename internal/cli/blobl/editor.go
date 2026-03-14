@@ -34,9 +34,6 @@ func validateAutocompletionRequest(req AutocompletionRequest) error {
 	if len(req.Line) > 0 && req.Column > len(req.Line) {
 		return fmt.Errorf("column position %d exceeds line length %d", req.Column, len(req.Line))
 	}
-	if len(req.BeforeCursor) > maxBeforeCursorLength {
-		return fmt.Errorf("before cursor text too long: %d characters (max %d)", len(req.BeforeCursor), maxBeforeCursorLength)
-	}
 	return nil
 }
 

@@ -72,7 +72,7 @@ type CompletionItem struct {
 
 // AutocompletionRequest represents a request for autocompletion.
 type AutocompletionRequest struct {
-	Line         string `json:"line"`         // The current line text
-	Column       int    `json:"column"`       // Cursor column position
-	BeforeCursor string `json:"beforeCursor"` // Text before cursor position
+	Line            string `json:"line"`            // The current line text
+	Column          int    `json:"column"`          // Cursor column position
+	IsMethodContext bool   `json:"isMethodContext"` // Whether cursor follows a dot (method context)
 }
