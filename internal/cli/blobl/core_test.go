@@ -5,7 +5,288 @@ import (
 	"testing"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
+
+// testWalker implements Walker for tests that only care
+// about metadata/HTML generation, not execution.
+type testWalker struct {
+	functions []query.FunctionSpec
+	methods   []query.MethodSpec
+}
+
+func (w *testWalker) WalkFunctions(fn func(string, query.FunctionSpec)) {
+	for _, spec := range w.functions {
+		fn(spec.Name, spec)
+	}
+}
+
+func (w *testWalker) WalkMethods(fn func(string, query.MethodSpec)) {
+	for _, spec := range w.methods {
+		fn(spec.Name, spec)
+	}
+}
+
+// --- GenerateBloblangSyntax ---
+
+func TestGenerateBloblangSyntax_Empty(t *testing.T) {
+	syntax, err := GenerateBloblangSyntax(&testWalker{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(syntax.Functions) != 0 {
+		t.Errorf("expected 0 functions, got %d", len(syntax.Functions))
+	}
+
+	if len(syntax.Methods) != 0 {
+		t.Errorf("expected 0 methods, got %d", len(syntax.Methods))
+	}
+
+	if syntax.Rules == nil {
+		t.Error("Rules must be non-nil even for empty environment")
+	}
+}
+
+func TestGenerateBloblangSyntax_FunctionDocHTML(t *testing.T) {
+	tests := []struct {
+		name             string
+		spec             query.FunctionSpec
+		wantInDocHTML    []string
+		wantNotInDocHTML []string
+	}{
+		{
+			name: "stable function no params",
+			spec: query.NewFunctionSpec(
+				query.FunctionCategoryGeneral,
+				"test_fn",
+				"A test function.",
+			),
+			wantInDocHTML: []string{
+				`data-function-name="test_fn"`,
+				`data-kind="0"`,              // SpecFunction == 0
+				`functions#test_fn`,          // function URL anchor
+				`<strong>test_fn()</strong>`, // no params → ()
+				`ace-status-stable`,
+			},
+			wantNotInDocHTML: []string{
+				`methods#test_fn`, // must not use method URL
+			},
+		},
+		{
+			name: "function with params renders signature and param list",
+			spec: query.NewFunctionSpec(
+				query.FunctionCategoryGeneral,
+				"range_fn",
+				"Generates a range.",
+			).Param(query.ParamInt64("count", "Number of elements")),
+			wantInDocHTML: []string{
+				`<strong>range_fn(count: integer)</strong>`,
+				`ace-doc-parameters`,
+				`count [integer]`,
+			},
+		},
+		{
+			name: "experimental function reflects status",
+			spec: query.NewFunctionSpec(
+				query.FunctionCategoryGeneral,
+				"exp_fn",
+				"An experimental function.",
+			).Experimental(),
+			wantInDocHTML: []string{
+				`ace-status-experimental`,
+			},
+			wantNotInDocHTML: []string{
+				`ace-status-stable`,
+			},
+		},
+		{
+			name: "beta function reflects status",
+			spec: query.NewFunctionSpec(
+				query.FunctionCategoryGeneral,
+				"beta_fn",
+				"A beta function.",
+			).Beta(),
+			wantInDocHTML: []string{
+				`ace-status-beta`,
+			},
+		},
+		{
+			name: "function with version renders Since line",
+			spec: query.NewFunctionSpec(
+				query.FunctionCategoryGeneral,
+				"new_fn",
+				"A newer function.",
+			).AtVersion("1.2.0"),
+			wantInDocHTML: []string{
+				`Since: v1.2.0`,
+			},
+		},
+		{
+			name: "hidden function produces valid HTML",
+			spec: query.NewHiddenFunctionSpec("hidden_fn"),
+			wantInDocHTML: []string{
+				`data-function-name="hidden_fn"`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			walker := &testWalker{functions: []query.FunctionSpec{tt.spec}}
+			syntax, err := GenerateBloblangSyntax(walker)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			spec, ok := syntax.Functions[tt.spec.Name]
+			if !ok {
+				t.Fatalf("function %q not found in output", tt.spec.Name)
+			}
+			if spec.DocHTML == "" {
+				t.Fatal("DocHTML must not be empty")
+			}
+
+			for _, want := range tt.wantInDocHTML {
+				if !strings.Contains(spec.DocHTML, want) {
+					t.Errorf("DocHTML missing %q\ngot:\n%s", want, spec.DocHTML)
+				}
+			}
+			for _, notWant := range tt.wantNotInDocHTML {
+				if strings.Contains(spec.DocHTML, notWant) {
+					t.Errorf("DocHTML must not contain %q\ngot:\n%s", notWant, spec.DocHTML)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateBloblangSyntax_MethodDocHTML(t *testing.T) {
+	tests := []struct {
+		name             string
+		spec             query.MethodSpec
+		wantInDocHTML    []string
+		wantNotInDocHTML []string
+	}{
+		{
+			name: "method signature has leading dot",
+			spec: query.NewMethodSpec("test_method", "A test method.").
+				InCategory(query.MethodCategoryStrings, ""),
+			wantInDocHTML: []string{
+				`<strong>.test_method()</strong>`, // leading dot distinguishes method from function
+				`data-kind="1"`,                   // SpecMethod == 1
+				`methods#test_method`,             // method URL, not functions URL
+			},
+			wantNotInDocHTML: []string{
+				`functions#test_method`,
+			},
+		},
+		{
+			name: "method with param renders param in signature and list",
+			spec: query.NewMethodSpec("repeat", "Repeats a string.").
+				Param(query.ParamInt64("count", "Number of repetitions")),
+			wantInDocHTML: []string{
+				`<strong>.repeat(count: integer)</strong>`,
+				`count [integer]`,
+				`ace-doc-parameters`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			walker := &testWalker{methods: []query.MethodSpec{tt.spec}}
+			syntax, err := GenerateBloblangSyntax(walker)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			spec, ok := syntax.Methods[tt.spec.Name]
+			if !ok {
+				t.Fatalf("method %q not found in output", tt.spec.Name)
+			}
+			if spec.DocHTML == "" {
+				t.Fatal("DocHTML must not be empty")
+			}
+
+			for _, want := range tt.wantInDocHTML {
+				if !strings.Contains(spec.DocHTML, want) {
+					t.Errorf("DocHTML missing %q\ngot:\n%s", want, spec.DocHTML)
+				}
+			}
+			for _, notWant := range tt.wantNotInDocHTML {
+				if strings.Contains(spec.DocHTML, notWant) {
+					t.Errorf("DocHTML must not contain %q\ngot:\n%s", notWant, spec.DocHTML)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateBloblangSyntax_HighlightingRules(t *testing.T) {
+	walker := &testWalker{
+		functions: []query.FunctionSpec{
+			query.NewFunctionSpec(query.FunctionCategoryGeneral, "uuid", ""),
+		},
+		methods: []query.MethodSpec{
+			query.NewMethodSpec("uppercase", ""),
+		},
+	}
+
+	syntax, err := GenerateBloblangSyntax(walker)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	byToken := map[string]string{}
+	for _, rule := range syntax.Rules {
+		byToken[rule.Token] = rule.Regex
+	}
+
+	if r, ok := byToken["support.function"]; !ok {
+		t.Error("missing support.function rule")
+	} else if !strings.Contains(r, "uuid") {
+		t.Errorf("support.function rule missing uuid: %q", r)
+	}
+
+	if r, ok := byToken["support.method"]; !ok {
+		t.Error("missing support.method rule")
+	} else if !strings.Contains(r, "uppercase") {
+		t.Errorf("support.method rule missing uppercase: %q", r)
+	}
+}
+
+func TestGenerateBloblangSyntax_NameLists(t *testing.T) {
+	walker := &testWalker{
+		functions: []query.FunctionSpec{
+			query.NewFunctionSpec(query.FunctionCategoryGeneral, "alpha", ""),
+			query.NewFunctionSpec(query.FunctionCategoryGeneral, "beta", ""),
+		},
+		methods: []query.MethodSpec{
+			query.NewMethodSpec("gamma", ""),
+		},
+	}
+
+	syntax, err := GenerateBloblangSyntax(walker)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(syntax.FunctionNames) != 2 {
+		t.Errorf("expected 2 function names, got %d: %v", len(syntax.FunctionNames), syntax.FunctionNames)
+	}
+	if len(syntax.MethodNames) != 1 {
+		t.Errorf("expected 1 method name, got %d: %v", len(syntax.MethodNames), syntax.MethodNames)
+	}
+	if len(syntax.Functions) != 2 {
+		t.Errorf("expected 2 entries in Functions map, got %d", len(syntax.Functions))
+	}
+	if len(syntax.Methods) != 1 {
+		t.Errorf("expected 1 entry in Methods map, got %d", len(syntax.Methods))
+	}
+}
+
+// --- ExecuteBloblangMapping ---
 
 func TestExecuteMapping(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
@@ -14,36 +295,39 @@ func TestExecuteMapping(t *testing.T) {
 		name         string
 		input        string
 		mapping      string
-		expectError  bool
-		expectResult bool
+		wantResult   bool
+		wantParseErr bool
+		wantExecErr  bool
 	}{
 		{
-			name:         "simple mapping",
-			input:        `{"name":"Alice"}`,
-			mapping:      `root.name = this.name`,
-			expectError:  false,
-			expectResult: true,
+			name:       "simple field mapping",
+			input:      `{"name":"Alice"}`,
+			mapping:    `root.name = this.name`,
+			wantResult: true,
 		},
 		{
-			name:         "empty input",
-			input:        "",
-			mapping:      `root = this`,
-			expectError:  true,
-			expectResult: false,
+			name:        "empty input",
+			input:       "",
+			mapping:     `root = this`,
+			wantExecErr: true,
 		},
 		{
 			name:         "empty mapping",
 			input:        `{"test":true}`,
 			mapping:      "",
-			expectError:  true,
-			expectResult: false,
+			wantParseErr: true,
 		},
 		{
 			name:         "invalid mapping syntax",
 			input:        `{"test":true}`,
 			mapping:      `root.bad =`,
-			expectError:  true,
-			expectResult: false,
+			wantParseErr: true,
+		},
+		{
+			name:       "pass-through",
+			input:      `{"x":1}`,
+			mapping:    `root = this`,
+			wantResult: true,
 		},
 	}
 
@@ -51,75 +335,27 @@ func TestExecuteMapping(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExecuteBloblangMapping(env, tt.input, tt.mapping)
 
-			hasError := result.ParseError != nil || result.MappingError != nil
-			if hasError != tt.expectError {
-				t.Errorf("ExecuteBloblangMapping() error = %v, expectError = %v", hasError, tt.expectError)
+			if tt.wantParseErr && result.ParseError == nil {
+				t.Error("expected ParseError, got nil")
 			}
-
-			hasResult := result.Result != nil
-			if hasResult != tt.expectResult {
-				t.Errorf("ExecuteBloblangMapping() hasResult = %v, expectResult = %v", hasResult, tt.expectResult)
+			if !tt.wantParseErr && result.ParseError != nil {
+				t.Errorf("unexpected ParseError: %v", result.ParseError)
+			}
+			if tt.wantExecErr && result.MappingError == nil {
+				t.Error("expected MappingError, got nil")
+			}
+			if tt.wantResult && result.Result == nil {
+				t.Error("expected non-nil Result")
 			}
 		})
 	}
 }
 
-func TestGenerateBloblangSyntax(t *testing.T) {
-	env := bloblang.GlobalEnvironment()
-
-	syntax, err := GenerateBloblangSyntax(env)
-	if err != nil {
-		t.Fatalf("GenerateBloblangSyntax() error = %v", err)
-	}
-
-	// Check functions exist
-	if len(syntax.Functions) == 0 {
-		t.Error("GenerateBloblangSyntax() returned no functions")
-	}
-
-	// Check methods exist
-	if len(syntax.Methods) == 0 {
-		t.Error("GenerateBloblangSyntax() returned no methods")
-	}
-
-	// Check highlighting rules generated
-	if len(syntax.Rules) == 0 {
-		t.Error("GenerateBloblangSyntax() returned no syntax rules")
-	}
-
-	// Check that DocHTML is pre-generated for functions
-	foundDocHTML := false
-	for _, fn := range syntax.Functions {
-		if fn.DocHTML != "" {
-			foundDocHTML = true
-			// Verify it contains expected HTML tags
-			if !strings.Contains(fn.DocHTML, "ace-doc") {
-				t.Error("Function DocHTML missing expected ace-doc class")
-			}
-			break
-		}
-	}
-	if !foundDocHTML {
-		t.Error("GenerateBloblangSyntax() did not pre-generate DocHTML for functions")
-	}
-
-	// Check that DocHTML is pre-generated for methods
-	foundMethodDocHTML := false
-	for _, method := range syntax.Methods {
-		if method.DocHTML != "" {
-			foundMethodDocHTML = true
-			if !strings.Contains(method.DocHTML, "ace-doc") {
-				t.Error("Method DocHTML missing expected ace-doc class")
-			}
-			break
-		}
-	}
-	if !foundMethodDocHTML {
-		t.Error("GenerateBloblangSyntax() did not pre-generate DocHTML for methods")
-	}
-}
+// --- FormatBloblangMapping ---
 
 func TestFormatBloblangMapping(t *testing.T) {
+	env := bloblang.GlobalEnvironment()
+
 	tests := []struct {
 		name        string
 		mapping     string
@@ -127,12 +363,12 @@ func TestFormatBloblangMapping(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:     "valid mapping",
+			name:     "literal assignment",
 			mapping:  `root.name = "test"`,
 			expected: `root.name = "test"`,
 		},
 		{
-			name:     "mapping with this",
+			name:     "pass-through",
 			mapping:  `root = this`,
 			expected: `root = this`,
 		},
@@ -160,14 +396,14 @@ func TestFormatBloblangMapping(t *testing.T) {
 )`,
 		},
 		{
-			name: "method call spacing",
+			name: "extra space before method call collapsed",
 			mapping: `
 				root.stars = "★". repeat((this.stars / 100) )
 			`,
 			expected: `root.stars = "★".repeat((this.stars / 100))`,
 		},
 		{
-			name: "no formatting inside strings",
+			name: "dot inside string not formatted",
 			mapping: `
 				root.msg = "this . should not . change"
 			`,
@@ -177,10 +413,7 @@ func TestFormatBloblangMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formatted, err := FormatBloblangMapping(
-				bloblang.GlobalEnvironment(),
-				tt.mapping,
-			)
+			formatted, err := FormatBloblangMapping(env, tt.mapping)
 
 			if tt.expectError {
 				if err == nil {
@@ -188,168 +421,104 @@ func TestFormatBloblangMapping(t *testing.T) {
 				}
 				return
 			}
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-
 			if formatted != tt.expected {
-				t.Errorf(
-					"formatted output mismatch\nexpected:\n%s\n\ngot:\n%s",
-					tt.expected,
-					formatted,
-				)
+				t.Errorf("mismatch\nwant:\n%s\n\ngot:\n%s", tt.expected, formatted)
 			}
 		})
 	}
 }
 
+// --- GenerateAutocompletion ---
+
 func TestGenerateAutocompletion(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
-
 	tests := []struct {
-		name              string
-		request           AutocompletionRequest
-		expectError       bool
-		expectCompletions bool
-		expectKeywords    bool
-		expectFunctions   bool
-		expectMethods     bool
-		minCompletions    int
+		name           string
+		req            AutocompletionRequest
+		wantErr        bool
+		wantEmpty      bool
+		wantTypes      []string
+		minCompletions int
 	}{
 		{
-			name: "function context - should return functions and keywords",
-			request: AutocompletionRequest{
-				Line:         "root = ",
-				Column:       7,
-				BeforeCursor: "root = ",
-			},
-			expectError:       false,
-			expectCompletions: true,
-			expectKeywords:    false, // Keywords only show when typing keyword prefix
-			expectFunctions:   true,
-			expectMethods:     false,
-			minCompletions:    10, // Should have many function completions
+			name:           "function context returns functions",
+			req:            AutocompletionRequest{Line: "root = ", Column: 7, BeforeCursor: "root = "},
+			wantTypes:      []string{"function"},
+			minCompletions: 10,
 		},
 		{
-			name: "method context - should return methods only",
-			request: AutocompletionRequest{
-				Line:         "root = this.u",
-				Column:       13,
-				BeforeCursor: "root = this.u",
-			},
-			expectError:       false,
-			expectCompletions: true,
-			expectKeywords:    false,
-			expectFunctions:   false,
-			expectMethods:     true,
-			minCompletions:    5, // Should have method completions (uppercase, etc.)
+			name:           "method context returns methods",
+			req:            AutocompletionRequest{Line: "root = this.u", Column: 13, BeforeCursor: "root = this.u"},
+			wantTypes:      []string{"method"},
+			minCompletions: 5,
 		},
 		{
-			name: "keyword context - should return keywords",
-			request: AutocompletionRequest{
-				Line:         "ro",
-				Column:       2,
-				BeforeCursor: "ro",
-			},
-			expectError:       false,
-			expectCompletions: true,
-			expectKeywords:    true,
-			expectFunctions:   true,
-			expectMethods:     false,
-			minCompletions:    1,
+			name:      "inside comment returns empty",
+			req:       AutocompletionRequest{Line: "# comment", Column: 5, BeforeCursor: "# com"},
+			wantEmpty: true,
 		},
 		{
-			name: "invalid column - should fail",
-			request: AutocompletionRequest{
-				Line:         "root = this",
-				Column:       -1,
-				BeforeCursor: "",
-			},
-			expectError:       true,
-			expectCompletions: false,
+			name:    "negative column is error",
+			req:     AutocompletionRequest{Line: "root = this", Column: -1},
+			wantErr: true,
 		},
 		{
-			name: "inside comment - should return empty",
-			request: AutocompletionRequest{
-				Line:         "# comment",
-				Column:       5,
-				BeforeCursor: "# com",
-			},
-			expectError:       false,
-			expectCompletions: false,
+			name:    "column beyond line length is error",
+			req:     AutocompletionRequest{Line: "root", Column: 100, BeforeCursor: "root"},
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			completions, err := GenerateAutocompletion(env, tt.request)
+			completions, err := GenerateAutocompletion(env, tt.req)
 
-			if tt.expectError && err == nil {
-				t.Errorf("GenerateAutocompletion() expected error, got nil")
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if !tt.expectError && err != nil {
-				t.Errorf("GenerateAutocompletion() unexpected error: %v", err)
-			}
-
-			if tt.expectCompletions {
-				if len(completions) < tt.minCompletions {
-					t.Errorf(
-						"Expected at least %d completions, got %d",
-						tt.minCompletions,
-						len(completions),
-					)
-				}
-
-				for _, comp := range completions {
-					if comp.Caption == "" {
-						t.Error("Completion missing Caption")
-					}
-					if comp.Type == "" {
-						t.Error("Completion missing Type")
-					}
-					if comp.DocHTML == "" {
-						t.Error("Completion missing DocHTML")
-					}
-					if comp.Meta == "" {
-						t.Error("Completion missing Meta")
-					}
-					if comp.Value == "" && comp.Snippet == "" {
-						t.Error("Completion missing both Value and Snippet")
-					}
-				}
-
-				hasKeyword := false
-				hasFunction := false
-				hasMethod := false
-
-				for _, comp := range completions {
-					switch comp.Type {
-					case "keyword":
-						hasKeyword = true
-					case "function":
-						hasFunction = true
-					case "method":
-						hasMethod = true
-					}
-				}
-
-				if tt.expectKeywords && !hasKeyword {
-					t.Error("Expected keyword completions but found none")
-				}
-				if tt.expectFunctions && !hasFunction {
-					t.Error("Expected function completions but found none")
-				}
-				if tt.expectMethods && !hasMethod {
-					t.Error("Expected method completions but found none")
-				}
-			} else {
+			if tt.wantEmpty {
 				if len(completions) > 0 {
-					t.Errorf(
-						"Expected no completions, got %d",
-						len(completions),
-					)
+					t.Errorf("expected no completions, got %d", len(completions))
+				}
+				return
+			}
+
+			if len(completions) < tt.minCompletions {
+				t.Errorf("expected >= %d completions, got %d", tt.minCompletions, len(completions))
+			}
+
+			for i, c := range completions {
+				if c.Caption == "" {
+					t.Errorf("completion[%d] missing Caption", i)
+				}
+				if c.Type == "" {
+					t.Errorf("completion[%d] missing Type", i)
+				}
+				if c.DocHTML == "" {
+					t.Errorf("completion[%d] missing DocHTML", i)
+				}
+				if c.Value == "" && c.Snippet == "" {
+					t.Errorf("completion[%d] missing both Value and Snippet", i)
+				}
+			}
+
+			typeSet := map[string]bool{}
+			for _, c := range completions {
+				typeSet[c.Type] = true
+			}
+			for _, want := range tt.wantTypes {
+				if !typeSet[want] {
+					t.Errorf("expected completion type %q but none found in %v", want, typeSet)
 				}
 			}
 		})

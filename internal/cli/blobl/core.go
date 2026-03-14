@@ -176,12 +176,12 @@ func ExecuteBloblangMapping(env *bloblang.Environment, input, mapping string) *E
 
 // GenerateBloblangSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
 // Iterates through all functions/methods in the environment and pre-generates HTML documentation.
-func GenerateBloblangSyntax(env *bloblang.Environment) (BloblangSyntax, error) {
+func GenerateBloblangSyntax(walker Walker) (BloblangSyntax, error) {
 	var functionNames, methodNames []string
 	functions := make(map[string]functionSpecWithHTML)
 	methods := make(map[string]methodSpecWithHTML)
 
-	env.WalkFunctions(func(name string, spec query.FunctionSpec) {
+	walker.WalkFunctions(func(name string, spec query.FunctionSpec) {
 		wrapper := spec.BaseSpec
 		functions[name] = functionSpecWithHTML{
 			FunctionSpec: spec,
@@ -190,7 +190,7 @@ func GenerateBloblangSyntax(env *bloblang.Environment) (BloblangSyntax, error) {
 		functionNames = append(functionNames, name)
 	})
 
-	env.WalkMethods(func(name string, spec query.MethodSpec) {
+	walker.WalkMethods(func(name string, spec query.MethodSpec) {
 		wrapper := spec.BaseSpec
 		methods[name] = methodSpecWithHTML{
 			MethodSpec: spec,
