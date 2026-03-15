@@ -5,6 +5,7 @@
 
 [![godoc for warpstreamlabs/bento][godoc-badge]][godoc-url]
 [![Build Status][actions-badge]][actions-url]
+[![govulncheck][govulncheck-badge]][govulncheck-url]
 [![Docs site][website-badge]][website-url]
 
 [Discord](https://console.warpstream.com/socials/discord)
@@ -192,6 +193,8 @@ Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come a
 [godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public
 [actions-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml/badge.svg
 [actions-url]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml
+[govulncheck-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/govulncheck.yml/badge.svg
+[govulncheck-url]: https://github.com/warpstreamlabs/bento/actions/workflows/govulncheck.yml
 [website-badge]: https://img.shields.io/badge/Docs-Learn%20more-ffc7c7
 [website-url]: https://warpstreamlabs.github.io/bento/
 
