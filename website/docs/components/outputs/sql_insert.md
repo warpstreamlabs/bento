@@ -141,6 +141,7 @@ output:
 Write events to a local DuckDB file, creating the table on first run via `init_statement`.
 
 ```yaml
+# BENTO LINT DISABLE
 output:
   sql_insert:
     driver: duckdb

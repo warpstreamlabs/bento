@@ -140,6 +140,7 @@ pipeline:
 Enrich each message with a field from a DuckDB lookup table. The table is seeded once via `init_statement` and queried per message.
 
 ```yaml
+# BENTO LINT DISABLE
 pipeline:
   processors:
     - branch:

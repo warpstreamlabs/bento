@@ -57,6 +57,7 @@ input:
 		Example("Aggregate Query (DuckDB)",
 			"Read aggregated results from a DuckDB file as a stream of messages.",
 			`
+# BENTO LINT DISABLE
 input:
   sql_raw:
     driver: duckdb

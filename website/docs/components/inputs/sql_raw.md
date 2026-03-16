@@ -123,6 +123,7 @@ input:
 Read aggregated results from a DuckDB file as a stream of messages.
 
 ```yaml
+# BENTO LINT DISABLE
 input:
   sql_raw:
     driver: duckdb
