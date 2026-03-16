@@ -123,7 +123,7 @@ Introduced in version {{.Version}}.
 {{$example.Summary}}
 {{end}}
 {{if gt (len $example.Config) 0 -}}
-{{if $example.LintDisabled}}` + "```yml" + `{{else}}` + "```yaml" + `{{end}}{{$example.Config}}` + "```" + `
+` + "```yaml" + `{{$example.Config}}` + "```" + `
 {{end}}
 </TabItem>
 {{end -}}
@@ -189,22 +189,11 @@ func genExampleConfigs(prov Provider, t Type, nest bool, fullConfigExample any) 
 	return string(commonConfigBytes), string(advancedConfigBytes), nil
 }
 
-// AsMarkdown renders the component spec into a markdown document. Examples
-// marked with # BENTO LINT DISABLE are rendered as ```yml and the sentinel
-// is stripped from the output.
+// AsMarkdown renders the spec of a component, along with a full configuration
+// example, into a markdown document.
 func (c *ComponentSpec) AsMarkdown(prov Provider, nest bool, fullConfigExample any) ([]byte, error) {
 	if strings.Contains(c.Summary, "\n\n") {
 		return nil, fmt.Errorf("%v component '%v' has a summary containing empty lines", c.Type, c.Name)
-	}
-
-	sentinel := "\n# BENTO LINT DISABLE\n"
-	examples := make([]AnnotatedExample, len(c.Examples))
-	for i, ex := range c.Examples {
-		if strings.HasPrefix(ex.Config, sentinel) {
-			ex.Config = "\n" + ex.Config[len(sentinel):]
-			ex.LintDisabled = true
-		}
-		examples[i] = ex
 	}
 
 	ctx := componentContext{
@@ -212,7 +201,7 @@ func (c *ComponentSpec) AsMarkdown(prov Provider, nest bool, fullConfigExample a
 		Type:        string(c.Type),
 		Summary:     c.Summary,
 		Description: c.Description,
-		Examples:    examples,
+		Examples:    c.Examples,
 		Footnotes:   c.Footnotes,
 		Status:      string(c.Status),
 		Version:     c.Version,

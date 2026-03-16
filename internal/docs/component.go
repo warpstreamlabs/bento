@@ -27,10 +27,6 @@ type AnnotatedExample struct {
 
 	// A config snippet to show.
 	Config string `json:"config"`
-
-	// LintDisabled indicates the snippet should not be linted.
-	// # BENTO LINT DISABLE sentinel will be stripped from rendered docs.
-	LintDisabled bool `json:"lint_disabled,omitempty"`
 }
 
 // Status of a component.
