@@ -406,7 +406,10 @@ func isAuthError(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "PAM authentication failed") ||
-		strings.Contains(msg, "password authentication failed for user")
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "authentication failed") ||
+		strings.Contains(msg, "access denied") ||
+		strings.Contains(msg, "login failed") ||
+		strings.Contains(msg, "logon denied") ||
+		strings.Contains(msg, "incorrect username or password")
 }
