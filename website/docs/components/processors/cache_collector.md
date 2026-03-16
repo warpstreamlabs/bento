@@ -72,7 +72,7 @@ This processor works by storing an accumulated value in a cache, which is update
 2. `append_check`: For each message, if this expression evaluates to true and the cache was initialized, the value is updated using `append_map`.
 3. `flush_check`: When this expression evaluates to true and the cache was initialized, the accumulated value is emitted as a new message and the cache is optionally cleared.
 
-The `append_map` bloblang expression can access both the current cached value as `this.cached` and the current message as `this.current`.
+The `append_map` and `flush_map` bloblang expressions can access both the current cached value as `this.cached` and the current message as `this.current`.
 
 ## Fields
 
