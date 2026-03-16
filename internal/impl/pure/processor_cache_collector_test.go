@@ -22,7 +22,7 @@ func cacheCollectorProc(confStr string) (service.BatchProcessor, *service.Resour
 	return proc, mgr, err
 }
 
-func TestCacheCollectorProcessor_BasicAccumulationDeleteCache(t *testing.T) {
+func TestCacheCollectorProcessor_BasicAccumulation(t *testing.T) {
 	spec := `
 resource: test_cache
 key: test_key

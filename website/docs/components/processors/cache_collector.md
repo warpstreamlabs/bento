@@ -39,9 +39,7 @@ cache_collector:
   append_check: this.process == "work" # No default (required)
   append_map: root = this.cached.append(this.current) # No default (required)
   flush_check: this.process == "end" # No default (required)
-  flush_deletes: false
   flush_map: root = this.cached
-  filter_untreated: false
 ```
 
 </TabItem>
@@ -55,12 +53,13 @@ cache_collector:
   key: "" # No default (required)
   init_check: "true"
   init_map: root = []
+  init_mode: check
   append_check: this.process == "work" # No default (required)
   append_map: root = this.cached.append(this.current) # No default (required)
   flush_check: this.process == "end" # No default (required)
-  flush_deletes: false
   flush_map: root = this.cached
-  filter_untreated: false
+  flush_keep_cache: false
+  passthrough_mode: none
   ttl: 60s # No default (optional)
 ```
 
@@ -124,6 +123,16 @@ init_map: 'root = {"items": []}'
 init_map: 'root = {"count": 0, "total": 0}'
 ```
 
+### `init_mode`
+
+Option to change the behavior of the initialisation. `check` will check if the cache key already exists and returns to an error, `ignore` just ignores the current message and keeps the cached value and `replace` replaces the cached value.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+Default: `"check"`  
+Options: `check`, `ignore`, `replace`.
+
 ### `append_check`
 
 Bloblang expression that must evaluate to `true` for a message to be appended to the accumulated value.
@@ -169,14 +178,6 @@ flush_check: this.process == "end"
 flush_check: batch_index() == 0 && message_index() > 0 && batch_index() % 100 == 0
 ```
 
-### `flush_deletes`
-
-When `true`, the cache entry is deleted after flushing. Defaults to `false`.
-
-
-Type: `bool`  
-Default: `false`  
-
 ### `flush_map`
 
 Bloblang expression to transform the accumulated value before emitting. It receives the current value as `this.cached` and the new message as `this.current`. Defaults to `this.cached`.
@@ -195,13 +196,23 @@ flush_map: 'root = {"result": this.current.append(this.cached)}'
 flush_map: root.items = this.cached
 ```
 
-### `filter_untreated`
+### `flush_keep_cache`
 
-When `true`, messages that have not been collected are automatically filtered. Defaults to `false`.
+When `true`, the cache entry is not deleted after flushing. Defaults to `false`.
 
 
 Type: `bool`  
 Default: `false`  
+
+### `passthrough_mode`
+
+Option to change the behavior of the messages after handled (flush always creates a new message). `none` will just filter messages alle messages out, `unprocessed` will passtrought messages not handled by init or append, `processed` will passtrought only messages handled by init or append and `all` will passtrought all messages.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `string`  
+Default: `"none"`  
+Options: `none`, `unprocessed`, `processed`, `all`.
 
 ### `ttl`
 
