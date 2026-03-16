@@ -283,11 +283,11 @@ const (
 	saramaFieldSASLMechanism   = "mechanism"
 	saramaFieldSASLUser        = "user"
 	saramaFieldSASLPassword    = "password"
-	saramaFieldSASLAccessToken  = "access_token"
-	saramaFieldSASLTokenCache   = "token_cache"
-	saramaFieldSASLTokenKey     = "token_key"
-	saramaFieldSASLOAuth2       = "oauth2"
-	saramaFieldSASLExtensions   = "extensions"
+	saramaFieldSASLAccessToken = "access_token"
+	saramaFieldSASLTokenCache  = "token_cache"
+	saramaFieldSASLTokenKey    = "token_key"
+	saramaFieldSASLOAuth2      = "oauth2"
+	saramaFieldSASLExtensions  = "extensions"
 	saramaFieldSASLAws         = "aws"
 )
 
