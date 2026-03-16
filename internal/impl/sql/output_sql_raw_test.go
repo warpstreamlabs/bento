@@ -44,7 +44,7 @@ func (s *errorStmt) Query(_ []driver.Value) (driver.Rows, error)  { return nil, 
 
 var registerErrorDriverOnce sync.Once
 
-func newOutputWithDriver(t *testing.T, driverName string, execErr error) *sqlRawOutput {
+func newOutputWithDriver(t *testing.T, driverName string) *sqlRawOutput {
 	t.Helper()
 	db, err := sql.Open(driverName, "test")
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestSQLRawOutputReconnectsOnPAMAuthError(t *testing.T) {
 		})
 	})
 
-	output := newOutputWithDriver(t, driverName, nil)
+	output := newOutputWithDriver(t, driverName)
 
 	err := output.WriteBatch(context.Background(), service.MessageBatch{
 		service.NewMessage([]byte(`{}`)),
