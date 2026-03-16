@@ -401,3 +401,12 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 
 	return db, nil
 }
+
+func isAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "PAM authentication failed") ||
+		strings.Contains(msg, "password authentication failed for user")
+}
