@@ -254,7 +254,8 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
-	if s.db == nil {
+	db := s.db
+	if db == nil {
 		return service.ErrNotConnected
 	}
 
@@ -270,7 +271,7 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 
 	if s.useTxStmt {
 		var err error
-		if tx, err = s.db.Begin(); err != nil {
+		if tx, err = db.Begin(); err != nil {
 			return err
 		}
 		sqlStr, _, err := insertBuilder.ToSql()
@@ -312,7 +313,7 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 
 	var err error
 	if tx == nil {
-		_, err = insertBuilder.RunWith(s.db).ExecContext(ctx)
+		_, err = insertBuilder.RunWith(db).ExecContext(ctx)
 	} else {
 		err = tx.Commit()
 	}

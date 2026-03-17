@@ -199,6 +199,7 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 
 		s.dbMut.Lock()
 		_ = s.db.Close()
+		s.db = nil
 		s.dbMut.Unlock()
 
 		s.shutSig.TriggerHasStopped()
@@ -225,6 +226,11 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatch) error {
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
+
+	db := s.db
+	if db == nil {
+		return service.ErrNotConnected
+	}
 
 	var executor *service.MessageBatchBloblangExecutor
 	if s.argsMapping != nil {
@@ -258,7 +264,7 @@ func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatc
 			}
 		}
 
-		if _, err := s.db.ExecContext(ctx, queryStr, args...); err != nil {
+		if _, err := db.ExecContext(ctx, queryStr, args...); err != nil {
 			return err
 		}
 	}
