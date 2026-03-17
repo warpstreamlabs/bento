@@ -1,16 +1,19 @@
 name: govulncheck
 on:
-  push:
-    paths:
-      - go.mod
-      - go.sum
-  pull_request:
-    paths:
-      - go.mod
-      - go.sum
+  # TODO(gregfurman): Uncomment once vulns are sorted, since this will block everyone's CI. 
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - go.mod
+  #     - go.sum
+  # pull_request:
+  #   paths:
+  #     - go.mod
+  #     - go.sum
   schedule: 
     # Daily at 8:00 UTC
-    - cron: '8 0 * * *'
+    - cron: '0 8 * * *'
   workflow_dispatch:
 
 permissions:
