@@ -70,6 +70,7 @@ type grpcClientInput struct {
 	rpcType       string
 	reflection    bool
 	reflectClient *grpcreflect.Client
+	payloadExpr   *service.InterpolatedString
 
 	conn *grpc.ClientConn
 
@@ -98,6 +99,10 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resourc
 	if err != nil {
 		return nil, err
 	}
+	payloadExpr, err := conf.FieldInterpolatedString(grpcClientInputPayload)
+	if err != nil {
+		return nil, err
+	}
 
 	return &grpcClientInput{
 		address:     address,
@@ -105,6 +110,7 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resourc
 		methodName:  methodName,
 		rpcType:     rpcType,
 		reflection:  reflection,
+		payloadExpr: payloadExpr,
 	}, nil
 }
 
@@ -143,7 +149,9 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 
 func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 	request := dynamic.NewMessage(gci.method.GetInputType())
-	if err := request.UnmarshalJSON([]byte("{\"name\": \"Jem\"}")); err != nil {
+
+	err := request.UnmarshalJSON([]byte("{\"name\": \"Jem\"}"))
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -154,6 +162,7 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 
 	dynMsg, ok := resProtoMessage.(*dynamic.Message)
 	if !ok {
+		// TODO Will need a new error here
 		return nil, nil, err
 	}
 

@@ -23,7 +23,7 @@ grpc_client:
   method: SayHello
   rpc_type: unary
   reflection: true
-  payload: "Jem"
+  payload: ${! {"name":"jem"} }
 `, testServer.port)
 
 	msgCh := startGrpcClientInput(t, config)
