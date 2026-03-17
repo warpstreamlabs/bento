@@ -122,7 +122,7 @@ go build -o bento ./cmd/bento/main.go
 Bento uses [golangci-lint][golangci-lint] for linting, which you can install with:
 
 ```shell
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.5
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/main/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.3
 ```
 
 Check the [GitHub Action](.github/workflows/test.yml ) for what version is currently used in CI.
