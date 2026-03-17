@@ -104,6 +104,7 @@ pipeline:
 			"In-Memory Computation (DuckDB)",
 			"Run SQL expressions against message fields using a DuckDB `:memory:` database(no external file required).",
 			`
+# BENTO LINT DISABLE
 pipeline:
   processors:
     - sql_raw:
