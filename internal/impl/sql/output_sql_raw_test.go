@@ -73,9 +73,7 @@ func TestSQLRawOutputWriteBatchBadConnNilRace(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			ready() // hold until all goroutines are lined up
 
 			// Step 1: read path — RLock, nil check, then db.ExecContext.
@@ -90,7 +88,7 @@ func TestSQLRawOutputWriteBatchBadConnNilRace(t *testing.T) {
 			output.dbMut.Lock()
 			output.db = db
 			output.dbMut.Unlock()
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -132,9 +130,7 @@ func TestSQLRawOutputShutdownNilRace(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			ready()
 
 			// Step 1: read path.
@@ -152,7 +148,7 @@ func TestSQLRawOutputShutdownNilRace(t *testing.T) {
 			output.dbMut.Lock()
 			output.db = db
 			output.dbMut.Unlock()
-		}()
+		})
 	}
 
 	wg.Wait()
