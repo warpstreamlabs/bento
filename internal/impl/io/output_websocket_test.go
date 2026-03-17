@@ -2,6 +2,7 @@ package io
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -68,6 +69,108 @@ websocket:
 
 	m.TriggerCloseNow()
 	require.NoError(t, m.WaitForClose(ctx))
+}
+
+func TestWebsocketOutputHeaders(t *testing.T) {
+	tests := []struct {
+		name           string
+		headers        map[string]string
+		expectedHeader http.Header
+		envVar         map[string]string
+	}{
+		{
+			name: "static headers",
+			headers: map[string]string{
+				"X-Static-Header": "static-value",
+			},
+			expectedHeader: http.Header{
+				"X-Static-Header": []string{"static-value"},
+			},
+		},
+		{
+			name: "interpolated headers",
+			headers: map[string]string{
+				"X-Interpolated-Header": `${! env("TEST_OUTPUT_HEADER_VALUE") }`,
+			},
+			expectedHeader: http.Header{
+				"X-Interpolated-Header": []string{"interpolated-value"},
+			},
+			envVar: map[string]string{
+				"TEST_OUTPUT_HEADER_VALUE": "interpolated-value",
+			},
+		},
+		{
+			name: "mixed headers",
+			headers: map[string]string{
+				"X-Static-Header":       "static-value",
+				"X-Interpolated-Header": `${! env("TEST_OUTPUT_HEADER_VALUE") }`,
+			},
+			expectedHeader: http.Header{
+				"X-Static-Header":       []string{"static-value"},
+				"X-Interpolated-Header": []string{"interpolated-value"},
+			},
+			envVar: map[string]string{
+				"TEST_OUTPUT_HEADER_VALUE": "interpolated-value",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+			defer done()
+
+			for k, v := range test.envVar {
+				t.Setenv(k, v)
+			}
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				for k, v := range test.expectedHeader {
+					require.Equal(t, v, r.Header[k], "Header %s mismatch", k)
+				}
+
+				upgrader := websocket.Upgrader{}
+				ws, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					return
+				}
+				defer ws.Close()
+
+				if _, _, err = ws.ReadMessage(); err != nil {
+					t.Error(err)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			wsURL, err := url.Parse(server.URL)
+			require.NoError(t, err)
+			wsURL.Scheme = "ws"
+
+			headersYAML := ""
+			if len(test.headers) > 0 {
+				headersYAML = "  headers:\n"
+				for k, v := range test.headers {
+					headersYAML += fmt.Sprintf("    %s: %q\n", k, v)
+				}
+			}
+
+			conf := parseYAMLOutputConf(t, `
+websocket:
+  url: %v
+%v`, wsURL.String(), headersYAML)
+
+			m, err := mock.NewManager().NewOutput(conf)
+			require.NoError(t, err)
+
+			tChan := make(chan message.Transaction)
+			require.NoError(t, m.Consume(tChan))
+
+			require.NoError(t, writeBatchToChan(ctx, t, message.QuickBatch([][]byte{[]byte("hello")}), tChan))
+
+			m.TriggerCloseNow()
+			require.NoError(t, m.WaitForClose(ctx))
+		})
+	}
 }
 
 func TestWebsocketOutputClose(t *testing.T) {
