@@ -10,6 +10,7 @@ on:
 
 jobs:
   test:
+    name: test (${{ matrix.name }})
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     runs-on: ubuntu-latest
     strategy:
@@ -17,8 +18,10 @@ jobs:
         include:
           - cgo: 1
             tags: x_bento_extra
+            name: CGO
           - cgo: 0
             tags: ""
+            name: Native
     env:
       CGO_ENABLED: ${{ matrix.cgo }}
       TAGS: ${{ matrix.tags }}
