@@ -243,7 +243,7 @@ require (
 
 require (
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
-	github.com/s2-streamstore/s2-sdk-go v0.11.6
+	github.com/s2-streamstore/s2-sdk-go v0.13.3
 	github.com/tidwall/btree v1.8.1 // indirect
 )
 
