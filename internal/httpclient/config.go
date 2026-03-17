@@ -54,8 +54,7 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 		service.NewStringEnumField(hcFieldDumpRequestLogLevel, "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "").
 			Description("EXPERIMENTAL: Optionally set a level at which the request and response payload of each request made will be logged.").
 			Advanced().
-			Default("").
-			Version("1.0.0"),
+			Default(""),
 	}
 	innerFields = append(innerFields, AuthFieldSpecsExpanded()...)
 

@@ -465,7 +465,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `sasl.aws.credentials.role`
 
@@ -633,7 +632,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) used to inject a
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

@@ -20,8 +20,6 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Decodes [Parquet files](https://parquet.apache.org/docs/) into a batch of structured messages.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

@@ -46,7 +46,6 @@ func sqlRawOutputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.Field(service.NewBatchPolicyField("batching")).
-		Version("1.0.0").
 		Example("Table Insert (MySQL)",
 			`
 Here we insert rows into a database by populating the columns id, name and topic with values extracted from messages and metadata:`,

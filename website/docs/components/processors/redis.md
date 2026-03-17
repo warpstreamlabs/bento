@@ -321,7 +321,6 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -339,7 +338,6 @@ A [Bloblang mapping](/docs/guides/bloblang/about) which should evaluate to an ar
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

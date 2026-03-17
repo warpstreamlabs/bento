@@ -28,7 +28,7 @@ func redisListInputConfig() *service.ConfigSpec {
 			service.NewStringField("key").
 				Description("The key of a list to read from."),
 			service.NewAutoRetryNacksToggleField(),
-			service.NewInputMaxInFlightField().Version("1.0.0"),
+			service.NewInputMaxInFlightField(),
 			service.NewDurationField("timeout").
 				Description("The length of time to poll for new messages before reattempting.").
 				Default("5s").
@@ -36,8 +36,7 @@ func redisListInputConfig() *service.ConfigSpec {
 			service.NewStringEnumField("command", string(bLPop), string(bRPop)).
 				Description("The command used to pop elements from the Redis list").
 				Default(string(bLPop)).
-				Advanced().
-				Version("1.0.0"),
+				Advanced(),
 		)
 }
 

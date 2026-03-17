@@ -573,9 +573,6 @@ This method is mostly stable but breaking changes could still be made outside of
 :::
 Creates a "slug" from a given string. Wraps the github.com/gosimple/slug package. See its [docs](https://pkg.go.dev/github.com/gosimple/slug) for more information.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`lang`** &lt;(optional) string, default `"en"`&gt;   
@@ -1595,9 +1592,6 @@ root.doc.timestamp = this.doc.timestamp.ts_parse("2006-Jan-02")
 
 Returns the result of rounding a timestamp to the nearest multiple of the argument duration (nanoseconds). The rounding behavior for halfway values is to round up. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`duration`** &lt;integer&gt; A duration measured in nanoseconds to round by.  
@@ -1689,9 +1683,6 @@ root.doc.timestamp = this.doc.timestamp.ts_strptime("%Y-%b-%d %H:%M:%S.%f")
 
 Returns the difference in nanoseconds between the target timestamp (t1) and the timestamp provided as a parameter (t2). The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
-Introduced in version 1.0.0.
-
-
 #### Parameters
 
 **`t2`** &lt;timestamp&gt; The second timestamp to be subtracted from the method target.  
@@ -1719,9 +1710,6 @@ Parse parameter string as ISO 8601 period and subtract it from value with high p
 ### `ts_tz`
 
 Returns the result of converting a timestamp to a specified timezone. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
-
-Introduced in version 1.0.0.
-
 
 #### Parameters
 
@@ -2127,9 +2115,6 @@ root.has_bar = this.thing.contains(20)
 This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
 :::
 Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.
-
-Introduced in version 1.0.0.
-
 
 #### Parameters
 
@@ -2611,9 +2596,6 @@ root = this.foo.merge(this.bar)
 This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
 :::
 Create a diff by comparing the current value with the given one. Wraps the github.com/r3labs/diff/v3 package. See its [docs](https://pkg.go.dev/github.com/r3labs/diff/v3) for more information.
-
-Introduced in version 1.0.0.
-
 
 #### Parameters
 

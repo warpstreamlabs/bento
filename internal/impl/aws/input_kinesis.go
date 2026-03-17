@@ -124,7 +124,6 @@ func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, e
 func kinesisInputSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary("Receive messages from one or more Kinesis streams.").
 		Description(`

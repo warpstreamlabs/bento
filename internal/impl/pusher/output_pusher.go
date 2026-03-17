@@ -11,7 +11,6 @@ import (
 func pusherOutputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Services").
-		Version("1.0.0").
 		Summary("Output for publishing messages to Pusher API (https://pusher.com)").
 		Field(service.NewBatchPolicyField("batching").
 			Description("maximum batch size is 10 (limit of the pusher library)")).

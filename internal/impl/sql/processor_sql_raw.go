@@ -46,7 +46,7 @@ If the query fails to execute then the message will remain unchanged and the err
 		spec = spec.Field(f)
 	}
 
-	spec = spec.Version("1.0.0").
+	spec = spec.
 		Example(
 			"Table Insert (MySQL)",
 			"The following example inserts rows into the table footable with the columns foo, bar and baz populated with values extracted from messages.",

@@ -70,7 +70,7 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 		Field(service.NewTransportField("transport")).Version("1.13.0")
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
-		spec = spec.Field(f.Version("1.0.0"))
+		spec = spec.Field(f)
 	}
 
 	return spec.Field(service.NewTLSField("tls"))

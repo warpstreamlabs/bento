@@ -21,7 +21,6 @@ func NewInjectTracingSpanMappingField() *ConfigField {
 			`meta = @.assign(this)`,
 			`root.meta.span = this`,
 		).
-		Version("1.0.0").
 		Optional().
 		Advanced()
 }
