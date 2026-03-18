@@ -7,7 +7,7 @@ on:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-large
     steps:
 
     - name: Check Out Repo
@@ -42,7 +42,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
 
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-large
     permissions:
       packages: write
       contents: read
