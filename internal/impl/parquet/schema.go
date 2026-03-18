@@ -62,6 +62,11 @@ func generateStructTypeFromFields(
 				components = append(components, schemaOpts.defaultEncoding)
 			}
 
+			// Apply dictionary encoding to all leaf types
+			if schemaOpts.defaultEncoding == "dict" && isLeafType(typeStr) {
+				components = append(components, schemaOpts.defaultEncoding)
+			}
+
 			if typeStr == "LIST" {
 				components = append(components, "list")
 			}
@@ -301,4 +306,12 @@ func isDeltaLengthByteArrayEncodable(typeStr string) bool {
 		return true
 	}
 	return false
+}
+
+func isLeafType(typeStr string) bool {
+	switch typeStr {
+	case "MAP", "LIST", "STRUCT":
+		return false
+	}
+	return true
 }
