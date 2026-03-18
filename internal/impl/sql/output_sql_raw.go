@@ -227,8 +227,7 @@ func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatc
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
-	db := s.db
-	if db == nil {
+	if s.db == nil {
 		return service.ErrNotConnected
 	}
 
@@ -264,7 +263,7 @@ func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatc
 			}
 		}
 
-		if _, err := db.ExecContext(ctx, queryStr, args...); err != nil {
+		if _, err := s.db.ExecContext(ctx, queryStr, args...); err != nil {
 			return err
 		}
 	}
