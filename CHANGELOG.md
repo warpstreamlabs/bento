@@ -3,10 +3,11 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.16.0 - XXXX-XX-XX
+## 1.16.0 - 2026-03-18
 
 ### Added 
 
+ - `headers` field added to `websocket` output enables setting custom headers to the websocket handshake @DackJempsey
  - `enhanced_fan_out` configuration options for `aws_kinesis` input @jbeemster & @matus-tomlein
  - `aws_s3_stream` output streams data to S3 using multipart uploads @triddell 
  - `duckdb` driver option added to sql components; @sapk & @James-Gilbert-
@@ -18,6 +19,7 @@ All notable changes to this project will be documented in this file.
 ### Changed 
 
  - Modernize Go syntax with `go fix`; included 'modernize' linter in CI @gregfurman & @jem-davies
+ - Enabled use of `# BENTO LINT DISABLE` token in component example documentation @iamramtin
 
 ## 1.15.2 - 2026-03-11
 
