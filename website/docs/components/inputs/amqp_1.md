@@ -71,6 +71,7 @@ This input adds the following metadata fields to each message:
 - amqp_content_type
 - amqp_content_encoding
 - amqp_creation_time
+- amqp_to
 - All string typed message annotations
 ```
 

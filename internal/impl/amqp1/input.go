@@ -253,6 +253,7 @@ func (a *amqp1Reader) ReadBatch(ctx context.Context) (service.MessageBatch, serv
 		amqpSetMetadata(part, "amqp_content_type", amqpMsg.Properties.ContentType)
 		amqpSetMetadata(part, "amqp_content_encoding", amqpMsg.Properties.ContentEncoding)
 		amqpSetMetadata(part, "amqp_creation_time", amqpMsg.Properties.CreationTime)
+		amqpSetMetadata(part, "amqp_to", amqpMsg.Properties.To)
 	}
 	if a.getHeader && amqpMsg.Header != nil {
 		amqpSetMetadata(part, "amqp_durable", amqpMsg.Header.Durable)
