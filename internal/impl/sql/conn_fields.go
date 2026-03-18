@@ -402,14 +402,29 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 	return db, nil
 }
 
-func isAuthError(err error) bool {
+// isAuthError detects authentication failures so the connection can be
+// re-established with fresh credentials. Only postgres and mysql are handled
+// because they are the only drivers that support IAM token rotation;
+// reconnecting with static credentials would just fail again.
+func isAuthError(driver string, err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "authentication failed") ||
-		strings.Contains(msg, "access denied") ||
-		strings.Contains(msg, "login failed") ||
-		strings.Contains(msg, "logon denied") ||
-		strings.Contains(msg, "incorrect username or password")
+
+	switch driver {
+	case "postgres":
+		// pq.Error has a SQLState() method that returns the PostgreSQL error code.
+		// SQLSTATE class 28 = Invalid Authorization Specification
+		// (e.g. 28P01 for PAM/password auth failure).
+		var stateErr interface{ SQLState() string }
+		if errors.As(err, &stateErr) {
+			return strings.HasPrefix(stateErr.SQLState(), "28")
+		}
+	case "mysql":
+		// MySQLError has SQLState as a [5]byte field (not a method),
+		// so we match the canonical error message instead.
+		return strings.Contains(strings.ToLower(err.Error()), "access denied")
+	}
+
+	return false
 }

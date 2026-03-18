@@ -212,7 +212,7 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 		return nil
 	}
 
-	if errors.Is(err, driver.ErrBadConn) || isAuthError(err) {
+	if errors.Is(err, driver.ErrBadConn) || isAuthError(s.driver, err) {
 		s.dbMut.Lock()
 		s.db = nil
 		s.dbMut.Unlock()
