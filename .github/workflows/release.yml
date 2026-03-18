@@ -13,15 +13,6 @@ jobs:
     - name: Check Out Repo
       uses: actions/checkout@v6
 
-    - name: Increase swapfile
-      run: |
-        sudo swapoff -a
-        sudo fallocate -l 15G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        sudo swapon --show
-
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1
       with:
@@ -31,7 +22,16 @@ jobs:
         haskell: true
         large-packages: true
         docker-images: true
-        swap-storage: true
+        swap-storage: false
+
+    - name: Increase swapfile
+      run: |
+        sudo swapoff -a
+        sudo fallocate -l 15G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        sudo swapon --show
 
     - name: Install Go
       uses: actions/setup-go@v6
@@ -60,15 +60,6 @@ jobs:
     - name: Check Out Repo
       uses: actions/checkout@v6
 
-    - name: Increase swapfile
-      run: |
-        sudo swapoff -a
-        sudo fallocate -l 15G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        sudo swapon --show
-
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1
       with:
@@ -78,7 +69,16 @@ jobs:
         haskell: true
         large-packages: true
         docker-images: true
-        swap-storage: true
+        swap-storage: false
+
+    - name: Increase swapfile
+      run: |
+        sudo swapoff -a
+        sudo fallocate -l 15G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        sudo swapon --show
 
     - name: Log in to registry
       run: echo "${{ secrets.GH_ACCESS_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
