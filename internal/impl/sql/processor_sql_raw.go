@@ -203,6 +203,7 @@ func newSQLRawProcessor(
 
 		s.dbMut.Lock()
 		_ = s.db.Close()
+		s.db = nil
 		s.dbMut.Unlock()
 
 		s.shutSig.TriggerHasStopped()
@@ -275,6 +276,7 @@ func (s *sqlRawProcessor) ProcessBatch(ctx context.Context, batch service.Messag
 			} else {
 				msg.SetStructuredMut(jArray)
 			}
+			_ = rows.Close()
 		}
 	}
 	return []service.MessageBatch{batch}, nil

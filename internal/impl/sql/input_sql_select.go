@@ -251,6 +251,7 @@ func (s *sqlSelectInput) Connect(ctx context.Context) (err error) {
 		}
 		if s.db != nil {
 			_ = s.db.Close()
+			s.db = nil
 		}
 		s.dbMut.Unlock()
 

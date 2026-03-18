@@ -17,57 +17,6 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func newTestSQLiteDB(t *testing.T, createStmt string) *sql.DB {
-	t.Helper()
-
-	f, err := os.CreateTemp(t.TempDir(), "test_*.db")
-	if err != nil {
-		t.Fatalf("create temp db file: %v", err)
-	}
-	f.Close()
-
-	dsn := fmt.Sprintf("file:%s?cache=shared&mode=rwc", f.Name())
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		t.Fatalf("sql.Open: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	if _, err := db.Exec(createStmt); err != nil {
-		t.Fatalf("create table: %v", err)
-	}
-
-	return db
-}
-
-func raceBarrier(n int) func() {
-	var (
-		mu      sync.Mutex
-		cond    = sync.NewCond(&mu)
-		waiting int
-	)
-	return func() {
-		mu.Lock()
-		defer mu.Unlock()
-		waiting++
-		if waiting == n {
-			cond.Broadcast()
-		} else {
-			for waiting < n {
-				cond.Wait()
-			}
-		}
-	}
-}
-
-func defaultConnSettings() *connSettings {
-	return &connSettings{
-		getCredentials: func(dsn, driver string) (string, string, error) {
-			return dsn, "", nil
-		},
-	}
-}
-
 func TestSQLInsertOutputEmptyShutdown(t *testing.T) {
 	conf := `
 driver: meow
@@ -147,4 +96,55 @@ func TestSQLInsertOutputWriteBatchConcurrentDBClose(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func newTestSQLiteDB(t *testing.T, createStmt string) *sql.DB {
+	t.Helper()
+
+	f, err := os.CreateTemp(t.TempDir(), "test_*.db")
+	if err != nil {
+		t.Fatalf("create temp db file: %v", err)
+	}
+	f.Close()
+
+	dsn := fmt.Sprintf("file:%s?cache=shared&mode=rwc", f.Name())
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if _, err := db.Exec(createStmt); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	return db
+}
+
+func raceBarrier(n int) func() {
+	var (
+		mu      sync.Mutex
+		cond    = sync.NewCond(&mu)
+		waiting int
+	)
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		waiting++
+		if waiting == n {
+			cond.Broadcast()
+		} else {
+			for waiting < n {
+				cond.Wait()
+			}
+		}
+	}
+}
+
+func defaultConnSettings() *connSettings {
+	return &connSettings{
+		getCredentials: func(dsn, driver string) (string, string, error) {
+			return dsn, "", nil
+		},
+	}
 }

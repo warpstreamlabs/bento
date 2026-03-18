@@ -198,6 +198,7 @@ func NewSQLInsertProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 
 		s.dbMut.Lock()
 		_ = s.db.Close()
+		s.db = nil
 		s.dbMut.Unlock()
 
 		s.shutSig.TriggerHasStopped()
@@ -223,14 +224,19 @@ func (s *sqlInsertProcessor) ProcessBatch(ctx context.Context, batch service.Mes
 		if tx, err = s.db.Begin(); err != nil {
 			return nil, err
 		}
+		defer func() {
+			_ = tx.Rollback()
+		}()
 		sqlStr, _, err := insertBuilder.ToSql()
 		if err != nil {
 			return nil, err
 		}
 		if stmt, err = tx.Prepare(sqlStr); err != nil {
-			_ = tx.Rollback()
 			return nil, err
 		}
+		defer func() {
+			_ = stmt.Close()
+		}()
 	}
 
 	for i, msg := range batch {

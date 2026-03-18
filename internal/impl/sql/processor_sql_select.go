@@ -199,6 +199,7 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 
 		s.dbMut.Lock()
 		_ = s.db.Close()
+		s.db = nil
 		s.dbMut.Unlock()
 
 		s.shutSig.TriggerHasStopped()
@@ -259,6 +260,7 @@ func (s *sqlSelectProcessor) ProcessBatch(ctx context.Context, batch service.Mes
 		} else {
 			msg.SetStructuredMut(jArray)
 		}
+		_ = rows.Close()
 	}
 	return []service.MessageBatch{batch}, nil
 }
