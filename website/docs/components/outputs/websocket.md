@@ -43,6 +43,7 @@ output:
   websocket:
     url: "" # No default (required)
     proxy_url: "" # No default (optional)
+    headers: {}
     tls:
       enabled: false
       skip_cert_verify: false
@@ -86,6 +87,23 @@ An optional HTTP proxy URL.
 
 
 Type: `string`  
+
+### `headers`
+
+A map of custom headers to add to the websocket handshake.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `object`  
+Default: `{}`  
+
+```yml
+# Examples
+
+headers:
+  Authorization: Bearer ${! env("TOKEN") }
+  Sec-WebSocket-Protocol: graphql-ws
+```
 
 ### `tls`
 

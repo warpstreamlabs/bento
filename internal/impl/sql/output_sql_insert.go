@@ -74,6 +74,25 @@ output:
         metadata("kafka_topic"),
       ]
 `,
+		).
+		Example("Table Insert (DuckDB)",
+			"Write events to a local DuckDB file, creating the table on first run via `init_statement`.",
+			`
+# BENTO LINT DISABLE
+output:
+  sql_insert:
+    driver: duckdb
+    dsn: /tmp/duckburg.duckdb
+    table: vault_deposits
+    columns: [id, duck, gold_coins]
+    args_mapping: "root = [this.id, this.duck, this.gold_coins]"
+    init_statement: |
+      CREATE TABLE IF NOT EXISTS vault_deposits (
+        id         INTEGER PRIMARY KEY,
+        duck       VARCHAR,
+        gold_coins BIGINT
+      )
+`,
 		)
 	return spec
 }
