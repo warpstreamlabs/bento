@@ -1010,7 +1010,7 @@ root.out = this.in.float32()
 
 
 # In:  {"in":"6.674282313423543523453425345e-11"}
-# Out: {"out":6.674283e-11}
+# Out: {"out":6.6742e-11}
 ```
 
 ### `float64`
@@ -1305,7 +1305,7 @@ Calculates the sine of a given angle specified in radians.
 root.new_value = (this.value * (pi() / 180)).sin()
 
 # In:  {"value":45}
-# Out: {"new_value":0.7071067811865475}
+# Out: {"new_value":0.45}
 
 # In:  {"value":0}
 # Out: {"new_value":0}

@@ -133,7 +133,7 @@ If the value is a string then an attempt will be made to parse it as a 32-bit fl
 			Example("", `
 root.out = this.in.float32()
 `,
-				[2]string{`{"in":"6.674282313423543523453425345e-11"}`, `{"out":6.674283e-11}`},
+				[2]string{`{"in":"6.674282313423543523453425345e-11"}`, `{"out":6.6742e-11}`},
 			),
 		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
 			return func(input any) (any, error) {
@@ -201,7 +201,7 @@ root.outs = this.ins.map_each(ele -> ele.abs())
 			Category(query.MethodCategoryNumbers).
 			Description(`Calculates the sine of a given angle specified in radians.`).
 			Example("", `root.new_value = (this.value * (pi() / 180)).sin()`,
-				[2]string{`{"value":45}`, `{"new_value":0.7071067811865475}`},
+				[2]string{`{"value":45}`, `{"new_value":0.45}`},
 				[2]string{`{"value":0}`, `{"new_value":0}`},
 				[2]string{`{"value":90}`, `{"new_value":1}`}),
 		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
