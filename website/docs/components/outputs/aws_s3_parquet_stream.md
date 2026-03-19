@@ -38,7 +38,7 @@ output:
     bucket: "" # No default (required)
     path: logs/${! timestamp_unix() }-${! uuid_v4() }.parquet # No default (required)
     schema: [] # No default (optional)
-    schema_file: ./schemas/ocsf_network_activity.yml # No default (optional)
+    schema_file: ./schemas/events.yml # No default (optional)
     compression: uncompressed
     max_in_flight: 64
     batching:
@@ -62,7 +62,7 @@ output:
     partition_by: [] # No default (optional)
     force_path_style_urls: false
     schema: [] # No default (optional)
-    schema_file: ./schemas/ocsf_network_activity.yml # No default (optional)
+    schema_file: ./schemas/events.yml # No default (optional)
     compression: uncompressed
     encoding: DELTA_LENGTH_BYTE_ARRAY
     row_group_size: 10000
@@ -113,7 +113,7 @@ Use this output instead of `aws_s3` + `parquet_encode` when:
 
 ## Performance
 
-For a typical OCSF event dataset (84,265 events):
+For a typical nested event dataset (84,265 events):
 - Standard approach: ~9GB memory usage
 - Streaming approach: under 100MB memory usage
 
@@ -303,7 +303,7 @@ Type: `string`
 ```yml
 # Examples
 
-schema_file: ./schemas/ocsf_network_activity.yml
+schema_file: ./schemas/events.yml
 ```
 
 ### `compression`

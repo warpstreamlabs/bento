@@ -63,7 +63,7 @@ Use this output instead of `+"`aws_s3`"+` + `+"`parquet_encode`"+` when:
 
 ## Performance
 
-For a typical OCSF event dataset (84,265 events):
+For a typical nested event dataset (84,265 events):
 - Standard approach: ~9GB memory usage
 - Streaming approach: under 100MB memory usage
 
@@ -112,7 +112,7 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 			).Description("Parquet schema. Mutually exclusive with schema_file.").Optional(),
 			service.NewStringField(spsoFieldSchemaFile).
 				Description("Path to a YAML file containing a Parquet schema definition. The file should contain a parquet_encode processor resource with a schema section. Mutually exclusive with schema.").
-				Example("./schemas/ocsf_network_activity.yml").
+				Example("./schemas/events.yml").
 				Optional(),
 			service.NewStringEnumField(spsoFieldCompression,
 				"uncompressed", "snappy", "gzip", "brotli", "zstd", "lz4raw",
