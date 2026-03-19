@@ -66,6 +66,9 @@ output:
     compression: uncompressed
     encoding: DELTA_LENGTH_BYTE_ARRAY
     row_group_size: 10000
+    column_index_enabled: true
+    column_index_size_limit: 64
+    data_page_statistics: false
     region: ""
     endpoint: ""
     credentials:
@@ -328,6 +331,30 @@ Number of rows per row group. Smaller values reduce memory but increase file ove
 
 Type: `int`  
 Default: `10000`  
+
+### `column_index_enabled`
+
+Enable column indexes (min/max statistics per row group) for query optimization and file pruning.
+
+
+Type: `bool`  
+Default: `true`  
+
+### `column_index_size_limit`
+
+Minimum size in bytes for column index entries. Indexes smaller than this threshold are discarded.
+
+
+Type: `int`  
+Default: `64`  
+
+### `data_page_statistics`
+
+Enable page-level statistics for fine-grained pruning within files. Adds metadata overhead but can improve query performance for engines that support page-level pruning.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `region`
 

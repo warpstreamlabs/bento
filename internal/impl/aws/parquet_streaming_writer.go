@@ -33,10 +33,13 @@ type S3API interface {
 // It buffers rows into row groups and uploads parts as they reach the S3 minimum part size.
 type StreamingParquetWriter struct {
 	// Configuration
-	schema          *parquet.Schema
-	messageType     reflect.Type
-	compressionType compress.Codec
-	rowGroupSize    int64
+	schema               *parquet.Schema
+	messageType          reflect.Type
+	compressionType      compress.Codec
+	rowGroupSize         int64
+	columnIndexEnabled   bool
+	columnIndexSizeLimit int
+	dataPageStatistics   bool
 
 	// S3 client and upload state
 	s3Client       S3API
@@ -76,13 +79,16 @@ type RowGroupMetadata struct {
 
 // StreamingWriterConfig contains configuration for creating a StreamingParquetWriter
 type StreamingWriterConfig struct {
-	S3Client        S3API
-	Bucket          string
-	Key             string
-	Schema          *parquet.Schema
-	MessageType     reflect.Type
-	CompressionType compress.Codec
-	RowGroupSize    int64 // Number of rows per row group (default: 1000)
+	S3Client             S3API
+	Bucket               string
+	Key                  string
+	Schema               *parquet.Schema
+	MessageType          reflect.Type
+	CompressionType      compress.Codec
+	RowGroupSize         int64 // Number of rows per row group (default: 1000)
+	ColumnIndexEnabled   bool  // Enable column indexes for file pruning (default: true)
+	ColumnIndexSizeLimit int   // Minimum size in bytes for column indexes (default: 64)
+	DataPageStatistics   bool  // Enable page-level statistics (default: false)
 }
 
 // NewStreamingParquetWriter creates a new streaming Parquet writer
@@ -92,17 +98,20 @@ func NewStreamingParquetWriter(config StreamingWriterConfig) (*StreamingParquetW
 	}
 
 	w := &StreamingParquetWriter{
-		schema:          config.Schema,
-		messageType:     config.MessageType,
-		compressionType: config.CompressionType,
-		rowGroupSize:    config.RowGroupSize,
-		s3Client:        config.S3Client,
-		bucket:          config.Bucket,
-		key:             config.Key,
-		uploadBuffer:    bytes.NewBuffer(nil),
-		rowBuffer:       make([]any, 0, config.RowGroupSize),
-		created:         time.Now(),
-		lastWrite:       time.Now(),
+		schema:               config.Schema,
+		messageType:          config.MessageType,
+		compressionType:      config.CompressionType,
+		rowGroupSize:         config.RowGroupSize,
+		s3Client:             config.S3Client,
+		bucket:               config.Bucket,
+		key:                  config.Key,
+		columnIndexEnabled:   config.ColumnIndexEnabled,
+		columnIndexSizeLimit: config.ColumnIndexSizeLimit,
+		dataPageStatistics:   config.DataPageStatistics,
+		uploadBuffer:         bytes.NewBuffer(nil),
+		rowBuffer:            make([]any, 0, config.RowGroupSize),
+		created:              time.Now(),
+		lastWrite:            time.Now(),
 	}
 
 	return w, nil
@@ -181,11 +190,34 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 	// one row group is encoded at a time (~row_group_size * row_size bytes).
 
 	tempBuffer := bytes.NewBuffer(nil)
-	writer := parquet.NewGenericWriter[any](
-		tempBuffer,
-		w.schema,
-		parquet.Compression(w.compressionType),
-	)
+
+	// Build writer with base compression option
+	var writer *parquet.GenericWriter[any]
+
+	// Start with base options: compression is always needed
+	baseOptions := []parquet.WriterOption{parquet.Compression(w.compressionType)}
+
+	// Add column statistics options if enabled
+	if w.columnIndexEnabled {
+		baseOptions = append(baseOptions, parquet.ColumnIndexSizeLimit(w.columnIndexSizeLimit))
+	}
+	if w.dataPageStatistics {
+		baseOptions = append(baseOptions, parquet.DataPageStatistics(true))
+	}
+
+	// Create writer with all options - use same pattern as processor_encode.go
+	// but with our additional options
+	switch len(baseOptions) {
+	case 1:
+		writer = parquet.NewGenericWriter[any](tempBuffer, w.schema, baseOptions[0])
+	case 2:
+		writer = parquet.NewGenericWriter[any](tempBuffer, w.schema, baseOptions[0], baseOptions[1])
+	case 3:
+		writer = parquet.NewGenericWriter[any](tempBuffer, w.schema, baseOptions[0], baseOptions[1], baseOptions[2])
+	default:
+		// Should not happen with current config, but handle gracefully
+		writer = parquet.NewGenericWriter[any](tempBuffer, w.schema, baseOptions[0])
+	}
 
 	// Write all rows in buffer
 	_, err := writer.Write(w.rowBuffer)
@@ -272,19 +304,18 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 			if adjustedCol.MetaData.DictionaryPageOffset != 0 {
 				adjustedCol.MetaData.DictionaryPageOffset = w.filePosition + adjustedCol.MetaData.DictionaryPageOffset - 4
 			}
-			// CRITICAL: Clear page index and bloom filter offsets from temp file
-			// The streaming writer doesn't include page indexes or bloom filters,
-			// so these offsets are invalid. If left set, parquet-go will try to
-			// read them and panic with "slice bounds out of range" errors.
-			adjustedCol.MetaData.IndexPageOffset = 0
+			// Clear bloom filter offsets from temp file (streaming writer doesn't support bloom filters)
 			adjustedCol.MetaData.BloomFilterOffset = 0
 
-			// CRITICAL: Also clear ColumnChunk-level page index offsets
-			// These are separate from the ColumnMetaData offsets and must also be cleared
+			// Clear ColumnMetaData-level index page offset (deprecated in Parquet format)
+			adjustedCol.MetaData.IndexPageOffset = 0
+
+			// Clear page index offsets temporarily - they will be updated in Close()
+			// when we write the collected page index data to the final file.
+			// IMPORTANT: Keep the Length fields so Close() knows how much data to write.
 			adjustedCol.OffsetIndexOffset = 0
-			adjustedCol.OffsetIndexLength = 0
 			adjustedCol.ColumnIndexOffset = 0
-			adjustedCol.ColumnIndexLength = 0
+			// Note: ColumnIndexLength and OffsetIndexLength are preserved
 
 			columnChunks[i] = adjustedCol
 		}

@@ -21,16 +21,19 @@ import (
 
 const (
 	// S3 Parquet Stream Output Fields
-	spsoFieldBucket             = "bucket"
-	spsoFieldPath               = "path"
-	spsoFieldPartitionBy        = "partition_by"
-	spsoFieldForcePathStyleURLs = "force_path_style_urls"
-	spsoFieldSchema             = "schema"
-	spsoFieldSchemaFile         = "schema_file"
-	spsoFieldCompression        = "compression"
-	spsoFieldEncoding           = "encoding"
-	spsoFieldRowGroupSize       = "row_group_size"
-	spsoFieldBatching           = "batching"
+	spsoFieldBucket               = "bucket"
+	spsoFieldPath                 = "path"
+	spsoFieldPartitionBy          = "partition_by"
+	spsoFieldForcePathStyleURLs   = "force_path_style_urls"
+	spsoFieldSchema               = "schema"
+	spsoFieldSchemaFile           = "schema_file"
+	spsoFieldCompression          = "compression"
+	spsoFieldEncoding             = "encoding"
+	spsoFieldRowGroupSize         = "row_group_size"
+	spsoFieldColumnIndexEnabled   = "column_index_enabled"
+	spsoFieldColumnIndexSizeLimit = "column_index_size_limit"
+	spsoFieldDataPageStatistics   = "data_page_statistics"
+	spsoFieldBatching             = "batching"
 )
 
 func s3ParquetStreamOutputSpec() *service.ConfigSpec {
@@ -126,6 +129,18 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Description("Number of rows per row group. Smaller values reduce memory but increase file overhead.").
 				Default(10000).
 				Advanced(),
+			service.NewBoolField(spsoFieldColumnIndexEnabled).
+				Description("Enable column indexes (min/max statistics per row group) for query optimization and file pruning.").
+				Default(true).
+				Advanced(),
+			service.NewIntField(spsoFieldColumnIndexSizeLimit).
+				Description("Minimum size in bytes for column index entries. Indexes smaller than this threshold are discarded.").
+				Default(64).
+				Advanced(),
+			service.NewBoolField(spsoFieldDataPageStatistics).
+				Description("Enable page-level statistics for fine-grained pruning within files. Adds metadata overhead but can improve query performance for engines that support page-level pruning.").
+				Default(false).
+				Advanced(),
 		).
 		Fields(config.SessionFields()...).
 		Field(service.NewOutputMaxInFlightField()).
@@ -175,10 +190,13 @@ type s3ParquetStreamConfig struct {
 	PartitionBy  []*service.InterpolatedString
 	UsePathStyle bool
 
-	Schema          *parquet.Schema
-	MessageType     reflect.Type
-	CompressionType compress.Codec
-	RowGroupSize    int64
+	Schema               *parquet.Schema
+	MessageType          reflect.Type
+	CompressionType      compress.Codec
+	RowGroupSize         int64
+	ColumnIndexEnabled   bool
+	ColumnIndexSizeLimit int
+	DataPageStatistics   bool
 
 	aconf aws.Config
 }
@@ -277,6 +295,17 @@ func s3ParquetStreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3Parque
 		return
 	}
 	conf.RowGroupSize = int64(rowGroupSize)
+
+	// Column statistics configuration
+	if conf.ColumnIndexEnabled, err = pConf.FieldBool(spsoFieldColumnIndexEnabled); err != nil {
+		return
+	}
+	if conf.ColumnIndexSizeLimit, err = pConf.FieldInt(spsoFieldColumnIndexSizeLimit); err != nil {
+		return
+	}
+	if conf.DataPageStatistics, err = pConf.FieldBool(spsoFieldDataPageStatistics); err != nil {
+		return
+	}
 
 	// AWS config
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
@@ -472,13 +501,16 @@ func (s *s3ParquetStreamOutput) writeToPartition(ctx context.Context, partitionK
 
 	if !exists {
 		newWriter, err := NewStreamingParquetWriter(StreamingWriterConfig{
-			S3Client:        s.s3Client,
-			Bucket:          s.conf.Bucket,
-			Key:             path,
-			Schema:          s.conf.Schema,
-			MessageType:     s.conf.MessageType,
-			CompressionType: s.conf.CompressionType,
-			RowGroupSize:    s.conf.RowGroupSize,
+			S3Client:             s.s3Client,
+			Bucket:               s.conf.Bucket,
+			Key:                  path,
+			Schema:               s.conf.Schema,
+			MessageType:          s.conf.MessageType,
+			CompressionType:      s.conf.CompressionType,
+			RowGroupSize:         s.conf.RowGroupSize,
+			ColumnIndexEnabled:   s.conf.ColumnIndexEnabled,
+			ColumnIndexSizeLimit: s.conf.ColumnIndexSizeLimit,
+			DataPageStatistics:   s.conf.DataPageStatistics,
 		})
 		if err != nil {
 			s.writersMut.Unlock()
