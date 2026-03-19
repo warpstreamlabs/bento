@@ -406,7 +406,7 @@ func TestGenerateFooter_WithPreservedMetadata(t *testing.T) {
 
 // TestNestedOptionalStructs_EndToEnd tests the full flow with deeply nested optionals
 func TestNestedOptionalStructs_EndToEnd(t *testing.T) {
-	// Define deeply nested structure like OCSF
+	// Define deeply nested structure with optional fields
 	type Feature struct {
 		Name *string `parquet:"name,optional"`
 	}
