@@ -172,7 +172,6 @@ A list of topics to consume from. Multiple comma separated topics can be listed 
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -503,7 +502,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `sasl.aws.credentials.role`
 
@@ -568,7 +566,6 @@ The maximum number of messages of the same topic and partition that can be proce
 
 Type: `int`  
 Default: `1024`  
-Requires version 1.0.0 or newer  
 
 ### `auto_replay_nacks`
 
@@ -600,7 +597,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

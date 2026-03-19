@@ -20,8 +20,6 @@ This component is deprecated and will be removed in the next major version relea
 :::
 Runs an arbitrary SQL query against a database and (optionally) returns the result as an array of objects, one for each row returned.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

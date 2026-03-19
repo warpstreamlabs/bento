@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends messages as new rows to a Google Cloud BigQuery table.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

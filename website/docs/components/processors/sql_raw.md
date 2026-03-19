@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Runs an arbitrary SQL query against a database and (optionally) returns the result as an array of objects, one for each row returned.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -308,7 +306,6 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -331,7 +328,6 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -525,7 +521,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

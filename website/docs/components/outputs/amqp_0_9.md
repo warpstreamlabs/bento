@@ -99,7 +99,6 @@ A list of URLs to connect to. The first URL to successfully establish a connecti
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

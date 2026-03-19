@@ -95,7 +95,6 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 func ddboOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Inserts items into or deletes items from a DynamoDB table.`).
 		Description(`

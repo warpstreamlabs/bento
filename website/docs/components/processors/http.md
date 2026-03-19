@@ -266,7 +266,6 @@ EXPERIMENTAL: Optionally set a level at which the request and response payload o
 
 Type: `string`  
 Default: `""`  
-Requires version 1.0.0 or newer  
 Options: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, ``.
 
 ### `oauth`
@@ -371,7 +370,6 @@ A list of optional requested permissions.
 
 Type: `array`  
 Default: `[]`  
-Requires version 1.0.0 or newer  
 
 ### `oauth2.endpoint_params`
 
@@ -380,7 +378,6 @@ A list of optional endpoint parameters, values should be arrays of strings.
 
 Type: `object`  
 Default: `{}`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

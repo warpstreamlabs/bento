@@ -75,7 +75,6 @@ The URL of a Jaeger collector to send tracing events to. If set, this will overr
 
 Type: `string`  
 Default: `""`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

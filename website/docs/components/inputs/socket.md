@@ -69,6 +69,5 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"lines":{}}`  
-Requires version 1.0.0 or newer  
 
 

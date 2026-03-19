@@ -105,7 +105,6 @@ A list of URLs to connect to. The first URL to successfully establish a connecti
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -213,7 +212,6 @@ A list of regular expression patterns whereby if a message that has failed to be
 
 Type: `array`  
 Default: `[]`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Write messages to a NATS JetStream subject.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -157,7 +155,6 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 Type: `object`  
 Default: `{}`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -421,7 +418,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) used to inject a
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

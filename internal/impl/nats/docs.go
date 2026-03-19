@@ -22,13 +22,13 @@ NATS component, so that monitoring tools between NATS and bento can stay in sync
 
 func inputTracingDocs() []*service.ConfigField {
 	return []*service.ConfigField{
-		service.NewExtractTracingSpanMappingField().Version("1.0.0"),
+		service.NewExtractTracingSpanMappingField(),
 		service.NewRootSpanWithLinkField().Version("1.14.0"),
 	}
 }
 
 func outputTracingDocs() *service.ConfigField {
-	return service.NewInjectTracingSpanMappingField().Version("1.0.0")
+	return service.NewInjectTracingSpanMappingField()
 }
 func Docs(natsComponentType string, extraFields ...*service.ConfigField) []*service.ConfigField {
 	// TODO: Use `slices.Concat()` after switching to Go 1.22

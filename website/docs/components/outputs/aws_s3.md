@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends message parts as objects to an Amazon S3 bucket. Each object is uploaded with the path specified with the `path` field.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -348,7 +346,6 @@ An optional server side encryption algorithm.
 
 Type: `string`  
 Default: `""`  
-Requires version 1.0.0 or newer  
 
 ### `force_path_style_urls`
 
@@ -558,7 +555,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 
