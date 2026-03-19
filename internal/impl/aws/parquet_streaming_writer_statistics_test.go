@@ -125,7 +125,7 @@ func TestStreamingParquetWriter_Statistics(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify we have completed data
-			require.Greater(t, len(completedData), 0, "Should have uploaded data")
+			require.NotEmpty(t, completedData, "Should have uploaded data")
 
 			// Read back the parquet file to verify statistics
 			reader := bytes.NewReader(completedData)
@@ -134,7 +134,7 @@ func TestStreamingParquetWriter_Statistics(t *testing.T) {
 
 			// Check if column indexes exist (these contain min/max statistics)
 			rowGroups := pf.RowGroups()
-			require.Greater(t, len(rowGroups), 0, "File should have at least one row group")
+			require.NotEmpty(t, rowGroups, "File should have at least one row group")
 
 			// For each row group, check if column chunks have statistics
 			for _, rg := range rowGroups {
@@ -188,7 +188,7 @@ func TestStreamingParquetWriter_DefaultStatisticsConfig(t *testing.T) {
 
 	// When not explicitly set, defaults should be: statistics disabled (zero values)
 	// In production config parsing, these will be set to true/64/false by default
-	assert.Equal(t, false, writer.columnIndexEnabled)
+	assert.False(t, writer.columnIndexEnabled)
 	assert.Equal(t, 0, writer.columnIndexSizeLimit)
-	assert.Equal(t, false, writer.dataPageStatistics)
+	assert.False(t, writer.dataPageStatistics)
 }
