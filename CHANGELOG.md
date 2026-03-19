@@ -3,6 +3,16 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.16.1 - 2026-03-19
+
+### Fixed
+
+- add handling for authentication errors in SQL output components @adrianhaj
+
+### Added
+
+- `datadog_logs` output component @gregfurman
+
 ## 1.16.0 - 2026-03-18
 
 ### Added 
