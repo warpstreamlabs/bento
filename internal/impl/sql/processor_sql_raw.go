@@ -202,8 +202,10 @@ func newSQLRawProcessor(
 		<-s.shutSig.HardStopChan()
 
 		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.db = nil
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
 		s.dbMut.Unlock()
 
 		s.shutSig.TriggerHasStopped()
