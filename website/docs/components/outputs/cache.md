@@ -108,7 +108,7 @@ key: ${!metadata("kafka_key")}
 
 ### `append`
 
-Sorry! This field is missing documentation.
+When enabled, new messages are appended to existing cache values rather than overwriting them. If the key does not exist the message will be stored as a new value.
 
 
 Type: `bool`  
