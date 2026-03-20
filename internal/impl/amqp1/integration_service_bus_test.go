@@ -93,11 +93,13 @@ azure_renew_lock: true
 			contentType := "plain/text"
 			contentEncoding := "utf-8"
 			createdAt := time.Date(2020, time.January, 30, 1, 0, 0, 0, time.UTC)
+			to := "topic/foo/bar"
 			err := sender.Send(ctx, &amqp.Message{
 				Properties: &amqp.MessageProperties{
 					ContentType:     &contentType,
 					ContentEncoding: &contentEncoding,
 					CreationTime:    &createdAt,
+					To:              &to,
 				},
 				Data:  [][]byte{[]byte(data)},
 				Value: value,
@@ -126,6 +128,9 @@ azure_renew_lock: true
 
 			m, _ = actM[0].MetaGetMut("amqp_content_encoding")
 			assert.Equal(t, "utf-8", m)
+
+			m, _ = actM[0].MetaGetMut("amqp_to")
+			assert.Equal(t, "topic/foo/bar", m)
 
 			time.Sleep(6 * time.Second) // Simulate long processing before ack so message lock expires and lock renewal is requires
 
