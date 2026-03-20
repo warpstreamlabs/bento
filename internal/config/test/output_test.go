@@ -83,6 +83,19 @@ metadata_equals:
 	assert.Equal(t, "(2,1) field this_doesnt_exist not recognised", lints[0].Error())
 }
 
+func TestConditionUnmarshalOnlyUnknownCondFails(t *testing.T) {
+	node, err := docs.UnmarshalYAML([]byte(`
+not_a_valid_matcher: "false"
+`))
+	require.NoError(t, err)
+
+	pConf, err := outputFields().ParsedConfigFromAny(node)
+	require.NoError(t, err)
+
+	_, err = OutputConditionsFromParsed(pConf)
+	require.EqualError(t, err, "output condition at line 2 must define at least one valid matcher")
+}
+
 func TestConditionCheckAll(t *testing.T) {
 	color.NoColor = true
 

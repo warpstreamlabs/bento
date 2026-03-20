@@ -90,6 +90,7 @@ func (c OutputConditionsMap) CheckAll(fs fs.FS, dir string, part *message.Part) 
 
 func OutputConditionsFromParsed(pConf *docs.ParsedConfig) (m OutputConditionsMap, err error) {
 	m = OutputConditionsMap{}
+	line, _ := pConf.Line()
 	if pConf.Contains(fieldOutputBloblang) {
 		var tmpStr string
 		if tmpStr, err = pConf.FieldString(fieldOutputBloblang); err != nil {
@@ -119,11 +120,11 @@ func OutputConditionsFromParsed(pConf *docs.ParsedConfig) (m OutputConditionsMap
 		m[fieldOutputContentMatches] = ContentMatchesCondition(tmpStr)
 	}
 
-	if pConf.Contains(fieldOutputMetadataEquals) {
-		var tmpMap map[string]*docs.ParsedConfig
-		if tmpMap, err = pConf.FieldAnyMap(fieldOutputMetadataEquals); err != nil {
-			return
-		}
+	var tmpMap map[string]*docs.ParsedConfig
+	if tmpMap, err = pConf.FieldAnyMap(fieldOutputMetadataEquals); err != nil {
+		return
+	}
+	if len(tmpMap) > 0 {
 		metaMap := MetadataEqualsCondition{}
 		for k, v := range tmpMap {
 			if metaMap[k], err = v.FieldAny(); err != nil {
@@ -179,6 +180,13 @@ func OutputConditionsFromParsed(pConf *docs.ParsedConfig) (m OutputConditionsMap
 			return
 		}
 		m[fieldOutputJSONContains] = ContentJSONContainsCondition(tmpStr)
+	}
+
+	if len(m) == 0 {
+		if line > 0 {
+			return nil, fmt.Errorf("output condition at line %d must define at least one valid matcher", line)
+		}
+		return nil, errors.New("output condition must define at least one valid matcher")
 	}
 	return
 }
