@@ -7,7 +7,7 @@ on:
   #   paths:
   #     - go.mod
   #     - go.sum
-  pull_request:
+  # pull_request:
   #   paths:
   #     - go.mod
   #     - go.sum
