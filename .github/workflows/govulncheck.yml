@@ -22,6 +22,11 @@ permissions:
 jobs:
   govulncheck:
     runs-on: ubuntu-latest
+    env:
+      # The job is being killed early, so we need to optimise the resource usage.
+      GOMAXPROCS: 4
+      GOMEMLIMIT: 12GiB
+      GOGC: off
     steps:
       - uses: actions/checkout@v6
         with:
