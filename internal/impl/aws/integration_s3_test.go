@@ -56,7 +56,6 @@ func createBucket(ctx context.Context, s3Port, bucket string) error {
 }
 
 func createBucketQueue(ctx context.Context, s3Port, sqsPort, id string) error {
-	endpoint := fmt.Sprintf("http://localhost:%v", s3Port)
 	bucket := "bucket-" + id
 	sqsQueue := "queue-" + id
 	sqsEndpoint := fmt.Sprintf("http://localhost:%v", sqsPort)
@@ -69,20 +68,15 @@ func createBucketQueue(ctx context.Context, s3Port, sqsPort, id string) error {
 		conf, err := config.LoadDefaultConfig(ctx,
 			config.WithRegion("eu-west-1"),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
-			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
-				return aws.Endpoint{
-					PartitionID:   "aws",
-					URL:           endpoint,
-					SigningRegion: "eu-west-1",
-				}, nil
-			})),
 		)
+
 		if err != nil {
 			return err
 		}
 
 		s3Client = s3.NewFromConfig(conf, func(o *s3.Options) {
 			o.UsePathStyle = true
+			o.BaseEndpoint = aws.String(fmt.Sprintf("http://localhost:%v", s3Port))
 		})
 	}
 
