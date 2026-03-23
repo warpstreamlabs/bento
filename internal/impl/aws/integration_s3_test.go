@@ -1,4 +1,3 @@
-//nolint:staticcheck // Ignore SA1019
 package aws
 
 import (
@@ -22,25 +21,18 @@ import (
 )
 
 func createBucket(ctx context.Context, s3Port, bucket string) error {
-	endpoint := fmt.Sprintf("http://localhost:%v", s3Port)
-
 	conf, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion("eu-west-1"),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("xxxxx", "xxxxx", "xxxxx")),
-		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           endpoint,
-				SigningRegion: "eu-west-1",
-			}, nil
-		})),
 	)
+
 	if err != nil {
 		return err
 	}
 
 	client := s3.NewFromConfig(conf, func(o *s3.Options) {
 		o.UsePathStyle = true
+		o.BaseEndpoint = aws.String(fmt.Sprintf("http://localhost:%v", s3Port))
 	})
 
 	_, err = client.CreateBucket(ctx, &s3.CreateBucketInput{
