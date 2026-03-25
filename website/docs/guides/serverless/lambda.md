@@ -145,7 +145,7 @@ aws lambda create-function \
   --handler not.used.for.provided.al2023.runtime \
   --architectures arm64 \
   --role bento-example-role \
-  --zip-file fileb://bento-lambda.zip \
+  --code S3Bucket=lambdas,S3Key=bento-lambda.zip \
   --environment "$LAMBDA_ENV" \
   --function-name bento-example
 ```
