@@ -12,12 +12,12 @@ which runs Amazon Linux 2 on either the `x86_64` or `arm64` architecture.
 The `bento-lambda-al2` distribution is set to be deprecated by AWS on July 31st 
 2026. 
 
-It uses the same configuration format as a regular Bento instance, which can be
+They use the same configuration format as a regular Bento instance, which can be
 provided in 1 of 2 ways:
 
 1. Inline via the `BENTO_CONFIG` environment variable (YAML format).
 2. Via the filesystem using a layer, extension, or container image. By default,
-   the `bento-lambda` distribution will look for a valid configuration file in
+   Bento Lambda distributions will look for a valid configuration file in
    the locations listed below. Alternatively, the configuration file path can be
    set explicity by passing a `BENTO_CONFIG_PATH` environment variable.
   - `./bento.yaml`
