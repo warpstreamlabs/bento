@@ -3,11 +3,14 @@ title: Lambda
 description: Deploying Bento as an AWS Lambda function
 ---
 
-The `bento-lambda` distribution is a version of Bento specifically tailored
-for deployment as an AWS Lambda function on the `go1.x` runtime,
-which runs Amazon Linux on the `x86_64` architecture.
-The `bento-lambda-al2` distribution supports the `provided.al2` runtime,
+There are bento binaries specifically tailored for deployment as an AWS Lambda 
+function, these are available from the [releases][releases] page. 
+
+The `bento-lambda-al2023` distribution supports the `provided.al2023` runtime,
 which runs Amazon Linux 2 on either the `x86_64` or `arm64` architecture.
+
+The `bento-lambda-al2` distribution is set to be deprecated by AWS on July 31st 
+2026. 
 
 It uses the same configuration format as a regular Bento instance, which can be
 provided in 1 of 2 ways:
@@ -139,6 +142,7 @@ page and then create your function (AWS CLI v2 only):
 LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
 aws lambda create-function \
   --runtime provided.al2023 \
+  --handler not.used.for.provided.al2023.runtime \
   --architectures arm64 \
   --role bento-example-role \
   --zip-file fileb://bento-lambda.zip \
@@ -157,6 +161,7 @@ Note that you can also run `bento-lambda-al2023` on x86_64, just use the `amd64`
 aws lambda invoke \
   --function-name bento-example \
   --payload '{"your":"document"}' \
+  --cli-binary-format raw-in-base64-out \
   out.txt && cat out.txt && rm out.txt
 ```
 
