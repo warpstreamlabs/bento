@@ -130,46 +130,26 @@ output:
 
 ## Upload to AWS
 
-### go1.x on x86_64
+### provided.al2023 on arm64
 
-Grab an archive labelled `bento-lambda` from the [releases page][releases]
-page and then create your function:
-
-```sh
-LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
-aws lambda create-function \
-  --runtime go1.x \
-  --handler bento-lambda \
-  --role bento-example-role \
-  --zip-file fileb://bento-lambda.zip \
-  --environment "$LAMBDA_ENV" \
-  --function-name bento-example
-```
-
-There is also an example [SAM template][sam-template] and
-[Terraform resource][tf-example] in the repo to copy from.
-
-### provided.al2 on arm64
-
-Grab an archive labelled `bento-lambda-al2` for `arm64` from the [releases page][releases]
+Grab an archive labelled `bento-lambda-al2023` for `arm64` from the [releases page][releases]
 page and then create your function (AWS CLI v2 only):
 
 ```sh
 LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
 aws lambda create-function \
-  --runtime provided.al2 \
+  --runtime provided.al2023 \
   --architectures arm64 \
-  --handler not.used.for.provided.al2.runtime \
   --role bento-example-role \
   --zip-file fileb://bento-lambda.zip \
   --environment "$LAMBDA_ENV" \
   --function-name bento-example
 ```
 
-There is also an example [SAM template][sam-template-al2] and
-[Terraform resource][tf-example-al2] in the repo to copy from.
+There is also an example [SAM template][sam-template-al2023] and
+[Terraform resource][tf-example-al2023] in the repo to copy from.
 
-Note that you can also run `bento-lambda-al2` on x86_64, just use the `amd64` zip instead.
+Note that you can also run `bento-lambda-al2023` on x86_64, just use the `amd64` zip instead.
 
 ## Invoke
 
@@ -247,10 +227,8 @@ localstack.request.aws     : AWS lambda.Invoke => 200
 ```
 
 [releases]: https://github.com/warpstreamlabs/bento/releases
-[sam-template]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-sam.yaml
-[tf-example]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda.tf
-[sam-template-al2]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2-sam.yaml
-[tf-example-al2]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2.tf
+[sam-template-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023-sam.yaml
+[tf-example-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023.tf
 [output-broker]: /docs/components/outputs/broker
 [output.reject]: /docs/components/outputs/reject
 [makenew/serverless-bento]: https://github.com/makenew/serverless-bento
