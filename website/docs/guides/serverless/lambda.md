@@ -174,63 +174,6 @@ go build github.com/warpstreamlabs/bento/cmd/serverless/bento-lambda
 zip bento-lambda.zip bento-lambda
 ```
 
-## Local testing
-A quick guide on using the [LocalStack AWS emulator](https://docs.localstack.cloud/overview/) to test your `bento-lambda` locally.
-
-### Installation
-The quickest way to get up-and-running is using the [LocalStack Docker image](https://docs.localstack.cloud/getting-started/installation/#docker):
-```sh
-docker run \
-  --rm -it \
-  -p 127.0.0.1:4566:4566 \
-  -p 127.0.0.1:4510-4559:4510-4559 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  localstack/localstack
-```
-
-### Using the AWS CLI v2
-
-First, configure AWS CLI to connect to LocalStack:
-```sh
-export AWS_ACCESS_KEY_ID="test"
-export AWS_SECRET_ACCESS_KEY="test"
-export AWS_DEFAULT_REGION="us-east-1"
-export AWS_ENDPOINT_URL=http://localhost:4566 # Unset this to create resource in AWS
-```
-
-### Creation and Invocation Examples
-
-With the container running and CLI configured, we can go ahead with creating and invoking our Bento Lambda using [Lambda on LocalStack](https://docs.localstack.cloud/user-guide/aws/lambda/).
-
-Running the example in [go1.x on x86_64](#go1x-on-x86_64) can be easily achieved by including the specified endpoint flag.
-
-```sh
-LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
-aws lambda create-function \
-  --runtime go1.x \
-  --handler bento-lambda \
-  --role 'arn:aws:iam::000000000000:role/bento-example-role' \
-  --zip-file fileb://bento-lambda.zip \
-  --environment "$LAMBDA_ENV" \
-  --function-name bento-example
-```
-
-Invocation can be done the same way:
-```sh
-aws lambda invoke \                                                       
-  --function-name bento-example \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"your":"document"}' \
-  out.txt && cat out.txt && rm out.txt
-```
-
-The LocalStack logs should then include:
-```sh
-localstack.request.aws     : AWS lambda.CreateFunction => 201
-...
-localstack.request.aws     : AWS lambda.Invoke => 200
-```
-
 [releases]: https://github.com/warpstreamlabs/bento/releases
 [sam-template-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023-sam.yaml
 [tf-example-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023.tf
