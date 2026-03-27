@@ -1,7 +1,7 @@
 resource "aws_lambda_function" "bento-lambda" {
   function_name = "bento-lambda"
   role          = "${aws_iam_role.lambda-role.arn}"
-  handler       = "not.used.for.provided.al2.runtime"
+  handler       = "not.used.for.provided.al2023.runtime"
   runtime       = "provided.al2023"
   architectures = ["arm64"]
 
