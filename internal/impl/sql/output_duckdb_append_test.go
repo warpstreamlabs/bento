@@ -79,7 +79,7 @@ const vaultDepositsSchema = `
 	)
 `
 
-func TestDuckDBInsert_EmptyClose(t *testing.T) {
+func TestDuckDBAppend_EmptyClose(t *testing.T) {
 	out := newOutput(t, `
 dsn: /tmp/nonexistent.duckdb
 table: vault_deposits
@@ -89,7 +89,7 @@ args_mapping: 'root = [this.deposit_id, this.duck, this.item, this.quantity, thi
 	require.NoError(t, out.Close(context.Background()))
 }
 
-func TestDuckDBInsert_BasicWrite(t *testing.T) {
+func TestDuckDBAppend_BasicWrite(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "basic.duckdb")
 
@@ -144,7 +144,7 @@ args_mapping: |
 	assert.Equal(t, row{"dep-003", "Daffy Duck", "Silver Talisman", 42}, got[2])
 }
 
-func TestDuckDBInsert_InitStatement(t *testing.T) {
+func TestDuckDBAppend_InitStatement(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "init_stmt.duckdb")
 
@@ -184,7 +184,7 @@ init_statement: |
 	assert.Equal(t, "Howard the Duck", duck)
 }
 
-func TestDuckDBInsert_MultipleBatches(t *testing.T) {
+func TestDuckDBAppend_MultipleBatches(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "multi.duckdb")
 
@@ -227,7 +227,7 @@ args_mapping: |
 	assert.Equal(t, 5, count)
 }
 
-func TestDuckDBInsert_LargeBatch(t *testing.T) {
+func TestDuckDBAppend_LargeBatch(t *testing.T) {
 	const rowCount = 10_000
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "large.duckdb")
@@ -267,7 +267,7 @@ args_mapping: |
 	assert.Equal(t, rowCount, count)
 }
 
-func TestDuckDBInsert_CloseFlushesRows(t *testing.T) {
+func TestDuckDBAppend_CloseFlushesRows(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "flush.duckdb")
 
@@ -304,7 +304,7 @@ args_mapping: |
 	assert.Equal(t, 3, count)
 }
 
-func TestDuckDBInsert_SchemaField(t *testing.T) {
+func TestDuckDBAppend_SchemaField(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "schema.duckdb")
 
@@ -348,7 +348,7 @@ args_mapping: |
 	assert.Equal(t, "Scrooge McDuck", duck)
 }
 
-func TestDuckDBInsert_TypeMapping(t *testing.T) {
+func TestDuckDBAppend_TypeMapping(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "types.duckdb")
 
@@ -432,7 +432,7 @@ args_mapping: |
 	assert.False(t, colNullable.Valid, "null JSON value must produce SQL NULL")
 }
 
-func TestDuckDBInsert_ArgsNotArray(t *testing.T) {
+func TestDuckDBAppend_ArgsNotArray(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "bad_mapping.duckdb")
 
@@ -452,7 +452,7 @@ args_mapping: 'root = this'
 	assert.Contains(t, err.Error(), "array")
 }
 
-func TestDuckDBInsert_ArgCountMismatch(t *testing.T) {
+func TestDuckDBAppend_ArgCountMismatch(t *testing.T) {
 	ctx := context.Background()
 	dbFile := filepath.Join(t.TempDir(), "mismatch.duckdb")
 
@@ -477,7 +477,7 @@ args_mapping: 'root = [this.deposit_id]'
 	require.Error(t, err)
 }
 
-func TestDuckDBInsert_ConnectNotConnected(t *testing.T) {
+func TestDuckDBAppend_ConnectNotConnected(t *testing.T) {
 	dbFile := filepath.Join(t.TempDir(), "not_connected.duckdb")
 
 	createSchema(t, dbFile, `CREATE TABLE vault_deposits (deposit_id VARCHAR PRIMARY KEY)`)

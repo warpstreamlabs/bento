@@ -56,6 +56,7 @@ Type coercions applied to ` + "`args_mapping`" + ` output before passing to the 
 			`
 Insert rows into a database by bulk-loading them directly into DuckDB's columnar storage via the Appender (no SQL parsing overhead).`,
 			`
+# BENTO LINT DISABLE
 output:
   duckdb_append:
     dsn: /data/vault.duckdb
@@ -112,7 +113,7 @@ func init() {
 //------------------------------------------------------------------------------
 
 type duckdbAppendOutput struct {
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	db       *sql.DB
 	sqlConn  *sql.Conn
 	appender *duckdb.Appender
@@ -179,6 +180,38 @@ func newDuckDBAppendOutputFromConfig(
 	return d, nil
 }
 
+func (d *duckdbAppendOutput) startShutdownListener() {
+	go func() {
+		<-d.shutSig.HardStopChan()
+
+		d.mu.Lock()
+		defer d.mu.Unlock()
+
+		if d.appender != nil {
+			if err := d.appender.Close(); err != nil {
+				d.logger.Errorf("Closing DuckDB appender: %v", err)
+			}
+			d.appender = nil
+		}
+
+		if d.sqlConn != nil {
+			if err := d.sqlConn.Close(); err != nil {
+				d.logger.Errorf("Closing DuckDB database connection: %v", err)
+			}
+			d.sqlConn = nil
+		}
+
+		if d.db != nil {
+			if err := d.db.Close(); err != nil {
+				d.logger.Errorf("Closing DuckDB connection pool: %v", err)
+			}
+			d.db = nil
+		}
+
+		d.shutSig.TriggerHasStopped()
+	}()
+}
+
 func (d *duckdbAppendOutput) Connect(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -218,45 +251,16 @@ func (d *duckdbAppendOutput) Connect(ctx context.Context) error {
 		return fmt.Errorf("creating appender for table %q: %w", d.table, err)
 	}
 
-	go func() {
-		<-d.shutSig.HardStopChan()
-
-		d.mu.Lock()
-		defer d.mu.Unlock()
-
-		if d.appender != nil {
-			if err := d.appender.Close(); err != nil {
-				d.logger.Errorf("Closing DuckDB appender: %v", err)
-			}
-			d.appender = nil
-		}
-
-		if d.sqlConn != nil {
-			if err := d.sqlConn.Close(); err != nil {
-				d.logger.Errorf("Closing DuckDB database connection: %v", err)
-			}
-			d.sqlConn = nil
-		}
-
-		if d.db != nil {
-			if err := d.db.Close(); err != nil {
-				d.logger.Errorf("Closing DuckDB connection pool: %v", err)
-			}
-			d.db = nil
-		}
-
-		d.shutSig.TriggerHasStopped()
-	}()
-
+	d.startShutdownListener()
 	return nil
 }
 
 func (d *duckdbAppendOutput) Close(ctx context.Context) error {
 	d.shutSig.TriggerHardStop()
 
-	d.mu.Lock()
+	d.mu.RLock()
 	isNil := d.appender == nil
-	d.mu.Unlock()
+	d.mu.RUnlock()
 	if isNil {
 		return nil
 	}
@@ -271,12 +275,13 @@ func (d *duckdbAppendOutput) Close(ctx context.Context) error {
 }
 
 func (d *duckdbAppendOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
+	d.mu.RLock()
 	if d.appender == nil {
+		d.mu.RUnlock()
 		return service.ErrNotConnected
 	}
+	appender := d.appender
+	d.mu.RUnlock()
 
 	var executor *service.MessageBatchBloblangExecutor
 	if d.argsMapping != nil {
@@ -328,14 +333,14 @@ func (d *duckdbAppendOutput) WriteBatch(ctx context.Context, batch service.Messa
 			}
 		}
 
-		if err := d.appender.AppendRow(driverArgs...); err != nil {
+		if err := appender.AppendRow(driverArgs...); err != nil {
 			return fmt.Errorf("appending row %d: %w", i, err)
 		}
 	}
 
 	// Flushing after every batch to access the appended rows immediately
 	// Produces partially-filled row groups, which may be less optimal for larger queries
-	if err := d.appender.Flush(); err != nil {
+	if err := appender.Flush(); err != nil {
 		return err
 	}
 

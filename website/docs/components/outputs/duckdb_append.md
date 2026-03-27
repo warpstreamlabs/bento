@@ -127,6 +127,7 @@ Type coercions applied to `args_mapping` output before passing to the Appender:
 Insert rows into a database by bulk-loading them directly into DuckDB's columnar storage via the Appender (no SQL parsing overhead).
 
 ```yaml
+# BENTO LINT DISABLE
 output:
   duckdb_append:
     dsn: /data/vault.duckdb
@@ -227,7 +228,6 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -250,7 +250,6 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -444,7 +443,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 
