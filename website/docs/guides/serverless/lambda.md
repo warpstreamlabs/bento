@@ -136,13 +136,23 @@ output:
 ### provided.al2023 on arm64
 
 Grab an archive labelled `bento-lambda-al2023` for `arm64` from the [releases page][releases]
-page and then create your function (AWS CLI v2 only):
+page and then upload it to S3: 
+
+```sh
+aws s3api create-bucket --bucket lambdas 
+aws s3api put-object  --bucket lambdas --key bento-lambda.zip --body 
+bento-lambda-al2023_1.16.1_linux_arm64.zip
+```
+
+Then create your function (AWS CLI v2 only):
 
 ```sh
 LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
 aws lambda create-function \
   --runtime provided.al2023 \
   --handler not.used.for.provided.al2023.runtime \
+  # note: handler is not used for this runtime: lambda will execute a binary
+  # named 'bootstrap' in the root of the zip archive.
   --architectures arm64 \
   --role  arn:aws:iam::000000000000:role/bento-example-role \
   --code S3Bucket=lambdas,S3Key=bento-lambda.zip \
