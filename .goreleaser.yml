@@ -22,7 +22,7 @@ builds:
     goarch: [ amd64, arm64 ]
   - id: bento-lambda-al2023
     main: cmd/serverless/bento-lambda/main.go
-    binary: bento-lambda
+    binary: bootstrap
     env:
       - CGO_ENABLED=0
     goos: [ linux ]
