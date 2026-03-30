@@ -666,7 +666,9 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 
 			if nextTimedBatchChan == nil {
 				if tNext, exists := recordBatcher.UntilNext(); exists {
-					nextTimedBatchChan = time.After(tNext)
+					if len(pending) > 0 || recordBatcher.HasPendingMessage() {
+						nextTimedBatchChan = time.After(tNext)
+					}
 				}
 			}
 
