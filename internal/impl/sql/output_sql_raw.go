@@ -105,7 +105,7 @@ type sqlRawOutput struct {
 }
 
 func newSQLRawOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*sqlRawOutput, error) {
-	driverStr, err := conf.FieldString("driver")
+	driverStr, err := getDriver(conf, mgr.Logger())
 	if err != nil {
 		return nil, err
 	}

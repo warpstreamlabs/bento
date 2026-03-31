@@ -149,7 +149,7 @@ type sqlRawProcessor struct {
 
 // NewSQLRawProcessorFromConfig returns an internal sql_raw processor.
 func NewSQLRawProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*sqlRawProcessor, error) {
-	driverStr, err := conf.FieldString("driver")
+	driverStr, err := getDriver(conf, mgr.Logger())
 	if err != nil {
 		return nil, err
 	}

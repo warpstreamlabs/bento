@@ -17,8 +17,6 @@ import (
 	"github.com/Jeffail/shutdown"
 
 	"github.com/warpstreamlabs/bento/public/service"
-
-	_ "github.com/lib/pq"
 )
 
 var sampleString = `{
