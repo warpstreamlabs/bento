@@ -101,8 +101,8 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/microsoft/gocosmos v1.1.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/nats-io/nats.go v1.32.0
-	github.com/nats-io/nkeys v0.4.7
+	github.com/nats-io/nats.go v1.49.0
+	github.com/nats-io/nkeys v0.4.15
 	github.com/nats-io/stan.go v0.10.4
 	github.com/nsf/jsondiff v0.0.0-20230430225905-43f6cf3098c1
 	github.com/nsqio/go-nsq v1.1.0
@@ -175,6 +175,7 @@ require (
 	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0 // indirect
+	github.com/antithesishq/antithesis-sdk-go v0.6.0-default-no-op // indirect
 	github.com/apache/arrow-go/v18 v18.5.2 // indirect
 	github.com/apache/thrift v0.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.1 // indirect
@@ -207,6 +208,7 @@ require (
 	github.com/gomlx/onnx-gomlx v0.3.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
+	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hamba/avro/v2 v2.31.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
@@ -215,10 +217,12 @@ require (
 	github.com/knights-analytics/ortgenai v0.1.0 // indirect
 	github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 // indirect
 	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
+	github.com/minio/highwayhash v1.0.4-0.20251030100505-070ab1a87a76 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nats-io/jwt/v2 v2.8.1 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
@@ -388,7 +392,7 @@ require (
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
-	github.com/nats-io/nats-server/v2 v2.9.23 // indirect
+	github.com/nats-io/nats-server/v2 v2.12.6 // indirect
 	github.com/nats-io/nats-streaming-server v0.24.6 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/neo4j/neo4j-go-driver/v5 v5.24.0
@@ -439,7 +443,7 @@ require (
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20251202230838-ff82c1b0f217 // indirect
