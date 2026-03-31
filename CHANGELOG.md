@@ -3,6 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.16.2 - 2026-03-31
+
+### Fixed 
+
+ - `aws_kinesis` input busy loop when `batching.period` is set @jem-davies
+ - various dependency updates for CVEs 
+
 ## 1.16.1 - 2026-03-19
 
 ### Fixed
