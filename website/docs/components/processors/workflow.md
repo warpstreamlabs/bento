@@ -254,7 +254,6 @@ An optional list of [`branch` processor](/docs/components/processors/branch) nam
 
 Type: `array`  
 Default: `[]`  
-Requires version 1.0.0 or newer  
 
 ### `branches`
 

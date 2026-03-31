@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Attempts to execute a series of child processors until success.
 
-Introduced in version 1.0.0.
-
 ```yml
 # Config fields, showing default values
 label: ""

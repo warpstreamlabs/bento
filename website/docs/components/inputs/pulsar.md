@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Reads messages from an Apache Pulsar server.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -168,7 +166,6 @@ Optional configuration of Pulsar authentication methods.
 
 
 Type: `object`  
-Requires version 1.0.0 or newer  
 
 ### `auth.oauth2`
 

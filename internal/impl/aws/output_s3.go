@@ -141,7 +141,6 @@ func s3oConfigFromParsed(pConf *service.ParsedConfig) (conf s3oConfig, err error
 func s3oOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends message parts as objects to an Amazon S3 bucket. Each object is uploaded with the path specified with the `+"`path`"+` field.`).
 		Description(`
@@ -202,7 +201,32 @@ output:
       processors:
         - archive:
             format: json_array
-`+"```"+``+service.OutputPerformanceDocs(true, false)).
+`+"```"+`
+
+:::caution archive processor
+The [archive](/docs/components/processors/archive) processor adopts the metadata of the first message part of the batch.
+:::
+
+Therefore if you are using bloblang interpolation that references metadata to evaluate `+"`bucket` or `key`"+` etc - take
+care - metadata from the first message will be used for the entire batch. This can result in messages being routed to 
+unintended destinations.
+
+The [group_by_value](/docs/components/processors/group_by_value)
+processor can be useful to deal with batches that require 'splitting' based on metadata values:
+
+`+"```yaml"+`
+output:
+  aws_s3:
+    bucket: bento-aws-s3-stream-test
+    path: ${! meta("key") }/${! uuid_v4() }.json
+    batching:
+      count: 100
+      processors:
+        - group_by_value:
+            value: ${! meta("key") }
+        - archive:
+            format: lines
+`+"```"+service.OutputPerformanceDocs(true, false)).
 		Example(
 			"Connection to S3 API-Compatable services",
 			`This example shows how to connect to "S3 API-Compatable services" - for instance minio.`,
@@ -271,7 +295,6 @@ output:
 				Advanced(),
 			service.NewStringField(s3oFieldServerSideEncryption).
 				Description("An optional server side encryption algorithm.").
-				Version("1.0.0").
 				Default("").
 				Advanced(),
 			service.NewBoolField(s3oFieldForcePathStyleURLs).

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,10 @@ import (
 func TestComponentExamples(t *testing.T) {
 	confSpec := config.Spec()
 	testComponent := func(componentType, typeName, title, conf string, deprecated bool) {
+		if _, ok := strings.CutPrefix(conf, "\n# BENTO LINT DISABLE"); ok {
+			return
+		}
+
 		node, err := docs.UnmarshalYAML([]byte(conf))
 		require.NoError(t, err, "%v:%v:%v", componentType, typeName, title)
 

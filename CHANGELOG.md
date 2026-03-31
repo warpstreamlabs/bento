@@ -3,6 +3,47 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.16.2 - 2026-03-31
+
+### Fixed 
+
+ - `aws_kinesis` input busy loop when `batching.period` is set @jem-davies
+ - various dependency updates for CVEs 
+
+## 1.16.1 - 2026-03-19
+
+### Fixed
+
+- add handling for authentication errors in SQL output components @adrianhaj
+
+### Added
+
+- `datadog_logs` output component @gregfurman
+
+## 1.16.0 - 2026-03-18
+
+### Added 
+
+ - `headers` field added to `websocket` output enables setting custom headers to the websocket handshake @DackJempsey
+ - `enhanced_fan_out` configuration options for `aws_kinesis` input @jbeemster & @matus-tomlein
+ - `aws_s3_stream` output streams data to S3 using multipart uploads @triddell 
+ - `duckdb` driver option added to sql components; @sapk & @James-Gilbert-
+ - `debug` field added to `kafka` input; enabling will forward sarama's internal logs to Bento's logger @gitphill
+ - `error_source_label`, `error_source_path`, `error_source_type` bloblang functions @gregfurman
+ - `payload` field added to `http` processor & `http_client` output; alternative to using the message as the payload @lublak
+ - `python` processor; WASM-based Python processor @gregfurman
+
+### Changed 
+
+ - Modernize Go syntax with `go fix`; included 'modernize' linter in CI @gregfurman & @jem-davies
+ - Enabled use of `# BENTO LINT DISABLE` token in component example documentation @iamramtin
+
+## 1.15.2 - 2026-03-11
+
+### Added
+
+- `datadog_logs` output component @gregfurman
+
 ## 1.15.1 - 2026-03-08
 
 ### Added
@@ -34,7 +75,6 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - `error_handling.strategy` override now correctly parses bloblang named arguments @gregfurman
-
 
 ## 1.14.0 - 2026-01-02
 

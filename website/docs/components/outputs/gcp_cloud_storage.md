@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends message parts as objects to a Google Cloud Storage bucket. Each object is uploaded with the path specified with the `path` field.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -178,7 +176,6 @@ Determines how file path collisions should be dealt with.
 
 Type: `string`  
 Default: `"overwrite"`  
-Requires version 1.0.0 or newer  
 
 | Option | Summary |
 |---|---|

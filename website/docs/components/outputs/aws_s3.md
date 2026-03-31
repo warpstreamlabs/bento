@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends message parts as objects to an Amazon S3 bucket. Each object is uploaded with the path specified with the `path` field.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -152,6 +150,31 @@ output:
       processors:
         - archive:
             format: json_array
+```
+
+:::caution archive processor
+The [archive](/docs/components/processors/archive) processor adopts the metadata of the first message part of the batch.
+:::
+
+Therefore if you are using bloblang interpolation that references metadata to evaluate `bucket` or `key` etc - take
+care - metadata from the first message will be used for the entire batch. This can result in messages being routed to 
+unintended destinations.
+
+The [group_by_value](/docs/components/processors/group_by_value)
+processor can be useful to deal with batches that require 'splitting' based on metadata values:
+
+```yaml
+output:
+  aws_s3:
+    bucket: bento-aws-s3-stream-test
+    path: ${! meta("key") }/${! uuid_v4() }.json
+    batching:
+      count: 100
+      processors:
+        - group_by_value:
+            value: ${! meta("key") }
+        - archive:
+            format: lines
 ```
 
 ## Performance
@@ -323,7 +346,6 @@ An optional server side encryption algorithm.
 
 Type: `string`  
 Default: `""`  
-Requires version 1.0.0 or newer  
 
 ### `force_path_style_urls`
 
@@ -533,7 +555,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

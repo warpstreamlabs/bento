@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Runs an arbitrary SQL query against a database and (optionally) returns the result as an array of objects, one for each row returned.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -97,6 +95,8 @@ If the query fails to execute then the message will remain unchanged and the err
 <Tabs defaultValue="Table Insert (MySQL)" values={[
 { label: 'Table Insert (MySQL)', value: 'Table Insert (MySQL)', },
 { label: 'Table Query (PostgreSQL)', value: 'Table Query (PostgreSQL)', },
+{ label: 'Enrichment Lookup (DuckDB)', value: 'Enrichment Lookup (DuckDB)', },
+{ label: 'In-Memory Computation (DuckDB)', value: 'In-Memory Computation (DuckDB)', },
 ]}>
 
 <TabItem value="Table Insert (MySQL)">
@@ -133,6 +133,48 @@ pipeline:
 ```
 
 </TabItem>
+<TabItem value="Enrichment Lookup (DuckDB)">
+
+Enrich each message with a field from a DuckDB lookup table. The table is seeded once via `init_statement` and queried per message.
+
+```yaml
+# BENTO LINT DISABLE
+pipeline:
+  processors:
+    - branch:
+        processors:
+          - sql_raw:
+              driver: duckdb
+              dsn: /tmp/duckburg.duckdb
+              query: "SELECT occupation FROM duckburg WHERE name = ?"
+              args_mapping: "root = [this.name]"
+              init_statement: |
+                CREATE TABLE IF NOT EXISTS duckburg (name VARCHAR PRIMARY KEY, occupation VARCHAR);
+                INSERT OR IGNORE INTO duckburg VALUES
+                  ('Scrooge McDuck','Billionaire'),('Donald Duck','Sailor'),
+                  ('Huey Duck','Junior Woodchuck'),('Launchpad McQuack','Pilot');
+              conn_max_open: 1
+        result_map: "root.occupation = this.index(0).occupation"
+```
+
+</TabItem>
+<TabItem value="In-Memory Computation (DuckDB)">
+
+Run SQL expressions against message fields using a DuckDB `:memory:` database(no external file required).
+
+```yaml
+# BENTO LINT DISABLE
+pipeline:
+  processors:
+    - sql_raw:
+        driver: duckdb
+        dsn: ":memory:"
+        query: "SELECT ? * 2 + 1 AS result"
+        args_mapping: "root = [this.random]"
+        conn_max_open: 1
+```
+
+</TabItem>
 </Tabs>
 
 ## Fields
@@ -165,7 +207,7 @@ The following is a list of supported drivers, their placeholder style, and their
 | `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |
 | `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |
 | `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |
-| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` |
+| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` or `:memory:` for ephemeral in-process storage. |
 
 Please note that the `postgres` driver enforces SSL by default, you can override this with the parameter `sslmode=disable` if required.
 
@@ -190,6 +232,8 @@ dsn: postgres://foouser:foopass@localhost:5432/foodb?sslmode=disable
 dsn: oracle://foouser:foopass@localhost:1521/service_name
 
 dsn: db_file.duckdb?threads=4&access_mode=READ_ONLY
+
+dsn: ':memory:'
 ```
 
 ### `query`
@@ -262,7 +306,6 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -285,7 +328,6 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -479,7 +521,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

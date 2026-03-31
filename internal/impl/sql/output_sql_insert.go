@@ -56,7 +56,6 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.Field(service.NewBatchPolicyField("batching")).
-		Version("1.0.0").
 		Example("Table Insert (MySQL)",
 			`
 Here we insert rows into a database by populating the columns id, name and topic with values extracted from messages and metadata:`,
@@ -73,6 +72,25 @@ output:
         this.user.name,
         metadata("kafka_topic"),
       ]
+`,
+		).
+		Example("Table Insert (DuckDB)",
+			"Write events to a local DuckDB file, creating the table on first run via `init_statement`.",
+			`
+# BENTO LINT DISABLE
+output:
+  sql_insert:
+    driver: duckdb
+    dsn: /tmp/duckburg.duckdb
+    table: vault_deposits
+    columns: [id, duck, gold_coins]
+    args_mapping: "root = [this.id, this.duck, this.gold_coins]"
+    init_statement: |
+      CREATE TABLE IF NOT EXISTS vault_deposits (
+        id         INTEGER PRIMARY KEY,
+        duck       VARCHAR,
+        gold_coins BIGINT
+      )
 `,
 		)
 	return spec
@@ -240,7 +258,7 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 		return nil
 	}
 
-	if errors.Is(err, driver.ErrBadConn) {
+	if errors.Is(err, driver.ErrBadConn) || isAuthError(s.driver, err) {
 		s.dbMut.Lock()
 		s.db = nil
 		s.dbMut.Unlock()
