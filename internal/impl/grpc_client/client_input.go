@@ -150,7 +150,13 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
-	err := request.UnmarshalJSON([]byte("{\"name\": \"Jem\"}"))
+	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte(""))) //
+	if err != nil {
+		err = fmt.Errorf("payload interpolation error: %w", err)
+		return nil, nil, err
+	}
+
+	err = request.UnmarshalJSON([]byte(payload))
 	if err != nil {
 		return nil, nil, err
 	}
