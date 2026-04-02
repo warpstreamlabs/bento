@@ -77,6 +77,26 @@ grpc_client:
 				[]byte(`{"message":"How are you, Alice?"}`),
 			},
 		},
+		"Server Stream Proto File": {
+			grpcServerOpts: []testServerOpt{withReflection()},
+			confFormatString: `
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHelloHowAreYou
+  rpc_type: server_stream
+  proto_files: 
+    - "./grpc_test_server/helloworld.proto" 
+  payload: ${! {"name":"Alice"} }
+`,
+			formatArgs: func(ts *testServer) []any {
+				return []any{ts.port}
+			},
+			expected: [][]byte{
+				[]byte(`{"message":"Hello Alice"}`),
+				[]byte(`{"message":"How are you, Alice?"}`),
+			},
+		},
 	}
 
 	for name, test := range tests {
@@ -96,10 +116,11 @@ grpc_client:
 				t.FailNow()
 			}
 
-			msg.Payload.Iter(func(i int, p *message.Part) error {
+			err := msg.Payload.Iter(func(i int, p *message.Part) error {
 				assert.Equal(t, test.expected[i], p.AsBytes())
 				return nil
 			})
+			require.NoError(t, err)
 		})
 	}
 }
