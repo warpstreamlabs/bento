@@ -19,7 +19,7 @@ func TestGrpcClientInput(t *testing.T) {
 		grpcServerOpts   []testServerOpt
 		confFormatString string
 		formatArgs       func(*testServer) []any
-		expectedMessage  []byte
+		expected         [][]byte
 	}{
 		"Unary Reflection": {
 			grpcServerOpts: []testServerOpt{withReflection()},
@@ -35,7 +35,9 @@ grpc_client:
 			formatArgs: func(ts *testServer) []any {
 				return []any{ts.port}
 			},
-			expectedMessage: []byte(`{"message":"Hello Alice"}`),
+			expected: [][]byte{
+				[]byte(`{"message":"Hello Alice"}`),
+			},
 		},
 		"Unary Proto File": {
 			grpcServerOpts: []testServerOpt{},
@@ -52,7 +54,28 @@ grpc_client:
 			formatArgs: func(ts *testServer) []any {
 				return []any{ts.port}
 			},
-			expectedMessage: []byte(`{"message":"Hello Alice"}`),
+			expected: [][]byte{
+				[]byte(`{"message":"Hello Alice"}`),
+			},
+		},
+		"Server Stream Reflection": {
+			grpcServerOpts: []testServerOpt{withReflection()},
+			confFormatString: `
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHelloHowAreYou
+  rpc_type: server_stream
+  reflection: true
+  payload: ${! {"name":"Alice"} }
+`,
+			formatArgs: func(ts *testServer) []any {
+				return []any{ts.port}
+			},
+			expected: [][]byte{
+				[]byte(`{"message":"Hello Alice"}`),
+				[]byte(`{"message":"How are you, Alice?"}`),
+			},
 		},
 	}
 
@@ -73,23 +96,12 @@ grpc_client:
 				t.FailNow()
 			}
 
-			assert.Equal(t, test.expectedMessage, msg.Payload.Get(0).AsBytes())
+			msg.Payload.Iter(func(i int, p *message.Part) error {
+				assert.Equal(t, test.expected[i], p.AsBytes())
+				return nil
+			})
 		})
 	}
-}
-
-func startGrpcClientInput(t *testing.T, yamlConf string) (ch <-chan (message.Transaction)) {
-	t.Helper()
-
-	conf, err := testutil.InputFromYAML(yamlConf)
-	require.NoError(t, err)
-
-	s, err := mock.NewManager().NewInput(conf)
-	require.NoError(t, err)
-
-	t.Cleanup(s.TriggerCloseNow)
-
-	return s.TransactionChan()
 }
 
 func TestGrpcClientInputRateLimit(t *testing.T) {
@@ -141,11 +153,25 @@ rate_limit_resources:
 	for {
 		select {
 		case <-time.After(time.Second * 2):
-			assert.Equal(t, 1, len(msgReceived))
+			assert.Len(t, msgReceived, 1)
 			assert.Equal(t, `{"message":"Hello Alice"}`, string(msgReceived[0]))
 			return
 		case msg := <-ch:
 			msgReceived = append(msgReceived, msg)
 		}
 	}
+}
+
+func startGrpcClientInput(t *testing.T, yamlConf string) (ch <-chan (message.Transaction)) {
+	t.Helper()
+
+	conf, err := testutil.InputFromYAML(yamlConf)
+	require.NoError(t, err)
+
+	s, err := mock.NewManager().NewInput(conf)
+	require.NoError(t, err)
+
+	t.Cleanup(s.TriggerCloseNow)
+
+	return s.TransactionChan()
 }

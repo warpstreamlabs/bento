@@ -2,7 +2,9 @@ package grpc_client
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/jhump/protoreflect/desc"
@@ -197,9 +199,58 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 }
 
 func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
+	if gci.conn == nil || gci.method == nil {
+		return nil, nil, service.ErrNotConnected
+	}
+
 	if gci.rateLimit != "" {
 		gci.rateLimitWait(ctx)
 	}
+
+	//var err error
+	switch gci.rpcType {
+	case rpcTypeUnary:
+		return gci.unaryHandler(ctx)
+	case rpcTypeServerStream:
+		return gci.serverStreamHandler(ctx)
+	default:
+		panic(errors.New("NOT IMPL"))
+	}
+}
+
+func (gci *grpcClientInput) Close(ctx context.Context) error {
+	return nil
+}
+
+func (gci *grpcClientInput) rateLimitWait(ctx context.Context) bool {
+	for {
+		var period time.Duration
+		var err error
+		if rerr := gci.mgr.AccessRateLimit(ctx, gci.rateLimit, func(rl service.RateLimit) {
+			period, err = rl.Access(ctx)
+		}); rerr != nil {
+			err = rerr
+		}
+		if err != nil {
+			gci.log.Errorf("Rate limit error: %v\n", err)
+			period = time.Second
+		}
+
+		if period > 0 {
+			select {
+			case <-time.After(period):
+			case <-ctx.Done():
+				return false
+			}
+		} else {
+			return true
+		}
+	}
+}
+
+//------------------------------------------------------------------------------
+
+func (gci *grpcClientInput) unaryHandler(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
@@ -237,32 +288,49 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 	}, nil
 }
 
-func (gci *grpcClientInput) Close(ctx context.Context) error {
-	return nil
-}
+func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
 
-func (gci *grpcClientInput) rateLimitWait(ctx context.Context) bool {
+	request := dynamic.NewMessage(gci.method.GetInputType())
+
+	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte(""))) //
+	if err != nil {
+		err = fmt.Errorf("payload interpolation error: %w", err)
+		return nil, nil, err
+	}
+
+	err = request.UnmarshalJSON([]byte(payload))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serverStream, err := gci.stub.InvokeRpcServerStream(ctx, gci.method, request)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	responseBatch := service.MessageBatch{}
+
 	for {
-		var period time.Duration
-		var err error
-		if rerr := gci.mgr.AccessRateLimit(ctx, gci.rateLimit, func(rl service.RateLimit) {
-			period, err = rl.Access(ctx)
-		}); rerr != nil {
-			err = rerr
+		resProtoMessage, err := serverStream.RecvMsg()
+		if err == io.EOF {
+			break
 		}
 		if err != nil {
-			gci.log.Errorf("Rate limit error: %v\n", err)
-			period = time.Second
+			return nil, nil, err
 		}
 
-		if period > 0 {
-			select {
-			case <-time.After(period):
-			case <-ctx.Done():
-				return false
+		if dynMsg, ok := resProtoMessage.(*dynamic.Message); ok {
+			jsonBytes, err := dynMsg.MarshalJSON()
+			if err != nil {
+				// log error
+				continue
 			}
-		} else {
-			return true
+
+			responseBatch = append(responseBatch, service.NewMessage(jsonBytes))
 		}
 	}
+
+	return responseBatch, func(rctx context.Context, res error) error {
+		return nil
+	}, nil
 }
