@@ -97,6 +97,32 @@ rate_limit_resources:
 	}
 }
 
+func TestGrpcClientInputProtoFile(t *testing.T) {
+	testServer := startGRPCServer(t, withReflection())
+
+	config := fmt.Sprintf(`
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHello
+  rpc_type: unary
+  proto_files: 
+    - "./grpc_test_server/helloworld.proto"
+  payload: ${! {"name":"Jem"} }
+`, testServer.port)
+
+	msgCh := startGrpcClientInput(t, config)
+
+	var msg message.Transaction
+	select {
+	case msg = <-msgCh:
+	case <-time.After(time.Second * 10):
+		t.FailNow()
+	}
+
+	assert.Equal(t, "{\"message\":\"Hello Jem\"}", string(msg.Payload.Get(0).AsBytes()))
+}
+
 func startGrpcClientInput(t *testing.T, yamlConf string) (ch <-chan (message.Transaction)) {
 	t.Helper()
 

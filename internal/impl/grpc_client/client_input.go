@@ -2,11 +2,11 @@ package grpc_client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jhump/protoreflect/desc"
+	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/jhump/protoreflect/dynamic/grpcdynamic"
 	"github.com/jhump/protoreflect/grpcreflect"
@@ -16,11 +16,12 @@ import (
 )
 
 const (
-	grpcClientInputAddress    = "address"    // duplicate
-	grpcClientInputService    = "service"    // duplicate
-	grpcClientInputMethod     = "method"     // duplicate
-	grpcClientInputRPCType    = "rpc_type"   // duplicate
-	grpcClientInputReflection = "reflection" // duplicate
+	grpcClientInputAddress    = "address"     // duplicate
+	grpcClientInputService    = "service"     // duplicate
+	grpcClientInputMethod     = "method"      // duplicate
+	grpcClientInputRPCType    = "rpc_type"    // duplicate
+	grpcClientInputReflection = "reflection"  // duplicate
+	grpcClientInputProtoFiles = "proto_files" // duplicate
 	grpcClientInputPayload    = "payload"
 	grpcClientInputRateLimit  = "rate_limit"
 )
@@ -47,6 +48,10 @@ func grpcClientInputSpec() *service.ConfigSpec {
 			service.NewBoolField(grpcClientInputReflection).
 				Description("If set to true, Bento will acquire the protobuf schema for the method from the server via [gRPC Reflection](https://grpc.io/docs/guides/reflection/).").
 				Default(false),
+			service.NewStringListField(grpcClientOutputProtoFiles).
+				Description("A list of filepaths of .proto files that should contain the schemas necessary for the gRPC method.").
+				Default([]any{}).
+				Example([]string{"./grpc_test_server/helloworld.proto"}),
 			service.NewInterpolatedStringField(grpcClientInputPayload).
 				Description("TODO").
 				Example("TODO"),
@@ -74,6 +79,7 @@ type grpcClientInput struct {
 	methodName    string
 	rpcType       string
 	reflection    bool
+	protoFiles    []string
 	reflectClient *grpcreflect.Client
 	payloadExpr   *service.InterpolatedString
 	rateLimit     string
@@ -108,6 +114,10 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 	if err != nil {
 		return nil, err
 	}
+	protoFiles, err := conf.FieldStringList(grpcClientInputProtoFiles)
+	if err != nil {
+		return nil, err
+	}
 	payloadExpr, err := conf.FieldInterpolatedString(grpcClientInputPayload)
 	if err != nil {
 		return nil, err
@@ -126,6 +136,7 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 		methodName:  methodName,
 		rpcType:     rpcType,
 		reflection:  reflection,
+		protoFiles:  protoFiles,
 		payloadExpr: payloadExpr,
 		rateLimit:   rateLimit,
 		mgr:         mgr,
@@ -157,8 +168,27 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 		} else {
 			return fmt.Errorf("method: %v not found", gci.methodName)
 		}
-	} else {
-		return errors.New("NOT IMPL.")
+	}
+
+	if len(gci.protoFiles) != 0 {
+		var parser protoparse.Parser
+
+		fileDescriptors, err := parser.ParseFiles(gci.protoFiles...)
+		if err != nil {
+			return err
+		}
+
+	Found:
+		for _, fileDescriptor := range fileDescriptors {
+			for _, service := range fileDescriptor.GetServices() {
+				if service.GetFullyQualifiedName() == gci.serviceName || service.GetName() == gci.serviceName {
+					if method := service.FindMethodByName(gci.methodName); method != nil {
+						gci.method = method
+						break Found
+					}
+				}
+			}
+		}
 	}
 
 	gci.stub = grpcdynamic.NewStub(gci.conn)
