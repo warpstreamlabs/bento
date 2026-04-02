@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/dynamic"
@@ -21,6 +22,7 @@ const (
 	grpcClientInputRPCType    = "rpc_type"   // duplicate
 	grpcClientInputReflection = "reflection" // duplicate
 	grpcClientInputPayload    = "payload"
+	grpcClientInputRateLimit  = "rate_limit"
 )
 
 func grpcClientInputSpec() *service.ConfigSpec {
@@ -48,6 +50,9 @@ func grpcClientInputSpec() *service.ConfigSpec {
 			service.NewInterpolatedStringField(grpcClientInputPayload).
 				Description("TODO").
 				Example("TODO"),
+			service.NewStringField(grpcClientInputRateLimit).
+				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
+				Optional(),
 		)
 }
 
@@ -71,14 +76,18 @@ type grpcClientInput struct {
 	reflection    bool
 	reflectClient *grpcreflect.Client
 	payloadExpr   *service.InterpolatedString
+	rateLimit     string
 
 	conn *grpc.ClientConn
 
 	stub   grpcdynamic.Stub
 	method *desc.MethodDescriptor
+
+	mgr *service.Resources
+	log *service.Logger
 }
 
-func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientInput, error) {
+func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (*grpcClientInput, error) {
 	address, err := conf.FieldString(grpcClientInputAddress)
 	if err != nil {
 		return nil, err
@@ -103,6 +112,13 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resourc
 	if err != nil {
 		return nil, err
 	}
+	var rateLimit string
+	if conf.Contains(grpcClientInputRateLimit) {
+		rateLimit, err = conf.FieldString(grpcClientInputRateLimit)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &grpcClientInput{
 		address:     address,
@@ -111,6 +127,9 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, _ *service.Resourc
 		rpcType:     rpcType,
 		reflection:  reflection,
 		payloadExpr: payloadExpr,
+		rateLimit:   rateLimit,
+		mgr:         mgr,
+		log:         mgr.Logger(),
 	}, nil
 }
 
@@ -148,6 +167,10 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 }
 
 func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
+	if gci.rateLimit != "" {
+		gci.rateLimitWait(ctx)
+	}
+
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
 	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte(""))) //
@@ -179,9 +202,37 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 
 	responseMsg := service.MessageBatch{service.NewMessage(jsonBytes)}
 
-	return responseMsg, nil, nil
+	return responseMsg, func(rctx context.Context, res error) error {
+		return nil
+	}, nil
 }
 
 func (gci *grpcClientInput) Close(ctx context.Context) error {
 	return nil
+}
+
+func (gci *grpcClientInput) rateLimitWait(ctx context.Context) bool {
+	for {
+		var period time.Duration
+		var err error
+		if rerr := gci.mgr.AccessRateLimit(ctx, gci.rateLimit, func(rl service.RateLimit) {
+			period, err = rl.Access(ctx)
+		}); rerr != nil {
+			err = rerr
+		}
+		if err != nil {
+			gci.log.Errorf("Rate limit error: %v\n", err)
+			period = time.Second
+		}
+
+		if period > 0 {
+			select {
+			case <-time.After(period):
+			case <-ctx.Done():
+				return false
+			}
+		} else {
+			return true
+		}
+	}
 }
