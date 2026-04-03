@@ -1,4 +1,4 @@
-package grpc_client
+package grpc
 
 import (
 	"context"
@@ -166,6 +166,7 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 	} else {
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
+
 	gci.conn, err = grpc.NewClient(gci.address, dialOpts...)
 	if err != nil {
 		return err

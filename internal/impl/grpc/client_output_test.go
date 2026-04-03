@@ -1,4 +1,4 @@
-package grpc_client
+package grpc
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
-	test_server "github.com/warpstreamlabs/bento/internal/impl/grpc_client/grpc_test_server"
+	test_server "github.com/warpstreamlabs/bento/internal/impl/grpc/grpc_test_server"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/transaction"
