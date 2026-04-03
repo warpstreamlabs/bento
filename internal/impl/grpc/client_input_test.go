@@ -12,17 +12,19 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
+
+	test_server "github.com/warpstreamlabs/bento/internal/impl/grpc/grpc_test_server/test_server"
 )
 
 func TestGrpcClientInput(t *testing.T) {
 	tests := map[string]struct {
-		grpcServerOpts   []testServerOpt
+		grpcServerOpts   []test_server.TestServerOpt
 		confFormatString string
-		formatArgs       func(*testServer) []any
+		formatArgs       func(*test_server.TestServer) []any
 		expected         [][]byte
 	}{
 		"Unary Reflection": {
-			grpcServerOpts: []testServerOpt{withReflection()},
+			grpcServerOpts: []test_server.TestServerOpt{test_server.WithReflection()},
 			confFormatString: `
 grpc_client:
   address: localhost:%v
@@ -32,15 +34,15 @@ grpc_client:
   reflection: true
   payload: ${! {"name":"Alice"} }
 `,
-			formatArgs: func(ts *testServer) []any {
-				return []any{ts.port}
+			formatArgs: func(ts *test_server.TestServer) []any {
+				return []any{ts.Port}
 			},
 			expected: [][]byte{
 				[]byte(`{"message":"Hello Alice"}`),
 			},
 		},
 		"Unary Proto File": {
-			grpcServerOpts: []testServerOpt{},
+			grpcServerOpts: []test_server.TestServerOpt{},
 			confFormatString: `
 grpc_client:
   address: localhost:%v
@@ -48,18 +50,18 @@ grpc_client:
   method: SayHello
   rpc_type: unary
   proto_files: 
-    - "./grpc_test_server/helloworld.proto"
+    - "./grpc_test_server/helloworld/helloworld.proto"
   payload: ${! {"name":"Alice"} }
 `,
-			formatArgs: func(ts *testServer) []any {
-				return []any{ts.port}
+			formatArgs: func(ts *test_server.TestServer) []any {
+				return []any{ts.Port}
 			},
 			expected: [][]byte{
 				[]byte(`{"message":"Hello Alice"}`),
 			},
 		},
 		"Server Stream Reflection": {
-			grpcServerOpts: []testServerOpt{withReflection()},
+			grpcServerOpts: []test_server.TestServerOpt{test_server.WithReflection()},
 			confFormatString: `
 grpc_client:
   address: localhost:%v
@@ -69,8 +71,8 @@ grpc_client:
   reflection: true
   payload: ${! {"name":"Alice"} }
 `,
-			formatArgs: func(ts *testServer) []any {
-				return []any{ts.port}
+			formatArgs: func(ts *test_server.TestServer) []any {
+				return []any{ts.Port}
 			},
 			expected: [][]byte{
 				[]byte(`{"message":"Hello Alice"}`),
@@ -78,7 +80,7 @@ grpc_client:
 			},
 		},
 		"Server Stream Proto File": {
-			grpcServerOpts: []testServerOpt{withReflection()},
+			grpcServerOpts: []test_server.TestServerOpt{test_server.WithReflection()},
 			confFormatString: `
 grpc_client:
   address: localhost:%v
@@ -86,11 +88,11 @@ grpc_client:
   method: SayHelloHowAreYou
   rpc_type: server_stream
   proto_files: 
-    - "./grpc_test_server/helloworld.proto" 
+    - "./grpc_test_server/helloworld/helloworld.proto" 
   payload: ${! {"name":"Alice"} }
 `,
-			formatArgs: func(ts *testServer) []any {
-				return []any{ts.port}
+			formatArgs: func(ts *test_server.TestServer) []any {
+				return []any{ts.Port}
 			},
 			expected: [][]byte{
 				[]byte(`{"message":"Hello Alice"}`),
@@ -98,7 +100,7 @@ grpc_client:
 			},
 		},
 		"TLS": {
-			grpcServerOpts: []testServerOpt{withReflection(), withTLS()},
+			grpcServerOpts: []test_server.TestServerOpt{test_server.WithReflection(), test_server.WithTLS()},
 			confFormatString: `
 grpc_client:
   address: localhost:%v
@@ -109,14 +111,14 @@ grpc_client:
   payload: ${! {"name":"Alice"} }
   tls:
     enabled: true
-    root_cas_file: ./grpc_test_server/certs/ca.pem
+    root_cas_file: ./grpc_test_server/helloworld/certs/ca.pem
     client_certs:
-      - cert_file: ./grpc_test_server/certs/client.pem
-        key_file: ./grpc_test_server/certs/client.key
+      - cert_file: ./grpc_test_server/helloworld/certs/client.pem
+        key_file: ./grpc_test_server/helloworld/certs/client.key
     skip_cert_verify: false
 `,
-			formatArgs: func(ts *testServer) []any {
-				return []any{ts.port}
+			formatArgs: func(ts *test_server.TestServer) []any {
+				return []any{ts.Port}
 			},
 			expected: [][]byte{
 				[]byte(`{"message":"Hello Alice"}`),
@@ -128,7 +130,7 @@ grpc_client:
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			testServer := startGRPCServer(t, test.grpcServerOpts...)
+			testServer := test_server.StartGRPCServer(t, test.grpcServerOpts...)
 
 			yamlConf := fmt.Sprintf(test.confFormatString, test.formatArgs(testServer)...)
 
@@ -151,7 +153,7 @@ grpc_client:
 }
 
 func TestGrpcClientInputRateLimit(t *testing.T) {
-	testServer := startGRPCServer(t, withReflection())
+	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 
 	sb := service.NewStreamBuilder()
 
@@ -171,7 +173,7 @@ rate_limit_resources:
     local:
       count: 1
       interval: 24h
-`, testServer.port))
+`, testServer.Port))
 	require.NoError(t, err)
 
 	ch := make(chan []byte)
