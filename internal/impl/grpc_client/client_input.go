@@ -2,6 +2,7 @@ package grpc_client
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/jhump/protoreflect/grpcreflect"
 	"github.com/warpstreamlabs/bento/public/service"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -26,6 +28,7 @@ const (
 	grpcClientInputProtoFiles = "proto_files" // duplicate
 	grpcClientInputPayload    = "payload"
 	grpcClientInputRateLimit  = "rate_limit"
+	grpcClientInputTLS        = "tls" // duplicate
 )
 
 func grpcClientInputSpec() *service.ConfigSpec {
@@ -60,6 +63,7 @@ func grpcClientInputSpec() *service.ConfigSpec {
 			service.NewStringField(grpcClientInputRateLimit).
 				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
 				Optional(),
+			service.NewTLSToggledField(grpcClientInputTLS),
 		)
 }
 
@@ -85,6 +89,7 @@ type grpcClientInput struct {
 	reflectClient *grpcreflect.Client
 	payloadExpr   *service.InterpolatedString
 	rateLimit     string
+	tls           *tls.Config
 
 	conn *grpc.ClientConn
 
@@ -131,6 +136,10 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 			return nil, err
 		}
 	}
+	tls, err := conf.FieldTLS(grpcClientInputTLS)
+	if err != nil {
+		return nil, err
+	}
 
 	return &grpcClientInput{
 		address:     address,
@@ -141,6 +150,7 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 		protoFiles:  protoFiles,
 		payloadExpr: payloadExpr,
 		rateLimit:   rateLimit,
+		tls:         tls,
 		mgr:         mgr,
 		log:         mgr.Logger(),
 	}, nil
@@ -150,8 +160,12 @@ func (gci *grpcClientInput) Connect(ctx context.Context) error {
 	var err error
 
 	dialOpts := []grpc.DialOption{}
-	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
+	if gci.tls != nil {
+		creds := credentials.NewTLS(gci.tls)
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
+	} else {
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
 	gci.conn, err = grpc.NewClient(gci.address, dialOpts...)
 	if err != nil {
 		return err

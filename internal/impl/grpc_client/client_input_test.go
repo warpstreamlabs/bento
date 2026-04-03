@@ -97,6 +97,31 @@ grpc_client:
 				[]byte(`{"message":"How are you, Alice?"}`),
 			},
 		},
+		"TLS": {
+			grpcServerOpts: []testServerOpt{withReflection(), withTLS()},
+			confFormatString: `
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHello
+  rpc_type: unary
+  reflection: true
+  payload: ${! {"name":"Alice"} }
+  tls:
+    enabled: true
+    root_cas_file: ./grpc_test_server/certs/ca.pem
+    client_certs:
+      - cert_file: ./grpc_test_server/certs/client.pem
+        key_file: ./grpc_test_server/certs/client.key
+    skip_cert_verify: false
+`,
+			formatArgs: func(ts *testServer) []any {
+				return []any{ts.port}
+			},
+			expected: [][]byte{
+				[]byte(`{"message":"Hello Alice"}`),
+			},
+		},
 	}
 
 	for name, test := range tests {

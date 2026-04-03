@@ -31,7 +31,7 @@ const (
 	grpcClientOutputProtoFiles             = "proto_files" // duplicate
 	grpcClientOutputBatching               = "batching"    // duplicate
 	grpcClientOutputPropRes                = "propagate_response"
-	grpcClientOutputTls                    = "tls"          // duplicate
+	grpcClientOutputTLS                    = "tls"          // duplicate
 	grpcClientOutputHealthCheck            = "health_check" // duplicate
 	grpcClientOutputHealthCheckToggle      = "enabled"      // duplicate
 	grpcClientOutputHealthCheckServiceName = "service"      // duplicate
@@ -134,7 +134,7 @@ output:
 					Default("").
 					Advanced(),
 			),
-			service.NewTLSToggledField(grpcClientOutputTls),
+			service.NewTLSToggledField(grpcClientOutputTLS),
 			oAuth2FieldSpec(),
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(grpcClientOutputBatching),
