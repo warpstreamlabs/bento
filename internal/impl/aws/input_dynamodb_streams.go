@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"time"
@@ -45,10 +46,10 @@ type ddbsConfig struct {
 	StreamARN       string
 	StartFromOldest bool
 	CheckpointLimit int
-	CommitPeriod    string
-	LeasePeriod     string
-	RebalancePeriod string
-	PollInterval    string
+	CommitPeriod    time.Duration
+	LeasePeriod     time.Duration
+	RebalancePeriod time.Duration
+	PollInterval    time.Duration
 	Checkpoint      ddbsCheckpointConfig
 }
 
@@ -65,16 +66,16 @@ func ddbsInputConfigFromParsed(pConf *service.ParsedConfig) (conf ddbsConfig, er
 	if conf.CheckpointLimit, err = pConf.FieldInt(ddbsFieldCheckpointLimit); err != nil {
 		return
 	}
-	if conf.CommitPeriod, err = pConf.FieldString(ddbsFieldCommitPeriod); err != nil {
+	if conf.CommitPeriod, err = pConf.FieldDuration(ddbsFieldCommitPeriod); err != nil {
 		return
 	}
-	if conf.LeasePeriod, err = pConf.FieldString(ddbsFieldLeasePeriod); err != nil {
+	if conf.LeasePeriod, err = pConf.FieldDuration(ddbsFieldLeasePeriod); err != nil {
 		return
 	}
-	if conf.RebalancePeriod, err = pConf.FieldString(ddbsFieldRebalancePeriod); err != nil {
+	if conf.RebalancePeriod, err = pConf.FieldDuration(ddbsFieldRebalancePeriod); err != nil {
 		return
 	}
-	if conf.PollInterval, err = pConf.FieldString(ddbsFieldPollInterval); err != nil {
+	if conf.PollInterval, err = pConf.FieldDuration(ddbsFieldPollInterval); err != nil {
 		return
 	}
 	if pConf.Contains(ddbsFieldCheckpoint) {
@@ -207,6 +208,7 @@ type dynamoDBStreamsReader struct {
 	checkpointer *ddbsCheckpointer
 
 	streamARN string
+	streamID  string // Checkpoint key: table name if available, otherwise stream ARN.
 
 	commitPeriod    time.Duration
 	leasePeriod     time.Duration
@@ -245,12 +247,16 @@ func newDynamoDBStreamsReaderFromConfig(conf ddbsConfig, batcher service.BatchPo
 	}
 
 	r := dynamoDBStreamsReader{
-		conf:       conf,
-		sess:       sess,
-		batcher:    batcher,
-		log:        mgr.Logger(),
-		mgr:        mgr,
-		closedChan: make(chan struct{}),
+		conf:            conf,
+		sess:            sess,
+		batcher:         batcher,
+		log:             mgr.Logger(),
+		mgr:             mgr,
+		closedChan:      make(chan struct{}),
+		commitPeriod:    conf.CommitPeriod,
+		leasePeriod:     conf.LeasePeriod,
+		rebalancePeriod: conf.RebalancePeriod,
+		pollInterval:    conf.PollInterval,
 	}
 	r.ctx, r.done = context.WithCancel(context.Background())
 
@@ -268,19 +274,6 @@ func newDynamoDBStreamsReaderFromConfig(conf ddbsConfig, batcher service.BatchPo
 			boff.MaxElapsedTime = 0
 			return boff
 		},
-	}
-
-	if r.commitPeriod, err = time.ParseDuration(r.conf.CommitPeriod); err != nil {
-		return nil, fmt.Errorf("failed to parse commit period string: %v", err)
-	}
-	if r.leasePeriod, err = time.ParseDuration(r.conf.LeasePeriod); err != nil {
-		return nil, fmt.Errorf("failed to parse lease period string: %v", err)
-	}
-	if r.rebalancePeriod, err = time.ParseDuration(r.conf.RebalancePeriod); err != nil {
-		return nil, fmt.Errorf("failed to parse rebalance period string: %v", err)
-	}
-	if r.pollInterval, err = time.ParseDuration(r.conf.PollInterval); err != nil {
-		return nil, fmt.Errorf("failed to parse poll interval string: %v", err)
 	}
 
 	return &r, nil
@@ -345,7 +338,7 @@ func isDDBShardOpen(s types.Shard) bool {
 	return s.SequenceNumberRange.EndingSequenceNumber == nil
 }
 
-func (r *dynamoDBStreamsReader) getShardIterator(shardID, sequence string) (string, error) {
+func (r *dynamoDBStreamsReader) getShardIterator(ctx context.Context, shardID, sequence string) (string, error) {
 	iterType := types.ShardIteratorTypeTrimHorizon
 	if !r.conf.StartFromOldest {
 		iterType = types.ShardIteratorTypeLatest
@@ -357,7 +350,7 @@ func (r *dynamoDBStreamsReader) getShardIterator(shardID, sequence string) (stri
 		startingSequence = &sequence
 	}
 
-	res, err := r.streamsSvc.GetShardIterator(r.ctx, &dynamodbstreams.GetShardIteratorInput{
+	res, err := r.streamsSvc.GetShardIterator(ctx, &dynamodbstreams.GetShardIteratorInput{
 		StreamArn:              aws.String(r.streamARN),
 		ShardId:                aws.String(shardID),
 		ShardIteratorType:      iterType,
@@ -369,7 +362,7 @@ func (r *dynamoDBStreamsReader) getShardIterator(shardID, sequence string) (stri
 		var trimErr *types.TrimmedDataAccessException
 		if errors.As(err, &trimErr) && sequence != "" {
 			r.log.Warnf("Sequence expired for shard %v, resetting to %v", shardID, iterType)
-			return r.getShardIterator(shardID, "")
+			return r.getShardIterator(ctx, shardID, "")
 		}
 		return "", err
 	}
@@ -414,7 +407,7 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 	defer func() {
 		if initErr != nil {
 			wg.Done()
-			if _, err := r.checkpointer.Checkpoint(context.Background(), r.streamARN, shardID, startingSequence, true); err != nil {
+			if _, err := r.checkpointer.Checkpoint(context.Background(), r.streamID, shardID, startingSequence, true); err != nil {
 				r.log.Errorf("Failed to gracefully yield checkpoint: %v\n", err)
 			}
 		}
@@ -431,7 +424,7 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 
 	var pending []types.Record
 	var iter string
-	if iter, initErr = r.getShardIterator(shardID, startingSequence); initErr != nil {
+	if iter, initErr = r.getShardIterator(r.ctx, shardID, startingSequence); initErr != nil {
 		return initErr
 	}
 
@@ -457,17 +450,17 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 			switch state {
 			case ddbsConsumerFinished:
 				reason = " because the shard is closed"
-				if err := r.checkpointer.Delete(r.ctx, r.streamARN, shardID); err != nil {
+				if err := r.checkpointer.Delete(r.ctx, r.streamID, shardID); err != nil {
 					r.log.Errorf("Failed to remove checkpoint for finished shard '%v': %v", shardID, err)
 				}
 			case ddbsConsumerYielding:
 				reason = " because the shard has been claimed by another client"
-				if err := r.checkpointer.Yield(r.ctx, r.streamARN, shardID, recordBatcher.GetSequence()); err != nil {
+				if err := r.checkpointer.Yield(r.ctx, r.streamID, shardID, recordBatcher.GetSequence()); err != nil {
 					r.log.Errorf("Failed to yield checkpoint for stolen shard '%v': %v", shardID, err)
 				}
 			case ddbsConsumerClosing:
 				reason = " because the pipeline is shutting down"
-				if _, err := r.checkpointer.Checkpoint(context.Background(), r.streamARN, shardID, recordBatcher.GetSequence(), true); err != nil {
+				if _, err := r.checkpointer.Checkpoint(context.Background(), r.streamID, shardID, recordBatcher.GetSequence(), true); err != nil {
 					r.log.Errorf("Failed to store final checkpoint for shard '%v': %v", shardID, err)
 				}
 			}
@@ -494,7 +487,7 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 						var expiredErr *types.ExpiredIteratorException
 						if errors.As(err, &expiredErr) {
 							r.log.Warn("Shard iterator expired, attempting to refresh")
-							newIter, err := r.getShardIterator(shardID, recordBatcher.GetSequence())
+							newIter, err := r.getShardIterator(r.ctx, shardID, recordBatcher.GetSequence())
 							if err != nil {
 								r.log.Errorf("Failed to refresh shard iterator: %v", err)
 							} else {
@@ -568,7 +561,7 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 				commitCtxClose()
 				commitCtx, commitCtxClose = context.WithTimeout(r.ctx, r.commitPeriod)
 
-				stillOwned, err := r.checkpointer.Checkpoint(r.ctx, r.streamARN, shardID, recordBatcher.GetSequence(), false)
+				stillOwned, err := r.checkpointer.Checkpoint(r.ctx, r.streamID, shardID, recordBatcher.GetSequence(), false)
 				if err != nil {
 					r.log.Errorf("Failed to store checkpoint for shard '%v': %v", shardID, err)
 				} else if !stillOwned {
@@ -606,7 +599,7 @@ func (r *dynamoDBStreamsReader) runBalancedShards() {
 		allShards, err := r.collectShards(r.ctx, r.streamARN)
 		var checkpointData *awsKinesisCheckpointData
 		if err == nil {
-			checkpointData, err = r.checkpointer.GetCheckpointsAndClaims(r.ctx, r.streamARN)
+			checkpointData, err = r.checkpointer.GetCheckpointsAndClaims(r.ctx, r.streamID)
 		}
 		if err != nil {
 			if r.ctx.Err() != nil {
@@ -643,7 +636,7 @@ func (r *dynamoDBStreamsReader) runBalancedShards() {
 
 		if len(unclaimedShards) > 0 {
 			for shardID, clientID := range unclaimedShards {
-				sequence, err := r.checkpointer.Claim(r.ctx, r.streamARN, shardID, clientID)
+				sequence, err := r.checkpointer.Claim(r.ctx, r.streamID, shardID, clientID)
 				if err != nil {
 					if r.ctx.Err() != nil {
 						return
@@ -666,22 +659,22 @@ func (r *dynamoDBStreamsReader) runBalancedShards() {
 					continue
 				}
 				if len(claims) > (selfClaims + 1) {
-					randomShard := claims[0].ShardID // Simplified: take first
-					r.log.Debugf("Attempting to steal shard '%v' from client '%v'", randomShard, clientID)
+					targetShard := claims[rand.IntN(len(claims))].ShardID
+					r.log.Debugf("Attempting to steal shard '%v' from client '%v'", targetShard, clientID)
 
-					sequence, err := r.checkpointer.Claim(r.ctx, r.streamARN, randomShard, clientID)
+					sequence, err := r.checkpointer.Claim(r.ctx, r.streamID, targetShard, clientID)
 					if err != nil {
 						if r.ctx.Err() != nil {
 							return
 						}
 						if !errors.Is(err, ErrLeaseNotAcquired) {
-							r.log.Errorf("Failed to steal shard '%v': %v", randomShard, err)
+							r.log.Errorf("Failed to steal shard '%v': %v", targetShard, err)
 						}
 						continue
 					}
 
 					wg.Add(1)
-					if err = r.runConsumer(&wg, randomShard, sequence); err != nil {
+					if err = r.runConsumer(&wg, targetShard, sequence); err != nil {
 						r.log.Errorf("Failed to start consumer: %v\n", err)
 					} else {
 						break
@@ -717,13 +710,13 @@ func (r *dynamoDBStreamsReader) Connect(ctx context.Context) error {
 	}
 	r.streamARN = streamARN
 
-	// Resolve stream ID for checkpoint keys. Use table name if available,
-	// otherwise use the stream ARN directly.
-	streamID := r.streamARN
+	// Use table name as checkpoint key when available — it's stable across
+	// stream re-creation (e.g., when streams are disabled and re-enabled on a
+	// table, a new ARN is generated but the table name stays the same).
+	r.streamID = r.streamARN
 	if r.conf.Table != "" {
-		streamID = r.conf.Table
+		r.streamID = r.conf.Table
 	}
-	_ = streamID // The checkpoint uses r.streamARN directly as the stream ID.
 
 	checkpointer, err := newDDBSCheckpointer(r.sess, r.clientID, r.conf.Checkpoint, r.leasePeriod, r.commitPeriod)
 	if err != nil {

@@ -112,7 +112,7 @@ func (b *ddbsRecordBatcher) FlushMessage(ctx context.Context) (asyncMessage, err
 				b.ackedMut.Unlock()
 			}
 			b.ackedWG.Done()
-			return err
+			return res
 		},
 	}
 	b.flushedMessage = nil

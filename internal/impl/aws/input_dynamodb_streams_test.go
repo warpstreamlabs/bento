@@ -10,6 +10,7 @@ import (
 )
 
 func TestExtractTableNameFromARN(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		arn      string
@@ -41,6 +42,7 @@ func TestExtractTableNameFromARN(t *testing.T) {
 }
 
 func TestIsDDBShardOpen(t *testing.T) {
+	t.Parallel()
 	endSeq := "12345"
 	tests := []struct {
 		name     string
@@ -81,6 +83,7 @@ func TestIsDDBShardOpen(t *testing.T) {
 }
 
 func TestDynamoDBStreamEventToJSON(t *testing.T) {
+	t.Parallel()
 	eventID := "event-123"
 	eventVersion := "1.1"
 	eventSource := "aws:dynamodb"
