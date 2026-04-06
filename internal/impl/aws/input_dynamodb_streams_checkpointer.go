@@ -59,6 +59,7 @@ type ddbsCheckpointer struct {
 	leaseDuration time.Duration
 	commitPeriod  time.Duration
 	svc           *dynamodb.Client
+	log           *service.Logger
 }
 
 func newDDBSCheckpointer(
@@ -67,6 +68,7 @@ func newDDBSCheckpointer(
 	conf ddbsCheckpointConfig,
 	leaseDuration time.Duration,
 	commitPeriod time.Duration,
+	log *service.Logger,
 ) (*ddbsCheckpointer, error) {
 	c := &ddbsCheckpointer{
 		conf:          conf,
@@ -74,6 +76,7 @@ func newDDBSCheckpointer(
 		commitPeriod:  commitPeriod,
 		svc:           dynamodb.NewFromConfig(aConf),
 		clientID:      clientID,
+		log:           log,
 	}
 
 	if err := c.ensureTableExists(context.TODO()); err != nil {
@@ -117,6 +120,30 @@ func (c *ddbsCheckpointer) ensureTableExists(ctx context.Context) error {
 	if _, err = c.svc.CreateTable(ctx, input); err != nil {
 		return fmt.Errorf("failed to create checkpoint table: %w", err)
 	}
+
+	// Wait for the table to become active before returning. Without this,
+	// the first checkpoint or claim operation would fail.
+	waiter := dynamodb.NewTableExistsWaiter(c.svc)
+	if err = waiter.Wait(ctx, &dynamodb.DescribeTableInput{
+		TableName: aws.String(c.conf.Table),
+	}, 2*time.Minute); err != nil {
+		return fmt.Errorf("checkpoint table did not become active: %w", err)
+	}
+
+	// Enable TTL on the ExpiresAt attribute so completed shard entries are
+	// automatically cleaned up after 48 hours, preventing unbounded growth.
+	if _, err = c.svc.UpdateTimeToLive(ctx, &dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String(c.conf.Table),
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			Enabled:       aws.Bool(true),
+			AttributeName: aws.String("ExpiresAt"),
+		},
+	}); err != nil {
+		// TTL enablement is best-effort — the input works without it, just
+		// accumulates completed shard entries over time.
+		c.log.Warnf("Failed to enable TTL on checkpoint table: %v", err)
+	}
+
 	return nil
 }
 
@@ -369,6 +396,12 @@ func (c *ddbsCheckpointer) Complete(ctx context.Context, streamID, shardID, sequ
 		"StreamID": &types.AttributeValueMemberS{Value: streamID},
 		"ShardID":  &types.AttributeValueMemberS{Value: shardID},
 		"ClientID": &types.AttributeValueMemberS{Value: ddbsCompletedClientID},
+		// TTL: auto-delete after 48 hours. Completed shards only need to persist
+		// long enough for child shards to verify parent completion (DynamoDB Streams
+		// retains shard metadata for 24h, so 48h gives ample margin).
+		"ExpiresAt": &types.AttributeValueMemberN{
+			Value: fmt.Sprintf("%d", time.Now().Add(48*time.Hour).Unix()),
+		},
 	}
 	if sequenceNumber != "" {
 		item["SequenceNumber"] = &types.AttributeValueMemberS{Value: sequenceNumber}

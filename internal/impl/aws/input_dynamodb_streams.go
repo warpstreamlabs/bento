@@ -748,7 +748,7 @@ func (r *dynamoDBStreamsReader) Connect(ctx context.Context) error {
 		r.streamID = r.conf.Table
 	}
 
-	checkpointer, err := newDDBSCheckpointer(r.sess, r.clientID, r.conf.Checkpoint, r.leasePeriod, r.commitPeriod)
+	checkpointer, err := newDDBSCheckpointer(r.sess, r.clientID, r.conf.Checkpoint, r.leasePeriod, r.commitPeriod, r.log)
 	if err != nil {
 		return err
 	}
