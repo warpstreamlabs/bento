@@ -450,8 +450,8 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 			switch state {
 			case ddbsConsumerFinished:
 				reason = " because the shard is closed"
-				if err := r.checkpointer.Delete(r.ctx, r.streamID, shardID); err != nil {
-					r.log.Errorf("Failed to remove checkpoint for finished shard '%v': %v", shardID, err)
+				if err := r.checkpointer.Complete(r.ctx, r.streamID, shardID, recordBatcher.GetSequence()); err != nil {
+					r.log.Errorf("Failed to mark shard '%v' as completed: %v", shardID, err)
 				}
 			case ddbsConsumerYielding:
 				reason = " because the shard has been claimed by another client"
@@ -485,11 +485,20 @@ func (r *dynamoDBStreamsReader) runConsumer(wg *sync.WaitGroup, shardID, startin
 						nextPullChan = time.After(boff.NextBackOff())
 
 						var expiredErr *types.ExpiredIteratorException
+						var trimErr *types.TrimmedDataAccessException
 						if errors.As(err, &expiredErr) {
 							r.log.Warn("Shard iterator expired, attempting to refresh")
 							newIter, err := r.getShardIterator(r.ctx, shardID, recordBatcher.GetSequence())
 							if err != nil {
 								r.log.Errorf("Failed to refresh shard iterator: %v", err)
+							} else {
+								iter = newIter
+							}
+						} else if errors.As(err, &trimErr) {
+							r.log.Warnf("Shard '%v' data trimmed (24h retention exceeded), resetting iterator", shardID)
+							newIter, err := r.getShardIterator(r.ctx, shardID, "")
+							if err != nil {
+								r.log.Errorf("Failed to refresh shard iterator after trim: %v", err)
 							} else {
 								iter = newIter
 							}
@@ -597,7 +606,7 @@ func (r *dynamoDBStreamsReader) runBalancedShards() {
 
 	for {
 		allShards, err := r.collectShards(r.ctx, r.streamARN)
-		var checkpointData *awsKinesisCheckpointData
+		var checkpointData *ddbsCheckpointData
 		if err == nil {
 			checkpointData, err = r.checkpointer.GetCheckpointsAndClaims(r.ctx, r.streamID)
 		}
@@ -616,10 +625,31 @@ func (r *dynamoDBStreamsReader) runBalancedShards() {
 
 		clientClaims := checkpointData.ClientClaims
 		shardsWithCheckpoints := checkpointData.ShardsWithCheckpoints
+		completedShards := checkpointData.CompletedShards
+
+		// Build parent map so we can enforce parent-before-child ordering.
+		parentOf := make(map[string]string, len(allShards))
+		for _, s := range allShards {
+			if s.ParentShardId != nil && *s.ParentShardId != "" {
+				parentOf[*s.ShardId] = *s.ParentShardId
+			}
+		}
 
 		unclaimedShards := make(map[string]string, len(allShards))
 		for _, s := range allShards {
 			shardID := *s.ShardId
+
+			// Skip completed shards — they're fully consumed.
+			if completedShards[shardID] {
+				continue
+			}
+
+			// Skip child shards whose parent hasn't been fully consumed yet.
+			// This ensures per-key ordering is preserved across shard splits.
+			if parentID, hasParent := parentOf[shardID]; hasParent && !completedShards[parentID] {
+				continue
+			}
+
 			if isDDBShardOpen(s) || shardsWithCheckpoints[shardID] {
 				unclaimedShards[shardID] = ""
 			}

@@ -40,6 +40,16 @@ func ddbsCheckpointConfigFromParsed(pConf *service.ParsedConfig) (conf ddbsCheck
 	return
 }
 
+const ddbsCompletedClientID = "_COMPLETED_"
+
+// ddbsCheckpointData extends the Kinesis checkpoint data with completed shard
+// tracking, which is needed for parent-child shard ordering.
+type ddbsCheckpointData struct {
+	awsKinesisCheckpointData
+	// CompletedShards is a set of shard IDs that have been fully consumed.
+	CompletedShards map[string]bool
+}
+
 // ddbsCheckpointer manages shard checkpointing for the DynamoDB Streams input.
 // It reuses the same DynamoDB table schema as the Kinesis checkpointer
 // (StreamID + ShardID) for consistency.
@@ -110,12 +120,15 @@ func (c *ddbsCheckpointer) ensureTableExists(ctx context.Context) error {
 	return nil
 }
 
-// GetCheckpointsAndClaims retrieves all checkpoint data for a stream. Reuses
-// the awsKinesisCheckpointData type since the schema is identical.
-func (c *ddbsCheckpointer) GetCheckpointsAndClaims(ctx context.Context, streamID string) (*awsKinesisCheckpointData, error) {
-	result := &awsKinesisCheckpointData{
-		ShardsWithCheckpoints: make(map[string]bool),
-		ClientClaims:          make(map[string][]awsKinesisClientClaim),
+// GetCheckpointsAndClaims retrieves all checkpoint data for a stream, including
+// which shards have been marked as completed (fully consumed).
+func (c *ddbsCheckpointer) GetCheckpointsAndClaims(ctx context.Context, streamID string) (*ddbsCheckpointData, error) {
+	result := &ddbsCheckpointData{
+		awsKinesisCheckpointData: awsKinesisCheckpointData{
+			ShardsWithCheckpoints: make(map[string]bool),
+			ClientClaims:          make(map[string][]awsKinesisClientClaim),
+		},
+		CompletedShards: make(map[string]bool),
 	}
 
 	input := &dynamodb.QueryInput{
@@ -152,6 +165,12 @@ func (c *ddbsCheckpointer) GetCheckpointsAndClaims(ctx context.Context, streamID
 				clientID = s.Value
 			}
 			if clientID == "" {
+				continue
+			}
+
+			// Shards marked with the completed sentinel are fully consumed.
+			if clientID == ddbsCompletedClientID {
+				result.CompletedShards[shardID] = true
 				continue
 			}
 
@@ -342,14 +361,21 @@ func (c *ddbsCheckpointer) Yield(ctx context.Context, streamID, shardID, sequenc
 	return err
 }
 
-// Delete removes a checkpoint entry for a finished shard.
-func (c *ddbsCheckpointer) Delete(ctx context.Context, streamID, shardID string) error {
-	_, err := c.svc.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+// Complete marks a shard as fully consumed. The checkpoint entry is retained
+// (rather than deleted) so that child shards can verify their parent completed
+// before starting consumption, preserving per-key ordering across shard splits.
+func (c *ddbsCheckpointer) Complete(ctx context.Context, streamID, shardID, sequenceNumber string) error {
+	item := map[string]types.AttributeValue{
+		"StreamID": &types.AttributeValueMemberS{Value: streamID},
+		"ShardID":  &types.AttributeValueMemberS{Value: shardID},
+		"ClientID": &types.AttributeValueMemberS{Value: ddbsCompletedClientID},
+	}
+	if sequenceNumber != "" {
+		item["SequenceNumber"] = &types.AttributeValueMemberS{Value: sequenceNumber}
+	}
+	_, err := c.svc.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(c.conf.Table),
-		Key: map[string]types.AttributeValue{
-			"StreamID": &types.AttributeValueMemberS{Value: streamID},
-			"ShardID":  &types.AttributeValueMemberS{Value: shardID},
-		},
+		Item:      item,
 	})
 	return err
 }
