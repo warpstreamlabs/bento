@@ -44,9 +44,15 @@ type tracerSpec struct {
 	spec        docs.ComponentSpec
 }
 
+// TracerEnvFunc is a function that attempts to create a TracerProvider from
+// environment variables. It returns (nil, nil) when no relevant env vars are
+// set.
+type TracerEnvFunc func() (trace.TracerProvider, error)
+
 // TracerSet contains an explicit set of tracers available to a Bento service.
 type TracerSet struct {
-	specs map[string]tracerSpec
+	specs  map[string]tracerSpec
+	envFns []TracerEnvFunc
 }
 
 // Add a new tracer to this set by providing a spec (name, documentation, and
@@ -66,8 +72,29 @@ func (s *TracerSet) Add(constructor TracerConstructor, spec docs.ComponentSpec) 
 	return nil
 }
 
-// Init attempts to initialise an tracer from a config.
+// RegisterEnvFn registers a function that can create a TracerProvider from
+// environment variables. Called as a fallback when no tracer is explicitly
+// configured.
+func (s *TracerSet) RegisterEnvFn(fn TracerEnvFunc) {
+	s.envFns = append(s.envFns, fn)
+}
+
+// Init attempts to initialise a tracer from a config. When the default noop
+// tracer is selected, it tries registered env functions (e.g. OTel env vars)
+// first.
 func (s *TracerSet) Init(conf tracer.Config, nm NewManagement) (trace.TracerProvider, error) {
+	if conf.Type == "none" {
+		for _, fn := range s.envFns {
+			tp, err := fn()
+			if err != nil {
+				return nil, fmt.Errorf("auto-configuring tracer from env: %w", err)
+			}
+			if tp != nil {
+				return tp, nil
+			}
+		}
+	}
+
 	spec, exists := s.specs[conf.Type]
 	if !exists {
 		return nil, component.ErrInvalidType("tracer", conf.Type)

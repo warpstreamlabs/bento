@@ -69,6 +69,7 @@ func (e *Environment) Clone() *Environment {
 	for _, v := range e.tracers.specs {
 		_ = newEnv.tracers.Add(v.constructor, v.spec)
 	}
+	newEnv.tracers.envFns = e.tracers.envFns
 	for _, v := range e.scanners.specs {
 		_ = newEnv.scanners.Add(v.constructor, v.spec)
 	}
