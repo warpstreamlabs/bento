@@ -12,15 +12,8 @@ import (
 )
 
 const (
-	grpcClientInputAddress    = "address"     // duplicate
-	grpcClientInputService    = "service"     // duplicate
-	grpcClientInputMethod     = "method"      // duplicate
-	grpcClientInputRPCType    = "rpc_type"    // duplicate
-	grpcClientInputReflection = "reflection"  // duplicate
-	grpcClientInputProtoFiles = "proto_files" // duplicate
-	grpcClientInputPayload    = "payload"
-	grpcClientInputRateLimit  = "rate_limit"
-	grpcClientInputTLS        = "tls" // duplicate
+	grpcClientInputPayload   = "payload"
+	grpcClientInputRateLimit = "rate_limit"
 )
 
 func grpcClientInputSpec() *service.ConfigSpec {
@@ -28,34 +21,14 @@ func grpcClientInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Summary("TODO").
 		Description("TODO").
+		Fields(grpcCommonFieldSpec()...).
 		Fields(
-			service.NewStringField(grpcClientInputAddress).
-				Description("TODO").
-				Example("TODO"),
-			service.NewStringField(grpcClientInputService).
-				Description("TODO").
-				Example("TODO"),
-			service.NewStringField(grpcClientInputMethod).
-				Description("TODO").
-				Example("TODO"),
-			service.NewStringEnumField(
-				grpcClientInputRPCType,
-				[]string{rpcTypeUnary, rpcTypeClientStream, rpcTypeServerStream, rpcTypeBidi}...,
-			).Default("unary"),
-			service.NewBoolField(grpcClientInputReflection).
-				Description("If set to true, Bento will acquire the protobuf schema for the method from the server via [gRPC Reflection](https://grpc.io/docs/guides/reflection/).").
-				Default(false),
-			service.NewStringListField(grpcClientOutputProtoFiles).
-				Description("A list of filepaths of .proto files that should contain the schemas necessary for the gRPC method.").
-				Default([]any{}).
-				Example([]string{"./grpc_test_server/helloworld.proto"}),
 			service.NewInterpolatedStringField(grpcClientInputPayload).
 				Description("TODO").
 				Example("TODO"),
 			service.NewStringField(grpcClientInputRateLimit).
 				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
 				Optional(),
-			service.NewTLSToggledField(grpcClientInputTLS),
 		)
 }
 
@@ -82,30 +55,11 @@ type grpcClientInput struct {
 }
 
 func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (*grpcClientInput, error) {
-	address, err := conf.FieldString(grpcClientInputAddress)
+	gcc, err := grpcCommonConfigFromParsed(conf)
 	if err != nil {
 		return nil, err
 	}
-	serviceName, err := conf.FieldString(grpcClientInputService)
-	if err != nil {
-		return nil, err
-	}
-	methodName, err := conf.FieldString(grpcClientInputMethod)
-	if err != nil {
-		return nil, err
-	}
-	rpcType, err := conf.FieldString(grpcClientInputRPCType)
-	if err != nil {
-		return nil, err
-	}
-	reflection, err := conf.FieldBool(grpcClientInputReflection)
-	if err != nil {
-		return nil, err
-	}
-	protoFiles, err := conf.FieldStringList(grpcClientInputProtoFiles)
-	if err != nil {
-		return nil, err
-	}
+
 	payloadExpr, err := conf.FieldInterpolatedString(grpcClientInputPayload)
 	if err != nil {
 		return nil, err
@@ -117,21 +71,9 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 			return nil, err
 		}
 	}
-	tls, err := conf.FieldTLS(grpcClientInputTLS)
-	if err != nil {
-		return nil, err
-	}
 
 	return &grpcClientInput{
-		grpcCommonConfig: grpcCommonConfig{
-			address:     address,
-			serviceName: serviceName,
-			methodName:  methodName,
-			reflection:  reflection,
-			protoFiles:  protoFiles,
-			tls:         tls,
-			rpcType:     rpcType,
-		},
+		grpcCommonConfig: gcc,
 
 		payloadExpr: payloadExpr,
 		rateLimit:   rateLimit,

@@ -12,19 +12,9 @@ import (
 )
 
 const (
-	grpcClientOutputAddress                = "address"     // duplicate
-	grpcClientOutputService                = "service"     // duplicate
-	grpcClientOutputMethod                 = "method"      // duplicate
-	grpcClientOutputRPCType                = "rpc_type"    // duplicate
-	grpcClientOutputReflection             = "reflection"  // duplicate
-	grpcClientOutputProtoFiles             = "proto_files" // duplicate
-	grpcClientOutputBatching               = "batching"    // duplicate
-	grpcClientOutputPropRes                = "propagate_response"
-	grpcClientOutputTLS                    = "tls"          // duplicate
-	grpcClientOutputHealthCheck            = "health_check" // duplicate
-	grpcClientOutputHealthCheckToggle      = "enabled"      // duplicate
-	grpcClientOutputHealthCheckServiceName = "service"      // duplicate
-	grpcClientOutputMetadata               = "metadata"
+	grpcClientOutputBatching = "batching"
+	grpcClientOutputPropRes  = "propagate_response"
+	grpcClientOutputMetadata = "metadata"
 )
 
 const grpcClientOutputDescription = `
@@ -78,29 +68,8 @@ output:
     propagate_response: true
     reflection: true
 `).
+		Fields(grpcCommonFieldSpec()...).
 		Fields(
-			service.NewStringField(grpcClientOutputAddress).
-				Description("The URI of the gRPC target to connect to.").
-				Example("localhost:50051"),
-			service.NewStringField(grpcClientOutputService).
-				Description("The name of the service.").
-				Example("helloworld.Greeter"),
-			service.NewStringField(grpcClientOutputMethod).
-				Description("The name of the method to invoke").
-				Example("SayHello"),
-			service.NewStringEnumField(
-				grpcClientOutputRPCType,
-				[]string{rpcTypeUnary, rpcTypeClientStream, rpcTypeServerStream, rpcTypeBidi}...,
-			).
-				Description("The type of the rpc method.").
-				Default("unary"),
-			service.NewBoolField(grpcClientOutputReflection).
-				Description("If set to true, Bento will acquire the protobuf schema for the method from the server via [gRPC Reflection](https://grpc.io/docs/guides/reflection/).").
-				Default(false),
-			service.NewStringListField(grpcClientOutputProtoFiles).
-				Description("A list of filepaths of .proto files that should contain the schemas necessary for the gRPC method.").
-				Default([]any{}).
-				Example([]string{"./grpc_test_server/helloworld.proto"}),
 			service.NewInterpolatedStringMapField(grpcClientOutputMetadata).
 				Description("A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.").
 				Example(map[string]any{
@@ -113,17 +82,6 @@ output:
 				Description("Whether responses from the server should be [propagated back](/docs/guides/sync_responses) to the input.").
 				Default(false).
 				Advanced(),
-			service.NewObjectField(grpcClientOutputHealthCheck,
-				service.NewBoolField(grpcClientOutputHealthCheckToggle).
-					Description("Whether Bento should healthcheck the unary `Check` rpc endpoint on init connection: [gRPC Health Checking](https://grpc.io/docs/guides/health-checking/)").
-					Default(false).
-					Advanced(),
-				service.NewStringField(grpcClientOutputHealthCheckServiceName).
-					Description("The name of the service to healthcheck, note that the default value of \"\", will attempt to check the health of the whole server").
-					Default("").
-					Advanced(),
-			),
-			service.NewTLSToggledField(grpcClientOutputTLS),
 			oAuth2FieldSpec(),
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(grpcClientOutputBatching),
@@ -133,49 +91,6 @@ output:
   this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated"
 }`,
 	)
-}
-
-// TODO: Deduplicate from http package.
-const (
-	aFieldOAuth2           = "oauth2"
-	ao2FieldEnabled        = "enabled"
-	ao2FieldClientKey      = "client_key"
-	ao2FieldClientSecret   = "client_secret"
-	ao2FieldTokenURL       = "token_url"
-	ao2FieldScopes         = "scopes"
-	ao2FieldEndpointParams = "endpoint_params"
-)
-
-func oAuth2FieldSpec() *service.ConfigField {
-	return service.NewObjectField(aFieldOAuth2,
-		service.NewBoolField(ao2FieldEnabled).
-			Description("Whether to use OAuth version 2 in requests.").
-			Default(false),
-		service.NewStringField(ao2FieldClientKey).
-			Description("A value used to identify the client to the token provider.").
-			Default(""),
-		service.NewStringField(ao2FieldClientSecret).
-			Description("A secret used to establish ownership of the client key.").
-			Default("").Secret(),
-		service.NewURLField(ao2FieldTokenURL).
-			Description("The URL of the token provider.").
-			Default(""),
-		service.NewStringListField(ao2FieldScopes).
-			Description("A list of optional requested permissions.").
-			Default([]any{}).
-			Advanced(),
-		service.NewAnyMapField(ao2FieldEndpointParams).
-			Description("A list of optional endpoint parameters, values should be arrays of strings.").
-			Advanced().
-			Example(map[string]any{
-				"foo": []string{"meow", "quack"},
-				"bar": []string{"woof"},
-			}).
-			Default(map[string]any{}).
-			Optional(),
-	).
-		Description("Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.").
-		Optional().Advanced()
 }
 
 func init() {
@@ -206,30 +121,11 @@ type grpcClientOutput struct {
 }
 
 func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientOutput, error) {
-	address, err := conf.FieldString(grpcClientOutputAddress)
+	gcc, err := grpcCommonConfigFromParsed(conf)
 	if err != nil {
 		return nil, err
 	}
-	serviceName, err := conf.FieldString(grpcClientOutputService)
-	if err != nil {
-		return nil, err
-	}
-	methodName, err := conf.FieldString(grpcClientOutputMethod)
-	if err != nil {
-		return nil, err
-	}
-	rpcType, err := conf.FieldString(grpcClientOutputRPCType)
-	if err != nil {
-		return nil, err
-	}
-	reflection, err := conf.FieldBool(grpcClientOutputReflection)
-	if err != nil {
-		return nil, err
-	}
-	protoFiles, err := conf.FieldStringList(grpcClientOutputProtoFiles)
-	if err != nil {
-		return nil, err
-	}
+
 	propResponse, err := conf.FieldBool(grpcClientOutputPropRes)
 	if err != nil {
 		return nil, err
@@ -238,79 +134,11 @@ func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resour
 	if err != nil {
 		return nil, err
 	}
-	tls, err := conf.FieldTLS(grpcClientOutputTLS)
-	if err != nil {
-		return nil, err
-	}
-
-	healthCheckConf := conf.Namespace(grpcClientOutputHealthCheck)
-	healthCheckEnabled, err := healthCheckConf.FieldBool(grpcClientOutputHealthCheckToggle)
-	if err != nil {
-		return nil, err
-	}
-	healthCheckServiceName, err := healthCheckConf.FieldString(grpcClientOutputHealthCheckServiceName)
-	if err != nil {
-		return nil, err
-	}
-
-	oauthConf := conf.Namespace(aFieldOAuth2)
-
-	enabled, err := oauthConf.FieldBool(ao2FieldEnabled)
-	if err != nil {
-		return nil, err
-	}
-	clientKey, err := oauthConf.FieldString(ao2FieldClientKey)
-	if err != nil {
-		return nil, err
-	}
-	clientSecret, err := oauthConf.FieldString(ao2FieldClientSecret)
-	if err != nil {
-		return nil, err
-	}
-	tokenURL, err := oauthConf.FieldString(ao2FieldTokenURL)
-	if err != nil {
-		return nil, err
-	}
-	scopes, err := oauthConf.FieldStringList(ao2FieldScopes)
-	if err != nil {
-		return nil, err
-	}
-	ep, err := oauthConf.FieldAnyMap(ao2FieldEndpointParams)
-	if err != nil {
-		return nil, err
-	}
-
-	endpointParams := map[string][]string{}
-	for k, v := range ep {
-		if endpointParams[k], err = v.FieldStringList(); err != nil {
-			return nil, err
-		}
-	}
-
-	oauth := oauth2Config{
-		enabled:        enabled,
-		clientKey:      clientKey,
-		clientSecret:   clientSecret,
-		tokenURL:       tokenURL,
-		scopes:         scopes,
-		endpointParams: endpointParams,
-	}
 
 	writer := &grpcClientOutput{
-		grpcCommonConfig: grpcCommonConfig{
-			address:                address,
-			methodName:             methodName,
-			tls:                    tls,
-			oauth:                  oauth,
-			healthCheckEnabled:     healthCheckEnabled,
-			healthCheckServiceName: healthCheckServiceName,
-			serviceName:            serviceName,
-			reflection:             reflection,
-			protoFiles:             protoFiles,
-			rpcType:                rpcType,
-		},
-		propResponse: propResponse,
-		metadata:     md,
+		grpcCommonConfig: gcc,
+		propResponse:     propResponse,
+		metadata:         md,
 	}
 
 	return writer, nil
