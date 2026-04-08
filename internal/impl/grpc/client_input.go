@@ -2,21 +2,13 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"time"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
-	"github.com/jhump/protoreflect/dynamic/grpcdynamic"
-	"github.com/jhump/protoreflect/grpcreflect"
 	"github.com/warpstreamlabs/bento/public/service"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -80,21 +72,10 @@ func init() {
 //------------------------------------------------------------------------------
 
 type grpcClientInput struct {
-	address       string
-	serviceName   string
-	methodName    string
-	rpcType       string
-	reflection    bool
-	protoFiles    []string
-	reflectClient *grpcreflect.Client
-	payloadExpr   *service.InterpolatedString
-	rateLimit     string
-	tls           *tls.Config
+	grpcCommonConfig
 
-	conn *grpc.ClientConn
-
-	stub   grpcdynamic.Stub
-	method *desc.MethodDescriptor
+	payloadExpr *service.InterpolatedString
+	rateLimit   string
 
 	mgr *service.Resources
 	log *service.Logger
@@ -142,75 +123,21 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 	}
 
 	return &grpcClientInput{
-		address:     address,
-		serviceName: serviceName,
-		methodName:  methodName,
-		rpcType:     rpcType,
-		reflection:  reflection,
-		protoFiles:  protoFiles,
+		grpcCommonConfig: grpcCommonConfig{
+			address:     address,
+			serviceName: serviceName,
+			methodName:  methodName,
+			reflection:  reflection,
+			protoFiles:  protoFiles,
+			tls:         tls,
+			rpcType:     rpcType,
+		},
+
 		payloadExpr: payloadExpr,
 		rateLimit:   rateLimit,
-		tls:         tls,
 		mgr:         mgr,
 		log:         mgr.Logger(),
 	}, nil
-}
-
-func (gci *grpcClientInput) Connect(ctx context.Context) error {
-	var err error
-
-	dialOpts := []grpc.DialOption{}
-	if gci.tls != nil {
-		creds := credentials.NewTLS(gci.tls)
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
-	} else {
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-
-	gci.conn, err = grpc.NewClient(gci.address, dialOpts...)
-	if err != nil {
-		return err
-	}
-
-	if gci.reflection {
-		gci.reflectClient = grpcreflect.NewClientAuto(ctx, gci.conn)
-
-		serviceDescriptor, err := gci.reflectClient.ResolveService(gci.serviceName)
-		if err != nil {
-			return err
-		}
-
-		if method := serviceDescriptor.FindMethodByName(gci.methodName); method != nil {
-			gci.method = method
-		} else {
-			return fmt.Errorf("method: %v not found", gci.methodName)
-		}
-	}
-
-	if len(gci.protoFiles) != 0 {
-		var parser protoparse.Parser
-
-		fileDescriptors, err := parser.ParseFiles(gci.protoFiles...)
-		if err != nil {
-			return err
-		}
-
-	Found:
-		for _, fileDescriptor := range fileDescriptors {
-			for _, service := range fileDescriptor.GetServices() {
-				if service.GetFullyQualifiedName() == gci.serviceName || service.GetName() == gci.serviceName {
-					if method := service.FindMethodByName(gci.methodName); method != nil {
-						gci.method = method
-						break Found
-					}
-				}
-			}
-		}
-	}
-
-	gci.stub = grpcdynamic.NewStub(gci.conn)
-
-	return nil
 }
 
 func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {

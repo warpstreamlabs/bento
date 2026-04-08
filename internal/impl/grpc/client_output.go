@@ -2,23 +2,12 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
-	"github.com/jhump/protoreflect/dynamic/grpcdynamic"
-	"github.com/jhump/protoreflect/grpcreflect"
 	"github.com/warpstreamlabs/bento/public/service"
-	"golang.org/x/oauth2/clientcredentials"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/credentials/oauth"
 	_ "google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
 	grpcmd "google.golang.org/grpc/metadata"
 )
 
@@ -71,7 +60,7 @@ are able to make use of these propagated responses. Also the  ` + "`" + `rpc_typ
 - ` + "`" + rpcTypeBidi + "`" + `: Any inbound message from the server is discarded.` + `
 `
 
-func grcpClientOutputSpec() *service.ConfigSpec {
+func grpcClientOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Summary("Sends messages to a GRPC server.").
 		Description(grpcClientOutputDescription).
@@ -189,17 +178,8 @@ func oAuth2FieldSpec() *service.ConfigField {
 		Optional().Advanced()
 }
 
-type oauth2Config struct {
-	enabled        bool
-	clientKey      string
-	clientSecret   string
-	tokenURL       string
-	scopes         []string
-	endpointParams map[string][]string
-}
-
 func init() {
-	err := service.RegisterBatchOutput("grpc_client", grcpClientOutputSpec(),
+	err := service.RegisterBatchOutput("grpc_client", grpcClientOutputSpec(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (out service.BatchOutput, batchPolicy service.BatchPolicy, maxInFlight int, err error) {
 			if maxInFlight, err = conf.FieldInt("max_in_flight"); err != nil {
 				return
@@ -219,28 +199,13 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-type grpcClientWriter struct {
-	address                string
-	serviceName            string
-	methodName             string
-	rpcType                string
-	reflection             bool
-	reflectClient          *grpcreflect.Client
-	protoFiles             []string
-	propResponse           bool
-	metadata               map[string]*service.InterpolatedString
-	tls                    *tls.Config
-	oauth                  oauth2Config
-	healthCheckEnabled     bool
-	healthCheckServiceName string
-
-	conn *grpc.ClientConn
-
-	stub   grpcdynamic.Stub
-	method *desc.MethodDescriptor
+type grpcClientOutput struct {
+	grpcCommonConfig
+	metadata     map[string]*service.InterpolatedString
+	propResponse bool
 }
 
-func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientWriter, error) {
+func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientOutput, error) {
 	address, err := conf.FieldString(grpcClientOutputAddress)
 	if err != nil {
 		return nil, err
@@ -273,7 +238,7 @@ func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resour
 	if err != nil {
 		return nil, err
 	}
-	tls, err := conf.FieldTLS(grpcClientOutputTls)
+	tls, err := conf.FieldTLS(grpcClientOutputTLS)
 	if err != nil {
 		return nil, err
 	}
@@ -331,20 +296,21 @@ func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resour
 		endpointParams: endpointParams,
 	}
 
-	writer := &grpcClientWriter{
-		address:      address,
-		serviceName:  serviceName,
-		methodName:   methodName,
-		rpcType:      rpcType,
-		reflection:   reflection,
-		protoFiles:   protoFiles,
+	writer := &grpcClientOutput{
+		grpcCommonConfig: grpcCommonConfig{
+			address:                address,
+			methodName:             methodName,
+			tls:                    tls,
+			oauth:                  oauth,
+			healthCheckEnabled:     healthCheckEnabled,
+			healthCheckServiceName: healthCheckServiceName,
+			serviceName:            serviceName,
+			reflection:             reflection,
+			protoFiles:             protoFiles,
+			rpcType:                rpcType,
+		},
 		propResponse: propResponse,
 		metadata:     md,
-		tls:          tls,
-		oauth:        oauth,
-
-		healthCheckEnabled:     healthCheckEnabled,
-		healthCheckServiceName: healthCheckServiceName,
 	}
 
 	return writer, nil
@@ -352,123 +318,21 @@ func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resour
 
 //------------------------------------------------------------------------------
 
-func (gcw *grpcClientWriter) Connect(ctx context.Context) (err error) {
-	if gcw.conn != nil && gcw.method != nil {
-		return nil
-	}
-
-	dialOpts := []grpc.DialOption{}
-
-	if gcw.tls != nil {
-		creds := credentials.NewTLS(gcw.tls)
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
-	} else {
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-
-	if gcw.oauth.enabled {
-		oauth2Conf := &clientcredentials.Config{
-			ClientID:       gcw.oauth.clientKey,
-			ClientSecret:   gcw.oauth.clientSecret,
-			TokenURL:       gcw.oauth.tokenURL,
-			Scopes:         gcw.oauth.scopes,
-			EndpointParams: gcw.oauth.endpointParams,
-		}
-
-		tokenSource := oauth2Conf.TokenSource(ctx)
-
-		_, err := tokenSource.Token()
-		if err != nil {
-			return fmt.Errorf("failed to fetch OAuth2 token: %w", err)
-		}
-
-		perRPC := oauth.TokenSource{TokenSource: tokenSource}
-		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(perRPC))
-	}
-
-	if gcw.healthCheckEnabled {
-		serviceConf := fmt.Sprintf(`{"healthCheckConfig": {"serviceName": "%v"}}`, gcw.healthCheckServiceName)
-		dialOpts = append(dialOpts, grpc.WithDefaultServiceConfig(serviceConf))
-	}
-
-	gcw.conn, err = grpc.NewClient(gcw.address, dialOpts...)
-	if err != nil {
-		return err
-	}
-
-	if gcw.healthCheckEnabled {
-		healthClient := grpc_health_v1.NewHealthClient(gcw.conn)
-		resp, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{
-			Service: gcw.healthCheckServiceName,
-		})
-		if err != nil {
-			return fmt.Errorf("health check failed: %w", err)
-		}
-		if resp.GetStatus() != grpc_health_v1.HealthCheckResponse_SERVING {
-			return fmt.Errorf("service %q not healthy: %v", gcw.healthCheckServiceName, resp.GetStatus())
-		}
-	}
-
-	if gcw.reflection {
-		gcw.reflectClient = grpcreflect.NewClientAuto(ctx, gcw.conn)
-
-		serviceDescriptor, err := gcw.reflectClient.ResolveService(gcw.serviceName)
-		if err != nil {
-			return err
-		}
-
-		if method := serviceDescriptor.FindMethodByName(gcw.methodName); method != nil {
-			gcw.method = method
-		} else {
-			return fmt.Errorf("method: %v not found", gcw.methodName)
-		}
-	}
-
-	if len(gcw.protoFiles) != 0 {
-		var parser protoparse.Parser
-
-		fileDescriptors, err := parser.ParseFiles(gcw.protoFiles...)
-		if err != nil {
-			return err
-		}
-
-	Found:
-		for _, fileDescriptor := range fileDescriptors {
-			for _, service := range fileDescriptor.GetServices() {
-				if service.GetFullyQualifiedName() == gcw.serviceName || service.GetName() == gcw.serviceName {
-					if method := service.FindMethodByName(gcw.methodName); method != nil {
-						gcw.method = method
-						break Found
-					}
-				}
-			}
-		}
-	}
-
-	if gcw.method == nil {
-		return fmt.Errorf("unable to find method: %s in provided proto files", gcw.methodName)
-	}
-
-	gcw.stub = grpcdynamic.NewStub(gcw.conn)
-
-	return nil
-}
-
-func (gcw *grpcClientWriter) WriteBatch(ctx context.Context, msgBatch service.MessageBatch) error {
-	if gcw.conn == nil || gcw.method == nil {
+func (gco *grpcClientOutput) WriteBatch(ctx context.Context, msgBatch service.MessageBatch) error {
+	if gco.conn == nil || gco.method == nil {
 		return service.ErrNotConnected
 	}
 
 	var err error
-	switch gcw.rpcType {
+	switch gco.rpcType {
 	case rpcTypeUnary:
-		err = gcw.unaryHandler(ctx, msgBatch)
+		err = gco.unaryHandler(ctx, msgBatch)
 	case rpcTypeClientStream:
-		err = gcw.clientStreamHandler(ctx, msgBatch)
+		err = gco.clientStreamHandler(ctx, msgBatch)
 	case rpcTypeServerStream:
-		err = gcw.serverStreamHandler(ctx, msgBatch)
+		err = gco.serverStreamHandler(ctx, msgBatch)
 	case rpcTypeBidi:
-		err = gcw.bidirectionalHandler(ctx, msgBatch)
+		err = gco.bidirectionalHandler(ctx, msgBatch)
 	}
 	if err != nil {
 		return err
@@ -477,22 +341,22 @@ func (gcw *grpcClientWriter) WriteBatch(ctx context.Context, msgBatch service.Me
 	return nil
 }
 
-func (gcw *grpcClientWriter) Close(ctx context.Context) (err error) {
-	if gcw.reflectClient != nil {
-		gcw.reflectClient.Reset()
+func (gco *grpcClientOutput) Close(ctx context.Context) (err error) {
+	if gco.reflectClient != nil {
+		gco.reflectClient.Reset()
 	}
-	if gcw.conn != nil {
-		return gcw.conn.Close()
+	if gco.conn != nil {
+		return gco.conn.Close()
 	}
 	return nil
 }
 
-func (gcw *grpcClientWriter) contextWithMetadata(ctx context.Context, msg *service.Message) (context.Context, error) {
-	if len(gcw.metadata) == 0 {
+func (gco *grpcClientOutput) contextWithMetadata(ctx context.Context, msg *service.Message) (context.Context, error) {
+	if len(gco.metadata) == 0 {
 		return ctx, nil
 	}
-	pairs := make([]string, 0, len(gcw.metadata)*2)
-	for k, v := range gcw.metadata {
+	pairs := make([]string, 0, len(gco.metadata)*2)
+	for k, v := range gco.metadata {
 		s, err := v.TryString(msg)
 		if err != nil {
 			return ctx, fmt.Errorf("metadata %q interpolation error: %w", k, err)
@@ -502,7 +366,7 @@ func (gcw *grpcClientWriter) contextWithMetadata(ctx context.Context, msg *servi
 	return grpcmd.AppendToOutgoingContext(ctx, pairs...), nil
 }
 
-func (gcw *grpcClientWriter) unaryHandler(ctx context.Context, msgBatch service.MessageBatch) error {
+func (gco *grpcClientOutput) unaryHandler(ctx context.Context, msgBatch service.MessageBatch) error {
 	var batchErr *service.BatchError
 	batchErrFailed := func(i int, err error) {
 		if batchErr == nil {
@@ -518,25 +382,25 @@ func (gcw *grpcClientWriter) unaryHandler(ctx context.Context, msgBatch service.
 			continue
 		}
 
-		request := dynamic.NewMessage(gcw.method.GetInputType())
+		request := dynamic.NewMessage(gco.method.GetInputType())
 		if err := request.UnmarshalJSON(msgBytes); err != nil {
 			batchErrFailed(i, err)
 			continue
 		}
 
-		rpcCtx, err := gcw.contextWithMetadata(ctx, msg)
+		rpcCtx, err := gco.contextWithMetadata(ctx, msg)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
 		}
 
-		resProtoMessage, err := gcw.stub.InvokeRpc(rpcCtx, gcw.method, request)
+		resProtoMessage, err := gco.stub.InvokeRpc(rpcCtx, gco.method, request)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
 		}
 
-		if !gcw.propResponse {
+		if !gco.propResponse {
 			continue
 		}
 
@@ -569,13 +433,13 @@ func (gcw *grpcClientWriter) unaryHandler(ctx context.Context, msgBatch service.
 	return nil
 }
 
-func (gcw *grpcClientWriter) clientStreamHandler(ctx context.Context, msgBatch service.MessageBatch) error {
-	rpcCtx, err := gcw.contextWithMetadata(ctx, msgBatch[0])
+func (gco *grpcClientOutput) clientStreamHandler(ctx context.Context, msgBatch service.MessageBatch) error {
+	rpcCtx, err := gco.contextWithMetadata(ctx, msgBatch[0])
 	if err != nil {
 		return err
 	}
 
-	clientStream, err := gcw.stub.InvokeRpcClientStream(rpcCtx, gcw.method)
+	clientStream, err := gco.stub.InvokeRpcClientStream(rpcCtx, gco.method)
 	if err != nil {
 		return err
 	}
@@ -586,7 +450,7 @@ func (gcw *grpcClientWriter) clientStreamHandler(ctx context.Context, msgBatch s
 			return err
 		}
 
-		request := dynamic.NewMessage(gcw.method.GetInputType())
+		request := dynamic.NewMessage(gco.method.GetInputType())
 		if err := request.UnmarshalJSON(msgBytes); err != nil {
 			return err
 		}
@@ -602,7 +466,7 @@ func (gcw *grpcClientWriter) clientStreamHandler(ctx context.Context, msgBatch s
 		return err
 	}
 
-	if !gcw.propResponse {
+	if !gco.propResponse {
 		return nil
 	}
 
@@ -626,7 +490,7 @@ func (gcw *grpcClientWriter) clientStreamHandler(ctx context.Context, msgBatch s
 	return nil
 }
 
-func (gcw *grpcClientWriter) serverStreamHandler(ctx context.Context, msgBatch service.MessageBatch) error {
+func (gco *grpcClientOutput) serverStreamHandler(ctx context.Context, msgBatch service.MessageBatch) error {
 	var batchErr *service.BatchError
 	batchErrFailed := func(i int, err error) {
 		if batchErr == nil {
@@ -643,25 +507,25 @@ msgLoop:
 			continue
 		}
 
-		request := dynamic.NewMessage(gcw.method.GetInputType())
+		request := dynamic.NewMessage(gco.method.GetInputType())
 		if err := request.UnmarshalJSON(msgBytes); err != nil {
 			batchErrFailed(i, err)
 			continue
 		}
 
-		rpcCtx, err := gcw.contextWithMetadata(ctx, msg)
+		rpcCtx, err := gco.contextWithMetadata(ctx, msg)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
 		}
 
-		serverStream, err := gcw.stub.InvokeRpcServerStream(rpcCtx, gcw.method, request)
+		serverStream, err := gco.stub.InvokeRpcServerStream(rpcCtx, gco.method, request)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
 		}
 
-		if !gcw.propResponse {
+		if !gco.propResponse {
 			for {
 				_, err := serverStream.RecvMsg()
 				if err == io.EOF {
@@ -714,7 +578,7 @@ msgLoop:
 	return nil
 }
 
-func (gcw *grpcClientWriter) bidirectionalHandler(ctx context.Context, msgBatch service.MessageBatch) error {
+func (gco *grpcClientOutput) bidirectionalHandler(ctx context.Context, msgBatch service.MessageBatch) error {
 	var batchErr *service.BatchError
 	batchErrFailed := func(i int, err error) {
 		if batchErr == nil {
@@ -723,12 +587,12 @@ func (gcw *grpcClientWriter) bidirectionalHandler(ctx context.Context, msgBatch 
 		batchErr.Failed(i, err)
 	}
 
-	rpcCtx, err := gcw.contextWithMetadata(ctx, msgBatch[0])
+	rpcCtx, err := gco.contextWithMetadata(ctx, msgBatch[0])
 	if err != nil {
 		return err
 	}
 
-	bidi, err := gcw.stub.InvokeRpcBidiStream(rpcCtx, gcw.method)
+	bidi, err := gco.stub.InvokeRpcBidiStream(rpcCtx, gco.method)
 	if err != nil {
 		return err
 	}
@@ -740,7 +604,7 @@ func (gcw *grpcClientWriter) bidirectionalHandler(ctx context.Context, msgBatch 
 			continue
 		}
 
-		request := dynamic.NewMessage(gcw.method.GetInputType())
+		request := dynamic.NewMessage(gco.method.GetInputType())
 		if err := request.UnmarshalJSON(msgBytes); err != nil {
 			batchErrFailed(i, err)
 			continue

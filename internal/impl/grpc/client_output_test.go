@@ -433,7 +433,7 @@ health_check:
   service: ""
 `, testServer.Port)
 
-	pConf, err := grcpClientOutputSpec().ParseYAML(yamlConf, nil)
+	pConf, err := grpcClientOutputSpec().ParseYAML(yamlConf, nil)
 	require.NoError(t, err)
 
 	foo, err := newGrpcClientWriterFromParsed(pConf, nil)
