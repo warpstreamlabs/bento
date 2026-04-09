@@ -45,7 +45,7 @@ func init() {
 //------------------------------------------------------------------------------
 
 type grpcClientInput struct {
-	grpcCommonConfig
+	grpcCommon
 
 	payloadExpr *service.InterpolatedString
 	rateLimit   string
@@ -73,7 +73,7 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 	}
 
 	return &grpcClientInput{
-		grpcCommonConfig: gcc,
+		grpcCommon: gcc,
 
 		payloadExpr: payloadExpr,
 		rateLimit:   rateLimit,
