@@ -39,6 +39,7 @@ output:
     rpc_type: unary
     reflection: false
     proto_files: []
+    metadata: {}
     health_check: {}
     max_in_flight: 64
     batching:
@@ -63,6 +64,7 @@ output:
     rpc_type: unary
     reflection: false
     proto_files: []
+    metadata: {}
     propagate_response: false
     health_check:
       enabled: false
@@ -209,6 +211,23 @@ Default: `[]`
 
 proto_files:
   - ./grpc_test_server/helloworld.proto
+```
+
+### `metadata`
+
+A map of metadata key/value pairs to add to gRPC requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `object`
+Default: `{}`
+
+```yml
+# Examples
+
+metadata:
+  application: bento
+  x-request-id: ${!metadata("request_id")}
 ```
 
 ### `propagate_response`
