@@ -28,7 +28,7 @@ import (
 var namesInputTestData = []string{`{"name":"Alice"}`, `{"name":"Bob"}`, `{"name":"Carol"}`, `{"name":"Dan"}`}
 var names = []string{"Alice", "Bob", "Carol", "Dan"}
 
-func TestGrpcClientWriter(t *testing.T) {
+func TestGrpcClientOutput(t *testing.T) {
 	tests := map[string]struct {
 		grpcServerOpts   []test_server.TestServerOpt
 		confFormatString string
@@ -234,7 +234,7 @@ grpc_client:
 	}
 }
 
-func TestGrpcClientWriterSyncResponse(t *testing.T) {
+func TestGrpcClientOutputSyncResponse(t *testing.T) {
 	tests := map[string]struct {
 		grpcServerOpts   []test_server.TestServerOpt
 		confFormatString string
@@ -322,7 +322,7 @@ grpc_client:
 	}
 }
 
-func TestGrpcClientWriterClientStreamSyncResponse(t *testing.T) {
+func TestGrpcClientOutputClientStreamSyncResponse(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 
 	yamlConf := fmt.Sprintf(`
@@ -374,7 +374,7 @@ grpc_client:
 	}, time.Second*10, time.Second)
 }
 
-func TestGrpcClientWriterServerStreamSyncResponse(t *testing.T) {
+func TestGrpcClientOutputServerStreamSyncResponse(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 
 	yamlConf := fmt.Sprintf(`
@@ -420,7 +420,7 @@ grpc_client:
 	assert.Equal(t, 4, testServer.SayHelloHowAreYouInvocations)
 }
 
-func TestGrpcClientWriterHealthCheck(t *testing.T) {
+func TestGrpcClientOutputHealthCheck(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection(), test_server.WithHealthCheck())
 
 	yamlConf := fmt.Sprintf(`
@@ -436,15 +436,15 @@ health_check:
 	pConf, err := grpcClientOutputSpec().ParseYAML(yamlConf, nil)
 	require.NoError(t, err)
 
-	foo, err := newGrpcClientWriterFromParsed(pConf, nil)
+	output, err := newGrpcClientOutputFromParsed(pConf, nil)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	err = foo.Connect(ctx)
+	err = output.Connect(ctx)
 	assert.NoError(t, err)
 }
 
-func TestGrpcClientWriterUnableToFindMethodErr(t *testing.T) {
+func TestGrpcClientOutputUnableToFindMethodErr(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 
 	sb := service.NewStreamBuilder()
@@ -493,7 +493,7 @@ output:
 	assert.Contains(t, buffer.String(), "method: DoesNotExist not found")
 }
 
-func TestGrpcClientWriterBrokenProtoFile(t *testing.T) {
+func TestGrpcClientOutputBrokenProtoFile(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 
 	sb := service.NewStreamBuilder()
@@ -543,7 +543,7 @@ output:
 	assert.Contains(t, buffer.String(), "syntax error: unexpected '='")
 }
 
-func TestGrpcClientWriterLints(t *testing.T) {
+func TestGrpcClientOutputLints(t *testing.T) {
 
 	tests := map[string]struct {
 		config          string
@@ -616,7 +616,7 @@ grpc_client:
 	}
 }
 
-func TestGrpcClientWriterBatchErrors(t *testing.T) {
+func TestGrpcClientOutputBatchErrors(t *testing.T) {
 	tests := map[string]struct {
 		grpcServerOpts   []test_server.TestServerOpt
 		confFormatString string

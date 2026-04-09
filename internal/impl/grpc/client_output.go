@@ -104,7 +104,7 @@ func init() {
 				return
 			}
 
-			out, err = newGrpcClientWriterFromParsed(conf, mgr)
+			out, err = newGrpcClientOutputFromParsed(conf, mgr)
 			return
 		})
 	if err != nil {
@@ -120,7 +120,7 @@ type grpcClientOutput struct {
 	propResponse bool
 }
 
-func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientOutput, error) {
+func newGrpcClientOutputFromParsed(conf *service.ParsedConfig, _ *service.Resources) (*grpcClientOutput, error) {
 	gcc, err := grpcCommonConfigFromParsed(conf)
 	if err != nil {
 		return nil, err

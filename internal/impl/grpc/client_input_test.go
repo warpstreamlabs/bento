@@ -124,6 +124,36 @@ grpc_client:
 				[]byte(`{"message":"Hello Alice"}`),
 			},
 		},
+		"TLS and oAuth2": {
+			grpcServerOpts: []test_server.TestServerOpt{test_server.WithReflection(), test_server.WithTLS(), test_server.WithOAuth2()},
+			confFormatString: `
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHello
+  rpc_type: unary
+  reflection: true
+  payload: ${! {"name":"Alice"} }
+  oauth2:
+    enabled: true
+    token_url: %v
+    client_key: fookey
+    client_secret: foosecret
+  tls:
+    enabled: true
+    root_cas_file: ./grpc_test_server/helloworld/certs/ca.pem
+    client_certs:
+      - cert_file: ./grpc_test_server/helloworld/certs/client.pem
+        key_file: ./grpc_test_server/helloworld/certs/client.key
+    skip_cert_verify: false
+`,
+			formatArgs: func(ts *test_server.TestServer) []any {
+				return []any{ts.Port, ts.OAuthAddress}
+			},
+			expected: [][]byte{
+				[]byte(`{"message":"Hello Alice"}`),
+			},
+		},
 	}
 
 	for name, test := range tests {
@@ -208,6 +238,31 @@ rate_limit_resources:
 			msgReceived = append(msgReceived, msg)
 		}
 	}
+}
+
+func TestGrpcClientInputHealthCheck(t *testing.T) {
+	testServer := test_server.StartGRPCServer(t, test_server.WithReflection(), test_server.WithHealthCheck())
+
+	yamlConf := fmt.Sprintf(`
+address: localhost:%v
+service: helloworld.Greeter
+method: SayHello
+reflection: true
+payload: ${! {"name":"Alice"} }
+health_check:
+  enabled: true
+  service: ""
+`, testServer.Port)
+
+	pConf, err := grpcClientInputSpec().ParseYAML(yamlConf, nil)
+	require.NoError(t, err)
+
+	input, err := newGrpcClientInputFromParsed(pConf, service.MockResources())
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = input.Connect(ctx)
+	assert.NoError(t, err)
 }
 
 func startGrpcClientInput(t *testing.T, yamlConf string) (ch <-chan (message.Transaction)) {
