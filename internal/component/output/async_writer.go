@@ -205,6 +205,13 @@ func (w *AsyncWriter) loop() {
 
 			w.log.Trace("Attempting to write %v messages to '%v'.\n", ts.Payload.Len(), w.typeStr)
 			_, spans := tracing.WithChildSpans(w.tracer, traceName, ts.Payload)
+			// Inject message content into output span attributes for provenance
+			_ = ts.Payload.Iter(func(i int, part *message.Part) error {
+				if i < len(spans) {
+					spans[i].SetTag("message.content", string(part.AsBytes()))
+				}
+				return nil
+			})
 
 			latency, err := w.latencyMeasuringWrite(closeLeisureCtx, ts.Payload)
 
