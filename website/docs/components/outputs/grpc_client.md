@@ -219,8 +219,8 @@ A map of metadata key/value pairs to add to gRPC requests. Values support [inter
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
-Type: `object`
-Default: `{}`
+Type: `object`  
+Default: `{}`  
 
 ```yml
 # Examples
