@@ -85,7 +85,7 @@ This input adds the following metadata fields to each message:
 - kafka_offset
 - kafka_lag
 - kafka_timestamp_unix
-- kafka_timestamp_ms
+- kafka_timestamp_unix_ms
 - kafka_tombstone_message
 - All existing message headers (version 0.11+)
 `+"```"+`
@@ -432,7 +432,7 @@ func dataToPart(highestOffset int64, data *sarama.ConsumerMessage, multiHeader b
 	part.MetaSetMut("kafka_offset", int(data.Offset))
 	part.MetaSetMut("kafka_lag", lag)
 	part.MetaSetMut("kafka_timestamp_unix", data.Timestamp.Unix())
-	part.MetaSetMut("kafka_timestamp_ms", data.Timestamp.UnixMilli())
+	part.MetaSetMut("kafka_timestamp_unix_ms", data.Timestamp.UnixMilli())
 	part.MetaSetMut("kafka_tombstone_message", data.Value == nil)
 
 	return part
