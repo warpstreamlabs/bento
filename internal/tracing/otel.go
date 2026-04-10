@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -120,12 +121,14 @@ func InitSpans(prov trace.TracerProvider, operationName string, batch message.Ba
 }
 
 // InitSpan sets up an OpenTracing span on a message part if one does not
-// already exist.
+// already exist. Injects message content as a span attribute for provenance.
 func InitSpan(prov trace.TracerProvider, operationName string, part *message.Part) *message.Part {
-	if GetActiveSpan(part) != nil {
+	if existing := GetActiveSpan(part); existing != nil {
+		existing.SetTag("message.content", string(part.AsBytes()))
 		return part
 	}
-	ctx, _ := prov.Tracer(name).Start(part.GetContext(), operationName)
+	ctx, s := prov.Tracer(name).Start(part.GetContext(), operationName)
+	s.SetAttributes(attribute.String("message.content", string(part.AsBytes())))
 	return message.WithContext(ctx, part)
 }
 
