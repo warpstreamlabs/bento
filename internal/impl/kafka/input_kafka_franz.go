@@ -48,6 +48,7 @@ This input adds the following metadata fields to each message:
 - kafka_partition
 - kafka_offset
 - kafka_timestamp_unix
+- kafka_timestamp_ms
 - kafka_tombstone_message
 - All record headers
 ` + "```" + `
@@ -469,6 +470,7 @@ func (f *franzKafkaReader) recordToMessage(record *kgo.Record) *msgWithRecord {
 	msg.MetaSetMut("kafka_partition", int(record.Partition))
 	msg.MetaSetMut("kafka_offset", int(record.Offset))
 	msg.MetaSetMut("kafka_timestamp_unix", record.Timestamp.Unix())
+	msg.MetaSetMut("kafka_timestamp_ms", record.Timestamp.UnixMilli())
 	msg.MetaSetMut("kafka_tombstone_message", record.Value == nil)
 	if f.multiHeader {
 		// in multi header mode we gather headers so we can encode them as lists
