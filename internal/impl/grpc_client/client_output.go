@@ -47,7 +47,7 @@ const (
 
 const grpcClientOutputDescription = `
 
-### Expected Message Format 
+### Expected Message Format
 
 Either the field ` + "`reflection` or `proto_files`" + ` must be supplied, which will provide the protobuf schema Bento will use to marshall the Bento message into protobuf.
 
@@ -120,7 +120,7 @@ output:
 				Default([]any{}).
 				Example([]string{"./grpc_test_server/helloworld.proto"}),
 			service.NewInterpolatedStringMapField(grpcClientOutputMetadata).
-				Description("A map of metadata key/value pairs to add to gRPC requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries). For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.").
+				Description("A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.").
 				Example(map[string]any{
 					"application":  "bento",
 					"x-request-id": `${!metadata("request_id")}`,
@@ -146,7 +146,7 @@ output:
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(grpcClientOutputBatching),
 		).LintRule(
-		`root = match { 
+		`root = match {
   this.rpc_type == "bidi" && this.propagate_response == true => "cannot set propagate_response to true when rpc_type is bidi",
   this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated"
 }`,
