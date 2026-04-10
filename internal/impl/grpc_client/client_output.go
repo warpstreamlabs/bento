@@ -51,6 +51,21 @@ const grpcClientOutputDescription = `
 
 Either the field ` + "`reflection` or `proto_files`" + ` must be supplied, which will provide the protobuf schema Bento will use to marshall the Bento message into protobuf.
 
+### Metadata
+
+The ` + "`metadata`" + ` field allows you to attach key/value pairs as gRPC metadata (headers) to outgoing requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+How metadata is applied depends on the ` + "`rpc_type`:" + `
+
+- ` + "`" + rpcTypeUnary + "`" + `: Metadata is evaluated **per message**. Each message in a batch can produce different metadata values via interpolation.` + `
+- ` + "`" + rpcTypeServerStream + "`" + `: Metadata is evaluated **per message**, since each message opens its own server stream.` + `
+- ` + "`" + rpcTypeClientStream + "`" + `: Metadata is evaluated from the **first message in the batch** only. gRPC metadata is sent as headers when the stream is opened, so it cannot vary per message within a single stream.` + `
+- ` + "`" + rpcTypeBidi + "`" + `: Same as ` + "`client_stream`" + ` — metadata is evaluated from the **first message in the batch**.` + `
+
+:::caution
+For ` + "`client_stream`" + ` and ` + "`bidi`" + ` RPC types, gRPC metadata is a stream-level concept (sent as HTTP/2 headers at stream creation). If you use interpolation functions that produce different values per message (e.g. ` + "`${! json(\"id\") }`" + `), only the value from the **first message** in the batch will be used for the entire stream. This is a gRPC protocol limitation, not a Bento limitation.
+:::
+
 ### Propagating Responses
 
 It's possible to propagate the response(s) from each gRPC method invocation back to the input source by
@@ -105,7 +120,7 @@ output:
 				Default([]any{}).
 				Example([]string{"./grpc_test_server/helloworld.proto"}),
 			service.NewInterpolatedStringMapField(grpcClientOutputMetadata).
-				Description("A map of metadata key/value pairs to add to gRPC requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries).").
+				Description("A map of metadata key/value pairs to add to gRPC requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries). For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.").
 				Example(map[string]any{
 					"application":  "bento",
 					"x-request-id": `${!metadata("request_id")}`,
