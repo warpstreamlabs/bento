@@ -40,7 +40,7 @@ func schemaRegistryDecoderConfig() *service.ConfigSpec {
 		Description(`
 Decodes messages automatically from a schema stored within a [Confluent Schema Registry service](https://docs.confluent.io/platform/current/schema-registry/index.html) by extracting a schema ID from the message and obtaining the associated schema from the registry. If a message fails to match against the schema then it will remain unchanged and the error can be caught using error handling methods outlined [here](/docs/configuration/error_handling).
 
-Avro, Protobuf and Json schemas are supported, all are capable of expanding from schema references as of v4.22.0.
+Avro, Protobuf and Json schemas are supported, all are capable of expanding from schema references.
 
 ### Avro JSON Format
 
@@ -67,8 +67,8 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 			Description("Whether Avro Schemas are nested. If true bento will resolve schema references. (Up to a maximum depth of 100)").
 			Advanced().Default(false).Version("1.2.0")).
 		Field(service.NewURLField("url").Description("The base URL of the schema registry service.")).
-		Field(service.NewTransportField("transport")).Version("1.13.0")
-
+		Field(service.NewTransportField("transport").Version("1.13.0")).
+		Field(service.NewBoolField("sanitize_namespace_names").Description("When enabled, sanitizes namespace names to only contain letters, numbers, and underscores.").Default(false))
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
 		spec = spec.Field(f)
 	}
@@ -128,6 +128,10 @@ func newSchemaRegistryDecoderFromConfig(conf *service.ParsedConfig, mgr *service
 	if err != nil {
 		return nil, err
 	}
+	namespaceNameSanitize, err := conf.FieldBool("sanitize_namespace_names")
+	if err != nil {
+		return nil, err
+	}
 
 	return newSchemaRegistryDecoder(urlStr,
 		authSigner,
@@ -135,7 +139,9 @@ func newSchemaRegistryDecoderFromConfig(conf *service.ParsedConfig, mgr *service
 		avroRawJSON,
 		avroNestedSchemas,
 		transport,
-		mgr)
+		namespaceNameSanitize,
+		mgr,
+	)
 }
 
 func newSchemaRegistryDecoder(
@@ -145,6 +151,7 @@ func newSchemaRegistryDecoder(
 	avroRawJSON bool,
 	avroNestedSchemas bool,
 	transport *http.Transport,
+	namespaceNameSanitize bool,
 	mgr *service.Resources,
 ) (*schemaRegistryDecoder, error) {
 	s := &schemaRegistryDecoder{
@@ -155,8 +162,14 @@ func newSchemaRegistryDecoder(
 		logger:            mgr.Logger(),
 		mgr:               mgr,
 	}
+
+	opts := []schemaRegistryClientOpt{}
+	if namespaceNameSanitize {
+		opts = append(opts, withNameSpaceNameSanitizer())
+	}
+
 	var err error
-	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, mgr); err != nil {
+	if s.client, err = newSchemaRegistryClient(urlStr, reqSigner, tlsConf, transport, mgr, opts...); err != nil {
 		return nil, err
 	}
 

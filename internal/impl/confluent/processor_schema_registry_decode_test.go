@@ -172,6 +172,25 @@ const testSchemaLogicalTypes = `{
 	]
 }`
 
+const testSchemaBadNamespace = `{
+	"namespace": "foo.namespace.com-dodgy",
+	"type": "record",
+	"name": "identity",
+	"fields": [
+		{ "name": "Name", "type": "string"},
+		{ "name": "Address", "type": ["null",{
+			"namespace": "my.namespace.com",
+			"type":	"record",
+			"name": "address",
+			"fields": [
+				{ "name": "City", "type": ["null", "string"], "default": null },
+				{ "name": "State", "type": "string" }
+			]
+		}],"default":null},
+		{"name": "MaybeHobby", "type": ["null","string"] }
+	]
+}`
+
 const testProtoSchema = `
 syntax = "proto3";
 package ksql;
@@ -223,11 +242,17 @@ func TestSchemaRegistryDecodeAvro(t *testing.T) {
 			}), nil
 		case "/schemas/ids/5":
 			return nil, fmt.Errorf("nope")
+		case "/schemas/ids/6":
+			return mustJBytes(t, map[string]any{
+				"schema": testSchemaBadNamespace,
+			}), nil
 		}
 		return nil, nil
 	})
 
-	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, service.MockResources())
+	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, false, service.MockResources())
+	require.NoError(t, err)
+	decoderFixNamespace, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, true, service.MockResources())
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -235,47 +260,67 @@ func TestSchemaRegistryDecodeAvro(t *testing.T) {
 		input       string
 		output      string
 		errContains string
+		decoder     *schemaRegistryDecoder
 	}{
 		{
-			name:   "successful message",
-			input:  "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
-			output: `{"Address":{"my.namespace.com.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":{"string":"dancing"},"Name":"foo"}`,
+			name:    "successful message",
+			input:   "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
+			output:  `{"Address":{"my.namespace.com.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":{"string":"dancing"},"Name":"foo"}`,
+			decoder: decoder,
 		},
 		{
-			name:   "successful message with null hobby",
-			input:  "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x00",
-			output: `{"Address":{"my.namespace.com.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":null,"Name":"foo"}`,
+			name:    "successful message with null hobby",
+			input:   "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x00",
+			output:  `{"Address":{"my.namespace.com.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":null,"Name":"foo"}`,
+			decoder: decoder,
 		},
 		{
-			name:   "successful message no address and null hobby",
-			input:  "\x00\x00\x00\x00\x03\x06foo\x00\x00",
-			output: `{"Name":"foo","MaybeHobby":null,"Address": null}`,
+			name:    "successful message no address and null hobby",
+			input:   "\x00\x00\x00\x00\x03\x06foo\x00\x00",
+			output:  `{"Name":"foo","MaybeHobby":null,"Address": null}`,
+			decoder: decoder,
 		},
 		{
-			name:   "successful message with logical types",
-			input:  "\x00\x00\x00\x00\x04\x02\x90\xaf\xce!\x02\x80\x80揪\x97\t\x02\x80\x80\xde\xf2\xdf\xff\xdf\xdc\x01\x02\x02!",
-			output: `{"int_time_millis":{"int.time-millis":35245000},"long_time_micros":{"long.time-micros":20192000000000},"long_timestamp_micros":{"long.timestamp-micros":62135596800000000},"pos_0_33333333":{"bytes.decimal":"!"}}`,
+			name:    "successful message with logical types",
+			input:   "\x00\x00\x00\x00\x04\x02\x90\xaf\xce!\x02\x80\x80揪\x97\t\x02\x80\x80\xde\xf2\xdf\xff\xdf\xdc\x01\x02\x02!",
+			output:  `{"int_time_millis":{"int.time-millis":35245000},"long_time_micros":{"long.time-micros":20192000000000},"long_timestamp_micros":{"long.timestamp-micros":62135596800000000},"pos_0_33333333":{"bytes.decimal":"!"}}`,
+			decoder: decoder,
 		},
 		{
 			name:        "non-empty magic byte",
 			input:       "\x06\x00\x00\x00\x03\x06foo\x02\x06foo\x06bar",
 			errContains: "version number 6 not supported",
+			decoder:     decoder,
+		},
+		{
+			name:        "bad namespace name",
+			input:       "\x00\x00\x00\x00\x06\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
+			errContains: "name ought to have second and remaining characters contain only [A-Za-z0-9_]",
+			decoder:     decoder,
 		},
 		{
 			name:        "non-existing schema",
-			input:       "\x00\x00\x00\x00\x06\x06foo\x02\x06foo\x06bar",
-			errContains: "schema '6' not found by registry",
+			input:       "\x00\x00\x00\x00\x07\x06foo\x02\x06foo\x06bar",
+			errContains: "schema '7' not found by registry",
+			decoder:     decoder,
 		},
 		{
 			name:        "server fails",
 			input:       "\x00\x00\x00\x00\x05\x06foo\x02\x06foo\x06bar",
 			errContains: "request failed for schema '5'",
+			decoder:     decoder,
+		},
+		{
+			name:    "bad namespace name fixed",
+			input:   "\x00\x00\x00\x00\x06\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
+			output:  `{"Address":{"my.namespace.com.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":{"string":"dancing"},"Name":"foo"}`,
+			decoder: decoderFixNamespace,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			outMsgs, err := decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
+			outMsgs, err := test.decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			if test.errContains != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.errContains)
@@ -325,11 +370,17 @@ func TestSchemaRegistryDecodeAvroRawJson(t *testing.T) {
 			return payload4, nil
 		case "/schemas/ids/5":
 			return nil, fmt.Errorf("nope")
+		case "/schemas/ids/6":
+			return mustJBytes(t, map[string]any{
+				"schema": testSchemaBadNamespace,
+			}), nil
 		}
 		return nil, nil
 	})
 
-	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, &http.Transport{}, service.MockResources())
+	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, &http.Transport{}, false, service.MockResources())
+	require.NoError(t, err)
+	decoderFixNamespace, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, true, false, &http.Transport{}, true, service.MockResources())
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -337,47 +388,67 @@ func TestSchemaRegistryDecodeAvroRawJson(t *testing.T) {
 		input       string
 		output      string
 		errContains string
+		decoder     *schemaRegistryDecoder
 	}{
 		{
-			name:   "successful message",
-			input:  "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
-			output: `{"Address":{"City":"foo","State":"bar"},"Name":"foo","MaybeHobby":"dancing"}`,
+			name:    "successful message",
+			input:   "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
+			output:  `{"Address":{"City":"foo","State":"bar"},"Name":"foo","MaybeHobby":"dancing"}`,
+			decoder: decoder,
 		},
 		{
-			name:   "successful message with null hobby",
-			input:  "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x00",
-			output: `{"Address":{"City":"foo","State":"bar"},"MaybeHobby":null,"Name":"foo"}`,
+			name:    "successful message with null hobby",
+			input:   "\x00\x00\x00\x00\x03\x06foo\x02\x02\x06foo\x06bar\x00",
+			output:  `{"Address":{"City":"foo","State":"bar"},"MaybeHobby":null,"Name":"foo"}`,
+			decoder: decoder,
 		},
 		{
-			name:   "successful message no address and null hobby",
-			input:  "\x00\x00\x00\x00\x03\x06foo\x00\x00",
-			output: `{"Name":"foo","MaybeHobby":null,"Address": null}`,
+			name:    "successful message no address and null hobby",
+			input:   "\x00\x00\x00\x00\x03\x06foo\x00\x00",
+			output:  `{"Name":"foo","MaybeHobby":null,"Address": null}`,
+			decoder: decoder,
 		},
 		{
-			name:   "successful message with logical types",
-			input:  "\x00\x00\x00\x00\x04\x02\x90\xaf\xce!\x02\x80\x80揪\x97\t\x02\x80\x80\xde\xf2\xdf\xff\xdf\xdc\x01\x02\x02!",
-			output: `{"int_time_millis":35245000,"long_time_micros":20192000000000,"long_timestamp_micros":62135596800000000,"pos_0_33333333":"!"}`,
+			name:    "successful message with logical types",
+			input:   "\x00\x00\x00\x00\x04\x02\x90\xaf\xce!\x02\x80\x80揪\x97\t\x02\x80\x80\xde\xf2\xdf\xff\xdf\xdc\x01\x02\x02!",
+			output:  `{"int_time_millis":35245000,"long_time_micros":20192000000000,"long_timestamp_micros":62135596800000000,"pos_0_33333333":"!"}`,
+			decoder: decoder,
 		},
 		{
 			name:        "non-empty magic byte",
 			input:       "\x06\x00\x00\x00\x03\x06foo\x02\x06foo\x06bar",
 			errContains: "version number 6 not supported",
+			decoder:     decoder,
+		},
+		{
+			name:        "bad namespace name",
+			input:       "\x00\x00\x00\x00\x06\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
+			errContains: "name ought to have second and remaining characters contain only [A-Za-z0-9_]",
+			decoder:     decoder,
 		},
 		{
 			name:        "non-existing schema",
-			input:       "\x00\x00\x00\x00\x06\x06foo\x02\x06foo\x06bar",
-			errContains: "schema '6' not found by registry",
+			input:       "\x00\x00\x00\x00\x07\x06foo\x02\x06foo\x06bar",
+			errContains: "schema '7' not found by registry",
+			decoder:     decoder,
 		},
 		{
 			name:        "server fails",
 			input:       "\x00\x00\x00\x00\x05\x06foo\x02\x06foo\x06bar",
 			errContains: "request failed for schema '5'",
+			decoder:     decoder,
+		},
+		{
+			name:    "bad namespace name fixed",
+			input:   "\x00\x00\x00\x00\x06\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
+			output:  `{"Address":{"City":"foo","State":"bar"},"Name":"foo","MaybeHobby":"dancing"}`,
+			decoder: decoderFixNamespace,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			outMsgs, err := decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
+			outMsgs, err := test.decoder.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			if test.errContains != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), test.errContains)
@@ -406,7 +477,7 @@ func TestSchemaRegistryDecodeClearExpired(t *testing.T) {
 		return nil, fmt.Errorf("nope")
 	})
 
-	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, service.MockResources())
+	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, false, service.MockResources())
 	require.NoError(t, err)
 	require.NoError(t, decoder.Close(context.Background()))
 
@@ -453,7 +524,7 @@ func TestSchemaRegistryDecodeProtobuf(t *testing.T) {
 		return nil, nil
 	})
 
-	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, service.MockResources())
+	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, false, service.MockResources())
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -515,7 +586,7 @@ func TestSchemaRegistryDecodeJson(t *testing.T) {
 		return nil, nil
 	})
 
-	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, service.MockResources())
+	decoder, err := newSchemaRegistryDecoder(urlStr, noopReqSign, nil, false, false, &http.Transport{}, false, service.MockResources())
 	require.NoError(t, err)
 
 	tests := []struct {

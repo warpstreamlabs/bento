@@ -11,15 +11,44 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+var invalidNamespaceChars = regexp.MustCompile(`[^A-Za-z0-9_]`)
+
+func sanitizeNamespaceName(rp *SchemaInfo) {
+	if rp.Schema != "" {
+		var schemaDef map[string]any
+		if jsonErr := json.Unmarshal([]byte(rp.Schema), &schemaDef); jsonErr == nil {
+			if ns, ok := schemaDef["namespace"].(string); ok {
+				sanitized := invalidNamespaceChars.ReplaceAllString(ns, "")
+				if sanitized != ns {
+					schemaDef["namespace"] = sanitized
+					if cleaned, jsonErr := json.Marshal(schemaDef); jsonErr == nil {
+						rp.Schema = string(cleaned)
+					}
+				}
+			}
+		}
+	}
+}
 
 type schemaRegistryClient struct {
 	client                *http.Client
 	schemaRegistryBaseURL *url.URL
 	requestSigner         func(f fs.FS, req *http.Request) error
 	mgr                   *service.Resources
+	namespaceNameSanitize bool
+}
+
+type schemaRegistryClientOpt func(*schemaRegistryClient)
+
+func withNameSpaceNameSanitizer() schemaRegistryClientOpt {
+	return func(src *schemaRegistryClient) {
+		src.namespaceNameSanitize = true
+	}
 }
 
 func newSchemaRegistryClient(
@@ -28,6 +57,7 @@ func newSchemaRegistryClient(
 	tlsConf *tls.Config,
 	transport *http.Transport,
 	mgr *service.Resources,
+	opts ...schemaRegistryClientOpt,
 ) (*schemaRegistryClient, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -51,12 +81,18 @@ func newSchemaRegistryClient(
 		hClient.Transport = cloned
 	}
 
-	return &schemaRegistryClient{
+	scr := &schemaRegistryClient{
 		client:                hClient,
 		schemaRegistryBaseURL: u,
 		requestSigner:         reqSigner,
 		mgr:                   mgr,
-	}, nil
+	}
+
+	for _, o := range opts {
+		o(scr)
+	}
+
+	return scr, nil
 }
 
 type SchemaInfo struct {
@@ -99,6 +135,11 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
 		return
 	}
+
+	if c.namespaceNameSanitize {
+		sanitizeNamespaceName(&resPayload)
+	}
+
 	return
 }
 
@@ -134,6 +175,11 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 		c.mgr.Logger().Errorf("failed to parse response for schema subject '%v': %v", subject, err)
 		return
 	}
+
+	if c.namespaceNameSanitize {
+		sanitizeNamespaceName(&resPayload)
+	}
+
 	return
 }
 
