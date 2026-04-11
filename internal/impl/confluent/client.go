@@ -12,25 +12,53 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var invalidNamespaceChars = regexp.MustCompile(`[^A-Za-z0-9_]`)
+func sanitizeNamespacePart(ns string) string {
+	// Replace dots temporarily, sanitize each segment, restore dots
+	parts := strings.Split(ns, ".")
+	for i, p := range parts {
+		parts[i] = regexp.MustCompile(`[^A-Za-z0-9_]`).ReplaceAllString(p, "")
+	}
+	return strings.Join(parts, ".")
+}
 
-func sanitizeNamespaceName(rp *SchemaInfo) {
-	if rp.Schema != "" {
-		var schemaDef map[string]any
-		if jsonErr := json.Unmarshal([]byte(rp.Schema), &schemaDef); jsonErr == nil {
-			if ns, ok := schemaDef["namespace"].(string); ok {
-				sanitized := invalidNamespaceChars.ReplaceAllString(ns, "")
-				if sanitized != ns {
-					schemaDef["namespace"] = sanitized
+func updateNamespaces(res1 map[string]any, res2 []any) {
+	for k, v := range res1 {
+		if k == "namespace" {
+			if strVal, ok := v.(string); ok {
+				res1[k] = sanitizeNamespacePart(strVal)
+			}
+		}
+		// If the key is "schema" and the value is a JSON string, parse and recurse into it
+		if k == "schema" {
+			if strVal, ok := v.(string); ok {
+				var schemaDef map[string]any
+				if jsonErr := json.Unmarshal([]byte(strVal), &schemaDef); jsonErr == nil {
+					updateNamespaces(schemaDef, nil)
 					if cleaned, jsonErr := json.Marshal(schemaDef); jsonErr == nil {
-						rp.Schema = string(cleaned)
+						res1[k] = string(cleaned)
 					}
 				}
 			}
+		}
+		switch vv := v.(type) {
+		case []any:
+			updateNamespaces(nil, vv)
+		case map[string]any:
+			updateNamespaces(vv, nil)
+		}
+	}
+
+	for _, v := range res2 {
+		switch vv := v.(type) {
+		case []any:
+			updateNamespaces(nil, vv)
+		case map[string]any:
+			updateNamespaces(vv, nil)
 		}
 	}
 }
@@ -131,13 +159,32 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 		return
 	}
 
-	if err = json.Unmarshal(resBody, &resPayload); err != nil {
-		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
+	if c.namespaceNameSanitize {
+		var res map[string]any
+		nserr := json.Unmarshal(resBody, &res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
+			return resPayload, nserr
+		}
+
+		updateNamespaces(res, nil)
+
+		cleaned, nserr := json.Marshal(res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to re-marshal schema '%v': %v", id, nserr)
+			return resPayload, nserr
+		}
+
+		if err = json.Unmarshal(cleaned, &resPayload); err != nil {
+			c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
+		}
+
 		return
 	}
 
-	if c.namespaceNameSanitize {
-		sanitizeNamespaceName(&resPayload)
+	if err = json.Unmarshal(resBody, &resPayload); err != nil {
+		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
+		return
 	}
 
 	return
@@ -171,13 +218,32 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 		return
 	}
 
-	if err = json.Unmarshal(resBody, &resPayload); err != nil {
-		c.mgr.Logger().Errorf("failed to parse response for schema subject '%v': %v", subject, err)
+	if c.namespaceNameSanitize {
+		var res map[string]any
+		nserr := json.Unmarshal(resBody, &res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", err)
+			return resPayload, nserr
+		}
+
+		updateNamespaces(res, nil)
+
+		cleaned, nserr := json.Marshal(res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to re-marshal schema %v", nserr)
+			return resPayload, nserr
+		}
+
+		if err = json.Unmarshal(cleaned, &resPayload); err != nil {
+			c.mgr.Logger().Errorf("failed to parse response for schema %v", err)
+		}
+
 		return
 	}
 
-	if c.namespaceNameSanitize {
-		sanitizeNamespaceName(&resPayload)
+	if err = json.Unmarshal(resBody, &resPayload); err != nil {
+		c.mgr.Logger().Errorf("failed to parse response for schema subject '%v': %v", subject, err)
+		return
 	}
 
 	return
