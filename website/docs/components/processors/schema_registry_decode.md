@@ -243,6 +243,7 @@ When enabled, sanitizes namespace names to only contain letters, numbers, and un
 
 Type: `bool`  
 Default: `false`  
+Requires version 1.17.0 or newer  
 
 ### `oauth`
 

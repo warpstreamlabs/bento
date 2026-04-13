@@ -17,20 +17,32 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func sanitizeNamespacePart(ns string) string {
-	// Replace dots temporarily, sanitize each segment, restore dots
-	parts := strings.Split(ns, ".")
-	for i, p := range parts {
-		parts[i] = regexp.MustCompile(`[^A-Za-z0-9_]`).ReplaceAllString(p, "")
+func sanitizeNamespacePart(n, k string) string {
+	parts := strings.Split(n, ".")
+	if k == "name" {
+		if len(parts) <= 1 {
+			return n
+		}
+		for i, p := range parts[:len(parts)-1] {
+			parts[i] = regexp.MustCompile(`[^A-Za-z0-9_]`).ReplaceAllString(p, "")
+		}
+		return strings.Join(parts, ".")
+	} else {
+		for i, p := range parts {
+			parts[i] = regexp.MustCompile(`[^A-Za-z0-9_]`).ReplaceAllString(p, "")
+		}
+		return strings.Join(parts, ".")
 	}
-	return strings.Join(parts, ".")
 }
 
 func updateNamespaces(res1 map[string]any, res2 []any) {
 	for k, v := range res1 {
-		if k == "namespace" {
+		if k == "references" {
+			continue
+		}
+		if k == "namespace" || k == "name" {
 			if strVal, ok := v.(string); ok {
-				res1[k] = sanitizeNamespacePart(strVal)
+				res1[k] = sanitizeNamespacePart(strVal, k)
 			}
 		}
 		// If the key is "schema" and the value is a JSON string, parse and recurse into it

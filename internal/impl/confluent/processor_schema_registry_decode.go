@@ -68,7 +68,7 @@ This processor decodes protobuf messages to JSON documents, you can read more ab
 			Advanced().Default(false).Version("1.2.0")).
 		Field(service.NewURLField("url").Description("The base URL of the schema registry service.")).
 		Field(service.NewTransportField("transport").Version("1.13.0")).
-		Field(service.NewBoolField("sanitize_namespace_names").Description("When enabled, sanitizes namespace names to only contain letters, numbers, and underscores.").Default(false))
+		Field(service.NewBoolField("sanitize_namespace_names").Description("When enabled, sanitizes namespace names to only contain letters, numbers, and underscores.").Default(false).Version("1.17.0"))
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
 		spec = spec.Field(f)
 	}
