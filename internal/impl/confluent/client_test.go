@@ -124,7 +124,7 @@ func TestUpdateNamespaces(t *testing.T) {
 			require.NoError(t, err)
 
 			jdopts := jsondiff.DefaultJSONOptions()
-			diff, explanation := jsondiff.Compare([]byte(cleaned), []byte(test.cleanedSchema), &jdopts)
+			diff, explanation := jsondiff.Compare(cleaned, []byte(test.cleanedSchema), &jdopts)
 			assert.Equalf(t, jsondiff.FullMatch.String(), diff.String(), "%s: %s", name, explanation)
 		})
 	}
