@@ -179,7 +179,7 @@ const testSchemaBadNamespace = `{
 	"fields": [
 		{ "name": "Name", "type": "string"},
 		{ "name": "Address", "type": ["null",{
-			"namespace": "my.namespace.com",
+			"namespace": "my.namespace.com-dodgy",
 			"type":	"record",
 			"name": "address",
 			"fields": [
@@ -313,7 +313,7 @@ func TestSchemaRegistryDecodeAvro(t *testing.T) {
 		{
 			name:    "bad namespace name fixed",
 			input:   "\x00\x00\x00\x00\x06\x06foo\x02\x02\x06foo\x06bar\x02\x0edancing",
-			output:  `{"Address":{"my.namespace.com.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":{"string":"dancing"},"Name":"foo"}`,
+			output:  `{"Address":{"my.namespace.comdodgy.address":{"City":{"string":"foo"},"State":"bar"}},"MaybeHobby":{"string":"dancing"},"Name":"foo"}`,
 			decoder: decoderFixNamespace,
 		},
 	}
