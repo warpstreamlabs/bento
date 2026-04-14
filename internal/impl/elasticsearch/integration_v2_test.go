@@ -96,10 +96,11 @@ output:
 func TestIntegrationV2Connect(t *testing.T) {
 	integration.CheckSkip(t)
 	tests := []struct {
-		name       string
-		env        []string
-		pollURL    func(port string) string
-		configYAML func(argsString []string) string
+		name        string
+		env         []string
+		pollURL     func(port string) string
+		createToken func(port string) string
+		configYAML  func(argsString []string) string
 	}{
 		{
 			name: "NoAuth",
@@ -154,6 +155,58 @@ basic_auth:
   username: elastic
   password: password
 `, argsAny...)
+			},
+		},
+		{
+			name: "APIAuth",
+			env: []string{
+				"discovery.type=single-node",
+				"xpack.security.enabled=true",
+				"xpack.security.transport.ssl.enabled=false",
+				"xpack.security.http.ssl.enabled=false",
+				"ES_JAVA_OPTS=-Xms512m -Xmx512m",
+				"ELASTIC_PASSWORD=password",
+			},
+			pollURL: func(port string) string {
+				return fmt.Sprintf("http://elastic:password@localhost:%s", port)
+			},
+			configYAML: func(argsString []string) string {
+				argsAny := make([]any, 0, 2)
+				for _, v := range argsString {
+					argsAny = append(argsAny, v)
+				}
+				return fmt.Sprintf(`
+urls: 
+  - http://localhost:%s
+index: test-index
+id: ${! uuid_v4 }
+api_key: %s
+`, argsAny...)
+			},
+			createToken: func(port string) string {
+				apiKeyReqBody := []byte(`{"name": "bento-integration-test-key"}`)
+				reqURL := fmt.Sprintf("http://localhost:%s/_security/api_key", port)
+
+				req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, reqURL, bytes.NewBuffer(apiKeyReqBody))
+				require.NoError(t, err)
+
+				// Authenticate using the bootstrap password we set in the environment variables
+				req.SetBasicAuth("elastic", "password")
+				req.Header.Set("Content-Type", "application/json")
+
+				resp, err := http.DefaultClient.Do(req)
+				require.NoError(t, err, "failed to make api key generation request")
+				defer resp.Body.Close()
+
+				require.Equal(t, http.StatusOK, resp.StatusCode, "expected 200 OK when generating API key")
+
+				var apiKeyRes struct {
+					Encoded string `json:"encoded"`
+				}
+				err = json.NewDecoder(resp.Body).Decode(&apiKeyRes)
+				require.NoError(t, err, "failed to decode api key response")
+
+				return apiKeyRes.Encoded
 			},
 		},
 		{
@@ -233,6 +286,10 @@ tls:
 			}
 
 			waitForElasticsearch(t, pool, client, pollURL)
+
+			if tc.createToken != nil {
+				configArgs = append(configArgs, tc.createToken(port))
+			}
 
 			connectOutput(t, tc.configYAML(configArgs))
 		})
