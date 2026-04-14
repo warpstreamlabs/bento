@@ -157,6 +157,8 @@ With this option, you can return topic order and per-topic partition ordering. T
 			Description("An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invocations by.").
 			Default("").
 			Advanced()).
+		Field(service.NewExtractTracingSpanMappingField()).
+		Field(service.NewRootSpanWithLinkField().Version("1.17.0")).
 		LintRule(`
 let has_topic_partitions = this.topics.any(t -> t.contains(":"))
 root = if $has_topic_partitions {
@@ -176,7 +178,11 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			return service.AutoRetryNacksBatchedToggled(conf, rdr)
+			r, err := service.AutoRetryNacksBatchedToggled(conf, rdr)
+			if err != nil {
+				return nil, err
+			}
+			return conf.WrapBatchInputExtractTracingSpanMapping("kafka_franz", r)
 		})
 	if err != nil {
 		panic(err)
