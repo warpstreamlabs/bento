@@ -110,6 +110,73 @@ func TestUpdateNamespaces(t *testing.T) {
 	}
 }`,
 		},
+		// test nested schemas
+		"nestedSchemas": {
+			testSchema: `{
+    "name": "person",
+    "type": "record",
+    "fields": [
+        {
+			"name": "firstname",
+			"type": "string"
+		},
+        {
+			"name": "lastname",
+			"type": "string"
+		},
+        {
+            "name": "address",
+            "type": {
+				"type" : "record",
+				"name" : "AddressUSRecord",
+				"fields" : [
+					{
+						"namespace": "com.example-dodgy",
+						"name": "streetaddress",
+						"type": "string"
+					},
+					{
+						"name": "com.example-dodgy.city",
+						"type": "string"
+					}
+				]
+			}
+        }
+    ]
+}`,
+			cleanedSchema: `{
+    "name": "person",
+    "type": "record",
+    "fields": [
+        {
+			"name": "firstname",
+			"type": "string"
+		},
+        {
+			"name": "lastname",
+			"type": "string"
+		},
+        {
+            "name": "address",
+            "type": {
+				"type" : "record",
+				"name" : "AddressUSRecord",
+				"fields" : [
+					{
+						"namespace": "com.exampledodgy",
+						"name": "streetaddress",
+						"type": "string"
+					},
+					{
+						"name": "com.exampledodgy.city",
+						"type": "string"
+					}
+				]
+			}
+        }
+    ]
+}`,
+		},
 	}
 
 	for name, test := range tests {
