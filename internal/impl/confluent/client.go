@@ -17,6 +17,8 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+var validAvroNameCharsRegex = regexp.MustCompile(`[^A-Za-z0-9_]`)
+
 func sanitizeNamespacePart(n, k string) string {
 	parts := strings.Split(n, ".")
 	if k == "name" {
@@ -24,53 +26,45 @@ func sanitizeNamespacePart(n, k string) string {
 			return n
 		}
 		for i, p := range parts[:len(parts)-1] {
-			parts[i] = regexp.MustCompile(`[^A-Za-z0-9_]`).ReplaceAllString(p, "")
+			parts[i] = validAvroNameCharsRegex.ReplaceAllString(p, "")
 		}
 		return strings.Join(parts, ".")
 	} else {
 		for i, p := range parts {
-			parts[i] = regexp.MustCompile(`[^A-Za-z0-9_]`).ReplaceAllString(p, "")
+			parts[i] = validAvroNameCharsRegex.ReplaceAllString(p, "")
 		}
 		return strings.Join(parts, ".")
 	}
 }
 
-func updateNamespaces(res1 map[string]any, res2 []any) {
-	for k, v := range res1 {
-		if k == "references" {
-			continue
-		}
-		if k == "namespace" || k == "name" {
-			if strVal, ok := v.(string); ok {
-				res1[k] = sanitizeNamespacePart(strVal, k)
+func updateNamespaces(res any) {
+	switch val := res.(type) {
+	case map[string]any:
+		for k, v := range val {
+			if k == "references" {
+				continue
 			}
-		}
-		// If the key is "schema" and the value is a JSON string, parse and recurse into it
-		if k == "schema" {
-			if strVal, ok := v.(string); ok {
-				var schemaDef map[string]any
-				if jsonErr := json.Unmarshal([]byte(strVal), &schemaDef); jsonErr == nil {
-					updateNamespaces(schemaDef, nil)
-					if cleaned, jsonErr := json.Marshal(schemaDef); jsonErr == nil {
-						res1[k] = string(cleaned)
+			if k == "namespace" || k == "name" {
+				if strVal, ok := v.(string); ok {
+					val[k] = sanitizeNamespacePart(strVal, k)
+				}
+			}
+			if k == "schema" {
+				if strVal, ok := v.(string); ok {
+					var schemaDef map[string]any
+					if jsonErr := json.Unmarshal([]byte(strVal), &schemaDef); jsonErr == nil {
+						updateNamespaces(schemaDef)
+						if cleaned, jsonErr := json.Marshal(schemaDef); jsonErr == nil {
+							val[k] = string(cleaned)
+						}
 					}
 				}
 			}
+			updateNamespaces(v)
 		}
-		switch vv := v.(type) {
-		case []any:
-			updateNamespaces(nil, vv)
-		case map[string]any:
-			updateNamespaces(vv, nil)
-		}
-	}
-
-	for _, v := range res2 {
-		switch vv := v.(type) {
-		case []any:
-			updateNamespaces(nil, vv)
-		case map[string]any:
-			updateNamespaces(vv, nil)
+	case []any:
+		for _, v := range val {
+			updateNamespaces(v)
 		}
 	}
 }
@@ -128,8 +122,8 @@ func newSchemaRegistryClient(
 		mgr:                   mgr,
 	}
 
-	for _, o := range opts {
-		o(scr)
+	for _, opt := range opts {
+		opt(scr)
 	}
 
 	return scr, nil
@@ -179,7 +173,7 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 			return resPayload, nserr
 		}
 
-		updateNamespaces(res, nil)
+		updateNamespaces(res)
 
 		cleaned, nserr := json.Marshal(res)
 		if nserr != nil {
@@ -238,7 +232,7 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 			return resPayload, nserr
 		}
 
-		updateNamespaces(res, nil)
+		updateNamespaces(res)
 
 		cleaned, nserr := json.Marshal(res)
 		if nserr != nil {

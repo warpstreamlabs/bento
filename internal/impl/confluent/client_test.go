@@ -185,7 +185,7 @@ func TestUpdateNamespaces(t *testing.T) {
 			err := json.Unmarshal([]byte(test.testSchema), &res)
 			require.NoError(t, err)
 
-			updateNamespaces(res, nil)
+			updateNamespaces(res)
 
 			cleaned, err := json.Marshal(res)
 			require.NoError(t, err)
