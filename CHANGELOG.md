@@ -3,6 +3,22 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.17.0 - 2026-04-15
+
+### Added 
+
+ - `sanitize_namespace_names` field to `schema_registry_decode` processor @jem-davies
+ - `api_key` to `elasticsearch_v2` output adding the option to use a elasticsearch API key to connect @alexthemayers
+ - `extract_tracing_map` and `new_root_span_with_link` fields to the kafka_franz input @danielavelez12
+ - `kafka_timestamp_ms` metadata fields to both `kafka_franz` and `kafka` @dnson & @sonnydinhgc
+ - new `file` processor @henrikschristensen
+
+### Changed
+
+ - upgrade OTEL dependencies for CVE @gitphill
+ - upgrade go-jose/v4 to v4.1.4 for CVE
+ - upgrade lambda distribution & update docs @jem-davies
+
 ## 1.16.2 - 2026-03-31
 
 ### Fixed 
