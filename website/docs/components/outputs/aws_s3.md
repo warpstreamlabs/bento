@@ -67,6 +67,7 @@ output:
     storage_class: STANDARD
     kms_key_id: ""
     server_side_encryption: ""
+    checksum_algorithm: ""
     force_path_style_urls: false
     max_in_flight: 64
     timeout: 5s
@@ -346,6 +347,15 @@ An optional server side encryption algorithm.
 
 Type: `string`  
 Default: `""`  
+
+### `checksum_algorithm`
+
+An optional checksum algorithm to use for data integrity verification. When set, the SDK computes the checksum and S3 validates it on upload.
+
+
+Type: `string`  
+Default: `""`  
+Options: `CRC32`, `CRC32C`, `SHA1`, `SHA256`, `CRC64NVME`.
 
 ### `force_path_style_urls`
 

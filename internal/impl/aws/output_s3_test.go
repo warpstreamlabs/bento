@@ -72,4 +72,3 @@ checksum_algorithm: "%s"
 		})
 	}
 }
-
