@@ -11,15 +11,64 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+var validAvroNameCharsRegex = regexp.MustCompile(`[^A-Za-z0-9_]`)
+
+func sanitizeNamespacePart(n, k string) string {
+	parts := strings.Split(n, ".")
+	if k == "name" {
+		if len(parts) <= 1 {
+			return n
+		}
+		for i, p := range parts[:len(parts)-1] {
+			parts[i] = validAvroNameCharsRegex.ReplaceAllString(p, "")
+		}
+		return strings.Join(parts, ".")
+	} else {
+		for i, p := range parts {
+			parts[i] = validAvroNameCharsRegex.ReplaceAllString(p, "")
+		}
+		return strings.Join(parts, ".")
+	}
+}
+
+func updateNamespaces(res any) {
+	switch val := res.(type) {
+	case map[string]any:
+		for k, v := range val {
+			if k == "namespace" || k == "name" {
+				if strVal, ok := v.(string); ok {
+					val[k] = sanitizeNamespacePart(strVal, k)
+				}
+			}
+			updateNamespaces(v)
+		}
+	case []any:
+		for _, v := range val {
+			updateNamespaces(v)
+		}
+	}
+}
 
 type schemaRegistryClient struct {
 	client                *http.Client
 	schemaRegistryBaseURL *url.URL
 	requestSigner         func(f fs.FS, req *http.Request) error
 	mgr                   *service.Resources
+	namespaceNameSanitize bool
+}
+
+type schemaRegistryClientOpt func(*schemaRegistryClient)
+
+func withNameSpaceNameSanitizer() schemaRegistryClientOpt {
+	return func(src *schemaRegistryClient) {
+		src.namespaceNameSanitize = true
+	}
 }
 
 func newSchemaRegistryClient(
@@ -28,6 +77,7 @@ func newSchemaRegistryClient(
 	tlsConf *tls.Config,
 	transport *http.Transport,
 	mgr *service.Resources,
+	opts ...schemaRegistryClientOpt,
 ) (*schemaRegistryClient, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -51,12 +101,18 @@ func newSchemaRegistryClient(
 		hClient.Transport = cloned
 	}
 
-	return &schemaRegistryClient{
+	scr := &schemaRegistryClient{
 		client:                hClient,
 		schemaRegistryBaseURL: u,
 		requestSigner:         reqSigner,
 		mgr:                   mgr,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(scr)
+	}
+
+	return scr, nil
 }
 
 type SchemaInfo struct {
@@ -99,6 +155,26 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
 		return
 	}
+
+	if c.namespaceNameSanitize {
+		var res map[string]any
+		nserr := json.Unmarshal([]byte(resPayload.Schema), &res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to parse response.Schema '%v': %v", id, err)
+			return resPayload, nserr
+		}
+
+		updateNamespaces(res)
+
+		cleaned, nserr := json.Marshal(res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to re-marshal schema '%v': %v", id, nserr)
+			return resPayload, nserr
+		}
+
+		resPayload.Schema = string(cleaned)
+	}
+
 	return
 }
 
@@ -134,6 +210,26 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 		c.mgr.Logger().Errorf("failed to parse response for schema subject '%v': %v", subject, err)
 		return
 	}
+
+	if c.namespaceNameSanitize {
+		var res map[string]any
+		nserr := json.Unmarshal([]byte(resPayload.Schema), &res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to parse response.Schema '%v': %v", subject, err)
+			return resPayload, nserr
+		}
+
+		updateNamespaces(res)
+
+		cleaned, nserr := json.Marshal(res)
+		if nserr != nil {
+			c.mgr.Logger().Errorf("failed to re-marshal schema '%v': %v", subject, nserr)
+			return resPayload, nserr
+		}
+
+		resPayload.Schema = string(cleaned)
+	}
+
 	return
 }
 
