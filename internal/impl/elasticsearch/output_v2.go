@@ -30,6 +30,7 @@ const (
 	esoV2FieldTimeout               = "timeout"
 	esoV2FieldTLS                   = "tls"
 	esoV2FieldAuth                  = "basic_auth"
+	esoV2FieldAPIKey                = "api_key"
 	esoV2FieldAuthEnabled           = "enabled"
 	esoV2FieldAuthUsername          = "username"
 	esoV2FieldAuthPassword          = "password"
@@ -100,6 +101,9 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 				Default("5s"),
 			service.NewTLSToggledField(esoV2FieldTLS),
 			service.NewOutputMaxInFlightField(),
+			service.NewStringField(esoV2FieldAPIKey).
+				Description("Allows you to specify a Base64-encoded token for authorization; if set, overrides basic auth.").
+				Optional(),
 			service.NewObjectField(esoV2FieldAuth,
 				service.NewBoolField(esoV2FieldAuthEnabled).
 					Description("Whether to use basic authentication in requests.").
@@ -209,6 +213,11 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 	if tlsEnabled {
 		conf.clientConfig.Transport = &http.Transport{
 			TLSClientConfig: tlsConf,
+		}
+	}
+	if pConf.Contains(esoV2FieldAPIKey) {
+		if conf.clientConfig.APIKey, err = pConf.FieldString(esoV2FieldAPIKey); err != nil {
+			return
 		}
 	}
 
