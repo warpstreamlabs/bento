@@ -36,6 +36,7 @@ const (
 	s3oFieldTimeout                 = "timeout"
 	s3oFieldKMSKeyID                = "kms_key_id"
 	s3oFieldServerSideEncryption    = "server_side_encryption"
+	s3oFieldChecksumAlgorithm       = "checksum_algorithm"
 	s3oFieldBatching                = "batching"
 )
 
@@ -60,6 +61,7 @@ type s3oConfig struct {
 	Timeout                 time.Duration
 	KMSKeyID                string
 	ServerSideEncryption    string
+	ChecksumAlgorithm       string
 	UsePathStyle            bool
 
 	aconf aws.Config
@@ -124,16 +126,24 @@ func s3oConfigFromParsed(pConf *service.ParsedConfig) (conf s3oConfig, err error
 	if conf.ServerSideEncryption, err = pConf.FieldString(s3oFieldServerSideEncryption); err != nil {
 		return
 	}
+	if conf.ChecksumAlgorithm, err = pConf.FieldString(s3oFieldChecksumAlgorithm); err != nil {
+		return
+	}
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
 	}
 
-	// Starting on v1.29 of the github.com/aws/aws-sdk-go-v2/config package,
-	// the default value for RequestChecksumCalculation is RequestChecksumCalculationWhenSupported.
-	// This breaks the behavior of the aws_s3 output during multipart uploads, since we're not adding
-	// a checksum to the request. We're setting it back to RequestChecksumCalculationWhenRequired.
-	// See https://github.com/aws/aws-sdk-go-v2/discussions/2960#discussioncomment-12077210
-	conf.aconf.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+	if conf.ChecksumAlgorithm != "" {
+		// User wants checksums, let the SDK compute and send them.
+		conf.aconf.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenSupported
+	} else {
+		// Starting on v1.29 of the github.com/aws/aws-sdk-go-v2/config package,
+		// the default value for RequestChecksumCalculation is RequestChecksumCalculationWhenSupported.
+		// This breaks the behavior of the aws_s3 output during multipart uploads, since we're not adding
+		// a checksum to the request. We're setting it back to RequestChecksumCalculationWhenRequired.
+		// See https://github.com/aws/aws-sdk-go-v2/discussions/2960#discussioncomment-12077210
+		conf.aconf.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+	}
 
 	return
 }
@@ -295,6 +305,12 @@ output:
 				Advanced(),
 			service.NewStringField(s3oFieldServerSideEncryption).
 				Description("An optional server side encryption algorithm.").
+				Default("").
+				Advanced(),
+			service.NewStringEnumField(s3oFieldChecksumAlgorithm,
+				"CRC32", "CRC32C", "SHA1", "SHA256", "CRC64NVME",
+			).
+				Description("An optional checksum algorithm to use for data integrity verification. When set, the SDK computes the checksum and S3 validates it on upload.").
 				Default("").
 				Advanced(),
 			service.NewBoolField(s3oFieldForcePathStyleURLs).
@@ -467,6 +483,10 @@ func (a *amazonS3Writer) WriteBatch(wctx context.Context, msg service.MessageBat
 		// the ServerSideEncryption value of "aws:kms" is implied.
 		if a.conf.ServerSideEncryption != "" {
 			uploadInput.ServerSideEncryption = types.ServerSideEncryption(a.conf.ServerSideEncryption)
+		}
+
+		if a.conf.ChecksumAlgorithm != "" {
+			uploadInput.ChecksumAlgorithm = types.ChecksumAlgorithm(a.conf.ChecksumAlgorithm)
 		}
 
 		if _, err := a.uploader.Upload(ctx, uploadInput); err != nil {
