@@ -207,7 +207,7 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 	}
 
 	if err = json.Unmarshal(resBody, &resPayload); err != nil {
-		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", subject, err)
+		c.mgr.Logger().Errorf("failed to parse response for schema subject '%v': %v", subject, err)
 		return
 	}
 
