@@ -44,11 +44,6 @@ func TestS3OutputChecksumAlgorithm(t *testing.T) {
 			checksumAlgorithm: "SHA256",
 			wantChecksumCalc:  aws.RequestChecksumCalculationWhenSupported,
 		},
-		{
-			name:              "CRC64NVME",
-			checksumAlgorithm: "CRC64NVME",
-			wantChecksumCalc:  aws.RequestChecksumCalculationWhenSupported,
-		},
 	}
 
 	for _, tt := range tests {

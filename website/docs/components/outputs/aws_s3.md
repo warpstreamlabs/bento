@@ -355,7 +355,7 @@ An optional checksum algorithm to use for data integrity verification. When set,
 
 Type: `string`  
 Default: `""`  
-Options: `CRC32`, `CRC32C`, `SHA1`, `SHA256`, `CRC64NVME`.
+Options: `CRC32`, `CRC32C`, `SHA1`, `SHA256`.
 
 ### `force_path_style_urls`
 
