@@ -30,7 +30,6 @@ Automatically decodes and validates messages with schemas from a Confluent Schem
 label: ""
 schema_registry_decode:
   url: "" # No default (required)
-  sanitize_namespace_names: false
 ```
 
 </TabItem>
