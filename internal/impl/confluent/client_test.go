@@ -14,100 +14,79 @@ func TestUpdateNamespaces(t *testing.T) {
 		testSchema    string
 		cleanedSchema string
 	}{
-		// test we are not altering "references"
-		"schemaWithDodgyNamespaceNamesWithReferences": {
+		"schemaWithDodgyNamespaceNames": {
 			testSchema: `{
-	"schema": {
-		"type": "record",
-		"name": "User",
-		"namespace": "com.example-dodgy",
-		"fields": [
-			{
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"name": "email",
-				"type": "string"
-			},
-			{
-				"name": "address",
-				"type": "Address-dodgy"
-			}
-		]
-	},
-	"references": {
-		"namespace": "com.example-dodgy",
-		"name": "Address-dodgy",
-		"subject": "Address-dodgy",
-		"version": 1
-	}
+	"type": "record",
+	"name": "User",
+	"namespace": "com.example-dodgy",
+	"fields": [
+		{
+			"name": "name",
+			"type": "string"
+		},
+		{
+			"name": "email",
+			"type": "string"
+		},
+		{
+			"name": "address",
+			"type": "Address-dodgy"
+		}
+	]
 }`,
 			cleanedSchema: `{
-	"schema": {
-		"type": "record",
-		"name": "User",
-		"namespace": "com.exampledodgy",
-		"fields": [
-			{
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"name": "email",
-				"type": "string"
-			},
-			{
-				"name": "address",
-				"type": "Address-dodgy"
-			}
-		]
-	},
-	"references": {
-		"namespace": "com.example-dodgy",
-		"name": "Address-dodgy",
-		"subject": "Address-dodgy",
-		"version": 1
-	}
+"type": "record",
+"name": "User",
+"namespace": "com.exampledodgy",
+"fields": [
+		{
+			"name": "name",
+			"type": "string"
+		},
+		{
+			"name": "email",
+			"type": "string"
+		},
+		{
+			"name": "address",
+			"type": "Address-dodgy"
+		}
+	]
 }`,
 		},
 		// Test we are only fixing "namespaces" not names
 		"dodgyNameSpaceAndDodgyName": {
 			testSchema: `{
-	"schema": {
-		"type": "record",
-		"name": "User",
-		"namespace": "com.example",
-		"fields": [
-			{
-				"name": "com.example-dodgy.dodgy-name",
-				"type": "string"
-			},
-			{	
-				"namespace": "com.example-dodgy",
-				"name": "age",
-				"type": "int"
-			}
-		]
-	}
+	"type": "record",
+	"name": "User",
+	"namespace": "com.example",
+	"fields": [
+		{
+			"name": "com.example-dodgy.dodgy-name",
+			"type": "string"
+		},
+		{	
+			"namespace": "com.example-dodgy",
+			"name": "age",
+			"type": "int"
+		}
+	]
 }`,
 			cleanedSchema: `{
-	"schema": {
-		"type": "record",
-		"name": "User",
-		"namespace": "com.example",
-		"fields": [
-			{
-				"name": "com.exampledodgy.dodgy-name",
-				"type": "string"
-			},
-			{	
-				"namespace": "com.exampledodgy",
-				"name": "age",
-				"type": "int"
-			}
-		]
-	}
+	"type": "record",
+	"name": "User",
+	"namespace": "com.example",
+	"fields": [
+		{
+			"name": "com.exampledodgy.dodgy-name",
+			"type": "string"
+		},
+		{	
+			"namespace": "com.exampledodgy",
+			"name": "age",
+			"type": "int"
+		}
+	]
 }`,
 		},
 		// test nested schemas

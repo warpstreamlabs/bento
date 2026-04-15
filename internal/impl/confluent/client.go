@@ -41,23 +41,9 @@ func updateNamespaces(res any) {
 	switch val := res.(type) {
 	case map[string]any:
 		for k, v := range val {
-			if k == "references" {
-				continue
-			}
 			if k == "namespace" || k == "name" {
 				if strVal, ok := v.(string); ok {
 					val[k] = sanitizeNamespacePart(strVal, k)
-				}
-			}
-			if k == "schema" {
-				if strVal, ok := v.(string); ok {
-					var schemaDef map[string]any
-					if jsonErr := json.Unmarshal([]byte(strVal), &schemaDef); jsonErr == nil {
-						updateNamespaces(schemaDef)
-						if cleaned, jsonErr := json.Marshal(schemaDef); jsonErr == nil {
-							val[k] = string(cleaned)
-						}
-					}
 				}
 			}
 			updateNamespaces(v)
@@ -165,11 +151,16 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 		return
 	}
 
+	if err = json.Unmarshal(resBody, &resPayload); err != nil {
+		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
+		return
+	}
+
 	if c.namespaceNameSanitize {
 		var res map[string]any
-		nserr := json.Unmarshal(resBody, &res)
+		nserr := json.Unmarshal([]byte(resPayload.Schema), &res)
 		if nserr != nil {
-			c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
+			c.mgr.Logger().Errorf("failed to parse response.Schema '%v': %v", id, err)
 			return resPayload, nserr
 		}
 
@@ -181,16 +172,7 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 			return resPayload, nserr
 		}
 
-		if err = json.Unmarshal(cleaned, &resPayload); err != nil {
-			c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
-		}
-
-		return
-	}
-
-	if err = json.Unmarshal(resBody, &resPayload); err != nil {
-		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", id, err)
-		return
+		resPayload.Schema = string(cleaned)
 	}
 
 	return
@@ -224,11 +206,16 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 		return
 	}
 
+	if err = json.Unmarshal(resBody, &resPayload); err != nil {
+		c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", subject, err)
+		return
+	}
+
 	if c.namespaceNameSanitize {
 		var res map[string]any
-		nserr := json.Unmarshal(resBody, &res)
+		nserr := json.Unmarshal([]byte(resPayload.Schema), &res)
 		if nserr != nil {
-			c.mgr.Logger().Errorf("failed to parse response for schema '%v': %v", err)
+			c.mgr.Logger().Errorf("failed to parse response.Schema '%v': %v", subject, err)
 			return resPayload, nserr
 		}
 
@@ -236,20 +223,11 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 
 		cleaned, nserr := json.Marshal(res)
 		if nserr != nil {
-			c.mgr.Logger().Errorf("failed to re-marshal schema %v", nserr)
+			c.mgr.Logger().Errorf("failed to re-marshal schema '%v': %v", subject, nserr)
 			return resPayload, nserr
 		}
 
-		if err = json.Unmarshal(cleaned, &resPayload); err != nil {
-			c.mgr.Logger().Errorf("failed to parse response for schema %v", err)
-		}
-
-		return
-	}
-
-	if err = json.Unmarshal(resBody, &resPayload); err != nil {
-		c.mgr.Logger().Errorf("failed to parse response for schema subject '%v': %v", subject, err)
-		return
+		resPayload.Schema = string(cleaned)
 	}
 
 	return

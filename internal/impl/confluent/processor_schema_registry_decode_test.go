@@ -183,8 +183,8 @@ const testSchemaBadNamespace = `{
 			"type":	"record",
 			"name": "address",
 			"fields": [
-				{ "name": "City", "type": ["null", "string"], "default": null },
-				{ "name": "State", "type": "string" }
+				{ "name": "foo.namespace.com-dodgy.City", "type": ["null", "string"], "default": null },
+				{ "namespace": "my.namespace.com-dodgy", "name": "State", "type": "string" }
 			]
 		}],"default":null},
 		{"name": "MaybeHobby", "type": ["null","string"] }
