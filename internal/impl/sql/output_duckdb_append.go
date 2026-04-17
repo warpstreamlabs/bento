@@ -188,6 +188,7 @@ func (d *duckdbAppendOutput) startShutdownListener() {
 		defer d.mu.Unlock()
 
 		if d.appender != nil {
+			d.logger.Debugf("Closing DuckDB appender for table %q (schema %q), flushing pending rows", d.table, d.schema)
 			if err := d.appender.Close(); err != nil {
 				d.logger.Errorf("Closing DuckDB appender: %v", err)
 			}
