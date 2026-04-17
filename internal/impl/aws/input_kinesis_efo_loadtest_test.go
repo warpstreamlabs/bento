@@ -28,10 +28,10 @@ import (
 func TestEFOSyncLoadSimulation(t *testing.T) {
 	const (
 		numShards       = 60
-		recordsPerEvent = 50              // records per SubscribeToShardEvent
-		recordSizeBytes = 1024            // 1 KB per record
-		batchSize       = 200             // records per flush (batch policy count)
-		checkpointLimit = 10              // max unacked batches per shard
+		recordsPerEvent = 50   // records per SubscribeToShardEvent
+		recordSizeBytes = 1024 // 1 KB per record
+		batchSize       = 200  // records per flush (batch policy count)
+		checkpointLimit = 10   // max unacked batches per shard
 		testDuration    = 10 * time.Second
 		outputLatency   = 20 * time.Millisecond
 		eventReadDelay  = 1 * time.Millisecond // simulated HTTP/2 event read time
@@ -55,11 +55,11 @@ func TestEFOSyncLoadSimulation(t *testing.T) {
 
 	// Metrics
 	var (
-		totalProduced, totalConsumed             atomic.Int64
-		totalBytesProduced, totalBytesConsumed   atomic.Int64
-		peakAlloc                                atomic.Int64
-		peakConcurrentFlushBlocked               atomic.Int32
-		currentFlushBlocked                      atomic.Int32
+		totalProduced, totalConsumed           atomic.Int64
+		totalBytesProduced, totalBytesConsumed atomic.Int64
+		peakAlloc                              atomic.Int64
+		peakConcurrentFlushBlocked             atomic.Int32
+		currentFlushBlocked                    atomic.Int32
 	)
 
 	// Simulate checkpoint_limit per shard: a buffered channel that limits
@@ -90,9 +90,7 @@ func TestEFOSyncLoadSimulation(t *testing.T) {
 
 	// Output goroutine — drains msgChan with simulated latency, then acks
 	var outputWg sync.WaitGroup
-	outputWg.Add(1)
-	go func() {
-		defer outputWg.Done()
+	outputWg.Go(func() {
 		for batch := range msgChan {
 			totalConsumed.Add(int64(batch.count))
 			totalBytesConsumed.Add(int64(batch.bytes))
@@ -102,7 +100,7 @@ func TestEFOSyncLoadSimulation(t *testing.T) {
 				batch.ackFn() // release checkpoint slot
 			}
 		}
-	}()
+	})
 
 	// Shard goroutines — simulate synchronous EFO processing
 	var shardWg sync.WaitGroup
@@ -280,9 +278,7 @@ func TestEFOSyncLoadSimulation_LargeRecords(t *testing.T) {
 	}()
 
 	var outputWg sync.WaitGroup
-	outputWg.Add(1)
-	go func() {
-		defer outputWg.Done()
+	outputWg.Go(func() {
 		for batch := range msgChan {
 			totalConsumed.Add(int64(batch.count))
 			_ = batch.data
@@ -291,7 +287,7 @@ func TestEFOSyncLoadSimulation_LargeRecords(t *testing.T) {
 				batch.ackFn()
 			}
 		}
-	}()
+	})
 
 	type shardSemaphore chan struct{}
 
