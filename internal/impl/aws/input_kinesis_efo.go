@@ -264,6 +264,10 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 
 				// Retryable error — backoff and retry
 				k.log.Warnf("EFO subscription error for shard %v, will retry: %v", shardID, subErr)
+				// Update sequence so retry doesn't reprocess from old position
+				if continuationSeq != "" {
+					currentSeq = continuationSeq
+				}
 				select {
 				case <-time.After(boff.NextBackOff()):
 				case <-k.ctx.Done():
@@ -346,60 +350,83 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 
 	continuationSeq := ""
 	shardFinished := false
+	eventsChan := eventStream.Events()
 
-	for event := range eventStream.Events() {
-		// Check context before processing
-		if ctx.Err() != nil {
-			return continuationSeq, false, ctx.Err()
+	// Timed batch support: if the batch policy has a time trigger, we need
+	// to flush even when no events arrive from Kinesis.
+	var nextTimedBatchChan <-chan time.Time
+
+	for {
+		// Set up timed batch flush if the batcher has a pending timer
+		if nextTimedBatchChan == nil {
+			if tNext, exists := recordBatcher.UntilNext(); exists {
+				nextTimedBatchChan = time.After(tNext)
+			}
 		}
 
-		switch e := event.(type) {
-		case *types.SubscribeToShardEventStreamMemberSubscribeToShardEvent:
-			shardEvent := e.Value
+		select {
+		case event, ok := <-eventsChan:
+			if !ok {
+				// Stream ended — flush any remaining records in batcher before returning
+				if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
+					k.log.Errorf("Failed to flush remaining records on stream end: %v", err)
+				}
+				goto streamEnded
+			}
 
-			// Add records directly to batcher — no channel, no pending slice
-			for _, record := range shardEvent.Records {
-				if recordBatcher.AddRecord(record) {
-					// Batch full — flush to pipeline
-					if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
-						k.log.Errorf("Failed to flush message: %v", err)
-						continue
+			switch e := event.(type) {
+			case *types.SubscribeToShardEventStreamMemberSubscribeToShardEvent:
+				shardEvent := e.Value
+
+				// Add records directly to batcher — no channel, no pending slice
+				for _, record := range shardEvent.Records {
+					if recordBatcher.AddRecord(record) {
+						// Batch full — flush to pipeline
+						if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
+							k.log.Errorf("Failed to flush message: %v", err)
+							continue
+						}
 					}
 				}
-			}
 
-			// Also flush if the batcher has a pending message (e.g. from a
-			// previous AddRecord that triggered a flush but we haven't sent yet)
-			if pendingMsg.msg != nil {
-				select {
-				case k.msgChan <- *pendingMsg:
-					*pendingMsg = asyncMessage{}
-				case <-ctx.Done():
-					return continuationSeq, false, ctx.Err()
+				// Send any pending flushed message to the pipeline
+				if pendingMsg.msg != nil {
+					select {
+					case k.msgChan <- *pendingMsg:
+						*pendingMsg = asyncMessage{}
+					case <-ctx.Done():
+						return continuationSeq, false, ctx.Err()
+					}
 				}
+
+				// Update continuation sequence
+				if shardEvent.ContinuationSequenceNumber != nil {
+					continuationSeq = *shardEvent.ContinuationSequenceNumber
+				}
+
+				// Check if shard is closed
+				if len(shardEvent.ChildShards) > 0 {
+					k.log.Debugf("Shard %v is closed, child shards: %v", shardID, len(shardEvent.ChildShards))
+					shardFinished = true
+				}
+
+				if shardEvent.MillisBehindLatest != nil {
+					k.log.Debugf("Shard %v is %d milliseconds behind latest", shardID, *shardEvent.MillisBehindLatest)
+				}
+
+			default:
+				k.log.Warnf("Unknown event type received: %T", event)
 			}
 
-			// Update continuation sequence
-			if shardEvent.ContinuationSequenceNumber != nil {
-				continuationSeq = *shardEvent.ContinuationSequenceNumber
+		case <-nextTimedBatchChan:
+			// Timed batch trigger — flush even without new events
+			nextTimedBatchChan = nil
+			if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
+				k.log.Errorf("Failed to flush timed batch: %v", err)
 			}
 
-			// Check if shard is closed
-			if len(shardEvent.ChildShards) > 0 {
-				k.log.Debugf("Shard %v is closed, child shards: %v", shardID, len(shardEvent.ChildShards))
-				shardFinished = true
-			}
-
-			if shardEvent.MillisBehindLatest != nil {
-				k.log.Debugf("Shard %v is %d milliseconds behind latest", shardID, *shardEvent.MillisBehindLatest)
-			}
-
-		default:
-			k.log.Warnf("Unknown event type received: %T", event)
-		}
-
-		// Periodic checkpoint
-		if (*commitCtx).Err() != nil {
+		case <-(*commitCtx).Done():
+			// Periodic checkpoint / lease renewal — fires even during idle streams
 			if ctx.Err() != nil {
 				return continuationSeq, false, ctx.Err()
 			}
@@ -416,9 +443,13 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 					return continuationSeq, false, nil
 				}
 			}
+
+		case <-ctx.Done():
+			return continuationSeq, false, ctx.Err()
 		}
 	}
 
+streamEnded:
 	// Check for stream errors
 	if err := eventStream.Err(); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {

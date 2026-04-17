@@ -26,6 +26,10 @@ import (
 //
 //	go test ./internal/impl/aws/... -run TestEFOSyncLoadSimulation -v -timeout 120s
 func TestEFOSyncLoadSimulation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping load test in short mode")
+	}
+
 	const (
 		numShards       = 60
 		recordsPerEvent = 50   // records per SubscribeToShardEvent
@@ -227,6 +231,10 @@ func TestEFOSyncLoadSimulation(t *testing.T) {
 // TestEFOSyncLoadSimulation_LargeRecords tests with 100KB records to verify
 // memory stays bounded even with large payloads.
 func TestEFOSyncLoadSimulation_LargeRecords(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping large record load test in short mode")
+	}
+
 	const (
 		numShards       = 60
 		recordsPerEvent = 10
