@@ -113,7 +113,10 @@ Type coercions applied to `args_mapping` output before passing to the Appender:
 - JSON integers (`json.Number`) → `int64`
 - JSON decimals (`json.Number`) → `float64`
 - RFC3339 strings → `time.Time` (for TIMESTAMP columns)
+- Nested types (maps, slices) are recursively coerced for STRUCT and LIST columns
 - All other types passed through unchanged.
+
+Rows are flushed to disk on every WriteBatch call. When the component shuts down, Close() also flushes any remaining buffered rows.
 
 ## Examples
 

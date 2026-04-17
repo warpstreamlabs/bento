@@ -5,6 +5,7 @@ package sql_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -450,6 +451,10 @@ args_mapping: 'root = this'
 	err := out.WriteBatch(ctx, batch(`{"deposit_id":"dep-001"}`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "array")
+
+	var batchErr *service.BatchError
+	require.True(t, errors.As(err, &batchErr), "expected BatchError")
+	assert.Contains(t, batchErr.Error(), "non-array")
 }
 
 func TestDuckDBAppend_ArgCountMismatch(t *testing.T) {
@@ -475,6 +480,10 @@ args_mapping: 'root = [this.deposit_id]'
 
 	err := out.WriteBatch(ctx, batch(`{"deposit_id":"dep-001","duck":"Scrooge McDuck"}`))
 	require.Error(t, err)
+
+	var batchErr *service.BatchError
+	require.True(t, errors.As(err, &batchErr), "expected BatchError")
+	assert.Contains(t, batchErr.Error(), "values for")
 }
 
 func TestDuckDBAppend_ConnectNotConnected(t *testing.T) {

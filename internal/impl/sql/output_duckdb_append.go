@@ -30,7 +30,10 @@ Type coercions applied to ` + "`args_mapping`" + ` output before passing to the 
 - JSON integers (` + "`json.Number`" + `) → ` + "`int64`" + `
 - JSON decimals (` + "`json.Number`" + `) → ` + "`float64`" + `
 - RFC3339 strings → ` + "`time.Time`" + ` (for TIMESTAMP columns)
-- All other types passed through unchanged.`).
+- Nested types (maps, slices) are recursively coerced for STRUCT and LIST columns
+- All other types passed through unchanged.
+
+Rows are flushed to disk on every WriteBatch call. When the component shuts down, Close() also flushes any remaining buffered rows.`).
 		Field(service.NewStringField("dsn").
 			Description("Path to the DuckDB database file. Use `:memory:` for an ephemeral in-process database.").
 			Example("/data/bento.duckdb").
@@ -289,43 +292,60 @@ func (d *duckdbAppendOutput) WriteBatch(ctx context.Context, batch service.Messa
 		executor = batch.BloblangExecutor(d.argsMapping)
 	}
 
+	var batchErr *service.BatchError
 	for i := range batch {
-		var args []any
-
-		if executor != nil {
-			resMsg, err := executor.Query(i)
-			if err != nil {
-				return fmt.Errorf("executing args_mapping for message %d: %w", i, err)
+		err := d.appendRow(executor, i, len(d.columns))
+		if err != nil {
+			if batchErr == nil {
+				batchErr = service.NewBatchError(batch, err)
 			}
-
-			iargs, err := resMsg.AsStructured()
-			if err != nil {
-				return fmt.Errorf("reading args_mapping result for message %d: %w", i, err)
-			}
-
-			var ok bool
-			if args, ok = iargs.([]any); !ok {
-				return fmt.Errorf("mapping returned non-array result: %T", iargs)
-			}
-			if len(args) != len(d.columns) {
-				return fmt.Errorf("mapping returned %d values for %d columns", len(args), len(d.columns))
-			}
+			batchErr.Failed(i, err)
 		}
+	}
 
-		driverArgs := make([]driver.Value, len(args))
-		for j, v := range args {
-			driverArgs[j] = d.coerceValue(v)
-		}
-
-		if err := appender.AppendRow(driverArgs...); err != nil {
-			return fmt.Errorf("appending row %d: %w", i, err)
-		}
+	if batchErr != nil {
+		return batchErr
 	}
 
 	// Flushing after every batch to access the appended rows immediately
 	// Produces partially-filled row groups, which may be less optimal for larger queries
 	if err := appender.Flush(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (d *duckdbAppendOutput) appendRow(executor *service.MessageBatchBloblangExecutor, i int, colCount int) error {
+	var args []any
+
+	if executor != nil {
+		resMsg, err := executor.Query(i)
+		if err != nil {
+			return fmt.Errorf("executing args_mapping: %w", err)
+		}
+
+		iargs, err := resMsg.AsStructured()
+		if err != nil {
+			return fmt.Errorf("reading args_mapping result: %w", err)
+		}
+
+		var ok bool
+		if args, ok = iargs.([]any); !ok {
+			return fmt.Errorf("non-array result: %T", iargs)
+		}
+		if len(args) != colCount {
+			return fmt.Errorf("%d values for %d columns", len(args), colCount)
+		}
+	}
+
+	driverArgs := make([]driver.Value, len(args))
+	for j, v := range args {
+		driverArgs[j] = d.coerceValue(v)
+	}
+
+	if err := d.appender.AppendRow(driverArgs...); err != nil {
+		return fmt.Errorf("appending row: %w", err)
 	}
 
 	return nil
