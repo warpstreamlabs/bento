@@ -313,24 +313,7 @@ func (d *duckdbAppendOutput) WriteBatch(ctx context.Context, batch service.Messa
 
 		driverArgs := make([]driver.Value, len(args))
 		for j, v := range args {
-			switch n := v.(type) {
-			case json.Number:
-				if i64, err := n.Int64(); err == nil {
-					driverArgs[j] = i64
-				} else if f64, err := n.Float64(); err == nil {
-					driverArgs[j] = f64
-				} else {
-					driverArgs[j] = n.String()
-				}
-			case string:
-				if t, err := time.Parse(time.RFC3339, n); err == nil {
-					driverArgs[j] = t
-				} else {
-					driverArgs[j] = v
-				}
-			default:
-				driverArgs[j] = v
-			}
+			driverArgs[j] = d.coerceValue(v)
 		}
 
 		if err := appender.AppendRow(driverArgs...); err != nil {
@@ -345,4 +328,40 @@ func (d *duckdbAppendOutput) WriteBatch(ctx context.Context, batch service.Messa
 	}
 
 	return nil
+}
+
+func (d *duckdbAppendOutput) coerceValue(v any) driver.Value {
+	switch n := v.(type) {
+	case json.Number:
+		if i64, err := n.Int64(); err == nil {
+			return i64
+		} else if f64, err := n.Float64(); err == nil {
+			return f64
+		} else {
+			return n.String()
+		}
+
+	case string:
+		if t, err := time.Parse(time.RFC3339, n); err == nil {
+			return t
+		}
+		return v
+
+	case map[string]any:
+		coercedMap := make(map[string]any, len(n))
+		for k, nv := range n {
+			coercedMap[k] = d.coerceValue(nv)
+		}
+		return coercedMap
+
+	case []any:
+		coercedList := make([]any, len(n))
+		for i, nv := range n {
+			coercedList[i] = d.coerceValue(nv)
+		}
+		return coercedList
+
+	default:
+		return v
+	}
 }
