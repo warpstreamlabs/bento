@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -97,6 +98,8 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 		return gci.unaryHandler(ctx)
 	case rpcTypeServerStream:
 		return gci.serverStreamHandler(ctx)
+	case rpcTypeClientStream:
+		return gci.clientStreamHandler(ctx)
 	default:
 		panic(errors.New("NOT IMPL"))
 	}
@@ -215,6 +218,56 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 	}
 
 	return responseBatch, func(rctx context.Context, res error) error {
+		return nil
+	}, nil
+}
+
+func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
+	rawPayload, err := gci.payloadExpr.TryBytes(service.NewMessage([]byte("")))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var payloads []json.RawMessage
+	if err := json.Unmarshal(rawPayload, &payloads); err != nil {
+		return nil, nil, fmt.Errorf("UNABLE TO MARSHAL PAYLOAD FIELD TO []ANY")
+	}
+
+	clientStream, err := gci.stub.InvokeRpcClientStream(ctx, gci.method)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, payload := range payloads {
+		request := dynamic.NewMessage(gci.method.GetInputType())
+		if err := request.UnmarshalJSON(payload); err != nil {
+			return nil, nil, err
+		}
+
+		err = clientStream.SendMsg(request)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	resProtoMessage, err := clientStream.CloseAndReceive()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dynMsg, ok := resProtoMessage.(*dynamic.Message)
+	if !ok {
+		return nil, nil, fmt.Errorf("expected dynamic.Message but got %T", resProtoMessage)
+	}
+
+	jsonBytes, err := dynMsg.MarshalJSON()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal proto response to JSON: %w", err)
+	}
+
+	responseMsg := service.MessageBatch{service.NewMessage(jsonBytes)}
+
+	return responseMsg, func(rctx context.Context, res error) error {
 		return nil
 	}, nil
 }
