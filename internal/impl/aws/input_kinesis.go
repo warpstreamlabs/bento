@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -40,19 +41,15 @@ const (
 	kiFieldEnhancedFanOut  = "enhanced_fan_out"
 
 	// Enhanced Fan Out Fields
-	kiEFOFieldEnabled                 = "enabled"
-	kiEFOFieldConsumerName            = "consumer_name"
-	kiEFOFieldConsumerARN             = "consumer_arn"
-	kiEFOFieldRecordBufferCap         = "record_buffer_cap"
-	kiEFOFieldMaxPendingRecordsGlobal = "max_pending_records"
+	kiEFOFieldEnabled      = "enabled"
+	kiEFOFieldConsumerName = "consumer_name"
+	kiEFOFieldConsumerARN  = "consumer_arn"
 )
 
 type kiEFOConfig struct {
-	Enabled                 bool
-	ConsumerName            string
-	ConsumerARN             string
-	RecordBufferCap         int
-	MaxPendingRecordsGlobal int
+	Enabled      bool
+	ConsumerName string
+	ConsumerARN  string
 }
 
 type kiConfig struct {
@@ -100,20 +97,6 @@ func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, e
 			return
 		}
 		if efoConf.ConsumerARN, err = efoNs.FieldString(kiEFOFieldConsumerARN); err != nil {
-			return
-		}
-		if efoConf.RecordBufferCap, err = efoNs.FieldInt(kiEFOFieldRecordBufferCap); err != nil {
-			return
-		}
-		if efoConf.RecordBufferCap < 0 {
-			err = errors.New("enhanced_fan_out.record_buffer_cap must be at least 0")
-			return
-		}
-		if efoConf.MaxPendingRecordsGlobal, err = efoNs.FieldInt(kiEFOFieldMaxPendingRecordsGlobal); err != nil {
-			return
-		}
-		if efoConf.MaxPendingRecordsGlobal < 1 {
-			err = errors.New("enhanced_fan_out.max_pending_records must be at least 1")
 			return
 		}
 		conf.EnhancedFanOut = efoConf
@@ -197,20 +180,8 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 				Description("Existing consumer ARN to use. If provided, skips registration.").
 				Default("").
 				Advanced(),
-			service.NewIntField(kiEFOFieldRecordBufferCap).
-				Description("Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 0 for unbuffered channel (minimal memory footprint).").
-				Default(0).
-				Advanced(),
-			service.NewIntField(kiEFOFieldMaxPendingRecordsGlobal).
-				Description("Maximum total number of records to buffer across all shards before applying backpressure to Kinesis subscriptions. This provides a global memory bound regardless of shard count. Higher values improve throughput by allowing shards to continue receiving data while processing, but increase memory usage. Total memory usage is approximately max_pending_records × average_record_size.").
-				Default(50000).
-				Advanced(),
 		).
-			Description(`Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.
-:::warning
-	Enhanced Fan Out support is currently experimental.
-:::
-			`).
+			Description("Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.").
 			Version("1.16.0").
 			Optional().
 			Advanced(),
@@ -264,10 +235,9 @@ type kinesisReader struct {
 
 	boffPool sync.Pool
 
-	svc               *kinesis.Client
-	checkpointer      *awsKinesisCheckpointer
-	efoEnabled        bool
-	globalPendingPool *globalPendingPool
+	svc          *kinesis.Client
+	checkpointer *awsKinesisCheckpointer
+	efoEnabled   bool
 
 	streams []*streamInfo
 
@@ -354,7 +324,7 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 
 	shardsByStream := map[string][]string{}
 	for _, t := range conf.Streams {
-		for splitStreams := range strings.SplitSeq(t, ",") {
+		for _, splitStreams := range strings.Split(t, ",") {
 			trimmed := strings.TrimSpace(splitStreams)
 			if trimmed == "" {
 				continue
@@ -402,8 +372,7 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 	// Check if Enhanced Fan Out is enabled
 	if k.conf.EnhancedFanOut != nil && k.conf.EnhancedFanOut.Enabled {
 		k.efoEnabled = true
-		k.globalPendingPool = newGlobalPendingPool(k.conf.EnhancedFanOut.MaxPendingRecordsGlobal)
-		k.log.Debugf("Enhanced Fan Out enabled with global pending pool max: %d", k.conf.EnhancedFanOut.MaxPendingRecordsGlobal)
+		k.log.Debugf("Enhanced Fan Out enabled")
 	}
 
 	return &k, nil
@@ -927,6 +896,7 @@ func (k *kinesisReader) runExplicitShards() {
 func (k *kinesisReader) waitUntilStreamsExists(ctx context.Context) error {
 	results := make(chan error, len(k.streams))
 	for _, s := range k.streams {
+		s := s
 		go func(info *streamInfo) {
 			waiter := kinesis.NewStreamExistsWaiter(k.svc)
 			input := &kinesis.DescribeStreamInput{}
