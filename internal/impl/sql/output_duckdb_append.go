@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/Jeffail/shutdown"
 	"github.com/duckdb/duckdb-go/v2"
@@ -354,16 +353,16 @@ func (d *duckdbAppendOutput) appendRow(executor *service.MessageBatchBloblangExe
 func (d *duckdbAppendOutput) coerceValue(v any) driver.Value {
 	switch n := v.(type) {
 	case json.Number:
-		if i64, err := n.Int64(); err == nil {
-			return i64
-		} else if f64, err := n.Float64(); err == nil {
+		if f64, err := bloblang.ValueAsFloat64(n); err == nil {
 			return f64
-		} else {
-			return n.String()
 		}
+		if i64, err := bloblang.ValueAsInt64(n); err == nil {
+			return i64
+		}
+		return n.String()
 
 	case string:
-		if t, err := time.Parse(time.RFC3339, n); err == nil {
+		if t, err := bloblang.ValueAsTimestamp(n); err == nil {
 			return t
 		}
 		return v
