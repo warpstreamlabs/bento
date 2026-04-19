@@ -101,7 +101,14 @@ func init() {
 				return
 			}
 
-			maxInFlight = 1 // DuckDB Appender uses single writer
+			// TODO(iamramtin): use a sync.Pool of connections to allow parallel WriteBatch calls.
+			// Appenders on the same connection do not parallelize. Each WriteBatch acquires
+			// a connection from the pool, creates a short-lived appender, appends + flushes,
+			// closes the appender, then releases the connection back to the pool.
+			// Connection and appender creation are lightweight in DuckDB -  minimal pool overhead.
+			// This removes maxInFlight=1.
+			// See: https://github.com/marcboeker/go-duckdb/discussions/277
+			maxInFlight = 1
 
 			out, err = newDuckDBAppendOutputFromConfig(conf, mgr)
 			return
