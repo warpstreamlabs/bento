@@ -16,7 +16,7 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func duckdbAppendOutputConfig() *service.ConfigSpec {
+func DuckDBAppendOutputConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Beta().
 		Categories("Services").
@@ -90,7 +90,7 @@ output:
 
 func init() {
 	err := service.RegisterBatchOutput(
-		"duckdb_append", duckdbAppendOutputConfig(),
+		"duckdb_append", DuckDBAppendOutputConfig(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (
 			out service.BatchOutput,
 			batchPolicy service.BatchPolicy,
@@ -130,10 +130,6 @@ type duckdbAppendOutput struct {
 
 	shutSig *shutdown.Signaller
 	logger  *service.Logger
-}
-
-func DuckDBAppendOutputConfig() *service.ConfigSpec {
-	return duckdbAppendOutputConfig()
 }
 
 func NewDuckDBAppendOutputFromConfig(
