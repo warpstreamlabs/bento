@@ -26,6 +26,7 @@ func grpcClientInputSpec() *service.ConfigSpec {
 		Fields(
 			service.NewInterpolatedStringField(grpcClientInputPayload).
 				Description("TODO").
+				Optional().
 				Example("TODO"),
 			service.NewStringField(grpcClientInputRateLimit).
 				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
@@ -51,6 +52,8 @@ type grpcClientInput struct {
 	payloadExpr *service.InterpolatedString
 	rateLimit   string
 
+	bidiChan chan (service.MessageBatch)
+
 	mgr *service.Resources
 	log *service.Logger
 }
@@ -61,10 +64,14 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 		return nil, err
 	}
 
-	payloadExpr, err := conf.FieldInterpolatedString(grpcClientInputPayload)
-	if err != nil {
-		return nil, err
+	var payloadExpr *service.InterpolatedString
+	if conf.Contains(grpcClientInputPayload) {
+		payloadExpr, err = conf.FieldInterpolatedString(grpcClientInputPayload)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	var rateLimit string
 	if conf.Contains(grpcClientInputRateLimit) {
 		rateLimit, err = conf.FieldString(grpcClientInputRateLimit)
@@ -92,7 +99,6 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 		gci.rateLimitWait(ctx)
 	}
 
-	//var err error
 	switch gci.rpcType {
 	case rpcTypeUnary:
 		return gci.unaryHandler(ctx)
@@ -100,6 +106,14 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 		return gci.serverStreamHandler(ctx)
 	case rpcTypeClientStream:
 		return gci.clientStreamHandler(ctx)
+	case rpcTypeBidi:
+		if gci.bidiChan == nil {
+			gci.startBidi(ctx)
+		}
+
+		return <-gci.bidiChan, func(rctx context.Context, res error) error {
+			return nil
+		}, nil
 	default:
 		panic(errors.New("NOT IMPL"))
 	}
@@ -270,4 +284,44 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 	return responseMsg, func(rctx context.Context, res error) error {
 		return nil
 	}, nil
+}
+
+func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
+	gci.bidiChan = make(chan service.MessageBatch)
+
+	bidi, err := gci.stub.InvokeRpcBidiStream(ctx, gci.method)
+	if err != nil {
+		return err
+	}
+
+	go func() error {
+		for {
+			resProtoMessage, err := bidi.RecvMsg()
+			if err != nil {
+				if err == io.EOF {
+					close(gci.bidiChan)
+					gci.bidiChan = nil
+					return nil // error not connected
+				} else {
+					return err
+				}
+			}
+
+			dynMsg, ok := resProtoMessage.(*dynamic.Message)
+			if !ok {
+				return fmt.Errorf("expected dynamic.Message but got %T", resProtoMessage)
+			}
+
+			jsonBytes, err := dynMsg.MarshalJSON()
+			if err != nil {
+				return fmt.Errorf("failed to marshal proto response to JSON: %w", err)
+			}
+
+			responseMsg := service.MessageBatch{service.NewMessage(jsonBytes)}
+
+			gci.bidiChan <- responseMsg
+		}
+	}()
+
+	return nil
 }

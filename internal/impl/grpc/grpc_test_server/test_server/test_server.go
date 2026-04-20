@@ -213,6 +213,14 @@ func (s *TestServer) SayHelloBidi(stream grpc.BidiStreamingServer[test_server.He
 		return errors.New("ERROR :( ")
 	}
 
+	helloMsg := &test_server.HelloReply{Message: "Hello"}
+	err := stream.SendMsg(helloMsg)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
 	return nil
 }
 

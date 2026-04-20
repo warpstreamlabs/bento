@@ -212,6 +212,34 @@ func TestGrpcClientInputClientStream(t *testing.T) {
 
 }
 
+func TestGrpcClientInputBidi(t *testing.T) {
+	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+
+	yamlConf := fmt.Sprintf(`grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHelloBidi
+  rpc_type: bidi
+  reflection: true`, testServer.Port)
+
+	msgCh := startGrpcClientInput(t, yamlConf)
+
+	var msg message.Transaction
+	select {
+	case msg = <-msgCh:
+	case <-time.After(10 * time.Second):
+		t.FailNow()
+	}
+
+	expected := []byte(`{"message":"Hello"}`)
+
+	err := msg.Payload.Iter(func(i int, p *message.Part) error {
+		assert.Equal(t, string(expected), string(p.AsBytes()))
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestGrpcClientInputRateLimit(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 
