@@ -39,7 +39,7 @@ input:
     reflection: false
     proto_files: []
     health_check: {}
-    payload: TODO # No default (required)
+    payload: TODO # No default (optional)
     rate_limit: "" # No default (optional)
 ```
 
@@ -74,7 +74,7 @@ input:
     health_check:
       enabled: false
       service: ""
-    payload: TODO # No default (required)
+    payload: TODO # No default (optional)
     rate_limit: "" # No default (optional)
 ```
 

@@ -39,8 +39,8 @@ output:
     rpc_type: unary
     reflection: false
     proto_files: []
-    metadata: {}
     health_check: {}
+    metadata: {}
     max_in_flight: 64
     batching:
       count: 0
@@ -64,11 +64,6 @@ output:
     rpc_type: unary
     reflection: false
     proto_files: []
-    metadata: {}
-    propagate_response: false
-    health_check:
-      enabled: false
-      service: ""
     tls:
       enabled: false
       skip_cert_verify: false
@@ -86,6 +81,7 @@ output:
     health_check:
       enabled: false
       service: ""
+    metadata: {}
     propagate_response: false
     max_in_flight: 64
     batching:
@@ -231,54 +227,6 @@ Default: `[]`
 proto_files:
   - ./grpc_test_server/helloworld.proto
 ```
-
-### `metadata`
-
-A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.
-This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
-
-
-Type: `object`  
-Default: `{}`  
-
-```yml
-# Examples
-
-metadata:
-  application: bento
-  x-request-id: ${!metadata("request_id")}
-```
-
-### `propagate_response`
-
-Whether responses from the server should be [propagated back](/docs/guides/sync_responses) to the input.
-
-
-Type: `bool`  
-Default: `false`  
-
-### `health_check`
-
-Sorry! This field is missing documentation.
-
-
-Type: `object`  
-
-### `health_check.enabled`
-
-Whether Bento should healthcheck the unary `Check` rpc endpoint on init connection: [gRPC Health Checking](https://grpc.io/docs/guides/health-checking/)
-
-
-Type: `bool`  
-Default: `false`  
-
-### `health_check.service`
-
-The name of the service to healthcheck, note that the default value of "", will attempt to check the health of the whole server
-
-
-Type: `string`  
-Default: `""`  
 
 ### `tls`
 
@@ -511,6 +459,23 @@ The name of the service to healthcheck, note that the default value of "", will 
 
 Type: `string`  
 Default: `""`  
+
+### `metadata`
+
+A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `object`  
+Default: `{}`  
+
+```yml
+# Examples
+
+metadata:
+  application: bento
+  x-request-id: ${!metadata("request_id")}
+```
 
 ### `propagate_response`
 
