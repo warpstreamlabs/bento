@@ -52,7 +52,8 @@ type grpcClientInput struct {
 	payloadExpr *service.InterpolatedString
 	rateLimit   string
 
-	bidiChan chan (service.MessageBatch)
+	bidiChan    chan (service.MessageBatch)
+	bidiErrChan chan (error)
 
 	mgr *service.Resources
 	log *service.Logger
@@ -108,14 +109,25 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 		return gci.clientStreamHandler(ctx)
 	case rpcTypeBidi:
 		if gci.bidiChan == nil {
-			gci.startBidi(ctx)
+			err := gci.startBidi(ctx)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
-		return <-gci.bidiChan, func(rctx context.Context, res error) error {
-			return nil
-		}, nil
+		select {
+		case re := <-gci.bidiChan:
+			return re, func(rctx context.Context, res error) error {
+				return nil
+			}, nil
+		case err := <-gci.bidiErrChan:
+			return nil, nil, err
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		}
+
 	default:
-		panic(errors.New("NOT IMPL"))
+		return nil, nil, fmt.Errorf("`rpc_type: %v not supported", gci.rpcType)
 	}
 }
 
@@ -244,7 +256,7 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 
 	var payloads []json.RawMessage
 	if err := json.Unmarshal(rawPayload, &payloads); err != nil {
-		return nil, nil, fmt.Errorf("UNABLE TO MARSHAL PAYLOAD FIELD TO []ANY")
+		return nil, nil, errors.New("UNABLE TO MARSHAL PAYLOAD FIELD TO []ANY") // TODO
 	}
 
 	clientStream, err := gci.stub.InvokeRpcClientStream(ctx, gci.method)
@@ -288,33 +300,38 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 
 func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
 	gci.bidiChan = make(chan service.MessageBatch)
+	gci.bidiErrChan = make(chan error)
 
 	bidi, err := gci.stub.InvokeRpcBidiStream(ctx, gci.method)
 	if err != nil {
 		return err
 	}
 
-	go func() error {
+	go func() {
 		for {
 			resProtoMessage, err := bidi.RecvMsg()
 			if err != nil {
+				close(gci.bidiChan)
+				gci.bidiChan = nil
 				if err == io.EOF {
-					close(gci.bidiChan)
-					gci.bidiChan = nil
-					return nil // error not connected
+					gci.bidiErrChan <- service.ErrNotConnected
+					return
 				} else {
-					return err
+					gci.bidiErrChan <- err
+					return
 				}
 			}
 
 			dynMsg, ok := resProtoMessage.(*dynamic.Message)
 			if !ok {
-				return fmt.Errorf("expected dynamic.Message but got %T", resProtoMessage)
+				gci.bidiErrChan <- fmt.Errorf("expected dynamic.Message but got %T", resProtoMessage)
+				return
 			}
 
 			jsonBytes, err := dynMsg.MarshalJSON()
 			if err != nil {
-				return fmt.Errorf("failed to marshal proto response to JSON: %w", err)
+				gci.bidiErrChan <- fmt.Errorf("failed to marshal proto response to JSON: %w", err)
+				return
 			}
 
 			responseMsg := service.MessageBatch{service.NewMessage(jsonBytes)}
