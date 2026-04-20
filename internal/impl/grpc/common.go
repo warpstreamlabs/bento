@@ -53,7 +53,7 @@ func grpcCommonFieldSpec() []*service.ConfigField {
 			Description("The name of the service.").
 			Example("helloworld.Greeter"),
 		service.NewStringField(grpcClientMethod).
-			Description("The name of the method to invoke").
+			Description("The name of the method to invoke.").
 			Example("SayHello"),
 		service.NewStringEnumField(
 			grpcClientRPCType,
@@ -72,14 +72,14 @@ func grpcCommonFieldSpec() []*service.ConfigField {
 		oAuth2FieldSpec(),
 		service.NewObjectField(grpcClientHealthCheck,
 			service.NewBoolField(grpcClientHealthCheckToggle).
-				Description("Whether Bento should healthcheck the unary `Check` rpc endpoint on init connection: [gRPC Health Checking](https://grpc.io/docs/guides/health-checking/)").
+				Description("Whether Bento should healthcheck the unary `Check` rpc endpoint on init connection.").
 				Default(false).
 				Advanced(),
 			service.NewStringField(grpcClientHealthCheckServiceName).
-				Description("The name of the service to healthcheck, note that the default value of \"\", will attempt to check the health of the whole server").
+				Description("The name of the service to healthcheck, note that the default value of \"\", will attempt to check the health of the whole server.").
 				Default("").
 				Advanced(),
-		),
+		).Description("Options for [gRPC Health Checking.](https://grpc.io/docs/guides/health-checking/)"),
 	}
 }
 
