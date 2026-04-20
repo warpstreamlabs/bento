@@ -113,7 +113,7 @@ service: helloworld.Greeter
 
 ### `method`
 
-The name of the method to invoke
+The name of the method to invoke.
 
 
 Type: `string`  
@@ -367,14 +367,14 @@ endpoint_params:
 
 ### `health_check`
 
-Sorry! This field is missing documentation.
+Options for [gRPC Health Checking.](https://grpc.io/docs/guides/health-checking/)
 
 
 Type: `object`  
 
 ### `health_check.enabled`
 
-Whether Bento should healthcheck the unary `Check` rpc endpoint on init connection: [gRPC Health Checking](https://grpc.io/docs/guides/health-checking/)
+Whether Bento should healthcheck the unary `Check` rpc endpoint on init connection.
 
 
 Type: `bool`  
@@ -382,7 +382,7 @@ Default: `false`
 
 ### `health_check.service`
 
-The name of the service to healthcheck, note that the default value of "", will attempt to check the health of the whole server
+The name of the service to healthcheck, note that the default value of "", will attempt to check the health of the whole server.
 
 
 Type: `string`  
