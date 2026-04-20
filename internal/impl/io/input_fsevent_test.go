@@ -161,7 +161,7 @@ fsevent:
 
 	// Wait for event from file1
 	var dir1Event bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -187,7 +187,7 @@ fsevent:
 
 	// Wait for event from file2
 	var dir2Event bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -238,7 +238,7 @@ fsevent:
 
 	// We should receive events for both the subdir creation and the file creation
 	var subdirCreated, fileCreated bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -292,7 +292,7 @@ fsevent:
 	require.NoError(t, os.WriteFile(fileInSubdir, []byte("content"), 0o644))
 
 	var subdirCreated, fileCreated bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -346,7 +346,7 @@ fsevent:
 	require.NoError(t, os.WriteFile(file1, []byte("content1"), 0o644))
 
 	var subdirCreated, file1Created bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -378,7 +378,7 @@ fsevent:
 	require.NoError(t, os.RemoveAll(subdir))
 
 	var subdirDeleted bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -412,7 +412,7 @@ fsevent:
 	require.NoError(t, os.WriteFile(file2, []byte("content2"), 0o644))
 
 	var subdirRecreated, file2Created bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -472,7 +472,7 @@ fsevent:
 
 	// We should receive events for both the subdir creation and the file creation
 	var subdirCreated, fileCreated bool
-	for j := 0; j < 10; j++ {
+	for range 10 {
 		select {
 		case tran := <-i.TransactionChan():
 			require.NoError(t, tran.Ack(ctx, nil))
@@ -500,4 +500,49 @@ fsevent:
 
 	assert.True(t, subdirCreated, "Should have received CREATE event for new subdirectory")
 	assert.True(t, fileCreated, "Should have received event for file in new subdirectory (nested logic working)")
+}
+
+func TestFSEventExtensionFilter(t *testing.T) {
+	dir := t.TempDir()
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	i := fseventInput(t, `
+fsevent:
+  paths: [ "%v" ]
+  extensions: [ ".txt" ]
+`, dir)
+
+	time.Sleep(time.Second)
+
+	// This file should be filtered out
+	ignoredFile := filepath.Join(dir, "ignored.log")
+	require.NoError(t, os.WriteFile(ignoredFile, []byte("should be ignored"), 0o644))
+
+	time.Sleep(500 * time.Millisecond)
+
+	// This file should trigger an event
+	matchedFile := filepath.Join(dir, "matched.txt")
+	require.NoError(t, os.WriteFile(matchedFile, []byte("should be seen"), 0o644))
+
+	var gotEvent bool
+	for range 10 {
+		select {
+		case tran := <-i.TransactionChan():
+			require.NoError(t, tran.Ack(ctx, nil))
+			part := tran.Payload.Get(0)
+			eventPath := part.MetaGetStr("fsevent_path")
+			assert.NotEqual(t, ignoredFile, eventPath, "Should not receive events for filtered extensions")
+			if eventPath == matchedFile {
+				gotEvent = true
+			}
+		case <-time.After(time.Second * 1):
+			if gotEvent {
+				return
+			}
+			continue
+		}
+	}
+
+	assert.True(t, gotEvent, "Should have received event for .txt file")
 }

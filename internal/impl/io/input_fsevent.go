@@ -17,6 +17,7 @@ const (
 	fsEventInputFieldPaths           = "paths"
 	fsEventInputFieldIsRecursive     = "is_recursive"
 	fsEventInputFieldWatchNewSubdirs = "watch_new_subdirs"
+	fsEventInputFieldExtensions      = "extensions"
 )
 
 func fsEventInputSpec() *service.ConfigSpec {
@@ -56,6 +57,9 @@ You can access these metadata fields using
 			service.NewBoolField(fsEventInputFieldWatchNewSubdirs).
 				Description("If set, events from subdirs created after the input is started, will also be watched.").
 				Default(false),
+			service.NewStringListField(fsEventInputFieldExtensions).
+				Description("An optional list of file extensions to filter events for (e.g. `[\".txt\", \".log\"]`). If empty, events for all files are emitted.").
+				Default([]any{}),
 		)
 }
 
@@ -78,6 +82,7 @@ type fsEventWatcher struct {
 	paths           []string
 	recursive       bool
 	watchNewSubdirs bool
+	extensions      map[string]struct{}
 }
 
 type watcherEventMsg struct {
@@ -101,13 +106,34 @@ func fsEventWatcherFromParsed(conf *service.ParsedConfig, nm *service.Resources)
 		return nil, err
 	}
 
+	extList, err := conf.FieldStringList(fsEventInputFieldExtensions)
+	if err != nil {
+		return nil, err
+	}
+	extMap := make(map[string]struct{}, len(extList))
+	for _, ext := range extList {
+		if len(ext) > 0 && ext[0] != '.' {
+			ext = "." + ext
+		}
+		extMap[ext] = struct{}{}
+	}
+
 	return &fsEventWatcher{
 		nm:              nm,
 		log:             nm.Logger(),
 		paths:           paths,
 		recursive:       recursive,
 		watchNewSubdirs: wn,
+		extensions:      extMap,
 	}, nil
+}
+
+func (f *fsEventWatcher) matchesExtension(path string) bool {
+	if len(f.extensions) == 0 {
+		return true
+	}
+	_, ok := f.extensions[filepath.Ext(path)]
+	return ok
 }
 
 func (f *fsEventWatcher) Connect(ctx context.Context) error {
@@ -169,6 +195,10 @@ func (f *fsEventWatcher) Connect(ctx context.Context) error {
 					if err := f.watcher.Add(event.Name); err != nil {
 						f.log.Warnf("Failed to add path %v: %s", event.Name, err)
 					}
+				}
+
+				if !f.matchesExtension(event.Name) {
+					continue
 				}
 
 				msg := watcherEventMsg{

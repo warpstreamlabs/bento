@@ -28,6 +28,7 @@ input:
     paths: [] # No default (required)
     is_recursive: false
     watch_new_subdirs: false
+    extensions: []
 ```
 
 ### Metadata
@@ -78,5 +79,13 @@ If set, events from subdirs created after the input is started, will also be wat
 
 Type: `bool`  
 Default: `false`  
+
+### `extensions`
+
+An optional list of file extensions to filter events for (e.g. `[".txt", ".log"]`). If empty, events for all files are emitted.
+
+
+Type: `array`  
+Default: `[]`  
 
 
