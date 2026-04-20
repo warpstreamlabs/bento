@@ -31,13 +31,19 @@ func grpcClientInputSpec() *service.ConfigSpec {
 			service.NewStringField(grpcClientInputRateLimit).
 				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
 				Optional(),
-		)
+		).
+		Field(service.NewAutoRetryNacksToggleField())
 }
 
 func init() {
 	err := service.RegisterBatchInput("grpc_client", grpcClientInputSpec(),
 		func(conf *service.ParsedConfig, mgr *service.Resources) (in service.BatchInput, err error) {
-			return newGrpcClientInputFromParsed(conf, mgr)
+			rdr, err := newGrpcClientInputFromParsed(conf, mgr)
+			if err != nil {
+				return nil, err
+			}
+
+			return service.AutoRetryNacksBatchedToggled(conf, rdr)
 		})
 	if err != nil {
 		panic(err)
