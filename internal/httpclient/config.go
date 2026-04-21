@@ -27,6 +27,11 @@ const (
 	hcFieldDumpRequestLogLevel = "dump_request_log_level"
 	hcFieldTLS                 = "tls"
 	hcFieldProxyURL            = "proxy_url"
+	hcFieldDigest              = "digest"
+	hcFieldDigestEnabled       = "enabled"
+	hcFieldDigestUser          = "user"
+	hcFieldDigestUserName      = "name"
+	hcFieldDigestUserPassword  = "password"
 	hcFieldTransport           = "transport"
 )
 
@@ -101,6 +106,24 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("An optional HTTP proxy URL.").
 			Advanced().
 			Optional(),
+		service.NewObjectField(hcFieldDigest,
+			service.NewBoolField(hcFieldDigestEnabled).
+				Description("Enable the digest authentication").
+				Default(false),
+			service.NewObjectField(hcFieldDigestUser,
+				service.NewStringField(hcFieldDigestUserName).
+					Description("The username of the user.").
+					Default(""),
+				service.NewStringField(hcFieldDigestUserPassword).
+					Description("The password of the user.").
+					Default(""),
+			).
+				Description("The user to use for the authentication.").
+				Optional(),
+		).
+			Description("Digest authentication configuration.").
+			Advanced().
+			Optional(),
 		service.NewTransportField(hcFieldTransport),
 	)
 
@@ -161,11 +184,35 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
+	negotiate := pConf.Namespace(hcFieldDigest)
+
+	digestEnabled, _ := negotiate.FieldBool(hcFieldDigestEnabled)
+
+	if digestEnabled {
+		negotiateAuthOptions := &DigestAuth{}
+
+		if negotiate.Contains(hcFieldDigestUser) {
+			negotiateUser := negotiate.Namespace(hcFieldDigestUser)
+			userName, _ := negotiateUser.FieldString(hcFieldDigestUserName)
+			userPassword, _ := negotiateUser.FieldString(hcFieldDigestUserPassword)
+
+			negotiateAuthOptions.Username = userName
+			negotiateAuthOptions.Password = userPassword
+		}
+
+		conf.digestAuth = negotiateAuthOptions
+	}
+
 	if conf.transport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
 		return
 	}
 
 	return
+}
+
+type DigestAuth struct {
+	Username string
+	Password string
 }
 
 // OldConfig is a configuration struct for an HTTP client.
@@ -189,6 +236,7 @@ type OldConfig struct {
 	ProxyURL            string
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
+	digestAuth          *DigestAuth
 
 	transport *http.Transport
 }
