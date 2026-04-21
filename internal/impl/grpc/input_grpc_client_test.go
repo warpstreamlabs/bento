@@ -336,3 +336,122 @@ func startGrpcClientInput(t *testing.T, yamlConf string) (ch <-chan (message.Tra
 
 	return s.TransactionChan()
 }
+
+func TestGrpcClientInputLints(t *testing.T) {
+
+	tests := map[string]struct {
+		config          string
+		expErrMessage   string
+		noErrorExpected bool
+	}{
+		"Reflection or Proto Files Required": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  method: Foo
+  reflection: false
+  proto_files: []
+  rpc_type: unary
+  payload: |
+      {"foo":"bar"}
+`,
+			expErrMessage: "reflection must be true or proto_files must be populated",
+		},
+		"Reflection or Proto Files Required Default": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  method: Foo
+  rpc_type: unary
+  payload: |
+      {"foo":"bar"}
+`,
+			expErrMessage: "reflection must be true or proto_files must be populated",
+		},
+		"Reflection or Proto Files Required Proto Files": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  method: Foo
+  proto_files: ["./grpc_test_server/helloworld.proto"]
+  rpc_type: unary
+  payload: |
+      {"foo":"bar"}
+`,
+			noErrorExpected: true,
+		},
+		"Reflection or Proto Files Required Reflection": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  method: Foo
+  reflection: true
+  rpc_type: unary
+  payload: |
+      {"foo":"bar"}
+`,
+			noErrorExpected: true,
+		},
+		"Payload required for unary": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  rpc_type: unary
+  method: Foo
+  reflection: true
+`,
+			expErrMessage: "payload must be set for rpc_types: unary, client_stream, server_stream",
+		},
+		"Payload required for server_stream": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  rpc_type: server_stream
+  method: Foo
+  reflection: true
+`,
+			expErrMessage: "payload must be set for rpc_types: unary, client_stream, server_stream",
+		},
+		"Payload required for client_stream": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  rpc_type: client_stream
+  method: Foo
+  reflection: true
+`,
+			expErrMessage: "payload must be set for rpc_types: unary, client_stream, server_stream",
+		},
+		"Payload not required for bidi": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  rpc_type: bidi
+  method: Foo
+  reflection: true
+`,
+			noErrorExpected: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			err := service.NewStreamBuilder().AddInputYAML(test.config)
+			if test.noErrorExpected {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, test.expErrMessage)
+			}
+		})
+	}
+}

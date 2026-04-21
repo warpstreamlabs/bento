@@ -17,7 +17,6 @@ const (
 )
 
 func grpcClientInputSpec() *service.ConfigSpec {
-	// TODO
 	return service.NewConfigSpec().
 		Summary("TODO").
 		Description("TODO").
@@ -31,7 +30,13 @@ func grpcClientInputSpec() *service.ConfigSpec {
 				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
 				Optional(),
 		).
-		Field(service.NewAutoRetryNacksToggleField())
+		Field(service.NewAutoRetryNacksToggleField()).
+		LintRule(
+			`root = match {
+  this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated"
+  (this.rpc_type == "unary" || this.rpc_type == "client_stream" || this.rpc_type == "server_stream") && this.payload == null => "payload must be set for rpc_types: unary, client_stream, server_stream",
+}`,
+		)
 }
 
 func init() {
@@ -139,7 +144,7 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 		}
 
 	default:
-		return nil, nil, fmt.Errorf("`rpc_type: %v not supported", gci.rpcType)
+		return nil, nil, fmt.Errorf("rpc_type: %v not supported", gci.rpcType)
 	}
 }
 
@@ -179,10 +184,12 @@ func (gci *grpcClientInput) unaryHandler(ctx context.Context) (service.MessageBa
 
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
+	if gci.payloadExpr == nil {
+		return nil, nil, fmt.Errorf("payload is required when rpc_type: %v", gci.rpcType)
+	}
 	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte("")))
 	if err != nil {
-		err = fmt.Errorf("payload interpolation error: %w", err)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("payload interpolation error: %w", err)
 	}
 
 	err = request.UnmarshalJSON([]byte(payload))
@@ -216,6 +223,9 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
+	if gci.payloadExpr == nil {
+		return nil, nil, fmt.Errorf("payload is required when rpc_type: %v", gci.rpcType)
+	}
 	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte("")))
 	if err != nil {
 		err = fmt.Errorf("payload interpolation error: %w", err)
@@ -263,6 +273,9 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 }
 
 func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
+	if gci.payloadExpr == nil {
+		return nil, nil, fmt.Errorf("payload is required when rpc_type: %v", gci.rpcType)
+	}
 	rawPayload, err := gci.payloadExpr.TryBytes(service.NewMessage([]byte("")))
 	if err != nil {
 		return nil, nil, err
@@ -326,7 +339,6 @@ func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
 			resProtoMessage, err := bidi.RecvMsg()
 			if err != nil {
 				close(gci.bidiChan)
-				gci.bidiChan = nil
 				if err == io.EOF {
 					gci.bidiErrChan <- service.ErrNotConnected
 					return
