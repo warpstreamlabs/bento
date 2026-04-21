@@ -234,7 +234,6 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 
 	responseBatch := service.MessageBatch{}
 
-	// Rethink this approach
 	for {
 		resProtoMessage, err := serverStream.RecvMsg()
 		if err == io.EOF {
