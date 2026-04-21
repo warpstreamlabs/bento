@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -85,6 +84,10 @@ func newGrpcClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resou
 		if err != nil {
 			return nil, err
 		}
+
+		if !mgr.HasRateLimit(rateLimit) {
+			return nil, fmt.Errorf("rate limit resource '%v' was not found", rateLimit)
+		}
 	}
 
 	return &grpcClientInput{
@@ -103,7 +106,10 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 	}
 
 	if gci.rateLimit != "" {
-		gci.rateLimitWait(ctx)
+		err := gci.rateLimitWait(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	switch gci.rpcType {
@@ -141,7 +147,7 @@ func (gci *grpcClientInput) Close(ctx context.Context) error {
 	return nil
 }
 
-func (gci *grpcClientInput) rateLimitWait(ctx context.Context) bool {
+func (gci *grpcClientInput) rateLimitWait(ctx context.Context) error {
 	for {
 		var period time.Duration
 		var err error
@@ -159,10 +165,10 @@ func (gci *grpcClientInput) rateLimitWait(ctx context.Context) bool {
 			select {
 			case <-time.After(period):
 			case <-ctx.Done():
-				return false
+				return ctx.Err()
 			}
 		} else {
-			return true
+			return nil
 		}
 	}
 }
@@ -173,7 +179,7 @@ func (gci *grpcClientInput) unaryHandler(ctx context.Context) (service.MessageBa
 
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
-	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte(""))) //
+	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte("")))
 	if err != nil {
 		err = fmt.Errorf("payload interpolation error: %w", err)
 		return nil, nil, err
@@ -191,8 +197,7 @@ func (gci *grpcClientInput) unaryHandler(ctx context.Context) (service.MessageBa
 
 	dynMsg, ok := resProtoMessage.(*dynamic.Message)
 	if !ok {
-		// TODO Will need a new error here
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("expected dynamic.Message but got %T", resProtoMessage)
 	}
 
 	jsonBytes, err := dynMsg.MarshalJSON()
@@ -211,7 +216,7 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 
 	request := dynamic.NewMessage(gci.method.GetInputType())
 
-	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte(""))) //
+	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte("")))
 	if err != nil {
 		err = fmt.Errorf("payload interpolation error: %w", err)
 		return nil, nil, err
@@ -229,6 +234,7 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 
 	responseBatch := service.MessageBatch{}
 
+	// Rethink this approach
 	for {
 		resProtoMessage, err := serverStream.RecvMsg()
 		if err == io.EOF {
@@ -241,11 +247,14 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 		if dynMsg, ok := resProtoMessage.(*dynamic.Message); ok {
 			jsonBytes, err := dynMsg.MarshalJSON()
 			if err != nil {
-				// log error
+				gci.log.Errorf("failed to marshal proto response to JSON: %v", err)
 				continue
 			}
 
 			responseBatch = append(responseBatch, service.NewMessage(jsonBytes))
+		} else {
+			gci.log.Errorf("expected dynamic.Message but got %T", resProtoMessage)
+			continue
 		}
 	}
 
@@ -262,7 +271,7 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 
 	var payloads []json.RawMessage
 	if err := json.Unmarshal(rawPayload, &payloads); err != nil {
-		return nil, nil, errors.New("UNABLE TO MARSHAL PAYLOAD FIELD TO []ANY") // TODO
+		return nil, nil, fmt.Errorf("payload must be an array for client streaming RPC: %w", err)
 	}
 
 	clientStream, err := gci.stub.InvokeRpcClientStream(ctx, gci.method)
