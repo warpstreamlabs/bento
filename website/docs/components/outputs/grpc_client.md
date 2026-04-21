@@ -18,7 +18,7 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Sends messages to a GRPC server.
+Sends messages to a gRPC server.
 
 
 <Tabs defaultValue="common" values={[

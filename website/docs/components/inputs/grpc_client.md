@@ -17,7 +17,7 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-TODO
+Receives messages from a gRPC server.
 
 
 <Tabs defaultValue="common" values={[
@@ -83,7 +83,12 @@ input:
 </TabItem>
 </Tabs>
 
-TODO
+
+### Expected Message Format
+
+Either the field `reflection` or `proto_files` must be supplied, which will provide the protobuf schema Bento will use to marshall the Bento message into protobuf.
+
+
 
 ## Fields
 
@@ -392,7 +397,9 @@ Default: `""`
 
 ### `payload`
 
-TODO
+For `rpc_type` values: unary, client_stream & server_stream, the payload field defines the data that is sent as the request.
+In the instance of the client_stream rpc_type - this is expected to resolve to an array. The array will be sent as a stream, with the elements
+making the individual messages.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 

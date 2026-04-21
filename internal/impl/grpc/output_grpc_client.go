@@ -52,7 +52,7 @@ are able to make use of these propagated responses. Also the  ` + "`" + `rpc_typ
 
 func grpcClientOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Summary("Sends messages to a GRPC server.").
+		Summary("Sends messages to a gRPC server.").
 		Description(grpcClientOutputDescription).
 		Categories("network").
 		Example("HTTP <--> gRPC Reverse Proxy", "Use Bento as a reverse proxy to translate HTTP requests into gRPC calls and return the response", `
