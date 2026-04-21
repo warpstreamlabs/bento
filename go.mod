@@ -89,7 +89,7 @@ require (
 	github.com/itchyny/gojq v0.12.16
 	github.com/itchyny/timefmt-go v0.1.6
 	github.com/jackc/pgconn v1.14.3
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/klauspost/compress v1.18.4
