@@ -123,8 +123,9 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 
 	if conf.digestAuth != nil {
 		h.client.Transport = &digest.Transport{
-			Username: conf.digestAuth.Username,
-			Password: conf.digestAuth.Password,
+			Username:  conf.digestAuth.Username,
+			Password:  conf.digestAuth.Password,
+			Transport: h.client.Transport,
 		}
 	}
 
