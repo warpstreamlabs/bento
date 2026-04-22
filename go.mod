@@ -84,6 +84,7 @@ require (
 	github.com/gosimple/slug v1.13.1
 	github.com/hashicorp/golang-lru/arc/v2 v2.0.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/icholy/digest v1.1.0
 	github.com/influxdata/go-syslog/v3 v3.0.0
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/itchyny/gojq v0.12.16
@@ -209,7 +210,6 @@ require (
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hamba/avro/v2 v2.31.0 // indirect
-	github.com/icholy/digest v1.1.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
