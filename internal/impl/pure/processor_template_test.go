@@ -172,8 +172,6 @@ sub_templates:
 	require.NoError(t, err)
 	require.Len(t, batch, 1)
 
-	msg = batch[0]
-
 	result, err := batch[0].AsBytes()
 	require.NoError(t, err)
 	assert.Equal(t, "hello world", string(result))
