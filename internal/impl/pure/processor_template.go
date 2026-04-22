@@ -50,8 +50,7 @@ func init() {
 }
 
 type templateProc struct {
-	tmpl    *template.Template
-	dynTmpl string
+	tmpl *template.Template
 }
 
 var templatePredefinedFunctions = []string{

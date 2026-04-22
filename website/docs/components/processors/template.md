@@ -2,7 +2,7 @@
 title: template
 slug: template
 type: processor
-status: beta
+status: experimental
 categories: ["Mapping"]
 ---
 
@@ -15,8 +15,8 @@ categories: ["Mapping"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
+:::caution EXPERIMENTAL
+This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
 Transforms messages using Go template syntax.
 
@@ -26,6 +26,7 @@ label: ""
 template:
   text: '{{ . }}'
   functions: {} # No default (optional)
+  sub_templates: {} # No default (optional)
 ```
 
 Transforms messages using Go template syntax.
@@ -55,6 +56,13 @@ text: '{{ range .items }}{{ .name }}: {{ .value }}{{ end }}'
 ### `functions`
 
 A map of Bloblang functions to make available to the template.
+
+
+Type: `object`  
+
+### `sub_templates`
+
+A map of other templates which will defined into the `main` template.
 
 
 Type: `object`  
