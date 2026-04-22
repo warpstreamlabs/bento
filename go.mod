@@ -97,6 +97,7 @@ require (
 	github.com/knights-analytics/hugot v0.6.4
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
+	github.com/lublak/go-spnego v0.0.0-20260120124615-b6c5a0670997
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/microsoft/gocosmos v1.1.1
@@ -216,7 +217,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/knights-analytics/ortgenai v0.1.0 // indirect
-	github.com/lublak/go-spnego v0.0.0-20260120124615-b6c5a0670997 // indirect
 	github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 // indirect
 	github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
