@@ -102,6 +102,11 @@ input:
     drop_on: []
     successful_on: []
     proxy_url: "" # No default (optional)
+    digest:
+      enabled: false
+      user:
+        name: ""
+        password: ""
     transport:
       dial_context:
         timeout: 30s
@@ -729,6 +734,44 @@ An optional HTTP proxy URL.
 
 
 Type: `string`  
+
+### `digest`
+
+Digest authentication configuration.
+
+
+Type: `object`  
+
+### `digest.enabled`
+
+Enable the digest authentication
+
+
+Type: `bool`  
+Default: `false`  
+
+### `digest.user`
+
+The user to use for the authentication.
+
+
+Type: `object`  
+
+### `digest.user.name`
+
+The username of the user.
+
+
+Type: `string`  
+Default: `""`  
+
+### `digest.user.password`
+
+The password of the user.
+
+
+Type: `string`  
+Default: `""`  
 
 ### `transport`
 
