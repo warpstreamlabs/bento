@@ -20,7 +20,6 @@ const (
 func TemplateProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Mapping").
-		Beta().
 		Summary("Transforms messages using Go template syntax.").
 		Description(`Transforms messages using Go template syntax.
 Supports built-in Go template functions,
