@@ -1,6 +1,8 @@
 package pure_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,7 +87,8 @@ functions:
 			template: `
 text: "hello {{ template \"hello\" . }}"
 sub_templates:
-  hello: "{{ .foo }}"
+  hello:
+    text: "{{ .foo }}"
 `,
 			input:    []byte(`{"foo":"world"}`),
 			expected: "hello world",
@@ -137,4 +140,41 @@ sub_templates:
 			assert.Equal(t, test.expected, string(result))
 		})
 	}
+}
+
+func TestTemplateProcessor_AsFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	templatePath := filepath.Join(tmpDir, "template.txt")
+
+	err := os.WriteFile(templatePath, []byte("hello {{ template \"hello\" . }}"), 0o644)
+	require.NoError(t, err)
+
+	subTemplatePath := filepath.Join(tmpDir, "sub_template.txt")
+
+	err = os.WriteFile(subTemplatePath, []byte("{{ .foo }}"), 0o644)
+	require.NoError(t, err)
+
+	proc, _, err := testTemplateProc(`
+text: ` + templatePath + `
+as_file: true
+sub_templates:
+  hello:
+    text: ` + subTemplatePath + `
+    as_file: true
+`)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, proc.Close(t.Context())) })
+
+	msg := service.NewMessage([]byte(`{"foo":"world"}`))
+
+	batch, err := proc.Process(t.Context(), msg)
+	require.NoError(t, err)
+	require.Len(t, batch, 1)
+
+	msg = batch[0]
+
+	result, err := batch[0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, "hello world", string(result))
 }

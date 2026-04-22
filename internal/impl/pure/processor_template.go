@@ -150,7 +150,7 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 		}
 	}
 
-	templateAsFile, _ := conf.FieldBool(tpFieldText)
+	templateAsFile, _ := conf.FieldBool(tpFieldAsFile)
 
 	tmpl := template.New("main").Funcs(functions).Funcs(sprigFunctions)
 
