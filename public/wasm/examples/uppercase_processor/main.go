@@ -15,7 +15,9 @@ type config struct {
 }
 
 func init() {
-	plugin.RegisterBatchProcessor(newUppercaseProcessor)
+	if err := plugin.RegisterBatchProcessor(newUppercaseProcessor); err != nil {
+		panic(err)
+	}
 }
 
 func newUppercaseProcessor(cfg *config, mgr *service.Resources) (service.BatchProcessor, error) {

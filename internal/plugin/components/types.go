@@ -14,8 +14,6 @@ type (
 
 var (
 	errPluginAlreadyRegistered  = errors.New("plugin already registered")
-	errPluginNotRegistered      = errors.New("plugin is not registered")
-	errInvalidPluginType        = errors.New("Invalid or unsupported plugin type")
 	errInvalidInstanceID        = errors.New("instance ID does not correspond to an active plugin")
 	errInvalidInitNotRegistered = errors.New("cannot initialize an unregistered plugin")
 )
