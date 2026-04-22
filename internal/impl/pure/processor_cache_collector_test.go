@@ -27,6 +27,7 @@ func TestCacheCollectorProcessor_BasicAccumulation(t *testing.T) {
 resource: test_cache
 key: test_key
 init_map: root = [{"id":"0"}]
+init_mode: ignore
 append_check: true
 append_map: |
   root = this.cached.append(this.current)
@@ -34,7 +35,7 @@ flush_check: "batch_index() == 2"
 flush_map: |
   root.result = this.cached
   root.count = this.cached.length()
-flush_deletes: true
+flush_keep_cache: false
 `
 	processor, mgr, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
@@ -70,6 +71,7 @@ func TestCacheCollectorProcessor_BasicAccumulatioKeepCache(t *testing.T) {
 resource: test_cache
 key: test_key
 init_map: root = [{"id":"0"}]
+init_mode: ignore
 append_check: true
 append_map: |
   root = this.cached.append(this.current)
@@ -77,7 +79,7 @@ flush_check: "batch_index() == 2"
 flush_map: |
   root.result = this.cached
   root.count = this.cached.length()
-flush_deletes: false
+flush_keep_cache: true
 `
 	processor, mgr, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
@@ -117,10 +119,11 @@ func TestCacheCollectorProcessor_WithDifferentKeys(t *testing.T) {
 resource: test_cache
 key: test_${! this.group }
 init_map: root = []
+init_mode: ignore
 append_check: root = this.end == false
 append_map: root = this.cached.append(this.current.data)
 flush_check: this.end
-flush_deletes: true
+flush_keep_cache: false
 `
 		processor, _, err := cacheCollectorProc(spec)
 		require.NoError(t, err)
@@ -164,7 +167,7 @@ append_check: true
 append_map: |
   root = this.cached.append(metadata("meta_data"))
 flush_check: true
-flush_deletes: true
+flush_keep_cache: false
 `
 		processor, _, err := cacheCollectorProc(spec)
 		require.NoError(t, err)
@@ -200,7 +203,8 @@ append_check: this.type == "work"
 append_map: |
   root = this.cached.append(this.current)
 flush_check: this.type == "end"
-flush_deletes: true
+flush_keep_cache: false
+passthrough_mode: unprocessed
 `
 	processor, _, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
@@ -259,7 +263,7 @@ append_check: this.type == "work"
 append_map: |
   root = this.cached.append(this.current)
 flush_check: this.type == "end"
-flush_deletes: true
+flush_keep_cache: false
 filter_untreated: true
 `
 	processor, _, err := cacheCollectorProc(spec)
@@ -305,7 +309,7 @@ append_map: |
 flush_check: this.type == "end"
 flush_map: |
   root = deleted()
-flush_deletes: true
+flush_keep_cache: false
 filter_untreated: true
 `
 	processor, _, err := cacheCollectorProc(spec)
