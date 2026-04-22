@@ -264,7 +264,6 @@ append_map: |
   root = this.cached.append(this.current)
 flush_check: this.type == "end"
 flush_keep_cache: false
-filter_untreated: true
 `
 	processor, _, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
@@ -310,7 +309,6 @@ flush_check: this.type == "end"
 flush_map: |
   root = deleted()
 flush_keep_cache: false
-filter_untreated: true
 `
 	processor, _, err := cacheCollectorProc(spec)
 	require.NoError(t, err)
