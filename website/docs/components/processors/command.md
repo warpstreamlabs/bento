@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Executes a command for each message.
 
-Introduced in version 1.0.0.
-
 ```yml
 # Config fields, showing default values
 label: ""

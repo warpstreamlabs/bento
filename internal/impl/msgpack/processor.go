@@ -17,8 +17,7 @@ func processorConfig() *service.ConfigSpec {
 		Field(service.NewStringAnnotatedEnumField("operator", map[string]string{
 			"to_json":   "Convert MessagePack messages to JSON format",
 			"from_json": "Convert JSON messages to MessagePack format",
-		}).Description("The operation to perform on messages.")).
-		Version("1.0.0")
+		}).Description("The operation to perform on messages."))
 }
 
 func init() {

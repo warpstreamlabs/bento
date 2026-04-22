@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Creates or updates messages as JSON documents in [Azure CosmosDB](https://learn.microsoft.com/en-us/azure/cosmos-db/introduction).
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

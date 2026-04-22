@@ -13,14 +13,14 @@ builds:
       -X github.com/warpstreamlabs/bento/internal/cli.DateBuilt={{.Date}}
       -X main.Version={{.Version}}
       -X main.DateBuilt={{.Date}}
-  - id: bento-lambda
+  - id: bento-lambda-al2
     main: cmd/serverless/bento-lambda/main.go
-    binary: bento-lambda
+    binary: bootstrap
     env:
       - CGO_ENABLED=0
     goos: [ linux ]
-    goarch: [ amd64 ]
-  - id: bento-lambda-al2
+    goarch: [ amd64, arm64 ]
+  - id: bento-lambda-al2023
     main: cmd/serverless/bento-lambda/main.go
     binary: bootstrap
     env:
@@ -35,14 +35,14 @@ archives:
       - README.md
       - CHANGELOG.md
       - LICENSE
-  - id: bento-lambda
-    builds: [ bento-lambda ]
-    format: zip
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
   - id: bento-lambda-al2
     builds: [ bento-lambda-al2 ]
     format: zip
     name_template: "bento-lambda-al2_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: bento-lambda-al2023
+    builds: [ bento-lambda-al2023 ]
+    format: zip
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 dist: target/dist
 release:
   github:

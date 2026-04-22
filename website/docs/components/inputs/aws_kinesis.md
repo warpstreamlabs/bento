@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Receive messages from one or more Kinesis streams.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -69,6 +67,12 @@ input:
     rebalance_period: 30s
     lease_period: 30s
     start_from_oldest: true
+    enhanced_fan_out:
+      enabled: false
+      consumer_name: ""
+      consumer_arn: ""
+      record_buffer_cap: 0
+      max_pending_records: 50000
     region: ""
     endpoint: ""
     credentials:
@@ -222,6 +226,57 @@ Whether to consume from the oldest message when a sequence does not yet exist fo
 Type: `bool`  
 Default: `true`  
 
+### `enhanced_fan_out`
+
+Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.
+:::warning
+	Enhanced Fan Out support is currently experimental.
+:::
+
+
+Type: `object`  
+Requires version 1.16.0 or newer  
+
+### `enhanced_fan_out.enabled`
+
+Enable Enhanced Fan Out mode for push-based streaming with dedicated throughput.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `enhanced_fan_out.consumer_name`
+
+Consumer name for EFO registration. Auto-generated if empty: bento-clientID.
+
+
+Type: `string`  
+Default: `""`  
+
+### `enhanced_fan_out.consumer_arn`
+
+Existing consumer ARN to use. If provided, skips registration.
+
+
+Type: `string`  
+Default: `""`  
+
+### `enhanced_fan_out.record_buffer_cap`
+
+Buffer capacity for the internal records channel per shard. Lower values reduce memory usage when processing many shards. Set to 0 for unbuffered channel (minimal memory footprint).
+
+
+Type: `int`  
+Default: `0`  
+
+### `enhanced_fan_out.max_pending_records`
+
+Maximum total number of records to buffer across all shards before applying backpressure to Kinesis subscriptions. This provides a global memory bound regardless of shard count. Higher values improve throughput by allowing shards to continue receiving data while processing, but increase memory usage. Total memory usage is approximately max_pending_records × average_record_size.
+
+
+Type: `int`  
+Default: `50000`  
+
 ### `region`
 
 The AWS region to target.
@@ -287,7 +342,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

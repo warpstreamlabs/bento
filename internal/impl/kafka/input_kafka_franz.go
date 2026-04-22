@@ -32,7 +32,6 @@ func franzKafkaInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Services").
-		Version("1.0.0").
 		Summary(`A Kafka input using the [Franz Kafka client library](https://github.com/twmb/franz-go).`).
 		Description(`
 When a consumer group is specified this input consumes one or more topics where partitions will automatically balance across any other connected clients with the same consumer group. When a consumer group is not specified topics can either be consumed in their entirety or with explicit partitions.
@@ -49,6 +48,7 @@ This input adds the following metadata fields to each message:
 - kafka_partition
 - kafka_offset
 - kafka_timestamp_unix
+- kafka_timestamp_unix_ms
 - kafka_tombstone_message
 - All record headers
 ` + "```" + `
@@ -157,6 +157,8 @@ With this option, you can return topic order and per-topic partition ordering. T
 			Description("An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invocations by.").
 			Default("").
 			Advanced()).
+		Field(service.NewExtractTracingSpanMappingField()).
+		Field(service.NewRootSpanWithLinkField().Version("1.17.0")).
 		LintRule(`
 let has_topic_partitions = this.topics.any(t -> t.contains(":"))
 root = if $has_topic_partitions {
@@ -176,7 +178,11 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			return service.AutoRetryNacksBatchedToggled(conf, rdr)
+			r, err := service.AutoRetryNacksBatchedToggled(conf, rdr)
+			if err != nil {
+				return nil, err
+			}
+			return conf.WrapBatchInputExtractTracingSpanMapping("kafka_franz", r)
 		})
 	if err != nil {
 		panic(err)
@@ -470,6 +476,7 @@ func (f *franzKafkaReader) recordToMessage(record *kgo.Record) *msgWithRecord {
 	msg.MetaSetMut("kafka_partition", int(record.Partition))
 	msg.MetaSetMut("kafka_offset", int(record.Offset))
 	msg.MetaSetMut("kafka_timestamp_unix", record.Timestamp.Unix())
+	msg.MetaSetMut("kafka_timestamp_unix_ms", record.Timestamp.UnixMilli())
 	msg.MetaSetMut("kafka_tombstone_message", record.Value == nil)
 	if f.multiHeader {
 		// in multi header mode we gather headers so we can encode them as lists

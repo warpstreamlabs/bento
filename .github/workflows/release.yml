@@ -22,7 +22,16 @@ jobs:
         haskell: true
         large-packages: true
         docker-images: true
-        swap-storage: true
+        swap-storage: false
+
+    - name: Increase swapfile
+      run: |
+        sudo swapoff -a
+        sudo fallocate -l 15G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        sudo swapon --show
 
     - name: Install Go
       uses: actions/setup-go@v6
@@ -60,24 +69,33 @@ jobs:
         haskell: true
         large-packages: true
         docker-images: true
-        swap-storage: true
+        swap-storage: false
+
+    - name: Increase swapfile
+      run: |
+        sudo swapoff -a
+        sudo fallocate -l 15G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        sudo swapon --show
 
     - name: Log in to registry
       run: echo "${{ secrets.GH_ACCESS_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
     - name: Login to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
     - name: Install Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Docker meta CGO
       id: docker_meta_cgo
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         images: |
           ghcr.io/${{ github.repository_owner }}/bento
@@ -90,7 +108,7 @@ jobs:
           type=semver,suffix=-cgo,pattern={{major}}
 
     - name: Build and push CGO
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: ./
         file: ./resources/docker/Dockerfile.cgo
@@ -99,7 +117,7 @@ jobs:
 
     - name: Docker meta
       id: docker_meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         images: |
           ghcr.io/${{ github.repository_owner }}/bento
@@ -109,7 +127,7 @@ jobs:
           type=semver,pattern={{major}}
 
     - name: Build and push
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: ./
         file: ./resources/docker/Dockerfile

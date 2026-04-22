@@ -85,6 +85,7 @@ This input adds the following metadata fields to each message:
 - kafka_offset
 - kafka_lag
 - kafka_timestamp_unix
+- kafka_timestamp_unix_ms
 - kafka_tombstone_message
 - All existing message headers (version 0.11+)
 `+"```"+`
@@ -120,8 +121,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 					[]string{"foo:0", "bar:1", "bar:3"},
 					[]string{"foo:0,bar:1,bar:3"},
 					[]string{"foo:0-5"},
-				).
-				Version("1.0.0"),
+				),
 			service.NewStringField(iskFieldTargetVersion).
 				Description("The version of the Kafka protocol to use. This limits the capabilities used by the client and should ideally match the version of your brokers. Defaults to the oldest supported stable version.").
 				Examples(sarama.DefaultVersion.String(), "3.1.0").
@@ -142,7 +142,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 				Advanced().Default(true),
 			service.NewIntField(iskFieldCheckpointLimit).
 				Description("The maximum number of messages of the same topic and partition that can be processed at a given time. Increasing this limit enables parallel processing and batching at the output level to work on individual partitions. Any given offset will not be committed unless all messages under that offset are delivered in order to preserve at least once delivery guarantees.").
-				Version("1.0.0").Default(1024),
+				Default(1024),
 			service.NewAutoRetryNacksToggleField(),
 			service.NewDurationField(iskFieldCommitPeriod).
 				Description("The period of time between each commit of the current partition offsets. Offsets are always committed during shutdown.").
@@ -432,6 +432,7 @@ func dataToPart(highestOffset int64, data *sarama.ConsumerMessage, multiHeader b
 	part.MetaSetMut("kafka_offset", int(data.Offset))
 	part.MetaSetMut("kafka_lag", lag)
 	part.MetaSetMut("kafka_timestamp_unix", data.Timestamp.Unix())
+	part.MetaSetMut("kafka_timestamp_unix_ms", data.Timestamp.UnixMilli())
 	part.MetaSetMut("kafka_tombstone_message", data.Value == nil)
 
 	return part

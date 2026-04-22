@@ -65,7 +65,6 @@ func snsoConfigFromParsed(pConf *service.ParsedConfig) (conf snsoConfig, err err
 func snsoOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Sends messages to an AWS SNS topic.`).
 		Description(`
@@ -77,16 +76,13 @@ By default Bento will use a shared credentials file when connecting to AWS servi
 				Description("The topic to publish to."),
 			service.NewInterpolatedStringField(snsoFieldMessageGroupID).
 				Description("An optional group ID to set for messages.").
-				Version("1.0.0").
 				Optional(),
 			service.NewInterpolatedStringField(snsoFieldMessageDedupeID).
 				Description("An optional deduplication ID to set for messages.").
-				Version("1.0.0").
 				Optional(),
 			service.NewOutputMaxInFlightField(),
 			service.NewMetadataExcludeFilterField(snsoFieldMetadata).
-				Description("Specify criteria for which metadata values are sent as headers.").
-				Version("1.0.0"),
+				Description("Specify criteria for which metadata values are sent as headers."),
 			service.NewDurationField(snsoFieldTimeout).
 				Description("The maximum period to wait on an upload before abandoning it and reattempting.").
 				Advanced().
