@@ -81,6 +81,16 @@ functions:
 			expected: "hello - WORLD",
 		},
 		{
+			name: "template sub template",
+			template: `
+text: "hello {{ template \"hello\" . }}"
+sub_templates:
+  hello: "{{ .foo }}"
+`,
+			input:    []byte(`{"foo":"world"}`),
+			expected: "hello world",
+		},
+		{
 			name:          "template nonexistent functions",
 			template:      `text: "{{ nonexistent_function .foo }}"`,
 			input:         []byte(`{"foo":"hello","bar":"world"}`),

@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	tpFieldText      = "text"
-	tpFieldFunctions = "functions"
+	tpFieldText         = "text"
+	tpFieldFunctions    = "functions"
+	tpFieldSubTemplates = "sub_templates"
 )
 
 func TemplateProcessorSpec() *service.ConfigSpec {
@@ -35,11 +36,9 @@ Additionally, users can define custom Bloblang-based functions via the `+"`"+`fu
 			service.NewStringMapField(tpFieldFunctions).
 				Description("A map of Bloblang functions to make available to the template.").
 				Optional(),
-			service.NewBoolField("unsafe_dynamic_template").
-				Description("Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the template before the template gets interpreted.").
-				Example("${! file(env(\"BENTO_TEMPLATE_FILE\")) }").
-				Advanced().
-				Default(false),
+			service.NewStringMapField(tpFieldSubTemplates).
+				Description("A map of other templates which will defined into the `main` template.").
+				Optional(),
 		)
 }
 
@@ -103,7 +102,6 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 	}
 
 	var functions template.FuncMap
-
 	sprigFunctions := sprig.TxtFuncMap()
 
 	if conf.Contains(tpFieldFunctions) {
@@ -140,9 +138,23 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 		}
 	}
 
-	tmpl, err := template.New("template").Funcs(functions).Funcs(sprigFunctions).Parse(templateStr)
+	tmpl, err := template.New("main").Funcs(functions).Funcs(sprigFunctions).Parse(templateStr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse template: %w", err)
+	}
+
+	if conf.Contains(tpFieldSubTemplates) {
+		subTemplates, err := conf.FieldStringMap(tpFieldSubTemplates)
+		if err != nil {
+			return nil, err
+		}
+
+		for name, subTemplateStr := range subTemplates {
+			_, err := tmpl.New(name).Parse(subTemplateStr)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse sub template %s: %w", name, err)
+			}
+		}
 	}
 
 	return &templateProc{
