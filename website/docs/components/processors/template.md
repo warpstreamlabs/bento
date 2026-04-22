@@ -24,9 +24,12 @@ Transforms messages using Go template syntax.
 # Config fields, showing default values
 label: ""
 template:
-  text: '{{ . }}'
+  text: ""
+  as_file: false
   functions: {} # No default (optional)
-  sub_templates: {} # No default (optional)
+  sub_templates:
+    text: "" # No default (required)
+    as_file: false
 ```
 
 Transforms messages using Go template syntax.
@@ -39,11 +42,11 @@ Additionally, users can define custom Bloblang-based functions via the `function
 
 ### `text`
 
-The Go template to apply to messages.
+The Go template to apply to messages, if `as_file` is enabled, it will be used as file path and the template gets readed from file.
 
 
 Type: `string`  
-Default: `"{{ . }}"`  
+Default: `""`  
 
 ```yml
 # Examples
@@ -52,6 +55,14 @@ text: '{{ .name }} - {{ meta "source" }}'
 
 text: '{{ range .items }}{{ .name }}: {{ .value }}{{ end }}'
 ```
+
+### `as_file`
+
+Read the tempalte as a file.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `functions`
 
@@ -66,5 +77,20 @@ A map of other templates which will defined into the `main` template.
 
 
 Type: `object`  
+
+### `sub_templates.<name>.text`
+
+The Go template, if `as_file` is enabled, it will be used as file path and the template gets readed from file.
+
+
+Type: `string`  
+
+### `sub_templates.<name>.as_file`
+
+Read the tempalte as a file.
+
+
+Type: `bool`  
+Default: `false`  
 
 

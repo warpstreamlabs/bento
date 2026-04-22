@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"slices"
 	"text/template"
 
@@ -13,9 +14,12 @@ import (
 )
 
 const (
-	tpFieldText         = "text"
-	tpFieldFunctions    = "functions"
-	tpFieldSubTemplates = "sub_templates"
+	tpFieldText               = "text"
+	tpFieldAsFile             = "as_file"
+	tpFieldFunctions          = "functions"
+	tpFieldSubTemplates       = "sub_templates"
+	tpFieldSubTemplatesText   = "text"
+	tpFieldSubTemplatesAsFile = "as_file"
 )
 
 func TemplateProcessorSpec() *service.ConfigSpec {
@@ -29,14 +33,23 @@ and a custom `+"`"+`meta`+"`"+` function to access message metadata (e.g., `+"`"
 Additionally, users can define custom Bloblang-based functions via the `+"`"+`functions`+"`"+` field, which are available during template execution.`).
 		Fields(
 			service.NewStringField(tpFieldText).
-				Description("The Go template to apply to messages.").
+				Description("The Go template to apply to messages, if `as_file` is enabled, it will be used as file path and the template gets readed from file.").
 				Example("{{ .name }} - {{ meta \"source\" }}").
 				Example("{{ range .items }}{{ .name }}: {{ .value }}{{ end }}").
-				Default("{{ . }}"),
+				Default(""),
+			service.NewBoolField(tpFieldAsFile).
+				Description("Read the tempalte as a file.").
+				Default(false),
 			service.NewStringMapField(tpFieldFunctions).
 				Description("A map of Bloblang functions to make available to the template.").
 				Optional(),
-			service.NewStringMapField(tpFieldSubTemplates).
+			service.NewObjectMapField(tpFieldSubTemplates,
+				service.NewStringField(tpFieldSubTemplatesText).
+					Description("The Go template, if `as_file` is enabled, it will be used as file path and the template gets readed from file."),
+				service.NewBoolField(tpFieldSubTemplatesAsFile).
+					Description("Read the tempalte as a file.").
+					Default(false),
+			).
 				Description("A map of other templates which will defined into the `main` template.").
 				Optional(),
 		)
@@ -137,22 +150,66 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 		}
 	}
 
-	tmpl, err := template.New("main").Funcs(functions).Funcs(sprigFunctions).Parse(templateStr)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse template: %w", err)
+	templateAsFile, _ := conf.FieldBool(tpFieldText)
+
+	tmpl := template.New("main").Funcs(functions).Funcs(sprigFunctions)
+
+	if templateAsFile {
+		file, err := mgr.FS().Open(templateStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to open template from file path %s: %w", templateStr, err)
+		}
+		fileData, err := io.ReadAll(file)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read template from file path %s: %w", templateStr, err)
+		}
+		file.Close()
+		tmpl, err = tmpl.Parse(string(fileData))
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse template from file path %s: %w", templateStr, err)
+		}
+	} else {
+		tmpl, err = tmpl.Parse(templateStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse template: %w", err)
+		}
 	}
 
 	if conf.Contains(tpFieldSubTemplates) {
-		subTemplates, err := conf.FieldStringMap(tpFieldSubTemplates)
+		subTemplates, err := conf.FieldObjectMap(tpFieldSubTemplates)
 		if err != nil {
 			return nil, err
 		}
 
-		for name, subTemplateStr := range subTemplates {
-			_, err := tmpl.New(name).Parse(subTemplateStr)
+		for name, subTemplate := range subTemplates {
+			subTemplateStr, err := subTemplate.FieldString(tpFieldSubTemplatesText)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse sub template %s: %w", name, err)
+				return nil, err
 			}
+
+			subTemplateAsFile, _ := conf.FieldBool(tpFieldSubTemplatesAsFile)
+
+			if subTemplateAsFile {
+				file, err := mgr.FS().Open(subTemplateStr)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to open sub template %s from file path %s: %w", name, subTemplateStr, err)
+				}
+				fileData, err := io.ReadAll(file)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to read sub template %s from file path %s: %w", name, subTemplateStr, err)
+				}
+				file.Close()
+				_, err = tmpl.New(name).Parse(string(fileData))
+				if err != nil {
+					return nil, fmt.Errorf("Failed to parse sub template %s from file path %s: %w", name, subTemplateStr, err)
+				}
+			} else {
+				_, err = tmpl.New(name).Parse(subTemplateStr)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to parse sub template %s: %w", name, err)
+				}
+			}
+
 		}
 	}
 
