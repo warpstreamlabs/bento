@@ -184,23 +184,23 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
-	negotiate := pConf.Namespace(hcFieldDigest)
+	digest := pConf.Namespace(hcFieldDigest)
 
-	digestEnabled, _ := negotiate.FieldBool(hcFieldDigestEnabled)
+	digestEnabled, _ := digest.FieldBool(hcFieldDigestEnabled)
 
 	if digestEnabled {
-		negotiateAuthOptions := &DigestAuth{}
+		digestAuthOptions := &DigestAuth{}
 
-		if negotiate.Contains(hcFieldDigestUser) {
-			negotiateUser := negotiate.Namespace(hcFieldDigestUser)
-			userName, _ := negotiateUser.FieldString(hcFieldDigestUserName)
-			userPassword, _ := negotiateUser.FieldString(hcFieldDigestUserPassword)
+		if digest.Contains(hcFieldDigestUser) {
+			digestUser := digest.Namespace(hcFieldDigestUser)
+			userName, _ := digestUser.FieldString(hcFieldDigestUserName)
+			userPassword, _ := digestUser.FieldString(hcFieldDigestUserPassword)
 
-			negotiateAuthOptions.Username = userName
-			negotiateAuthOptions.Password = userPassword
+			digestAuthOptions.Username = userName
+			digestAuthOptions.Password = userPassword
 		}
 
-		conf.digestAuth = negotiateAuthOptions
+		conf.digestAuth = digestAuthOptions
 	}
 
 	if conf.transport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
