@@ -3,8 +3,8 @@ package pure
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
+	"slices"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -35,6 +35,11 @@ Additionally, users can define custom Bloblang-based functions via the `+"`"+`fu
 			service.NewStringMapField(tpFieldFunctions).
 				Description("A map of Bloblang functions to make available to the template.").
 				Optional(),
+			service.NewBoolField("unsafe_dynamic_template").
+				Description("Whether to enable [interpolation functions](/docs/configuration/interpolation/#bloblang-queries) in the template before the template gets interpreted.").
+				Example("${! file(env(\"BENTO_TEMPLATE_FILE\")) }").
+				Advanced().
+				Default(false),
 		)
 }
 
@@ -46,7 +51,49 @@ func init() {
 }
 
 type templateProc struct {
-	tmpl *template.Template
+	tmpl    *template.Template
+	dynTmpl string
+}
+
+var templatePredefinedFunctions = []string{
+	// https://pkg.go.dev/text/template#hdr-Functions
+
+	// global functions
+	"and",
+	"call",
+	"html",
+	"index",
+	"slice",
+	"js",
+	"len",
+	"not",
+	"or",
+	"print",
+	"printf",
+	"println",
+	"urlquery",
+
+	// binary comparison operators
+	"eq",
+	"ne",
+	"lt",
+	"le",
+	"gt",
+	"ge",
+
+	// https://pkg.go.dev/text/template#hdr-Actions
+	"-",
+	"pipeline",
+	"if",
+	"end",
+	"else",
+	"range",
+	"break",
+	"continue",
+	"template",
+	"block",
+	"define",
+	"with",
 }
 
 func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (service.Processor, error) {
@@ -56,6 +103,8 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 	}
 
 	var functions template.FuncMap
+
+	sprigFunctions := sprig.TxtFuncMap()
 
 	if conf.Contains(tpFieldFunctions) {
 		functionsMap, err := conf.FieldStringMap(tpFieldFunctions)
@@ -69,8 +118,12 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 			if err != nil {
 				return nil, err
 			}
-			if name == "meta" {
-				return nil, errors.New("can not define a function named meta")
+			if slices.Contains(templatePredefinedFunctions, name) {
+				return nil, fmt.Errorf("can not redefine a predefined function or named %s", name)
+			}
+			_, sprigContains := sprigFunctions[name]
+			if sprigContains {
+				return nil, fmt.Errorf("can not redefine a sprig function named %s", name)
 			}
 			functions[name] = func(msg any) (any, error) {
 				return blob.Query(msg)
@@ -87,7 +140,7 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 		}
 	}
 
-	tmpl, err := template.New("template").Funcs(functions).Funcs(sprig.TxtFuncMap()).Parse(templateStr)
+	tmpl, err := template.New("template").Funcs(functions).Funcs(sprigFunctions).Parse(templateStr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse template: %w", err)
 	}
