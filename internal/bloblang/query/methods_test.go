@@ -2712,7 +2712,7 @@ func TestSliceHelperFunctions(t *testing.T) {
 				length:    10,
 				start:     nil,
 				end:       nil,
-				step:      ptr(int64(-1)),
+				step:      new(int64(-1)),
 				wantStart: 9,
 				wantEnd:   -1,
 				wantStep:  -1,
@@ -2720,8 +2720,8 @@ func TestSliceHelperFunctions(t *testing.T) {
 			{
 				name:      "negative indices",
 				length:    10,
-				start:     ptr(int64(-3)),
-				end:       ptr(int64(-1)),
+				start:     new(int64(-3)),
+				end:       new(int64(-1)),
 				step:      nil,
 				wantStart: 7,
 				wantEnd:   9,
@@ -2730,8 +2730,8 @@ func TestSliceHelperFunctions(t *testing.T) {
 			{
 				name:      "out of bounds clamping",
 				length:    5,
-				start:     ptr(int64(-10)),
-				end:       ptr(int64(10)),
+				start:     new(int64(-10)),
+				end:       new(int64(10)),
 				step:      nil,
 				wantStart: 0,
 				wantEnd:   5,
@@ -2750,25 +2750,20 @@ func TestSliceHelperFunctions(t *testing.T) {
 	})
 
 	t.Run("sliceString", func(t *testing.T) {
-		result, err := sliceString("hello world", ptr(int64(0)), ptr(int64(5)), ptr(int64(2)))
+		result, err := sliceString("hello world", new(int64(0)), new(int64(5)), new(int64(2)))
 		require.NoError(t, err)
 		assert.Equal(t, "hlo", result)
 	})
 
 	t.Run("sliceBytes", func(t *testing.T) {
-		result, err := sliceBytes([]byte("hello"), ptr(int64(1)), ptr(int64(4)), nil)
+		result, err := sliceBytes([]byte("hello"), new(int64(1)), new(int64(4)), nil)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("ell"), result)
 	})
 
 	t.Run("sliceArray", func(t *testing.T) {
-		result, err := sliceArray([]any{"a", "b", "c", "d"}, ptr(int64(1)), ptr(int64(3)), nil)
+		result, err := sliceArray([]any{"a", "b", "c", "d"}, new(int64(1)), new(int64(3)), nil)
 		require.NoError(t, err)
 		assert.Equal(t, []any{"b", "c"}, result)
 	})
-}
-
-// Helper function to create pointers to int64 values
-func ptr(i int64) *int64 {
-	return &i
 }

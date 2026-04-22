@@ -959,7 +959,7 @@ func (s *StreamBuilder) buildWithEnv(env *bundle.Environment, isStrictBuild bool
 	}
 
 	for _, lw := range s.lintWarns {
-		logger.Warn(lw.Error())
+		logger.Warn("%s", lw.Error())
 	}
 
 	engVer := s.engineVersion

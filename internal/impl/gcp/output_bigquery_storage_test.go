@@ -419,45 +419,45 @@ func createTestProtobufDescriptor(t *testing.T) protoreflect.FileDescriptor {
 	t.Helper()
 
 	fileDescProto := &descriptorpb.FileDescriptorProto{
-		Name:    proto.String("test.proto"),
-		Package: proto.String("test"),
+		Name:    new("test.proto"),
+		Package: new("test"),
 		MessageType: []*descriptorpb.DescriptorProto{
 			{
-				Name: proto.String("TestMessage"),
+				Name: new("TestMessage"),
 				Field: []*descriptorpb.FieldDescriptorProto{
 					{
-						Name:   proto.String("type"),
+						Name:   new("type"),
 						Number: proto.Int32(1),
 						Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 					},
 					{
-						Name:   proto.String("public"),
+						Name:   new("public"),
 						Number: proto.Int32(2),
 						Type:   descriptorpb.FieldDescriptorProto_TYPE_BOOL.Enum(),
 					},
 					{
-						Name:     proto.String("repo"),
+						Name:     new("repo"),
 						Number:   proto.Int32(3),
 						Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
-						TypeName: proto.String(".test.RepoMessage"),
+						TypeName: new(".test.RepoMessage"),
 					},
 				},
 			},
 			{
-				Name: proto.String("RepoMessage"),
+				Name: new("RepoMessage"),
 				Field: []*descriptorpb.FieldDescriptorProto{
 					{
-						Name:   proto.String("id"),
+						Name:   new("id"),
 						Number: proto.Int32(1),
 						Type:   descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
 					},
 					{
-						Name:   proto.String("name"),
+						Name:   new("name"),
 						Number: proto.Int32(2),
 						Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 					},
 					{
-						Name:   proto.String("url"),
+						Name:   new("url"),
 						Number: proto.Int32(3),
 						Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 					},

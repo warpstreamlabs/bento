@@ -23,13 +23,9 @@ type mockClient struct {
 	start   bool
 }
 
-func stringPtr(s string) *string {
-	return &s
-}
-
 func (mc *mockClient) listFoo(token *string) (fooPage []foo, nextToken *string, err error) {
 	if mc.start && token == nil {
-		token = stringPtr("page1")
+		token = new("page1")
 		mc.start = false
 	}
 
@@ -56,8 +52,8 @@ func TestCollect(t *testing.T) {
 		},
 		"TestCollectMultiplePages": {
 			testPageMap: map[string]page{
-				"page1": {fooList: []foo{{name: "Alice"}, {name: "Bob"}}, nextToken: stringPtr("page2")},
-				"page2": {fooList: []foo{{name: "Carol"}, {name: "Dan"}}, nextToken: stringPtr("page3")},
+				"page1": {fooList: []foo{{name: "Alice"}, {name: "Bob"}}, nextToken: new("page2")},
+				"page2": {fooList: []foo{{name: "Carol"}, {name: "Dan"}}, nextToken: new("page3")},
 				"page3": {fooList: []foo{{name: "Ethan"}, {name: "Frank"}}, nextToken: nil},
 			},
 			expResult: []foo{{name: "Alice"}, {name: "Bob"}, {name: "Carol"}, {name: "Dan"}, {name: "Ethan"}, {name: "Frank"}},
@@ -70,7 +66,7 @@ func TestCollect(t *testing.T) {
 		},
 		"TestCollectError": {
 			testPageMap: map[string]page{
-				"page1": {fooList: []foo{{name: "Alice"}, {name: "Bob"}}, nextToken: stringPtr("INVALID_TOKEN")},
+				"page1": {fooList: []foo{{name: "Alice"}, {name: "Bob"}}, nextToken: new("INVALID_TOKEN")},
 				"page2": {fooList: []foo{{name: "Carol"}}, nextToken: nil},
 			},
 			expResult:     nil,
