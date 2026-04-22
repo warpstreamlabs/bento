@@ -9,7 +9,9 @@ import (
 )
 
 func init() {
-	plugin.RegisterBatchProcessor(newFlipProcessor)
+	if err := plugin.RegisterBatchProcessor(newFlipProcessor); err != nil {
+		panic(err)
+	}
 }
 
 func newFlipProcessor(conf *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {

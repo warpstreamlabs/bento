@@ -12,7 +12,9 @@ import (
 )
 
 func init() {
-	plugin.RegisterBatchProcessor(newReverseProcessor)
+	if err := plugin.RegisterBatchProcessor(newReverseProcessor); err != nil {
+		panic(err)
+	}
 }
 
 func newReverseProcessor(_ *service.ParsedConfig, mgr *service.Resources) (service.BatchProcessor, error) {
