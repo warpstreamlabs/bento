@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	tpFieldText               = "text"
-	tpFieldAsFile             = "as_file"
-	tpFieldFunctions          = "functions"
-	tpFieldSubTemplates       = "sub_templates"
-	tpFieldSubTemplatesText   = "text"
-	tpFieldSubTemplatesAsFile = "as_file"
+	tpFieldText                 = "text"
+	tpFieldFromFile             = "from_file"
+	tpFieldFunctions            = "functions"
+	tpFieldSubTemplates         = "sub_templates"
+	tpFieldSubTemplatesText     = "text"
+	tpFieldSubTemplatesFromFile = "from_file"
 )
 
 func TemplateProcessorSpec() *service.ConfigSpec {
@@ -33,21 +33,21 @@ and a custom `+"`"+`meta`+"`"+` function to access message metadata (e.g., `+"`"
 Additionally, users can define custom Bloblang-based functions via the `+"`"+`functions`+"`"+` field, which are available during template execution.`).
 		Fields(
 			service.NewStringField(tpFieldText).
-				Description("The Go template to apply to messages, if `as_file` is enabled, it will be used as file path and the template gets readed from file.").
+				Description("The Go template to apply to messages. If `from_file` is enabled, this is used as the file path and the template is loaded from the file.").
 				Example("{{ .name }} - {{ meta \"source\" }}").
 				Example("{{ range .items }}{{ .name }}: {{ .value }}{{ end }}").
 				Default(""),
-			service.NewBoolField(tpFieldAsFile).
-				Description("Read the tempalte as a file.").
+			service.NewBoolField(tpFieldFromFile).
+				Description("When enabled, the template is loaded from a file.").
 				Default(false),
 			service.NewStringMapField(tpFieldFunctions).
 				Description("A map of Bloblang functions to make available to the template.").
 				Optional(),
 			service.NewObjectMapField(tpFieldSubTemplates,
 				service.NewStringField(tpFieldSubTemplatesText).
-					Description("The Go template, if `as_file` is enabled, it will be used as file path and the template gets readed from file."),
-				service.NewBoolField(tpFieldSubTemplatesAsFile).
-					Description("Read the tempalte as a file.").
+					Description("The Go template. If `from_file` is enabled, this is used as the file path and the template is loaded from the file."),
+				service.NewBoolField(tpFieldSubTemplatesFromFile).
+					Description("When enabled, the template is loaded from a file.").
 					Default(false),
 			).
 				Description("A map of other templates which will defined into the `main` template.").
@@ -150,11 +150,11 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 		}
 	}
 
-	templateAsFile, _ := conf.FieldBool(tpFieldAsFile)
+	templateFromFile, _ := conf.FieldBool(tpFieldFromFile)
 
 	tmpl := template.New("main").Funcs(functions).Funcs(sprigFunctions)
 
-	if templateAsFile {
+	if templateFromFile {
 		file, err := mgr.FS().Open(templateStr)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to open template from file path %s: %w", templateStr, err)
@@ -187,9 +187,9 @@ func NewTemplateProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Res
 				return nil, err
 			}
 
-			subTemplateAsFile, _ := conf.FieldBool(tpFieldSubTemplatesAsFile)
+			subTemplateFromFile, _ := conf.FieldBool(tpFieldSubTemplatesFromFile)
 
-			if subTemplateAsFile {
+			if subTemplateFromFile {
 				file, err := mgr.FS().Open(subTemplateStr)
 				if err != nil {
 					return nil, fmt.Errorf("Failed to open sub template %s from file path %s: %w", name, subTemplateStr, err)

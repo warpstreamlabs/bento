@@ -157,11 +157,11 @@ func TestTemplateProcessor_AsFile(t *testing.T) {
 
 	proc, _, err := testTemplateProc(`
 text: ` + templatePath + `
-as_file: true
+from_file: true
 sub_templates:
   hello:
     text: ` + subTemplatePath + `
-    as_file: true
+    from_file: true
 `)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, proc.Close(t.Context())) })

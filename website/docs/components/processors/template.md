@@ -25,11 +25,11 @@ Transforms messages using Go template syntax.
 label: ""
 template:
   text: ""
-  as_file: false
+  from_file: false
   functions: {} # No default (optional)
   sub_templates:
     text: "" # No default (required)
-    as_file: false
+    from_file: false
 ```
 
 Transforms messages using Go template syntax.
@@ -42,7 +42,7 @@ Additionally, users can define custom Bloblang-based functions via the `function
 
 ### `text`
 
-The Go template to apply to messages, if `as_file` is enabled, it will be used as file path and the template gets readed from file.
+The Go template to apply to messages. If `from_file` is enabled, this is used as the file path and the template is loaded from the file.
 
 
 Type: `string`  
@@ -56,9 +56,9 @@ text: '{{ .name }} - {{ meta "source" }}'
 text: '{{ range .items }}{{ .name }}: {{ .value }}{{ end }}'
 ```
 
-### `as_file`
+### `from_file`
 
-Read the tempalte as a file.
+When enabled, the template is loaded from a file.
 
 
 Type: `bool`  
@@ -80,14 +80,14 @@ Type: `object`
 
 ### `sub_templates.<name>.text`
 
-The Go template, if `as_file` is enabled, it will be used as file path and the template gets readed from file.
+The Go template. If `from_file` is enabled, this is used as the file path and the template is loaded from the file.
 
 
 Type: `string`  
 
-### `sub_templates.<name>.as_file`
+### `sub_templates.<name>.from_file`
 
-Read the tempalte as a file.
+When enabled, the template is loaded from a file.
 
 
 Type: `bool`  
