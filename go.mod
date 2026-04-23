@@ -97,7 +97,7 @@ require (
 	github.com/knights-analytics/hugot v0.6.4
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
-	github.com/lublak/go-spnego v0.0.0-20260120124615-b6c5a0670997
+	github.com/lublak/go-spnego v1.0.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/microsoft/gocosmos v1.1.1
