@@ -41,6 +41,7 @@ output:
     discover_nodes_on_start: false
     discover_nodes_interval: 0s
     max_in_flight: 64
+    api_key: "" # No default (optional)
     batching:
       count: 0
       byte_size: 0
@@ -78,6 +79,7 @@ output:
       root_cas_file: ""
       client_certs: []
     max_in_flight: 64
+    api_key: "" # No default (optional)
     basic_auth:
       enabled: false
       username: ""
@@ -337,6 +339,13 @@ The maximum number of messages to have in flight at a given time. Increase this 
 
 Type: `int`  
 Default: `64`  
+
+### `api_key`
+
+Allows you to specify a Base64-encoded token for authorization; if set, overrides basic auth.
+
+
+Type: `string`  
 
 ### `basic_auth`
 

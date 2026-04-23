@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Automatically decodes and validates messages with schemas from a Confluent Schema Registry service.
 
-Introduced in version 1.13.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -53,6 +51,7 @@ schema_registry_decode:
     idle_connection_timeout: 90s
     tls_handshake_timeout: 10s
     expect_continue_timeout: 1s
+  sanitize_namespace_names: false
   oauth:
     enabled: false
     consumer_key: ""
@@ -82,7 +81,7 @@ schema_registry_decode:
 
 Decodes messages automatically from a schema stored within a [Confluent Schema Registry service](https://docs.confluent.io/platform/current/schema-registry/index.html) by extracting a schema ID from the message and obtaining the associated schema from the registry. If a message fails to match against the schema then it will remain unchanged and the error can be caught using error handling methods outlined [here](/docs/configuration/error_handling).
 
-Avro, Protobuf and Json schemas are supported, all are capable of expanding from schema references as of v4.22.0.
+Avro, Protobuf and Json schemas are supported, all are capable of expanding from schema references.
 
 ### Avro JSON Format
 
@@ -235,6 +234,15 @@ Time to wait for a server's first response headers after sending request headers
 Type: `string`  
 Default: `"1s"`  
 Requires version 1.13.0 or newer  
+
+### `sanitize_namespace_names`
+
+When enabled, sanitizes namespace names to only contain letters, numbers, and underscores.
+
+
+Type: `bool`  
+Default: `false`  
+Requires version 1.17.0 or newer  
 
 ### `oauth`
 

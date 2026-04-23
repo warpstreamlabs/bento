@@ -81,6 +81,8 @@ input:
       check: ""
       processors: [] # No default (optional)
     rate_limit: ""
+    extract_tracing_map: root = @ # No default (optional)
+    new_root_span_with_link: false # No default (optional)
 ```
 
 </TabItem>
@@ -100,6 +102,7 @@ This input adds the following metadata fields to each message:
 - kafka_partition
 - kafka_offset
 - kafka_timestamp_unix
+- kafka_timestamp_unix_ms
 - kafka_tombstone_message
 - All record headers
 ```
@@ -744,5 +747,28 @@ An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invoc
 
 Type: `string`  
 Default: `""`  
+
+### `extract_tracing_map`
+
+EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to extract an object containing tracing propagation information, which will then be used as the root tracing span for the message. The specification of the extracted fields must match the format used by the service wide tracer.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+extract_tracing_map: root = @
+
+extract_tracing_map: root = this.meta.span
+```
+
+### `new_root_span_with_link`
+
+EXPERIMENTAL: Starts a new root span with link to parent.
+
+
+Type: `bool`  
+Requires version 1.17.0 or newer  
 
 
