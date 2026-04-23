@@ -2,7 +2,6 @@ package pure_test
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -53,8 +52,6 @@ cache:
 		t.Errorf("Wrong result messages: %s != %s", act, exp)
 	}
 
-	fmt.Printf("%+v", mgr.Caches)
-
 	actV, ok := mgr.Caches["foocache"]["1"]
 	require.True(t, ok)
 	assert.Equal(t, "foo 3", actV.Value)
@@ -100,8 +97,6 @@ cache:
 	if exp, act := message.GetAllBytes(input), message.GetAllBytes(output[0]); !reflect.DeepEqual(exp, act) {
 		t.Errorf("Wrong result messages: %s != %s", act, exp)
 	}
-
-	fmt.Printf("%v", mgr.Caches["foocache"])
 
 	actV, ok := mgr.Caches["foocache"]["1"]
 	require.True(t, ok)
