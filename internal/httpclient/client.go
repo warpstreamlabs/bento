@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lublak/go-spnego"
 	"github.com/warpstreamlabs/bento/internal/old/util/throttle"
 	"github.com/warpstreamlabs/bento/internal/tracing/v2"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -118,6 +119,10 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 				return nil, fmt.Errorf("unable to apply proxy_url or tls to transport, unexpected type %T", h.client.Transport)
 			}
 		}
+	}
+
+	if conf.negotiateAuth != nil {
+		h.client.Transport = spnego.NewRoundTripper(h.client.Transport, conf.negotiateAuth.Api, conf.negotiateAuth.Options)
 	}
 
 	h.client.Transport, err = newRequestLog(h.client.Transport, h.log, conf.DumpRequestLogLevel)
