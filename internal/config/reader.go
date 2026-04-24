@@ -390,7 +390,7 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 
 	lintlog := mgr.Logger()
 	for _, lint := range lints {
-		lintlog.Info(lint)
+		lintlog.Info("%s", lint)
 	}
 	if strict && len(lints) > 0 {
 		mgr.Logger().Error("Rejecting updated main config due to linter errors, to allow linting errors run Bento with --chilled")
@@ -399,7 +399,7 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
 	}
 	for _, lintWarn := range lintWarns {
-		lintlog.Warn(lintWarn)
+		lintlog.Warn("%s", lintWarn)
 	}
 
 	// If the main config file has been changed then we remove all resources

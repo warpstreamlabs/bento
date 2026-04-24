@@ -203,7 +203,7 @@ func (j *jqProc) Process(ctx context.Context, msg *message.Part) ([]*message.Par
 
 	emitted, err := safeQuery(in, metadata, j.code)
 	if err != nil {
-		j.log.Debug(err.Error())
+		j.log.Debug("%s", err.Error())
 		return nil, err
 	}
 

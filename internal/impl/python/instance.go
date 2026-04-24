@@ -67,8 +67,8 @@ func (p *pythonProcessor) newInstance(ctx context.Context) (*pythonInstance, err
 		return nil, err
 	case err := <-handshakeErr:
 		if err != nil {
-			p.logger.Errorf("python handshake failed (stderr): %s)")
-			return nil, fmt.Errorf("handshake failed: %w", err)
+			p.logger.Errorf("python handshake failed (stderr): %s)", err)
+			return nil, fmt.Errorf("handshake failed: %v", err)
 		}
 	}
 

@@ -230,14 +230,14 @@ func (r *Reader) TriggerStreamUpdate(mgr bundle.NewManagement, strict bool, path
 
 	lintlog := mgr.Logger()
 	for _, lint := range lints {
-		lintlog.Info(lint)
+		lintlog.Info("%s", lint)
 	}
 	if strict && len(lints) > 0 {
 		mgr.Logger().Error("Rejecting updated stream %v config due to linter errors, to allow linting errors run Bento with --chilled.", info.id)
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
 	}
 	for _, lintWarn := range lintWarns {
-		lintlog.Warn(lintWarn)
+		lintlog.Warn("%s", lintWarn)
 	}
 
 	if err := r.streamUpdateFn(info.id, &conf); err != nil {
