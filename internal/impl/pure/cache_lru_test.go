@@ -180,7 +180,7 @@ func testServiceCache(t *testing.T, c service.Cache) {
 
 	exists, err = c.Exists(ctx, key)
 	require.NoError(t, err)
-	require.False(t, exists)
+	require.True(t, exists)
 
 	key = "bar"
 

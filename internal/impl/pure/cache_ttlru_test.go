@@ -68,12 +68,24 @@ init_values:
 		t.Errorf("Wrong result: %v != %v", string(act), exp)
 	}
 
+	exists, err := c.Exists(ctx, "foo")
+	require.NoError(t, err)
+	require.True(t, exists)
+
 	exp = "bar2"
 	if act, err := c.Get(ctx, "foo2"); err != nil {
 		t.Error(err)
 	} else if string(act) != exp {
 		t.Errorf("Wrong result: %v != %v", string(act), exp)
 	}
+
+	exists, err = c.Exists(ctx, "foo2")
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = c.Exists(ctx, "foo3")
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 func BenchmarkTTLRU(b *testing.B) {
