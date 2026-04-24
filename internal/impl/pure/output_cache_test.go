@@ -186,6 +186,9 @@ target: foo
 		if exp, act := v, string(res); exp != act {
 			t.Errorf("Wrong result: %v != %v", act, exp)
 		}
+		exists, err := memCache.Exists(context.Background(), k)
+		require.NoError(t, err)
+		require.True(t, exists)
 	}
 }
 
@@ -234,5 +237,8 @@ target: foo
 		if exp, act := v, string(res); exp != act {
 			t.Errorf("Wrong result: %v != %v", act, exp)
 		}
+		exists, err := memCache.Exists(context.Background(), k)
+		require.NoError(t, err)
+		require.True(t, exists)
 	}
 }
