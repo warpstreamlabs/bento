@@ -143,6 +143,42 @@ func (r *redisCache) Get(ctx context.Context, key string) ([]byte, error) {
 	}
 }
 
+func (r *redisCache) Exists(ctx context.Context, key string) (bool, error) {
+	boff := r.boffPool.Get().(backoff.BackOff)
+	defer func() {
+		boff.Reset()
+		r.boffPool.Put(boff)
+	}()
+
+	if r.prefix != "" {
+		key = r.prefix + key
+	}
+
+	for {
+		res, err := r.client.Exists(ctx, key).Result()
+		if err == nil {
+			if res == 1 {
+				return true, nil
+			}
+			return false, nil
+		}
+
+		if errors.Is(err, redis.Nil) {
+			return false, nil
+		}
+
+		wait := boff.NextBackOff()
+		if wait == backoff.Stop {
+			return false, err
+		}
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return false, err
+		}
+	}
+}
+
 func (r *redisCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	boff := r.boffPool.Get().(backoff.BackOff)
 	defer func() {

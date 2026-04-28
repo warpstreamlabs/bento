@@ -23,5 +23,9 @@ func TestNoopCacheStandard(t *testing.T) {
 	value, err := c.Get(context.Background(), "foo")
 	require.EqualError(t, err, "key does not exist")
 
+	exists, err := c.Exists(context.Background(), "foo")
+	require.NoError(t, err)
+	require.False(t, exists)
+
 	assert.Nil(t, value)
 }

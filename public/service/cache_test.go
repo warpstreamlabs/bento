@@ -35,6 +35,14 @@ func (c *closableCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return i.b, nil
 }
 
+func (c *closableCache) Exists(ctx context.Context, key string) (bool, error) {
+	if c.err != nil {
+		return false, c.err
+	}
+	_, ok := c.m[key]
+	return ok, nil
+}
+
 func (c *closableCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	if c.err != nil {
 		return c.err
@@ -314,6 +322,14 @@ func (c *closableCacheType) Get(ctx context.Context, key string) ([]byte, error)
 		return nil, component.ErrKeyNotFound
 	}
 	return i.b, nil
+}
+
+func (c *closableCacheType) Exists(ctx context.Context, key string) (bool, error) {
+	if c.err != nil {
+		return false, c.err
+	}
+	_, ok := c.m[key]
+	return ok, nil
 }
 
 func (c *closableCacheType) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {

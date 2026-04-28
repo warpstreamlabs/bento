@@ -379,6 +379,8 @@ cache_resources:
 			integration.CacheTestDoubleAdd(),
 			integration.CacheTestDelete(),
 			integration.CacheTestGetAndSet(1),
+			integration.CacheTestMissingKey(),
+			integration.CacheTestExistsAndSet(1),
 		)
 		suite.Run(
 			t, template,

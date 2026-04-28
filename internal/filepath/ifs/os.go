@@ -14,6 +14,7 @@ var _ fs.FS = OS()
 type FS interface {
 	Open(name string) (fs.File, error)
 	OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error)
+	Exists(name string) (bool, error)
 	Stat(name string) (fs.FileInfo, error)
 	Remove(name string) error
 	MkdirAll(path string, perm fs.FileMode) error
@@ -31,7 +32,25 @@ func ReadFile(f fs.FS, name string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer i.Close()
 	return io.ReadAll(i)
+}
+
+// FileExists checks if a file exists.
+func FileExists(f fs.FS, name string) (bool, error) {
+	if ef, ok := f.(FS); ok {
+		return ef.Exists(name)
+	} else {
+		file, err := f.Open(name)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return false, nil
+			}
+			return false, err
+		}
+		file.Close()
+		return true, nil
+	}
 }
 
 // WriteFile opens a file with O_WRONLY|O_CREATE|O_TRUNC flags and writes the
@@ -80,6 +99,17 @@ func (o *osPT) Open(name string) (fs.File, error) {
 
 func (o *osPT) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
 	return os.OpenFile(name, flag, perm)
+}
+
+func (o *osPT) Exists(name string) (bool, error) {
+	_, err := os.Stat(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (o *osPT) Stat(name string) (fs.FileInfo, error) {

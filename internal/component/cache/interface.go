@@ -2,7 +2,10 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"github.com/warpstreamlabs/bento/internal/component"
 )
 
 // TTLItem contains a value to cache along with an optional TTL.
@@ -37,4 +40,24 @@ type V1 interface {
 	// cleaned up or the context is cancelled. Returns an error if the context
 	// is cancelled.
 	Close(ctx context.Context) error
+}
+
+type V1Exists interface {
+	// Exists attempts to locate a cached value by its key, returns
+	// false if the key does not exist, returns an if the command fails.
+	Exists(ctx context.Context, key string) (bool, error)
+}
+
+func CacheKeyExists(cache V1, ctx context.Context, key string) (bool, error) {
+	if v1Exists, ok := cache.(V1Exists); ok {
+		return v1Exists.Exists(ctx, key)
+	}
+	_, err := cache.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, component.ErrKeyNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

@@ -2,6 +2,7 @@ package pure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 const (
 	coFieldTarget = "target"
 	coFieldKey    = "key"
+	coFieldAppend = "append"
 	coFieldTTL    = "ttl"
 )
 
@@ -56,6 +58,9 @@ In order to create a unique `+"`key`"+` value per item you should use function i
 					`${!metadata("kafka_key")}`,
 				).
 				Default(`${!count("items")}-${!timestamp_unix_nano()}`),
+			service.NewBoolField(coFieldAppend).
+				Description("When enabled, new messages are appended to existing cache values rather than overwriting them. If the key does not exist the message will be stored as a new value.").
+				Default(false),
 			service.NewInterpolatedStringField(coFieldTTL).
 				Description("The TTL of each individual item as a duration string. After this period an item will be eligible for removal during the next compaction. Not all caches support per-key TTLs, and those that do not will fall back to their generally configured TTL setting.").
 				Examples("60s", "5m", "36h").
@@ -95,9 +100,10 @@ func init() {
 type CacheWriter struct {
 	mgr bundle.NewManagement
 
-	target string
-	key    *field.Expression
-	ttl    *field.Expression
+	target      string
+	key         *field.Expression
+	appendCache bool
+	ttl         *field.Expression
 
 	log log.Modular
 }
@@ -110,6 +116,10 @@ func NewCacheWriter(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Cach
 	}
 
 	keyStr, err := conf.FieldString(coFieldKey)
+	if err != nil {
+		return nil, err
+	}
+	appendCache, err := conf.FieldBool(coFieldAppend)
 	if err != nil {
 		return nil, err
 	}
@@ -128,11 +138,12 @@ func NewCacheWriter(conf *service.ParsedConfig, mgr bundle.NewManagement) (*Cach
 		return nil, fmt.Errorf("cache resource '%v' was not found", target)
 	}
 	return &CacheWriter{
-		mgr:    mgr,
-		target: target,
-		key:    key,
-		ttl:    ttl,
-		log:    mgr.Logger(),
+		mgr:         mgr,
+		target:      target,
+		key:         key,
+		appendCache: appendCache,
+		ttl:         ttl,
+		log:         mgr.Logger(),
 	}, nil
 }
 
@@ -202,7 +213,17 @@ func (c *CacheWriter) WriteBatch(ctx context.Context, msg message.Batch) (err er
 	}
 
 	if cerr := c.mgr.AccessCache(ctx, c.target, func(cache cache.V1) {
-		err = cache.Set(ctx, key, msg.Get(0).AsBytes(), ttl)
+		if c.appendCache {
+			var current []byte
+			current, err = cache.Get(ctx, key)
+			if err == nil {
+				err = cache.Set(ctx, key, append(current, msg.Get(0).AsBytes()...), ttl)
+			} else if errors.Is(err, service.ErrKeyNotFound) {
+				err = cache.Set(ctx, key, msg.Get(0).AsBytes(), ttl)
+			}
+		} else {
+			err = cache.Set(ctx, key, msg.Get(0).AsBytes(), ttl)
+		}
 	}); cerr != nil {
 		err = cerr
 	}

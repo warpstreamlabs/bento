@@ -65,6 +65,10 @@ func (f *fileCache) Get(_ context.Context, key string) ([]byte, error) {
 	return b, err
 }
 
+func (f *fileCache) Exists(_ context.Context, key string) (bool, error) {
+	return ifs.FileExists(f.mgr.FS(), filepath.Join(f.dir, key))
+}
+
 func (f *fileCache) Set(_ context.Context, key string, value []byte, _ *time.Duration) error {
 	return ifs.WriteFile(f.mgr.FS(), filepath.Join(f.dir, key), value, 0o644)
 }

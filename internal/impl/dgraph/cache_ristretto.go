@@ -130,6 +130,15 @@ func (r *ristrettoCache) Get(ctx context.Context, key string) ([]byte, error) {
 	}
 }
 
+func (r *ristrettoCache) Exists(ctx context.Context, key string) (bool, error) {
+	_, ok := r.cache.Get(key)
+	if ok {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func (r *ristrettoCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	var t time.Duration
 	if ttl != nil {
