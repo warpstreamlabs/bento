@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	isql "github.com/warpstreamlabs/bento/internal/impl/sql"
 	baws "github.com/warpstreamlabs/bento/internal/impl/sql/aws"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -360,6 +361,71 @@ func TestBuildAwsDsnFromIAM(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expectedDSN, awsSecretDsn)
+		})
+	}
+}
+
+func TestReworkDSN(t *testing.T) {
+	tests := []struct {
+		name        string
+		driver      string
+		dsn         string
+		expectedDSN string
+		expectError bool
+	}{
+		{
+			name:        "non-clickhouse driver is unchanged",
+			driver:      "postgres",
+			dsn:         "postgres://user:pass@localhost:5432/mydb",
+			expectedDSN: "postgres://user:pass@localhost:5432/mydb",
+		},
+		{
+			name:        "clickhouse modern-style DSN is unchanged",
+			driver:      "clickhouse",
+			dsn:         "clickhouse://user:pass@localhost:9000/mydb",
+			expectedDSN: "clickhouse://user:pass@localhost:9000/mydb",
+		},
+		{
+			name:        "old-style tcp with username and password",
+			driver:      "clickhouse",
+			dsn:         "tcp://localhost:9000?database=mydb&username=alice&password=secret",
+			expectedDSN: "clickhouse://alice:secret@localhost:9000/mydb",
+		},
+		{
+			name:        "old-style tcp with username only",
+			driver:      "clickhouse",
+			dsn:         "tcp://localhost:9000?database=mydb&username=alice",
+			expectedDSN: "clickhouse://alice@localhost:9000/mydb",
+		},
+		{
+			name:        "old-style tcp with no credentials",
+			driver:      "clickhouse",
+			dsn:         "tcp://localhost:9000?database=mydb",
+			expectedDSN: "clickhouse://localhost:9000/mydb",
+		},
+		{
+			name:        "old-style tcp with extra query params preserved",
+			driver:      "clickhouse",
+			dsn:         "tcp://localhost:9000?database=mydb&username=alice&password=secret&compress=true",
+			expectedDSN: "clickhouse://alice:secret@localhost:9000/mydb?compress=true",
+		},
+		{
+			name:        "old-style tcp with no database",
+			driver:      "clickhouse",
+			dsn:         "tcp://localhost:9000?username=alice&password=secret",
+			expectedDSN: "clickhouse://alice:secret@localhost:9000",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := isql.ReworkDSN(tt.driver, tt.dsn)
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedDSN, got)
+			}
 		})
 	}
 }

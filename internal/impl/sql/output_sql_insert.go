@@ -291,14 +291,19 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 		if tx, err = s.db.Begin(); err != nil {
 			return err
 		}
+		defer func() {
+			_ = tx.Rollback()
+		}()
 		sqlStr, _, err := insertBuilder.ToSql()
 		if err != nil {
 			return err
 		}
 		if stmt, err = tx.Prepare(sqlStr); err != nil {
-			_ = tx.Rollback()
 			return err
 		}
+		defer func() {
+			_ = stmt.Close()
+		}()
 	}
 
 	for i := range batch {
@@ -323,7 +328,6 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 		if tx == nil {
 			insertBuilder = insertBuilder.Values(args...)
 		} else if _, err := stmt.Exec(args...); err != nil {
-			_ = tx.Rollback()
 			return err
 		}
 	}

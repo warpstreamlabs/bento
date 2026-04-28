@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -94,6 +95,7 @@ type sqlCache struct {
 	driver string
 	dsn    string
 	db     *sql.DB
+	dbMut  sync.RWMutex
 
 	keyColumn string
 
@@ -181,6 +183,8 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 		}
 	}
 
+	s.dbMut.Lock()
+	defer s.dbMut.Unlock()
 	if s.db, err = sqlOpenWithReworks(context.Background(), s.logger, s.driver, s.dsn, connSettings); err != nil {
 		return nil, err
 	}
@@ -188,13 +192,20 @@ func newSQLCacheFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (
 
 	go func() {
 		<-s.shutSig.HardStopChan()
-		_ = s.db.Close()
+		s.dbMut.Lock()
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
+		s.dbMut.Unlock()
 		s.shutSig.TriggerHasStopped()
 	}()
 	return s, nil
 }
 
 func (s *sqlCache) Get(ctx context.Context, key string) (value []byte, err error) {
+	s.dbMut.RLock()
+	defer s.dbMut.RUnlock()
 	err = s.selectBuilder.
 		Where(squirrel.Eq{s.keyColumn: key}).
 		RunWith(s.db).QueryRowContext(ctx).
@@ -206,11 +217,15 @@ func (s *sqlCache) Get(ctx context.Context, key string) (value []byte, err error
 }
 
 func (s *sqlCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
+	s.dbMut.RLock()
+	defer s.dbMut.RUnlock()
 	_, err := s.upsertBuilder.Values(key, value).RunWith(s.db).ExecContext(ctx)
 	return err
 }
 
 func (s *sqlCache) Add(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
+	s.dbMut.RLock()
+	defer s.dbMut.RUnlock()
 	_, err := s.insertBuilder.Values(key, value).RunWith(s.db).ExecContext(ctx)
 	if err != nil {
 		// This is difficult, ideally we need to translate any error that
@@ -224,6 +239,8 @@ func (s *sqlCache) Add(ctx context.Context, key string, value []byte, ttl *time.
 }
 
 func (s *sqlCache) Delete(ctx context.Context, key string) error {
+	s.dbMut.RLock()
+	defer s.dbMut.RUnlock()
 	_, err := s.deleteBuilder.Where(squirrel.Eq{s.keyColumn: key}).RunWith(s.db).ExecContext(ctx)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		err = service.ErrKeyNotFound

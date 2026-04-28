@@ -55,7 +55,6 @@ The ` + "[`duckdb`](https://github.com/duckdb/duckdb-go)" + ` driver requires cg
 	Example(":memory:")
 
 func connFields() []*service.ConfigField {
-
 	connFields := []*service.ConfigField{
 		service.NewStringListField("init_files").
 			Description(`
@@ -163,7 +162,6 @@ CREATE TABLE IF NOT EXISTS some_table (
 	connFields = append(connFields, config.SessionFields()...)
 
 	return connFields
-
 }
 
 func rawQueryField() *service.ConfigField {
@@ -221,7 +219,6 @@ func (c *connSettings) apply(ctx context.Context, db *sql.DB, log *service.Logge
 				log.Debug("Successfully ran init_statement")
 			}
 		}
-
 	})
 }
 
@@ -347,7 +344,7 @@ func reworkDSN(driver, dsn string) (string, error) {
 		uq := u.Query()
 		u.Path = uq.Get("database")
 		if username, password := uq.Get("username"), uq.Get("password"); username != "" {
-			if password != "" {
+			if password == "" {
 				u.User = url.User(username)
 			} else {
 				u.User = url.UserPassword(username, password)
