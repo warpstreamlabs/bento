@@ -118,6 +118,7 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 		).
 			Description("Digest authentication configuration.").
 			Advanced().
+			Version("1.18.0").
 			Optional(),
 		service.NewTransportField(hcFieldTransport),
 	)

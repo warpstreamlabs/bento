@@ -738,6 +738,7 @@ Digest authentication configuration.
 
 
 Type: `object`  
+Requires version 1.18.0 or newer  
 
 ### `digest_auth.enabled`
 
