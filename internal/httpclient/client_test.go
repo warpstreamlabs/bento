@@ -750,11 +750,10 @@ func TestHTTPClientDigestConf(t *testing.T) {
 
 	conf := clientConfig(t, `
 url: %v
-digest:
+digest_auth:
   enabled: true
-  user:
-    name: test
-    password: 123
+  username: test
+  password: 123
 `, ts.URL+"/testpost")
 
 	h, err := NewClientFromOldConfig(conf, service.MockResources())

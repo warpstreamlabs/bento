@@ -27,11 +27,10 @@ const (
 	hcFieldDumpRequestLogLevel = "dump_request_log_level"
 	hcFieldTLS                 = "tls"
 	hcFieldProxyURL            = "proxy_url"
-	hcFieldDigest              = "digest"
-	hcFieldDigestEnabled       = "enabled"
-	hcFieldDigestUser          = "user"
-	hcFieldDigestUserName      = "name"
-	hcFieldDigestUserPassword  = "password"
+	hcFieldDigestAuth          = "digest_auth"
+	hcFieldDigestAuthEnabled   = "enabled"
+	hcFieldDigestAuthUserName  = "username"
+	hcFieldDigestAuthPassword  = "password"
 	hcFieldTransport           = "transport"
 )
 
@@ -106,20 +105,16 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("An optional HTTP proxy URL.").
 			Advanced().
 			Optional(),
-		service.NewObjectField(hcFieldDigest,
-			service.NewBoolField(hcFieldDigestEnabled).
+		service.NewObjectField(hcFieldDigestAuth,
+			service.NewBoolField(hcFieldDigestAuthEnabled).
 				Description("Enable the digest authentication").
 				Default(false),
-			service.NewObjectField(hcFieldDigestUser,
-				service.NewStringField(hcFieldDigestUserName).
-					Description("The username of the user.").
-					Default(""),
-				service.NewStringField(hcFieldDigestUserPassword).
-					Description("The password of the user.").
-					Default(""),
-			).
-				Description("The user to use for the authentication.").
-				Optional(),
+			service.NewStringField(hcFieldDigestAuthUserName).
+				Description("The username of the user.").
+				Default(""),
+			service.NewStringField(hcFieldDigestAuthPassword).
+				Description("The password of the user.").
+				Default(""),
 		).
 			Description("Digest authentication configuration.").
 			Advanced().
@@ -184,21 +179,18 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
-	digest := pConf.Namespace(hcFieldDigest)
+	digest := pConf.Namespace(hcFieldDigestAuth)
 
-	digestEnabled, _ := digest.FieldBool(hcFieldDigestEnabled)
+	digestEnabled, _ := digest.FieldBool(hcFieldDigestAuthEnabled)
 
 	if digestEnabled {
 		digestAuthOptions := &DigestAuth{}
 
-		if digest.Contains(hcFieldDigestUser) {
-			digestUser := digest.Namespace(hcFieldDigestUser)
-			userName, _ := digestUser.FieldString(hcFieldDigestUserName)
-			userPassword, _ := digestUser.FieldString(hcFieldDigestUserPassword)
+		userName, _ := digest.FieldString(hcFieldDigestAuthUserName)
+		userPassword, _ := digest.FieldString(hcFieldDigestAuthPassword)
 
-			digestAuthOptions.Username = userName
-			digestAuthOptions.Password = userPassword
-		}
+		digestAuthOptions.Username = userName
+		digestAuthOptions.Password = userPassword
 
 		conf.digestAuth = digestAuthOptions
 	}
