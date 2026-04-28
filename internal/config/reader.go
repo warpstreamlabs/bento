@@ -55,10 +55,11 @@ type Reader struct {
 	// Used for linting configs
 	lintConf docs.LintConfig
 
-	mainPath      string
-	resourcePaths []string
-	streamsPaths  []string
-	overrides     []string
+	mainPath       string
+	resourcePaths  []string
+	streamsPaths   []string
+	overrides      []string
+	loadFromEnvVar bool
 
 	modTimeLastRead map[string]time.Time
 
@@ -183,6 +184,14 @@ func OptUseFS(fs ifs.FS) OptFunc {
 	}
 }
 
+// OptLoadFromEnvVar will configure the reader to read config from the
+// BENTO_CONFIG environment variable
+func OptLoadFromEnvVar() OptFunc {
+	return func(r *Reader) {
+		r.loadFromEnvVar = true
+	}
+}
+
 //------------------------------------------------------------------------------
 
 func (r *Reader) lintCtx() docs.LintContext {
@@ -299,9 +308,9 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 
 	var rawNode *yaml.Node
 	var confBytes []byte
+	var dLints []docs.Lint
+	var modTime time.Time
 	if mainPath != "" {
-		var dLints []docs.Lint
-		var modTime time.Time
 		if confBytes, dLints, modTime, err = ReadFileEnvSwap(r.fs, mainPath, os.LookupEnv); err != nil {
 			return
 		}
@@ -309,6 +318,17 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 			lints = append(lints, l.Error())
 		}
 		r.modTimeLastRead[mainPath] = modTime
+
+		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
+			return
+		}
+	} else if r.loadFromEnvVar {
+		if confBytes, dLints, err = ReadBentoConfigEnvVarEnvSwap(os.LookupEnv); err != nil {
+			return
+		}
+		for _, l := range dLints {
+			lints = append(lints, l.Error())
+		}
 
 		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
 			return
