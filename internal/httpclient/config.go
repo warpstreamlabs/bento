@@ -27,6 +27,10 @@ const (
 	hcFieldDumpRequestLogLevel = "dump_request_log_level"
 	hcFieldTLS                 = "tls"
 	hcFieldProxyURL            = "proxy_url"
+	hcFieldDigestAuth          = "digest_auth"
+	hcFieldDigestAuthEnabled   = "enabled"
+	hcFieldDigestAuthUserName  = "username"
+	hcFieldDigestAuthPassword  = "password"
 	hcFieldTransport           = "transport"
 )
 
@@ -101,6 +105,21 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Description("An optional HTTP proxy URL.").
 			Advanced().
 			Optional(),
+		service.NewObjectField(hcFieldDigestAuth,
+			service.NewBoolField(hcFieldDigestAuthEnabled).
+				Description("Enable the digest authentication").
+				Default(false),
+			service.NewStringField(hcFieldDigestAuthUserName).
+				Description("The username of the user.").
+				Default(""),
+			service.NewStringField(hcFieldDigestAuthPassword).
+				Description("The password of the user.").
+				Default(""),
+		).
+			Description("Digest authentication configuration.").
+			Advanced().
+			Version("1.18.0").
+			Optional(),
 		service.NewTransportField(hcFieldTransport),
 	)
 
@@ -161,11 +180,32 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
+	digest := pConf.Namespace(hcFieldDigestAuth)
+
+	digestEnabled, _ := digest.FieldBool(hcFieldDigestAuthEnabled)
+
+	if digestEnabled {
+		digestAuthOptions := &DigestAuth{}
+
+		userName, _ := digest.FieldString(hcFieldDigestAuthUserName)
+		userPassword, _ := digest.FieldString(hcFieldDigestAuthPassword)
+
+		digestAuthOptions.Username = userName
+		digestAuthOptions.Password = userPassword
+
+		conf.digestAuth = digestAuthOptions
+	}
+
 	if conf.transport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
 		return
 	}
 
 	return
+}
+
+type DigestAuth struct {
+	Username string
+	Password string
 }
 
 // OldConfig is a configuration struct for an HTTP client.
@@ -189,6 +229,7 @@ type OldConfig struct {
 	ProxyURL            string
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
+	digestAuth          *DigestAuth
 
 	transport *http.Transport
 }
