@@ -432,3 +432,50 @@ func TestConfigFields(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "evalue", e)
 }
+
+func TestConfigOptionalFields(t *testing.T) {
+	spec := NewConfigSpec().
+		Fields(
+			NewStringField("string_field").Optional(),
+			NewIntField("int_field").Optional(),
+			NewObjectField("object_with_optional",
+				NewBoolField("optional").Optional(),
+			).Optional(),
+			NewObjectField("object_with_default",
+				NewBoolField("default").Default(true),
+			).Optional(),
+			NewObjectField("object_with_required_defined_and_optional",
+				NewBoolField("required"),
+				NewBoolField("optional").Optional(),
+			).Optional(),
+			NewObjectField("object_with_required_and_optional",
+				NewBoolField("required"),
+				NewBoolField("optional").Optional(),
+			).Optional(),
+			NewObjectField("object_with_required_defined_and_default",
+				NewBoolField("required"),
+				NewBoolField("default").Default(true),
+			).Optional(),
+			NewObjectField("object_with_required_and_default",
+				NewBoolField("required"),
+				NewBoolField("default").Default(true),
+			).Optional(),
+		)
+
+	parsed, err := spec.ParseYAML(
+		`object_with_required_defined_and_optional:
+  required: true
+object_with_required_defined_and_default:
+  required: true
+`, nil)
+	require.NoError(t, err)
+
+	assert.False(t, parsed.Contains("string_field"), "string_field")
+	assert.False(t, parsed.Contains("int_field"), "int_field")
+	assert.False(t, parsed.Contains("object_with_optional"), "object_with_optional")
+	assert.False(t, parsed.Contains("object_with_default"), "object_with_default")
+	assert.True(t, parsed.Contains("object_with_required_defined_and_optional"), "object_with_required_defined_and_optional")
+	assert.False(t, parsed.Contains("object_with_required_and_optional"), "object_with_required_and_optional")
+	assert.True(t, parsed.Contains("object_with_required_defined_and_default"), "object_with_required_defined_and_default")
+	assert.False(t, parsed.Contains("object_with_required_and_default"), "object_with_required_and_default")
+}
