@@ -729,7 +729,7 @@ func TestHTTPClientDigestConf(t *testing.T) {
 		}
 
 		cred, err := digest.ParseCredentials(auth)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		validCred, err := digest.Digest(chal, digest.Options{
 			Method:   r.Method,
@@ -739,7 +739,7 @@ func TestHTTPClientDigestConf(t *testing.T) {
 			Username: "test",
 			Password: "123",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		assert.Equal(t, validCred.Response, cred.Response)
 		b, err := io.ReadAll(r.Body)
