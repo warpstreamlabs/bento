@@ -1,6 +1,8 @@
 package common
 
 import (
+	"os"
+
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 
@@ -11,6 +13,13 @@ import (
 // config.Reader based on input CLI flags. This includes applying any config
 // overrides expressed by the --set flag.
 func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath string, inferred bool, conf *config.Reader) {
+	opts := []config.OptFunc{
+		config.OptSetFullSpec(cliOpts.MainConfigSpecCtor),
+		config.OptAddOverrides(c.StringSlice("set")...),
+		config.OptTestSuffix("_bento_test"),
+		config.OptSetLintConfigWarnDeprecated(),
+	}
+
 	path := c.String("config")
 	if path == "" {
 		// Iterate default config paths
@@ -21,12 +30,10 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 				break
 			}
 		}
-	}
-	opts := []config.OptFunc{
-		config.OptSetFullSpec(cliOpts.MainConfigSpecCtor),
-		config.OptAddOverrides(c.StringSlice("set")...),
-		config.OptTestSuffix("_bento_test"),
-		config.OptSetLintConfigWarnDeprecated(),
+		// Finally check the "BENTO_CONFIG" env var
+		if os.Getenv("BENTO_CONFIG") != "" {
+			opts = append(opts, config.OptLoadFromEnvVar())
+		}
 	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))

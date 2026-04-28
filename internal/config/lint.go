@@ -109,3 +109,32 @@ func ReadFileEnvSwap(store ifs.FS, path string, lookupEnvFn func(name string) (s
 	}
 	return
 }
+
+func ReadBentoConfigEnvVarEnvSwap(lookupEnvFn func(name string) (string, bool)) (configBytes []byte, lints []docs.Lint, err error) {
+	var configString string
+	if configString = os.Getenv("BENTO_CONFIG"); configString == "" {
+		err = errors.New("BENTO_CONFIG env var set but contains no value")
+		return
+	}
+
+	configBytes = []byte(configString)
+
+	if !utf8.Valid(configBytes) {
+		lints = append(lints, docs.NewLintError(
+			1, docs.LintFailedRead,
+			errors.New("detected invalid utf-8 encoding in config, this may result in interpolation functions not working as expected"),
+		))
+	}
+
+	if configBytes, err = ReplaceEnvVariables(configBytes, lookupEnvFn); err != nil {
+		var errEnvMissing *ErrMissingEnvVars
+		if errors.As(err, &errEnvMissing) {
+			configBytes = errEnvMissing.BestAttempt
+			lints = append(lints, docs.NewLintError(1, docs.LintMissingEnvVar, err))
+			err = nil
+		} else {
+			return
+		}
+	}
+	return
+}
