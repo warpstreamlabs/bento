@@ -144,7 +144,7 @@ func (r *reverseAirGapCache) Get(ctx context.Context, key string) ([]byte, error
 }
 
 func (r *reverseAirGapCache) Exists(ctx context.Context, key string) (bool, error) {
-	return r.c.Exists(ctx, key)
+	return cache.CacheKeyExists(r.c, ctx, key)
 }
 
 func (r *reverseAirGapCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 )
 
 // CacheTestOpenClose checks that the cache can be started, an item added, and
@@ -53,12 +54,12 @@ func CacheTestMissingKeyExists() CacheTestDefinition {
 	return namedCacheTest(
 		"return false on missing key",
 		func(t *testing.T, env *cacheTestEnvironment) {
-			cache := initCache(t, env)
+			c := initCache(t, env)
 			t.Cleanup(func() {
-				closeCache(t, cache)
+				closeCache(t, c)
 			})
 
-			res, err := cache.Exists(env.ctx, "missingkey")
+			res, err := cache.CacheKeyExists(c, env.ctx, "missingkey")
 			assert.NoError(t, err)
 			assert.False(t, res)
 		},
@@ -145,21 +146,21 @@ func CacheTestExistsAndSet(n int) CacheTestDefinition {
 	return namedCacheTest(
 		"can exists and set",
 		func(t *testing.T, env *cacheTestEnvironment) {
-			cache := initCache(t, env)
+			c := initCache(t, env)
 			t.Cleanup(func() {
-				closeCache(t, cache)
+				closeCache(t, c)
 			})
 
 			for i := range n {
 				key := fmt.Sprintf("key%v", i)
 				value := fmt.Sprintf("value%v", i)
-				require.NoError(t, cache.Set(env.ctx, key, []byte(value), nil))
+				require.NoError(t, c.Set(env.ctx, key, []byte(value), nil))
 			}
 
 			for i := range n {
 				key := fmt.Sprintf("key%v", i)
 
-				res, err := cache.Exists(env.ctx, key)
+				res, err := cache.CacheKeyExists(c, env.ctx, key)
 				require.NoError(t, err)
 				assert.True(t, res)
 			}
