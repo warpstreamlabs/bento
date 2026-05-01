@@ -39,7 +39,7 @@ const (
 func s3ParquetStreamOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Beta().
-		Version("1.0.0").
+		Version("1.18.0").
 		Categories("Services", "AWS").
 		Summary(`Streams Parquet data directly to S3 using multipart uploads with minimal memory overhead.`).
 		Description(`
