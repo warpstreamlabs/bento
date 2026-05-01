@@ -423,7 +423,6 @@ func newS3ParquetStreamOutput(conf s3ParquetStreamConfig, mgr *service.Resources
 }
 
 func (s *s3ParquetStreamOutput) Connect(ctx context.Context) error {
-	s.log.Infof("Streaming Parquet output configured for bucket: %s", s.conf.Bucket)
 	return nil
 }
 
