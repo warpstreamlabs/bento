@@ -76,7 +76,7 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 			service.NewStringField(spsoFieldBucket).
 				Description("The S3 bucket to upload files to."),
 			service.NewInterpolatedStringField(spsoFieldPath).
-				Description("The path for each Parquet file. Supports Bloblang interpolation for dynamic partitioning.").
+				Description("The path for each Parquet file.").
 				Example(`logs/${! timestamp_unix() }-${! uuid_v4() }.parquet`).
 				Example(`data/year=${! now().ts_format("2006") }/month=${! now().ts_format("01") }/data.parquet`),
 			service.NewInterpolatedStringListField(spsoFieldPartitionBy).
