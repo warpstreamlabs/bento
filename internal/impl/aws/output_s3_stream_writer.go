@@ -20,6 +20,7 @@ type s3StreamingAPI interface {
 	UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
+	PutObject(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 }
 
 // S3StreamingWriter writes content incrementally to S3 using multipart uploads.
@@ -349,28 +350,43 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 		}
 	}
 
-	// Handle edge case: no parts uploaded (empty file)
+	// Handle edge case: no parts uploaded
+	// S3 multipart requires parts to be >= 5 MiB (except the final part can be smaller)
+	// But if we have 0 parts, we should use simple PutObject instead
 	if len(w.completedParts) == 0 {
-		// Upload a single empty part to satisfy S3 requirements
-		w.partNumber++
-		resp, err := w.s3Client.UploadPart(ctx, &s3.UploadPartInput{
-			Bucket:     aws.String(w.bucket),
-			Key:        aws.String(w.key),
-			PartNumber: aws.Int32(w.partNumber),
-			UploadId:   w.uploadID,
-			Body:       bytes.NewReader([]byte{}),
-		})
-		if err != nil {
-			w.abortMultipartUpload(ctx)
-			return fmt.Errorf("failed to upload empty part: %w", err)
+		// Abort the multipart upload since we'll use PutObject instead
+		w.abortMultipartUpload(ctx)
+
+		// Collect all buffered data
+		var data []byte
+		for _, msg := range w.messageBuffer {
+			data = append(data, msg...)
 		}
-		w.completedParts = append(w.completedParts, types.CompletedPart{
-			ETag:       resp.ETag,
-			PartNumber: aws.Int32(w.partNumber),
-		})
+
+		// Use simple PutObject for small files
+		input := &s3.PutObjectInput{
+			Bucket: aws.String(w.bucket),
+			Key:    aws.String(w.key),
+			Body:   bytes.NewReader(data),
+		}
+
+		if w.contentType != "" {
+			input.ContentType = aws.String(w.contentType)
+		}
+		if w.contentEncoding != "" {
+			input.ContentEncoding = aws.String(w.contentEncoding)
+		}
+
+		_, err := w.s3Client.PutObject(ctx, input)
+		if err != nil {
+			return fmt.Errorf("failed to upload file via PutObject: %w", err)
+		}
+
+		w.closed = true
+		return nil
 	}
 
-	// Complete multipart upload
+	// Complete multipart upload (normal case with >= 1 part)
 	_, err := w.s3Client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Bucket:   aws.String(w.bucket),
 		Key:      aws.String(w.key),

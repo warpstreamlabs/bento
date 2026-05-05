@@ -19,6 +19,7 @@ type mockS3StreamClient struct {
 	uploadPartFunc              func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	completeMultipartUploadFunc func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	abortMultipartUploadFunc    func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
+	putObjectFunc               func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 }
 
 func (m *mockS3StreamClient) CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
@@ -51,6 +52,13 @@ func (m *mockS3StreamClient) AbortMultipartUpload(ctx context.Context, input *s3
 		return m.abortMultipartUploadFunc(ctx, input, opts...)
 	}
 	return &s3.AbortMultipartUploadOutput{}, nil
+}
+
+func (m *mockS3StreamClient) PutObject(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+	if m.putObjectFunc != nil {
+		return m.putObjectFunc(ctx, input, opts...)
+	}
+	return &s3.PutObjectOutput{}, nil
 }
 
 func TestS3StreamingWriterCreation(t *testing.T) {
