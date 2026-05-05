@@ -18,6 +18,7 @@ import (
 
 // TODO: Add config + options pattern or use an already existing library like https://github.com/elgohr/go-localstack
 func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string) error) (port string) {
+	t.Helper()
 	portInt, err := integration.GetFreePort()
 	require.NoError(t, err)
 
