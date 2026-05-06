@@ -240,10 +240,15 @@ func TestS3StreamingWriterBufferFlushOnCount(t *testing.T) {
 
 func TestS3StreamingWriterClose(t *testing.T) {
 	completeCalled := false
+	putObjectCalled := false
 	mockClient := &mockS3StreamClient{
 		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
 			completeCalled = true
 			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			return &s3.PutObjectOutput{}, nil
 		},
 	}
 
@@ -260,14 +265,15 @@ func TestS3StreamingWriterClose(t *testing.T) {
 	err = writer.Initialize(ctx)
 	require.NoError(t, err)
 
-	// Write some data
+	// Write some data (small amount, < 5 MiB)
 	err = writer.WriteBytes(ctx, []byte("test data"))
 	require.NoError(t, err)
 
-	// Close should complete upload
+	// Close should use PutObject for small files
 	err = writer.Close(ctx)
 	require.NoError(t, err)
-	assert.True(t, completeCalled)
+	assert.True(t, putObjectCalled, "PutObject should be called for small data")
+	assert.False(t, completeCalled, "CompleteMultipartUpload should not be called for small data")
 	assert.True(t, writer.closed)
 }
 
@@ -410,4 +416,264 @@ func TestS3StreamingWriterContentEncoding(t *testing.T) {
 	require.NotNil(t, capturedInput)
 	assert.Equal(t, "application/json", *capturedInput.ContentType)
 	assert.Equal(t, "gzip", *capturedInput.ContentEncoding)
+}
+
+// TestS3StreamingWriterSmallFile tests that small files (< 5 MiB) use PutObject
+func TestS3StreamingWriterSmallFile(t *testing.T) {
+	abortCalled := false
+	putObjectCalled := false
+	completeMultipartCalled := false
+	var capturedPutData []byte
+	var capturedPutInput *s3.PutObjectInput
+
+	mockClient := &mockS3StreamClient{
+		abortMultipartUploadFunc: func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
+			abortCalled = true
+			return &s3.AbortMultipartUploadOutput{}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			capturedPutInput = input
+			// Read the body
+			data := make([]byte, 1024*1024)
+			n, _ := input.Body.Read(data)
+			capturedPutData = data[:n]
+			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeMultipartCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		ContentType:     "application/json",
+		ContentEncoding: "gzip",
+		MaxBufferBytes:  10 * 1024 * 1024, // 10MB buffer
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write small amount of data (1 KB)
+	testData := []byte("small test data")
+	err = writer.WriteBytes(ctx, testData)
+	require.NoError(t, err)
+
+	// Close should use PutObject, not multipart
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	// Verify behavior
+	assert.True(t, abortCalled, "multipart upload should be aborted")
+	assert.True(t, putObjectCalled, "PutObject should be called for small files")
+	assert.False(t, completeMultipartCalled, "CompleteMultipartUpload should NOT be called")
+
+	// Verify the data was uploaded correctly
+	assert.Equal(t, testData, capturedPutData)
+
+	// Verify content type and encoding were set
+	require.NotNil(t, capturedPutInput)
+	assert.Equal(t, "application/json", *capturedPutInput.ContentType)
+	assert.Equal(t, "gzip", *capturedPutInput.ContentEncoding)
+	assert.Equal(t, "test-bucket", *capturedPutInput.Bucket)
+	assert.Equal(t, "test-key", *capturedPutInput.Key)
+}
+
+// TestS3StreamingWriterSmallFileMultipleWrites tests small file with multiple writes
+func TestS3StreamingWriterSmallFileMultipleWrites(t *testing.T) {
+	putObjectCalled := false
+	var capturedPutData []byte
+
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			// Read all data
+			data := make([]byte, 1024*1024)
+			n, _ := input.Body.Read(data)
+			capturedPutData = data[:n]
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "test-key",
+		MaxBufferBytes: 10 * 1024 * 1024, // 10MB buffer
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write multiple small chunks (total < 5 MiB)
+	chunk1 := []byte("chunk1")
+	chunk2 := []byte("chunk2")
+	chunk3 := []byte("chunk3")
+
+	err = writer.WriteBytes(ctx, chunk1)
+	require.NoError(t, err)
+	err = writer.WriteBytes(ctx, chunk2)
+	require.NoError(t, err)
+	err = writer.WriteBytes(ctx, chunk3)
+	require.NoError(t, err)
+
+	// Close should use PutObject
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.True(t, putObjectCalled)
+	// Verify all chunks were combined
+	expected := append(append(chunk1, chunk2...), chunk3...)
+	assert.Equal(t, expected, capturedPutData)
+}
+
+// TestS3StreamingWriterExactly5MB tests the boundary at exactly 5 MiB
+func TestS3StreamingWriterExactly5MB(t *testing.T) {
+	uploadPartCalled := false
+	completeMultipartCalled := false
+	putObjectCalled := false
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalled = true
+			return &s3.UploadPartOutput{
+				ETag: aws.String("test-etag"),
+			}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeMultipartCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "test-key",
+		MaxBufferBytes: 5 * 1024 * 1024, // Exactly 5 MiB
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write exactly 5 MiB
+	data := make([]byte, 5*1024*1024)
+	err = writer.WriteBytes(ctx, data)
+	require.NoError(t, err)
+
+	// Close - should complete multipart (not use PutObject)
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	// At 5 MiB exactly, it should trigger multipart upload
+	assert.True(t, uploadPartCalled, "UploadPart should be called at 5 MiB")
+	assert.True(t, completeMultipartCalled, "CompleteMultipartUpload should be called")
+	assert.False(t, putObjectCalled, "PutObject should NOT be called")
+}
+
+// TestS3StreamingWriterJustUnder5MB tests just under 5 MiB boundary
+func TestS3StreamingWriterJustUnder5MB(t *testing.T) {
+	uploadPartCalled := false
+	putObjectCalled := false
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalled = true
+			return &s3.UploadPartOutput{
+				ETag: aws.String("test-etag"),
+			}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "test-key",
+		MaxBufferBytes: 10 * 1024 * 1024, // 10 MiB buffer
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write just under 5 MiB (5 MiB - 1 byte)
+	data := make([]byte, 5*1024*1024-1)
+	err = writer.WriteBytes(ctx, data)
+	require.NoError(t, err)
+
+	// Close should use PutObject
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.False(t, uploadPartCalled, "UploadPart should NOT be called for < 5 MiB")
+	assert.True(t, putObjectCalled, "PutObject should be called for < 5 MiB")
+}
+
+// TestS3StreamingWriterEmptyFile tests closing without writing any data
+func TestS3StreamingWriterEmptyFile(t *testing.T) {
+	abortCalled := false
+	putObjectCalled := false
+	var capturedPutData []byte
+
+	mockClient := &mockS3StreamClient{
+		abortMultipartUploadFunc: func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
+			abortCalled = true
+			return &s3.AbortMultipartUploadOutput{}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			data := make([]byte, 1024)
+			n, _ := input.Body.Read(data)
+			capturedPutData = data[:n]
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client: mockClient,
+		Bucket:   "test-bucket",
+		Key:      "test-key",
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Close without writing any data
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.True(t, abortCalled, "multipart should be aborted")
+	assert.True(t, putObjectCalled, "PutObject should be called for empty file")
+	assert.Empty(t, capturedPutData, "uploaded data should be empty")
 }
