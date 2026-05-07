@@ -3,6 +3,21 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.18.0 - << *TBD* >>
+
+### Added 
+
+ - `template` processor enabling use of Go template syntax for message transformations @lublak
+ - `fsevent` input creates messages for file-system events with metadata pertaining to event @henrikschristensen
+ - `duckdb_append` output inserts rows into a DuckDB database using the Appender API @iamramtin
+
+### Fixed 
+
+### Changed 
+
+ - updated to Go version 1.26 @gregfurman & @jem-davies
+ - upgrade sarama to 1.47.0 (`kafka` component library) @gitphill
+
 ## 1.17.0 - 2026-04-15
 
 ### Added 
