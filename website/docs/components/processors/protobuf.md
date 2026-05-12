@@ -27,6 +27,7 @@ protobuf:
   message: "" # No default (required)
   discard_unknown: false
   use_proto_names: false
+  emit_unpopulated: false
   import_paths: []
   bsr: []
 ```
@@ -268,6 +269,14 @@ Default: `false`
 ### `use_proto_names`
 
 If `true`, the `to_json` operator deserializes fields exactly as named in schema file.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `emit_unpopulated`
+
+If `true`, the `to_json` operator emits unpopulated fields with their default JSON values.
 
 
 Type: `bool`  
