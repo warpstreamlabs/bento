@@ -174,8 +174,8 @@ func TestProtobufToJSONImportPaths(t *testing.T) {
 			output: `{"firstName":"caleb","lastName":"quaye","email":"caleb@myspace.com"}`,
 		},
 		{
-			name:    "protobuf to json with emit_unpopulated",
-			message: "testing.Person",
+			name:            "protobuf to json with emit_unpopulated",
+			message:         "testing.Person",
 			emitUnpopulated: true,
 			input: []byte{
 				0x0a, 0x05, 0x63, 0x61, 0x6c, 0x65, 0x62, 0x12, 0x05, 0x71, 0x75, 0x61, 0x79, 0x65, 0x32, 0x11,
