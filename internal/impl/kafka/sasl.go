@@ -413,16 +413,16 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 				if tp, err = newOAuth2AccessTokenProvider(pConf.Namespace(saramaFieldSASLOAuth2), extensions); err != nil {
 					return err
 				}
-			}
-		}
-
-		if tp == nil && tokenCache != "" {
-			if tp, err = newCacheAccessTokenProvider(mgr, tokenCache, tokenKey); err != nil {
-				return err
-			}
-		} else {
-			if tp, err = newStaticAccessTokenProvider(accessToken); err != nil {
-				return err
+			} else {
+				if tokenCache != "" {
+					if tp, err = newCacheAccessTokenProvider(mgr, tokenCache, tokenKey); err != nil {
+						return err
+					}
+				} else {
+					if tp, err = newStaticAccessTokenProvider(accessToken); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		conf.Net.SASL.TokenProvider = tp
