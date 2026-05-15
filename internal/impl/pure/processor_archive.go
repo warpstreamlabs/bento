@@ -150,7 +150,11 @@ func linesArchive(hFunc headerFunc, msg service.MessageBatch) (*service.Message,
 			return nil, err
 		}
 	}
-	msg[0].SetBytes(bytes.Join(tmpParts, []byte("\n")))
+	// Join with newlines and add trailing newline to ensure proper separation
+	// when multiple batches are written to the same output stream
+	result := bytes.Join(tmpParts, []byte("\n"))
+	result = append(result, '\n')
+	msg[0].SetBytes(result)
 	return msg[0], nil
 }
 
