@@ -71,7 +71,6 @@ output:
       access_token: ""
       token_cache: ""
       token_key: ""
-      extensions: {} # No default (optional)
       oauth2:
         enabled: false
         client_key: ""
@@ -79,6 +78,7 @@ output:
         token_url: ""
         scopes: []
         endpoint_params: {} # No default (optional)
+        extensions: {} # No default (optional)
       aws:
         region: ""
         endpoint: ""
@@ -401,19 +401,13 @@ Required when using a `token_cache`, the key to query the cache with for tokens.
 Type: `string`  
 Default: `""`  
 
-### `sasl.extensions`
-
-A list of optional endpoint parameters, values should be arrays of strings.
-
-
-Type: `object`  
-
 ### `sasl.oauth2`
 
 Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.
 
 
 Type: `object`  
+Requires version 1.18.0 or newer  
 
 ### `sasl.oauth2.enabled`
 
@@ -459,6 +453,13 @@ Type: `array`
 Default: `[]`  
 
 ### `sasl.oauth2.endpoint_params`
+
+A list of optional endpoint parameters, values should be arrays of strings.
+
+
+Type: `object`  
+
+### `sasl.oauth2.extensions`
 
 A list of optional endpoint parameters, values should be arrays of strings.
 

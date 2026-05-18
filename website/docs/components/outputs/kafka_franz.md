@@ -654,6 +654,7 @@ Allows you to specify open authentication via OAuth version 2 using the client c
 
 
 Type: `object`  
+Requires version 1.18.0 or newer  
 
 ### `sasl[].oauth2.enabled`
 

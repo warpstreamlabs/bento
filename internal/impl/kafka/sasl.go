@@ -75,7 +75,7 @@ func saslField() *service.ConfigField {
 				Optional(),
 		).
 			Description("Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.").
-			Optional().Advanced(),
+			Optional().Version("1.18.0").Advanced(),
 		service.NewStringMapField("extensions").
 			Description("Key/value pairs to add to OAUTHBEARER authentication requests.").
 			Optional(),
@@ -193,7 +193,7 @@ func oauthSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
 				}
 			}
 			var extensions map[string]string
-			if c.Contains("extensions") {
+			if c.Contains("oauth2", "extensions") {
 				if extensions, err = c.FieldStringMap("extensions"); err != nil {
 					return nil, err
 				}
@@ -324,10 +324,6 @@ func SaramaSASLField() *service.ConfigField {
 		service.NewStringField(saramaFieldSASLTokenKey).
 			Description("Required when using a `token_cache`, the key to query the cache with for tokens.").
 			Default(""),
-		service.NewAnyMapField(saramaFieldSASLExtensions).
-			Description("A list of optional endpoint parameters, values should be arrays of strings.").
-			Advanced().
-			Optional(),
 		service.NewObjectField(saramaFieldSASLOAuth2,
 			service.NewBoolField("enabled").
 				Description("Whether to use OAuth version 2 in requests.").
@@ -349,9 +345,13 @@ func SaramaSASLField() *service.ConfigField {
 				Description("A list of optional endpoint parameters, values should be arrays of strings.").
 				Advanced().
 				Optional(),
+			service.NewAnyMapField(saramaFieldSASLExtensions).
+				Description("A list of optional endpoint parameters, values should be arrays of strings.").
+				Advanced().
+				Optional(),
 		).
 			Description("Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.").
-			Optional().Advanced(),
+			Optional().Version("1.18.0").Advanced(),
 		service.NewObjectField(saramaFieldSASLAws, config.SessionFields()...).
 			Description("Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.").
 			Optional(),
@@ -396,13 +396,6 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 		return nil
 	}
 
-	var extensions map[string]string
-	if pConf.Contains(saramaFieldSASLExtensions) {
-		if extensions, err = pConf.FieldStringMap(saramaFieldSASLExtensions); err != nil {
-			return err
-		}
-	}
-
 	switch mechanism {
 	case sarama.SASLTypeOAuth:
 		var tp sarama.AccessTokenProvider
@@ -410,7 +403,7 @@ func ApplySaramaSASLFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 
 		if pConf.Contains(saramaFieldSASLOAuth2) {
 			if enabled, _ := pConf.FieldBool(saramaFieldSASLOAuth2, "enabled"); enabled {
-				if tp, err = newOAuth2AccessTokenProvider(pConf.Namespace(saramaFieldSASLOAuth2), extensions); err != nil {
+				if tp, err = newOAuth2AccessTokenProvider(pConf.Namespace(saramaFieldSASLOAuth2)); err != nil {
 					return err
 				}
 			} else {
@@ -519,7 +512,7 @@ type oauth2AccessTokenProvider struct {
 	extensions map[string]string
 }
 
-func newOAuth2AccessTokenProvider(conf *service.ParsedConfig, extensions map[string]string) (*oauth2AccessTokenProvider, error) {
+func newOAuth2AccessTokenProvider(conf *service.ParsedConfig) (*oauth2AccessTokenProvider, error) {
 	key, err := conf.FieldString("client_key")
 	if err != nil {
 		return nil, err
@@ -546,6 +539,13 @@ func newOAuth2AccessTokenProvider(conf *service.ParsedConfig, extensions map[str
 			if endpointParams[k], err = v.FieldStringList(); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	var extensions map[string]string
+	if conf.Contains("extensions") {
+		if extensions, err = conf.FieldStringMap(saramaFieldSASLExtensions); err != nil {
+			return nil, err
 		}
 	}
 
