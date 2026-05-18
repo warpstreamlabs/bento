@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	fieldOperator       = "operator"
-	fieldMessage        = "message"
-	fieldImportPaths    = "import_paths"
-	fieldDiscardUnknown = "discard_unknown"
-	fieldUseProtoNames  = "use_proto_names"
+	fieldOperator        = "operator"
+	fieldMessage         = "message"
+	fieldImportPaths     = "import_paths"
+	fieldDiscardUnknown  = "discard_unknown"
+	fieldUseProtoNames   = "use_proto_names"
+	fieldEmitUnpopulated = "emit_unpopulated"
 
 	// BSR Config
 	fieldBsrConfig  = "bsr"
@@ -31,8 +32,6 @@ const (
 	fieldBsrAPIKey  = "api_key"
 	fieldBsrVersion = "version"
 )
-
-const fieldEmitUnpopulated = "emit_unpopulated"
 
 func protobufProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
@@ -296,10 +295,10 @@ func newProtobufToJSONOperator(f fs.FS, msg string, importPaths []string, usePro
 		}
 
 		opts := protojson.MarshalOptions{
-			Resolver:      types,
-			UseProtoNames: useProtoNames,
+			Resolver:        types,
+			UseProtoNames:   useProtoNames,
+			EmitUnpopulated: emitUnpopulated,
 		}
-		opts.EmitUnpopulated = emitUnpopulated
 		data, err := opts.Marshal(dynMsg)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal JSON protobuf message '%v': %w", msg, err)
@@ -332,10 +331,10 @@ func newProtobufToJSONBSROperator(multiModuleWatcher *MultiModuleWatcher, msg st
 		}
 
 		opts := protojson.MarshalOptions{
-			Resolver:      multiModuleWatcher,
-			UseProtoNames: useProtoNames,
+			Resolver:        multiModuleWatcher,
+			UseProtoNames:   useProtoNames,
+			EmitUnpopulated: emitUnpopulated,
 		}
-		opts.EmitUnpopulated = emitUnpopulated
 		data, err := opts.Marshal(dynMsg)
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON protobuf message '%v': %w", msg, err)
