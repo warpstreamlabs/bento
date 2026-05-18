@@ -31,8 +31,8 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 			}
 		}
 		// Finally check the "BENTO_CONFIG" env var
-		if os.Getenv("BENTO_CONFIG") != "" {
-			opts = append(opts, config.OptLoadFromEnvVar())
+		if configString := os.Getenv("BENTO_CONFIG"); configString != "" {
+			opts = append(opts, config.OptLoadFromEnvVar(configString))
 		}
 	}
 	if streamsMode {

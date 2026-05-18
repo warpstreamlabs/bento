@@ -110,14 +110,8 @@ func ReadFileEnvSwap(store ifs.FS, path string, lookupEnvFn func(name string) (s
 	return
 }
 
-func ReadBentoConfigEnvVarEnvSwap(lookupEnvFn func(name string) (string, bool)) (configBytes []byte, lints []docs.Lint, err error) {
-	var configString string
-	if configString = os.Getenv("BENTO_CONFIG"); configString == "" {
-		err = errors.New("BENTO_CONFIG env var set but contains no value")
-		return
-	}
-
-	configBytes = []byte(configString)
+func ReadBentoConfigEnvVarEnvSwap(config string, lookupEnvFn func(name string) (string, bool)) (configBytes []byte, lints []docs.Lint, err error) {
+	configBytes = []byte(config)
 
 	if !utf8.Valid(configBytes) {
 		lints = append(lints, docs.NewLintError(

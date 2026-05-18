@@ -55,11 +55,11 @@ type Reader struct {
 	// Used for linting configs
 	lintConf docs.LintConfig
 
-	mainPath       string
-	resourcePaths  []string
-	streamsPaths   []string
-	overrides      []string
-	loadFromEnvVar bool
+	mainPath         string
+	resourcePaths    []string
+	streamsPaths     []string
+	overrides        []string
+	ConfigFromEnvVar string
 
 	modTimeLastRead map[string]time.Time
 
@@ -186,9 +186,9 @@ func OptUseFS(fs ifs.FS) OptFunc {
 
 // OptLoadFromEnvVar will configure the reader to read config from the
 // BENTO_CONFIG environment variable
-func OptLoadFromEnvVar() OptFunc {
+func OptLoadFromEnvVar(config string) OptFunc {
 	return func(r *Reader) {
-		r.loadFromEnvVar = true
+		r.ConfigFromEnvVar = config
 	}
 }
 
@@ -322,8 +322,8 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
 			return
 		}
-	} else if r.loadFromEnvVar {
-		if confBytes, dLints, err = ReadBentoConfigEnvVarEnvSwap(os.LookupEnv); err != nil {
+	} else if r.ConfigFromEnvVar != "" {
+		if confBytes, dLints, err = ReadBentoConfigEnvVarEnvSwap(r.ConfigFromEnvVar, os.LookupEnv); err != nil {
 			return
 		}
 		for _, l := range dLints {

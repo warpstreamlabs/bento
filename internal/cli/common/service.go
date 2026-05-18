@@ -39,7 +39,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 	}
 
 	verLogger := logger.With("bento_version", cliOpts.Version)
-	isEnvVarConfigSet := os.Getenv("BENTO_CONFIG") != ""
+	isEnvVarConfigSet := confReader.ConfigFromEnvVar != ""
 	if mainPath == "" && !isEnvVarConfigSet {
 		verLogger.Info("Running without a main config file")
 	} else if inferredMainPath {
