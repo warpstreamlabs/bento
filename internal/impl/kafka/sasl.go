@@ -18,6 +18,19 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+const kafkaSaramaOAuth2Doc = `
+
+### Sasl Oauthbearer Config Options
+
+There are currently 3 ways to configure SASL OAUTH2: 
+
+ - Static Token with ` + "`sasl.access_token`" + `
+ - Token Cache with ` + "`sasl.token_cache` & `sasl.token_key`" + `
+ - Fetching Tokens from an Auth service with the` + "`sasl.oauth2` fields`" + `
+
+
+`
+
 func notImportedAWSFn(c *service.ParsedConfig) (sasl.Mechanism, error) {
 	return nil, errors.New("unable to configure AWS SASL as this binary does not import components/aws")
 }

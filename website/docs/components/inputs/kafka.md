@@ -151,6 +151,17 @@ If you're seeing issues writing to or reading from Kafka with this component the
 
 Unfortunately this error message will appear for a wide range of connection problems even when the broker endpoint can be reached. Double check your authentication configuration and also ensure that you have [enabled TLS](#tlsenabled) if applicable.
 
+### Sasl Oauthbearer Config Options
+
+There are currently 3 ways to configure SASL OAUTH2: 
+
+ - Static Token with `sasl.access_token`
+ - Token Cache with `sasl.token_cache` & `sasl.token_key`
+ - Fetching Tokens from an Auth service with the`sasl.oauth2` fields`
+
+
+
+
 ## Fields
 
 ### `addresses`
