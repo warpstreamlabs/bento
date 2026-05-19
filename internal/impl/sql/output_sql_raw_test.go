@@ -53,9 +53,8 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 	batch := service.MessageBatch{service.NewMessage(nil)}
 
 	var (
-		wg       sync.WaitGroup
-		stop     atomic.Bool
-		panicked atomic.Bool
+		wg   sync.WaitGroup
+		stop atomic.Bool
 	)
 
 	for i := 0; i < 64; i++ {
@@ -64,7 +63,6 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					panicked.Store(true)
 					t.Errorf("writeBatch panicked: %v", r)
 				}
 			}()
@@ -78,6 +76,8 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 		}()
 	}
 
+	// Split critical sections so readers can observe db == nil between them —
+	// merging into one lock would never let the nil branch fire.
 	deadline := time.Now().Add(200 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		o.dbMut.Lock()
@@ -90,52 +90,62 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 
 	stop.Store(true)
 	wg.Wait()
-	require.False(t, panicked.Load(), "writeBatch must not panic on nil s.db")
 }
 
-// TestSQLRawOutputConnectNoGoroutineLeak verifies that repeated
-// connect/disconnect cycles (as caused by IAM token rotation in prod)
-// don't accumulate watcher goroutines.
 func TestSQLRawOutputConnectNoGoroutineLeak(t *testing.T) {
 	conf := `
 driver: sqlite
 dsn: ":memory:"
 query: "SELECT 1"
 `
-	spec := sqlRawOutputConfig()
-	parsed, err := spec.ParseYAML(conf, service.NewEnvironment())
+	parsed, err := sqlRawOutputConfig().ParseYAML(conf, service.NewEnvironment())
 	require.NoError(t, err)
 
 	o, err := newSQLRawOutputFromConfig(parsed, service.MockResources())
 	require.NoError(t, err)
 
-	ctx := context.Background()
-	require.NoError(t, o.Connect(ctx))
-
-	for i := 0; i < 50; i++ {
+	assertNoConnectGoroutineLeak(t, o, func() {
 		o.dbMut.Lock()
 		if o.db != nil {
 			_ = o.db.Close()
 			o.db = nil
 		}
 		o.dbMut.Unlock()
+	})
+}
+
+// connectCloser is satisfied by *sqlRawOutput and *sqlInsertOutput.
+type connectCloser interface {
+	Connect(ctx context.Context) error
+	Close(ctx context.Context) error
+}
+
+// assertNoConnectGoroutineLeak runs repeated reconnect cycles and asserts the
+// goroutine count does not scale with iteration count — guards against the
+// pre-fix regression where Connect spawned a new watcher each call.
+func assertNoConnectGoroutineLeak(t *testing.T, o connectCloser, nilDB func()) {
+	t.Helper()
+	ctx := context.Background()
+	require.NoError(t, o.Connect(ctx))
+
+	// Warm up so cgo/sqlite/finalizer goroutines settle before measuring.
+	for i := 0; i < 5; i++ {
+		nilDB()
 		require.NoError(t, o.Connect(ctx))
 	}
 
 	before := runtime.NumGoroutine()
-	for i := 0; i < 50; i++ {
-		o.dbMut.Lock()
-		if o.db != nil {
-			_ = o.db.Close()
-			o.db = nil
-		}
-		o.dbMut.Unlock()
+	const iterations = 10
+	for i := 0; i < iterations; i++ {
+		nilDB()
 		require.NoError(t, o.Connect(ctx))
 	}
-	time.Sleep(50 * time.Millisecond)
-	after := runtime.NumGoroutine()
 
-	require.LessOrEqual(t, after-before, 2, "Connect leaks goroutines: before=%d after=%d", before, after)
+	// A real per-Connect leak would push the delta to ~iterations.
+	require.Eventually(t, func() bool {
+		return runtime.NumGoroutine()-before <= 2
+	}, time.Second, 5*time.Millisecond,
+		"Connect leaks goroutines: before=%d current=%d", before, runtime.NumGoroutine())
 
 	require.NoError(t, o.Close(ctx))
 }
