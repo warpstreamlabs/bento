@@ -57,10 +57,8 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 		stop atomic.Bool
 	)
 
-	for i := 0; i < 64; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 64 {
+		wg.Go(func() {
 			defer func() {
 				if r := recover(); r != nil {
 					t.Errorf("writeBatch panicked: %v", r)
@@ -73,7 +71,7 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 
 	// Split critical sections so readers can observe db == nil between them —
@@ -129,14 +127,14 @@ func assertNoConnectGoroutineLeak(t *testing.T, o connectCloser, nilDB func()) {
 	require.NoError(t, o.Connect(ctx))
 
 	// Warm up so cgo/sqlite/finalizer goroutines settle before measuring.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		nilDB()
 		require.NoError(t, o.Connect(ctx))
 	}
 
 	before := runtime.NumGoroutine()
 	const iterations = 10
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		nilDB()
 		require.NoError(t, o.Connect(ctx))
 	}
