@@ -218,6 +218,19 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		}
 	}
 
+	go func() {
+		<-s.shutSig.HardStopChan()
+
+		s.dbMut.Lock()
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
+		s.dbMut.Unlock()
+
+		s.shutSig.TriggerHasStopped()
+	}()
+
 	return s, nil
 }
 
@@ -235,20 +248,6 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 	}
 
 	s.connSettings.apply(ctx, s.db, s.logger)
-
-	go func() {
-		<-s.shutSig.HardStopChan()
-
-		s.dbMut.Lock()
-		defer s.dbMut.Unlock()
-
-		if s.db != nil {
-			_ = s.db.Close()
-			s.db = nil
-		}
-
-		s.shutSig.TriggerHasStopped()
-	}()
 	return nil
 }
 
@@ -260,7 +259,10 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 
 	if errors.Is(err, driver.ErrBadConn) || isAuthError(s.driver, err) {
 		s.dbMut.Lock()
-		s.db = nil
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
 		s.dbMut.Unlock()
 		return service.ErrNotConnected
 	}
