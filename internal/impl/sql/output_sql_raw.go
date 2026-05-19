@@ -225,6 +225,10 @@ func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatc
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
 
+	if s.db == nil {
+		return service.ErrNotConnected
+	}
+
 	var executor *service.MessageBatchBloblangExecutor
 	if s.argsMapping != nil {
 		executor = batch.BloblangExecutor(s.argsMapping)
