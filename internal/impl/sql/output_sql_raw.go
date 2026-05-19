@@ -165,7 +165,7 @@ func newSQLRawOutput(
 	connSettings *connSettings,
 	awsConf aws.Config,
 ) *sqlRawOutput {
-	return &sqlRawOutput{
+	s := &sqlRawOutput{
 		logger:       logger,
 		shutSig:      shutdown.NewSignaller(),
 		driver:       driverStr,
@@ -176,6 +176,21 @@ func newSQLRawOutput(
 		connSettings: connSettings,
 		awsConf:      awsConf,
 	}
+
+	go func() {
+		<-s.shutSig.HardStopChan()
+
+		s.dbMut.Lock()
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
+		s.dbMut.Unlock()
+
+		s.shutSig.TriggerHasStopped()
+	}()
+
+	return s
 }
 
 func (s *sqlRawOutput) Connect(ctx context.Context) error {
@@ -192,16 +207,6 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 	}
 
 	s.connSettings.apply(ctx, s.db, s.logger)
-
-	go func() {
-		<-s.shutSig.HardStopChan()
-
-		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
-
-		s.shutSig.TriggerHasStopped()
-	}()
 	return nil
 }
 

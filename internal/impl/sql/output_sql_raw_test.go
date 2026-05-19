@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -90,4 +91,51 @@ func TestSQLRawOutputConcurrentNilOutRace(t *testing.T) {
 	stop.Store(true)
 	wg.Wait()
 	require.False(t, panicked.Load(), "writeBatch must not panic on nil s.db")
+}
+
+// TestSQLRawOutputConnectNoGoroutineLeak verifies that repeated
+// connect/disconnect cycles (as caused by IAM token rotation in prod)
+// don't accumulate watcher goroutines.
+func TestSQLRawOutputConnectNoGoroutineLeak(t *testing.T) {
+	conf := `
+driver: sqlite
+dsn: ":memory:"
+query: "SELECT 1"
+`
+	spec := sqlRawOutputConfig()
+	parsed, err := spec.ParseYAML(conf, service.NewEnvironment())
+	require.NoError(t, err)
+
+	o, err := newSQLRawOutputFromConfig(parsed, service.MockResources())
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, o.Connect(ctx))
+
+	for i := 0; i < 50; i++ {
+		o.dbMut.Lock()
+		if o.db != nil {
+			_ = o.db.Close()
+			o.db = nil
+		}
+		o.dbMut.Unlock()
+		require.NoError(t, o.Connect(ctx))
+	}
+
+	before := runtime.NumGoroutine()
+	for i := 0; i < 50; i++ {
+		o.dbMut.Lock()
+		if o.db != nil {
+			_ = o.db.Close()
+			o.db = nil
+		}
+		o.dbMut.Unlock()
+		require.NoError(t, o.Connect(ctx))
+	}
+	time.Sleep(50 * time.Millisecond)
+	after := runtime.NumGoroutine()
+
+	require.LessOrEqual(t, after-before, 2, "Connect leaks goroutines: before=%d after=%d", before, after)
+
+	require.NoError(t, o.Close(ctx))
 }
