@@ -196,12 +196,12 @@ func (w *S3StreamingWriter) flush(ctx context.Context) error {
 		return nil
 	}
 
-	// Only upload if we have enough data (S3 requires 5MB minimum except for last part)
+	// S3 requires ALL parts (except the final part) to be >= 5MB
+	// Since we don't know if this is the final part, always enforce 5MB minimum
+	// Close() will handle small final parts
 	if w.uploadSize < 5*1024*1024 {
-		// Buffer more data unless we're at max buffer period
-		if time.Since(w.lastFlush) < w.maxBufferPeriod {
-			return nil
-		}
+		// Buffer more data - let Close() handle it if this ends up being final part
+		return nil
 	}
 
 	w.partNumber++
@@ -273,8 +273,12 @@ func (w *S3StreamingWriter) flushIfNeeded(ctx context.Context) {
 	}
 
 	if time.Since(w.lastFlush) >= w.maxBufferPeriod && w.uploadBuffer.Len() > 0 {
-		// Force flush even if under 5MB threshold
-		w.forceFlush(ctx)
+		// Only flush on timer if we have enough data for a valid part (>= 5MB)
+		// All parts except the final one must be >= 5MB; Close() handles the final part
+		if w.uploadSize >= 5*1024*1024 {
+			w.forceFlush(ctx)
+		}
+		// else: buffer is < 5MB, keep buffering until Close() or buffer fills
 	}
 
 	// Reschedule timer

@@ -677,3 +677,341 @@ func TestS3StreamingWriterEmptyFile(t *testing.T) {
 	assert.True(t, putObjectCalled, "PutObject should be called for empty file")
 	assert.Empty(t, capturedPutData, "uploaded data should be empty")
 }
+// Additional tests for timer-based flush fix
+
+// TestS3StreamingWriterTimerFlushSmallData tests that timer-based flush
+// does NOT upload parts < 5MB (waits for Close() to use PutObject)
+func TestS3StreamingWriterTimerFlushSmallData(t *testing.T) {
+	uploadPartCalled := false
+	putObjectCalled := false
+	abortCalled := false
+	var capturedPutData []byte
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalled = true
+			return &s3.UploadPartOutput{
+				ETag: aws.String("test-etag"),
+			}, nil
+		},
+		abortMultipartUploadFunc: func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
+			abortCalled = true
+			return &s3.AbortMultipartUploadOutput{}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			data := make([]byte, 10*1024*1024) // Large enough buffer
+			n, _ := input.Body.Read(data)
+			capturedPutData = data[:n]
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferPeriod: 100 * time.Millisecond, // Short period for testing
+		MaxBufferBytes:  10 * 1024 * 1024,       // 10MB
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write small amount of data (2MB)
+	testData := make([]byte, 2*1024*1024)
+	for i := range testData {
+		testData[i] = byte(i % 256)
+	}
+	err = writer.WriteBytes(ctx, testData)
+	require.NoError(t, err)
+
+	// Wait for timer to fire (should NOT flush since < 5MB)
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify no upload happened yet
+	assert.False(t, uploadPartCalled, "UploadPart should NOT be called for data < 5MB")
+
+	// Close should use PutObject
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.False(t, uploadPartCalled, "UploadPart should never be called")
+	assert.True(t, abortCalled, "multipart should be aborted")
+	assert.True(t, putObjectCalled, "PutObject should be called")
+	assert.Equal(t, testData, capturedPutData)
+}
+
+// TestS3StreamingWriterTimerFlushLargeEnoughData tests that timer-based flush
+// DOES upload parts >= 5MB
+func TestS3StreamingWriterTimerFlushLargeEnoughData(t *testing.T) {
+	uploadPartCalls := 0
+	completeMultipartCalled := false
+	var uploadedParts [][]byte
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalls++
+			// Capture uploaded data
+			data := make([]byte, 10*1024*1024)
+			n, _ := input.Body.Read(data)
+			uploadedParts = append(uploadedParts, data[:n])
+			return &s3.UploadPartOutput{
+				ETag: aws.String("test-etag"),
+			}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeMultipartCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferPeriod: 100 * time.Millisecond,
+		MaxBufferBytes:  10 * 1024 * 1024,
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write 6MB (enough for timer flush)
+	testData := make([]byte, 6*1024*1024)
+	for i := range testData {
+		testData[i] = byte(i % 256)
+	}
+	err = writer.WriteBytes(ctx, testData)
+	require.NoError(t, err)
+
+	// Wait for timer to fire (should flush since >= 5MB)
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify upload happened
+	assert.Equal(t, 1, uploadPartCalls, "UploadPart should be called once")
+	assert.Equal(t, testData, uploadedParts[0])
+
+	// Close should complete multipart
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.True(t, completeMultipartCalled, "CompleteMultipartUpload should be called")
+}
+
+// TestS3StreamingWriterSlowStreamSmallTotal tests slow data arrival
+// where total is < 5MB (simulates the Anthropic API issue)
+func TestS3StreamingWriterSlowStreamSmallTotal(t *testing.T) {
+	uploadPartCalled := false
+	putObjectCalled := false
+	var capturedPutData []byte
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalled = true
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			data := make([]byte, 10*1024*1024)
+			n, _ := input.Body.Read(data)
+			capturedPutData = data[:n]
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferPeriod: 50 * time.Millisecond, // Simulate 10s period
+		MaxBufferBytes:  10 * 1024 * 1024,
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Simulate slow data arrival (like slow API pagination)
+	// Write 500KB chunks with delays
+	totalData := []byte{}
+	for i := 0; i < 6; i++ {
+		chunk := make([]byte, 500*1024) // 500KB
+		for j := range chunk {
+			chunk[j] = byte((i*1000 + j) % 256)
+		}
+		totalData = append(totalData, chunk...)
+
+		err = writer.WriteBytes(ctx, chunk)
+		require.NoError(t, err)
+
+		// Wait for timer (should NOT flush since < 5MB)
+		time.Sleep(60 * time.Millisecond)
+	}
+
+	// Total written: 3MB, timer fired multiple times but shouldn't have uploaded
+	assert.False(t, uploadPartCalled, "UploadPart should NOT be called for data < 5MB")
+
+	// Close should use PutObject
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.False(t, uploadPartCalled, "UploadPart should never be called")
+	assert.True(t, putObjectCalled, "PutObject should be called")
+	assert.Equal(t, totalData, capturedPutData)
+}
+
+// TestS3StreamingWriterSlowStreamMultipleParts tests slow data arrival
+// where total is > 5MB and should create multiple parts
+func TestS3StreamingWriterSlowStreamMultipleParts(t *testing.T) {
+	uploadPartCalls := 0
+	var uploadedParts [][]byte
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalls++
+			data := make([]byte, 20*1024*1024)
+			n, _ := input.Body.Read(data)
+			uploadedParts = append(uploadedParts, data[:n])
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferPeriod: 50 * time.Millisecond,
+		MaxBufferBytes:  10 * 1024 * 1024,
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write 2MB chunks slowly until we hit 6MB (enough for first part)
+	for i := 0; i < 3; i++ {
+		chunk := make([]byte, 2*1024*1024)
+		for j := range chunk {
+			chunk[j] = byte((i*1000 + j) % 256)
+		}
+		err = writer.WriteBytes(ctx, chunk)
+		require.NoError(t, err)
+		time.Sleep(60 * time.Millisecond)
+	}
+
+	// After 6MB, timer should have flushed
+	assert.Equal(t, 1, uploadPartCalls, "First part should be uploaded after reaching 5MB")
+
+	// Write another 4MB slowly
+	for i := 0; i < 2; i++ {
+		chunk := make([]byte, 2*1024*1024)
+		err = writer.WriteBytes(ctx, chunk)
+		require.NoError(t, err)
+		time.Sleep(60 * time.Millisecond)
+	}
+
+	// Timer should NOT flush second part yet (< 5MB)
+	assert.Equal(t, 1, uploadPartCalls, "Second part should NOT be uploaded (< 5MB)")
+
+	// Close should flush remaining 4MB as final part
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, uploadPartCalls, "Two parts total")
+	assert.Equal(t, 6*1024*1024, len(uploadedParts[0]), "First part should be 6MB")
+	assert.Equal(t, 4*1024*1024, len(uploadedParts[1]), "Second (final) part should be 4MB")
+}
+
+// TestS3StreamingWriterBufferSizeFlush tests that buffer size trigger
+// still works correctly
+func TestS3StreamingWriterBufferSizeFlush(t *testing.T) {
+	uploadPartCalls := 0
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalls++
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferPeriod: 10 * time.Second, // Long period (won't fire)
+		MaxBufferBytes:  5 * 1024 * 1024,  // 5MB buffer
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write 6MB (should trigger buffer size flush)
+	testData := make([]byte, 6*1024*1024)
+	err = writer.WriteBytes(ctx, testData)
+	require.NoError(t, err)
+
+	// Should have flushed immediately due to buffer size (not timer)
+	assert.Equal(t, 1, uploadPartCalls, "Should flush when buffer size reached")
+
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+}
+
+// TestS3StreamingWriterExactly5MBTimer tests edge case of exactly 5MB with timer
+func TestS3StreamingWriterExactly5MBTimer(t *testing.T) {
+	uploadPartCalls := 0
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalls++
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferPeriod: 50 * time.Millisecond,
+		MaxBufferBytes:  10 * 1024 * 1024,
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	err = writer.Initialize(ctx)
+	require.NoError(t, err)
+
+	// Write exactly 5MB
+	testData := make([]byte, 5*1024*1024)
+	err = writer.WriteBytes(ctx, testData)
+	require.NoError(t, err)
+
+	// Wait for timer (should flush since == 5MB)
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(t, 1, uploadPartCalls, "Should flush exactly 5MB")
+
+	err = writer.Close(ctx)
+	require.NoError(t, err)
+}
