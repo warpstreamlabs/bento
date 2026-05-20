@@ -211,7 +211,18 @@ func (p *pipelineProcessor) ProcessBatch(ctx context.Context, b service.MessageB
 }
 
 func (p *pipelineProcessor) Close(context.Context) error {
-	return p.pipeline.GetModel().Destroy()
+	if p.pipeline == nil {
+		return nil
+	}
+	model := p.pipeline.GetModel()
+	if model == nil || model.Destroy == nil {
+		return nil
+	}
+	// Hugot's Destroy closure (knights-analytics/hugot#130) does not nil-check
+	// its backend fields, so a second invocation panics. Bento's pipeline
+	// teardown can call Close more than once. Recover until upstream lands.
+	defer func() { _ = recover() }()
+	return model.Destroy()
 }
 
 func convertPipelineOutput(output backends.PipelineBatchOutput) []any {
