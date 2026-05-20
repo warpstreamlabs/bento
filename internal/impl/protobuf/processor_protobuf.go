@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	fieldOperator       = "operator"
-	fieldMessage        = "message"
-	fieldImportPaths    = "import_paths"
-	fieldDiscardUnknown = "discard_unknown"
-	fieldUseProtoNames  = "use_proto_names"
+	fieldOperator        = "operator"
+	fieldMessage         = "message"
+	fieldImportPaths     = "import_paths"
+	fieldDiscardUnknown  = "discard_unknown"
+	fieldUseProtoNames   = "use_proto_names"
+	fieldEmitUnpopulated = "emit_unpopulated"
 
 	// BSR Config
 	fieldBsrConfig  = "bsr"
@@ -62,6 +63,9 @@ Attempts to create a target protobuf message from a generic JSON structure.
 			Default(false),
 		service.NewBoolField(fieldUseProtoNames).
 			Description("If `true`, the `to_json` operator deserializes fields exactly as named in schema file.").
+			Default(false),
+		service.NewBoolField(fieldEmitUnpopulated).
+			Description("If `true`, the `to_json` operator emits unpopulated fields with their default JSON values.").
 			Default(false),
 		service.NewStringListField(fieldImportPaths).
 			Description("A list of directories containing .proto files or list of file paths, including all definitions required for parsing the target message. If left empty the current directory is used. Each directory listed will be walked with all found .proto files imported. Either this field or `bsr` must be populated.").
@@ -259,7 +263,7 @@ func init() {
 
 type protobufOperator func(part *service.Message) error
 
-func newProtobufToJSONOperator(f fs.FS, msg string, importPaths []string, useProtoNames bool) (protobufOperator, error) {
+func newProtobufToJSONOperator(f fs.FS, msg string, importPaths []string, useProtoNames, emitUnpopulated bool) (protobufOperator, error) {
 	if msg == "" {
 		return nil, errors.New("message field must not be empty")
 	}
@@ -291,8 +295,9 @@ func newProtobufToJSONOperator(f fs.FS, msg string, importPaths []string, usePro
 		}
 
 		opts := protojson.MarshalOptions{
-			Resolver:      types,
-			UseProtoNames: useProtoNames,
+			Resolver:        types,
+			UseProtoNames:   useProtoNames,
+			EmitUnpopulated: emitUnpopulated,
 		}
 		data, err := opts.Marshal(dynMsg)
 		if err != nil {
@@ -304,7 +309,7 @@ func newProtobufToJSONOperator(f fs.FS, msg string, importPaths []string, usePro
 	}, nil
 }
 
-func newProtobufToJSONBSROperator(multiModuleWatcher *MultiModuleWatcher, msg string, useProtoNames bool) (protobufOperator, error) {
+func newProtobufToJSONBSROperator(multiModuleWatcher *MultiModuleWatcher, msg string, useProtoNames, emitUnpopulated bool) (protobufOperator, error) {
 	if msg == "" {
 		return nil, errors.New("message field must not be empty")
 	}
@@ -326,8 +331,9 @@ func newProtobufToJSONBSROperator(multiModuleWatcher *MultiModuleWatcher, msg st
 		}
 
 		opts := protojson.MarshalOptions{
-			Resolver:      multiModuleWatcher,
-			UseProtoNames: useProtoNames,
+			Resolver:        multiModuleWatcher,
+			UseProtoNames:   useProtoNames,
+			EmitUnpopulated: emitUnpopulated,
 		}
 		data, err := opts.Marshal(dynMsg)
 		if err != nil {
@@ -420,20 +426,20 @@ func newProtobufFromJSONBSROperator(multiModuleWatcher *MultiModuleWatcher, msg 
 	}, nil
 }
 
-func strToProtobufOperator(f fs.FS, opStr, message string, importPaths []string, discardUnknown, useProtoNames bool) (protobufOperator, error) {
+func strToProtobufOperator(f fs.FS, opStr, message string, importPaths []string, discardUnknown, useProtoNames, emitUnpopulated bool) (protobufOperator, error) {
 	switch opStr {
 	case "to_json":
-		return newProtobufToJSONOperator(f, message, importPaths, useProtoNames)
+		return newProtobufToJSONOperator(f, message, importPaths, useProtoNames, emitUnpopulated)
 	case "from_json":
 		return newProtobufFromJSONOperator(f, message, importPaths, discardUnknown)
 	}
 	return nil, fmt.Errorf("operator not recognised: %v", opStr)
 }
 
-func strToProtobufBSROperator(multiModuleWatcher *MultiModuleWatcher, opStr, message string, discardUnknown, useProtoNames bool) (protobufOperator, error) {
+func strToProtobufBSROperator(multiModuleWatcher *MultiModuleWatcher, opStr, message string, discardUnknown, useProtoNames, emitUnpopulated bool) (protobufOperator, error) {
 	switch opStr {
 	case "to_json":
-		return newProtobufToJSONBSROperator(multiModuleWatcher, message, useProtoNames)
+		return newProtobufToJSONBSROperator(multiModuleWatcher, message, useProtoNames, emitUnpopulated)
 	case "from_json":
 		return newProtobufFromJSONBSROperator(multiModuleWatcher, message, discardUnknown)
 	}
@@ -500,6 +506,11 @@ func newProtobuf(conf *service.ParsedConfig, mgr *service.Resources) (*protobufP
 		return nil, err
 	}
 
+	var emitUnpopulated bool
+	if emitUnpopulated, err = conf.FieldBool(fieldEmitUnpopulated); err != nil {
+		return nil, err
+	}
+
 	// Load BSR config
 	var bsrModules []*service.ParsedConfig
 	if bsrModules, err = conf.FieldObjectList(fieldBsrConfig); err != nil {
@@ -513,7 +524,7 @@ func newProtobuf(conf *service.ParsedConfig, mgr *service.Resources) (*protobufP
 			return nil, fmt.Errorf("failed to create MultiModuleWatcher: %w", err)
 		}
 
-		if p.operator, err = strToProtobufBSROperator(p.multiModuleWatcher, operatorStr, message, discardUnknown, useProtoNames); err != nil {
+		if p.operator, err = strToProtobufBSROperator(p.multiModuleWatcher, operatorStr, message, discardUnknown, useProtoNames, emitUnpopulated); err != nil {
 			return nil, err
 		}
 	} else {
@@ -522,7 +533,7 @@ func newProtobuf(conf *service.ParsedConfig, mgr *service.Resources) (*protobufP
 		if importPaths, err = conf.FieldStringList(fieldImportPaths); err != nil {
 			return nil, err
 		}
-		if p.operator, err = strToProtobufOperator(mgr.FS(), operatorStr, message, importPaths, discardUnknown, useProtoNames); err != nil {
+		if p.operator, err = strToProtobufOperator(mgr.FS(), operatorStr, message, importPaths, discardUnknown, useProtoNames, emitUnpopulated); err != nil {
 			return nil, err
 		}
 	}
