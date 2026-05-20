@@ -32,6 +32,7 @@ output:
   cache:
     target: "" # No default (required)
     key: ${!count("items")}-${!timestamp_unix_nano()}
+    append: false
     max_in_flight: 64
 ```
 
@@ -45,6 +46,7 @@ output:
   cache:
     target: "" # No default (required)
     key: ${!count("items")}-${!timestamp_unix_nano()}
+    append: false
     ttl: 60s # No default (optional)
     max_in_flight: 64
 ```
@@ -103,6 +105,14 @@ key: ${!json("doc.id")}
 
 key: ${!metadata("kafka_key")}
 ```
+
+### `append`
+
+When enabled, new messages are appended to existing cache values rather than overwriting them. If the key does not exist the message will be stored as a new value.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `ttl`
 

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -32,6 +33,17 @@ func (fs testFS) Open(name string) (fs.File, error) {
 
 func (fs testFS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
 	return fs.m.Open(name)
+}
+
+func (fs testFS) Exists(name string) (bool, error) {
+	_, err := fs.m.Stat(name)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (fs testFS) Stat(name string) (fs.FileInfo, error) {

@@ -55,12 +55,21 @@ type batchedCache interface {
 	SetMulti(ctx context.Context, keyValues ...CacheItem) error
 }
 
+// existsCache represents a cache where the underlying implementation is able
+// to benefit from exists requests. This interface is optional for caches
+// and when implemented will automatically be utilised where possible.
+type existsCache interface {
+	// Check if a cache item exists.
+	Exists(ctx context.Context, key string) (bool, error)
+}
+
 //------------------------------------------------------------------------------
 
 // Implements types.Cache.
 type airGapCache struct {
 	c  Cache
 	cm batchedCache
+	ce existsCache
 }
 
 func newAirGapCache(c Cache, stats metrics.Type) cache.V1 {
@@ -75,6 +84,20 @@ func (a *airGapCache) Get(ctx context.Context, key string) ([]byte, error) {
 		err = component.ErrKeyNotFound
 	}
 	return b, err
+}
+
+func (a *airGapCache) Exists(ctx context.Context, key string) (bool, error) {
+	if a.ce != nil {
+		return a.ce.Exists(ctx, key)
+	}
+	_, err := a.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, component.ErrKeyNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (a *airGapCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
@@ -134,6 +157,10 @@ func (r *reverseAirGapCache) Get(ctx context.Context, key string) ([]byte, error
 		err = ErrKeyNotFound
 	}
 	return b, err
+}
+
+func (r *reverseAirGapCache) Exists(ctx context.Context, key string) (bool, error) {
+	return r.c.Exists(ctx, key)
 }
 
 func (r *reverseAirGapCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
