@@ -3,6 +3,8 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -101,6 +103,10 @@ type sqlSelectProcessor struct {
 	builder squirrel.SelectBuilder
 	dbMut   sync.RWMutex
 
+	driver       string
+	dsn          string
+	connSettings *connSettings
+
 	where       string
 	argsMapping *bloblang.Executor
 
@@ -178,6 +184,11 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		return nil, err
 	}
 
+	// Store connection parameters for reconnection
+	s.driver = driverStr
+	s.dsn = dsnStr
+	s.connSettings = connSettings
+
 	awsEnabled, err := IsAWSEnabled(conf)
 	if err != nil {
 		return nil, err
@@ -189,10 +200,10 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 		}
 	}
 
-	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), driverStr, dsnStr, connSettings); err != nil {
+	if s.db, err = sqlOpenWithReworks(context.Background(), mgr.Logger(), s.driver, s.dsn, s.connSettings); err != nil {
 		return nil, err
 	}
-	connSettings.apply(context.Background(), s.db, s.logger)
+	s.connSettings.apply(context.Background(), s.db, s.logger)
 
 	go func() {
 		<-s.shutSig.HardStopChan()
@@ -206,9 +217,26 @@ func NewSQLSelectProcessorFromConfig(conf *service.ParsedConfig, mgr *service.Re
 	return s, nil
 }
 
+func (s *sqlSelectProcessor) reconnect(ctx context.Context) error {
+	s.dbMut.Lock()
+	defer s.dbMut.Unlock()
+
+	if s.db != nil {
+		_ = s.db.Close()
+		s.db = nil
+	}
+
+	var err error
+	if s.db, err = sqlOpenWithReworks(ctx, s.logger, s.driver, s.dsn, s.connSettings); err != nil {
+		return err
+	}
+	s.connSettings.apply(ctx, s.db, s.logger)
+	s.logger.Debug("Successfully reconnected to database")
+	return nil
+}
+
 func (s *sqlSelectProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 	s.dbMut.RLock()
-	defer s.dbMut.RUnlock()
 
 	var executor *service.MessageBatchBloblangExecutor
 	if s.argsMapping != nil {
@@ -248,9 +276,28 @@ func (s *sqlSelectProcessor) ProcessBatch(ctx context.Context, batch service.Mes
 
 		rows, err := queryBuilder.RunWith(s.db).QueryContext(ctx)
 		if err != nil {
-			s.logger.Debugf("Failed to run query: %v", err)
-			msg.SetError(err)
-			continue
+			if errors.Is(err, driver.ErrBadConn) {
+				s.logger.Warn("Bad connection detected, attempting to reconnect...")
+				s.dbMut.RUnlock()
+				if reconnErr := s.reconnect(ctx); reconnErr != nil {
+					s.logger.Errorf("Failed to reconnect: %v", reconnErr)
+					msg.SetError(err)
+					s.dbMut.RLock()
+					continue
+				}
+				s.dbMut.RLock()
+				// Retry the query after reconnection
+				rows, err = queryBuilder.RunWith(s.db).QueryContext(ctx)
+				if err != nil {
+					s.logger.Debugf("Failed to run query after reconnect: %v", err)
+					msg.SetError(err)
+					continue
+				}
+			} else {
+				s.logger.Debugf("Failed to run query: %v", err)
+				msg.SetError(err)
+				continue
+			}
 		}
 
 		if jArray, err := sqlRowsToArray(rows); err != nil {
@@ -260,6 +307,7 @@ func (s *sqlSelectProcessor) ProcessBatch(ctx context.Context, batch service.Mes
 			msg.SetStructuredMut(jArray)
 		}
 	}
+	s.dbMut.RUnlock()
 	return []service.MessageBatch{batch}, nil
 }
 
