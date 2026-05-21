@@ -1,9 +1,8 @@
 ---
 title: grpc_client
 slug: grpc_client
-type: output
+type: input
 status: experimental
-categories: ["network"]
 ---
 
 <!--
@@ -18,7 +17,7 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Sends messages to a gRPC server.
+Receives messages from a gRPC server.
 
 
 <Tabs defaultValue="common" values={[
@@ -30,7 +29,7 @@ Sends messages to a gRPC server.
 
 ```yml
 # Common config fields, showing default values
-output:
+input:
   label: ""
   grpc_client:
     address: localhost:50051 # No default (required)
@@ -40,14 +39,9 @@ output:
     reflection: false
     proto_files: []
     health_check: {}
-    metadata: {}
-    max_in_flight: 64
-    batching:
-      count: 0
-      byte_size: 0
-      period: ""
-      jitter: 0
-      check: ""
+    payload: TODO # No default (optional)
+    rate_limit: "" # No default (optional)
+    auto_replay_nacks: true
 ```
 
 </TabItem>
@@ -55,7 +49,7 @@ output:
 
 ```yml
 # All config fields, showing default values
-output:
+input:
   label: ""
   grpc_client:
     address: localhost:50051 # No default (required)
@@ -81,16 +75,9 @@ output:
     health_check:
       enabled: false
       service: ""
-    metadata: {}
-    propagate_response: false
-    max_in_flight: 64
-    batching:
-      count: 0
-      byte_size: 0
-      period: ""
-      jitter: 0
-      check: ""
-      processors: [] # No default (optional)
+    payload: TODO # No default (optional)
+    rate_limit: "" # No default (optional)
+    auto_replay_nacks: true
 ```
 
 </TabItem>
@@ -101,59 +88,7 @@ output:
 
 Either the field `reflection` or `proto_files` must be supplied, which will provide the protobuf schema Bento will use to marshall the Bento message into protobuf.
 
-### Metadata
 
-The `metadata` field allows you to attach key/value pairs as gRPC metadata (headers) to outgoing requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
-
-How metadata is applied depends on the `rpc_type`:
-
-- `unary`: Metadata is evaluated **per message**. Each message in a batch can produce different metadata values via interpolation.
-- `server_stream`: Metadata is evaluated **per message**, since each message opens its own server stream.
-- `client_stream`: Metadata is evaluated from the **first message in the batch** only. gRPC metadata is sent as headers when the stream is opened, so it cannot vary per message within a single stream.
-- `bidi`: Same as `client_stream` — metadata is evaluated from the **first message in the batch**.
-
-:::caution
-For `client_stream` and `bidi` RPC types, gRPC metadata is a stream-level concept (sent as HTTP/2 headers at stream creation). If you use interpolation functions that produce different values per message (e.g. `${! json("id") }`), only the value from the **first message** in the batch will be used for the entire stream. This is a gRPC protocol limitation, not a Bento limitation.
-:::
-
-### Propagating Responses
-
-It's possible to propagate the response(s) from each gRPC method invocation back to the input source by
-setting `propagate_response` to `true`. Only inputs that support [synchronous responses](/docs/guides/sync_responses)
-are able to make use of these propagated responses. Also the  `rpc_type`effects the behavior of what is returned via a sync_response:
-
-- `unary`: The response propagated is a single message.
-- `client_stream`: The response propagated is a single message.
-- `server_stream`: The response propagated is a batch of messages.
-- `bidi`: Any inbound message from the server is discarded.
-
-
-## Examples
-
-<Tabs defaultValue="HTTP <--> gRPC Reverse Proxy" values={[
-{ label: 'HTTP <--> gRPC Reverse Proxy', value: 'HTTP <--> gRPC Reverse Proxy', },
-]}>
-
-<TabItem value="HTTP <--> gRPC Reverse Proxy">
-
-Use Bento as a reverse proxy to translate HTTP requests into gRPC calls and return the response
-
-```yaml
-input:
-  http_server:
-    path: /post
-
-output:
-  grpc_client:
-    address: localhost:51286
-    service: helloworld.Greeter
-    method: SayHello
-    propagate_response: true
-    reflection: true
-```
-
-</TabItem>
-</Tabs>
 
 ## Fields
 
@@ -460,156 +395,35 @@ The name of the service to healthcheck, note that the default value of "", will 
 Type: `string`  
 Default: `""`  
 
-### `metadata`
+### `payload`
 
-A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.
+For `rpc_type` values: unary, client_stream & server_stream, the payload field defines the data that is sent as the request.
+In the instance of the client_stream rpc_type - this is expected to resolve to an array. The array will be sent as a stream, with the elements
+making the individual messages.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
-Type: `object`  
-Default: `{}`  
+Type: `string`  
 
 ```yml
 # Examples
 
-metadata:
-  application: bento
-  x-request-id: ${!metadata("request_id")}
+payload: TODO
 ```
 
-### `propagate_response`
+### `rate_limit`
 
-Whether responses from the server should be [propagated back](/docs/guides/sync_responses) to the input.
+An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.
+
+
+Type: `string`  
+
+### `auto_replay_nacks`
+
+Whether messages that are rejected (nacked) at the output level should be automatically replayed indefinitely, eventually resulting in back pressure if the cause of the rejections is persistent. If set to `false` these messages will instead be deleted. Disabling auto replays can greatly improve memory efficiency of high throughput streams as the original shape of the data can be discarded immediately upon consumption and mutation.
 
 
 Type: `bool`  
-Default: `false`  
-
-### `max_in_flight`
-
-The maximum number of messages to have in flight at a given time. Increase this to improve throughput.
-
-
-Type: `int`  
-Default: `64`  
-
-### `batching`
-
-Allows you to configure a [batching policy](/docs/configuration/batching).
-
-
-Type: `object`  
-
-```yml
-# Examples
-
-batching:
-  byte_size: 5000
-  count: 0
-  period: 1s
-
-batching:
-  count: 10
-  period: 1s
-
-batching:
-  check: this.contains("END BATCH")
-  count: 0
-  period: 1m
-
-batching:
-  count: 10
-  jitter: 0.1
-  period: 10s
-```
-
-### `batching.count`
-
-A number of messages at which the batch should be flushed. If `0` disables count based batching.
-
-
-Type: `int`  
-Default: `0`  
-
-### `batching.byte_size`
-
-An amount of bytes at which the batch should be flushed. If `0` disables size based batching.
-
-
-Type: `int`  
-Default: `0`  
-
-### `batching.period`
-
-A period in which an incomplete batch should be flushed regardless of its size.
-
-
-Type: `string`  
-Default: `""`  
-
-```yml
-# Examples
-
-period: 1s
-
-period: 1m
-
-period: 500ms
-```
-
-### `batching.jitter`
-
-A non-negative factor that adds random delay to batch flush intervals, where delay is determined uniformly at random between `0` and `jitter * period`. For example, with `period: 100ms` and `jitter: 0.1`, each flush will be delayed by a random duration between `0-10ms`.
-
-
-Type: `float`  
-Default: `0`  
-
-```yml
-# Examples
-
-jitter: 0.01
-
-jitter: 0.1
-
-jitter: 1
-```
-
-### `batching.check`
-
-A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether a message should end a batch.
-
-
-Type: `string`  
-Default: `""`  
-
-```yml
-# Examples
-
-check: this.type == "end_of_transaction"
-```
-
-### `batching.processors`
-
-A list of [processors](/docs/components/processors/about) to apply to a batch as it is flushed. This allows you to aggregate and archive the batch however you see fit. Please note that all resulting messages are flushed as a single batch, therefore splitting the batch into smaller batches using these processors is a no-op.
-
-
-Type: `array`  
-
-```yml
-# Examples
-
-processors:
-  - archive:
-      format: concatenate
-
-processors:
-  - archive:
-      format: lines
-
-processors:
-  - archive:
-      format: json_array
-```
+Default: `true`  
 
 
