@@ -315,9 +315,25 @@ This field contains sensitive information that usually shouldn't be added to a c
 Type: `string`  
 Default: `""`  
 
+### `bsr[].polling_period`
+
+The period in which to poll the Buf Schema Registry.
+
+
+Type: `string`  
+Default: `"5m"`  
+
 ### `bsr[].version`
 
 Version to retrieve from the Buf Schema Registry, leave blank for latest.
+
+
+Type: `string`  
+Default: `""`  
+
+### `bsr[].cache`
+
+If set schemas retrieved from the BSR will be saved in a [cache resource](/docs/components/caches/about)
 
 
 Type: `string`  
