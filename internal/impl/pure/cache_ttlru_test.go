@@ -153,9 +153,9 @@ func testTTLRUCache(t *testing.T, c *ttlruCacheAdapter) {
 		t.Errorf("wrong error returned on c.Get(ctx, %q): %v != %v", key, act, expErr)
 	}
 
-	//exists, err := c.Exists(ctx, key)
-	//require.NoError(t, err)
-	//require.False(t, exists)
+	exists, err := c.Exists(ctx, key)
+	require.NoError(t, err)
+	require.False(t, exists)
 
 	if err := c.Set(ctx, key, []byte("1"), nil); err != nil {
 		t.Errorf("unexpected error while c.Set(ctx, %q, <data>): %v", key, err)
@@ -168,9 +168,9 @@ func testTTLRUCache(t *testing.T, c *ttlruCacheAdapter) {
 		t.Errorf("Wrong result c.Get(ctx, %q): %v != %v", key, string(act), exp)
 	}
 
-	//exists, err = c.Exists(ctx, key)
-	//require.NoError(t, err)
-	//require.True(t, exists)
+	exists, err = c.Exists(ctx, key)
+	require.NoError(t, err)
+	require.True(t, exists)
 
 	key = "bar"
 
