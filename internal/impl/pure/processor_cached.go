@@ -199,7 +199,7 @@ func (proc *cachedProcessor) Process(ctx context.Context, msg *service.Message) 
 	for _, b := range resultBatch {
 		skip, err := shouldSkip(b, proc.skipOn)
 		if err != nil {
-			proc.manager.Logger().Errorf("skip_on check failed: %w, caching will be skipped as a precaution", err)
+			proc.manager.Logger().Errorf("skip_on check failed: %v, caching will be skipped as a precaution", err)
 			skip = true
 		}
 		shouldCache = shouldCache && !skip
@@ -215,7 +215,7 @@ func (proc *cachedProcessor) Process(ctx context.Context, msg *service.Message) 
 	// messages.
 	result, err := cachedProcSerialiseBatch(collapsedBatch)
 	if err != nil {
-		proc.manager.Logger().Errorf("failed to serialise resulting batch for caching: %w", err)
+		proc.manager.Logger().Errorf("failed to serialise resulting batch for caching: %v", err)
 		return collapsedBatch, nil
 	}
 
@@ -224,10 +224,10 @@ func (proc *cachedProcessor) Process(ctx context.Context, msg *service.Message) 
 		setErr = cache.Set(ctx, cacheKey, result, ttl)
 	})
 	if cerr != nil {
-		proc.manager.Logger().Errorf("failed to access cache for result: %w", err)
+		proc.manager.Logger().Errorf("failed to access cache for result: %v", err)
 	}
 	if setErr != nil {
-		proc.manager.Logger().Errorf("failed to write result to cache: %w", err)
+		proc.manager.Logger().Errorf("failed to write result to cache: %v", err)
 	}
 	return collapsedBatch, nil
 }

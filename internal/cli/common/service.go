@@ -56,7 +56,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 		}
 	}
 	if strict && len(lints) > 0 {
-		logger.Error(cliOpts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
+		logger.Error("%s", cliOpts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
 		return 1
 	}
 
@@ -66,12 +66,12 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 
 	stoppableManager, err := CreateManager(c, cliOpts, logger, streamsMode, conf)
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 		return 1
 	}
 
 	if err := cliOpts.OnManagerInitialised(stoppableManager.mgr, pConf); err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 		return 1
 	}
 
@@ -138,7 +138,7 @@ func initStreamsMode(
 		}
 	}
 	if strict && len(lints) > 0 {
-		logger.Error(opts.ExecTemplate("Shutting down due to stream linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
+		logger.Error("%s", opts.ExecTemplate("Shutting down due to stream linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
 		os.Exit(1)
 	}
 
@@ -152,7 +152,7 @@ func initStreamsMode(
 			os.Exit(1)
 		}
 	}
-	logger.Info(opts.ExecTemplate("Launching {{.ProductName}} in streams mode, use CTRL+C to close"))
+	logger.Info("%s", opts.ExecTemplate("Launching {{.ProductName}} in streams mode, use CTRL+C to close"))
 
 	if err := confReader.SubscribeStreamChanges(func(id string, newStreamConf *stream.Config) error {
 		ctx, done := context.WithTimeout(context.Background(), time.Second*30)
@@ -212,7 +212,7 @@ func initNormalMode(
 
 	stoppableStream := NewSwappableStopper(initStream)
 
-	logger.Info(opts.ExecTemplate("Launching a {{.ProductName}} instance, use CTRL+C to close"))
+	logger.Info("%s", opts.ExecTemplate("Launching a {{.ProductName}} instance, use CTRL+C to close"))
 
 	if err := confReader.SubscribeConfigChanges(func(newStreamConf *config.Type) error {
 		ctx, done := context.WithTimeout(context.Background(), 30*time.Second)

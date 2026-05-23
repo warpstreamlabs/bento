@@ -28,6 +28,10 @@ const (
 	hcFieldDumpRequestLogLevel             = "dump_request_log_level"
 	hcFieldTLS                             = "tls"
 	hcFieldProxyURL                        = "proxy_url"
+	hcFieldDigestAuth                      = "digest_auth"
+	hcFieldDigestAuthEnabled               = "enabled"
+	hcFieldDigestAuthUserName              = "username"
+	hcFieldDigestAuthPassword              = "password"
 	hcFieldNegotiate                       = "negotiate"
 	hcFieldNegotiateEnabled                = "enabled"
 	hcFieldNegotiateApi                    = "api"
@@ -112,6 +116,21 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 		service.NewStringField(hcFieldProxyURL).
 			Description("An optional HTTP proxy URL.").
 			Advanced().
+			Optional(),
+		service.NewObjectField(hcFieldDigestAuth,
+			service.NewBoolField(hcFieldDigestAuthEnabled).
+				Description("Enable the digest authentication").
+				Default(false),
+			service.NewStringField(hcFieldDigestAuthUserName).
+				Description("The username of the user.").
+				Default(""),
+			service.NewStringField(hcFieldDigestAuthPassword).
+				Description("The password of the user.").
+				Default(""),
+		).
+			Description("Digest authentication configuration.").
+			Advanced().
+			Version("1.18.0").
 			Optional(),
 		service.NewObjectField(hcFieldNegotiate,
 			service.NewBoolField(hcFieldNegotiateEnabled).
@@ -210,6 +229,22 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	if conf.clientCtor, err = oauth2ClientCtorFromParsed(pConf); err != nil {
 		return
 	}
+	digest := pConf.Namespace(hcFieldDigestAuth)
+
+	digestEnabled, _ := digest.FieldBool(hcFieldDigestAuthEnabled)
+
+	if digestEnabled {
+		digestAuthOptions := &DigestAuth{}
+
+		userName, _ := digest.FieldString(hcFieldDigestAuthUserName)
+		userPassword, _ := digest.FieldString(hcFieldDigestAuthPassword)
+
+		digestAuthOptions.Username = userName
+		digestAuthOptions.Password = userPassword
+
+		conf.digestAuth = digestAuthOptions
+	}
+
 	negotiate := pConf.Namespace(hcFieldNegotiate)
 
 	negotiateEnabled, _ := negotiate.FieldBool(hcFieldNegotiateEnabled)
@@ -267,6 +302,11 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 	return
 }
 
+type DigestAuth struct {
+	Username string
+	Password string
+}
+
 type NegotiateAuth struct {
 	Api     spnego_options.Api
 	Options spnego_options.Options
@@ -293,6 +333,7 @@ type OldConfig struct {
 	ProxyURL            string
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
+	digestAuth          *DigestAuth
 	negotiateAuth       *NegotiateAuth
 
 	transport *http.Transport

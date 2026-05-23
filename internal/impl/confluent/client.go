@@ -135,13 +135,13 @@ func (c *schemaRegistryClient) GetSchemaByID(ctx context.Context, id int) (resPa
 	var resBody []byte
 	if resCode, resBody, err = c.doRequest(ctx, "GET", fmt.Sprintf("/schemas/ids/%v", id)); err != nil {
 		err = fmt.Errorf("request failed for schema '%v': %v", id, err)
-		c.mgr.Logger().Errorf(err.Error())
+		c.mgr.Logger().Errorf("%s", err.Error())
 		return
 	}
 
 	if resCode == http.StatusNotFound {
 		err = fmt.Errorf("schema '%v' not found by registry", id)
-		c.mgr.Logger().Errorf(err.Error())
+		c.mgr.Logger().Errorf("%s", err.Error())
 		return
 	}
 
@@ -190,13 +190,13 @@ func (c *schemaRegistryClient) GetSchemaBySubjectAndVersion(ctx context.Context,
 	var resBody []byte
 	if resCode, resBody, err = c.doRequest(ctx, "GET", path); err != nil {
 		err = fmt.Errorf("request failed for schema subject '%v': %v", subject, err)
-		c.mgr.Logger().Errorf(err.Error())
+		c.mgr.Logger().Errorf("%s", err.Error())
 		return
 	}
 
 	if resCode == http.StatusNotFound {
 		err = fmt.Errorf("schema subject '%v' not found by registry", subject)
-		c.mgr.Logger().Errorf(err.Error())
+		c.mgr.Logger().Errorf("%s", err.Error())
 		return
 	}
 
@@ -307,7 +307,7 @@ func (c *schemaRegistryClient) doRequest(ctx context.Context, verb, reqPath stri
 			} else {
 				err = fmt.Errorf("status code %v", resCode)
 			}
-			c.mgr.Logger().Errorf(err.Error())
+			c.mgr.Logger().Errorf("%s", err.Error())
 		}
 		break
 	}
