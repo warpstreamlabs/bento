@@ -274,20 +274,26 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 			userName, _ := negotiateUser.FieldString(hcFieldNegotiateUserName)
 			userPassword, _ := negotiateUser.FieldString(hcFieldNegotiateUserPassword)
 
-			negotiateAuthOptions.User = &spnego_options.User{
-				Domain:   userDomain,
-				Name:     userName,
-				Password: userPassword,
+			if len(userDomain) > 0 || len(userName) > 0 || len(userPassword) > 0 {
+				negotiateAuthOptions.User = &spnego_options.User{
+					Domain:   userDomain,
+					Name:     userName,
+					Password: userPassword,
+				}
 			}
+
 		}
 
 		if negotiate.Contains(hcFieldNegotiateKerberos) {
 			negotiateUser := negotiate.Namespace(hcFieldNegotiateKerberos)
 			filePath, _ := negotiateUser.FieldString(hcFieldNegotiateKerberosConfigFilePath)
 			ccname, _ := negotiateUser.FieldString(hcFieldNegotiateKerberosCCName)
-			negotiateAuthOptions.Kerberos = &spnego_options.Kerberos{
-				ConfigFilePath: filePath,
-				CCName:         ccname,
+
+			if len(filePath) > 0 || len(ccname) > 0 {
+				negotiateAuthOptions.Kerberos = &spnego_options.Kerberos{
+					ConfigFilePath: filePath,
+					CCName:         ccname,
+				}
 			}
 		}
 
