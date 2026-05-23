@@ -862,6 +862,8 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),
+
+		kgo.WithLogger(&kgoLogger{f.log}),
 	}
 	if f.reconnectOnUnknownTopic {
 		clientOpts = append(clientOpts, kgo.KeepRetryableFetchErrors())
@@ -881,7 +883,6 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 			}),
 			kgo.AutoCommitMarks(),
 			kgo.AutoCommitInterval(f.commitPeriod),
-			kgo.WithLogger(&kgoLogger{f.log}),
 		)
 	}
 
