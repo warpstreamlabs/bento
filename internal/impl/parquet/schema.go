@@ -28,6 +28,18 @@ func GenerateStructType(
 	return generateStructTypeFromFields(fields, schemaOpts)
 }
 
+type tags []struct {
+	name, value string
+}
+
+func (t tags) String() string {
+	res := make([]string, len(t))
+	for i, tg := range t {
+		res[i] = fmt.Sprintf(`%s:%q`, tg.name, tg.value)
+	}
+	return strings.Join(res, " ")
+}
+
 func generateStructTypeFromFields(
 	fields []*service.ParsedConfig,
 	schemaOpts schemaOpts,
@@ -100,13 +112,23 @@ func generateStructTypeFromFields(
 
 		parquetTag := strings.Join(components, ",")
 
+		tt := tags{
+			{"parquet", parquetTag},
+			{"json", name},
+		}
+
+		if isListOfLists(field) {
+			// includes a 'parquet-element' tag, to associate a list of elements
+			// See https://pkg.go.dev/github.com/parquet-go/parquet-go#SchemaOf
+			tt = append(tt, struct{ name, value string }{"parquet-element", ",list"})
+		}
+
 		structField := reflect.StructField{
 			Name: exportedName,
 			Type: fieldType,
-			Tag: reflect.StructTag(fmt.Sprintf(
-				`parquet:"%s" json:"%s"`,
-				parquetTag, name)),
+			Tag:  reflect.StructTag(tt.String()),
 		}
+
 		structFields = append(structFields, structField)
 	}
 
@@ -293,6 +315,21 @@ func wrapType(
 	}
 
 	return baseType, nil
+}
+
+func isListOfLists(field *service.ParsedConfig) bool {
+	typeStr, _ := field.FieldString("type")
+	if typeStr != "LIST" {
+		return false
+	}
+
+	subfields, _ := field.FieldAnyList("fields")
+	if len(subfields) != 1 {
+		return false
+	}
+
+	typeStr, _ = subfields[0].FieldString("type")
+	return typeStr == "LIST"
 }
 
 func isDeltaLengthByteArrayEncodable(typeStr string) bool {

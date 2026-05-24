@@ -502,10 +502,7 @@ use_parquet_list_format: false
 }
 
 func TestParquetDecodeListFormatEdgeCases(t *testing.T) {
-	// FIXME: Close https://github.com/warpstreamlabs/bento/issues/360 when 2D array support added to parquet-go.
-	t.Skip("2D slices are not currently supported by parquet encoder.")
-
-	tctx := context.Background()
+	tctx := t.Context()
 
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:

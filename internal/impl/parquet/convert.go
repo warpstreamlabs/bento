@@ -372,7 +372,7 @@ func transformList(data any) any {
 	if slice, ok := data.([]any); ok {
 		wrapped := make([]any, len(slice))
 		for i, item := range slice {
-			wrapped[i] = map[string]any{"element": item}
+			wrapped[i] = map[string]any{"element": transformList(item)}
 		}
 		return map[string]any{"list": wrapped}
 	}
