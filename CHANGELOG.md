@@ -3,16 +3,6 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.17.1 - 2026-05-23
-
-### Fixed 
-
-- `kafka_franz` input to attach logger regardless of consumer group being set @gregfurman
-
-### Changed
-
-- `kafka_franz` franz-go logs to surface at `ERROR/WARN/INFO/DEBUG` instead of `ERROR/WARN/DEBUG/TRACE` @gregfurman
-
 ## 1.17.0 - 2026-04-15
 
 ### Added 
