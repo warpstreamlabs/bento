@@ -138,7 +138,7 @@ func convertTokenClassificationOutput(result *pipelines.TokenClassificationOutpu
 				"Scores":    entity.Scores,
 				"Index":     entity.Index,
 				"Word":      entity.Word,
-				"TokenID":   entity.TokenID,
+				"TokenIDs":  entity.TokenIDs,
 				"Start":     entity.Start,
 				"End":       entity.End,
 				"IsSubword": entity.IsSubword,
