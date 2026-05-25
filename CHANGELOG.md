@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
  - `file` processor `delete` operation fixed for windows @henrikschristensen
  - goroutine leak in SQL components @adrianhaj
  - nil-check added to `sql_raw` output @adrianhaj
+ - `kafka_franz` input to attach logger regardless of consumer group being set @gregfurman
 
 ### Changed 
 
@@ -28,6 +29,7 @@ All notable changes to this project will be documented in this file.
  - upgrade sarama to 1.47.0 (`kafka` component library) @gitphill
  - upgrade golang/x/net for CVE @jem-davies
  - removed reference to deprecated 'Optional' field in cuegen @aebrahim
+ - `kafka_franz` franz-go logs to surface at `ERROR/WARN/INFO/DEBUG` instead of `ERROR/WARN/DEBUG/TRACE` @gregfurman
 
 ## 1.17.0 - 2026-04-15
 
