@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.18.0 - TBD
+
+### Added
+
+- nested list-of-list support to `parquet` processors @gregfurman
+
 ## 1.17.0 - 2026-04-15
 
 ### Added 
