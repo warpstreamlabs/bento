@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/oauth"
 	_ "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	grpcmd "google.golang.org/grpc/metadata"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 	grpcClientOutputProtoFiles             = "proto_files"
 	grpcClientOutputBatching               = "batching"
 	grpcClientOutputPropRes                = "propagate_response"
+	grpcClientOutputMetadata               = "metadata"
 	grpcClientOutputTls                    = "tls"
 	grpcClientOutputHealthCheck            = "health_check"
 	grpcClientOutputHealthCheckToggle      = "enabled"
@@ -45,9 +47,24 @@ const (
 
 const grpcClientOutputDescription = `
 
-### Expected Message Format 
+### Expected Message Format
 
 Either the field ` + "`reflection` or `proto_files`" + ` must be supplied, which will provide the protobuf schema Bento will use to marshall the Bento message into protobuf.
+
+### Metadata
+
+The ` + "`metadata`" + ` field allows you to attach key/value pairs as gRPC metadata (headers) to outgoing requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+How metadata is applied depends on the ` + "`rpc_type`:" + `
+
+- ` + "`" + rpcTypeUnary + "`" + `: Metadata is evaluated **per message**. Each message in a batch can produce different metadata values via interpolation.` + `
+- ` + "`" + rpcTypeServerStream + "`" + `: Metadata is evaluated **per message**, since each message opens its own server stream.` + `
+- ` + "`" + rpcTypeClientStream + "`" + `: Metadata is evaluated from the **first message in the batch** only. gRPC metadata is sent as headers when the stream is opened, so it cannot vary per message within a single stream.` + `
+- ` + "`" + rpcTypeBidi + "`" + `: Same as ` + "`client_stream`" + ` — metadata is evaluated from the **first message in the batch**.` + `
+
+:::caution
+For ` + "`client_stream`" + ` and ` + "`bidi`" + ` RPC types, gRPC metadata is a stream-level concept (sent as HTTP/2 headers at stream creation). If you use interpolation functions that produce different values per message (e.g. ` + "`${! json(\"id\") }`" + `), only the value from the **first message** in the batch will be used for the entire stream. This is a gRPC protocol limitation, not a Bento limitation.
+:::
 
 ### Propagating Responses
 
@@ -102,6 +119,14 @@ output:
 				Description("A list of filepaths of .proto files that should contain the schemas necessary for the gRPC method.").
 				Default([]any{}).
 				Example([]string{"./grpc_test_server/helloworld.proto"}),
+			service.NewInterpolatedStringMapField(grpcClientOutputMetadata).
+				Description("A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.").
+				Example(map[string]any{
+					"application":  "bento",
+					"x-request-id": `${!metadata("request_id")}`,
+				}).
+				Default(map[string]any{}).
+				Optional(),
 			service.NewBoolField(grpcClientOutputPropRes).
 				Description("Whether responses from the server should be [propagated back](/docs/guides/sync_responses) to the input.").
 				Default(false).
@@ -121,7 +146,7 @@ output:
 			service.NewOutputMaxInFlightField(),
 			service.NewBatchPolicyField(grpcClientOutputBatching),
 		).LintRule(
-		`root = match { 
+		`root = match {
   this.rpc_type == "bidi" && this.propagate_response == true => "cannot set propagate_response to true when rpc_type is bidi",
   this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated"
 }`,
@@ -210,6 +235,7 @@ type grpcClientWriter struct {
 	reflectClient          *grpcreflect.Client
 	protoFiles             []string
 	propResponse           bool
+	metadata               map[string]*service.InterpolatedString
 	tls                    *tls.Config
 	oauth                  oauth2Config
 	healthCheckEnabled     bool
@@ -247,6 +273,10 @@ func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resour
 		return nil, err
 	}
 	propResponse, err := conf.FieldBool(grpcClientOutputPropRes)
+	if err != nil {
+		return nil, err
+	}
+	md, err := conf.FieldInterpolatedStringMap(grpcClientOutputMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -316,6 +346,7 @@ func newGrpcClientWriterFromParsed(conf *service.ParsedConfig, _ *service.Resour
 		reflection:   reflection,
 		protoFiles:   protoFiles,
 		propResponse: propResponse,
+		metadata:     md,
 		tls:          tls,
 		oauth:        oauth,
 
@@ -463,7 +494,20 @@ func (gcw *grpcClientWriter) Close(ctx context.Context) (err error) {
 	return nil
 }
 
-//------------------------------------------------------------------------------
+func (gcw *grpcClientWriter) contextWithMetadata(ctx context.Context, msg *service.Message) (context.Context, error) {
+	if len(gcw.metadata) == 0 {
+		return ctx, nil
+	}
+	pairs := make([]string, 0, len(gcw.metadata)*2)
+	for k, v := range gcw.metadata {
+		s, err := v.TryString(msg)
+		if err != nil {
+			return ctx, fmt.Errorf("metadata %q interpolation error: %w", k, err)
+		}
+		pairs = append(pairs, k, s)
+	}
+	return grpcmd.AppendToOutgoingContext(ctx, pairs...), nil
+}
 
 func (gcw *grpcClientWriter) unaryHandler(ctx context.Context, msgBatch service.MessageBatch) error {
 	var batchErr *service.BatchError
@@ -487,7 +531,13 @@ func (gcw *grpcClientWriter) unaryHandler(ctx context.Context, msgBatch service.
 			continue
 		}
 
-		resProtoMessage, err := gcw.stub.InvokeRpc(ctx, gcw.method, request)
+		rpcCtx, err := gcw.contextWithMetadata(ctx, msg)
+		if err != nil {
+			batchErrFailed(i, err)
+			continue
+		}
+
+		resProtoMessage, err := gcw.stub.InvokeRpc(rpcCtx, gcw.method, request)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
@@ -527,8 +577,12 @@ func (gcw *grpcClientWriter) unaryHandler(ctx context.Context, msgBatch service.
 }
 
 func (gcw *grpcClientWriter) clientStreamHandler(ctx context.Context, msgBatch service.MessageBatch) error {
+	rpcCtx, err := gcw.contextWithMetadata(ctx, msgBatch[0])
+	if err != nil {
+		return err
+	}
 
-	clientStream, err := gcw.stub.InvokeRpcClientStream(ctx, gcw.method)
+	clientStream, err := gcw.stub.InvokeRpcClientStream(rpcCtx, gcw.method)
 	if err != nil {
 		return err
 	}
@@ -602,7 +656,13 @@ msgLoop:
 			continue
 		}
 
-		serverStream, err := gcw.stub.InvokeRpcServerStream(ctx, gcw.method, request)
+		rpcCtx, err := gcw.contextWithMetadata(ctx, msg)
+		if err != nil {
+			batchErrFailed(i, err)
+			continue
+		}
+
+		serverStream, err := gcw.stub.InvokeRpcServerStream(rpcCtx, gcw.method, request)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
@@ -670,7 +730,12 @@ func (gcw *grpcClientWriter) bidirectionalHandler(ctx context.Context, msgBatch 
 		batchErr.Failed(i, err)
 	}
 
-	bidi, err := gcw.stub.InvokeRpcBidiStream(ctx, gcw.method)
+	rpcCtx, err := gcw.contextWithMetadata(ctx, msgBatch[0])
+	if err != nil {
+		return err
+	}
+
+	bidi, err := gcw.stub.InvokeRpcBidiStream(rpcCtx, gcw.method)
 	if err != nil {
 		return err
 	}

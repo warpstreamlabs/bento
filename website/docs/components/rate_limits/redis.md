@@ -19,8 +19,6 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 A rate limit implementation using Redis. It works by using a simple token bucket algorithm to limit the number of requests to a given count within a given time period. The rate limit is shared across all instances of Bento that use the same Redis instance, which must all have a consistent count and interval.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

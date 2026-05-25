@@ -39,6 +39,7 @@ output:
     rpc_type: unary
     reflection: false
     proto_files: []
+    metadata: {}
     health_check: {}
     max_in_flight: 64
     batching:
@@ -63,6 +64,7 @@ output:
     rpc_type: unary
     reflection: false
     proto_files: []
+    metadata: {}
     propagate_response: false
     health_check:
       enabled: false
@@ -95,9 +97,24 @@ output:
 </Tabs>
 
 
-### Expected Message Format 
+### Expected Message Format
 
 Either the field `reflection` or `proto_files` must be supplied, which will provide the protobuf schema Bento will use to marshall the Bento message into protobuf.
+
+### Metadata
+
+The `metadata` field allows you to attach key/value pairs as gRPC metadata (headers) to outgoing requests. Values support [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+How metadata is applied depends on the `rpc_type`:
+
+- `unary`: Metadata is evaluated **per message**. Each message in a batch can produce different metadata values via interpolation.
+- `server_stream`: Metadata is evaluated **per message**, since each message opens its own server stream.
+- `client_stream`: Metadata is evaluated from the **first message in the batch** only. gRPC metadata is sent as headers when the stream is opened, so it cannot vary per message within a single stream.
+- `bidi`: Same as `client_stream` — metadata is evaluated from the **first message in the batch**.
+
+:::caution
+For `client_stream` and `bidi` RPC types, gRPC metadata is a stream-level concept (sent as HTTP/2 headers at stream creation). If you use interpolation functions that produce different values per message (e.g. `${! json("id") }`), only the value from the **first message** in the batch will be used for the entire stream. This is a gRPC protocol limitation, not a Bento limitation.
+:::
 
 ### Propagating Responses
 
@@ -209,6 +226,23 @@ Default: `[]`
 
 proto_files:
   - ./grpc_test_server/helloworld.proto
+```
+
+### `metadata`
+
+A map of metadata key/value pairs to add to gRPC requests. For `unary` and `server_stream` RPC types, metadata is evaluated per message. For `client_stream` and `bidi` RPC types, metadata is evaluated from the first message in the batch only, since gRPC stream metadata is sent once at stream creation.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `object`  
+Default: `{}`  
+
+```yml
+# Examples
+
+metadata:
+  application: bento
+  x-request-id: ${!metadata("request_id")}
 ```
 
 ### `propagate_response`

@@ -19,7 +19,6 @@ func natsJetStreamInputConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("Services").
-		Version("1.0.0").
 		Summary("Reads messages from NATS JetStream subjects.").
 		Description(`
 ### Consuming Mirrored Streams

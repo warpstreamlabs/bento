@@ -20,8 +20,6 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Consumes files from an SFTP server.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -167,7 +165,6 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"to_the_end":{}}`  
-Requires version 1.0.0 or newer  
 
 ### `delete_on_finish`
 
@@ -183,7 +180,6 @@ An experimental mode whereby the input will periodically scan the target paths f
 
 
 Type: `object`  
-Requires version 1.0.0 or newer  
 
 ### `watcher.enabled`
 

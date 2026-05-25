@@ -20,8 +20,6 @@ This component is experimental and therefore subject to change or removal outsid
 :::
 Executes a function exported by a WASM module for each message.
 
-Introduced in version 1.0.0.
-
 ```yml
 # Config fields, showing default values
 label: ""

@@ -124,7 +124,6 @@ func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, e
 func kinesisInputSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary("Receive messages from one or more Kinesis streams.").
 		Description(`
@@ -667,7 +666,9 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 
 			if nextTimedBatchChan == nil {
 				if tNext, exists := recordBatcher.UntilNext(); exists {
-					nextTimedBatchChan = time.After(tNext)
+					if len(pending) > 0 || recordBatcher.HasPendingMessage() {
+						nextTimedBatchChan = time.After(tNext)
+					}
 				}
 			}
 

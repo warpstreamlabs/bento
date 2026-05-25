@@ -117,7 +117,6 @@ func gcpBigQueryConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
 		Categories("GCP", "Services").
-		Version("1.0.0").
 		Summary(`Sends messages as new rows to a Google Cloud BigQuery table.`).
 		Description(`
 ## Credentials

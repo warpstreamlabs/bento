@@ -400,7 +400,6 @@ A [Bloblang mapping](/docs/guides/bloblang/about) that can be used to provide ar
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ### `consistency`
 

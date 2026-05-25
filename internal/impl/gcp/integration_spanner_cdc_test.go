@@ -8,11 +8,10 @@ import (
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
-	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
-	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"github.com/google/uuid"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+	. "github.com/warpstreamlabs/bento/internal/impl/gcp/tests"
 	_ "github.com/warpstreamlabs/bento/public/components/sql"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
@@ -90,11 +89,11 @@ input:
 			// destroys all sessions on close. Instead, we need to create a new instance and DB each
 			// time to allow these integration tests to run in parallel.
 			require.NoError(t, pool.Retry(func() error {
-				instanceName, err := createInstance(ctx, projectID+"-"+vars.ID, instanceID+"-"+vars.ID)
+				instanceName, err := CreateInstance(ctx, projectID+"-"+vars.ID, instanceID+"-"+vars.ID)
 				if err != nil {
 					return err
 				}
-				dsn, err = createDatabase(ctx, instanceName, databaseID+"-"+vars.ID)
+				dsn, err = CreateDatabase(ctx, instanceName, databaseID+"-"+vars.ID)
 				return err
 			}))
 
@@ -128,59 +127,4 @@ CREATE TABLE test_table_%s (
 	)
 
 	suite.Run(t, template, suiteOpts...)
-}
-
-// CreateInstance creates a new Spanner instance with the given project and instance ID.
-// Returns the instance name or an error.
-func createInstance(ctx context.Context, parentProjectID, instanceID string) (string, error) {
-	instanceAdminClient, err := instance.NewInstanceAdminClient(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer instanceAdminClient.Close()
-
-	op, err := instanceAdminClient.CreateInstance(ctx, &instancepb.CreateInstanceRequest{
-		Parent:     "projects/" + parentProjectID,
-		InstanceId: instanceID,
-		Instance: &instancepb.Instance{
-			Config:          "projects/model/instanceConfigs/regional-us-central1",
-			DisplayName:     instanceID,
-			ProcessingUnits: 100,
-		},
-	})
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := op.Wait(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	return resp.Name, nil
-}
-
-// CreateDatabase creates a new Spanner database with the given parent instance name and database ID.
-// Returns the database name or an error.
-func createDatabase(ctx context.Context, parentInstanceName, databaseID string) (string, error) {
-	databaseAdminClient, err := database.NewDatabaseAdminClient(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer databaseAdminClient.Close()
-
-	op, err := databaseAdminClient.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
-		Parent:          parentInstanceName,
-		CreateStatement: fmt.Sprintf("CREATE DATABASE `%s`", databaseID),
-	})
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := op.Wait(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	return resp.Name, nil
 }

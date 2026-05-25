@@ -20,8 +20,6 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Writes files to an SFTP server.
 
-Introduced in version 1.0.0.
-
 ```yml
 # Config fields, showing default values
 output:

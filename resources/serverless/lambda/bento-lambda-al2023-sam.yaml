@@ -20,9 +20,9 @@ Resources:
   MyFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Handler: bento-lambda
-      Runtime: go1.x
-      CodeUri: 'target/serverless/bento-lambda.zip'
+      Runtime: provided.al2023
+      Architectures: [ arm64 ]
+      CodeUri: 'target/serverless/bento-lambda-al2023.zip'
       Environment:
         Variables:
           BENTO_CONFIG:

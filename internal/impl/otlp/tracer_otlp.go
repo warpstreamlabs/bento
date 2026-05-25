@@ -59,8 +59,7 @@ func oltpSpec() *service.ConfigSpec {
 				Description("Sets the ratio of traces to sample.").
 				Examples(0.85, 0.5).
 				Optional()).
-			Description("Settings for trace sampling. Sampling is recommended for high-volume production workloads.").
-			Version("1.0.0"))
+			Description("Settings for trace sampling. Sampling is recommended for high-volume production workloads."))
 }
 
 func init() {

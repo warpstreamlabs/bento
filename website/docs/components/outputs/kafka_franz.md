@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 A Kafka output using the [Franz Kafka client library](https://github.com/twmb/franz-go).
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -648,6 +646,64 @@ The token to use for a single session's OAUTHBEARER authentication.
 Type: `string`  
 Default: `""`  
 
+### `sasl[].oauth2`
+
+Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.
+
+
+Type: `object`  
+Requires version 1.18.0 or newer  
+
+### `sasl[].oauth2.enabled`
+
+Whether to use OAuth version 2 in requests.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `sasl[].oauth2.client_key`
+
+A value used to identify the client to the token provider.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].oauth2.client_secret`
+
+A secret used to establish ownership of the client key.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].oauth2.token_url`
+
+The URL of the token provider.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].oauth2.scopes`
+
+A list of optional requested permissions.
+
+
+Type: `array`  
+Default: `[]`  
+
+### `sasl[].oauth2.endpoint_params`
+
+A list of optional endpoint parameters, values should be arrays of strings.
+
+
+Type: `object`  
+
 ### `sasl[].extensions`
 
 Key/value pairs to add to OAUTHBEARER authentication requests.
@@ -727,7 +783,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `sasl[].aws.credentials.role`
 

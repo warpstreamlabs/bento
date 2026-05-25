@@ -267,7 +267,7 @@ func (t *Type) Stop(ctx context.Context) error {
 		dumpBuf := bytes.NewBuffer(nil)
 		_ = pprof.Lookup("goroutine").WriteTo(dumpBuf, 1)
 
-		t.manager.Logger().Debug(dumpBuf.String())
+		t.manager.Logger().Debug("%s", dumpBuf.String())
 	} else {
 		t.manager.Logger().Error("Encountered error whilst forcefully shutting down: %v\n", err)
 	}

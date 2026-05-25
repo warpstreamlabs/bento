@@ -38,7 +38,7 @@ The following is a list of supported drivers, their placeholder style, and their
 ` + "| `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |" + `
 ` + "| `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |" + `
 ` + "| `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |" + `
-` + "| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` |" + `
+` + "| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` or `:memory:` for ephemeral in-process storage. |" + `
 
 Please note that the ` + "`postgres`" + ` driver enforces SSL by default, you can override this with the parameter ` + "`sslmode=disable`" + ` if required.
 
@@ -51,7 +51,8 @@ The ` + "[`duckdb`](https://github.com/duckdb/duckdb-go)" + ` driver requires cg
 	Example("foouser:foopassword@tcp(localhost:3306)/foodb").
 	Example("postgres://foouser:foopass@localhost:5432/foodb?sslmode=disable").
 	Example("oracle://foouser:foopass@localhost:1521/service_name").
-	Example("db_file.duckdb?threads=4&access_mode=READ_ONLY")
+	Example("db_file.duckdb?threads=4&access_mode=READ_ONLY").
+	Example(":memory:")
 
 func connFields() []*service.ConfigField {
 
@@ -67,8 +68,7 @@ If a statement fails for any reason a warning log will be emitted but the operat
 			Example([]any{`./init/*.sql`}).
 			Example([]any{`./foo.sql`, `./bar.sql`}).
 			Optional().
-			Advanced().
-			Version("1.0.0"),
+			Advanced(),
 		service.NewStringField("init_statement").
 			Description(`
 An optional SQL statement to execute immediately upon the first connection to the target database. This is a useful way to initialise tables before processing data. Care should be taken to ensure that the statement is idempotent, and therefore would not cause issues when run multiple times after service restarts.
@@ -86,8 +86,7 @@ CREATE TABLE IF NOT EXISTS some_table (
 ) WITHOUT ROWID;
 `).
 			Optional().
-			Advanced().
-			Version("1.0.0"),
+			Advanced(),
 		service.NewBoolField("init_verify_conn").
 			Description("Whether to verify the database connection on startup by performing a simple ping, by default this is disabled.").
 			Default(false).
@@ -400,4 +399,31 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 	}
 
 	return db, nil
+}
+
+// isAuthError detects authentication failures so the connection can be
+// re-established with fresh credentials. Only postgres and mysql are handled
+// because they are the only drivers that support IAM token rotation;
+// reconnecting with static credentials would just fail again.
+func isAuthError(driver string, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch driver {
+	case "postgres":
+		// pq.Error has a SQLState() method that returns the PostgreSQL error code.
+		// SQLSTATE class 28 = Invalid Authorization Specification
+		// (e.g. 28P01 for PAM/password auth failure).
+		var stateErr interface{ SQLState() string }
+		if errors.As(err, &stateErr) {
+			return strings.HasPrefix(stateErr.SQLState(), "28")
+		}
+	case "mysql":
+		// MySQLError has SQLState as a [5]byte field (not a method),
+		// so we match the canonical error message instead.
+		return strings.Contains(strings.ToLower(err.Error()), "access denied")
+	}
+
+	return false
 }

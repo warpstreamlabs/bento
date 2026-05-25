@@ -102,6 +102,10 @@ input:
     drop_on: []
     successful_on: []
     proxy_url: "" # No default (optional)
+    digest_auth:
+      enabled: false
+      username: ""
+      password: ""
     transport:
       dial_context:
         timeout: 30s
@@ -268,7 +272,6 @@ EXPERIMENTAL: Optionally set a level at which the request and response payload o
 
 Type: `string`  
 Default: `""`  
-Requires version 1.0.0 or newer  
 Options: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, ``.
 
 ### `oauth`
@@ -373,7 +376,6 @@ A list of optional requested permissions.
 
 Type: `array`  
 Default: `[]`  
-Requires version 1.0.0 or newer  
 
 ### `oauth2.endpoint_params`
 
@@ -382,7 +384,6 @@ A list of optional endpoint parameters, values should be arrays of strings.
 
 Type: `object`  
 Default: `{}`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -733,6 +734,38 @@ An optional HTTP proxy URL.
 
 Type: `string`  
 
+### `digest_auth`
+
+Digest authentication configuration.
+
+
+Type: `object`  
+Requires version 1.18.0 or newer  
+
+### `digest_auth.enabled`
+
+Enable the digest authentication
+
+
+Type: `bool`  
+Default: `false`  
+
+### `digest_auth.username`
+
+The username of the user.
+
+
+Type: `string`  
+Default: `""`  
+
+### `digest_auth.password`
+
+The password of the user.
+
+
+Type: `string`  
+Default: `""`  
+
 ### `transport`
 
 Custom transport options.
@@ -858,7 +891,6 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"lines":{}}`  
-Requires version 1.0.0 or newer  
 
 ### `auto_replay_nacks`
 

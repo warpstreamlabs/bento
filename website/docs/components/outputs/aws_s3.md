@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends message parts as objects to an Amazon S3 bucket. Each object is uploaded with the path specified with the `path` field.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -69,6 +67,7 @@ output:
     storage_class: STANDARD
     kms_key_id: ""
     server_side_encryption: ""
+    checksum_algorithm: ""
     force_path_style_urls: false
     max_in_flight: 64
     timeout: 5s
@@ -348,7 +347,15 @@ An optional server side encryption algorithm.
 
 Type: `string`  
 Default: `""`  
-Requires version 1.0.0 or newer  
+
+### `checksum_algorithm`
+
+An optional checksum algorithm to use for data integrity verification. When set, the SDK computes the checksum and S3 validates it on upload.
+
+
+Type: `string`  
+Default: `""`  
+Options: `CRC32`, `CRC32C`, `SHA1`, `SHA256`.
 
 ### `force_path_style_urls`
 
@@ -558,7 +565,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

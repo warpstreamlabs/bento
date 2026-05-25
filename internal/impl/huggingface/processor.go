@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelineBackends"
+	"github.com/knights-analytics/hugot/backends"
 	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -87,7 +87,7 @@ type pipelineProcessor struct {
 	log *service.Logger
 
 	session  *hugot.Session
-	pipeline pipelineBackends.Pipeline
+	pipeline backends.Pipeline
 
 	pipelineName string
 	modelPath    string
@@ -214,7 +214,7 @@ func (p *pipelineProcessor) Close(context.Context) error {
 	return p.pipeline.GetModel().Destroy()
 }
 
-func convertPipelineOutput(output pipelineBackends.PipelineBatchOutput) []any {
+func convertPipelineOutput(output backends.PipelineBatchOutput) []any {
 	switch result := output.(type) {
 	case *pipelines.FeatureExtractionOutput:
 		return result.GetOutput()

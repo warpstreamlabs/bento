@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Performs actions against Redis using [LUA scripts](https://redis.io/docs/manual/programmability/eval-intro/).
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

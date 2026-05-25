@@ -18,6 +18,7 @@ import (
 
 // TODO: Add config + options pattern or use an already existing library like https://github.com/elgohr/go-localstack
 func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string) error) (port string) {
+	t.Helper()
 	portInt, err := integration.GetFreePort()
 	require.NoError(t, err)
 
@@ -41,6 +42,7 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
 		Repository:   lsImageName,
+		Tag:          "4.9.2", // pinning version: latest needs a license.
 		ExposedPorts: []string{"4566/tcp"},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			docker.Port(port + "/tcp"): {

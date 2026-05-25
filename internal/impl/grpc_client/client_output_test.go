@@ -57,6 +57,7 @@ type testServer struct {
 	SayMultiHellosInvocations    int
 	SayHelloHowAreYouInvocations int
 	SayHelloBidiInvocations      int
+	receivedMetadata             []metadata.MD
 	port                         int
 }
 
@@ -149,9 +150,12 @@ func startGRPCServer(t *testing.T, opts ...testServerOpt) *testServer {
 
 //------------------------------------------------------------------------------
 
-func (s *testServer) SayHello(_ context.Context, in *test_server.HelloRequest) (*test_server.HelloReply, error) {
+func (s *testServer) SayHello(ctx context.Context, in *test_server.HelloRequest) (*test_server.HelloReply, error) {
 	s.mu.Lock()
 	s.SayHelloInvocations++
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		s.receivedMetadata = append(s.receivedMetadata, md)
+	}
 	s.mu.Unlock()
 	if s.returnErrors {
 		return nil, errors.New("ERROR :( ")
@@ -162,6 +166,9 @@ func (s *testServer) SayHello(_ context.Context, in *test_server.HelloRequest) (
 func (s *testServer) SayMultipleHellos(stream test_server.Greeter_SayMultipleHellosServer) error {
 	s.mu.Lock()
 	s.SayMultiHellosInvocations++
+	if md, ok := metadata.FromIncomingContext(stream.Context()); ok {
+		s.receivedMetadata = append(s.receivedMetadata, md)
+	}
 	s.mu.Unlock()
 	names := []string{}
 
@@ -186,6 +193,9 @@ func (s *testServer) SayMultipleHellos(stream test_server.Greeter_SayMultipleHel
 func (s *testServer) SayHelloHowAreYou(in *test_server.HelloRequest, stream test_server.Greeter_SayHelloHowAreYouServer) error {
 	s.mu.Lock()
 	s.SayHelloHowAreYouInvocations++
+	if md, ok := metadata.FromIncomingContext(stream.Context()); ok {
+		s.receivedMetadata = append(s.receivedMetadata, md)
+	}
 	s.mu.Unlock()
 
 	if s.returnErrors {
@@ -205,9 +215,12 @@ func (s *testServer) SayHelloHowAreYou(in *test_server.HelloRequest, stream test
 	return nil
 }
 
-func (s *testServer) SayHelloBidi(grpc.BidiStreamingServer[test_server.HelloRequest, test_server.HelloReply]) error {
+func (s *testServer) SayHelloBidi(stream grpc.BidiStreamingServer[test_server.HelloRequest, test_server.HelloReply]) error {
 	s.mu.Lock()
 	s.SayHelloBidiInvocations++
+	if md, ok := metadata.FromIncomingContext(stream.Context()); ok {
+		s.receivedMetadata = append(s.receivedMetadata, md)
+	}
 	s.mu.Unlock()
 
 	if s.returnErrors {
@@ -278,6 +291,14 @@ func withReturnErrors() testServerOpt {
 	return func(ts *testServer) {
 		ts.returnErrors = true
 	}
+}
+
+func (s *testServer) getReceivedMetadata() []metadata.MD {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cp := make([]metadata.MD, len(s.receivedMetadata))
+	copy(cp, s.receivedMetadata)
+	return cp
 }
 
 //------------------------------------------------------------------------------
@@ -930,6 +951,247 @@ grpc_client:
 			}
 		})
 	}
+}
+
+func TestGrpcClientWriterMetadataUnary(t *testing.T) {
+	ts := startGRPCServer(t, withReflection())
+
+	yamlConf := fmt.Sprintf(`
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHello
+  reflection: true
+  metadata:
+    x-custom-key: custom-value
+    x-request-name: fixed-name
+`, ts.port)
+
+	sendChan, receiveChan, err := startGrpcClientOutput(t, yamlConf)
+	require.NoError(t, err)
+
+	for _, input := range namesInputTestData {
+		testMsg := message.QuickBatch([][]byte{[]byte(input)})
+		select {
+		case sendChan <- message.NewTransaction(testMsg, receiveChan):
+		case <-time.After(time.Second * 20):
+			t.Fatal("Send timed out")
+		}
+	}
+
+	for i := range namesInputTestData {
+		select {
+		case err := <-receiveChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second * 20):
+			t.Fatalf("Response %d timed out", i)
+		}
+	}
+
+	assert.Eventually(t, func() bool {
+		return ts.SayHelloInvocations == len(namesInputTestData)
+	}, time.Second*10, time.Millisecond*20)
+
+	received := ts.getReceivedMetadata()
+	require.Len(t, received, len(namesInputTestData))
+	for _, md := range received {
+		assert.Equal(t, []string{"custom-value"}, md.Get("x-custom-key"))
+		assert.Equal(t, []string{"fixed-name"}, md.Get("x-request-name"))
+	}
+}
+
+func TestGrpcClientWriterMetadataClientStream(t *testing.T) {
+	ts := startGRPCServer(t, withReflection())
+
+	yamlConf := fmt.Sprintf(`
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayMultipleHellos
+  reflection: true
+  rpc_type: client_stream
+  metadata:
+    x-stream-id: my-stream
+  batching:
+    count: 4
+`, ts.port)
+
+	sendChan, receiveChan, err := startGrpcClientOutput(t, yamlConf)
+	require.NoError(t, err)
+
+	for _, input := range namesInputTestData {
+		testMsg := message.QuickBatch([][]byte{[]byte(input)})
+		select {
+		case sendChan <- message.NewTransaction(testMsg, receiveChan):
+		case <-time.After(time.Second * 20):
+			t.Fatal("Send timed out")
+		}
+	}
+
+	for i := range namesInputTestData {
+		select {
+		case err := <-receiveChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second * 20):
+			t.Fatalf("Response %d timed out", i)
+		}
+	}
+
+	assert.Eventually(t, func() bool {
+		ts.mu.Lock()
+		defer ts.mu.Unlock()
+		return ts.SayMultiHellosInvocations == 1
+	}, time.Second*10, time.Millisecond*20)
+
+	received := ts.getReceivedMetadata()
+	require.Len(t, received, 1)
+	assert.Equal(t, []string{"my-stream"}, received[0].Get("x-stream-id"))
+}
+
+func TestGrpcClientWriterMetadataServerStream(t *testing.T) {
+	ts := startGRPCServer(t, withReflection())
+
+	yamlConf := fmt.Sprintf(`
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHelloHowAreYou
+  reflection: true
+  rpc_type: server_stream
+  metadata:
+    x-server-stream: "true"
+`, ts.port)
+
+	sendChan, receiveChan, err := startGrpcClientOutput(t, yamlConf)
+	require.NoError(t, err)
+
+	for _, input := range namesInputTestData {
+		testMsg := message.QuickBatch([][]byte{[]byte(input)})
+		select {
+		case sendChan <- message.NewTransaction(testMsg, receiveChan):
+		case <-time.After(time.Second * 20):
+			t.Fatal("Send timed out")
+		}
+	}
+
+	for i := range namesInputTestData {
+		select {
+		case err := <-receiveChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second * 20):
+			t.Fatalf("Response %d timed out", i)
+		}
+	}
+
+	assert.Eventually(t, func() bool {
+		ts.mu.Lock()
+		defer ts.mu.Unlock()
+		return ts.SayHelloHowAreYouInvocations == len(namesInputTestData)
+	}, time.Second*10, time.Millisecond*20)
+
+	received := ts.getReceivedMetadata()
+	require.Len(t, received, len(namesInputTestData))
+	for _, md := range received {
+		assert.Equal(t, []string{"true"}, md.Get("x-server-stream"))
+	}
+}
+
+func TestGrpcClientWriterMetadataBidi(t *testing.T) {
+	ts := startGRPCServer(t, withReflection())
+
+	yamlConf := fmt.Sprintf(`
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHelloBidi
+  reflection: true
+  rpc_type: bidi
+  metadata:
+    x-bidi-key: bidi-value
+  batching:
+    count: 4
+`, ts.port)
+
+	sendChan, receiveChan, err := startGrpcClientOutput(t, yamlConf)
+	require.NoError(t, err)
+
+	for _, input := range namesInputTestData {
+		testMsg := message.QuickBatch([][]byte{[]byte(input)})
+		select {
+		case sendChan <- message.NewTransaction(testMsg, receiveChan):
+		case <-time.After(time.Second * 20):
+			t.Fatal("Send timed out")
+		}
+	}
+
+	for i := range namesInputTestData {
+		select {
+		case err := <-receiveChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second * 20):
+			t.Fatalf("Response %d timed out", i)
+		}
+	}
+
+	assert.Eventually(t, func() bool {
+		ts.mu.Lock()
+		defer ts.mu.Unlock()
+		return ts.SayHelloBidiInvocations == 1
+	}, time.Second*10, time.Millisecond*20)
+
+	received := ts.getReceivedMetadata()
+	require.Len(t, received, 1)
+	assert.Equal(t, []string{"bidi-value"}, received[0].Get("x-bidi-key"))
+}
+
+func TestGrpcClientWriterMetadataInterpolation(t *testing.T) {
+	ts := startGRPCServer(t, withReflection())
+
+	yamlConf := fmt.Sprintf(`
+grpc_client:
+  address: localhost:%v
+  service: helloworld.Greeter
+  method: SayHello
+  reflection: true
+  metadata:
+    x-name: ${! json("name") }
+`, ts.port)
+
+	sendChan, receiveChan, err := startGrpcClientOutput(t, yamlConf)
+	require.NoError(t, err)
+
+	for _, input := range namesInputTestData {
+		testMsg := message.QuickBatch([][]byte{[]byte(input)})
+		select {
+		case sendChan <- message.NewTransaction(testMsg, receiveChan):
+		case <-time.After(time.Second * 20):
+			t.Fatal("Send timed out")
+		}
+	}
+
+	for i := range namesInputTestData {
+		select {
+		case err := <-receiveChan:
+			require.NoError(t, err)
+		case <-time.After(time.Second * 20):
+			t.Fatalf("Response %d timed out", i)
+		}
+	}
+
+	assert.Eventually(t, func() bool {
+		return ts.SayHelloInvocations == len(namesInputTestData)
+	}, time.Second*10, time.Millisecond*20)
+
+	received := ts.getReceivedMetadata()
+	require.Len(t, received, len(namesInputTestData))
+
+	gotNames := make([]string, 0, len(received))
+	for _, md := range received {
+		vals := md.Get("x-name")
+		require.Len(t, vals, 1)
+		gotNames = append(gotNames, vals[0])
+	}
+	assert.ElementsMatch(t, names, gotNames)
 }
 
 //------------------------------------------------------------------------------

@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Watches for updates in a NATS key-value bucket.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

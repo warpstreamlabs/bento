@@ -313,7 +313,6 @@ func writeMapsFields() []*service.ConfigField {
 			Default(""),
 		service.NewBoolField(commonFieldUpsert).
 			Description("The upsert setting is optional and only applies for update-one and replace-one operations. If the filter specified in filter_map matches, the document is updated or replaced accordingly, otherwise it is created.").
-			Version("1.0.0").
 			Default(false),
 	}
 }

@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Executes a `SELECT` query against BigQuery and replaces messages with the rows returned.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

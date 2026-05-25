@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Executes a select query and creates a message for each row received.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -157,7 +155,7 @@ The following is a list of supported drivers, their placeholder style, and their
 | `spanner` | `projects/[project]/instances/[instance]/databases/dbname` |
 | `trino` | [`http[s]://user[:pass]@host[:port][?parameters]`](https://github.com/trinodb/trino-go-client#dsn-data-source-name) |
 | `gocosmos` | [`AccountEndpoint=<cosmosdb-endpoint>;AccountKey=<cosmosdb-account-key>[;TimeoutMs=<timeout-in-ms>][;Version=<cosmosdb-api-version>][;DefaultDb/Db=<db-name>][;AutoId=<true/false>][;InsecureSkipVerify=<true/false>]`](https://pkg.go.dev/github.com/microsoft/gocosmos#readme-example-usage) |
-| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` |
+| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` or `:memory:` for ephemeral in-process storage. |
 
 Please note that the `postgres` driver enforces SSL by default, you can override this with the parameter `sslmode=disable` if required.
 
@@ -182,6 +180,8 @@ dsn: postgres://foouser:foopass@localhost:5432/foodb?sslmode=disable
 dsn: oracle://foouser:foopass@localhost:1521/service_name
 
 dsn: db_file.duckdb?threads=4&access_mode=READ_ONLY
+
+dsn: ':memory:'
 ```
 
 ### `table`
@@ -276,7 +276,6 @@ If a statement fails for any reason a warning log will be emitted but the operat
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -299,7 +298,6 @@ If the statement fails for any reason a warning log will be emitted but the oper
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -493,7 +491,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 
