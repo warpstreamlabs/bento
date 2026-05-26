@@ -101,6 +101,14 @@ func (c *avroScanner) NextBatch(ctx context.Context) (service.MessageBatch, erro
 		return nil, io.EOF
 	}
 
+	// Scan() must be called before each Read() — omitting it causes
+	// every read to fail with "Read called without successful Scan".
+	if !c.ocf.Scan() {
+		if err := c.ocf.Err(); err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	}
 	datum, err := c.ocf.Read()
 	if err != nil {
 		return nil, err
