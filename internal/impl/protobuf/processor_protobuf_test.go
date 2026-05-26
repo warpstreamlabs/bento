@@ -14,8 +14,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -459,7 +457,12 @@ func runMockBSRServer(t *testing.T) string {
 	fileDescriptorSetServer := &fileDescriptorSetServer{fileDescriptorSet: fileDescriptorSet}
 	mux.Handle(reflectv1beta1connect.NewFileDescriptorSetServiceHandler(fileDescriptorSetServer))
 	go func() {
-		if err := http.Serve(listener, h2c.NewHandler(mux, &http2.Server{})); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		srv := &http.Server{Handler: mux}
+		srv.Protocols = new(http.Protocols)
+		srv.Protocols.SetHTTP1(true)
+		srv.Protocols.SetUnencryptedHTTP2(true)
+
+		if err := http.Serve(listener, srv.Handler); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			require.NoError(t, err)
 		}
 	}()
