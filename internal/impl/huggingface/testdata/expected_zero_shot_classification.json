@@ -8,7 +8,7 @@
           "SortedValues": [
             {
               "Key": "spam",
-              "Value": 0.028851577929774
+              "Value": 0.9802607448638835
             }
           ]
         }
@@ -20,7 +20,7 @@
           "SortedValues": [
             {
               "Key": "spam",
-              "Value": 0.0324882146916225
+              "Value": 0.006183897575412586
             }
           ]
         }
@@ -32,7 +32,7 @@
           "SortedValues": [
             {
               "Key": "spam",
-              "Value": 0.014449275052658635
+              "Value": 0.006553022477228037
             }
           ]
         }
@@ -44,24 +44,24 @@
           "SortedValues": [
             {
               "Key": "spam",
-              "Value": 0.042457475321978154
+              "Value": 0.010048108399524334
             }
           ]
         }
       }
     ],
     "tokenizer_stats": {
-      "total_duration": 2240333,
+      "total_duration": 115793,
       "total_calls": 4
     },
     "pipeline_stats": {
-      "total_duration": 3163340500,
+      "total_duration": 210223792,
       "total_calls": 4
     },
     "metadata": {
-      "created_at": "2025-05-31T15:41:43.960912+02:00",
+      "created_at": "2026-05-21T00:05:52.068082+02:00",
       "model_name": "MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33",
-      "go_version": "go1.24.2",
+      "go_version": "go1.26.3",
       "platform": "darwin/arm64",
       "test_name": "test-snapshot-zero-shot-classification"
     }
@@ -75,15 +75,15 @@
           "SortedValues": [
             {
               "Key": "positive",
-              "Value": 0.8903168934198944
+              "Value": 0.9895506423896421
             },
             {
               "Key": "neutral",
-              "Value": 0.14775452543877787
+              "Value": 0.003222233909155547
             },
             {
               "Key": "negative",
-              "Value": 0.018513107983169488
+              "Value": 0.0013987145160717673
             }
           ]
         }
@@ -95,15 +95,15 @@
           "SortedValues": [
             {
               "Key": "negative",
-              "Value": 0.8508945568518561
+              "Value": 0.9922634130880642
             },
             {
               "Key": "neutral",
-              "Value": 0.059812719061625025
+              "Value": 0.020447400741327747
             },
             {
               "Key": "positive",
-              "Value": 0.00196499946489996
+              "Value": 0.0014977643066190554
             }
           ]
         }
@@ -114,16 +114,16 @@
           "Sequence": "The weather is okay today.",
           "SortedValues": [
             {
-              "Key": "negative",
-              "Value": 0.24709709199138283
-            },
-            {
               "Key": "positive",
-              "Value": 0.1384001562579162
+              "Value": 0.9725405493506799
             },
             {
               "Key": "neutral",
-              "Value": 0.08324746023898597
+              "Value": 0.8601898738312534
+            },
+            {
+              "Key": "negative",
+              "Value": 0.002282405149571101
             }
           ]
         }
@@ -135,15 +135,15 @@
           "SortedValues": [
             {
               "Key": "positive",
-              "Value": 0.8500470689823508
+              "Value": 0.9924641741660262
             },
             {
               "Key": "neutral",
-              "Value": 0.16484705097754276
+              "Value": 0.004283559247671896
             },
             {
               "Key": "negative",
-              "Value": 0.01355296946378964
+              "Value": 0.0015404350952299478
             }
           ]
         }
@@ -155,32 +155,32 @@
           "SortedValues": [
             {
               "Key": "negative",
-              "Value": 0.8060497431330212
+              "Value": 0.9868053673580816
             },
             {
               "Key": "neutral",
-              "Value": 0.20205630439897232
+              "Value": 0.7043413722840589
             },
             {
               "Key": "positive",
-              "Value": 0.012988994036178755
+              "Value": 0.003105082703770155
             }
           ]
         }
       }
     ],
     "tokenizer_stats": {
-      "total_duration": 7758540,
+      "total_duration": 397665,
       "total_calls": 15
     },
     "pipeline_stats": {
-      "total_duration": 11649252123,
+      "total_duration": 839135084,
       "total_calls": 15
     },
     "metadata": {
-      "created_at": "2025-05-31T15:41:56.004786+02:00",
+      "created_at": "2026-05-21T00:05:53.090579+02:00",
       "model_name": "MoritzLaurer/xtremedistil-l6-h256-zeroshot-v1.1-all-33",
-      "go_version": "go1.24.2",
+      "go_version": "go1.26.3",
       "platform": "darwin/arm64",
       "test_name": "test-snapshot-zero-shot-classification-multi"
     }

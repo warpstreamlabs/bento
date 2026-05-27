@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/icholy/digest"
 	"github.com/warpstreamlabs/bento/internal/old/util/throttle"
 	"github.com/warpstreamlabs/bento/internal/tracing/v2"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -117,6 +118,14 @@ func NewClientFromOldConfig(conf OldConfig, mgr *service.Resources, opts ...Requ
 			} else {
 				return nil, fmt.Errorf("unable to apply proxy_url or tls to transport, unexpected type %T", h.client.Transport)
 			}
+		}
+	}
+
+	if conf.digestAuth != nil {
+		h.client.Transport = &digest.Transport{
+			Username:  conf.digestAuth.Username,
+			Password:  conf.digestAuth.Password,
+			Transport: h.client.Transport,
 		}
 	}
 

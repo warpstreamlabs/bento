@@ -211,7 +211,7 @@ func (f *fsEventWatcher) Connect(ctx context.Context) error {
 				if !ok {
 					return
 				}
-				f.log.Errorf("error:", err)
+				f.log.Errorf("error: %v", err)
 			}
 		}
 	}()

@@ -55,10 +55,11 @@ type Reader struct {
 	// Used for linting configs
 	lintConf docs.LintConfig
 
-	mainPath      string
-	resourcePaths []string
-	streamsPaths  []string
-	overrides     []string
+	mainPath         string
+	resourcePaths    []string
+	streamsPaths     []string
+	overrides        []string
+	ConfigFromEnvVar string
 
 	modTimeLastRead map[string]time.Time
 
@@ -183,6 +184,14 @@ func OptUseFS(fs ifs.FS) OptFunc {
 	}
 }
 
+// OptLoadFromEnvVar will configure the reader to read config from the
+// BENTO_CONFIG environment variable
+func OptLoadFromEnvVar(config string) OptFunc {
+	return func(r *Reader) {
+		r.ConfigFromEnvVar = config
+	}
+}
+
 //------------------------------------------------------------------------------
 
 func (r *Reader) lintCtx() docs.LintContext {
@@ -299,9 +308,9 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 
 	var rawNode *yaml.Node
 	var confBytes []byte
+	var dLints []docs.Lint
+	var modTime time.Time
 	if mainPath != "" {
-		var dLints []docs.Lint
-		var modTime time.Time
 		if confBytes, dLints, modTime, err = ReadFileEnvSwap(r.fs, mainPath, os.LookupEnv); err != nil {
 			return
 		}
@@ -309,6 +318,17 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 			lints = append(lints, l.Error())
 		}
 		r.modTimeLastRead[mainPath] = modTime
+
+		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
+			return
+		}
+	} else if r.ConfigFromEnvVar != "" {
+		if confBytes, dLints, err = ReadBentoConfigEnvVarEnvSwap(r.ConfigFromEnvVar, os.LookupEnv); err != nil {
+			return
+		}
+		for _, l := range dLints {
+			lints = append(lints, l.Error())
+		}
 
 		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
 			return
@@ -390,7 +410,7 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 
 	lintlog := mgr.Logger()
 	for _, lint := range lints {
-		lintlog.Info(lint)
+		lintlog.Info("%s", lint)
 	}
 	if strict && len(lints) > 0 {
 		mgr.Logger().Error("Rejecting updated main config due to linter errors, to allow linting errors run Bento with --chilled")
@@ -399,7 +419,7 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 		return noReread(errors.New("file contained linting errors and is running in strict mode"))
 	}
 	for _, lintWarn := range lintWarns {
-		lintlog.Warn(lintWarn)
+		lintlog.Warn("%s", lintWarn)
 	}
 
 	// If the main config file has been changed then we remove all resources

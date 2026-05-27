@@ -330,7 +330,7 @@ func (p *fileProcessor) processMove(ctx context.Context, msg *service.Message) (
 	}
 	destPath = filepath.Clean(destPath)
 
-	return p.atomicCopyAndDelete(srcPath, destPath, msg)
+	return p.atomicCopyAndDelete(ctx, srcPath, destPath, msg)
 }
 
 func (p *fileProcessor) processRename(msg *service.Message) (service.MessageBatch, error) {
@@ -357,9 +357,9 @@ func (p *fileProcessor) processRename(msg *service.Message) (service.MessageBatc
 	return service.MessageBatch{msg}, nil
 }
 
-// atomicCopyAndDelete performs an atomic copy from src to dest and then deletes src
-// This ensures that either the operation completes fully or leaves the source intact
-func (p *fileProcessor) atomicCopyAndDelete(srcPath, destPath string, msg *service.Message) (service.MessageBatch, error) {
+// atomicCopyAndDelete performs an atomic copy from src to dest and then deletes src.
+// This ensures that either the operation completes fully or leaves the source intact.
+func (p *fileProcessor) atomicCopyAndDelete(ctx context.Context, srcPath, destPath string, msg *service.Message) (service.MessageBatch, error) {
 	if err := p.nm.FS().MkdirAll(filepath.Dir(destPath), fs.FileMode(0o777)); err != nil {
 		return nil, fmt.Errorf("failed to create directory for '%s': %w", destPath, err)
 	}
@@ -372,25 +372,31 @@ func (p *fileProcessor) atomicCopyAndDelete(srcPath, destPath string, msg *servi
 	if err != nil {
 		return nil, fmt.Errorf("failed to open source file '%s': %w", srcPath, err)
 	}
-	defer srcFile.Close()
 
 	destFile, err := p.nm.FS().OpenFile(tempFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, fs.FileMode(0o666))
 	if err != nil {
+		srcFile.Close()
 		return nil, fmt.Errorf("failed to open temporary destination file '%s': %w", tempFile, err)
 	}
 
 	writer, ok := destFile.(io.Writer)
 	if !ok {
+		srcFile.Close()
 		destFile.Close()
 		_ = p.nm.FS().Remove(tempFile)
 		return nil, errors.New("failed to open a writable destination file")
 	}
 
 	if _, err := io.Copy(writer, srcFile); err != nil {
+		srcFile.Close()
 		destFile.Close()
 		_ = p.nm.FS().Remove(tempFile)
 		return nil, fmt.Errorf("failed to write to temporary destination file '%s': %w", tempFile, err)
 	}
+
+	// Close source before the rename and remove steps. On Windows, DeleteFile fails
+	// if the calling process still holds a handle open on the file.
+	srcFile.Close()
 
 	if err := destFile.Close(); err != nil {
 		_ = p.nm.FS().Remove(tempFile)
@@ -402,11 +408,28 @@ func (p *fileProcessor) atomicCopyAndDelete(srcPath, destPath string, msg *servi
 		return nil, fmt.Errorf("failed to rename temporary file '%s' to '%s': %w", tempFile, destPath, err)
 	}
 
-	// Only delete source after destination is successfully created
-	if err := p.nm.FS().Remove(srcPath); err != nil {
-		// If source deletion fails, we have both files but destination is complete
-		// This is better than losing data
-		p.log.Warnf("Failed to delete source file '%s' after successful copy to '%s': %v", srcPath, destPath, err)
+	// Delete the source now that the destination is complete. Retry with backoff
+	// to handle transient file locks that are common on Windows (e.g. an external
+	// process that briefly holds the file open after writing it).
+	const maxDeleteRetries = 5
+	var removeErr error
+	for attempt := 1; attempt <= maxDeleteRetries; attempt++ {
+		removeErr = p.nm.FS().Remove(srcPath)
+		if removeErr == nil {
+			break
+		}
+		if attempt < maxDeleteRetries {
+			select {
+			case <-ctx.Done():
+				break
+			case <-time.After(time.Duration(attempt) * time.Second):
+			}
+		}
+	}
+	if removeErr != nil {
+		// The copy succeeded so data is safe, but log an error so operators are
+		// aware of the orphaned source file that will need manual cleanup.
+		p.log.Errorf("Failed to delete source file '%s' after successful copy to '%s': %v", srcPath, destPath, removeErr)
 	}
 
 	return service.MessageBatch{msg}, nil

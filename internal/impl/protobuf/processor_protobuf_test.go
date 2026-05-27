@@ -14,8 +14,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -142,11 +140,12 @@ discard_unknown: %t
 func TestProtobufToJSONImportPaths(t *testing.T) {
 
 	type testCase struct {
-		name          string
-		message       string
-		input         []byte
-		output        string
-		useProtoNames bool
+		name            string
+		message         string
+		input           []byte
+		output          string
+		useProtoNames   bool
+		emitUnpopulated bool
 	}
 
 	var testCases = []testCase{
@@ -171,6 +170,23 @@ func TestProtobufToJSONImportPaths(t *testing.T) {
 				0x6d,
 			},
 			output: `{"firstName":"caleb","lastName":"quaye","email":"caleb@myspace.com"}`,
+		},
+		{
+			name:            "protobuf to json with emit_unpopulated",
+			message:         "testing.Person",
+			emitUnpopulated: true,
+			input: []byte{
+				0x0a, 0x05, 0x63, 0x61, 0x6c, 0x65, 0x62, 0x12, 0x05, 0x71, 0x75, 0x61, 0x79, 0x65, 0x32, 0x11,
+				0x63, 0x61, 0x6c, 0x65, 0x62, 0x40, 0x6d, 0x79, 0x73, 0x70, 0x61, 0x63, 0x65, 0x2e, 0x63, 0x6f,
+				0x6d,
+			},
+			output: `{"firstName":"caleb","lastName":"quaye","fullName":"","age":0,"id":0,"email":"caleb@myspace.com","lastUpdated":null}`,
+		},
+		{
+			name:            "protobuf to json with emit_unpopulated and empty message",
+			message:         "testing.Person",
+			emitUnpopulated: true,
+			output:          `{"firstName":"","lastName":"","fullName":"","age":0,"id":0,"email":"","lastUpdated":null}`,
 		},
 		{
 			name:          "protobuf to json with use_proto_names",
@@ -211,7 +227,8 @@ operator: to_json
 message: %v
 import_paths: [ %v ]
 use_proto_names: %t
-`, test.message, protosPath, test.useProtoNames), nil)
+emit_unpopulated: %t
+`, test.message, protosPath, test.useProtoNames, test.emitUnpopulated), nil)
 			require.NoError(t, err)
 
 			proc, err := newProtobuf(conf, service.MockResources())
@@ -238,7 +255,8 @@ bsr:
   - module: "testing"
     url: %s
 use_proto_names: %t
-`, test.message, "http://"+mockBSRServerAddress, test.useProtoNames), nil)
+emit_unpopulated: %t
+`, test.message, "http://"+mockBSRServerAddress, test.useProtoNames, test.emitUnpopulated), nil)
 			require.NoError(t, err)
 
 			proc, err := newProtobuf(conf, service.MockResources())
@@ -439,7 +457,12 @@ func runMockBSRServer(t *testing.T) string {
 	fileDescriptorSetServer := &fileDescriptorSetServer{fileDescriptorSet: fileDescriptorSet}
 	mux.Handle(reflectv1beta1connect.NewFileDescriptorSetServiceHandler(fileDescriptorSetServer))
 	go func() {
-		if err := http.Serve(listener, h2c.NewHandler(mux, &http2.Server{})); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		srv := &http.Server{Handler: mux}
+		srv.Protocols = new(http.Protocols)
+		srv.Protocols.SetHTTP1(true)
+		srv.Protocols.SetUnencryptedHTTP2(true)
+
+		if err := http.Serve(listener, srv.Handler); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			require.NoError(t, err)
 		}
 	}()

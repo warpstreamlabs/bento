@@ -291,7 +291,7 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	indexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Client: eso.client,
 		OnError: func(ctx context.Context, err error) {
-			eso.log.Errorf("Bulk Indexer Error: %w", err)
+			eso.log.Errorf("Bulk Indexer Error: %v", err)
 		},
 		Timeout: eso.conf.timeout,
 	})

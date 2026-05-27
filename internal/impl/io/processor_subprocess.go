@@ -260,14 +260,14 @@ func newSubprocWrapper(name string, args []string, maxBuf int, codecRecv string,
 					msgBytes = append(msgBytes, stdoutMsg...)
 				}
 				if len(msgBytes) > 0 {
-					log.Info(string(msgBytes))
+					log.Info("%s", string(msgBytes))
 				}
 				msgBytes = nil
 				for stderrMsg := range s.stderrChan {
 					msgBytes = append(msgBytes, stderrMsg...)
 				}
 				if len(msgBytes) > 0 {
-					log.Error(string(msgBytes))
+					log.Error("%s", string(msgBytes))
 				}
 
 				_ = s.start()
