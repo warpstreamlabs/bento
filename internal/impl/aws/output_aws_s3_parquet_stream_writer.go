@@ -199,7 +199,9 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 
 	// Add column statistics options if enabled
 	if w.columnIndexEnabled {
-		baseOptions = append(baseOptions, parquet.ColumnIndexSizeLimit(w.columnIndexSizeLimit))
+		baseOptions = append(baseOptions, parquet.ColumnIndexSizeLimit(func(path []string) int {
+			return w.columnIndexSizeLimit
+		}))
 	}
 	if w.dataPageStatistics {
 		baseOptions = append(baseOptions, parquet.DataPageStatistics(true))
@@ -566,7 +568,7 @@ func (w *StreamingParquetWriter) schemaToThrift(schema *parquet.Schema) []format
 	elements := []format.SchemaElement{
 		{
 			Name:        "schema",
-			NumChildren: numChildren,
+			NumChildren: thrift.New(numChildren),
 		},
 	}
 
@@ -593,23 +595,23 @@ func (w *StreamingParquetWriter) appendFieldToThrift(elements []format.SchemaEle
 	} else {
 		repType = format.Required
 	}
-	elem.RepetitionType = &repType
+	elem.RepetitionType = thrift.New(repType)
 
 	// Set type based on field type
 	if field.Leaf() {
 		fType := formatTypeFromParquetField(field)
-		elem.Type = &fType
+		elem.Type = thrift.New(fType)
 	} else {
 		// Group/struct type - has children
 		numChildren := int32(len(field.Fields()))
-		elem.NumChildren = numChildren
+		elem.NumChildren = thrift.New(numChildren)
 	}
 
 	// Preserve LogicalType from the field for ALL types (leaf and group)
 	// This is critical for systems like Apache Iceberg that validate types
 	// and rely on modern LogicalType annotations (STRING, INT, TIMESTAMP, LIST, MAP, etc.)
-	if field.Type().LogicalType() != nil {
-		elem.LogicalType = field.Type().LogicalType()
+	if logicalType := field.Type().LogicalType(); logicalType != nil {
+		elem.LogicalType = thrift.New(*logicalType)
 	}
 
 	// Append this element
