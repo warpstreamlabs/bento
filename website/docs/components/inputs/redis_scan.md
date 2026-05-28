@@ -33,6 +33,7 @@ input:
     url: redis://:6397 # No default (required)
     auto_replay_nacks: true
     match: ""
+    data_type: string
 ```
 
 </TabItem>
@@ -55,6 +56,9 @@ input:
       client_certs: []
     auto_replay_nacks: true
     match: ""
+    data_type: string
+    scan_count: 0
+    hash_scan_count: 0
 ```
 
 </TabItem>
@@ -69,6 +73,10 @@ This input generates a message for each key value pair in the following format:
 ```json
 {"key":"foo","value":"bar"}
 ```
+
+When `data_type` is set to `hash` this input treats matched keys as Redis hashes. It uses HSCAN to discover fields,
+fetches each field value with HGET, and generates a raw message payload for each hash field value. The Redis key is set in metadata
+`redis_key` and the hash field is set in metadata `redis_hash_field`.
 
 
 ## Fields
@@ -292,5 +300,30 @@ match: foo
 
 match: '*4*'
 ```
+
+### `data_type`
+
+The Redis data type to read for each matched key. When set to `hash`, matched keys are scanned with HSCAN and each hash field value is emitted as an individual message payload.
+
+
+Type: `string`  
+Default: `"string"`  
+Options: `string`, `hash`.
+
+### `scan_count`
+
+An optional Redis SCAN count hint for key scanning. A value of 0 preserves the Redis default scan behaviour.
+
+
+Type: `int`  
+Default: `0`  
+
+### `hash_scan_count`
+
+An optional Redis HSCAN count hint for hash field scanning. A value of 0 preserves the Redis default scan behaviour.
+
+
+Type: `int`  
+Default: `0`  
 
 

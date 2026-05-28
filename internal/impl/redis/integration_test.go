@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
+	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
@@ -219,6 +221,55 @@ cache_resources:
 			integration.StreamTestOptSleepAfterOutput(100*time.Millisecond),
 			integration.StreamTestOptPort(resource.GetPort("6379/tcp")),
 		)
+	})
+
+	t.Run("scan hash fields", func(t *testing.T) {
+		ctx := context.Background()
+		prefix := "bento_test_redis_scan_hash"
+		require.NoError(t, client.Del(ctx, prefix+":foo", prefix+":bar", "bento_test_redis_scan_hash_ignore").Err())
+		require.NoError(t, client.HSet(ctx, prefix+":foo", "field_a", []byte{0x00, 0x01, 0x02}, "field_b", []byte("payload-b")).Err())
+		require.NoError(t, client.HSet(ctx, prefix+":bar", "field_c", []byte{0xff, 0x00, 0x10}).Err())
+		require.NoError(t, client.HSet(ctx, "bento_test_redis_scan_hash_ignore", "field_z", []byte("ignored")).Err())
+
+		conf, err := redisScanInputConfig().ParseYAML(fmt.Sprintf(`
+url: tcp://localhost:%v
+match: %s:*
+data_type: hash
+scan_count: 1
+hash_scan_count: 1
+`, resource.GetPort("6379/tcp"), prefix), nil)
+		require.NoError(t, err)
+
+		input, err := newRedisScanInputFromConfig(conf, service.MockResources())
+		require.NoError(t, err)
+		require.NoError(t, input.Connect(ctx))
+		t.Cleanup(func() {
+			assert.NoError(t, input.Close(ctx))
+		})
+
+		actual := map[string][]byte{}
+		for {
+			msg, ackFn, err := input.Read(ctx)
+			if errors.Is(err, service.ErrEndOfInput) {
+				break
+			}
+			require.NoError(t, err)
+			require.NoError(t, ackFn(ctx, nil))
+
+			key, exists := msg.MetaGet(redisScanMetaKey)
+			require.True(t, exists)
+			field, exists := msg.MetaGet(redisScanMetaHashField)
+			require.True(t, exists)
+			payload, err := msg.AsBytes()
+			require.NoError(t, err)
+			actual[key+"|"+field] = payload
+		}
+
+		assert.Equal(t, map[string][]byte{
+			prefix + ":foo|field_a": {0x00, 0x01, 0x02},
+			prefix + ":foo|field_b": []byte("payload-b"),
+			prefix + ":bar|field_c": {0xff, 0x00, 0x10},
+		}, actual)
 	})
 
 	// HASH
