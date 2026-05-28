@@ -184,24 +184,16 @@ func (r *redisScanReader) readString(ctx context.Context) (*service.Message, ser
 }
 
 func (r *redisScanReader) newStringMessage(key string, res *redis.StringCmd) (*service.Message, service.AckFunc, error) {
-	var msg *service.Message
-	if r.valueFormat == redisScanValueFormatRaw {
-		valueBytes, err := res.Bytes()
-		if err != nil {
-			return nil, nil, err
-		}
-		msg = service.NewMessage(valueBytes)
-		msg.MetaSetMut(redisScanMetaKey, key)
-	} else {
-		msg = service.NewMessage(nil)
-		msg.SetStructuredMut(map[string]any{
+	return r.newValueMessage(
+		res,
+		map[string]any{
 			"key":   key,
 			"value": res.Val(),
-		})
-	}
-	return msg, func(ctx context.Context, err error) error {
-		return err
-	}, nil
+		},
+		map[string]string{
+			redisScanMetaKey: key,
+		},
+	)
 }
 
 // readHash can emit each hash field as either a structured object or as a raw
@@ -250,6 +242,21 @@ func (r *redisScanReader) readHash(ctx context.Context) (*service.Message, servi
 }
 
 func (r *redisScanReader) newHashMessage(key, field string, res *redis.StringCmd) (*service.Message, service.AckFunc, error) {
+	return r.newValueMessage(
+		res,
+		map[string]any{
+			"key":   key,
+			"field": field,
+			"value": res.Val(),
+		},
+		map[string]string{
+			redisScanMetaKey:       key,
+			redisScanMetaHashField: field,
+		},
+	)
+}
+
+func (r *redisScanReader) newValueMessage(res *redis.StringCmd, structured map[string]any, metadata map[string]string) (*service.Message, service.AckFunc, error) {
 	var msg *service.Message
 	if r.valueFormat == redisScanValueFormatRaw {
 		valueBytes, err := res.Bytes()
@@ -257,15 +264,12 @@ func (r *redisScanReader) newHashMessage(key, field string, res *redis.StringCmd
 			return nil, nil, err
 		}
 		msg = service.NewMessage(valueBytes)
-		msg.MetaSetMut(redisScanMetaKey, key)
-		msg.MetaSetMut(redisScanMetaHashField, field)
+		for k, v := range metadata {
+			msg.MetaSetMut(k, v)
+		}
 	} else {
 		msg = service.NewMessage(nil)
-		msg.SetStructuredMut(map[string]any{
-			"key":   key,
-			"field": field,
-			"value": res.Val(),
-		})
+		msg.SetStructuredMut(structured)
 	}
 	return msg, func(ctx context.Context, err error) error {
 		return err
