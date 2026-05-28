@@ -55,8 +55,8 @@ This input generates a message for each key value pair in the following format:
 {"key":"foo","value":"bar"}
 ` + "```" + `
 
-When ` + "`data_type`" + ` is set to ` + "`hash`" + ` this input treats matched keys as Redis hashes. It uses HSCAN to discover fields,
-and fetches each field value with HGET.
+When ` + "`data_type`" + ` is set to ` + "`hash`" + ` this input treats matched keys as Redis hashes. It uses HSCAN to
+iterate over each field and its value.
 
 By default, ` + "`value_format`" + ` is ` + "`structured`" + ` in order to preserve the original ` + "`redis_scan`" + ` message shape
 of ` + "`{\"key\":\"...\",\"value\":\"...\"}`" + `. Set it to ` + "`raw`" + ` to emit Redis values as raw message payloads.
@@ -170,25 +170,26 @@ func (r *redisScanReader) Read(ctx context.Context) (*service.Message, service.A
 // decoders usually expect the message payload itself to contain the encoded
 // bytes.
 func (r *redisScanReader) readString(ctx context.Context) (*service.Message, service.AckFunc, error) {
-	if r.iter.Next(ctx) {
-		key := r.iter.Val()
-
-		res := r.client.Get(ctx, key)
-		if err := res.Err(); err != nil {
+	if !r.iter.Next(ctx) {
+		if err := r.iter.Err(); err != nil {
 			return nil, nil, err
 		}
-
-		return r.newStringMessage(key, res)
+		return nil, nil, service.ErrEndOfInput
 	}
-	return nil, nil, service.ErrEndOfInput
+	key := r.iter.Val()
+	res := r.client.Get(ctx, key)
+	if err := res.Err(); err != nil {
+		return nil, nil, err
+	}
+	return r.newStringMessage(key, res.Val())
 }
 
-func (r *redisScanReader) newStringMessage(key string, res *redis.StringCmd) (*service.Message, service.AckFunc, error) {
+func (r *redisScanReader) newStringMessage(key, value string) (*service.Message, service.AckFunc, error) {
 	return r.newValueMessage(
-		res,
+		value,
 		map[string]any{
 			"key":   key,
-			"value": res.Val(),
+			"value": value,
 		},
 		map[string]string{
 			redisScanMetaKey: key,
@@ -212,12 +213,12 @@ func (r *redisScanReader) readHash(ctx context.Context) (*service.Message, servi
 					return nil, nil, fmt.Errorf("redis HSCAN returned field without value for key %q", r.currentHashKey)
 				}
 
-				res := r.client.HGet(ctx, r.currentHashKey, field)
-				if err := res.Err(); err != nil {
-					return nil, nil, err
-				}
-
-				return r.newHashMessage(r.currentHashKey, field, res)
+				// HSCAN returns field/value pairs, so the value is the next
+				// iterator element. It's read via the same proto reader as
+				// HGET, so it's byte-exact for binary values (e.g. protobuf) —
+				// no need for a separate HGET round-trip per field.
+				value := r.hashIter.Val()
+				return r.newHashMessage(r.currentHashKey, field, value)
 			}
 			if err := r.hashIter.Err(); err != nil {
 				return nil, nil, err
@@ -241,13 +242,13 @@ func (r *redisScanReader) readHash(ctx context.Context) (*service.Message, servi
 	}
 }
 
-func (r *redisScanReader) newHashMessage(key, field string, res *redis.StringCmd) (*service.Message, service.AckFunc, error) {
+func (r *redisScanReader) newHashMessage(key, field, value string) (*service.Message, service.AckFunc, error) {
 	return r.newValueMessage(
-		res,
+		value,
 		map[string]any{
 			"key":   key,
 			"field": field,
-			"value": res.Val(),
+			"value": value,
 		},
 		map[string]string{
 			redisScanMetaKey:       key,
@@ -256,14 +257,10 @@ func (r *redisScanReader) newHashMessage(key, field string, res *redis.StringCmd
 	)
 }
 
-func (r *redisScanReader) newValueMessage(res *redis.StringCmd, structured map[string]any, metadata map[string]string) (*service.Message, service.AckFunc, error) {
+func (r *redisScanReader) newValueMessage(value string, structured map[string]any, metadata map[string]string) (*service.Message, service.AckFunc, error) {
 	var msg *service.Message
 	if r.valueFormat == redisScanValueFormatRaw {
-		valueBytes, err := res.Bytes()
-		if err != nil {
-			return nil, nil, err
-		}
-		msg = service.NewMessage(valueBytes)
+		msg = service.NewMessage([]byte(value))
 		for k, v := range metadata {
 			msg.MetaSetMut(k, v)
 		}

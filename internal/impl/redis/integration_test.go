@@ -192,6 +192,8 @@ input:
 	})
 
 	// SCAN
+	// match: 'foo-*' scopes to integration test keys so the "scan value formats"
+	// sub-test's prefixed keys don't leak into this test's expected output.
 	t.Run("scan", func(t *testing.T) {
 		t.Parallel()
 		template := `
@@ -224,6 +226,7 @@ cache_resources:
 	})
 
 	t.Run("scan value formats", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 
 		newInput := func(t *testing.T, confStr string) service.Input {
