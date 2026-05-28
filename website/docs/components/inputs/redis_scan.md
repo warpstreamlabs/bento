@@ -34,6 +34,7 @@ input:
     auto_replay_nacks: true
     match: ""
     data_type: string
+    value_format: structured
 ```
 
 </TabItem>
@@ -57,6 +58,7 @@ input:
     auto_replay_nacks: true
     match: ""
     data_type: string
+    value_format: structured
     scan_count: 0
     hash_scan_count: 0
 ```
@@ -75,8 +77,12 @@ This input generates a message for each key value pair in the following format:
 ```
 
 When `data_type` is set to `hash` this input treats matched keys as Redis hashes. It uses HSCAN to discover fields,
-fetches each field value with HGET, and generates a raw message payload for each hash field value. The Redis key is set in metadata
-`redis_key` and the hash field is set in metadata `redis_hash_field`.
+and fetches each field value with HGET.
+
+By default, `value_format` is `structured` in order to preserve the original `redis_scan` message shape
+of `{"key":"...","value":"..."}`. Set it to `raw` to emit Redis values as raw message payloads.
+Raw messages set Redis identity fields as metadata, using `redis_key` for Redis keys and
+`redis_hash_field` for hash fields.
 
 
 ## Fields
@@ -303,12 +309,21 @@ match: '*4*'
 
 ### `data_type`
 
-The Redis data type to read for each matched key. When set to `hash`, matched keys are scanned with HSCAN and each hash field value is emitted as an individual message payload.
+The Redis data type to read for each matched key. When set to `hash`, matched keys are scanned with HSCAN and each hash field value is emitted as an individual message.
 
 
 Type: `string`  
 Default: `"string"`  
 Options: `string`, `hash`.
+
+### `value_format`
+
+The Bento message shape to emit for Redis values. The `structured` format preserves the original redis_scan key/value object shape, while `raw` emits Redis values as message payloads and stores Redis identity in metadata.
+
+
+Type: `string`  
+Default: `"structured"`  
+Options: `structured`, `raw`.
 
 ### `scan_count`
 

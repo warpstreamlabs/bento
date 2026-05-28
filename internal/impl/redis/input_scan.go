@@ -27,11 +27,15 @@ func init() {
 const (
 	matchFieldName         = "match"
 	dataTypeFieldName      = "data_type"
+	valueFormatFieldName   = "value_format"
 	scanCountFieldName     = "scan_count"
 	hashScanCountFieldName = "hash_scan_count"
 
 	redisScanDataTypeString = "string"
 	redisScanDataTypeHash   = "hash"
+
+	redisScanValueFormatStructured = "structured"
+	redisScanValueFormatRaw        = "raw"
 
 	redisScanMetaKey       = "redis_key"
 	redisScanMetaHashField = "redis_hash_field"
@@ -52,8 +56,12 @@ This input generates a message for each key value pair in the following format:
 ` + "```" + `
 
 When ` + "`data_type`" + ` is set to ` + "`hash`" + ` this input treats matched keys as Redis hashes. It uses HSCAN to discover fields,
-fetches each field value with HGET, and generates a raw message payload for each hash field value. The Redis key is set in metadata
-` + "`redis_key`" + ` and the hash field is set in metadata ` + "`redis_hash_field`" + `.
+and fetches each field value with HGET.
+
+By default, ` + "`value_format`" + ` is ` + "`structured`" + ` in order to preserve the original ` + "`redis_scan`" + ` message shape
+of ` + "`{\"key\":\"...\",\"value\":\"...\"}`" + `. Set it to ` + "`raw`" + ` to emit Redis values as raw message payloads.
+Raw messages set Redis identity fields as metadata, using ` + "`redis_key`" + ` for Redis keys and
+` + "`redis_hash_field`" + ` for hash fields.
 `).
 		Categories("Services")
 	for _, f := range clientFields() {
@@ -71,8 +79,11 @@ fetches each field value with HGET, and generates a raw message payload for each
 			Example("*4*").
 			Default("")).
 		Field(service.NewStringEnumField(dataTypeFieldName, redisScanDataTypeString, redisScanDataTypeHash).
-			Description("The Redis data type to read for each matched key. When set to `hash`, matched keys are scanned with HSCAN and each hash field value is emitted as an individual message payload.").
+			Description("The Redis data type to read for each matched key. When set to `hash`, matched keys are scanned with HSCAN and each hash field value is emitted as an individual message.").
 			Default(redisScanDataTypeString)).
+		Field(service.NewStringEnumField(valueFormatFieldName, redisScanValueFormatStructured, redisScanValueFormatRaw).
+			Description("The Bento message shape to emit for Redis values. The `structured` format preserves the original redis_scan key/value object shape, while `raw` emits Redis values as message payloads and stores Redis identity in metadata.").
+			Default(redisScanValueFormatStructured)).
 		Field(service.NewIntField(scanCountFieldName).
 			Description("An optional Redis SCAN count hint for key scanning. A value of 0 preserves the Redis default scan behaviour.").
 			Default(0).
@@ -96,6 +107,10 @@ func newRedisScanInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving %s: %v", dataTypeFieldName, err)
 	}
+	valueFormat, err := conf.FieldString(valueFormatFieldName)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving %s: %v", valueFormatFieldName, err)
+	}
 	scanCount, err := conf.FieldInt(scanCountFieldName)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving %s: %v", scanCountFieldName, err)
@@ -108,6 +123,7 @@ func newRedisScanInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 		client:        client,
 		match:         match,
 		dataType:      dataType,
+		valueFormat:   valueFormat,
 		scanCount:     int64(scanCount),
 		hashScanCount: int64(hashScanCount),
 		log:           mgr.Logger(),
@@ -118,6 +134,7 @@ func newRedisScanInputFromConfig(conf *service.ParsedConfig, mgr *service.Resour
 type redisScanReader struct {
 	match         string
 	dataType      string
+	valueFormat   string
 	scanCount     int64
 	hashScanCount int64
 
@@ -146,12 +163,12 @@ func (r *redisScanReader) Read(ctx context.Context) (*service.Message, service.A
 	return r.readString(ctx)
 }
 
-// readString preserves the original redis_scan output shape for backwards
-// compatibility. This means values are stored inside a structured message as
-// the "value" field rather than becoming the message payload. That shape works
-// well for text Redis string values, but can be awkward for arbitrary binary
-// values such as protobuf bytes because downstream binary decoders usually
-// expect the message payload itself to contain the encoded bytes.
+// readString preserves the original redis_scan output shape by default for
+// backwards compatibility: a structured object of {"key":"...","value":"..."}.
+// That shape works well for text Redis string values, but can be awkward for
+// arbitrary binary values such as protobuf bytes because downstream binary
+// decoders usually expect the message payload itself to contain the encoded
+// bytes.
 func (r *redisScanReader) readString(ctx context.Context) (*service.Message, service.AckFunc, error) {
 	if r.iter.Next(ctx) {
 		key := r.iter.Val()
@@ -161,24 +178,36 @@ func (r *redisScanReader) readString(ctx context.Context) (*service.Message, ser
 			return nil, nil, err
 		}
 
-		msg := service.NewMessage(nil)
-		msg.SetStructuredMut(map[string]any{
-			"key":   key,
-			"value": res.Val(),
-		})
-		return msg, func(ctx context.Context, err error) error {
-			return err
-		}, nil
+		return r.newStringMessage(key, res)
 	}
 	return nil, nil, service.ErrEndOfInput
 }
 
-// readHash emits each hash field value as the raw message payload in order to
-// preserve binary values exactly. This differs from the legacy string mode
-// above, which wraps values in a structured {"key":"...","value":"..."} object.
-// A future compatibility-safe improvement could expose an explicit output-shape
-// option so both Redis string and hash scans can choose between structured
-// envelopes and raw value payloads.
+func (r *redisScanReader) newStringMessage(key string, res *redis.StringCmd) (*service.Message, service.AckFunc, error) {
+	var msg *service.Message
+	if r.valueFormat == redisScanValueFormatRaw {
+		valueBytes, err := res.Bytes()
+		if err != nil {
+			return nil, nil, err
+		}
+		msg = service.NewMessage(valueBytes)
+		msg.MetaSetMut(redisScanMetaKey, key)
+	} else {
+		msg = service.NewMessage(nil)
+		msg.SetStructuredMut(map[string]any{
+			"key":   key,
+			"value": res.Val(),
+		})
+	}
+	return msg, func(ctx context.Context, err error) error {
+		return err
+	}, nil
+}
+
+// readHash can emit each hash field as either a structured object or as a raw
+// value payload. Raw output aligns with Redis list/pubsub inputs and preserves
+// binary values exactly, while structured output gives text values an envelope
+// close to the legacy {"key":"...","value":"..."} redis_scan shape.
 func (r *redisScanReader) readHash(ctx context.Context) (*service.Message, service.AckFunc, error) {
 	for {
 		if r.hashIter != nil {
@@ -192,17 +221,11 @@ func (r *redisScanReader) readHash(ctx context.Context) (*service.Message, servi
 				}
 
 				res := r.client.HGet(ctx, r.currentHashKey, field)
-				valueBytes, err := res.Bytes()
-				if err != nil {
+				if err := res.Err(); err != nil {
 					return nil, nil, err
 				}
 
-				msg := service.NewMessage(valueBytes)
-				msg.MetaSetMut(redisScanMetaKey, r.currentHashKey)
-				msg.MetaSetMut(redisScanMetaHashField, field)
-				return msg, func(ctx context.Context, err error) error {
-					return err
-				}, nil
+				return r.newHashMessage(r.currentHashKey, field, res)
 			}
 			if err := r.hashIter.Err(); err != nil {
 				return nil, nil, err
@@ -224,6 +247,29 @@ func (r *redisScanReader) readHash(ctx context.Context) (*service.Message, servi
 			return nil, nil, err
 		}
 	}
+}
+
+func (r *redisScanReader) newHashMessage(key, field string, res *redis.StringCmd) (*service.Message, service.AckFunc, error) {
+	var msg *service.Message
+	if r.valueFormat == redisScanValueFormatRaw {
+		valueBytes, err := res.Bytes()
+		if err != nil {
+			return nil, nil, err
+		}
+		msg = service.NewMessage(valueBytes)
+		msg.MetaSetMut(redisScanMetaKey, key)
+		msg.MetaSetMut(redisScanMetaHashField, field)
+	} else {
+		msg = service.NewMessage(nil)
+		msg.SetStructuredMut(map[string]any{
+			"key":   key,
+			"field": field,
+			"value": res.Val(),
+		})
+	}
+	return msg, func(ctx context.Context, err error) error {
+		return err
+	}, nil
 }
 
 func (r *redisScanReader) Close(ctx context.Context) (err error) {

@@ -198,7 +198,7 @@ input:
 input:
   redis_scan:
     url: 'tcp://localhost:$PORT'
-    match: '*'
+    match: 'foo-*'
   processors:
     - mapping: 'root = this.value'
 
@@ -223,53 +223,160 @@ cache_resources:
 		)
 	})
 
-	t.Run("scan hash fields", func(t *testing.T) {
+	t.Run("scan value formats", func(t *testing.T) {
 		ctx := context.Background()
-		prefix := "bento_test_redis_scan_hash"
-		require.NoError(t, client.Del(ctx, prefix+":foo", prefix+":bar", "bento_test_redis_scan_hash_ignore").Err())
-		require.NoError(t, client.HSet(ctx, prefix+":foo", "field_a", []byte{0x00, 0x01, 0x02}, "field_b", []byte("payload-b")).Err())
-		require.NoError(t, client.HSet(ctx, prefix+":bar", "field_c", []byte{0xff, 0x00, 0x10}).Err())
-		require.NoError(t, client.HSet(ctx, "bento_test_redis_scan_hash_ignore", "field_z", []byte("ignored")).Err())
 
-		conf, err := redisScanInputConfig().ParseYAML(fmt.Sprintf(`
+		newInput := func(t *testing.T, confStr string) service.Input {
+			t.Helper()
+
+			conf, err := redisScanInputConfig().ParseYAML(confStr, nil)
+			require.NoError(t, err)
+
+			input, err := newRedisScanInputFromConfig(conf, service.MockResources())
+			require.NoError(t, err)
+			require.NoError(t, input.Connect(ctx))
+			t.Cleanup(func() {
+				assert.NoError(t, input.Close(ctx))
+			})
+
+			return input
+		}
+
+		readStructured := func(t *testing.T, input service.Input) map[string]map[string]any {
+			t.Helper()
+
+			actual := map[string]map[string]any{}
+			for {
+				msg, ackFn, err := input.Read(ctx)
+				if errors.Is(err, service.ErrEndOfInput) {
+					break
+				}
+				require.NoError(t, err)
+				require.NoError(t, ackFn(ctx, nil))
+
+				structured, err := msg.AsStructured()
+				require.NoError(t, err)
+				obj, ok := structured.(map[string]any)
+				require.True(t, ok)
+
+				id := fmt.Sprintf("%v", obj["key"])
+				if field, exists := obj["field"]; exists {
+					id += "|" + fmt.Sprintf("%v", field)
+				}
+				actual[id] = obj
+			}
+			return actual
+		}
+
+		readRaw := func(t *testing.T, input service.Input) map[string][]byte {
+			t.Helper()
+
+			actual := map[string][]byte{}
+			for {
+				msg, ackFn, err := input.Read(ctx)
+				if errors.Is(err, service.ErrEndOfInput) {
+					break
+				}
+				require.NoError(t, err)
+				require.NoError(t, ackFn(ctx, nil))
+
+				key, exists := msg.MetaGet(redisScanMetaKey)
+				require.True(t, exists)
+				id := key
+				if field, exists := msg.MetaGet(redisScanMetaHashField); exists {
+					id += "|" + field
+				}
+				payload, err := msg.AsBytes()
+				require.NoError(t, err)
+				actual[id] = payload
+			}
+			return actual
+		}
+
+		stringStructuredPrefix := "bento_test_redis_scan_string_structured"
+		require.NoError(t, client.Del(ctx, stringStructuredPrefix+":foo", stringStructuredPrefix+":bar").Err())
+		require.NoError(t, client.Set(ctx, stringStructuredPrefix+":foo", "payload-a", 0).Err())
+		require.NoError(t, client.Set(ctx, stringStructuredPrefix+":bar", "payload-b", 0).Err())
+		stringStructuredInput := newInput(t, fmt.Sprintf(`
+url: tcp://localhost:%v
+match: %s:*
+scan_count: 1
+`, resource.GetPort("6379/tcp"), stringStructuredPrefix))
+		assert.Equal(t, map[string]map[string]any{
+			stringStructuredPrefix + ":foo": {
+				"key":   stringStructuredPrefix + ":foo",
+				"value": "payload-a",
+			},
+			stringStructuredPrefix + ":bar": {
+				"key":   stringStructuredPrefix + ":bar",
+				"value": "payload-b",
+			},
+		}, readStructured(t, stringStructuredInput))
+
+		stringRawPrefix := "bento_test_redis_scan_string_raw"
+		require.NoError(t, client.Del(ctx, stringRawPrefix+":foo", stringRawPrefix+":bar").Err())
+		require.NoError(t, client.Set(ctx, stringRawPrefix+":foo", []byte{0x00, 0x01, 0x02}, 0).Err())
+		require.NoError(t, client.Set(ctx, stringRawPrefix+":bar", []byte("payload-b"), 0).Err())
+		stringRawInput := newInput(t, fmt.Sprintf(`
+url: tcp://localhost:%v
+match: %s:*
+data_type: string
+value_format: raw
+scan_count: 1
+`, resource.GetPort("6379/tcp"), stringRawPrefix))
+		assert.Equal(t, map[string][]byte{
+			stringRawPrefix + ":foo": {0x00, 0x01, 0x02},
+			stringRawPrefix + ":bar": []byte("payload-b"),
+		}, readRaw(t, stringRawInput))
+
+		hashStructuredPrefix := "bento_test_redis_scan_hash_structured"
+		require.NoError(t, client.Del(ctx, hashStructuredPrefix+":foo", hashStructuredPrefix+":bar").Err())
+		require.NoError(t, client.HSet(ctx, hashStructuredPrefix+":foo", "field_a", "payload-a", "field_b", "payload-b").Err())
+		require.NoError(t, client.HSet(ctx, hashStructuredPrefix+":bar", "field_c", "payload-c").Err())
+		hashStructuredInput := newInput(t, fmt.Sprintf(`
 url: tcp://localhost:%v
 match: %s:*
 data_type: hash
+value_format: structured
 scan_count: 1
 hash_scan_count: 1
-`, resource.GetPort("6379/tcp"), prefix), nil)
-		require.NoError(t, err)
+`, resource.GetPort("6379/tcp"), hashStructuredPrefix))
+		assert.Equal(t, map[string]map[string]any{
+			hashStructuredPrefix + ":foo|field_a": {
+				"key":   hashStructuredPrefix + ":foo",
+				"field": "field_a",
+				"value": "payload-a",
+			},
+			hashStructuredPrefix + ":foo|field_b": {
+				"key":   hashStructuredPrefix + ":foo",
+				"field": "field_b",
+				"value": "payload-b",
+			},
+			hashStructuredPrefix + ":bar|field_c": {
+				"key":   hashStructuredPrefix + ":bar",
+				"field": "field_c",
+				"value": "payload-c",
+			},
+		}, readStructured(t, hashStructuredInput))
 
-		input, err := newRedisScanInputFromConfig(conf, service.MockResources())
-		require.NoError(t, err)
-		require.NoError(t, input.Connect(ctx))
-		t.Cleanup(func() {
-			assert.NoError(t, input.Close(ctx))
-		})
-
-		actual := map[string][]byte{}
-		for {
-			msg, ackFn, err := input.Read(ctx)
-			if errors.Is(err, service.ErrEndOfInput) {
-				break
-			}
-			require.NoError(t, err)
-			require.NoError(t, ackFn(ctx, nil))
-
-			key, exists := msg.MetaGet(redisScanMetaKey)
-			require.True(t, exists)
-			field, exists := msg.MetaGet(redisScanMetaHashField)
-			require.True(t, exists)
-			payload, err := msg.AsBytes()
-			require.NoError(t, err)
-			actual[key+"|"+field] = payload
-		}
-
+		hashRawPrefix := "bento_test_redis_scan_hash_raw"
+		require.NoError(t, client.Del(ctx, hashRawPrefix+":foo", hashRawPrefix+":bar", "bento_test_redis_scan_hash_raw_ignore").Err())
+		require.NoError(t, client.HSet(ctx, hashRawPrefix+":foo", "field_a", []byte{0x00, 0x01, 0x02}, "field_b", []byte("payload-b")).Err())
+		require.NoError(t, client.HSet(ctx, hashRawPrefix+":bar", "field_c", []byte{0xff, 0x00, 0x10}).Err())
+		require.NoError(t, client.HSet(ctx, "bento_test_redis_scan_hash_raw_ignore", "field_z", []byte("ignored")).Err())
+		hashRawInput := newInput(t, fmt.Sprintf(`
+url: tcp://localhost:%v
+match: %s:*
+data_type: hash
+value_format: raw
+scan_count: 1
+hash_scan_count: 1
+`, resource.GetPort("6379/tcp"), hashRawPrefix))
 		assert.Equal(t, map[string][]byte{
-			prefix + ":foo|field_a": {0x00, 0x01, 0x02},
-			prefix + ":foo|field_b": []byte("payload-b"),
-			prefix + ":bar|field_c": {0xff, 0x00, 0x10},
-		}, actual)
+			hashRawPrefix + ":foo|field_a": {0x00, 0x01, 0x02},
+			hashRawPrefix + ":foo|field_b": []byte("payload-b"),
+			hashRawPrefix + ":bar|field_c": {0xff, 0x00, 0x10},
+		}, readRaw(t, hashRawInput))
 	})
 
 	// HASH
