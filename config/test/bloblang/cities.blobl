@@ -1,4 +1,0 @@
-root.Cities = this.locations.
-                filter(loc -> loc.state == "WA").
-                map_each(loc -> loc.name).
-                sort().join(", ")

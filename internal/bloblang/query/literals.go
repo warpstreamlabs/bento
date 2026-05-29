@@ -13,7 +13,7 @@ type mapLiteral struct {
 }
 
 // NewMapLiteral creates a map literal from a slice of key/value pairs. If all
-// keys and values are static then a static map[string]interface{} value is
+// keys and values are static then a static map[string]any value is
 // returned. However, if any keys or values are dynamic a Function is returned.
 func NewMapLiteral(values [][2]any) (any, error) {
 	isDynamic := false
@@ -135,7 +135,7 @@ type arrayLiteral struct {
 }
 
 // NewArrayLiteral creates an array literal from a slice of values. If all
-// values are static then a static []interface{} value is returned. However, if
+// values are static then a static []any value is returned. However, if
 // any values are dynamic a Function is returned.
 func NewArrayLiteral(values ...Function) any {
 	var expandedValues []any

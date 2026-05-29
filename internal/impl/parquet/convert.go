@@ -73,7 +73,7 @@ func setField(field reflect.Value, value any) error {
 
 	switch field.Kind() {
 	case reflect.Interface:
-		// For interface{} fields, we can directly set the value
+		// For any fields, we can directly set the value
 		field.Set(reflect.ValueOf(value))
 		return nil
 	case reflect.Int8:

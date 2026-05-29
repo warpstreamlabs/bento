@@ -1,3 +1,0 @@
-output_resources:
-  - label: to_stdout
-    stdout: {}

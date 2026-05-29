@@ -29,7 +29,7 @@ var ErrRootDeleted = errors.New("root was deleted")
 
 // Query executes a Bloblang mapping against a value and returns the result. The
 // argument and return values can be structured using the same
-// map[string]interface{} and []interface{} types as would be returned by the Go
+// map[string]any and []any types as would be returned by the Go
 // standard json package unmarshaler.
 //
 // If the mapping results in the root of the new document being deleted then

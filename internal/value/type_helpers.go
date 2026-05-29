@@ -327,7 +327,7 @@ func RestrictForComparison(v any) any {
 
 // ISanitize takes a boxed value of any type and attempts to convert it into one
 // of the following types: string, []byte, int64, uint64, float64, bool,
-// []interface{}, map[string]interface{}, Delete, Nothing.
+// []any, map[string]any, Delete, Nothing.
 func ISanitize(i any) any {
 	switch t := i.(type) {
 	case string, []byte, int64, uint64, float64, bool, []any, map[string]any, Delete, Nothing:

@@ -44,7 +44,7 @@ func ValueAsFloat32(v any) (float32, error) {
 
 // ValueSanitized takes a boxed value of any type and attempts to convert it
 // into one of the following types: string, []byte, int64, uint64, float64,
-// bool, []interface{}, map[string]interface{}, Delete, Nothing.
+// bool, []any, map[string]any, Delete, Nothing.
 func ValueSanitized(i any) any {
 	return value.ISanitize(i)
 }

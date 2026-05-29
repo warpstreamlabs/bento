@@ -228,7 +228,7 @@ func (c *cassandraWriter) mapArgs(b service.MessageBatch, index int) ([]any, err
 
 		j, ok := jraw.([]any)
 		if !ok {
-			return nil, fmt.Errorf("expected bloblang mapping result to be []interface{} but was %T", jraw)
+			return nil, fmt.Errorf("expected bloblang mapping result to be []any but was %T", jraw)
 		}
 
 		for i, v := range j {

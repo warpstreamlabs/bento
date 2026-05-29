@@ -524,12 +524,12 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	// ========== VERIFY CONTEXTS STRUCTURE ==========
 	require.Contains(t, jsonOutput, "contexts", "Should have contexts field")
 	contextsMap, ok := jsonOutput["contexts"].(map[string]any)
-	require.True(t, ok, "contexts should be a map[string]interface{}")
+	require.True(t, ok, "contexts should be a map[string]any")
 
 	// ========== VERIFY DERIVED_CONTEXTS STRUCTURE ==========
 	require.Contains(t, jsonOutput, "derived_contexts", "Should have derived_contexts field")
 	derivedContextsMap, ok := jsonOutput["derived_contexts"].(map[string]any)
-	require.True(t, ok, "derived_contexts should be a map[string]interface{}")
+	require.True(t, ok, "derived_contexts should be a map[string]any")
 	require.NotEmpty(t, derivedContextsMap, "Should have at least one derived context")
 
 	// Test 1: Verify schema key format (no iglu: prefix, just vendor.name)
@@ -628,7 +628,7 @@ func TestProcessPageViewEnrichedJSON(t *testing.T) {
 	// ========== VERIFY DERIVED_CONTEXTS STRUCTURE ==========
 	require.Contains(t, jsonOutput, "derived_contexts", "Should have derived_contexts field")
 	derivedContextsMap, ok = jsonOutput["derived_contexts"].(map[string]any)
-	require.True(t, ok, "derived_contexts should be a map[string]interface{}")
+	require.True(t, ok, "derived_contexts should be a map[string]any")
 	require.NotEmpty(t, derivedContextsMap, "Should have at least one derived context")
 
 	// Verify derived_contexts follow the same structure pattern

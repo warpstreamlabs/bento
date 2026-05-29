@@ -371,10 +371,10 @@ func LiteralValue() Func[any] {
 	}
 }
 
-// JoinStringPayloads wraps a parser that returns a []interface{} of exclusively
+// JoinStringPayloads wraps a parser that returns a []any of exclusively
 // string values and returns a result of a joined string of all the elements.
 //
-// Warning! If the result is not a []interface{}, or if an element is not a
+// Warning! If the result is not a []any, or if an element is not a
 // string, then this parser returns a zero value instead.
 func JoinStringPayloads(p Func[[]string]) Func[string] {
 	return func(input []rune) Result[string] {

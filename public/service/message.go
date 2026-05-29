@@ -238,7 +238,7 @@ func (m *Message) SetBytes(b []byte) {
 
 // SetStructured sets the underlying contents of the message as a structured
 // type. This structured value should be a scalar Go type, or either a
-// map[string]interface{} or []interface{} containing the same types all the way
+// map[string]any or []any containing the same types all the way
 // through the hierarchy, this ensures that other processors are able to work
 // with the contents and that they can be JSON marshalled when coerced into a
 // byte array.
@@ -252,7 +252,7 @@ func (m *Message) SetStructured(i any) {
 
 // SetStructuredMut sets the underlying contents of the message as a structured
 // type. This structured value should be a scalar Go type, or either a
-// map[string]interface{} or []interface{} containing the same types all the way
+// map[string]any or []any containing the same types all the way
 // through the hierarchy, this ensures that other processors are able to work
 // with the contents and that they can be JSON marshalled when coerced into a
 // byte array.
