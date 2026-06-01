@@ -19,6 +19,8 @@ import (
 
 type MultiModuleWatcher struct {
 	bsrClients map[string]*prototransform.SchemaWatcher
+	httpClient *http.Client
+	cancel     context.CancelFunc
 }
 
 var _ prototransform.Resolver = &MultiModuleWatcher{}
@@ -27,10 +29,18 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 	if len(bsrModules) == 0 {
 		return nil, errors.New("no modules provided")
 	}
-	multiModuleWatcher := &MultiModuleWatcher{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	httpClient := &http.Client{
+		Transport: &http.Transport{},
+	}
+	multiModuleWatcher := &MultiModuleWatcher{
+		bsrClients: make(map[string]*prototransform.SchemaWatcher),
+		httpClient: httpClient,
+		cancel:     cancel,
+	}
 
 	// Initialise one client for each module
-	multiModuleWatcher.bsrClients = make(map[string]*prototransform.SchemaWatcher)
 	for _, bsrModule := range bsrModules {
 		var bsrURL string
 		bsrURL, err := bsrModule.FieldString(fieldBSRUrl)
@@ -53,7 +63,7 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 			return nil, err
 		}
 
-		watcher, err := newSchemaWatcher(context.Background(), bsrURL, bsrAPIKey, module, version)
+		watcher, err := newSchemaWatcher(ctx, httpClient, bsrURL, bsrAPIKey, module, version)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +73,7 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 	return multiModuleWatcher, nil
 }
 
-func newSchemaWatcher(ctx context.Context, bsrURL string, bsrAPIKey string, module string, version string) (*prototransform.SchemaWatcher, error) {
+func newSchemaWatcher(ctx context.Context, httpClient *http.Client, bsrURL string, bsrAPIKey string, module string, version string) (*prototransform.SchemaWatcher, error) {
 	// If no BSR url provided, extract from module
 	if bsrURL == "" {
 		segments := strings.Split(module, "/")
@@ -80,7 +90,7 @@ func newSchemaWatcher(ctx context.Context, bsrURL string, bsrAPIKey string, modu
 	if bsrAPIKey != "" {
 		opts = append(opts, connectrpc.WithInterceptors(prototransform.NewAuthInterceptor(bsrAPIKey)))
 	}
-	client := reflectv1beta1connect.NewFileDescriptorSetServiceClient(http.DefaultClient, bsrURL, opts...)
+	client := reflectv1beta1connect.NewFileDescriptorSetServiceClient(httpClient, bsrURL, opts...)
 
 	cfg := &prototransform.SchemaWatcherConfig{
 		SchemaPoller: prototransform.NewSchemaPoller(
@@ -172,4 +182,14 @@ func (w *MultiModuleWatcher) FindEnumByName(enum protoreflect.FullName) (protore
 		return enumType, nil
 	}
 	return nil, fmt.Errorf("could not find %s in any loaded modules", enum)
+}
+
+func (m *MultiModuleWatcher) Close() {
+	m.cancel()
+	for _, v := range m.bsrClients {
+		v.Stop()
+	}
+	if t, ok := m.httpClient.Transport.(*http.Transport); ok {
+		t.CloseIdleConnections()
+	}
 }
