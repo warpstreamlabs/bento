@@ -2,6 +2,7 @@ package protobuf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -482,7 +483,11 @@ func runMockBSRServer(t *testing.T) string {
 	srv.Protocols.SetHTTP1(true)
 	srv.Protocols.SetUnencryptedHTTP2(true)
 
-	go srv.Serve(listener)
+	go func() {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Errorf("mock BSR server error: %v", err)
+		}
+	}()
 
 	t.Cleanup(func() {
 		srv.Close()
