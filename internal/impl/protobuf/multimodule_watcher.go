@@ -10,6 +10,7 @@ import (
 
 	"buf.build/gen/go/bufbuild/reflect/connectrpc/go/buf/reflect/v1beta1/reflectv1beta1connect"
 	connectrpc "connectrpc.com/connect"
+	"github.com/Jeffail/shutdown"
 	"github.com/bufbuild/prototransform"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -20,7 +21,7 @@ import (
 type MultiModuleWatcher struct {
 	bsrClients map[string]*prototransform.SchemaWatcher
 	httpClient *http.Client
-	cancel     context.CancelFunc
+	shutSig    *shutdown.Signaller
 }
 
 var _ prototransform.Resolver = &MultiModuleWatcher{}
@@ -30,15 +31,16 @@ func newMultiModuleWatcher(bsrModules []*service.ParsedConfig) (*MultiModuleWatc
 		return nil, errors.New("no modules provided")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	httpClient := &http.Client{
 		Transport: &http.Transport{},
 	}
 	multiModuleWatcher := &MultiModuleWatcher{
 		bsrClients: make(map[string]*prototransform.SchemaWatcher),
 		httpClient: httpClient,
-		cancel:     cancel,
+		shutSig:    shutdown.NewSignaller(),
 	}
+
+	ctx, _ := multiModuleWatcher.shutSig.SoftStopCtx(context.Background())
 
 	// Initialise one client for each module
 	for _, bsrModule := range bsrModules {
@@ -185,7 +187,7 @@ func (w *MultiModuleWatcher) FindEnumByName(enum protoreflect.FullName) (protore
 }
 
 func (m *MultiModuleWatcher) Close() {
-	m.cancel()
+	m.shutSig.TriggerHardStop()
 	for _, v := range m.bsrClients {
 		v.Stop()
 	}
