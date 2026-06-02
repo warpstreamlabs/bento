@@ -191,6 +191,7 @@ func (m *MultiModuleWatcher) Close() {
 	for _, v := range m.bsrClients {
 		v.Stop()
 	}
+	m.bsrClients = nil
 	if t, ok := m.httpClient.Transport.(*http.Transport); ok {
 		t.CloseIdleConnections()
 	}

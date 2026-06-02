@@ -552,6 +552,7 @@ func (p *protobufProc) Process(ctx context.Context, msg *service.Message) (servi
 func (p *protobufProc) Close(ctx context.Context) error {
 	if p.multiModuleWatcher != nil {
 		p.multiModuleWatcher.Close()
+		p.multiModuleWatcher = nil
 	}
 	return nil
 }
