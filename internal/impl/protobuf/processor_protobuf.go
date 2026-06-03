@@ -26,11 +26,13 @@ const (
 	fieldEmitUnpopulated = "emit_unpopulated"
 
 	// BSR Config
-	fieldBsrConfig  = "bsr"
-	fieldBsrModule  = "module"
-	fieldBSRUrl     = "url"
-	fieldBsrAPIKey  = "api_key"
-	fieldBsrVersion = "version"
+	fieldBsrConfig        = "bsr"
+	fieldBsrModule        = "module"
+	fieldBSRUrl           = "url"
+	fieldBsrAPIKey        = "api_key"
+	fieldBsrVersion       = "version"
+	fieldBsrCache         = "cache"
+	fieldBsrPollingPeriod = "polling_period"
 )
 
 func protobufProcessorSpec() *service.ConfigSpec {
@@ -80,8 +82,15 @@ Attempts to create a target protobuf message from a generic JSON structure.
 				Description("Buf Schema Registry server API key, can be left blank for a public registry.").
 				Secret().
 				Default(""),
+			service.NewDurationField(fieldBsrPollingPeriod).
+				Description("The period in which to poll the Buf Schema Registry.").
+				Default("5m").
+				Advanced(),
 			service.NewStringField(fieldBsrVersion).
 				Description("Version to retrieve from the Buf Schema Registry, leave blank for latest.").
+				Default("").Advanced(),
+			service.NewStringField(fieldBsrCache).
+				Description("If set schemas retrieved from the BSR will be saved in a [cache resource](/docs/components/caches/about)").
 				Default("").Advanced(),
 		).Description("Buf Schema Registry configuration. Either this field or `import_paths` must be populated. Note that this field is an array, and multiple BSR configurations can be provided.").
 			Default([]any{}),
@@ -519,7 +528,7 @@ func newProtobuf(conf *service.ParsedConfig, mgr *service.Resources) (*protobufP
 
 	// if BSR config is present, use BSR to discover proto definitions
 	if len(bsrModules) > 0 {
-		p.multiModuleWatcher, err = newMultiModuleWatcher(bsrModules)
+		p.multiModuleWatcher, err = newMultiModuleWatcher(bsrModules, mgr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create MultiModuleWatcher: %w", err)
 		}

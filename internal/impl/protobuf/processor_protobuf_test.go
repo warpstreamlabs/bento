@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 
 	"buf.build/gen/go/bufbuild/reflect/connectrpc/go/buf/reflect/v1beta1/reflectv1beta1connect"
@@ -19,6 +20,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 
+	"github.com/warpstreamlabs/bento/internal/component/testutil"
+	"github.com/warpstreamlabs/bento/internal/manager/mock"
+	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -106,7 +110,7 @@ discard_unknown: %t
 		})
 
 		t.Run(test.name+" bsr", func(t *testing.T) {
-			mockBSRServerAddress := runMockBSRServer(t)
+			mockBSRServerAddress, _ := runMockBSRServer(t)
 
 			conf, err := protobufProcessorSpec().ParseYAML(fmt.Sprintf(`
 operator: from_json
@@ -246,7 +250,7 @@ emit_unpopulated: %t
 		})
 
 		t.Run(test.name+" bsr", func(t *testing.T) {
-			mockBSRServerAddress := runMockBSRServer(t)
+			mockBSRServerAddress, _ := runMockBSRServer(t)
 
 			conf, err := protobufProcessorSpec().ParseYAML(fmt.Sprintf(`
 operator: to_json
@@ -327,7 +331,7 @@ import_paths: [ %v ]
 		})
 
 		t.Run(test.name+" bsr", func(tt *testing.T) {
-			mockBSRServerAddress := runMockBSRServer(t)
+			mockBSRServerAddress, _ := runMockBSRServer(t)
 
 			conf, err := protobufProcessorSpec().ParseYAML(fmt.Sprintf(`
 operator: %v
@@ -413,16 +417,69 @@ protobuf:
 	}
 }
 
+func TestBufCache(t *testing.T) {
+	mockBSRServerAddress, s := runMockBSRServer(t)
+
+	mgr := mock.NewManager()
+	mgr.Caches["foo_cache"] = map[string]mock.CacheItem{}
+
+	input := []byte{
+		0x8, 0xeb, 0x5, 0x12, 0x2a, 0xa, 0x21, 0x74, 0x79, 0x70, 0x65, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c,
+		0x65, 0x61, 0x70, 0x69, 0x73, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x69, 0x6e,
+		0x67, 0x2e, 0x48, 0x6f, 0x75, 0x73, 0x65, 0x12, 0x5, 0x12, 0x3, 0x31, 0x32, 0x33,
+	}
+
+	conf, err := testutil.ProcessorFromYAML(fmt.Sprintf(`
+protobuf:
+  operator: to_json
+  message: testing.Envelope
+  bsr:
+    - module: testing
+      url: %s
+      cache: foo_cache
+      polling_period: 20s
+`, "http://"+mockBSRServerAddress))
+	require.NoError(t, err)
+
+	for range 100 {
+		p, err := mgr.NewProcessor(conf)
+		require.NoError(t, err)
+
+		msg := message.QuickBatch([][]byte{
+			input,
+		})
+
+		msgs, res := p.ProcessBatch(context.Background(), msg)
+		require.NoError(t, res)
+		require.Len(t, msgs, 1)
+
+		mBytes := msgs[0].Get(0).AsBytes()
+
+		require.JSONEq(t, `{"id":747,"content":{"@type":"type.googleapis.com/testing.House","address":"123"}}`, string(mBytes))
+	}
+
+	s.ccMutex.Lock()
+	defer s.ccMutex.Unlock()
+	assert.LessOrEqual(t, s.cc, 5)
+}
+
 type fileDescriptorSetServer struct {
 	fileDescriptorSet *descriptorpb.FileDescriptorSet
+
+	cc      int
+	ccMutex sync.Mutex
 }
 
 func (s *fileDescriptorSetServer) GetFileDescriptorSet(_ context.Context, request *connect.Request[v1beta1.GetFileDescriptorSetRequest]) (*connect.Response[v1beta1.GetFileDescriptorSetResponse], error) {
+	s.ccMutex.Lock()
+	s.cc++
+	s.ccMutex.Unlock()
+
 	response := &v1beta1.GetFileDescriptorSetResponse{FileDescriptorSet: s.fileDescriptorSet, Version: request.Msg.GetVersion()}
 	return connect.NewResponse(response), nil
 }
 
-func runMockBSRServer(t *testing.T) string {
+func runMockBSRServer(t *testing.T) (string, *fileDescriptorSetServer) {
 	// load files into protoregistry.Files
 	mockResources := service.MockResources()
 	files, _, err := loadDescriptors(mockResources.FS(), []string{protosPath})
@@ -467,5 +524,5 @@ func runMockBSRServer(t *testing.T) string {
 		}
 	}()
 
-	return listener.Addr().String()
+	return listener.Addr().String(), fileDescriptorSetServer
 }
