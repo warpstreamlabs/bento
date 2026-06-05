@@ -3,6 +3,19 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.18.1 - 2026-06-05
+
+### Fixed
+
+ - `avro` scanner call Scan() before Read() @istairbn
+ - `protobuf` processor buf schema registry poller goroutine leak @jem-davies
+
+### Changed
+
+ - upgrade to Go version 1.26.4 @jem-davies
+ - upgrade `otlp` dependency @jem-davies
+
+
 ## 1.18.0 - 2026-05-25
 
 ### Added 
