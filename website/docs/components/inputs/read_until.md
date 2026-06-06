@@ -26,6 +26,10 @@ input:
     check: this.type == "foo" # No default (optional)
     idle_timeout: 5s # No default (optional)
     restart_input: false
+    restart_backoff:
+      initial_interval: 1ms
+      max_interval: 100ms
+      max_elapsed_time: 0s
 ```
 
 Messages are read continuously while the query check returns false, when the query returns true the message that triggered the check is sent out and the input is closed. Use this to define inputs where the stream should end once a certain message appears.
@@ -37,6 +41,49 @@ Sometimes inputs close themselves. For example, when the `file` input type reach
 ### Metadata
 
 A metadata key `bento_read_until` containing the value `final` is added to the first part of the message that triggers the input to stop.
+
+## Examples
+
+<Tabs defaultValue="Consume N Messages" values={[
+{ label: 'Consume N Messages', value: 'Consume N Messages', },
+{ label: 'Read from a kafka and close when empty', value: 'Read from a kafka and close when empty', },
+]}>
+
+<TabItem value="Consume N Messages">
+
+A common reason to use this input is to consume only N messages from an input and then stop. This can easily be done with the [`count` function](/docs/guides/bloblang/functions/#count):
+
+```yaml
+# Only read 100 messages, and then exit.
+input:
+  read_until:
+    check: count("messages") >= 100
+    input:
+      kafka:
+        addresses: [ TODO ]
+        topics: [ foo, bar ]
+        consumer_group: foogroup
+```
+
+</TabItem>
+<TabItem value="Read from a kafka and close when empty">
+
+A common reason to use this input is a job that consumes all messages and exits once its empty:
+
+```yaml
+# Consumes all messages and exit when the last message was consumed 5s ago.
+input:
+  read_until:
+    idle_timeout: 5s
+    input:
+      kafka:
+        addresses: [ TODO ]
+        topics: [ foo, bar ]
+        consumer_group: foogroup
+```
+
+</TabItem>
+</Tabs>
 
 ## Fields
 
@@ -83,47 +130,59 @@ Whether the input should be reopened if it closes itself before the condition ha
 Type: `bool`  
 Default: `false`  
 
-## Examples
+### `restart_backoff`
 
-<Tabs defaultValue="Consume N Messages" values={[
-{ label: 'Consume N Messages', value: 'Consume N Messages', },
-{ label: 'Read from a kafka and close when empty', value: 'Read from a kafka and close when empty', },
-]}>
+Backoff policy for restarting the child input. Only used when `restart_input` is `true`.
 
-<TabItem value="Consume N Messages">
 
-A common reason to use this input is to consume only N messages from an input and then stop. This can easily be done with the [`count` function](/docs/guides/bloblang/functions/#count):
+Type: `object`  
 
-```yaml
-# Only read 100 messages, and then exit.
-input:
-  read_until:
-    check: count("messages") >= 100
-    input:
-      kafka:
-        addresses: [ TODO ]
-        topics: [ foo, bar ]
-        consumer_group: foogroup
+### `restart_backoff.initial_interval`
+
+The initial period to wait between retry attempts.
+
+
+Type: `string`  
+Default: `"1ms"`  
+
+```yml
+# Examples
+
+initial_interval: 50ms
+
+initial_interval: 1s
 ```
 
-</TabItem>
-<TabItem value="Read from a kafka and close when empty">
+### `restart_backoff.max_interval`
 
-A common reason to use this input is a job that consumes all messages and exits once its empty:
+The maximum period to wait between retry attempts
 
-```yaml
-# Consumes all messages and exit when the last message was consumed 5s ago.
-input:
-  read_until:
-    idle_timeout: 5s
-    input:
-      kafka:
-        addresses: [ TODO ]
-        topics: [ foo, bar ]
-        consumer_group: foogroup
+
+Type: `string`  
+Default: `"100ms"`  
+
+```yml
+# Examples
+
+max_interval: 5s
+
+max_interval: 1m
 ```
 
-</TabItem>
-</Tabs>
+### `restart_backoff.max_elapsed_time`
+
+The maximum overall period of time to spend on retry attempts before the request is aborted. Setting this value to a zeroed duration (such as `0s`) will result in unbounded retries.
+
+
+Type: `string`  
+Default: `"0s"`  
+
+```yml
+# Examples
+
+max_elapsed_time: 1m
+
+max_elapsed_time: 1h
+```
 
 
