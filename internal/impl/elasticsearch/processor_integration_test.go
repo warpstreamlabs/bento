@@ -400,7 +400,7 @@ id: ${! this.item_id }
 		{"item-B", "beta"},
 	} {
 		batches, err := p.ProcessBatch(ctx, service.MessageBatch{
-			service.NewMessage([]byte(fmt.Sprintf(`{"item_id":%q}`, tc.itemID))),
+			service.NewMessage(fmt.Appendf(nil, `{"item_id":%q}`, tc.itemID)),
 		})
 		require.NoError(t, err)
 		require.NoError(t, batches[0][0].GetError())
@@ -577,7 +577,7 @@ id: doc-1
 		{"it-idx-beta", "beta"},
 	} {
 		batches, err := p.ProcessBatch(ctx, service.MessageBatch{
-			service.NewMessage([]byte(fmt.Sprintf(`{"target_index":%q}`, tc.idx))),
+			service.NewMessage(fmt.Appendf(nil, `{"target_index":%q}`, tc.idx)),
 		})
 		require.NoError(t, err)
 		require.NoError(t, batches[0][0].GetError())

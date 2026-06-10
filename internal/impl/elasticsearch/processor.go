@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,13 +23,13 @@ const (
 	espFieldIndex        = "index"
 	espFieldID           = "id"
 	espFieldArgsMapping  = "args_mapping"
-	espFieldTimeout     = "timeout"
-	espFieldTLS         = "tls"
-	espFieldAuth        = "basic_auth"
-	espFieldAuthEnabled = "enabled"
+	espFieldTimeout      = "timeout"
+	espFieldTLS          = "tls"
+	espFieldAuth         = "basic_auth"
+	espFieldAuthEnabled  = "enabled"
 	espFieldAuthUsername = "username"
 	espFieldAuthPassword = "password"
-	espFieldAPIKey      = "api_key"
+	espFieldAPIKey       = "api_key"
 )
 
 func ProcessorSpec() *service.ConfigSpec {
@@ -41,35 +42,35 @@ batch and (optionally) replaces the message content with the result.
 
 If the query fails the message is left unchanged and the error is set on the
 message — it can be caught downstream with
-` + "[`catch`](/docs/components/processors/catch)" + ` or handled via
-` + "[`try`](/docs/configuration/error_handling)" + `.
+`+"[`catch`](/docs/components/processors/catch)"+` or handled via
+`+"[`try`](/docs/configuration/error_handling)"+`.
 
 ## Actions
 
-` + "### `search`" + `
+`+"### `search`"+`
 
 Executes a search query against the given index. The query body is built by
-` + "`args_mapping`" + `, which must evaluate to an object containing a valid
+`+"`args_mapping`"+`, which must evaluate to an object containing a valid
 [Elasticsearch Query DSL](https://www.elastic.co/docs/explore-analyze/query-filter/languages/querydsl)
-document. The result written to the message is an array of ` + "`_source`" + ` objects,
-one per hit — equivalent to how ` + "`sql_raw`" + ` returns an array of rows.
+document. The result written to the message is an array of `+"`_source`"+` objects,
+one per hit — equivalent to how `+"`sql_raw`"+` returns an array of rows.
 
-` + "### `get`" + `
+`+"### `get`"+`
 
-Retrieves a single document by ID. The ` + "`id`" + ` field is required and supports
-interpolation. The result is the ` + "`_source`" + ` object of the matched document.
+Retrieves a single document by ID. The `+"`id`"+` field is required and supports
+interpolation. The result is the `+"`_source`"+` object of the matched document.
 
-` + "### `delete`" + `
+`+"### `delete`"+`
 
-Deletes the document identified by ` + "`id`" + ` from the given index. The message
-content is left unchanged (equivalent to ` + "`exec_only: true`" + ` in ` + "`sql_raw`" + `).
+Deletes the document identified by `+"`id`"+` from the given index. The message
+content is left unchanged (equivalent to `+"`exec_only: true`"+` in `+"`sql_raw`"+`).
 
 ## Result mapping
 
 By default the processor overwrites the entire message with the Elasticsearch
 result. To merge the result into an existing message or extract a subset of
 fields, wrap this processor in a
-` + "[`branch`](/docs/components/processors/branch)" + ` and use its ` + "`result_map`" + `.
+`+"[`branch`](/docs/components/processors/branch)"+` and use its `+"`result_map`"+`.
 `).
 		Fields(
 			service.NewStringListField(espFieldURLs).
@@ -190,7 +191,7 @@ func init() {
 
 type esProcessorConfig struct {
 	clientConfig elasticsearch.Config
-	timeout     time.Duration
+	timeout      time.Duration
 
 	action    string
 	indexExpr *service.InterpolatedString
@@ -266,7 +267,6 @@ func esProcessorConfigFromParsed(pConf *service.ParsedConfig) (conf esProcessorC
 	return
 }
 
-
 type EsProcessor struct {
 	log    *service.Logger
 	conf   esProcessorConfig
@@ -317,7 +317,7 @@ func (p *EsProcessor) Connect(ctx context.Context) error {
 }
 
 func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
-	
+
 	if p.client == nil {
 		if err := p.Connect(ctx); err != nil {
 			return nil, err
@@ -352,7 +352,7 @@ func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBat
 			}
 		case "get":
 			if idExecutor == nil {
-				msg.SetError(fmt.Errorf("action 'get' requires 'id' field"))
+				msg.SetError(errors.New("action 'get' requires 'id' field"))
 				continue
 			}
 			id, err := idExecutor.TryString(i)
@@ -367,7 +367,7 @@ func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBat
 			}
 		case "delete":
 			if idExecutor == nil {
-				msg.SetError(fmt.Errorf("action 'delete' requires 'id' field"))
+				msg.SetError(errors.New("action 'delete' requires 'id' field"))
 				continue
 			}
 			id, err := idExecutor.TryString(i)
@@ -391,7 +391,6 @@ func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBat
 func (p *EsProcessor) Close(context.Context) error {
 	return nil
 }
-
 
 func (p *EsProcessor) processSearch(ctx context.Context, i int, msg *service.Message, index string, argsExecutor *service.MessageBatchBloblangExecutor) error {
 	var bodyBytes []byte
@@ -454,7 +453,9 @@ func (p *EsProcessor) processGet(ctx context.Context, msg *service.Message, inde
 }
 
 func (p *EsProcessor) processDelete(ctx context.Context, msg *service.Message, index, id string) error {
-	res, err := p.client.Delete(index, id,
+	res, err := p.client.Delete(
+		index,
+		id,
 		p.client.Delete.WithContext(ctx),
 	)
 	if err != nil {
@@ -463,15 +464,19 @@ func (p *EsProcessor) processDelete(ctx context.Context, msg *service.Message, i
 	defer res.Body.Close()
 
 	if res.IsError() {
-		return fmt.Errorf("elasticsearch delete returned error %s for document id %q", res.Status(), id)
+		return fmt.Errorf(
+			"elasticsearch delete returned error %s for document id %q",
+			res.Status(),
+			id,
+		)
 	}
 
 	var response struct {
 		Result string `json:"result"`
 	}
-	if res.Body != nil {
-		respBytes, _ := io.ReadAll(res.Body)
-		json.Unmarshal(respBytes, &response)
+
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+		return fmt.Errorf("failed to decode delete response: %w", err)
 	}
 
 	msg.MetaSetMut("es_index", index)
@@ -480,7 +485,6 @@ func (p *EsProcessor) processDelete(ctx context.Context, msg *service.Message, i
 
 	return nil
 }
-
 
 func extractSearchHitsAndMeta(msg *service.Message, index string, body []byte) error {
 	var response struct {
@@ -519,7 +523,7 @@ func extractSearchHitsAndMeta(msg *service.Message, index string, body []byte) e
 func extractGetSourceAndMeta(msg *service.Message, index, id string, body []byte) error {
 	var response struct {
 		Source json.RawMessage `json:"_source"`
-		Found bool          `json:"found"`
+		Found  bool            `json:"found"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse elasticsearch get response: %w", err)
