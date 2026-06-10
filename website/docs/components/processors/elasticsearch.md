@@ -60,7 +60,7 @@ elasticsearch:
     root_cas: ""
     root_cas_file: ""
     client_certs: []
-  auth:
+  basic_auth:
     enabled: false
     username: ""
     password: ""
@@ -391,14 +391,14 @@ password: foo
 password: ${KEY_PASSWORD}
 ```
 
-### `auth`
+### `basic_auth`
 
 Allows you to specify basic authentication.
 
 
 Type: `object`  
 
-### `auth.enabled`
+### `basic_auth.enabled`
 
 Whether to use basic authentication in requests.
 
@@ -406,7 +406,7 @@ Whether to use basic authentication in requests.
 Type: `bool`  
 Default: `false`  
 
-### `auth.username`
+### `basic_auth.username`
 
 A username to authenticate as.
 
@@ -414,7 +414,7 @@ A username to authenticate as.
 Type: `string`  
 Default: `""`  
 
-### `auth.password`
+### `basic_auth.password`
 
 A password to authenticate with.
 :::warning Secret

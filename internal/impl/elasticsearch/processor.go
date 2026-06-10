@@ -24,7 +24,7 @@ const (
 	espFieldArgsMapping  = "args_mapping"
 	espFieldTimeout     = "timeout"
 	espFieldTLS         = "tls"
-	espFieldAuth        = "auth"
+	espFieldAuth        = "basic_auth"
 	espFieldAuthEnabled = "enabled"
 	espFieldAuthUsername = "username"
 	espFieldAuthPassword = "password"
