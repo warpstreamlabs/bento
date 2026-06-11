@@ -124,7 +124,7 @@ func oAuth2FieldSpec() *service.ConfigField {
 		Optional().Advanced()
 }
 
-type grpcCommon struct {
+type grpcConfig struct {
 	conn                   *grpc.ClientConn
 	address                string
 	method                 *desc.MethodDescriptor
@@ -141,78 +141,78 @@ type grpcCommon struct {
 	rpcType                string
 }
 
-func grpcCommonConfigFromParsed(conf *service.ParsedConfig) (grpcCommon, error) {
+func grpcCommonConfigFromParsed(conf *service.ParsedConfig) (grpcConfig, error) {
 	address, err := conf.FieldString(grpcClientAddress)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	serviceName, err := conf.FieldString(grpcClientService)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	methodName, err := conf.FieldString(grpcClientMethod)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	rpcType, err := conf.FieldString(grpcClientRPCType)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	reflection, err := conf.FieldBool(grpcClientReflection)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	protoFiles, err := conf.FieldStringList(grpcClientProtoFiles)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 
 	tls, err := conf.FieldTLS(grpcClientTLS)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 
 	healthCheckConf := conf.Namespace(grpcClientHealthCheck)
 	healthCheckEnabled, err := healthCheckConf.FieldBool(grpcClientHealthCheckToggle)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	healthCheckServiceName, err := healthCheckConf.FieldString(grpcClientHealthCheckServiceName)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 
 	oauthConf := conf.Namespace(oa2FieldOAuth2)
 
 	enabled, err := oauthConf.FieldBool(oa2FieldEnabled)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	clientKey, err := oauthConf.FieldString(oa2FieldClientKey)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	clientSecret, err := oauthConf.FieldString(oa2FieldClientSecret)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	tokenURL, err := oauthConf.FieldString(oa2FieldTokenURL)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	scopes, err := oauthConf.FieldStringList(oa2FieldScopes)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 	ep, err := oauthConf.FieldAnyMap(oa2FieldEndpointParams)
 	if err != nil {
-		return grpcCommon{}, err
+		return grpcConfig{}, err
 	}
 
 	endpointParams := map[string][]string{}
 	for k, v := range ep {
 		if endpointParams[k], err = v.FieldStringList(); err != nil {
-			return grpcCommon{}, err
+			return grpcConfig{}, err
 		}
 	}
 
@@ -225,7 +225,7 @@ func grpcCommonConfigFromParsed(conf *service.ParsedConfig) (grpcCommon, error) 
 		endpointParams: endpointParams,
 	}
 
-	return grpcCommon{
+	return grpcConfig{
 		address:                address,
 		methodName:             methodName,
 		tls:                    tls,
@@ -240,7 +240,7 @@ func grpcCommonConfigFromParsed(conf *service.ParsedConfig) (grpcCommon, error) 
 
 }
 
-func (gcc *grpcCommon) Connect(ctx context.Context) (err error) {
+func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 	if gcc.conn != nil && gcc.method != nil {
 		return nil
 	}

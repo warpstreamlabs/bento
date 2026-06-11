@@ -115,7 +115,7 @@ func init() {
 //------------------------------------------------------------------------------
 
 type grpcClientOutput struct {
-	grpcCommon
+	grpcConfig
 	metadata map[string]*service.InterpolatedString
 
 	propResponse bool
@@ -137,7 +137,7 @@ func newGrpcClientOutputFromParsed(conf *service.ParsedConfig, _ *service.Resour
 	}
 
 	writer := &grpcClientOutput{
-		grpcCommon:   gcc,
+		grpcConfig:   gcc,
 		propResponse: propResponse,
 		metadata:     md,
 	}
