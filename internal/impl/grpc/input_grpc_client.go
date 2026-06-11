@@ -207,7 +207,7 @@ func (gci *grpcClientInput) unaryHandler(ctx context.Context) (service.MessageBa
 		return nil, nil, fmt.Errorf("payload interpolation error: %w", err)
 	}
 
-	err = request.UnmarshalJSON([]byte(payload))
+	err = request.UnmarshalJSON(payload)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -247,7 +247,7 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 		return nil, nil, err
 	}
 
-	err = request.UnmarshalJSON([]byte(payload))
+	err = request.UnmarshalJSON(payload)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -312,7 +312,6 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 			return nil, nil, err
 		}
 
-		
 		if err := clientStream.SendMsg(request); err != nil {
 			return nil, nil, err
 		}
