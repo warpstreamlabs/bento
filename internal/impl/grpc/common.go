@@ -309,9 +309,7 @@ func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 			return err
 		}
 
-		if method := serviceDescriptor.FindMethodByName(gcc.methodName); method != nil {
-			gcc.method = method
-		} else {
+		if gcc.method = serviceDescriptor.FindMethodByName(gcc.methodName); gcc.method == nil {
 			return fmt.Errorf("method: %v not found", gcc.methodName)
 		}
 	}
