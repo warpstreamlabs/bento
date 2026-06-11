@@ -370,6 +370,18 @@ grpc_client:
 `,
 			expErrMessage: "reflection must be true or proto_files must be populated",
 		},
+		"Reflection and Proto Files Cannot Be Set": {
+			config: `
+grpc_client:
+  address: localhost:55001
+  service: helloworld.Greeter
+  method: Foo
+  reflection: true
+  proto_files:
+    - "./grpc_test_server/helloworld/helloworld.proto"
+`,
+			expErrMessage: "both relection and proto_files cannot be set",
+		},
 		"Reflection or Proto Files Required Proto Files": {
 			config: `
 grpc_client:

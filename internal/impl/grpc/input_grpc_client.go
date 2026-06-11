@@ -47,7 +47,8 @@ func grpcClientInputSpec() *service.ConfigSpec {
 		Field(service.NewAutoRetryNacksToggleField()).
 		LintRule(
 			`root = match {
-  this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated"
+  this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated",
+  this.reflection == true && this.proto_files.length() >= 1 => "both relection and proto_files cannot be set",
   (this.rpc_type == "unary" || this.rpc_type == "client_stream" || this.rpc_type == "server_stream") && this.payload == null => "payload must be set for rpc_types: unary, client_stream, server_stream",
 }`,
 		)

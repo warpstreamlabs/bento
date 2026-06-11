@@ -88,7 +88,8 @@ output:
 		).LintRule(
 		`root = match {
   this.rpc_type == "bidi" && this.propagate_response == true => "cannot set propagate_response to true when rpc_type is bidi",
-  this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated"
+  this.reflection == false && (!this.exists("proto_files") || this.proto_files.length() == 0) => "reflection must be true or proto_files must be populated",
+  this.reflection == true && this.proto_files.length() >= 1 => "both relection and proto_files cannot be set",
 }`,
 	)
 }
