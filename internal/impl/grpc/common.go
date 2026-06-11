@@ -182,47 +182,49 @@ func grpcCommonConfigFromParsed(conf *service.ParsedConfig) (grpcConfig, error) 
 		return grpcConfig{}, err
 	}
 
-	oauthConf := conf.Namespace(oa2FieldOAuth2)
+	var oauth oauth2Config
+	if conf.Contains(oa2FieldOAuth2) {
+		oauthConf := conf.Namespace(oa2FieldOAuth2)
 
-	enabled, err := oauthConf.FieldBool(oa2FieldEnabled)
-	if err != nil {
-		return grpcConfig{}, err
-	}
-	clientKey, err := oauthConf.FieldString(oa2FieldClientKey)
-	if err != nil {
-		return grpcConfig{}, err
-	}
-	clientSecret, err := oauthConf.FieldString(oa2FieldClientSecret)
-	if err != nil {
-		return grpcConfig{}, err
-	}
-	tokenURL, err := oauthConf.FieldString(oa2FieldTokenURL)
-	if err != nil {
-		return grpcConfig{}, err
-	}
-	scopes, err := oauthConf.FieldStringList(oa2FieldScopes)
-	if err != nil {
-		return grpcConfig{}, err
-	}
-	ep, err := oauthConf.FieldAnyMap(oa2FieldEndpointParams)
-	if err != nil {
-		return grpcConfig{}, err
-	}
-
-	endpointParams := map[string][]string{}
-	for k, v := range ep {
-		if endpointParams[k], err = v.FieldStringList(); err != nil {
+		enabled, err := oauthConf.FieldBool(oa2FieldEnabled)
+		if err != nil {
 			return grpcConfig{}, err
 		}
-	}
+		clientKey, err := oauthConf.FieldString(oa2FieldClientKey)
+		if err != nil {
+			return grpcConfig{}, err
+		}
+		clientSecret, err := oauthConf.FieldString(oa2FieldClientSecret)
+		if err != nil {
+			return grpcConfig{}, err
+		}
+		tokenURL, err := oauthConf.FieldString(oa2FieldTokenURL)
+		if err != nil {
+			return grpcConfig{}, err
+		}
+		scopes, err := oauthConf.FieldStringList(oa2FieldScopes)
+		if err != nil {
+			return grpcConfig{}, err
+		}
+		ep, err := oauthConf.FieldAnyMap(oa2FieldEndpointParams)
+		if err != nil {
+			return grpcConfig{}, err
+		}
+		endpointParams := map[string][]string{}
+		for k, v := range ep {
+			if endpointParams[k], err = v.FieldStringList(); err != nil {
+				return grpcConfig{}, err
+			}
+		}
 
-	oauth := oauth2Config{
-		enabled:        enabled,
-		clientKey:      clientKey,
-		clientSecret:   clientSecret,
-		tokenURL:       tokenURL,
-		scopes:         scopes,
-		endpointParams: endpointParams,
+		oauth = oauth2Config{
+			enabled:        enabled,
+			clientKey:      clientKey,
+			clientSecret:   clientSecret,
+			tokenURL:       tokenURL,
+			scopes:         scopes,
+			endpointParams: endpointParams,
+		}
 	}
 
 	return grpcConfig{
