@@ -397,8 +397,8 @@ Default: `""`
 
 ### `payload`
 
-For `rpc_type` values: unary, client_stream & server_stream, the payload field defines the data that is sent as the request.
-In the instance of the client_stream rpc_type - this is expected to resolve to an array. The array will be sent as a stream, with the elements
+For `rpc_type` values: `unary`, `client_stream` & `server_stream`, the `payload` field defines the data that is sent as the request.
+In the instance of the `client_stream` rpc_type - this is expected to resolve to an array. The array will be sent as a stream, with the elements
 making the individual messages.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
