@@ -52,8 +52,8 @@ func StartGRPCServer(t *testing.T, opts ...TestServerOpt) *TestServer {
 
 	testServer := &TestServer{}
 
-	for _, o := range opts {
-		o(testServer)
+	for _, opt := range opts {
+		opt(testServer)
 	}
 
 	lis, err := net.Listen("tcp", "localhost:0")
