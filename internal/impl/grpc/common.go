@@ -333,10 +333,9 @@ func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 				}
 			}
 		}
-	}
-
-	if gcc.method == nil {
-		return fmt.Errorf("unable to find method: %s in provided proto files", gcc.methodName)
+		if gcc.method == nil {
+			return fmt.Errorf("unable to find method: %s in provided proto files", gcc.methodName)
+		}
 	}
 
 	gcc.stub = grpcdynamic.NewStub(gcc.conn)
