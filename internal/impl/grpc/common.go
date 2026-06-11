@@ -277,6 +277,8 @@ func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 	}
 
 	if gcc.healthCheckEnabled {
+		// https://grpc.io/docs/guides/health-checking/#enabling-client-health-checking
+		// reference for the JSON format below
 		serviceConf := fmt.Sprintf(`{"healthCheckConfig": {"serviceName": "%v"}}`, gcc.healthCheckServiceName)
 		dialOpts = append(dialOpts, grpc.WithDefaultServiceConfig(serviceConf))
 	}
