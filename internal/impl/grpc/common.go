@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 
 	"github.com/jhump/protoreflect/desc"
@@ -245,6 +246,10 @@ func grpcCommonConfigFromParsed(conf *service.ParsedConfig) (grpcConfig, error) 
 func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 	if gcc.conn != nil && gcc.method != nil {
 		return nil
+	}
+
+	if len(gcc.protoFiles) >= 1 && gcc.reflection {
+		return errors.New("cannot set both reflection & provide proto_files")
 	}
 
 	dialOpts := []grpc.DialOption{}
