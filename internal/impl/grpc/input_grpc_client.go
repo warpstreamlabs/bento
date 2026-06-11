@@ -312,8 +312,8 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 			return nil, nil, err
 		}
 
-		err = clientStream.SendMsg(request)
-		if err != nil {
+		
+		if err := clientStream.SendMsg(request); err != nil {
 			return nil, nil, err
 		}
 	}
