@@ -111,10 +111,10 @@ grpc_client:
   payload: ${! {"name":"Alice"} }
   tls:
     enabled: true
-    root_cas_file: ./grpc_test_server/helloworld/certs/ca.pem
+    root_cas_file: ./grpc_test_server/helloworld/testdata/certs/ca.pem
     client_certs:
-      - cert_file: ./grpc_test_server/helloworld/certs/client.pem
-        key_file: ./grpc_test_server/helloworld/certs/client.key
+      - cert_file: ./grpc_test_server/helloworld/testdata/certs/client.pem
+        key_file: ./grpc_test_server/helloworld/testdata/certs/client.key
     skip_cert_verify: false
 `,
 			formatArgs: func(ts *test_server.TestServer) []any {
@@ -141,10 +141,10 @@ grpc_client:
     client_secret: foosecret
   tls:
     enabled: true
-    root_cas_file: ./grpc_test_server/helloworld/certs/ca.pem
+    root_cas_file: ./grpc_test_server/helloworld/testdata/certs/ca.pem
     client_certs:
-      - cert_file: ./grpc_test_server/helloworld/certs/client.pem
-        key_file: ./grpc_test_server/helloworld/certs/client.key
+      - cert_file: ./grpc_test_server/helloworld/testdata/certs/client.pem
+        key_file: ./grpc_test_server/helloworld/testdata/certs/client.key
     skip_cert_verify: false
 `,
 			formatArgs: func(ts *test_server.TestServer) []any {

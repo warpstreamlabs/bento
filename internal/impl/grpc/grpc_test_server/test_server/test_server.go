@@ -65,14 +65,14 @@ func StartGRPCServer(t *testing.T, opts ...TestServerOpt) *TestServer {
 
 	if testServer.tls {
 		serverCert, err := tls.LoadX509KeyPair(
-			"./grpc_test_server/helloworld/certs/server.pem",
-			"./grpc_test_server/helloworld/certs/server.key",
+			"./grpc_test_server/helloworld/testdata/certs/server.pem",
+			"./grpc_test_server/helloworld/testdata/certs/server.key",
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		caCert, err := os.ReadFile("./grpc_test_server/helloworld/certs/ca.pem")
+		caCert, err := os.ReadFile("./grpc_test_server/helloworld/testdata/certs/ca.pem")
 		if err != nil {
 			t.Fatal(err)
 		}
