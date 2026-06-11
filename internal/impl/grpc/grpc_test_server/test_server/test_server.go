@@ -102,7 +102,7 @@ func StartGRPCServer(t *testing.T, opts ...TestServerOpt) *TestServer {
 
 			b, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
-			assert.Equal(t, "grant_type=client_credentials", string(b))
+			require.Equal(t, "grant_type=client_credentials", string(b))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
