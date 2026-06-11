@@ -72,7 +72,7 @@ func init() {
 //------------------------------------------------------------------------------
 
 type grpcClientInput struct {
-	grpcConfig
+	grpcConfig // Provides Connect()
 
 	payloadExpr *service.InterpolatedString
 	rateLimit   string
@@ -202,7 +202,7 @@ func (gci *grpcClientInput) unaryHandler(ctx context.Context) (service.MessageBa
 	if gci.payloadExpr == nil {
 		return nil, nil, fmt.Errorf("payload is required when rpc_type: %v", gci.rpcType)
 	}
-	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte("")))
+	payload, err := gci.payloadExpr.TryBytes(service.NewMessage([]byte("")))
 	if err != nil {
 		return nil, nil, fmt.Errorf("payload interpolation error: %w", err)
 	}
@@ -241,7 +241,7 @@ func (gci *grpcClientInput) serverStreamHandler(ctx context.Context) (service.Me
 	if gci.payloadExpr == nil {
 		return nil, nil, fmt.Errorf("payload is required when rpc_type: %v", gci.rpcType)
 	}
-	payload, err := gci.payloadExpr.TryString(service.NewMessage([]byte("")))
+	payload, err := gci.payloadExpr.TryBytes(service.NewMessage([]byte("")))
 	if err != nil {
 		err = fmt.Errorf("payload interpolation error: %w", err)
 		return nil, nil, err

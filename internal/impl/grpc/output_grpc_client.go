@@ -116,8 +116,8 @@ func init() {
 //------------------------------------------------------------------------------
 
 type grpcClientOutput struct {
-	grpcConfig
-	metadata map[string]*service.InterpolatedString
+	grpcConfig // Provides Connect()
+	metadata   map[string]*service.InterpolatedString
 
 	propResponse bool
 }
