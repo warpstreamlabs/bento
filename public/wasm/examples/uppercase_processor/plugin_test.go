@@ -74,6 +74,7 @@ func TestPluginExecute(t *testing.T) {
 uppercase:
   prefix: ">> "
 `)
+	require.NoError(t, err)
 
 	p, err := mgr.NewProcessor(conf)
 	require.NoError(t, err)
@@ -88,10 +89,10 @@ uppercase:
 	require.Len(t, res, 1)
 	require.Len(t, res[0], 3)
 
-	require.Equal(t, message.GetAllBytes(res[0]), expectedData)
+	require.Equal(t, expectedData, message.GetAllBytes(res[0]))
 
 	for _, msg := range res[0] {
 		meta := msg.MetaGetStr("processed_by")
-		require.Equal(t, meta, "uppercase_wasm")
+		require.Equal(t, "uppercase_wasm", meta)
 	}
 }

@@ -19,6 +19,8 @@ func (noopPlugin) IsRegistered() bool  { return false }
 
 // ------------------------------------------------------------------------------
 
+// NewPlugin returns a Plugin implementation whose underlying instance type is
+// Component.
 func NewPlugin[Component any]() *Plugin[Component] {
 	p := &Plugin[Component]{}
 	plugin = p
