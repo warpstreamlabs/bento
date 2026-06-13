@@ -48,14 +48,6 @@ func flip(s string) string {
 	return result.String()
 }
 
-func reverse(s string) string {
-	r := []rune(s)
-	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
-		r[i], r[j] = r[j], r[i]
-	}
-	return string(r)
-}
-
 func (p *flipProc) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 	outBatch := make(service.MessageBatch, len(batch))
 	for i, msg := range batch {
