@@ -81,6 +81,22 @@ This input adds the following metadata fields to each message:
 
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).
 
+### Request-Reply
+
+When a message arrives with a reply subject (i.e. it was sent via `nats.Request`), you can reply to it by including a `sync_response` output in your pipeline. The input will forward the response payload (and its metadata as NATS headers, if supported) back to the caller automatically once the pipeline acknowledges the message.
+
+```yaml
+input:
+  nats:
+    urls: [ nats://localhost:4222 ]
+    subject: rpc.>
+
+output:
+  sync_response: {}
+  processors:
+    - mapping: 'root = content().uppercase()'
+```
+
 ### Connection Name
 
 When monitoring and managing a production NATS system, it is often useful to
