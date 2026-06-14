@@ -314,7 +314,7 @@ func (g *gcpBigQueryOutput) Connect(ctx context.Context) (err error) {
 	var client *bigquery.Client
 	var opts []option.ClientOption
 	if g.conf.Endpoint != "" {
-		opts = append(opts, option.WithEndpoint(g.conf.Endpoint))
+		opts = append(opts, option.WithoutAuthentication(), option.WithEndpoint(g.conf.Endpoint))
 	}
 	if client, err = g.clientURL.NewClient(context.Background(), g.conf.ProjectID, opts...); err != nil {
 		err = fmt.Errorf("error creating big query client: %w", err)
