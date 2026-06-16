@@ -38,8 +38,7 @@ func grpcClientInputSpec() *service.ConfigSpec {
 		Fields(
 			service.NewInterpolatedStringField(grpcClientInputPayload).
 				Description(grpcClientInputPayloadDescription).
-				Optional().
-				Example("TODO"),
+				Optional(),
 			service.NewStringField(grpcClientInputRateLimit).
 				Description("An optional [rate limit](/docs/components/rate_limits/about) to throttle requests by.").
 				Optional(),
