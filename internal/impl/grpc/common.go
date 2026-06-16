@@ -247,6 +247,17 @@ func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 	if gcc.conn != nil && gcc.method != nil {
 		return nil
 	}
+	success := false
+	defer func() {
+		if !success {
+			if gcc.conn != nil {
+				gcc.conn.Close()
+			}
+			gcc.conn = nil
+			gcc.method = nil
+			gcc.reflectClient = nil
+		}
+	}()
 
 	if len(gcc.protoFiles) >= 1 && gcc.reflection {
 		return errors.New("cannot set both reflection & provide proto_files")
@@ -345,5 +356,6 @@ func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 
 	gcc.stub = grpcdynamic.NewStub(gcc.conn)
 
+	success = true
 	return nil
 }

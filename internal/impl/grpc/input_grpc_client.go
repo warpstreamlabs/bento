@@ -167,6 +167,9 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 }
 
 func (gci *grpcClientInput) Close(ctx context.Context) error {
+	if gci.reflectClient != nil {
+		gci.reflectClient.Reset()
+	}
 	if gci.bidiCancel != nil {
 		gci.bidiCancel()
 	}
