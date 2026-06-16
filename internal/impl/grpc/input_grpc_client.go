@@ -154,6 +154,8 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 				return nil
 			}, nil
 		case err := <-gci.bidiErrChan:
+			gci.bidiChan = nil
+			gci.bidiErrChan = nil
 			return nil, nil, err
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()

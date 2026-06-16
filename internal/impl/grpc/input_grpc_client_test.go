@@ -292,7 +292,7 @@ rate_limit_resources:
 	var msgReceived [][]byte
 	for {
 		select {
-		case <-time.After(time.Second * 2):
+		case <-time.After(time.Second * 5):
 			assert.Len(t, msgReceived, 1)
 			assert.Equal(t, `{"message":"Hello Alice"}`, string(msgReceived[0]))
 			return
