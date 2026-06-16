@@ -39,7 +39,7 @@ input:
     reflection: false
     proto_files: []
     health_check: {}
-    payload: TODO # No default (optional)
+    payload: "" # No default (optional)
     rate_limit: "" # No default (optional)
     auto_replay_nacks: true
 ```
@@ -75,7 +75,7 @@ input:
     health_check:
       enabled: false
       service: ""
-    payload: TODO # No default (optional)
+    payload: "" # No default (optional)
     rate_limit: "" # No default (optional)
     auto_replay_nacks: true
 ```
@@ -404,12 +404,6 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
-
-```yml
-# Examples
-
-payload: TODO
-```
 
 ### `rate_limit`
 
