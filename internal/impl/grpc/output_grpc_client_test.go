@@ -203,6 +203,7 @@ grpc_client:
 			t.Parallel()
 
 			testServer := test_server.StartGRPCServer(t, test.grpcServerOpts...)
+			t.Cleanup(testServer.Stop)
 
 			yamlConf := fmt.Sprintf(test.confFormatString, test.formatArgs(testServer)...)
 
@@ -287,6 +288,7 @@ grpc_client:
 			t.Parallel()
 
 			testServer := test_server.StartGRPCServer(t, test.grpcServerOpts...)
+			t.Cleanup(testServer.Stop)
 
 			yamlConf := fmt.Sprintf(test.confFormatString, testServer.Port)
 
@@ -324,6 +326,7 @@ grpc_client:
 
 func TestGrpcClientOutputClientStreamSyncResponse(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:
@@ -376,6 +379,7 @@ grpc_client:
 
 func TestGrpcClientOutputServerStreamSyncResponse(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:
@@ -422,6 +426,7 @@ grpc_client:
 
 func TestGrpcClientOutputHealthCheck(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection(), test_server.WithHealthCheck())
+	t.Cleanup(testServer.Stop)
 
 	yamlConf := fmt.Sprintf(`
 address: localhost:%v
@@ -446,6 +451,7 @@ health_check:
 
 func TestGrpcClientOutputUnableToFindMethodErr(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	sb := service.NewStreamBuilder()
 
@@ -495,6 +501,7 @@ output:
 
 func TestGrpcClientOutputBrokenProtoFile(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	sb := service.NewStreamBuilder()
 
@@ -660,6 +667,7 @@ grpc_client:
 			t.Parallel()
 
 			testServer := test_server.StartGRPCServer(t, test.grpcServerOpts...)
+			t.Cleanup(testServer.Stop)
 
 			yamlConf := fmt.Sprintf(test.confFormatString, test.formatArgs(testServer)...)
 
@@ -689,6 +697,7 @@ grpc_client:
 
 func TestGrpcClientWriterMetadataUnary(t *testing.T) {
 	ts := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(ts.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:
@@ -736,6 +745,7 @@ grpc_client:
 
 func TestGrpcClientWriterMetadataClientStream(t *testing.T) {
 	ts := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(ts.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:
@@ -784,6 +794,7 @@ grpc_client:
 
 func TestGrpcClientWriterMetadataServerStream(t *testing.T) {
 	ts := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(ts.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:
@@ -832,6 +843,7 @@ grpc_client:
 
 func TestGrpcClientWriterMetadataBidi(t *testing.T) {
 	ts := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(ts.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:
@@ -880,6 +892,7 @@ grpc_client:
 
 func TestGrpcClientWriterMetadataInterpolation(t *testing.T) {
 	ts := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(ts.Stop)
 
 	yamlConf := fmt.Sprintf(`
 grpc_client:

@@ -79,6 +79,7 @@ type grpcClientInput struct {
 
 	bidiChan    chan (service.MessageBatch)
 	bidiErrChan chan (error)
+	bidiCancel  context.CancelFunc
 
 	mgr *service.Resources
 	log *service.Logger
@@ -164,6 +165,12 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 }
 
 func (gci *grpcClientInput) Close(ctx context.Context) error {
+	if gci.bidiCancel != nil {
+		gci.bidiCancel()
+	}
+	if gci.conn != nil {
+		return gci.conn.Close()
+	}
 	return nil
 }
 
@@ -343,12 +350,16 @@ func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
 	gci.bidiChan = make(chan service.MessageBatch)
 	gci.bidiErrChan = make(chan error)
 
-	bidi, err := gci.stub.InvokeRpcBidiStream(ctx, gci.method)
+	bidiCtx, bidiCancel := context.WithCancel(ctx)
+	gci.bidiCancel = bidiCancel
+
+	bidi, err := gci.stub.InvokeRpcBidiStream(bidiCtx, gci.method)
 	if err != nil {
+		bidiCancel()
 		return err
 	}
 
-	go func() {
+	go func(bidiCtx context.Context) {
 		for {
 			resProtoMessage, err := bidi.RecvMsg()
 			if err != nil {
@@ -376,9 +387,13 @@ func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
 
 			responseMsg := service.MessageBatch{service.NewMessage(jsonBytes)}
 
-			gci.bidiChan <- responseMsg
+			select {
+			case gci.bidiChan <- responseMsg:
+			case <-bidiCtx.Done():
+				return
+			}
 		}
-	}()
+	}(bidiCtx)
 
 	return nil
 }

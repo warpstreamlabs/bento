@@ -161,6 +161,7 @@ grpc_client:
 			t.Parallel()
 
 			testServer := test_server.StartGRPCServer(t, test.grpcServerOpts...)
+			t.Cleanup(testServer.Stop)
 
 			yamlConf := fmt.Sprintf(test.confFormatString, test.formatArgs(testServer)...)
 
@@ -184,6 +185,7 @@ grpc_client:
 
 func TestGrpcClientInputClientStream(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	yamlConf := fmt.Sprintf(`grpc_client:
   address: localhost:%v
@@ -209,11 +211,11 @@ func TestGrpcClientInputClientStream(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-
 }
 
 func TestGrpcClientInputBidi(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	yamlConf := fmt.Sprintf(`grpc_client:
   address: localhost:%v
@@ -238,10 +240,12 @@ func TestGrpcClientInputBidi(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+
 }
 
 func TestGrpcClientInputRateLimit(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
+	t.Cleanup(testServer.Stop)
 
 	sb := service.NewStreamBuilder()
 
@@ -300,6 +304,7 @@ rate_limit_resources:
 
 func TestGrpcClientInputHealthCheck(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection(), test_server.WithHealthCheck())
+	t.Cleanup(testServer.Stop)
 
 	yamlConf := fmt.Sprintf(`
 address: localhost:%v

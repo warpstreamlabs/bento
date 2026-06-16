@@ -29,6 +29,7 @@ import (
 
 type TestServer struct {
 	test_server.UnimplementedGreeterServer
+	grpcServer *grpc.Server
 
 	reflection   bool
 	tls          bool
@@ -114,24 +115,28 @@ func StartGRPCServer(t *testing.T, opts ...TestServerOpt) *TestServer {
 		serverOpts = append(serverOpts, grpc.UnaryInterceptor(ensureValidToken))
 	}
 
-	s := grpc.NewServer(serverOpts...)
+	testServer.grpcServer = grpc.NewServer(serverOpts...)
 
 	if testServer.healthCheck {
 		hc := health.NewServer()
-		healthgrpc.RegisterHealthServer(s, hc)
+		healthgrpc.RegisterHealthServer(testServer.grpcServer, hc)
 		hc.SetServingStatus("", healthgrpc.HealthCheckResponse_SERVING)
 	}
 
 	if testServer.reflection {
-		reflection.Register(s)
+		reflection.Register(testServer.grpcServer)
 	}
 
-	test_server.RegisterGreeterServer(s, testServer)
+	test_server.RegisterGreeterServer(testServer.grpcServer, testServer)
 	go func() {
-		err := s.Serve(lis)
+		err := testServer.grpcServer.Serve(lis)
 		require.NoError(t, err)
 	}()
 	return testServer
+}
+
+func (s *TestServer) Stop() {
+	s.grpcServer.Stop()
 }
 
 //------------------------------------------------------------------------------
