@@ -18,7 +18,7 @@ import TabItem from '@theme/TabItem';
 :::caution EXPERIMENTAL
 This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
-Queries Elasticsearch and enriches messages with the result.
+Queries Elasticsearch and replaces messages with the result.
 
 
 <Tabs defaultValue="common" values={[
@@ -71,7 +71,7 @@ elasticsearch:
 </Tabs>
 
 Runs a search or document lookup against Elasticsearch for each message in a
-batch and (optionally) replaces the message content with the result.
+batch and replaces the message content with the result.
 
 If the query fails the message is left unchanged and the error is set on the
 message — it can be caught downstream with
@@ -203,7 +203,7 @@ Options: `search`, `get`, `delete`.
 
 ### `index`
 
-The index to query. Supports interpolation so the index can be derived from each message.
+The index to query.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 

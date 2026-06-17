@@ -35,10 +35,10 @@ const (
 func ProcessorSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Categories("Integration").
-		Summary("Queries Elasticsearch and enriches messages with the result.").
+		Summary("Queries Elasticsearch and replaces messages with the result.").
 		Description(`
 Runs a search or document lookup against Elasticsearch for each message in a
-batch and (optionally) replaces the message content with the result.
+batch and replaces the message content with the result.
 
 If the query fails the message is left unchanged and the error is set on the
 message — it can be caught downstream with
@@ -72,6 +72,14 @@ result. To merge the result into an existing message or extract a subset of
 fields, wrap this processor in a
 `+"[`branch`](/docs/components/processors/branch)"+` and use its `+"`result_map`"+`.
 `).
+		LintRule(`
+      root = if (
+  this.action == "get" ||
+  this.action == "delete"
+) && (!this.exists("id") || this.id == "") {
+  [ "field 'id' is required when action is '%v'".format(this.action) ]
+}
+    `).
 		Fields(
 			service.NewStringListField(espFieldURLs).
 				Description("A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.").
@@ -80,7 +88,7 @@ fields, wrap this processor in a
 				Description("The operation to perform against Elasticsearch.").
 				Default("search"),
 			service.NewInterpolatedStringField(espFieldIndex).
-				Description("The index to query. Supports interpolation so the index can be derived from each message."),
+				Description("The index to query."),
 			service.NewInterpolatedStringField(espFieldID).
 				Description("The document ID. Required for `get` and `delete` actions. Supports interpolation.").
 				Optional(),
@@ -319,9 +327,7 @@ func (p *EsProcessor) Connect(ctx context.Context) error {
 func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
 
 	if p.client == nil {
-		if err := p.Connect(ctx); err != nil {
-			return nil, err
-		}
+		return nil, service.ErrNotConnected
 	}
 
 	indexExecutor := batch.InterpolationExecutor(p.conf.indexExpr)
@@ -339,7 +345,6 @@ func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBat
 	for i, msg := range batch {
 		index, err := indexExecutor.TryString(i)
 		if err != nil {
-			p.log.Debugf("Index interpolation error: %v", err)
 			msg.SetError(fmt.Errorf("index interpolation error: %w", err))
 			continue
 		}
