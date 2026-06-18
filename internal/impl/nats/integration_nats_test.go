@@ -1,6 +1,8 @@
 package nats
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -10,12 +12,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
+
+	_ "github.com/warpstreamlabs/bento/public/components/io"
+	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
-func TestIntegrationNats(t *testing.T) {
-	integration.CheckSkip(t)
-	t.Parallel()
+func startNatsContainer(t *testing.T) *dockertest.Resource {
+	t.Helper()
 
 	pool, err := dockertest.NewPool("")
 	require.NoError(t, err)
@@ -36,6 +41,15 @@ func TestIntegrationNats(t *testing.T) {
 		natsConn.Close()
 		return nil
 	}))
+
+	return resource
+}
+
+func TestIntegrationNats(t *testing.T) {
+	integration.CheckSkip(t)
+	t.Parallel()
+
+	resource := startNatsContainer(t)
 
 	template := `
 output:
@@ -74,4 +88,68 @@ input:
 			integration.StreamTestOptMaxInFlight(10),
 		)
 	})
+}
+
+func TestIntegrationNatsSyncResponses(t *testing.T) {
+	integration.CheckSkip(t)
+	t.Parallel()
+
+	resource := startNatsContainer(t)
+
+	sb := service.NewStreamBuilder()
+
+	err := sb.SetYAML(fmt.Sprintf(`
+input:
+  nats:
+    urls: [ nats://localhost:%v ]
+    subject: foo.*
+
+output:
+  sync_response: {}
+  processors:
+    - mapping: 'root = content().uppercase()'
+`, resource.GetPort("4222/tcp")))
+	require.NoError(t, err)
+
+	stream, err := sb.Build()
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	go func() {
+		if err := stream.Run(ctx); err != nil &&
+			!errors.Is(err, context.DeadlineExceeded) &&
+			!errors.Is(err, context.Canceled) {
+			t.Errorf("stream exited: %v", err)
+		}
+	}()
+
+	// send some messages into NATS with nats.Request
+	nc, err := nats.Connect(fmt.Sprintf("nats://localhost:%v", resource.GetPort("4222/tcp")))
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, nc.Drain())
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := nc.Request("foo._ready", []byte("ping"), 100*time.Millisecond)
+		return err == nil
+	}, 5*time.Second, 100*time.Millisecond, "stream failed to become ready")
+
+	rep, err := nc.Request("foo.joe", []byte("joe"), time.Second)
+	require.NoError(t, err)
+
+	assert.Equal(t, []byte("JOE"), rep.Data)
+
+	rep, err = nc.Request("foo.sue", []byte("sue"), time.Second)
+	require.NoError(t, err)
+
+	assert.Equal(t, []byte("SUE"), rep.Data)
+
+	rep, err = nc.Request("foo.bob", []byte("bob"), time.Second)
+	require.NoError(t, err)
+
+	assert.Equal(t, []byte("BOB"), rep.Data)
 }
