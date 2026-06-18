@@ -65,6 +65,24 @@ interpolation. The result is the `+"`_source`"+` object of the matched document.
 Deletes the document identified by `+"`id`"+` from the given index. The message
 content is left unchanged (equivalent to `+"`exec_only: true`"+` in `+"`sql_raw`"+`).
 
+### Search Metadata
+- `+"`es_index`"+`
+- `+"`es_took_ms`"+`
+- `+"`es_result_count`"+`
+- `+"`es_total_hits`"+`
+
+### Get Metadata
+- `+"`es_index`"+`
+- `+"`es_id`"+`
+- `+"`es_found`"+`
+
+### Delete Metadata
+- `+"`es_index`"+`
+- `+"`es_id`"+`
+- `+"`es_delete_result`"+`
+
+You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).
+
 ## Result mapping
 
 By default the processor overwrites the entire message with the Elasticsearch
