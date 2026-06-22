@@ -85,6 +85,8 @@ You can access these metadata fields using [function interpolation](/docs/config
 
 When a message arrives with a reply subject (i.e. it was sent via `nats.Request`), you can reply to it by including a `sync_response` output in your pipeline. The input will forward the response payload (and its metadata as NATS headers, if supported) back to the caller automatically once the pipeline acknowledges the message.
 
+For more details, see the [Synchronous Responses guide](/docs/guides/sync_responses) and the [NATS Request-Reply example](https://natsbyexample.com/examples/messaging/request-reply/go/).
+
 ```yaml
 input:
   nats:
