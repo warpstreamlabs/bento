@@ -102,17 +102,28 @@ path expression is evaluated only once per partition (allowing use of functions 
 for unique filenames). Without `partition_by`, each message evaluates the full path independently.
 
 :::warning
-### Violates Delivery Guarantees 
+### Weakens delivery guarantees
 
-This output weakens the delivery guarantees of the pipeline and therefore should not be used in places 
-where data loss is unacceptable.
+This output can weaken delivery guarantees when the input cannot let the stream reach finalization.
+Final buffered bytes are uploaded and acknowledged when the input closes or the output is closed, so
+bounded inputs are compatible only when they can close their transaction channel without waiting for
+the final message acknowledgement. Inputs that wait for a matching final acknowledgement before
+closing, such as `read_until.check`, can still deadlock if the final buffered output is smaller
+than the S3 multipart part size. For finite drain-and-exit jobs, prefer
+`read_until.idle_timeout`, which lets the input close on idle and allows this output to finalize
+and acknowledge the tail.
 :::
 
-## Expects shutdown of pipeline
+Messages are acknowledged only after their bytes are durably represented in S3. Buffered bytes are
+not acknowledged while they are only held in memory, and the final buffered bytes are acknowledged
+only after the upload is completed successfully.
 
-This output flushes on the shutdown of the stream and therefore is intended to be used with inputs that 
-have a logical end, such as [file](docs/components/inputs/file) or one that is wrapped with the 
-[read_until](docs/components/inputs/file) input. 
+On restart this output attempts to recover one in-progress multipart upload for the exact same S3
+path by using S3 multipart listing APIs. This means crash recovery requires a deterministic `path`
+that redelivered messages can recompute exactly. Paths using nondeterministic functions such as
+`uuid_v4()` or the current timestamp are not crash-recoverable without a future manifest or cache
+feature, unless they still recompute the exact same S3 key. Duplicate records can appear after a
+crash and should be tolerated downstream.
 
 ## When to Use
 
@@ -546,5 +557,3 @@ processors:
   - archive:
       format: json_array
 ```
-
-

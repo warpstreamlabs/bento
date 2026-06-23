@@ -1,11 +1,17 @@
 package aws
 
 import (
+	"context"
+	"io"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -370,4 +376,64 @@ path: 'logs/${! meta("filename") }.log'
 
 	// Each message should create its own partition
 	assert.NotEqual(t, path0, path1, "Paths should be different without partition_by")
+}
+
+func TestS3StreamOutputConsumeAppliesConfiguredBatching(t *testing.T) {
+	var uploadedBodies [][]byte
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			body, err := io.ReadAll(input.Body)
+			require.NoError(t, err)
+			uploadedBodies = append(uploadedBodies, body)
+			return &s3.UploadPartOutput{
+				ETag: aws.String("test-etag"),
+			}, nil
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: batched.log
+batching:
+  count: 2
+`
+
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+	batchPolicy, err := parsedConf.FieldBatchPolicy(ssoFieldBatching)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, batchPolicy, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI {
+		return mockClient
+	}
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+
+	ack1 := make(chan error, 1)
+	ack2 := make(chan error, 1)
+
+	txChan <- message.NewTransaction(message.QuickBatch([][]byte{[]byte("foo")}), ack1)
+	select {
+	case err := <-ack1:
+		t.Fatalf("first transaction acked before batch flush: %v", err)
+	default:
+	}
+
+	txChan <- message.NewTransaction(message.QuickBatch([][]byte{[]byte("bar")}), ack2)
+	close(txChan)
+
+	waitCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+	require.NoError(t, out.WaitForClose(waitCtx))
+
+	require.Len(t, uploadedBodies, 1)
+	assert.Equal(t, []byte("foobar"), uploadedBodies[0])
+	require.NoError(t, <-ack1)
+	require.NoError(t, <-ack2)
 }

@@ -3,12 +3,14 @@ package aws
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,6 +21,8 @@ type mockS3StreamClient struct {
 	uploadPartFunc              func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	completeMultipartUploadFunc func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	abortMultipartUploadFunc    func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
+	listMultipartUploadsFunc    func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error)
+	listPartsFunc               func(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error)
 }
 
 func (m *mockS3StreamClient) CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
@@ -51,6 +55,35 @@ func (m *mockS3StreamClient) AbortMultipartUpload(ctx context.Context, input *s3
 		return m.abortMultipartUploadFunc(ctx, input, opts...)
 	}
 	return &s3.AbortMultipartUploadOutput{}, nil
+}
+
+func (m *mockS3StreamClient) ListMultipartUploads(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
+	if m.listMultipartUploadsFunc != nil {
+		return m.listMultipartUploadsFunc(ctx, input, opts...)
+	}
+	return &s3.ListMultipartUploadsOutput{}, nil
+}
+
+func (m *mockS3StreamClient) ListParts(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error) {
+	if m.listPartsFunc != nil {
+		return m.listPartsFunc(ctx, input, opts...)
+	}
+	return &s3.ListPartsOutput{}, nil
+}
+
+type ackRecord struct {
+	called int
+	err    error
+}
+
+func (a *ackRecord) fn(ctx context.Context, err error) error {
+	a.called++
+	a.err = err
+	return nil
+}
+
+func noRetryBackoff() backoff.BackOff {
+	return backoff.WithMaxRetries(backoff.NewConstantBackOff(0), 0)
 }
 
 func TestS3StreamingWriterCreation(t *testing.T) {
@@ -152,7 +185,7 @@ func TestS3StreamingWriterWriteBeforeInitialize(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	err = writer.WriteBytes(ctx, []byte("test data"))
+	err = writer.WriteBytes(ctx, []byte("test data"), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not initialized")
 }
@@ -183,14 +216,25 @@ func TestS3StreamingWriterBufferFlushOnSize(t *testing.T) {
 	err = writer.Initialize(ctx)
 	require.NoError(t, err)
 
-	// Write 6MB of data (should trigger flush)
+	// Write 6MB of data. This seals and uploads the part, but it is not acked
+	// until a later message for the same key is owned.
 	data := make([]byte, 6*1024*1024)
-	err = writer.WriteBytes(ctx, data)
+	firstAck := &ackRecord{}
+	err = writer.WriteBytes(ctx, data, firstAck.fn)
 	require.NoError(t, err)
 
-	// Should have uploaded 1 part
 	assert.Len(t, uploadedParts, 1)
 	assert.Equal(t, int32(1), uploadedParts[0])
+	assert.Equal(t, 0, firstAck.called)
+
+	secondAck := &ackRecord{}
+	err = writer.WriteBytes(ctx, []byte("next"), secondAck.fn)
+	require.NoError(t, err)
+
+	assert.Len(t, uploadedParts, 1)
+	assert.Equal(t, 1, firstAck.called)
+	require.NoError(t, firstAck.err)
+	assert.Equal(t, 0, secondAck.called)
 }
 
 func TestS3StreamingWriterBufferFlushOnCount(t *testing.T) {
@@ -221,13 +265,55 @@ func TestS3StreamingWriterBufferFlushOnCount(t *testing.T) {
 
 	// Write 100 messages with 100KB each = 10MB total (should trigger on count)
 	data := make([]byte, 100*1024)
+	firstAck := &ackRecord{}
 	for range 100 {
-		err = writer.WriteBytes(ctx, data)
+		err = writer.WriteBytes(ctx, data, firstAck.fn)
 		require.NoError(t, err)
 	}
 
-	// Should have uploaded 1 part (triggered by count)
 	assert.Len(t, uploadedParts, 1)
+	assert.Equal(t, 0, firstAck.called)
+
+	err = writer.WriteBytes(ctx, []byte("next"), nil)
+	require.NoError(t, err)
+
+	assert.Len(t, uploadedParts, 1)
+	assert.Equal(t, 100, firstAck.called)
+}
+
+func TestS3StreamingWriterBufferFlushOnPeriod(t *testing.T) {
+	uploaded := make(chan struct{}, 1)
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploaded <- struct{}{}
+			return &s3.UploadPartOutput{
+				ETag: aws.String("test-etag"),
+			}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferBytes:  100 * 1024 * 1024,
+		MaxBufferCount:  10000,
+		MaxBufferPeriod: 5 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	ack := &ackRecord{}
+	require.NoError(t, writer.WriteBytes(ctx, make([]byte, 6*1024*1024), ack.fn))
+
+	select {
+	case <-uploaded:
+	case <-time.After(time.Second):
+		t.Fatal("timed buffer flush did not upload a valid multipart part")
+	}
+	assert.Equal(t, 0, ack.called)
 }
 
 func TestS3StreamingWriterClose(t *testing.T) {
@@ -252,15 +338,18 @@ func TestS3StreamingWriterClose(t *testing.T) {
 	err = writer.Initialize(ctx)
 	require.NoError(t, err)
 
-	// Write some data
-	err = writer.WriteBytes(ctx, []byte("test data"))
+	ack := &ackRecord{}
+	err = writer.WriteBytes(ctx, []byte("test data"), ack.fn)
 	require.NoError(t, err)
+	assert.Equal(t, 0, ack.called)
 
 	// Close should complete upload
 	err = writer.Close(ctx)
 	require.NoError(t, err)
 	assert.True(t, completeCalled)
 	assert.True(t, writer.closed)
+	assert.Equal(t, 1, ack.called)
+	require.NoError(t, ack.err)
 }
 
 func TestS3StreamingWriterWriteAfterClose(t *testing.T) {
@@ -283,7 +372,7 @@ func TestS3StreamingWriterWriteAfterClose(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write after close should error
-	err = writer.WriteBytes(ctx, []byte("test"))
+	err = writer.WriteBytes(ctx, []byte("test"), nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closed")
 }
@@ -316,9 +405,9 @@ func TestS3StreamingWriterStats(t *testing.T) {
 	err = writer.Initialize(ctx)
 	require.NoError(t, err)
 
-	// Write 6MB to trigger flush
+	// Write 6MB to seal and upload a part.
 	data := make([]byte, 6*1024*1024)
-	err = writer.WriteBytes(ctx, data)
+	err = writer.WriteBytes(ctx, data, nil)
 	require.NoError(t, err)
 
 	stats := writer.Stats()
@@ -358,7 +447,7 @@ func TestS3StreamingWriterMultipleParts(t *testing.T) {
 	// Write 6MB three times (should create 3 parts)
 	data := make([]byte, 6*1024*1024)
 	for range 3 {
-		err = writer.WriteBytes(ctx, data)
+		err = writer.WriteBytes(ctx, data, nil)
 		require.NoError(t, err)
 	}
 
@@ -370,6 +459,135 @@ func TestS3StreamingWriterMultipleParts(t *testing.T) {
 	assert.Equal(t, int32(1), *uploadedParts[0].PartNumber)
 	assert.Equal(t, int32(2), *uploadedParts[1].PartNumber)
 	assert.Equal(t, int32(3), *uploadedParts[2].PartNumber)
+}
+
+func TestS3StreamingWriterUploadFailureNacksOwnedCallbacks(t *testing.T) {
+	uploadErr := errors.New("upload failed")
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			return nil, uploadErr
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "test-key",
+		MaxBufferBytes: 5 * 1024 * 1024,
+		BackoffCtor:    noRetryBackoff,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	firstAck := &ackRecord{}
+	err = writer.WriteBytes(ctx, make([]byte, 6*1024*1024), firstAck.fn)
+	require.Error(t, err)
+	assert.Equal(t, 1, firstAck.called)
+	assert.Error(t, firstAck.err)
+}
+
+func TestS3StreamingWriterCompleteFailureNacksFinalCallbacks(t *testing.T) {
+	completeErr := errors.New("complete failed")
+	mockClient := &mockS3StreamClient{
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			return nil, completeErr
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:    mockClient,
+		Bucket:      "test-bucket",
+		Key:         "test-key",
+		BackoffCtor: noRetryBackoff,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	ack := &ackRecord{}
+	require.NoError(t, writer.WriteBytes(ctx, []byte("final"), ack.fn))
+
+	err = writer.Close(ctx)
+	require.Error(t, err)
+	assert.Equal(t, 1, ack.called)
+	assert.Error(t, ack.err)
+}
+
+func TestS3StreamingWriterRecoversExactKeyMultipartUpload(t *testing.T) {
+	var createCalled bool
+	var uploadedPartNumber int32
+	mockClient := &mockS3StreamClient{
+		listMultipartUploadsFunc: func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
+			return &s3.ListMultipartUploadsOutput{
+				Uploads: []types.MultipartUpload{
+					{Key: aws.String("test-key"), UploadId: aws.String("existing-upload")},
+					{Key: aws.String("test-key-other"), UploadId: aws.String("other-upload")},
+				},
+			}, nil
+		},
+		listPartsFunc: func(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error) {
+			assert.Equal(t, "existing-upload", aws.ToString(input.UploadId))
+			return &s3.ListPartsOutput{
+				Parts: []types.Part{
+					{PartNumber: aws.Int32(1), ETag: aws.String("etag-1")},
+					{PartNumber: aws.Int32(2), ETag: aws.String("etag-2")},
+				},
+			}, nil
+		},
+		createMultipartUploadFunc: func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
+			createCalled = true
+			return &s3.CreateMultipartUploadOutput{UploadId: aws.String("new-upload")}, nil
+		},
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadedPartNumber = aws.ToInt32(input.PartNumber)
+			return &s3.UploadPartOutput{ETag: aws.String("etag-3")}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:    mockClient,
+		Bucket:      "test-bucket",
+		Key:         "test-key",
+		BackoffCtor: noRetryBackoff,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+	assert.False(t, createCalled)
+	assert.Equal(t, "existing-upload", aws.ToString(writer.uploadID))
+	assert.Equal(t, int32(2), writer.partNumber)
+
+	require.NoError(t, writer.WriteBytes(ctx, []byte("final"), nil))
+	require.NoError(t, writer.Close(ctx))
+	assert.Equal(t, int32(3), uploadedPartNumber)
+}
+
+func TestS3StreamingWriterMultipleExactKeyMultipartUploadsErrors(t *testing.T) {
+	mockClient := &mockS3StreamClient{
+		listMultipartUploadsFunc: func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
+			return &s3.ListMultipartUploadsOutput{
+				Uploads: []types.MultipartUpload{
+					{Key: aws.String("test-key"), UploadId: aws.String("upload-1")},
+					{Key: aws.String("test-key"), UploadId: aws.String("upload-2")},
+				},
+			}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client: mockClient,
+		Bucket:   "test-bucket",
+		Key:      "test-key",
+	})
+	require.NoError(t, err)
+
+	err = writer.Initialize(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "multiple in-progress multipart uploads")
 }
 
 func TestS3StreamingWriterContentEncoding(t *testing.T) {
