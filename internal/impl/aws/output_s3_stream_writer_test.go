@@ -677,6 +677,7 @@ func TestS3StreamingWriterEmptyFile(t *testing.T) {
 	assert.True(t, putObjectCalled, "PutObject should be called for empty file")
 	assert.Empty(t, capturedPutData, "uploaded data should be empty")
 }
+
 // Additional tests for timer-based flush fix
 
 // TestS3StreamingWriterTimerFlushSmallData tests that timer-based flush
@@ -846,7 +847,7 @@ func TestS3StreamingWriterSlowStreamSmallTotal(t *testing.T) {
 	// Simulate slow data arrival (like slow API pagination)
 	// Write 500KB chunks with delays
 	totalData := []byte{}
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		chunk := make([]byte, 500*1024) // 500KB
 		for j := range chunk {
 			chunk[j] = byte((i*1000 + j) % 256)
@@ -904,7 +905,7 @@ func TestS3StreamingWriterSlowStreamMultipleParts(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write 2MB chunks slowly until we hit 6MB (enough for first part)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		chunk := make([]byte, 2*1024*1024)
 		for j := range chunk {
 			chunk[j] = byte((i*1000 + j) % 256)
@@ -918,7 +919,7 @@ func TestS3StreamingWriterSlowStreamMultipleParts(t *testing.T) {
 	assert.Equal(t, 1, uploadPartCalls, "First part should be uploaded after reaching 5MB")
 
 	// Write another 4MB slowly
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		chunk := make([]byte, 2*1024*1024)
 		err = writer.WriteBytes(ctx, chunk)
 		require.NoError(t, err)
@@ -933,8 +934,8 @@ func TestS3StreamingWriterSlowStreamMultipleParts(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, uploadPartCalls, "Two parts total")
-	assert.Equal(t, 6*1024*1024, len(uploadedParts[0]), "First part should be 6MB")
-	assert.Equal(t, 4*1024*1024, len(uploadedParts[1]), "Second (final) part should be 4MB")
+	assert.Len(t, uploadedParts[0], 6*1024*1024, "First part should be 6MB")
+	assert.Len(t, uploadedParts[1], 4*1024*1024, "Second (final) part should be 4MB")
 }
 
 // TestS3StreamingWriterBufferSizeFlush tests that buffer size trigger
