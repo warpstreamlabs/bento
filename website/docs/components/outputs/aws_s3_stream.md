@@ -263,7 +263,7 @@ Default: `false`
 
 ### `max_buffer_bytes`
 
-Maximum buffer size in bytes before flushing to S3. Default is 10MB.
+Maximum bytes to buffer before uploading a multipart part. A part is only uploaded once the buffer reaches S3's 5MiB minimum part size; smaller amounts are uploaded only as the final part when the writer closes. Default is 10MB.
 
 
 Type: `int`  
@@ -271,7 +271,7 @@ Default: `10485760`
 
 ### `max_buffer_count`
 
-Maximum number of messages to buffer before flushing to S3.
+Maximum messages to buffer before uploading a multipart part, subject to the same 5MiB minimum part size as `max_buffer_bytes`.
 
 
 Type: `int`  
@@ -279,7 +279,7 @@ Default: `10000`
 
 ### `max_buffer_period`
 
-Maximum duration to buffer messages before flushing to S3.
+Maximum duration to buffer before uploading a multipart part. Data below S3's 5MiB minimum part size is not uploaded on this interval, so low-volume streams are uploaded only as the final part when the writer closes.
 
 
 Type: `string`  

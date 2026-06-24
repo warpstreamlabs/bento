@@ -213,6 +213,12 @@ func (w *S3StreamingWriter) recoverMultipartUpload(ctx context.Context) error {
 		return fmt.Errorf("found multipart upload for key %q without upload id", w.key)
 	}
 
+	type recoveredPart struct {
+		number int32
+		etag   *string
+		size   int64
+	}
+	var parts []recoveredPart
 	var partMarker *string
 	for {
 		resp, err := w.s3Client.ListParts(ctx, &s3.ListPartsInput{
@@ -228,13 +234,11 @@ func (w *S3StreamingWriter) recoverMultipartUpload(ctx context.Context) error {
 			if part.PartNumber == nil {
 				continue
 			}
-			w.completedParts = append(w.completedParts, types.CompletedPart{
-				ETag:       part.ETag,
-				PartNumber: part.PartNumber,
+			parts = append(parts, recoveredPart{
+				number: *part.PartNumber,
+				etag:   part.ETag,
+				size:   aws.ToInt64(part.Size),
 			})
-			if *part.PartNumber > w.partNumber {
-				w.partNumber = *part.PartNumber
-			}
 		}
 		if resp.IsTruncated == nil || !*resp.IsTruncated {
 			break
@@ -242,9 +246,34 @@ func (w *S3StreamingWriter) recoverMultipartUpload(ctx context.Context) error {
 		partMarker = resp.NextPartNumberMarker
 	}
 
-	sort.Slice(w.completedParts, func(i, j int) bool {
-		return aws.ToInt32(w.completedParts[i].PartNumber) < aws.ToInt32(w.completedParts[j].PartNumber)
+	sort.Slice(parts, func(i, j int) bool {
+		return parts[i].number < parts[j].number
 	})
+
+	// Drop an interrupted final part smaller than S3's minimum part size. This
+	// occurs when a crash lands between the final part upload and
+	// CompleteMultipartUpload in Close: the sub-minimum part is durable on S3 but
+	// not yet part of a completed object. Our writer never produces a <5MiB
+	// non-final part (shouldSealActive only seals at >=5MiB), so a sub-minimum
+	// highest part can only be such an interrupted final part. Keeping it and
+	// appending redelivered data after it would make it an illegal non-final part,
+	// failing every CompleteMultipartUpload with EntityTooSmall. We drop it and
+	// reuse its part number — its data is redelivered, and the next upload
+	// overwrites the slot on S3 (we cannot rely on an optional bucket lifecycle
+	// rule to reap it).
+	if n := len(parts); n > 0 && parts[n-1].size < s3MultipartMinPartSize {
+		parts = parts[:n-1]
+	}
+
+	for _, p := range parts {
+		w.completedParts = append(w.completedParts, types.CompletedPart{
+			ETag:       p.etag,
+			PartNumber: aws.Int32(p.number),
+		})
+		if p.number > w.partNumber {
+			w.partNumber = p.number
+		}
+	}
 	return nil
 }
 

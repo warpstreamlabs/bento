@@ -131,15 +131,15 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Default(false).
 				Advanced(),
 			service.NewIntField(ssoFieldMaxBufferBytes).
-				Description("Maximum buffer size in bytes before flushing to S3. Default is 10MB.").
+				Description("Maximum bytes to buffer before uploading a multipart part. A part is only uploaded once the buffer reaches S3's 5MiB minimum part size; smaller amounts are uploaded only as the final part when the writer closes. Default is 10MB.").
 				Default(10*1024*1024).
 				Advanced(),
 			service.NewIntField(ssoFieldMaxBufferCount).
-				Description("Maximum number of messages to buffer before flushing to S3.").
+				Description("Maximum messages to buffer before uploading a multipart part, subject to the same 5MiB minimum part size as `max_buffer_bytes`.").
 				Default(10000).
 				Advanced(),
 			service.NewDurationField(ssoFieldMaxBufferPeriod).
-				Description("Maximum duration to buffer messages before flushing to S3.").
+				Description("Maximum duration to buffer before uploading a multipart part. Data below S3's 5MiB minimum part size is not uploaded on this interval, so low-volume streams are uploaded only as the final part when the writer closes.").
 				Default("10s").
 				Advanced(),
 			service.NewInterpolatedStringField(ssoFieldContentType).

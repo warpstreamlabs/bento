@@ -587,10 +587,12 @@ func TestS3StreamingWriterRecoversExactKeyMultipartUpload(t *testing.T) {
 		},
 		listPartsFunc: func(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error) {
 			assert.Equal(t, "existing-upload", aws.ToString(input.UploadId))
+			// Recovered non-final parts are always >=5MiB (S3's minimum), as our
+			// writer only seals at that threshold; ListParts reports real sizes.
 			return &s3.ListPartsOutput{
 				Parts: []types.Part{
-					{PartNumber: aws.Int32(1), ETag: aws.String("etag-1")},
-					{PartNumber: aws.Int32(2), ETag: aws.String("etag-2")},
+					{PartNumber: aws.Int32(1), ETag: aws.String("etag-1"), Size: aws.Int64(5 * 1024 * 1024)},
+					{PartNumber: aws.Int32(2), ETag: aws.String("etag-2"), Size: aws.Int64(5 * 1024 * 1024)},
 				},
 			}, nil
 		},
@@ -621,6 +623,67 @@ func TestS3StreamingWriterRecoversExactKeyMultipartUpload(t *testing.T) {
 	require.NoError(t, writer.WriteBytes(ctx, []byte("final"), nil))
 	require.NoError(t, writer.Close(ctx))
 	assert.Equal(t, int32(3), uploadedPartNumber)
+}
+
+// If a crash interrupts Close between the final (<5MiB) part upload and
+// CompleteMultipartUpload, recovery must drop that sub-minimum trailing part and
+// reuse its slot — otherwise appending redelivered data after it makes it an
+// illegal non-final part and CompleteMultipartUpload fails with EntityTooSmall
+// forever. This must not depend on a bucket lifecycle rule.
+func TestS3StreamingWriterRecoveryDropsSubMinimumFinalPart(t *testing.T) {
+	var completedParts []types.CompletedPart
+	var uploadedPartNumbers []int32
+	mockClient := &mockS3StreamClient{
+		listMultipartUploadsFunc: func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
+			return &s3.ListMultipartUploadsOutput{
+				Uploads: []types.MultipartUpload{{Key: aws.String("test-key"), UploadId: aws.String("existing-upload")}},
+			}, nil
+		},
+		listPartsFunc: func(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error) {
+			// Part 1 is a valid >=5MiB part; part 2 is the interrupted final part (<5MiB).
+			return &s3.ListPartsOutput{
+				Parts: []types.Part{
+					{PartNumber: aws.Int32(1), ETag: aws.String("etag-1"), Size: aws.Int64(5 * 1024 * 1024)},
+					{PartNumber: aws.Int32(2), ETag: aws.String("etag-2"), Size: aws.Int64(1024)},
+				},
+			}, nil
+		},
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadedPartNumbers = append(uploadedPartNumbers, aws.ToInt32(input.PartNumber))
+			return &s3.UploadPartOutput{ETag: aws.String("etag-new")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completedParts = input.MultipartUpload.Parts
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:    mockClient,
+		Bucket:      "test-bucket",
+		Key:         "test-key",
+		BackoffCtor: noRetryBackoff,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	// The <5MiB part 2 is dropped; only part 1 is retained and the next part
+	// reuses slot 2.
+	assert.Equal(t, int32(1), writer.partNumber)
+	require.Len(t, writer.completedParts, 1)
+	assert.Equal(t, int32(1), aws.ToInt32(writer.completedParts[0].PartNumber))
+
+	require.NoError(t, writer.WriteBytes(ctx, []byte("redelivered tail"), nil))
+	require.NoError(t, writer.Close(ctx))
+
+	// New data overwrote slot 2; completion contains parts 1 and 2 only, no
+	// orphaned sub-minimum non-final part.
+	assert.Equal(t, []int32{2}, uploadedPartNumbers)
+	require.Len(t, completedParts, 2)
+	assert.Equal(t, int32(1), aws.ToInt32(completedParts[0].PartNumber))
+	assert.Equal(t, int32(2), aws.ToInt32(completedParts[1].PartNumber))
 }
 
 func TestS3StreamingWriterMultipleExactKeyMultipartUploadsErrors(t *testing.T) {
