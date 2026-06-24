@@ -44,19 +44,20 @@ const (
 func redisScanInputConfig() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Summary(`Scans the set of keys in the current selected database and gets their values, using the Scan and Get commands.`).
+		Summary(`Scans the set of keys in the current selected database and emits Redis string or hash values.`).
 		Description(`Optionally, iterates only elements matching a blob-style pattern. For example:
 - ` + "`*foo*`" + ` iterates only keys which contain ` + "`foo`" + ` in it.
 - ` + "`foo*`" + ` iterates only keys starting with ` + "`foo`" + `.
 
-This input generates a message for each key value pair in the following format:
+By default this input treats matched keys as Redis string data type keys, reads them with GET, and generates a message
+for each key value pair in the following format:
 
 ` + "```json" + `
 {"key":"foo","value":"bar"}
 ` + "```" + `
 
-When ` + "`data_type`" + ` is set to ` + "`hash`" + ` this input treats matched keys as Redis hashes. It uses HSCAN to
-iterate over each field and its value.
+When ` + "`data_type`" + ` is set to ` + "`hash`" + ` this input treats matched keys as Redis hash data type keys. It uses HSCAN
+to iterate over each field and its value.
 
 By default, ` + "`value_format`" + ` is ` + "`structured`" + ` in order to preserve the original ` + "`redis_scan`" + ` message shape
 of ` + "`{\"key\":\"...\",\"value\":\"...\"}`" + `. Set it to ` + "`raw`" + ` to emit Redis values as raw message payloads.
@@ -79,7 +80,7 @@ Raw messages set Redis identity fields as metadata, using ` + "`redis_key`" + ` 
 			Example("*4*").
 			Default("")).
 		Field(service.NewStringEnumField(dataTypeFieldName, redisScanDataTypeString, redisScanDataTypeHash).
-			Description("The Redis data type to read for each matched key. When set to `hash`, matched keys are scanned with HSCAN and each hash field value is emitted as an individual message.").
+			Description("The Redis data type to read for each matched key. `string` reads matched keys with GET. `hash` scans matched keys with HSCAN and emits each hash field value as an individual message.").
 			Default(redisScanDataTypeString)).
 		Field(service.NewStringEnumField(valueFormatFieldName, redisScanValueFormatStructured, redisScanValueFormatRaw).
 			Description("The Bento message shape to emit for Redis values. The `structured` format preserves the original redis_scan key/value object shape, while `raw` emits Redis values as message payloads and stores Redis identity in metadata.").
