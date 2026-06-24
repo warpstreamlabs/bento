@@ -301,6 +301,10 @@ func init() {
 			}
 			var streamOut *s3StreamOutput
 			streamOut, err = newS3StreamOutput(wConf, batchPolicy, mgr)
+			// Returning an unwrapped internal output bypasses the framework's
+			// batcher and AsyncWriter, so the returned batchPolicy and maxInFlight
+			// are ignored (the output applies batching itself). They're reset here
+			// only to make that explicit.
 			out = interop.NewUnwrapInternalOutput(streamOut)
 			batchPolicy = service.BatchPolicy{}
 			maxInFlight = 1

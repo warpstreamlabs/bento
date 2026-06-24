@@ -29,11 +29,8 @@ type s3StreamingAPI interface {
 }
 
 type s3BufferedPart struct {
-	data    []byte
-	acks    []s3AckFunc
-	size    int64
-	msgs    int
-	created time.Time
+	data []byte
+	acks []s3AckFunc
 }
 
 // S3StreamingWriter writes content incrementally to S3 using multipart uploads.
@@ -373,11 +370,8 @@ func (w *S3StreamingWriter) sealActive() {
 		return
 	}
 	w.sealedPart = &s3BufferedPart{
-		data:    append([]byte(nil), w.activeBuffer.Bytes()...),
-		acks:    append([]s3AckFunc(nil), w.activeAcks...),
-		size:    int64(w.activeBuffer.Len()),
-		msgs:    w.activeMsgs,
-		created: w.activeCreated,
+		data: append([]byte(nil), w.activeBuffer.Bytes()...),
+		acks: append([]s3AckFunc(nil), w.activeAcks...),
 	}
 	w.activeBuffer.Reset()
 	w.activeAcks = nil
@@ -465,17 +459,11 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 		w.flushTimer = nil
 	}
 
+	// A sealed part is always uploaded (and cleared) within the same WriteBytes /
+	// flush step that creates it, so it is never set here at Close time.
 	var finalAcks []s3AckFunc
 	finalAcks = append(finalAcks, w.pendingAcks...)
 	w.pendingAcks = nil
-	if w.sealedPart != nil {
-		if err := w.uploadPart(ctx, w.sealedPart.data); err != nil {
-			_ = ackAll(ctx, finalAcks, err)
-			return w.failOwned(ctx, fmt.Errorf("failed to flush sealed part: %w", err))
-		}
-		finalAcks = append(finalAcks, w.sealedPart.acks...)
-		w.sealedPart = nil
-	}
 	if w.activeBuffer.Len() > 0 {
 		if err := w.uploadPart(ctx, w.activeBuffer.Bytes()); err != nil {
 			_ = ackAll(ctx, finalAcks, err)
@@ -507,6 +495,11 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 		return w.failOwned(ctx, fmt.Errorf("failed to complete multipart upload: %w", err))
 	}
 
+	// Known limitation: a hard crash in the in-process gap between the Complete
+	// above succeeding and these acks firing leaves the object complete but the
+	// held tail unacked. On restart only that tail redelivers, and a fresh upload
+	// to the same deterministic key overwrites the object with the fragment. The
+	// window is crash-only and microsecond-narrow, so it is left unguarded.
 	if err := ackAll(ctx, finalAcks, nil); err != nil {
 		return err
 	}
@@ -520,10 +513,6 @@ func (w *S3StreamingWriter) failOwned(ctx context.Context, err error) error {
 	// owned so it redelivers — none of it belongs to a completed object yet.
 	_ = ackAll(ctx, w.pendingAcks, err)
 	w.pendingAcks = nil
-	if w.sealedPart != nil {
-		_ = ackAll(ctx, w.sealedPart.acks, err)
-		w.sealedPart = nil
-	}
 	_ = ackAll(ctx, w.activeAcks, err)
 	w.activeAcks = nil
 	w.activeBuffer.Reset()
