@@ -20,7 +20,6 @@ type mockS3StreamClient struct {
 	createMultipartUploadFunc   func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
 	uploadPartFunc              func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	completeMultipartUploadFunc func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
-	abortMultipartUploadFunc    func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
 	listMultipartUploadsFunc    func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error)
 	listPartsFunc               func(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error)
 }
@@ -48,13 +47,6 @@ func (m *mockS3StreamClient) CompleteMultipartUpload(ctx context.Context, input 
 		return m.completeMultipartUploadFunc(ctx, input, opts...)
 	}
 	return &s3.CompleteMultipartUploadOutput{}, nil
-}
-
-func (m *mockS3StreamClient) AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
-	if m.abortMultipartUploadFunc != nil {
-		return m.abortMultipartUploadFunc(ctx, input, opts...)
-	}
-	return &s3.AbortMultipartUploadOutput{}, nil
 }
 
 func (m *mockS3StreamClient) ListMultipartUploads(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
@@ -486,6 +478,71 @@ func TestS3StreamingWriterUploadFailureNacksOwnedCallbacks(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, 1, firstAck.called)
 	assert.Error(t, firstAck.err)
+}
+
+// A part-upload failure must NOT abort the multipart upload: prior parts stay
+// durable (so already-acked messages aren't silently lost), the writer keeps a
+// valid upload and resumes, and only the failing part's messages are nacked.
+func TestS3StreamingWriterPartFailureKeepsUploadAndResumes(t *testing.T) {
+	var uploadCalls int
+	var completedParts []types.CompletedPart
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadCalls++
+			if uploadCalls == 2 {
+				return nil, errors.New("transient upload failure")
+			}
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completedParts = input.MultipartUpload.Parts
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "test-key",
+		MaxBufferBytes: 5 * 1024 * 1024,
+		BackoffCtor:    noRetryBackoff,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+	part := make([]byte, 6*1024*1024)
+
+	// Part 1 uploads successfully; its ack is held, not yet released.
+	ackA := &ackRecord{}
+	require.NoError(t, writer.WriteBytes(ctx, part, ackA.fn))
+	assert.Equal(t, 0, ackA.called)
+
+	// Next message releases ackA (part 1 is now acked), then seals part 2 whose
+	// upload fails. Part 1 must survive and only ackB is nacked.
+	ackB := &ackRecord{}
+	err = writer.WriteBytes(ctx, part, ackB.fn)
+	require.Error(t, err)
+	assert.Equal(t, 1, ackA.called)
+	require.NoError(t, ackA.err, "already-uploaded part 1 must stay acked, not lost")
+	assert.Equal(t, 1, ackB.called)
+	assert.Error(t, ackB.err, "only the failing part's messages are nacked")
+
+	// Upload is still alive (not aborted/poisoned): part 1 retained, slot reused.
+	require.Len(t, writer.completedParts, 1)
+	assert.Equal(t, int32(1), writer.partNumber)
+	assert.False(t, writer.closed)
+
+	// The writer resumes: a later message uploads as part 2 and close completes.
+	ackC := &ackRecord{}
+	require.NoError(t, writer.WriteBytes(ctx, part, ackC.fn))
+	require.NoError(t, writer.Close(ctx))
+
+	require.Len(t, completedParts, 2)
+	assert.Equal(t, int32(1), aws.ToInt32(completedParts[0].PartNumber))
+	assert.Equal(t, int32(2), aws.ToInt32(completedParts[1].PartNumber))
+	assert.Equal(t, 1, ackC.called)
+	require.NoError(t, ackC.err)
 }
 
 func TestS3StreamingWriterCompleteFailureNacksFinalCallbacks(t *testing.T) {

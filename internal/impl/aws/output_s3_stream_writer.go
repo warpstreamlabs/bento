@@ -24,7 +24,6 @@ type s3StreamingAPI interface {
 	CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
 	UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
-	AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
 	ListMultipartUploads(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error)
 	ListParts(ctx context.Context, input *s3.ListPartsInput, opts ...func(*s3.Options)) (*s3.ListPartsOutput, error)
 }
@@ -363,16 +362,18 @@ func (w *S3StreamingWriter) uploadSealed(ctx context.Context) error {
 		return nil
 	}
 	if err := w.uploadPart(ctx, part.data); err != nil {
-		w.abortMultipartUpload(ctx)
+		// Do NOT abort the multipart upload. Prior parts are durable on S3 and
+		// the upload stays resumable — in-process on the next redelivery (for a
+		// transient failure), or via recoverMultipartUpload after a crash.
+		// Aborting here would discard already-acked prior parts (silent data
+		// loss) and delete exactly the state recovery relies on. We nack only
+		// this part's messages, whose bytes are not durable; they redeliver and
+		// rejoin the file later, possibly out of order (acceptable — Bento makes
+		// no ordering guarantee). pendingAcks and the active buffer are left
+		// untouched (the active buffer is already empty after sealActive).
 		ackErr := fmt.Errorf("failed to upload part: %w", err)
-		_ = ackAll(ctx, w.pendingAcks, ackErr)
 		_ = ackAll(ctx, part.acks, ackErr)
-		_ = ackAll(ctx, w.activeAcks, ackErr)
-		w.pendingAcks = nil
 		w.sealedPart = nil
-		w.activeAcks = nil
-		w.activeBuffer.Reset()
-		w.activeMsgs = 0
 		return ackErr
 	}
 	w.pendingAcks = append(w.pendingAcks, part.acks...)
@@ -485,7 +486,9 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 }
 
 func (w *S3StreamingWriter) failOwned(ctx context.Context, err error) error {
-	w.abortMultipartUpload(ctx)
+	// Do NOT abort: leave the multipart upload in progress so a restart can
+	// recover and complete it (for a deterministic key). Nack everything still
+	// owned so it redelivers — none of it belongs to a completed object yet.
 	_ = ackAll(ctx, w.pendingAcks, err)
 	w.pendingAcks = nil
 	if w.sealedPart != nil {
@@ -496,17 +499,6 @@ func (w *S3StreamingWriter) failOwned(ctx context.Context, err error) error {
 	w.activeAcks = nil
 	w.activeBuffer.Reset()
 	return err
-}
-
-func (w *S3StreamingWriter) abortMultipartUpload(ctx context.Context) {
-	if w.uploadID == nil {
-		return
-	}
-	_, _ = w.s3Client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
-		Bucket:   aws.String(w.bucket),
-		Key:      aws.String(w.key),
-		UploadId: w.uploadID,
-	})
 }
 
 func ackAll(ctx context.Context, acks []s3AckFunc, err error) error {
