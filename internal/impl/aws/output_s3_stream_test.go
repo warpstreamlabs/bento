@@ -439,6 +439,90 @@ batching:
 	require.NoError(t, <-ack2)
 }
 
+// `fallback` consumes a child output by forwarding each transaction with an
+// async ack interceptor and immediately moving to the next, never blocking on a
+// prior ack (output_fallback.go:221-247). That async model is what lets it work
+// with our deferred-ack output, unlike `drop_on`, which blocks per-transaction
+// waiting for the ack and therefore deadlocks. This verifies our real output
+// behaves correctly under that contract: it makes progress without deadlock, a
+// deferred part-upload failure surfaces as a nack (so a fallback could route it),
+// and the writer resumes past the failure and completes the file.
+func TestS3StreamOutputComposesWithFallbackStyleFeeder(t *testing.T) {
+	var uploadCalls int
+	var completed bool
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadCalls++
+			if uploadCalls == 2 {
+				return nil, errors.New("poison part upload")
+			}
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completed = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	// 5 MiB buffer + max_retries:0 so each 6 MiB message seals as its own part
+	// and a failed upload fails fast (no backoff stalling the loop).
+	configYAML := `
+bucket: test-bucket
+path: static.log
+max_buffer_bytes: 5242880
+max_retries: 0
+`
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI { return mockClient }
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+
+	// Forward a transaction with an async interceptor ack and do NOT block on it
+	// (exactly how fallback feeds its child).
+	send := func() chan error {
+		res := make(chan error, 1)
+		ackFn := func(ctx context.Context, err error) error {
+			res <- err
+			return nil
+		}
+		txChan <- message.NewTransactionFunc(message.QuickBatch([][]byte{make([]byte, 6*1024*1024)}), ackFn)
+		return res
+	}
+
+	res1 := send() // part 1 uploads, ack held (deferred)
+	res2 := send() // releases res1 (acked), seals part 2, upload FAILS -> res2 nacked
+	res3 := send() // resumes (reuses part 2 number), uploads, ack held until close
+	close(txChan)
+
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, out.WaitForClose(waitCtx), "must not deadlock under fallback-style feeding")
+
+	getRes := func(c chan error) (error, bool) {
+		select {
+		case e := <-c:
+			return e, true
+		case <-time.After(time.Second):
+			return nil, false
+		}
+	}
+	e1, ok1 := getRes(res1)
+	e2, ok2 := getRes(res2)
+	e3, ok3 := getRes(res3)
+	require.True(t, ok1 && ok2 && ok3, "all transactions must resolve (no deadlock/leak)")
+	assert.NoError(t, e1, "durable message acked")
+	assert.Error(t, e2, "poison part nacked so a fallback output could route it")
+	assert.NoError(t, e3, "writer resumed past the failure; this message acked")
+	assert.True(t, completed, "file completed despite the poison part")
+	assert.Equal(t, 3, uploadCalls)
+}
+
 // A batch spanning multiple partition keys must resolve its upstream
 // transaction exactly once even when a partition fails. Previously a partial
 // failure left the combined-ack counter unable to reach zero, so the

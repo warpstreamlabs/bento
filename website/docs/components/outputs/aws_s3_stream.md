@@ -125,6 +125,30 @@ that redelivered messages can recompute exactly. Paths using nondeterministic fu
 feature, unless they still recompute the exact same S3 key. Duplicate records can appear after a
 crash and should be tolerated downstream.
 
+## Delivery and Failures
+
+Each part upload is retried according to `max_retries` and `backoff`. Once those are exhausted the
+affected messages are rejected so an at-least-once input can redeliver them. A failed upload is never
+aborted, so redelivered data resumes the same multipart upload (in-process, or via recovery after a
+crash) rather than restarting the file. To apply back pressure indefinitely instead of giving up on a
+part, set `max_retries` to `0` and leave `backoff.max_elapsed_time` empty.
+
+Because messages are acknowledged only once their bytes are durable in a part, this output relies on a
+continuous flow of messages to release acknowledgements: a part is only sealed and uploaded once enough
+data accumulates, and the final bytes are acknowledged on close. For this reason it **cannot** be wrapped
+in a `drop_on` output — `drop_on` waits for each message to be acknowledged before delivering the next, which
+deadlocks against deferred acknowledgement. For the same reason it should not be fed by an input limited
+to a single in-flight message.
+
+Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
+or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
+To divert such records to a dead-letter destination, wrap `aws_s3_stream` in a `fallback` output, which
+forwards messages without waiting on acknowledgement and so composes correctly.
+
+Because failed uploads are never aborted, an interrupted or permanently failing upload is left as an
+in-progress multipart upload on S3. Configure an `AbortIncompleteMultipartUpload` lifecycle rule on
+the bucket to clean these up automatically.
+
 ## When to Use
 
 Use `aws_s3_stream` instead of `aws_s3` when:
