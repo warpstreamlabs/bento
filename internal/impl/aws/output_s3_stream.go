@@ -649,10 +649,21 @@ func (s *s3StreamOutput) WaitForClose(ctx context.Context) error {
 	return nil
 }
 
+// s3CombinedAck fans a single upstream transaction ack out across the multiple
+// partition writers that one batch may touch. The root ack is resolved exactly
+// once: either when every partition has been durably acked, or as soon as any
+// single partition fails.
+//
+// The done guard is what makes this safe. Without it, a partial failure could
+// either never resolve the root (a leaked in-flight transaction, since unvisited
+// partitions never decrement the counter) or resolve it twice (e.g. a partition
+// that already succeeded later fires its deferred ack after another partition has
+// already nacked the batch). Firing once and then no-oping every later child call
+// avoids both.
 type s3CombinedAck struct {
 	remaining int
 	root      s3AckFunc
-	err       error
+	done      bool
 	mut       sync.Mutex
 }
 
@@ -664,12 +675,17 @@ func (c *s3CombinedAck) Derive() s3AckFunc {
 	return func(ctx context.Context, err error) error {
 		c.mut.Lock()
 		defer c.mut.Unlock()
-		if err != nil && c.err == nil {
-			c.err = err
+		if c.done {
+			return nil
 		}
 		c.remaining--
-		if c.remaining == 0 {
-			return c.root(ctx, c.err)
+		// Nack the whole batch on the first partition failure: a transaction can
+		// only be resolved as a whole, so redelivery may duplicate the partitions
+		// that already succeeded, which is acceptable. Otherwise ack only once
+		// every partition is durable.
+		if err != nil || c.remaining == 0 {
+			c.done = true
+			return c.root(ctx, err)
 		}
 		return nil
 	}

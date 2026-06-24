@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -436,4 +437,88 @@ batching:
 	assert.Equal(t, []byte("foobar"), uploadedBodies[0])
 	require.NoError(t, <-ack1)
 	require.NoError(t, <-ack2)
+}
+
+// A batch spanning multiple partition keys must resolve its upstream
+// transaction exactly once even when a partition fails. Previously a partial
+// failure left the combined-ack counter unable to reach zero, so the
+// transaction was never acked or nacked (leaked in-flight).
+func TestS3StreamOutputPartitionFailureNacksWholeBatchOnce(t *testing.T) {
+	mockClient := &mockS3StreamClient{
+		// Fail recovery listing so every writer's Initialize() errors.
+		listMultipartUploadsFunc: func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
+			return nil, errors.New("list failed")
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: '${! meta("file") }.log'
+`
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI { return mockClient }
+	require.NoError(t, out.Connect(context.Background()))
+
+	// Two messages routed to two distinct partition keys ("a.log", "b.log").
+	m0 := service.NewMessage([]byte("aaa"))
+	m0.MetaSet("file", "a")
+	m1 := service.NewMessage([]byte("bbb"))
+	m1.MetaSet("file", "b")
+
+	var rootCalls int
+	var rootErr error
+	rootAck := func(ctx context.Context, e error) error {
+		rootCalls++
+		rootErr = e
+		return nil
+	}
+
+	err = out.writeBatch(context.Background(), service.MessageBatch{m0, m1}, rootAck)
+	require.Error(t, err)
+	assert.Equal(t, 1, rootCalls, "upstream transaction must be resolved exactly once")
+	assert.Error(t, rootErr, "a partition failure must nack the whole batch")
+}
+
+// WriteBytes takes ownership of an ack the moment it is called, so its early
+// failures (closed/uninitialized) must nack it rather than drop it.
+func TestS3StreamingWriterEarlyFailureNacksAck(t *testing.T) {
+	t.Run("not initialized", func(t *testing.T) {
+		writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+			S3Client: &mockS3StreamClient{},
+			Bucket:   "test-bucket",
+			Key:      "test-key",
+		})
+		require.NoError(t, err)
+
+		ack := &ackRecord{}
+		err = writer.WriteBytes(context.Background(), []byte("data"), ack.fn)
+		require.Error(t, err)
+		assert.Equal(t, 1, ack.called)
+		assert.Error(t, ack.err)
+	})
+
+	t.Run("closed", func(t *testing.T) {
+		writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+			S3Client: &mockS3StreamClient{},
+			Bucket:   "test-bucket",
+			Key:      "test-key",
+		})
+		require.NoError(t, err)
+
+		ctx := context.Background()
+		require.NoError(t, writer.Initialize(ctx))
+		require.NoError(t, writer.Close(ctx))
+
+		ack := &ackRecord{}
+		err = writer.WriteBytes(ctx, []byte("data"), ack.fn)
+		require.Error(t, err)
+		assert.Equal(t, 1, ack.called)
+		assert.Error(t, ack.err)
+	})
 }

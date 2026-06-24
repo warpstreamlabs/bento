@@ -254,11 +254,22 @@ func (w *S3StreamingWriter) WriteBytes(ctx context.Context, data []byte, ackFn s
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	// Once an ack is handed to the writer, the writer owns resolving it exactly
+	// once. These early failures never store ackFn, so they must nack it here;
+	// otherwise the upstream transaction leaks (neither acked nor nacked).
 	if w.closed {
-		return errors.New("writer is closed")
+		err := errors.New("writer is closed")
+		if ackFn != nil {
+			_ = ackFn(ctx, err)
+		}
+		return err
 	}
 	if w.uploadID == nil {
-		return errors.New("writer not initialized")
+		err := errors.New("writer not initialized")
+		if ackFn != nil {
+			_ = ackFn(ctx, err)
+		}
+		return err
 	}
 
 	w.activeBuffer.Write(data)
