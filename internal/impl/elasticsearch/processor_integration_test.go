@@ -152,8 +152,6 @@ urls:
 action: search
 index: %s
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -190,8 +188,6 @@ action: search
 index: %s
 args_mapping: 'root = { "query": { "term": { "status": "nonexistent" } } }'
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -220,8 +216,6 @@ action: search
 index: %s
 args_mapping: 'root = { "query": { "term": { "user_id.keyword": this.uid } } }'
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -253,8 +247,6 @@ action: search
 index: %s
 args_mapping: 'root = { "query": { "match_all": {} } }'
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -296,8 +288,6 @@ action: get
 index: %s
 id: user-7
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -325,8 +315,6 @@ action: get
 index: it-get-notfound
 id: does-not-exist
 `, urls[0])
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -351,8 +339,6 @@ action: get
 index: %s
 id: doc-x
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -391,8 +377,6 @@ action: get
 index: %s
 id: ${! this.item_id }
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	for _, tc := range []struct{ itemID, wantLabel string }{
@@ -426,8 +410,6 @@ action: delete
 index: %s
 id: del-1
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -457,8 +439,6 @@ action: delete
 index: %s
 id: pt-1
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	originalBody := []byte(`{"session_id":"pt-1","user":"frank"}`)
@@ -487,8 +467,6 @@ action: delete
 index: %s
 id: del-meta-1
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batches, err := p.ProcessBatch(ctx, service.MessageBatch{
@@ -526,8 +504,6 @@ action: get
 index: %s
 id: ${! this.doc_id }
 `, urls[0], index)
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	batch := service.MessageBatch{
@@ -568,8 +544,6 @@ action: get
 index: ${! this.target_index }
 id: doc-1
 `, urls[0])
-
-	require.NoError(t, p.Connect(ctx))
 	defer p.Close(ctx)
 
 	for _, tc := range []struct{ idx, wantTag string }{

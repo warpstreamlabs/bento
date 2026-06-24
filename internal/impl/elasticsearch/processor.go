@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/elastic/go-elasticsearch/v9"
 
@@ -23,7 +21,6 @@ const (
 	espFieldIndex        = "index"
 	espFieldID           = "id"
 	espFieldArgsMapping  = "args_mapping"
-	espFieldTimeout      = "timeout"
 	espFieldTLS          = "tls"
 	espFieldAuth         = "basic_auth"
 	espFieldAuthEnabled  = "enabled"
@@ -100,7 +97,7 @@ fields, wrap this processor in a
     `).
 		Fields(
 			service.NewStringListField(espFieldURLs).
-				Description("A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.").
+				Description("A list of Elasticsearch URLs to connect to. When using an environment variable, provide URLs as a YAML array rather than a single comma-separated string. For example, `ES_URLS=http://es1:9200,http://es2:9200` will be interpreted as a single URL and may result in a malformed address error.").
 				Example([]string{"http://localhost:9200"}),
 			service.NewStringEnumField(espFieldAction, "search", "get", "delete").
 				Description("The operation to perform against Elasticsearch.").
@@ -125,10 +122,6 @@ fields, wrap this processor in a
   "size": 10
 }`).
 				Optional(),
-			service.NewDurationField(espFieldTimeout).
-				Description("The maximum time to wait for a request to complete.").
-				Advanced().
-				Default("5s"),
 			service.NewTLSToggledField(espFieldTLS),
 			service.NewObjectField(espFieldAuth,
 				service.NewBoolField(espFieldAuthEnabled).
@@ -217,7 +210,6 @@ func init() {
 
 type esProcessorConfig struct {
 	clientConfig elasticsearch.Config
-	timeout      time.Duration
 
 	action    string
 	indexExpr *service.InterpolatedString
@@ -227,19 +219,7 @@ type esProcessorConfig struct {
 }
 
 func esProcessorConfigFromParsed(pConf *service.ParsedConfig) (conf esProcessorConfig, err error) {
-	var rawURLs []string
-	if rawURLs, err = pConf.FieldStringList(espFieldURLs); err != nil {
-		return
-	}
-	for _, u := range rawURLs {
-		for part := range strings.SplitSeq(u, ",") {
-			if part = strings.TrimSpace(part); part != "" {
-				conf.clientConfig.Addresses = append(conf.clientConfig.Addresses, part)
-			}
-		}
-	}
-
-	if conf.timeout, err = pConf.FieldDuration(espFieldTimeout); err != nil {
+	if conf.clientConfig.Addresses, err = pConf.FieldStringList(espFieldURLs); err != nil {
 		return
 	}
 
@@ -304,50 +284,19 @@ func NewProcessorFromConfig(pConf *service.ParsedConfig, mgr *service.Resources)
 	if err != nil {
 		return nil, err
 	}
+
+	client, err := elasticsearch.NewClient(conf.clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create elasticsearch client: %w", err)
+	}
 	return &EsProcessor{
-		log:  mgr.Logger(),
-		conf: conf,
+		log:    mgr.Logger(),
+		conf:   conf,
+		client: client,
 	}, nil
 }
 
-func (p *EsProcessor) Connect(ctx context.Context) error {
-	if p.client != nil {
-		return nil
-	}
-
-	p.log.Debugf("Connecting to Elasticsearch at %v", p.conf.clientConfig.Addresses)
-
-	client, err := elasticsearch.NewClient(p.conf.clientConfig)
-	if err != nil {
-		p.log.Debugf("Failed to create ES client: %v", err)
-		return fmt.Errorf("failed to create elasticsearch client: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, p.conf.timeout)
-	defer cancel()
-
-	res, err := client.Info(client.Info.WithContext(ctx))
-	if err != nil {
-		p.log.Debugf("Failed to connect to ES: %v", err)
-		return fmt.Errorf("failed to connect to elasticsearch: %w", err)
-	}
-	defer res.Body.Close()
-	if res.IsError() {
-		p.log.Debugf("ES returned error: %s", res.Status())
-		return fmt.Errorf("elasticsearch cluster returned error on connect: %s", res.Status())
-	}
-
-	p.client = client
-	p.log.Debugf("Successfully connected to Elasticsearch")
-	return nil
-}
-
 func (p *EsProcessor) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
-
-	if p.client == nil {
-		return nil, service.ErrNotConnected
-	}
-
 	indexExecutor := batch.InterpolationExecutor(p.conf.indexExpr)
 	var idExecutor *service.MessageBatchInterpolationExecutor
 	if p.conf.idExpr != nil {

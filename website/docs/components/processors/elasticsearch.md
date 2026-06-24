@@ -52,7 +52,6 @@ elasticsearch:
   index: "" # No default (required)
   id: "" # No default (optional)
   args_mapping: 'root = { "query": { "term": { "user_id": this.user_id } }' # No default (optional)
-  timeout: 5s
   tls:
     enabled: false
     skip_cert_verify: false
@@ -198,7 +197,7 @@ pipeline:
 
 ### `urls`
 
-A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.
+A list of Elasticsearch URLs to connect to. When using an environment variable, provide URLs as a YAML array rather than a single comma-separated string. For example, `ES_URLS=http://es1:9200,http://es2:9200` will be interpreted as a single URL and may result in a malformed address error.
 
 
 Type: `array`  
@@ -260,14 +259,6 @@ args_mapping: |-
     "size": 10
   }
 ```
-
-### `timeout`
-
-The maximum time to wait for a request to complete.
-
-
-Type: `string`  
-Default: `"5s"`  
 
 ### `tls`
 
