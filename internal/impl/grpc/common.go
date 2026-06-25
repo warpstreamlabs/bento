@@ -119,7 +119,19 @@ func oAuth2FieldSpec() *service.ConfigField {
 				"bar": []string{"woof"},
 			}).
 			Default(map[string]any{}).
-			Optional(),
+			Optional().
+			LintRule(`
+root = if this.type() == "object" {
+  this.values().map_each(ele -> if ele.type() != "array" {
+    "field must be an object containing arrays of strings, got %s (%v)".format(ele.format_json(no_indent: true), ele.type())
+  } else {
+    ele.map_each(str -> if str.type() != "string" {
+      "field values must be strings, got %s (%v)".format(str.format_json(no_indent: true), str.type())
+    } else { deleted() })
+  }).
+    flatten()
+}
+`),
 	).
 		Description("Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.").
 		Optional().Advanced()
@@ -249,14 +261,17 @@ func (gcc *grpcConfig) Connect(ctx context.Context) (err error) {
 	}
 	success := false
 	defer func() {
-		if !success {
-			if gcc.conn != nil {
-				gcc.conn.Close()
-			}
-			gcc.conn = nil
-			gcc.method = nil
-			gcc.reflectClient = nil
+		if success {
+			return
 		}
+
+		if gcc.conn != nil {
+			gcc.conn.Close()
+		}
+		gcc.conn = nil
+		gcc.method = nil
+		gcc.reflectClient = nil
+
 	}()
 
 	if len(gcc.protoFiles) >= 1 && gcc.reflection {

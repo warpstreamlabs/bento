@@ -351,9 +351,6 @@ func (gci *grpcClientInput) clientStreamHandler(ctx context.Context) (service.Me
 }
 
 func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
-	gci.bidiChan = make(chan service.MessageBatch)
-	gci.bidiErrChan = make(chan error)
-
 	bidiCtx, bidiCancel := context.WithCancel(ctx)
 	gci.bidiCancel = bidiCancel
 
@@ -362,6 +359,9 @@ func (gci *grpcClientInput) startBidi(ctx context.Context) (err error) {
 		bidiCancel()
 		return err
 	}
+
+	gci.bidiChan = make(chan service.MessageBatch)
+	gci.bidiErrChan = make(chan error)
 
 	go func(bidiCtx context.Context) {
 		for {
