@@ -148,7 +148,11 @@ func (gci *grpcClientInput) ReadBatch(ctx context.Context) (service.MessageBatch
 		}
 
 		select {
-		case re := <-gci.bidiChan:
+		case re, ok := <-gci.bidiChan:
+			if !ok {
+				gci.bidiChan = nil
+				return nil, nil, service.ErrNotConnected
+			}
 			return re, func(rctx context.Context, res error) error {
 				return nil
 			}, nil
