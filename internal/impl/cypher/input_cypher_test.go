@@ -9,6 +9,7 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"

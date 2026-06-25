@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
+
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )

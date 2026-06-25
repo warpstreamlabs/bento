@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
+
 	_ "github.com/warpstreamlabs/bento/public/components/sql"
 )
 

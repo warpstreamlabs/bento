@@ -2,6 +2,7 @@ package s2
 
 import (
 	s2bentobox "github.com/s2-streamstore/s2-sdk-go/s2-bentobox"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 

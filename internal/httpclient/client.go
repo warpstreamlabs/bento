@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/icholy/digest"
+
 	"github.com/warpstreamlabs/bento/internal/old/util/throttle"
 	"github.com/warpstreamlabs/bento/internal/tracing/v2"
 	"github.com/warpstreamlabs/bento/public/service"

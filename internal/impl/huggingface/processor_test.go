@@ -5,6 +5,7 @@ import (
 
 	"github.com/knights-analytics/hugot"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
