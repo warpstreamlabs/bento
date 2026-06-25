@@ -12,10 +12,11 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/Jeffail/shutdown"
-	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
-	"github.com/warpstreamlabs/bento/public/service"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
+
+	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 // TODO(gregfurman): Implement caching and checkpointing mechanism

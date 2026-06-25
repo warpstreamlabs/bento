@@ -8,6 +8,7 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
+
 	"github.com/warpstreamlabs/bento/internal/impl/wasm/wasmpool"
 	"github.com/warpstreamlabs/bento/public/service"
 )

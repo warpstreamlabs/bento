@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jhump/protoreflect/dynamic"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 

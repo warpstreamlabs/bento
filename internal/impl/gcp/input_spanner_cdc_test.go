@@ -12,11 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
-	"github.com/warpstreamlabs/bento/public/service"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	types "github.com/warpstreamlabs/bento/internal/impl/gcp/types"
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func TestCDCConfigFromParsed(t *testing.T) {

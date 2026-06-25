@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Jeffail/shutdown"
+
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/public/service"
 )

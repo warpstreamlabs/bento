@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+
 	. "github.com/warpstreamlabs/bento/internal/impl/gcp/tests"
 	_ "github.com/warpstreamlabs/bento/public/components/sql"
 	"github.com/warpstreamlabs/bento/public/service/integration"

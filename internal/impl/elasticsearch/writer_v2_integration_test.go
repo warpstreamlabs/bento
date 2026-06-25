@@ -14,6 +14,7 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/internal/impl/elasticsearch"
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"

@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 )
 
 type protoTestCase struct {
