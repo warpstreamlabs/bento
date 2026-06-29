@@ -91,7 +91,7 @@ require (
 	github.com/itchyny/gojq v0.12.16
 	github.com/itchyny/timefmt-go v0.1.6
 	github.com/jackc/pgconn v1.14.3
-	github.com/jackc/pgx/v5 v5.9.0
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jhump/protoreflect v1.15.6
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/klauspost/compress v1.18.6
@@ -239,7 +239,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
-	golang.org/x/image v0.41.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260619171412-e028bae49277 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	k8s.io/api v0.34.2 // indirect
