@@ -253,6 +253,236 @@ passthrough_mode: unprocessed
 	assert.JSONEq(t, `{"type":"end","id":"8"}`, string(result))
 }
 
+func TestCacheCollectorProcessor_WithInitCheckCollisionsCheck(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+init_mode: check
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_keep_cache: false
+passthrough_mode: unprocessed
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"work","id":"1"}`)),
+
+		// start
+		service.NewMessage([]byte(`{"type":"start","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"3"}`)),
+		service.NewMessage([]byte(`{"type":"start","id":"4"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"5"}`)),
+		service.NewMessage([]byte(`{"type":"ignore","id":"6"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"7"}`)),
+		// end
+
+		service.NewMessage([]byte(`{"type":"work","id":"8"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"9"}`)),
+	}
+
+	_, err = processor.ProcessBatch(t.Context(), batch)
+
+	require.Error(t, err)
+}
+
+func TestCacheCollectorProcessor_WithInitCheckCollisionsIgnore(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+init_mode: ignore
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_keep_cache: false
+passthrough_mode: unprocessed
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"work","id":"1"}`)),
+
+		// start
+		service.NewMessage([]byte(`{"type":"start","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"3"}`)),
+		service.NewMessage([]byte(`{"type":"start","id":"4"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"5"}`)),
+		service.NewMessage([]byte(`{"type":"ignore","id":"6"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"7"}`)),
+		// end
+
+		service.NewMessage([]byte(`{"type":"work","id":"8"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"9"}`)),
+	}
+
+	results, err := processor.ProcessBatch(t.Context(), batch)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0], 5)
+
+	result, err := results[0][0].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"1"}`, string(result))
+
+	result, err = results[0][1].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"ignore","id":"6"}`, string(result))
+
+	result, err = results[0][2].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"type":"work","id":"3"},{"type":"work","id":"5"}]`, string(result))
+
+	result, err = results[0][3].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"8"}`, string(result))
+
+	result, err = results[0][4].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"end","id":"9"}`, string(result))
+}
+
+func TestCacheCollectorProcessor_WithInitCheckCollisionsReplace(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+init_mode: replace
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_keep_cache: false
+passthrough_mode: unprocessed
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"work","id":"1"}`)),
+
+		// start
+		service.NewMessage([]byte(`{"type":"start","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"3"}`)),
+		service.NewMessage([]byte(`{"type":"start","id":"4"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"5"}`)),
+		service.NewMessage([]byte(`{"type":"ignore","id":"6"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"7"}`)),
+		// end
+
+		service.NewMessage([]byte(`{"type":"work","id":"8"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"9"}`)),
+	}
+
+	results, err := processor.ProcessBatch(t.Context(), batch)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0], 5)
+
+	result, err := results[0][0].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"1"}`, string(result))
+
+	result, err = results[0][1].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"ignore","id":"6"}`, string(result))
+
+	result, err = results[0][2].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"type":"work","id":"5"}]`, string(result))
+
+	result, err = results[0][3].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"8"}`, string(result))
+
+	result, err = results[0][4].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"end","id":"9"}`, string(result))
+}
+
+func TestCacheCollectorProcessor_WithInitCheckCollisionsFlush(t *testing.T) {
+	spec := `
+resource: test_cache
+key: test_key
+init_check: this.type == "start"
+init_map: root = []
+init_mode: flush
+append_check: this.type == "work"
+append_map: |
+  root = this.cached.append(this.current)
+flush_check: this.type == "end"
+flush_keep_cache: false
+passthrough_mode: unprocessed
+`
+	processor, _, err := cacheCollectorProc(spec)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { require.NoError(t, processor.Close(t.Context())) })
+
+	batch := service.MessageBatch{
+		service.NewMessage([]byte(`{"type":"work","id":"1"}`)),
+
+		// start
+		service.NewMessage([]byte(`{"type":"start","id":"2"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"3"}`)),
+		service.NewMessage([]byte(`{"type":"start","id":"4"}`)),
+		service.NewMessage([]byte(`{"type":"work","id":"5"}`)),
+		service.NewMessage([]byte(`{"type":"ignore","id":"6"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"7"}`)),
+		// end
+
+		service.NewMessage([]byte(`{"type":"work","id":"8"}`)),
+		service.NewMessage([]byte(`{"type":"end","id":"9"}`)),
+	}
+
+	results, err := processor.ProcessBatch(t.Context(), batch)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0], 6)
+
+	result, err := results[0][0].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"1"}`, string(result))
+
+	result, err = results[0][1].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"type":"work","id":"3"}]`, string(result))
+
+	result, err = results[0][2].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"ignore","id":"6"}`, string(result))
+
+	result, err = results[0][3].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"type":"work","id":"5"}]`, string(result))
+
+	result, err = results[0][4].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"work","id":"8"}`, string(result))
+
+	result, err = results[0][5].AsBytes()
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"type":"end","id":"9"}`, string(result))
+}
+
 func TestCacheCollectorProcessor_WithInitCheckAndFilter(t *testing.T) {
 	spec := `
 resource: test_cache

@@ -52,8 +52,8 @@ The `+"`append_map`"+` and `+"`flush_map`"+` bloblang expressions can access bot
 				Description("Bloblang expression to initialize the value when the cache key doesn't exist. Defaults to an empty array.").
 				Default("root = []").
 				Examples("root = []", `root = {"items": []}`, `root = {"count": 0, "total": 0}`),
-			service.NewInterpolatedStringEnumField(cacheCollectorPFieldInitMode, "check", "ignore", "replace").
-				Description("Option to change the behavior of the initialisation. `check` will check if the cache key already exists and returns to an error, `ignore` just ignores the current message and keeps the cached value and `replace` replaces the cached value.").
+			service.NewInterpolatedStringEnumField(cacheCollectorPFieldInitMode, "check", "ignore", "replace", "flush").
+				Description("Option to change the behavior of the initialisation. `check` will check if the cache key already exists and returns to an error, `ignore` just ignores the current message and keeps the cached value, `replace` replaces the cached value and `flush` flushes the cached value which gets replaced.").
 				Advanced().
 				Default("check"),
 			service.NewBloblangField(cacheCollectorPFieldAppendCheck).
@@ -293,6 +293,11 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 		}
 
 		if processAppend || processFlush {
+			currentValue, err := msg.AsBytes()
+			if err != nil {
+				return nil, err
+			}
+
 			var cachedValue []byte
 			cacheValueExists := true
 
@@ -337,6 +342,38 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 							return nil, fmt.Errorf("init data error: %w", err)
 						}
 						cachedValue = initData
+					case "flush":
+						flushMsgJson, err := json.Marshal(cacheCollectorMessageData{
+							Cached:  json.RawMessage(cachedValue),
+							Current: json.RawMessage(currentValue),
+						})
+
+						if err != nil {
+							return nil, err
+						}
+
+						msg.SetBytes(flushMsgJson)
+
+						var fMsg *service.Message
+						fMsg, err = flushMap.Query(i)
+
+						msg.SetBytes(currentValue)
+
+						if err != nil {
+							return nil, err
+						}
+
+						newMsgs = append(newMsgs, fMsg)
+
+						initMsg, err := initMap.Query(i)
+						if err != nil {
+							return nil, fmt.Errorf("init_map evaluation error: %w", err)
+						}
+						initData, err := initMsg.AsBytes()
+						if err != nil {
+							return nil, fmt.Errorf("init data error: %w", err)
+						}
+						cachedValue = initData
 					default:
 						return nil, fmt.Errorf("init_mode unsupported mode %s", initMode)
 					}
@@ -355,11 +392,6 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 			}
 
 			if cacheValueExists {
-				currentValue, err := msg.AsBytes()
-				if err != nil {
-					return nil, err
-				}
-
 				if processAppend {
 					appendMsgJson, err := json.Marshal(cacheCollectorMessageData{
 						Cached:  json.RawMessage(cachedValue),
@@ -489,6 +521,60 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 				}
 			case "replace":
 				if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
+					err = cache.Set(ctx, key, initData, ttl)
+					if err != nil {
+						err = fmt.Errorf("failed to set cache key '%s': %v", key, err)
+					}
+				}); cerr != nil {
+					err = cerr
+				}
+
+				if err != nil {
+					return nil, err
+				}
+			case "flush":
+				if cerr := cc.mgr.AccessCache(ctx, cc.cacheName, func(cache service.Cache) {
+					var cachedValue []byte
+					cachedValue, err = cache.Get(ctx, key)
+					if err != nil {
+						if errors.Is(err, service.ErrKeyNotFound) {
+							err = cache.Set(ctx, key, initData, ttl)
+							if err != nil {
+								err = fmt.Errorf("failed to set cache key '%s': %v", key, err)
+							}
+						}
+						return
+					}
+
+					var currentValue []byte
+					currentValue, err = msg.AsBytes()
+					if err != nil {
+						return
+					}
+
+					var flushMsgJson []byte
+					flushMsgJson, err = json.Marshal(cacheCollectorMessageData{
+						Cached:  json.RawMessage(cachedValue),
+						Current: json.RawMessage(currentValue),
+					})
+
+					if err != nil {
+						return
+					}
+
+					msg.SetBytes(flushMsgJson)
+
+					var fMsg *service.Message
+					fMsg, err = flushMap.Query(i)
+
+					msg.SetBytes(currentValue)
+
+					if err != nil {
+						return
+					}
+
+					newMsgs = append(newMsgs, fMsg)
+
 					err = cache.Set(ctx, key, initData, ttl)
 					if err != nil {
 						err = fmt.Errorf("failed to set cache key '%s': %v", key, err)
