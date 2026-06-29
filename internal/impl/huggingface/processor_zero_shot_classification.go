@@ -2,7 +2,7 @@ package huggingface
 
 import (
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelineBackends"
+	"github.com/knights-analytics/hugot/backends"
 	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -58,8 +58,8 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-func getZeroShotTextClassificationOptions(conf *service.ParsedConfig) ([]pipelineBackends.PipelineOption[*pipelines.ZeroShotClassificationPipeline], error) {
-	var options []pipelineBackends.PipelineOption[*pipelines.ZeroShotClassificationPipeline]
+func getZeroShotTextClassificationOptions(conf *service.ParsedConfig) ([]backends.PipelineOption[*pipelines.ZeroShotClassificationPipeline], error) {
+	var options []backends.PipelineOption[*pipelines.ZeroShotClassificationPipeline]
 
 	if conf.Contains("hypothesis_template") {
 		hypothesisTemplate, err := conf.FieldString("hypothesis_template")

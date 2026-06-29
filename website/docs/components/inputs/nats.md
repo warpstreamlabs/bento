@@ -49,7 +49,7 @@ input:
     queue: "" # No default (optional)
     auto_replay_nacks: true
     nak_delay: 1m # No default (optional)
-    prefetch_count: 524288
+    prefetch_count: 500000
     tls:
       enabled: false
       skip_cert_verify: false
@@ -80,6 +80,24 @@ This input adds the following metadata fields to each message:
 ```
 
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).
+
+### Request-Reply
+
+When a message arrives with a reply subject (i.e. it was sent via `nats.Request`), you can reply to it by including a `sync_response` output in your pipeline. The input will forward the response payload (and its metadata as NATS headers, if supported) back to the caller automatically once the pipeline acknowledges the message.
+
+For more details, see the [Synchronous Responses guide](/docs/guides/sync_responses) and the [NATS Request-Reply example](https://natsbyexample.com/examples/messaging/request-reply/go/).
+
+```yaml
+input:
+  nats:
+    urls: [ nats://localhost:4222 ]
+    subject: rpc.>
+
+output:
+  sync_response: {}
+  processors:
+    - mapping: 'root = content().uppercase()'
+```
 
 ### Connection Name
 
@@ -191,7 +209,7 @@ The maximum number of messages to pull at a time.
 
 
 Type: `int`  
-Default: `524288`  
+Default: `500000`  
 
 ### `tls`
 
@@ -392,7 +410,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

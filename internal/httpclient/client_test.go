@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Jeffail/gabs/v2"
+	"github.com/icholy/digest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -695,6 +696,65 @@ tls:
   enabled: true
   skip_cert_verify: true
 `, ts.URL+"/testpost", tsOAuth2.URL)
+
+	h, err := NewClientFromOldConfig(conf, service.MockResources())
+	require.NoError(t, err)
+
+	resBatch, err := h.Send(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("hello world")),
+	})
+	require.NoError(t, err)
+	require.Len(t, resBatch, 1)
+
+	mBytes, err := resBatch[0].AsBytes()
+	require.NoError(t, err)
+	assert.Equal(t, "HELLO WORLD", string(mBytes))
+}
+
+func TestHTTPClientDigestConf(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		chal := &digest.Challenge{
+			Realm:     "test",
+			Nonce:     "noncestring",
+			Algorithm: "MD5",
+			QOP:       []string{"auth"},
+		}
+
+		auth := r.Header.Get("Authorization")
+
+		if auth == "" {
+			w.Header().Add("WWW-Authenticate", chal.String())
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		cred, err := digest.ParseCredentials(auth)
+		require.NoError(t, err)
+
+		validCred, err := digest.Digest(chal, digest.Options{
+			Method:   r.Method,
+			URI:      r.URL.RequestURI(),
+			Cnonce:   cred.Cnonce,
+			Count:    cred.Nc,
+			Username: "test",
+			Password: "123",
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, validCred.Response, cred.Response)
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		_, _ = w.Write(bytes.ToUpper(b))
+	}))
+	defer ts.Close()
+
+	conf := clientConfig(t, `
+url: %v
+digest_auth:
+  enabled: true
+  username: test
+  password: 123
+`, ts.URL+"/testpost")
 
 	h, err := NewClientFromOldConfig(conf, service.MockResources())
 	require.NoError(t, err)

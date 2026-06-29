@@ -112,7 +112,6 @@ Determines how messages written to the subprocess are encoded, which allows them
 
 Type: `string`  
 Default: `"lines"`  
-Requires version 1.0.0 or newer  
 Options: `lines`, `length_prefixed_uint32_be`, `netstring`.
 
 ### `codec_recv`
@@ -122,7 +121,6 @@ Determines how messages read from the subprocess are decoded, which allows them 
 
 Type: `string`  
 Default: `"lines"`  
-Requires version 1.0.0 or newer  
 Options: `lines`, `length_prefixed_uint32_be`, `netstring`.
 
 

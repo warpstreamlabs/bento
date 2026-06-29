@@ -101,6 +101,16 @@ func (c *avroScanner) NextBatch(ctx context.Context) (service.MessageBatch, erro
 		return nil, io.EOF
 	}
 
+	// Scan returns true when there is at least one more data item
+	// to be read from the Avro OCF. Omitting it causes every read
+	// to fail with "Read called without successful Scan".
+	// See https://github.com/linkedin/goavro/blob/c69e26ce467683269036725e0832d712f67fa672/ocf_reader.go#L125-L128
+	if !c.ocf.Scan() {
+		if err := c.ocf.Err(); err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	}
 	datum, err := c.ocf.Read()
 	if err != nil {
 		return nil, err

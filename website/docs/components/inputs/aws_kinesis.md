@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Receive messages from one or more Kinesis streams.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -69,6 +67,10 @@ input:
     rebalance_period: 30s
     lease_period: 30s
     start_from_oldest: true
+    enhanced_fan_out:
+      enabled: false
+      consumer_name: ""
+      consumer_arn: ""
     region: ""
     endpoint: ""
     credentials:
@@ -222,6 +224,38 @@ Whether to consume from the oldest message when a sequence does not yet exist fo
 Type: `bool`  
 Default: `true`  
 
+### `enhanced_fan_out`
+
+Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.
+
+
+Type: `object`  
+Requires version 1.16.0 or newer  
+
+### `enhanced_fan_out.enabled`
+
+Enable Enhanced Fan Out mode for push-based streaming with dedicated throughput.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `enhanced_fan_out.consumer_name`
+
+Consumer name for EFO registration. Auto-generated if empty: bento-clientID.
+
+
+Type: `string`  
+Default: `""`  
+
+### `enhanced_fan_out.consumer_arn`
+
+Existing consumer ARN to use. If provided, skips registration.
+
+
+Type: `string`  
+Default: `""`  
+
 ### `region`
 
 The AWS region to target.
@@ -287,7 +321,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

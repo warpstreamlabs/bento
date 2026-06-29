@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 var linebreakStr = `foo
@@ -2331,6 +2332,126 @@ func TestNewIndexMethod(t *testing.T) {
 	}
 }
 
+func TestNewSetMethod(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   any
+		path     string
+		value    any
+		expected any
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name:     "set simple field",
+			target:   map[string]any{"a": 1},
+			path:     "b",
+			value:    2,
+			expected: map[string]any{"a": 1, "b": 2},
+		},
+		{
+			name:     "set nested field",
+			target:   map[string]any{"a": map[string]any{"b": 1}},
+			path:     "a.c",
+			value:    3,
+			expected: map[string]any{"a": map[string]any{"b": 1, "c": 3}},
+		},
+		{
+			name:     "set deeply nested field",
+			target:   map[string]any{"a": map[string]any{"b": map[string]any{"c": 1}}},
+			path:     "a.b.d",
+			value:    4,
+			expected: map[string]any{"a": map[string]any{"b": map[string]any{"c": 1, "d": 4}}},
+		},
+		{
+			name:     "set array element",
+			target:   map[string]any{"a": []any{1, 2, 3}},
+			path:     "a.1",
+			value:    5,
+			expected: map[string]any{"a": []any{1, 5, 3}},
+		},
+		{
+			name:     "set field in array of objects",
+			target:   map[string]any{"a": []any{map[string]any{"b": 1}}},
+			path:     "a.0.c",
+			value:    2,
+			expected: map[string]any{"a": []any{map[string]any{"b": 1, "c": 2}}},
+		},
+		{
+			name:     "set string value",
+			target:   map[string]any{"a": "hello"},
+			path:     "b",
+			value:    "world",
+			expected: map[string]any{"a": "hello", "b": "world"},
+		},
+		{
+			name:     "set boolean value",
+			target:   map[string]any{"a": true},
+			path:     "b",
+			value:    false,
+			expected: map[string]any{"a": true, "b": false},
+		},
+		{
+			name:     "set number value",
+			target:   map[string]any{"a": 10},
+			path:     "b",
+			value:    20.5,
+			expected: map[string]any{"a": 10, "b": 20.5},
+		},
+		{
+			name:     "set null value",
+			target:   map[string]any{"a": "hello"},
+			path:     "b",
+			value:    nil,
+			expected: map[string]any{"a": "hello", "b": nil},
+		},
+		{
+			name:     "set complex nested structure",
+			target:   map[string]any{"a": map[string]any{"b": []any{1, 2}}},
+			path:     "a.b.1",
+			value:    5,
+			expected: map[string]any{"a": map[string]any{"b": []any{1, 5}}},
+		},
+		{
+			name:    "set invalid path",
+			target:  map[string]any{"a": "hello"},
+			path:    "a.b.c.d",
+			value:   "value",
+			wantErr: true,
+			errMsg:  "encountered value collision whilst building path",
+		},
+		{
+			name:     "set invalid path",
+			target:   map[string]any{"a": "hello", "b": "world"},
+			path:     "b",
+			value:    value.Delete(nil),
+			expected: map[string]any{"a": "hello"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			targetFunc := NewFieldFunction("")
+
+			setMethod, err := NewSetMethod(targetFunc, tt.path, tt.value)
+			require.NoError(t, err)
+
+			result, err := setMethod.Exec(FunctionContext{}.WithValue(tt.target))
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestNewSliceMethod(t *testing.T) {
 	literalFn := func(val any) Function {
 		return NewLiteralFunction("", val)
@@ -2591,7 +2712,7 @@ func TestSliceHelperFunctions(t *testing.T) {
 				length:    10,
 				start:     nil,
 				end:       nil,
-				step:      ptr(int64(-1)),
+				step:      new(int64(-1)),
 				wantStart: 9,
 				wantEnd:   -1,
 				wantStep:  -1,
@@ -2599,8 +2720,8 @@ func TestSliceHelperFunctions(t *testing.T) {
 			{
 				name:      "negative indices",
 				length:    10,
-				start:     ptr(int64(-3)),
-				end:       ptr(int64(-1)),
+				start:     new(int64(-3)),
+				end:       new(int64(-1)),
 				step:      nil,
 				wantStart: 7,
 				wantEnd:   9,
@@ -2609,8 +2730,8 @@ func TestSliceHelperFunctions(t *testing.T) {
 			{
 				name:      "out of bounds clamping",
 				length:    5,
-				start:     ptr(int64(-10)),
-				end:       ptr(int64(10)),
+				start:     new(int64(-10)),
+				end:       new(int64(10)),
 				step:      nil,
 				wantStart: 0,
 				wantEnd:   5,
@@ -2629,25 +2750,20 @@ func TestSliceHelperFunctions(t *testing.T) {
 	})
 
 	t.Run("sliceString", func(t *testing.T) {
-		result, err := sliceString("hello world", ptr(int64(0)), ptr(int64(5)), ptr(int64(2)))
+		result, err := sliceString("hello world", new(int64(0)), new(int64(5)), new(int64(2)))
 		require.NoError(t, err)
 		assert.Equal(t, "hlo", result)
 	})
 
 	t.Run("sliceBytes", func(t *testing.T) {
-		result, err := sliceBytes([]byte("hello"), ptr(int64(1)), ptr(int64(4)), nil)
+		result, err := sliceBytes([]byte("hello"), new(int64(1)), new(int64(4)), nil)
 		require.NoError(t, err)
 		assert.Equal(t, []byte("ell"), result)
 	})
 
 	t.Run("sliceArray", func(t *testing.T) {
-		result, err := sliceArray([]any{"a", "b", "c", "d"}, ptr(int64(1)), ptr(int64(3)), nil)
+		result, err := sliceArray([]any{"a", "b", "c", "d"}, new(int64(1)), new(int64(3)), nil)
 		require.NoError(t, err)
 		assert.Equal(t, []any{"b", "c"}, result)
 	})
-}
-
-// Helper function to create pointers to int64 values
-func ptr(i int64) *int64 {
-	return &i
 }

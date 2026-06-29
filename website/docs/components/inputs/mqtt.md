@@ -131,7 +131,6 @@ The maximum amount of time to wait in order to establish a connection before the
 
 Type: `string`  
 Default: `"30s"`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

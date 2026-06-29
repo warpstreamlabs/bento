@@ -3,18 +3,21 @@ title: Lambda
 description: Deploying Bento as an AWS Lambda function
 ---
 
-The `bento-lambda` distribution is a version of Bento specifically tailored
-for deployment as an AWS Lambda function on the `go1.x` runtime,
-which runs Amazon Linux on the `x86_64` architecture.
-The `bento-lambda-al2` distribution supports the `provided.al2` runtime,
+There are bento binaries specifically tailored for deployment as an AWS Lambda 
+function, these are available from the [releases][releases] page. 
+
+The `bento-lambda-al2023` distribution supports the `provided.al2023` runtime,
 which runs Amazon Linux 2 on either the `x86_64` or `arm64` architecture.
 
-It uses the same configuration format as a regular Bento instance, which can be
+The `bento-lambda-al2` distribution is set to be deprecated by AWS on July 31st 
+2026. 
+
+They use the same configuration format as a regular Bento instance, which can be
 provided in 1 of 2 ways:
 
 1. Inline via the `BENTO_CONFIG` environment variable (YAML format).
 2. Via the filesystem using a layer, extension, or container image. By default,
-   the `bento-lambda` distribution will look for a valid configuration file in
+   Bento Lambda distributions will look for a valid configuration file in
    the locations listed below. Alternatively, the configuration file path can be
    set explicity by passing a `BENTO_CONFIG_PATH` environment variable.
   - `./bento.yaml`
@@ -130,46 +133,37 @@ output:
 
 ## Upload to AWS
 
-### go1.x on x86_64
+### provided.al2023 on arm64
 
-Grab an archive labelled `bento-lambda` from the [releases page][releases]
-page and then create your function:
+Grab an archive labelled `bento-lambda-al2023` for `arm64` from the [releases page][releases]
+page and then upload it to S3: 
 
 ```sh
-LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
-aws lambda create-function \
-  --runtime go1.x \
-  --handler bento-lambda \
-  --role bento-example-role \
-  --zip-file fileb://bento-lambda.zip \
-  --environment "$LAMBDA_ENV" \
-  --function-name bento-example
+aws s3api create-bucket --bucket lambdas 
+aws s3api put-object  --bucket lambdas --key bento-lambda.zip --body 
+bento-lambda-al2023_1.16.1_linux_arm64.zip
 ```
 
-There is also an example [SAM template][sam-template] and
-[Terraform resource][tf-example] in the repo to copy from.
-
-### provided.al2 on arm64
-
-Grab an archive labelled `bento-lambda-al2` for `arm64` from the [releases page][releases]
-page and then create your function (AWS CLI v2 only):
+Then create your function (AWS CLI v2 only):
 
 ```sh
 LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
 aws lambda create-function \
-  --runtime provided.al2 \
+  --runtime provided.al2023 \
+  --handler not.used.for.provided.al2023.runtime \
+  # note: handler is not used for this runtime: lambda will execute a binary
+  # named 'bootstrap' in the root of the zip archive.
   --architectures arm64 \
-  --handler not.used.for.provided.al2.runtime \
-  --role bento-example-role \
-  --zip-file fileb://bento-lambda.zip \
+  --role  arn:aws:iam::000000000000:role/bento-example-role \
+  --code S3Bucket=lambdas,S3Key=bento-lambda.zip \
   --environment "$LAMBDA_ENV" \
   --function-name bento-example
 ```
 
-There is also an example [SAM template][sam-template-al2] and
-[Terraform resource][tf-example-al2] in the repo to copy from.
+There is also an example [SAM template][sam-template-al2023] and
+[Terraform resource][tf-example-al2023] in the repo to copy from.
 
-Note that you can also run `bento-lambda-al2` on x86_64, just use the `amd64` zip instead.
+Note that you can also run `bento-lambda-al2023` on x86_64, just use the `amd64` zip instead.
 
 ## Invoke
 
@@ -177,6 +171,7 @@ Note that you can also run `bento-lambda-al2` on x86_64, just use the `amd64` zi
 aws lambda invoke \
   --function-name bento-example \
   --payload '{"your":"document"}' \
+  --cli-binary-format raw-in-base64-out \
   out.txt && cat out.txt && rm out.txt
 ```
 
@@ -187,70 +182,12 @@ You can build and archive the function yourself with:
 ```sh
 go build github.com/warpstreamlabs/bento/cmd/serverless/bento-lambda
 zip bento-lambda.zip bento-lambda
-```
-
-## Local testing
-A quick guide on using the [LocalStack AWS emulator](https://docs.localstack.cloud/overview/) to test your `bento-lambda` locally.
-
-### Installation
-The quickest way to get up-and-running is using the [LocalStack Docker image](https://docs.localstack.cloud/getting-started/installation/#docker):
-```sh
-docker run \
-  --rm -it \
-  -p 127.0.0.1:4566:4566 \
-  -p 127.0.0.1:4510-4559:4510-4559 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  localstack/localstack
-```
-
-### Using the AWS CLI v2
-
-First, configure AWS CLI to connect to LocalStack:
-```sh
-export AWS_ACCESS_KEY_ID="test"
-export AWS_SECRET_ACCESS_KEY="test"
-export AWS_DEFAULT_REGION="us-east-1"
-export AWS_ENDPOINT_URL=http://localhost:4566 # Unset this to create resource in AWS
-```
-
-### Creation and Invocation Examples
-
-With the container running and CLI configured, we can go ahead with creating and invoking our Bento Lambda using [Lambda on LocalStack](https://docs.localstack.cloud/user-guide/aws/lambda/).
-
-Running the example in [go1.x on x86_64](#go1x-on-x86_64) can be easily achieved by including the specified endpoint flag.
-
-```sh
-LAMBDA_ENV=`cat yourconfig.yaml | jq -csR {Variables:{BENTO_CONFIG:.}}`
-aws lambda create-function \
-  --runtime go1.x \
-  --handler bento-lambda \
-  --role 'arn:aws:iam::000000000000:role/bento-example-role' \
-  --zip-file fileb://bento-lambda.zip \
-  --environment "$LAMBDA_ENV" \
-  --function-name bento-example
-```
-
-Invocation can be done the same way:
-```sh
-aws lambda invoke \                                                       
-  --function-name bento-example \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"your":"document"}' \
-  out.txt && cat out.txt && rm out.txt
-```
-
-The LocalStack logs should then include:
-```sh
-localstack.request.aws     : AWS lambda.CreateFunction => 201
-...
-localstack.request.aws     : AWS lambda.Invoke => 200
-```
+go build -o bootstrap github.com/warpstreamlabs/bento/cmd/serverless/bento-lambda
+zip bento-lambda.zip bootstrap
 
 [releases]: https://github.com/warpstreamlabs/bento/releases
-[sam-template]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-sam.yaml
-[tf-example]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda.tf
-[sam-template-al2]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2-sam.yaml
-[tf-example-al2]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2.tf
+[sam-template-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023-sam.yaml
+[tf-example-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023.tf
 [output-broker]: /docs/components/outputs/broker
 [output.reject]: /docs/components/outputs/reject
 [makenew/serverless-bento]: https://github.com/makenew/serverless-bento

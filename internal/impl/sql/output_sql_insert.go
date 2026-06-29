@@ -56,7 +56,6 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.Field(service.NewBatchPolicyField("batching")).
-		Version("1.0.0").
 		Example("Table Insert (MySQL)",
 			`
 Here we insert rows into a database by populating the columns id, name and topic with values extracted from messages and metadata:`,
@@ -73,6 +72,25 @@ output:
         this.user.name,
         metadata("kafka_topic"),
       ]
+`,
+		).
+		Example("Table Insert (DuckDB)",
+			"Write events to a local DuckDB file, creating the table on first run via `init_statement`.",
+			`
+# BENTO LINT DISABLE
+output:
+  sql_insert:
+    driver: duckdb
+    dsn: /tmp/duckburg.duckdb
+    table: vault_deposits
+    columns: [id, duck, gold_coins]
+    args_mapping: "root = [this.id, this.duck, this.gold_coins]"
+    init_statement: |
+      CREATE TABLE IF NOT EXISTS vault_deposits (
+        id         INTEGER PRIMARY KEY,
+        duck       VARCHAR,
+        gold_coins BIGINT
+      )
 `,
 		)
 	return spec
@@ -200,6 +218,19 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 		}
 	}
 
+	go func() {
+		<-s.shutSig.HardStopChan()
+
+		s.dbMut.Lock()
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
+		s.dbMut.Unlock()
+
+		s.shutSig.TriggerHasStopped()
+	}()
+
 	return s, nil
 }
 
@@ -217,20 +248,6 @@ func (s *sqlInsertOutput) Connect(ctx context.Context) error {
 	}
 
 	s.connSettings.apply(ctx, s.db, s.logger)
-
-	go func() {
-		<-s.shutSig.HardStopChan()
-
-		s.dbMut.Lock()
-		defer s.dbMut.Unlock()
-
-		if s.db != nil {
-			_ = s.db.Close()
-			s.db = nil
-		}
-
-		s.shutSig.TriggerHasStopped()
-	}()
 	return nil
 }
 
@@ -240,9 +257,12 @@ func (s *sqlInsertOutput) WriteBatch(ctx context.Context, batch service.MessageB
 		return nil
 	}
 
-	if errors.Is(err, driver.ErrBadConn) {
+	if errors.Is(err, driver.ErrBadConn) || isAuthError(s.driver, err) {
 		s.dbMut.Lock()
-		s.db = nil
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
 		s.dbMut.Unlock()
 		return service.ErrNotConnected
 	}

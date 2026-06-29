@@ -38,8 +38,7 @@ func redisListOutputConfig() *service.ConfigSpec {
 			service.NewStringEnumField("command", string(rPush), string(lPush)).
 				Description("The command used to push elements to the Redis list").
 				Default(string(rPush)).
-				Advanced().
-				Version("1.0.0"),
+				Advanced(),
 		)
 }
 

@@ -428,7 +428,6 @@ The command used to push elements to the Redis list
 
 Type: `string`  
 Default: `"rpush"`  
-Requires version 1.0.0 or newer  
 Options: `rpush`, `lpush`.
 
 

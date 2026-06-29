@@ -71,6 +71,7 @@ This input adds the following metadata fields to each message:
 - amqp_content_type
 - amqp_content_encoding
 - amqp_creation_time
+- amqp_to
 - All string typed message annotations
 ```
 
@@ -100,7 +101,6 @@ A list of URLs to connect to. The first URL to successfully establish a connecti
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -140,7 +140,6 @@ Experimental: Azure service bus specific option to renew lock if processing take
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `read_header`
 
@@ -149,7 +148,6 @@ Read additional message header fields into `amqp_*` metadata properties.
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credit`
 
@@ -158,7 +156,6 @@ Specifies the maximum number of unacknowledged messages the sender can transmit.
 
 Type: `int`  
 Default: `64`  
-Requires version 1.0.0 or newer  
 
 ### `tls`
 

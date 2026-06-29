@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Scans the set of keys in the current selected database and gets their values, using the Scan and Get commands.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

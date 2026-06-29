@@ -78,7 +78,7 @@ func TestIntegration_TextClassifier(t *testing.T) {
 
 			tmpDir := t.TempDir()
 			modelName := snapshot.Metadata.ModelName
-			modelPath, err := hugot.DownloadModel(modelName, tmpDir, hugot.NewDownloadOptions())
+			modelPath, err := hugot.DownloadModel(context.Background(), modelName, tmpDir, hugot.NewDownloadOptions())
 			require.NoError(t, err)
 
 			t.Logf("downloading to %v", modelPath)
@@ -130,7 +130,7 @@ func TestIntegration_TokenClassifier(t *testing.T) {
 	snapshot := loadSnapshot(t, "test-snapshot-token-classification", "expected_token_classification.json")
 
 	tmpDir := t.TempDir()
-	modelPath, err := hugot.DownloadModel(snapshot.Metadata.ModelName, tmpDir, hugot.NewDownloadOptions())
+	modelPath, err := hugot.DownloadModel(context.Background(), snapshot.Metadata.ModelName, tmpDir, hugot.NewDownloadOptions())
 	require.NoError(t, err)
 
 	template := fmt.Sprintf(`
@@ -171,7 +171,7 @@ func TestIntegration_FeatureExtractor(t *testing.T) {
 	tmpDir := t.TempDir()
 	opts := hugot.NewDownloadOptions()
 	opts.OnnxFilePath = "onnx/model.onnx"
-	modelPath, err := hugot.DownloadModel(snapshot.Metadata.ModelName, tmpDir, opts)
+	modelPath, err := hugot.DownloadModel(context.Background(), snapshot.Metadata.ModelName, tmpDir, opts)
 	require.NoError(t, err)
 
 	template := fmt.Sprintf(`
@@ -238,7 +238,7 @@ func TestIntegration_ZeroShotTextClassifier(t *testing.T) {
 
 			opts := hugot.NewDownloadOptions()
 			opts.OnnxFilePath = "onnx/model.onnx"
-			modelPath, err := hugot.DownloadModel(modelName, tmpDir, opts)
+			modelPath, err := hugot.DownloadModel(context.Background(), modelName, tmpDir, opts)
 			require.NoError(t, err)
 
 			defer t.Cleanup(func() {

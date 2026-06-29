@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends messages to Snowflake stages and, optionally, calls Snowpipe to load this data into one or more tables.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

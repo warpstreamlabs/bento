@@ -1970,24 +1970,24 @@
         "result": [
           {
             "Entity": "PER",
-            "Score": 0.8870351,
-            "Scores": null,
-            "Index": 0,
             "Word": "Barack Obama",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 0,
             "End": 12,
+            "Score": 0.88703513,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.99495965,
-            "Scores": null,
-            "Index": 0,
             "Word": "New York City",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 21,
             "End": 34,
+            "Score": 0.99495965,
             "IsSubword": false
           }
         ]
@@ -1997,24 +1997,24 @@
         "result": [
           {
             "Entity": "ORG",
-            "Score": 0.9982603,
+            "Word": "Apple Inc .",
             "Scores": null,
+            "TokenIDs": null,
             "Index": 0,
-            "Word": "Apple Inc.",
-            "TokenID": null,
             "Start": 0,
             "End": 10,
+            "Score": 0.9982603,
             "IsSubword": false
           },
           {
             "Entity": "ORG",
-            "Score": 0.9973738,
-            "Scores": null,
-            "Index": 0,
             "Word": "Microsoft Corporation",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 15,
             "End": 36,
+            "Score": 0.9973738,
             "IsSubword": false
           }
         ]
@@ -2024,68 +2024,68 @@
         "result": [
           {
             "Entity": "PER",
-            "Score": 0.89475554,
+            "Word": "Martin Luther King Jr .",
             "Scores": null,
+            "TokenIDs": null,
             "Index": 0,
-            "Word": "Martin Luther King Jr.",
-            "TokenID": null,
             "Start": 4,
             "End": 26,
+            "Score": 0.89475554,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.9971667,
-            "Scores": null,
-            "Index": 0,
             "Word": "Washington",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 36,
             "End": 46,
+            "Score": 0.9971667,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.99436814,
-            "Scores": null,
-            "Index": 0,
             "Word": "D",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 48,
             "End": 49,
+            "Score": 0.9943681,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.9909979,
-            "Scores": null,
-            "Index": 0,
             "Word": ".",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 49,
             "End": 50,
+            "Score": 0.9909979,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.82892853,
-            "Scores": null,
-            "Index": 0,
             "Word": "C",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 50,
             "End": 51,
+            "Score": 0.8289299,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.767214,
-            "Scores": null,
-            "Index": 0,
             "Word": ".",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 51,
             "End": 52,
+            "Score": 0.7672151,
             "IsSubword": false
           }
         ]
@@ -2095,24 +2095,24 @@
         "result": [
           {
             "Entity": "ORG",
-            "Score": 0.8098202,
-            "Scores": null,
-            "Index": 0,
             "Word": "University of California",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 4,
             "End": 28,
+            "Score": 0.8098197,
             "IsSubword": false
           },
           {
             "Entity": "LOC",
-            "Score": 0.99612063,
-            "Scores": null,
-            "Index": 0,
             "Word": "Los Angeles",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 35,
             "End": 46,
+            "Score": 0.99612063,
             "IsSubword": false
           }
         ]
@@ -2122,52 +2122,52 @@
         "result": [
           {
             "Entity": "PER",
-            "Score": 0.997136,
-            "Scores": null,
-            "Index": 0,
             "Word": "John",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 0,
             "End": 4,
+            "Score": 0.997136,
             "IsSubword": false
           },
           {
             "Entity": "ORG",
-            "Score": 0.9956779,
-            "Scores": null,
-            "Index": 0,
             "Word": "Google",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 14,
             "End": 20,
+            "Score": 0.9956779,
             "IsSubword": false
           },
           {
             "Entity": "PER",
-            "Score": 0.99725723,
-            "Scores": null,
-            "Index": 0,
             "Word": "Mary Smith",
-            "TokenID": null,
+            "Scores": null,
+            "TokenIDs": null,
+            "Index": 0,
             "Start": 26,
             "End": 36,
+            "Score": 0.99725723,
             "IsSubword": false
           }
         ]
       }
     ],
     "tokenizer_stats": {
-      "total_duration": 2577001,
+      "total_duration": 101292,
       "total_calls": 5
     },
     "pipeline_stats": {
-      "total_duration": 18776948417,
+      "total_duration": 1173454624,
       "total_calls": 5
     },
     "metadata": {
-      "created_at": "2025-05-30T13:40:49.402061+02:00",
+      "created_at": "2026-05-21T00:03:05.774795+02:00",
       "model_name": "KnightsAnalytics/distilbert-NER",
-      "go_version": "go1.24.2",
+      "go_version": "go1.26.3",
       "platform": "darwin/arm64",
       "test_name": "test-snapshot-token-classification"
     }

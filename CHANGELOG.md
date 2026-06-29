@@ -3,6 +3,104 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.18.1 - 2026-06-05
+
+### Fixed
+
+ - `avro` scanner call Scan() before Read() @istairbn
+ - `protobuf` processor buf schema registry poller goroutine leak @jem-davies
+
+### Changed
+
+ - upgrade to Go version 1.26.4 @jem-davies
+ - upgrade `otlp` dependency @jem-davies
+
+
+## 1.18.0 - 2026-05-25
+
+### Added 
+
+ - `template` processor enabling use of Go template syntax for message transformations @lublak
+ - `fsevent` input creates messages for file-system events with metadata pertaining to event @henrikschristensen
+ - `duckdb_append` output inserts rows into a DuckDB database using the Appender API @iamramtin
+ - `digest_auth` fields on http components enabling digest authentication @lublak
+ - `oauth2` fields on `kafka` & `kafka_franz` enabling oauth2 authentication @vsl86 & @jem-davies
+ - `emit_unpopulated` field to `protobuf` processor enabling emitting unpopulated fields with their default JSON values @matta-dev
+ - Environment variable "BENTO_CONFIG" is checked for Bento Configuration @jem-davies
+ - `checksum_algorithm` field added to `aws_s3` when set Bento computes the checksum for s3 to check @seanbarzilay
+
+### Fixed 
+
+ - `file` processor `delete` operation fixed for windows @henrikschristensen
+ - goroutine leak in SQL components @adrianhaj
+ - nil-check added to `sql_raw` output @adrianhaj
+ - `kafka_franz` input to attach logger regardless of consumer group being set @gregfurman
+
+### Changed 
+
+ - updated to Go version 1.26 @gregfurman & @jem-davies
+ - upgrade sarama to 1.47.0 (`kafka` component library) @gitphill
+ - upgrade golang/x/net for CVE @jem-davies
+ - removed reference to deprecated 'Optional' field in cuegen @aebrahim
+ - `kafka_franz` franz-go logs to surface at `ERROR/WARN/INFO/DEBUG` instead of `ERROR/WARN/DEBUG/TRACE` @gregfurman
+
+## 1.17.0 - 2026-04-15
+
+### Added 
+
+ - `sanitize_namespace_names` field to `schema_registry_decode` processor @jem-davies
+ - `api_key` to `elasticsearch_v2` output adding the option to use a elasticsearch API key to connect @alexthemayers
+ - `extract_tracing_map` and `new_root_span_with_link` fields to the kafka_franz input @danielavelez12
+ - `kafka_timestamp_ms` metadata fields to both `kafka_franz` and `kafka` @dnson & @sonnydinhgc
+ - new `file` processor @henrikschristensen
+
+### Changed
+
+ - upgrade OTEL dependencies for CVE @gitphill
+ - upgrade go-jose/v4 to v4.1.4 for CVE
+ - upgrade lambda distribution & update docs @jem-davies
+
+## 1.16.2 - 2026-03-31
+
+### Fixed 
+
+ - `aws_kinesis` input busy loop when `batching.period` is set @jem-davies
+ - various dependency updates for CVEs 
+
+## 1.16.1 - 2026-03-19
+
+### Fixed
+
+- add handling for authentication errors in SQL output components @adrianhaj
+
+### Added
+
+- `datadog_logs` output component @gregfurman
+
+## 1.16.0 - 2026-03-18
+
+### Added 
+
+ - `headers` field added to `websocket` output enables setting custom headers to the websocket handshake @DackJempsey
+ - `enhanced_fan_out` configuration options for `aws_kinesis` input @jbeemster & @matus-tomlein
+ - `aws_s3_stream` output streams data to S3 using multipart uploads @triddell 
+ - `duckdb` driver option added to sql components; @sapk & @James-Gilbert-
+ - `debug` field added to `kafka` input; enabling will forward sarama's internal logs to Bento's logger @gitphill
+ - `error_source_label`, `error_source_path`, `error_source_type` bloblang functions @gregfurman
+ - `payload` field added to `http` processor & `http_client` output; alternative to using the message as the payload @lublak
+ - `python` processor; WASM-based Python processor @gregfurman
+
+### Changed 
+
+ - Modernize Go syntax with `go fix`; included 'modernize' linter in CI @gregfurman & @jem-davies
+ - Enabled use of `# BENTO LINT DISABLE` token in component example documentation @iamramtin
+
+## 1.15.2 - 2026-03-11
+
+### Added
+
+- `datadog_logs` output component @gregfurman
+
 ## 1.15.1 - 2026-03-08
 
 ### Added
@@ -34,7 +132,6 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - `error_handling.strategy` override now correctly parses bloblang named arguments @gregfurman
-
 
 ## 1.14.0 - 2026-01-02
 

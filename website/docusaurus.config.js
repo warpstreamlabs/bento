@@ -1,5 +1,6 @@
 const path = require('path');
 const {components} = require('./src/plugins/components');
+const {remarkStripLintDirective} = require('./src/plugins/pre_processing');
 
 module.exports = {
   title: 'Bento | Fancy stream processing made operationally mundane',
@@ -150,6 +151,7 @@ module.exports = {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
             'https://github.com/warpstreamlabs/bento/edit/main/website/',
+          remarkPlugins: [remarkStripLintDirective],
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),

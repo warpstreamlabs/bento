@@ -55,8 +55,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Description("A list of URLs to connect to. The first URL to successfully establish a connection will be used until the connection is closed. If an item of the list contains commas it will be expanded into multiple URLs.").
 			Example([]string{"amqp://guest:guest@127.0.0.1:5672/"}).
 			Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
-			Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
-			Version("1.0.0"),
+			Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}),
 		service.NewStringField(queueField).
 			Description("An AMQP queue to consume from."),
 		service.NewObjectField(queueDeclareField,
@@ -101,7 +100,6 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Description("A list of regular expression patterns whereby if a message that has failed to be delivered by Bento has an error that matches it will be dropped (or delivered to a dead-letter queue if one exists). By default failed messages are nacked with requeue enabled.").
 			Example([]string{"^reject me please:.+$"}).
 			Advanced().
-			Version("1.0.0").
 			Default([]any{}),
 		service.NewIntField(prefetchCountField).
 			Description("The maximum number of pending messages to have consumed at a time.").
@@ -329,13 +327,13 @@ func (a *amqp09Reader) disconnect() error {
 
 	if a.amqpChan != nil {
 		if err := a.amqpChan.Cancel(a.consumerTag, true); err != nil {
-			a.log.Errorf("Failed to cancel consumer: %w", err)
+			a.log.Errorf("Failed to cancel consumer: %v", err)
 		}
 		a.amqpChan = nil
 	}
 	if a.conn != nil {
 		if err := a.conn.Close(); err != nil {
-			a.log.Errorf("Failed to close connection cleanly: %w", err)
+			a.log.Errorf("Failed to close connection cleanly: %v", err)
 		}
 		a.conn = nil
 	}

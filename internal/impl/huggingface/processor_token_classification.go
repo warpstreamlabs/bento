@@ -2,7 +2,7 @@ package huggingface
 
 import (
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelineBackends"
+	"github.com/knights-analytics/hugot/backends"
 	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -66,9 +66,9 @@ func init() {
 
 //------------------------------------------------------------------------------
 
-func getTokenClassificationOptions(conf *service.ParsedConfig) ([]pipelineBackends.PipelineOption[*pipelines.TokenClassificationPipeline], error) {
+func getTokenClassificationOptions(conf *service.ParsedConfig) ([]backends.PipelineOption[*pipelines.TokenClassificationPipeline], error) {
 
-	var options []pipelineBackends.PipelineOption[*pipelines.TokenClassificationPipeline]
+	var options []backends.PipelineOption[*pipelines.TokenClassificationPipeline]
 
 	aggregationStrategy, err := conf.FieldString("aggregation_strategy")
 	if err != nil {
@@ -138,7 +138,7 @@ func convertTokenClassificationOutput(result *pipelines.TokenClassificationOutpu
 				"Scores":    entity.Scores,
 				"Index":     entity.Index,
 				"Word":      entity.Word,
-				"TokenID":   entity.TokenID,
+				"TokenIDs":  entity.TokenIDs,
 				"Start":     entity.Start,
 				"End":       entity.End,
 				"IsSubword": entity.IsSubword,

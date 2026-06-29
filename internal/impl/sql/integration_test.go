@@ -18,12 +18,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
+	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	igcp "github.com/warpstreamlabs/bento/internal/impl/gcp/tests"
 	isql "github.com/warpstreamlabs/bento/internal/impl/sql"
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -794,11 +796,10 @@ func TestIntegrationSpanner(t *testing.T) {
 	}
 	pool.MaxWait = 3 * time.Minute
 
-	resource, err := pool.BuildAndRunWithBuildOptions(&dockertest.BuildOptions{
-		ContextDir: "./resources",
-		Dockerfile: "Dockerfile_spanner",
-	}, &dockertest.RunOptions{
-		Name:         "spannertest",
+	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Name:         fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8]),
+		Repository:   "gcr.io/cloud-spanner-emulator/emulator",
+		Tag:          "latest",
 		ExposedPorts: []string{"9010/tcp", "9020/tcp"},
 	})
 	if err != nil {
@@ -818,41 +819,42 @@ func TestIntegrationSpanner(t *testing.T) {
 	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
 
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
+		if err := pool.Purge(resource); err != nil {
 			t.Logf("Failed to clean up docker resource: %s", err)
 		}
-
 	})
 
-	createTable := func(name string) (string, error) {
-		var db *sql.DB
-		db, err = sql.Open("spanner", dsn)
-		_, err := db.Exec(fmt.Sprintf(`create table %s (
-  foo string(50) not null,
-  bar int64 not null,
-  baz string(50) not null,
-		) primary key (foo)`, name))
-		return name, err
-	}
-
 	require.NoError(t, pool.Retry(func() error {
-		var db *sql.DB
-		db, err = sql.Open("spanner", dsn)
-		if err != nil {
-			t.Logf(`open error: %s`, err)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if _, err := igcp.CreateInstance(ctx, project, instance); err != nil {
+			t.Logf("create instance error: %s", err)
 			return err
 		}
-		if err = db.Ping(); err != nil {
-			t.Logf(`ping error: %s`, err)
-			db.Close()
-			return err
-		}
-		if _, err := createTable("footable"); err != nil {
-			t.Logf(`create table error: %s`, err)
+		if _, err := igcp.CreateDatabase(ctx, fmt.Sprintf("projects/%s/instances/%s", project, instance), database); err != nil {
+			t.Logf("create database error: %s", err)
 			return err
 		}
 		return nil
 	}))
+
+	createTable := func(name string) (string, error) {
+		db, err := sql.Open("spanner", dsn)
+		if err != nil {
+			return name, err
+		}
+		defer db.Close()
+		_, err = db.Exec(fmt.Sprintf(`CREATE TABLE %s (
+  foo STRING(50) NOT NULL,
+  bar INT64 NOT NULL,
+  baz STRING(50) NOT NULL,
+) PRIMARY KEY (foo)`, name))
+		return name, err
+	}
+
+	_, err = createTable("footable")
+	require.NoError(t, err)
 
 	testSuite(t, "spanner", dsn, createTable)
 }

@@ -19,7 +19,6 @@ const (
 
 func newCaptureProcessorConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Version("1.0.0").
 		Summary("Captures log events from messages and submits them to [Sentry](https://sentry.io/).").
 		Fields(
 			service.NewStringField("dsn").

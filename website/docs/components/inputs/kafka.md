@@ -63,6 +63,14 @@ input:
       access_token: ""
       token_cache: ""
       token_key: ""
+      oauth2:
+        enabled: false
+        client_key: ""
+        client_secret: ""
+        token_url: ""
+        scopes: []
+        endpoint_params: {} # No default (optional)
+        extensions: {} # No default (optional)
       aws:
         region: ""
         endpoint: ""
@@ -123,6 +131,7 @@ This input adds the following metadata fields to each message:
 - kafka_offset
 - kafka_lag
 - kafka_timestamp_unix
+- kafka_timestamp_unix_ms
 - kafka_tombstone_message
 - All existing message headers (version 0.11+)
 ```
@@ -142,6 +151,17 @@ If you're seeing issues writing to or reading from Kafka with this component the
 - I'm seeing logs that report `Failed to connect to kafka: kafka: client has run out of available brokers to talk to (Is your cluster reachable?)`, but the brokers are definitely reachable.
 
 Unfortunately this error message will appear for a wide range of connection problems even when the broker endpoint can be reached. Double check your authentication configuration and also ensure that you have [enabled TLS](#tlsenabled) if applicable.
+
+### Sasl Oauthbearer Config Options
+
+There are currently 3 ways to configure SASL OAUTH2: 
+
+ - Static Token with `sasl.access_token`
+ - Token Cache with `sasl.token_cache` & `sasl.token_key`
+ - Fetching Tokens from an Auth service with the`sasl.oauth2` fields`
+
+
+
 
 ## Fields
 
@@ -172,7 +192,6 @@ A list of topics to consume from. Multiple comma separated topics can be listed 
 
 
 Type: `array`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -431,6 +450,71 @@ Required when using a `token_cache`, the key to query the cache with for tokens.
 Type: `string`  
 Default: `""`  
 
+### `sasl.oauth2`
+
+Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.
+
+
+Type: `object`  
+Requires version 1.18.0 or newer  
+
+### `sasl.oauth2.enabled`
+
+Whether to use OAuth version 2 in requests.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `sasl.oauth2.client_key`
+
+A value used to identify the client to the token provider.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.oauth2.client_secret`
+
+A secret used to establish ownership of the client key.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.oauth2.token_url`
+
+The URL of the token provider.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl.oauth2.scopes`
+
+A list of optional requested permissions.
+
+
+Type: `array`  
+Default: `[]`  
+
+### `sasl.oauth2.endpoint_params`
+
+A list of optional endpoint parameters, values should be arrays of strings.
+
+
+Type: `object`  
+
+### `sasl.oauth2.extensions`
+
+A list of optional endpoint parameters, values should be arrays of strings.
+
+
+Type: `object`  
+
 ### `sasl.aws`
 
 Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.
@@ -503,7 +587,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `sasl.aws.credentials.role`
 
@@ -568,7 +651,6 @@ The maximum number of messages of the same topic and partition that can be proce
 
 Type: `int`  
 Default: `1024`  
-Requires version 1.0.0 or newer  
 
 ### `auto_replay_nacks`
 
@@ -600,7 +682,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

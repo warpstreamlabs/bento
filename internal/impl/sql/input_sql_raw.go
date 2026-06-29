@@ -38,7 +38,6 @@ func sqlRawInputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.
-		Version("1.0.0").
 		Example("Consumes an SQL table using a query as an input.",
 			`
 Here we preform an aggregate over a list of names in a table that are less than 3600 seconds old.`,
@@ -52,6 +51,21 @@ input:
       root = [
         now().ts_unix() - 3600
       ]
+`,
+		).
+		Example("Aggregate Query (DuckDB)",
+			"Read aggregated results from a DuckDB file as a stream of messages.",
+			`
+# BENTO LINT DISABLE
+input:
+  sql_raw:
+    driver: duckdb
+    dsn: /tmp/duckburg.duckdb
+    query: |
+      SELECT duck, SUM(gold_coins) AS total_coins, COUNT(*) AS deposits
+      FROM vault_deposits
+      GROUP BY duck
+      ORDER BY total_coins DESC
 `,
 		)
 	return spec
