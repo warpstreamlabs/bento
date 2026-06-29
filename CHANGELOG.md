@@ -3,6 +3,22 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.19.0 - <<>>
+
+### Added
+
+ - `grpc_client` input component @jem-davies
+ - `sync_response` added to nats input NATS @henrikschristensen
+ - `endpoint` config added to `gcp_bigquery` output @Shareed2k
+ - RLE_DICTIONARY support to `parquet` default encoding @georgeTobia
+
+### Fixed
+
+### Changed
+
+ - `aws_kinesis` enhanced fan out @matus-tomlein
+
+
 ## 1.18.1 - 2026-06-05
 
 ### Fixed
