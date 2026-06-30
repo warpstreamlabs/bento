@@ -70,7 +70,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/generikvault/gvalstrings v0.0.0-20180926130504-471f38f0112a
-	github.com/getsentry/sentry-go v0.27.0
+	github.com/getsentry/sentry-go v0.47.0
 	github.com/go-faker/faker/v4 v4.3.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/go-zeromq/zmq4 v0.17.0
