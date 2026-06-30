@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -21,6 +22,10 @@ import (
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
 
 const protosPath = "../../../config/test/protobuf/schema"
 
@@ -103,6 +108,7 @@ discard_unknown: %t
 				assert.Contains(t, string(mBytes), exp)
 			}
 			require.NoError(t, msgs[0].GetError())
+
 		})
 
 		t.Run(test.name+" bsr", func(t *testing.T) {
@@ -124,6 +130,9 @@ discard_unknown: %t
 			msgs, res := proc.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			require.NoError(t, res)
 			require.Len(t, msgs, 1)
+
+			err = proc.Close(context.Background())
+			require.NoError(t, err)
 
 			mBytes, err := msgs[0].AsBytes()
 			require.NoError(t, err)
@@ -238,6 +247,9 @@ emit_unpopulated: %t
 			require.NoError(t, res)
 			require.Len(t, msgs, 1)
 
+			err = proc.Close(context.Background())
+			require.NoError(t, err)
+
 			mBytes, err := msgs[0].AsBytes()
 			require.NoError(t, err)
 
@@ -265,6 +277,9 @@ emit_unpopulated: %t
 			msgs, res := proc.Process(context.Background(), service.NewMessage(test.input))
 			require.NoError(t, res)
 			require.Len(t, msgs, 1)
+
+			err = proc.Close(context.Background())
+			require.NoError(t, err)
 
 			mBytes, err := msgs[0].AsBytes()
 			require.NoError(t, err)
@@ -324,6 +339,9 @@ import_paths: [ %v ]
 			_, err = proc.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			require.Error(t, err)
 			require.Contains(t, err.Error(), test.output)
+
+			err = proc.Close(context.Background())
+			require.NoError(t, err)
 		})
 
 		t.Run(test.name+" bsr", func(tt *testing.T) {
@@ -344,6 +362,9 @@ bsr:
 			_, err = proc.Process(context.Background(), service.NewMessage([]byte(test.input)))
 			require.Error(t, err)
 			require.Contains(t, err.Error(), test.output)
+
+			err = proc.Close(context.Background())
+			require.NoError(t, err)
 		})
 	}
 }
@@ -456,16 +477,21 @@ func runMockBSRServer(t *testing.T) string {
 	mux := http.NewServeMux()
 	fileDescriptorSetServer := &fileDescriptorSetServer{fileDescriptorSet: fileDescriptorSet}
 	mux.Handle(reflectv1beta1connect.NewFileDescriptorSetServiceHandler(fileDescriptorSetServer))
-	go func() {
-		srv := &http.Server{Handler: mux}
-		srv.Protocols = new(http.Protocols)
-		srv.Protocols.SetHTTP1(true)
-		srv.Protocols.SetUnencryptedHTTP2(true)
 
-		if err := http.Serve(listener, srv.Handler); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			require.NoError(t, err)
+	srv := &http.Server{Handler: mux}
+	srv.Protocols = new(http.Protocols)
+	srv.Protocols.SetHTTP1(true)
+	srv.Protocols.SetUnencryptedHTTP2(true)
+
+	go func() {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Errorf("mock BSR server error: %v", err)
 		}
 	}()
+
+	t.Cleanup(func() {
+		srv.Close()
+	})
 
 	return listener.Addr().String()
 }
