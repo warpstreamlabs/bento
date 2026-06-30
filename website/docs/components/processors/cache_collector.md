@@ -125,13 +125,13 @@ init_map: 'root = {"count": 0, "total": 0}'
 
 ### `init_mode`
 
-Option to change the behavior of the initialisation. `check` will check if the cache key already exists and returns to an error, `ignore` just ignores the current message and keeps the cached value and `replace` replaces the cached value.
+Option to change the behavior of the initialisation. `check` will check if the cache key already exists and returns to an error, `ignore` just ignores the current message and keeps the cached value, `replace` replaces the cached value and `flush` flushes the cached value which gets replaced.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
 Default: `"check"`  
-Options: `check`, `ignore`, `replace`.
+Options: `check`, `ignore`, `replace`, `flush`.
 
 ### `append_check`
 
