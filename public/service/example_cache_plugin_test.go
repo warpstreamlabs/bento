@@ -26,6 +26,11 @@ func (l *LossyCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return nil, service.ErrKeyNotFound
 }
 
+func (l *LossyCache) Exists(ctx context.Context, key string) (bool, error) {
+	_, ok := l.items[key]
+	return ok, nil
+}
+
 func (l *LossyCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	if len(l.items) >= l.capacity {
 		// Dropped, whoopsie!
