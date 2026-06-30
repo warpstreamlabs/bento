@@ -363,7 +363,9 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 							return nil, err
 						}
 
-						newMsgs = append(newMsgs, fMsg)
+						if fMsg != nil {
+							newMsgs = append(newMsgs, fMsg)
+						}
 
 						initMsg, err := initMap.Query(i)
 						if err != nil {
@@ -573,7 +575,9 @@ func (cc *cacheCollectorProcessor) ProcessBatch(ctx context.Context, batch servi
 						return
 					}
 
-					newMsgs = append(newMsgs, fMsg)
+					if fMsg != nil {
+						newMsgs = append(newMsgs, fMsg)
+					}
 
 					err = cache.Set(ctx, key, initData, ttl)
 					if err != nil {
