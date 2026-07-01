@@ -3,6 +3,7 @@ package aws
 import (
 	"bytes"
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -307,9 +308,8 @@ func TestS3StreamingWriterStats(t *testing.T) {
 	mockClient := &mockS3StreamClient{
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			// Capture uploaded data
-			data := make([]byte, 6*1024*1024)
-			n, _ := input.Body.Read(data)
-			uploadedData.Write(data[:n])
+			data, _ := io.ReadAll(input.Body)
+			uploadedData.Write(data)
 			return &s3.UploadPartOutput{
 				ETag: aws.String("test-etag"),
 			}, nil
@@ -435,9 +435,7 @@ func TestS3StreamingWriterSmallFile(t *testing.T) {
 			putObjectCalled = true
 			capturedPutInput = input
 			// Read the body
-			data := make([]byte, 1024*1024)
-			n, _ := input.Body.Read(data)
-			capturedPutData = data[:n]
+			capturedPutData, _ = io.ReadAll(input.Body)
 			return &s3.PutObjectOutput{}, nil
 		},
 		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
@@ -496,9 +494,7 @@ func TestS3StreamingWriterSmallFileMultipleWrites(t *testing.T) {
 		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 			putObjectCalled = true
 			// Read all data
-			data := make([]byte, 1024*1024)
-			n, _ := input.Body.Read(data)
-			capturedPutData = data[:n]
+			capturedPutData, _ = io.ReadAll(input.Body)
 			return &s3.PutObjectOutput{}, nil
 		},
 	}
@@ -640,6 +636,7 @@ func TestS3StreamingWriterJustUnder5MB(t *testing.T) {
 func TestS3StreamingWriterEmptyFile(t *testing.T) {
 	abortCalled := false
 	putObjectCalled := false
+	completeCalled := false
 	var capturedPutData []byte
 
 	mockClient := &mockS3StreamClient{
@@ -649,10 +646,12 @@ func TestS3StreamingWriterEmptyFile(t *testing.T) {
 		},
 		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 			putObjectCalled = true
-			data := make([]byte, 1024)
-			n, _ := input.Body.Read(data)
-			capturedPutData = data[:n]
+			capturedPutData, _ = io.ReadAll(input.Body)
 			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
 		},
 	}
 
@@ -675,6 +674,7 @@ func TestS3StreamingWriterEmptyFile(t *testing.T) {
 
 	assert.True(t, abortCalled, "multipart should be aborted")
 	assert.True(t, putObjectCalled, "PutObject should be called for empty file")
+	assert.False(t, completeCalled, "CompleteMultipartUpload should NOT be called for empty file")
 	assert.Empty(t, capturedPutData, "uploaded data should be empty")
 }
 
@@ -701,9 +701,7 @@ func TestS3StreamingWriterTimerFlushSmallData(t *testing.T) {
 		},
 		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 			putObjectCalled = true
-			data := make([]byte, 10*1024*1024) // Large enough buffer
-			n, _ := input.Body.Read(data)
-			capturedPutData = data[:n]
+			capturedPutData, _ = io.ReadAll(input.Body)
 			return &s3.PutObjectOutput{}, nil
 		},
 	}
@@ -758,9 +756,8 @@ func TestS3StreamingWriterTimerFlushLargeEnoughData(t *testing.T) {
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			uploadPartCalls++
 			// Capture uploaded data
-			data := make([]byte, 10*1024*1024)
-			n, _ := input.Body.Read(data)
-			uploadedParts = append(uploadedParts, data[:n])
+			data, _ := io.ReadAll(input.Body)
+			uploadedParts = append(uploadedParts, data)
 			return &s3.UploadPartOutput{
 				ETag: aws.String("test-etag"),
 			}, nil
@@ -822,9 +819,7 @@ func TestS3StreamingWriterSlowStreamSmallTotal(t *testing.T) {
 		},
 		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 			putObjectCalled = true
-			data := make([]byte, 10*1024*1024)
-			n, _ := input.Body.Read(data)
-			capturedPutData = data[:n]
+			capturedPutData, _ = io.ReadAll(input.Body)
 			return &s3.PutObjectOutput{}, nil
 		},
 	}
@@ -882,9 +877,8 @@ func TestS3StreamingWriterSlowStreamMultipleParts(t *testing.T) {
 	mockClient := &mockS3StreamClient{
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			uploadPartCalls++
-			data := make([]byte, 20*1024*1024)
-			n, _ := input.Body.Read(data)
-			uploadedParts = append(uploadedParts, data[:n])
+			data, _ := io.ReadAll(input.Body)
+			uploadedParts = append(uploadedParts, data)
 			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
 		},
 	}
