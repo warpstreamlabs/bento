@@ -140,6 +140,14 @@ in a `drop_on` output — `drop_on` waits for each message to be acknowledged be
 deadlocks against deferred acknowledgement. For the same reason it should not be fed by an input limited
 to a single in-flight message.
 
+Bounded inputs are safe only when they can close their transaction channel without first waiting for
+the final message acknowledgement. For example, `read_until` with a `check` condition sends the matching
+final message and waits for its acknowledgement before closing, so it can still deadlock with a
+sub-5MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded
+and acknowledged during normal message flow before the final close. Prefer `read_until.idle_timeout` for finite drain-and-exit jobs: once no more
+messages arrive for the configured idle period, the input closes normally and this output finalizes
+and acknowledges the buffered tail.
+
 Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
 or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
 To divert such records to a dead-letter destination, wrap `aws_s3_stream` in a `fallback` output, which
@@ -581,3 +589,5 @@ processors:
   - archive:
       format: json_array
 ```
+
+
