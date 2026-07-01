@@ -14,12 +14,16 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
+// s3MinMultipartPartSize is S3's minimum multipart part size (the final part may be smaller).
+const s3MinMultipartPartSize = 5 * 1024 * 1024
+
 // S3API defines the S3 operations required by the streaming writer
 type s3StreamingAPI interface {
 	CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
 	UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	AbortMultipartUpload(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error)
+	PutObject(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 }
 
 // S3StreamingWriter writes content incrementally to S3 using multipart uploads.
@@ -195,12 +199,10 @@ func (w *S3StreamingWriter) flush(ctx context.Context) error {
 		return nil
 	}
 
-	// Only upload if we have enough data (S3 requires 5MB minimum except for last part)
-	if w.uploadSize < 5*1024*1024 {
-		// Buffer more data unless we're at max buffer period
-		if time.Since(w.lastFlush) < w.maxBufferPeriod {
-			return nil
-		}
+	// All non-final parts must be >= 5 MiB; keep buffering a smaller part and
+	// let Close() finalize it (as the last part or via PutObject).
+	if w.uploadSize < s3MinMultipartPartSize {
+		return nil
 	}
 
 	w.partNumber++
@@ -272,8 +274,11 @@ func (w *S3StreamingWriter) flushIfNeeded(ctx context.Context) {
 	}
 
 	if time.Since(w.lastFlush) >= w.maxBufferPeriod && w.uploadBuffer.Len() > 0 {
-		// Force flush even if under 5MB threshold
-		w.forceFlush(ctx)
+		// Only flush a full part on the timer; a sub-5 MiB buffer must not become a
+		// non-final part, so keep buffering until Close() or the buffer fills.
+		if w.uploadSize >= s3MinMultipartPartSize {
+			w.forceFlush(ctx)
+		}
 	}
 
 	// Reschedule timer
@@ -324,6 +329,29 @@ func (w *S3StreamingWriter) forceFlush(ctx context.Context) error {
 	return nil
 }
 
+// putObjectFallback uploads the whole object in a single unbuffered PutObject.
+// It is the finalize path for a small (< 5 MiB) or empty object, which cannot
+// be a standalone multipart part.
+func (w *S3StreamingWriter) putObjectFallback(ctx context.Context, body []byte) error {
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(w.bucket),
+		Key:    aws.String(w.key),
+		Body:   bytes.NewReader(body),
+	}
+	if w.contentType != "" {
+		input.ContentType = aws.String(w.contentType)
+	}
+	if w.contentEncoding != "" {
+		input.ContentEncoding = aws.String(w.contentEncoding)
+	}
+
+	if _, err := w.s3Client.PutObject(ctx, input); err != nil {
+		return fmt.Errorf("failed to upload file via PutObject: %w", err)
+	}
+	w.closed = true
+	return nil
+}
+
 // Close finalizes the file by flushing remaining data and completing the upload
 func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	w.mu.Lock()
@@ -342,35 +370,21 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 		w.flushTimer.Stop()
 	}
 
-	// Flush any remaining data
+	// A small or empty object (no parts yet and < 5 MiB buffered) cannot be a
+	// standalone multipart part, so finalize it with a single PutObject.
+	if len(w.completedParts) == 0 && w.uploadSize < s3MinMultipartPartSize {
+		w.abortMultipartUpload(ctx)
+		return w.putObjectFallback(ctx, w.uploadBuffer.Bytes())
+	}
+
+	// Otherwise upload any remaining buffered data as the (permitted) final part.
 	if w.uploadBuffer.Len() > 0 {
 		if err := w.forceFlush(ctx); err != nil {
 			return fmt.Errorf("failed to flush final buffer: %w", err)
 		}
 	}
 
-	// Handle edge case: no parts uploaded (empty file)
-	if len(w.completedParts) == 0 {
-		// Upload a single empty part to satisfy S3 requirements
-		w.partNumber++
-		resp, err := w.s3Client.UploadPart(ctx, &s3.UploadPartInput{
-			Bucket:     aws.String(w.bucket),
-			Key:        aws.String(w.key),
-			PartNumber: aws.Int32(w.partNumber),
-			UploadId:   w.uploadID,
-			Body:       bytes.NewReader([]byte{}),
-		})
-		if err != nil {
-			w.abortMultipartUpload(ctx)
-			return fmt.Errorf("failed to upload empty part: %w", err)
-		}
-		w.completedParts = append(w.completedParts, types.CompletedPart{
-			ETag:       resp.ETag,
-			PartNumber: aws.Int32(w.partNumber),
-		})
-	}
-
-	// Complete multipart upload
+	// Complete multipart upload (normal case with >= 1 part)
 	_, err := w.s3Client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Bucket:   aws.String(w.bucket),
 		Key:      aws.String(w.key),
