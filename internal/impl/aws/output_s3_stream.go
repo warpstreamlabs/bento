@@ -90,6 +90,14 @@ in a `+"`drop_on`"+` output — `+"`drop_on`"+` waits for each message to be ack
 deadlocks against deferred acknowledgement. For the same reason it should not be fed by an input limited
 to a single in-flight message.
 
+Bounded inputs are safe only when they can close their transaction channel without first waiting for
+the final message acknowledgement. For example, `+"`read_until`"+` with a `+"`check`"+` condition sends the matching
+final message and waits for its acknowledgement before closing, so it can still deadlock with a
+sub-5MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded
+and acknowledged during normal message flow before the final close. Prefer `+"`read_until.idle_timeout`"+` for finite drain-and-exit jobs: once no more
+messages arrive for the configured idle period, the input closes normally and this output finalizes
+and acknowledges the buffered tail.
+
 Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
 or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
 To divert such records to a dead-letter destination, wrap `+"`aws_s3_stream`"+` in a `+"`fallback`"+` output, which
@@ -526,6 +534,18 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 }
 
 func (s *s3StreamOutput) Close(ctx context.Context) error {
+	lastErr := s.finalizeWriters(ctx)
+	if s.batcher != nil {
+		if err := s.batcher.Close(ctx); err != nil && lastErr == nil {
+			lastErr = err
+		}
+	}
+	s.status.Store(component.ConnectionClosed(interop.UnwrapManagement(s.resources)))
+
+	return lastErr
+}
+
+func (s *s3StreamOutput) finalizeWriters(ctx context.Context) error {
 	s.writersMut.Lock()
 	defer s.writersMut.Unlock()
 
@@ -544,13 +564,6 @@ func (s *s3StreamOutput) Close(ctx context.Context) error {
 	}
 
 	s.writers = make(map[string]*S3StreamingWriter)
-	if s.batcher != nil {
-		if err := s.batcher.Close(ctx); err != nil && lastErr == nil {
-			lastErr = err
-		}
-	}
-	s.status.Store(component.ConnectionClosed(interop.UnwrapManagement(s.resources)))
-
 	return lastErr
 }
 
@@ -589,9 +602,16 @@ func (s *s3StreamOutput) loop() {
 				if err := s.flushBatcher(context.Background(), pendingAcks); err != nil {
 					s.log.Errorf("Failed to flush final S3 stream batch: %v", err)
 				}
-				if err := s.Close(context.Background()); err != nil {
-					s.log.Errorf("Failed to close S3 stream output: %v", err)
+				pendingAcks = nil
+				if err := s.finalizeWriters(context.Background()); err != nil {
+					s.log.Errorf("Failed to finalize S3 stream writers: %v", err)
 				}
+				if s.batcher != nil {
+					if err := s.batcher.Close(context.Background()); err != nil {
+						s.log.Errorf("Failed to close S3 stream batcher: %v", err)
+					}
+				}
+				s.status.Store(component.ConnectionClosed(interop.UnwrapManagement(s.resources)))
 				return
 			}
 		case <-s.shutSig.HardStopChan():

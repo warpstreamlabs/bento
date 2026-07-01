@@ -382,13 +382,11 @@ path: 'logs/${! meta("filename") }.log'
 func TestS3StreamOutputConsumeAppliesConfiguredBatching(t *testing.T) {
 	var uploadedBodies [][]byte
 	mockClient := &mockS3StreamClient{
-		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 			body, err := io.ReadAll(input.Body)
 			require.NoError(t, err)
 			uploadedBodies = append(uploadedBodies, body)
-			return &s3.UploadPartOutput{
-				ETag: aws.String("test-etag"),
-			}, nil
+			return &s3.PutObjectOutput{}, nil
 		},
 	}
 
@@ -437,6 +435,66 @@ batching:
 	assert.Equal(t, []byte("foobar"), uploadedBodies[0])
 	require.NoError(t, <-ack1)
 	require.NoError(t, <-ack2)
+}
+
+func TestS3StreamOutputBoundedInputSmallObjectFinalizesAndAcks(t *testing.T) {
+	var uploadedBodies [][]byte
+	var completeCalled bool
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			body, err := io.ReadAll(input.Body)
+			require.NoError(t, err)
+			uploadedBodies = append(uploadedBodies, body)
+			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: bounded.log
+`
+
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI {
+		return mockClient
+	}
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+
+	acks := make([]chan error, 3)
+	for i, body := range [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")} {
+		acks[i] = make(chan error, 1)
+		txChan <- message.NewTransaction(message.QuickBatch([][]byte{body}), acks[i])
+		select {
+		case err := <-acks[i]:
+			t.Fatalf("transaction %d acked before bounded input finished: %v", i, err)
+		default:
+		}
+	}
+	close(txChan)
+
+	waitCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+	require.NoError(t, out.WaitForClose(waitCtx), "bounded input must finalize without deadlocking")
+
+	require.Len(t, uploadedBodies, 1)
+	assert.Equal(t, []byte("foobarbaz"), uploadedBodies[0])
+	assert.False(t, completeCalled)
+	for i, ack := range acks {
+		require.NoError(t, <-ack, "transaction %d should be acked after final PutObject", i)
+	}
 }
 
 // `fallback` consumes a child output by forwarding each transaction with an

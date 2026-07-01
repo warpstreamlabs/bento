@@ -22,6 +22,7 @@ type s3AckFunc func(context.Context, error) error
 // S3API defines the S3 operations required by the streaming writer
 type s3StreamingAPI interface {
 	CreateMultipartUpload(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
+	PutObject(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 	UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	CompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	ListMultipartUploads(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error)
@@ -65,10 +66,11 @@ type S3StreamingWriter struct {
 	totalBytes    int64
 
 	// Lifecycle
-	created    time.Time
-	lastWrite  time.Time
-	closed     bool
-	flushTimer *time.Timer
+	created     time.Time
+	lastWrite   time.Time
+	initialized bool
+	closed      bool
+	flushTimer  *time.Timer
 
 	// Thread safety
 	mu sync.Mutex
@@ -136,18 +138,25 @@ func NewS3StreamingWriter(config S3StreamingWriterConfig) (*S3StreamingWriter, e
 	return w, nil
 }
 
-// Initialize starts or recovers the S3 multipart upload for this exact key.
+// Initialize recovers an existing multipart upload for this exact key when one
+// exists. New multipart uploads are created lazily only once a multipart part
+// is needed; small files can finalize through PutObject without creating one.
 func (w *S3StreamingWriter) Initialize(ctx context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if w.uploadID != nil {
+	if w.initialized {
 		return errors.New("writer already initialized")
 	}
 
 	if err := w.recoverMultipartUpload(ctx); err != nil {
 		return err
 	}
+	w.initialized = true
+	return nil
+}
+
+func (w *S3StreamingWriter) ensureMultipartUpload(ctx context.Context) error {
 	if w.uploadID != nil {
 		return nil
 	}
@@ -247,17 +256,14 @@ func (w *S3StreamingWriter) recoverMultipartUpload(ctx context.Context) error {
 		return parts[i].number < parts[j].number
 	})
 
-	// Drop an interrupted final part smaller than S3's minimum part size. This
-	// occurs when a crash lands between the final part upload and
-	// CompleteMultipartUpload in Close: the sub-minimum part is durable on S3 but
-	// not yet part of a completed object. Our writer never produces a <5MiB
-	// non-final part (shouldSealActive only seals at >=5MiB), so a sub-minimum
-	// highest part can only be such an interrupted final part. Keeping it and
+	// Drop an interrupted multipart final part smaller than S3's minimum part
+	// size. New sub-5MiB single-part files use PutObject and leave no multipart
+	// upload to recover, but a multipart file can still crash between uploading
+	// its final tail part and CompleteMultipartUpload. Keeping that tail and
 	// appending redelivered data after it would make it an illegal non-final part,
 	// failing every CompleteMultipartUpload with EntityTooSmall. We drop it and
-	// reuse its part number — its data is redelivered, and the next upload
-	// overwrites the slot on S3 (we cannot rely on an optional bucket lifecycle
-	// rule to reap it).
+	// reuse its part number; its data is redelivered, and the next upload
+	// overwrites the slot on S3.
 	if n := len(parts); n > 0 && parts[n-1].size < s3MultipartMinPartSize {
 		parts = parts[:n-1]
 	}
@@ -289,7 +295,7 @@ func (w *S3StreamingWriter) WriteBytes(ctx context.Context, data []byte, ackFn s
 		}
 		return err
 	}
-	if w.uploadID == nil {
+	if !w.initialized {
 		err := errors.New("writer not initialized")
 		if ackFn != nil {
 			_ = ackFn(ctx, err)
@@ -346,7 +352,7 @@ func (w *S3StreamingWriter) flushDueToPeriod(ctx context.Context) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if w.closed || w.uploadID == nil {
+	if w.closed || !w.initialized {
 		return
 	}
 	if w.activeBuffer.Len() >= s3MultipartMinPartSize && time.Since(w.activeCreated) >= w.maxBufferPeriod {
@@ -405,6 +411,10 @@ func (w *S3StreamingWriter) uploadSealed(ctx context.Context) error {
 }
 
 func (w *S3StreamingWriter) uploadPart(ctx context.Context, data []byte) error {
+	if err := w.ensureMultipartUpload(ctx); err != nil {
+		return err
+	}
+
 	w.partNumber++
 
 	boff := w.backoffCtor()
@@ -443,6 +453,39 @@ retryLoop:
 	return fmt.Errorf("failed to upload part after retries: %w", uploadErr)
 }
 
+func (w *S3StreamingWriter) putObject(ctx context.Context, data []byte) error {
+	boff := w.backoffCtor()
+	var putErr error
+retryLoop:
+	for {
+		input := &s3.PutObjectInput{
+			Bucket:      aws.String(w.bucket),
+			Key:         aws.String(w.key),
+			Body:        bytes.NewReader(data),
+			ContentType: aws.String(w.contentType),
+		}
+		if w.contentEncoding != "" {
+			input.ContentEncoding = aws.String(w.contentEncoding)
+		}
+		if _, err := w.s3Client.PutObject(ctx, input); err == nil {
+			return nil
+		} else {
+			putErr = err
+		}
+
+		tNext := boff.NextBackOff()
+		if tNext == backoff.Stop {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			break retryLoop
+		case <-time.After(tNext):
+		}
+	}
+	return fmt.Errorf("failed to put object after retries: %w", putErr)
+}
+
 // Close finalizes the file and acks remaining owned messages only after completion.
 func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	w.mu.Lock()
@@ -451,7 +494,7 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	if w.closed {
 		return nil
 	}
-	if w.uploadID == nil {
+	if !w.initialized {
 		return errors.New("writer not initialized")
 	}
 	if w.flushTimer != nil {
@@ -464,6 +507,22 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	var finalAcks []s3AckFunc
 	finalAcks = append(finalAcks, w.pendingAcks...)
 	w.pendingAcks = nil
+	if len(w.completedParts) == 0 && w.activeBuffer.Len() < s3MultipartMinPartSize {
+		if err := w.putObject(ctx, w.activeBuffer.Bytes()); err != nil {
+			_ = ackAll(ctx, finalAcks, err)
+			return w.failOwned(ctx, err)
+		}
+		finalAcks = append(finalAcks, w.activeAcks...)
+		w.activeBuffer.Reset()
+		w.activeAcks = nil
+		w.activeMsgs = 0
+		if err := ackAll(ctx, finalAcks, nil); err != nil {
+			return err
+		}
+		w.closed = true
+		return nil
+	}
+
 	if w.activeBuffer.Len() > 0 {
 		if err := w.uploadPart(ctx, w.activeBuffer.Bytes()); err != nil {
 			_ = ackAll(ctx, finalAcks, err)
@@ -476,6 +535,8 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	}
 
 	if len(w.completedParts) == 0 {
+		// Exactly 5MiB (or larger) active data goes through multipart above. This
+		// remains as a defensive empty multipart fallback for unexpected states.
 		if err := w.uploadPart(ctx, []byte{}); err != nil {
 			_ = ackAll(ctx, finalAcks, err)
 			return w.failOwned(ctx, fmt.Errorf("failed to upload empty part: %w", err))
@@ -516,6 +577,8 @@ func (w *S3StreamingWriter) failOwned(ctx context.Context, err error) error {
 	_ = ackAll(ctx, w.activeAcks, err)
 	w.activeAcks = nil
 	w.activeBuffer.Reset()
+	w.activeMsgs = 0
+	w.activeCreated = time.Now()
 	return err
 }
 

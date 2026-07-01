@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 // mockS3StreamClient is a mock S3 client for testing
 type mockS3StreamClient struct {
 	createMultipartUploadFunc   func(ctx context.Context, input *s3.CreateMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error)
+	putObjectFunc               func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 	uploadPartFunc              func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error)
 	completeMultipartUploadFunc func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error)
 	listMultipartUploadsFunc    func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error)
@@ -31,6 +33,13 @@ func (m *mockS3StreamClient) CreateMultipartUpload(ctx context.Context, input *s
 	return &s3.CreateMultipartUploadOutput{
 		UploadId: aws.String("test-upload-id"),
 	}, nil
+}
+
+func (m *mockS3StreamClient) PutObject(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+	if m.putObjectFunc != nil {
+		return m.putObjectFunc(ctx, input, opts...)
+	}
+	return &s3.PutObjectOutput{}, nil
 }
 
 func (m *mockS3StreamClient) UploadPart(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
@@ -138,8 +147,8 @@ func TestS3StreamingWriterInitialize(t *testing.T) {
 	err = writer.Initialize(ctx)
 	require.NoError(t, err)
 
-	assert.NotNil(t, writer.uploadID)
-	assert.Equal(t, "test-upload-id", *writer.uploadID)
+	assert.True(t, writer.initialized)
+	assert.Nil(t, writer.uploadID, "multipart upload is created lazily")
 }
 
 func TestS3StreamingWriterDoubleInitialize(t *testing.T) {
@@ -308,9 +317,16 @@ func TestS3StreamingWriterBufferFlushOnPeriod(t *testing.T) {
 	assert.Equal(t, 0, ack.called)
 }
 
-func TestS3StreamingWriterClose(t *testing.T) {
-	completeCalled := false
+func TestS3StreamingWriterCloseSmallFileUsesPutObject(t *testing.T) {
+	var putObjectBody []byte
+	var completeCalled bool
 	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			var err error
+			putObjectBody, err = io.ReadAll(input.Body)
+			require.NoError(t, err)
+			return &s3.PutObjectOutput{}, nil
+		},
 		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
 			completeCalled = true
 			return &s3.CompleteMultipartUploadOutput{}, nil
@@ -335,13 +351,53 @@ func TestS3StreamingWriterClose(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, ack.called)
 
-	// Close should complete upload
+	// Close should write the small final object with PutObject rather than
+	// creating and completing a single-part multipart upload.
 	err = writer.Close(ctx)
 	require.NoError(t, err)
-	assert.True(t, completeCalled)
+	assert.Equal(t, []byte("test data"), putObjectBody)
+	assert.False(t, completeCalled)
 	assert.True(t, writer.closed)
 	assert.Equal(t, 1, ack.called)
 	require.NoError(t, ack.err)
+}
+
+func TestS3StreamingWriterCloseEmptyFileUsesPutObject(t *testing.T) {
+	var putObjectBody []byte
+	var uploadPartCalled bool
+	var completeCalled bool
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			var err error
+			putObjectBody, err = io.ReadAll(input.Body)
+			require.NoError(t, err)
+			return &s3.PutObjectOutput{}, nil
+		},
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadPartCalled = true
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client: mockClient,
+		Bucket:   "test-bucket",
+		Key:      "test-key",
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+	require.NoError(t, writer.Close(ctx))
+
+	assert.Empty(t, putObjectBody)
+	assert.False(t, uploadPartCalled)
+	assert.False(t, completeCalled)
+	assert.True(t, writer.closed)
 }
 
 func TestS3StreamingWriterWriteAfterClose(t *testing.T) {
@@ -410,7 +466,12 @@ func TestS3StreamingWriterStats(t *testing.T) {
 
 func TestS3StreamingWriterMultipleParts(t *testing.T) {
 	uploadedParts := make([]types.CompletedPart, 0)
+	var putObjectCalled bool
 	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			return &s3.PutObjectOutput{}, nil
+		},
 		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
 			return &s3.UploadPartOutput{
 				ETag: aws.String("test-etag"),
@@ -451,6 +512,7 @@ func TestS3StreamingWriterMultipleParts(t *testing.T) {
 	assert.Equal(t, int32(1), *uploadedParts[0].PartNumber)
 	assert.Equal(t, int32(2), *uploadedParts[1].PartNumber)
 	assert.Equal(t, int32(3), *uploadedParts[2].PartNumber)
+	assert.False(t, putObjectCalled)
 }
 
 func TestS3StreamingWriterUploadFailureNacksOwnedCallbacks(t *testing.T) {
@@ -565,12 +627,54 @@ func TestS3StreamingWriterCompleteFailureNacksFinalCallbacks(t *testing.T) {
 	require.NoError(t, writer.Initialize(ctx))
 
 	ack := &ackRecord{}
-	require.NoError(t, writer.WriteBytes(ctx, []byte("final"), ack.fn))
+	require.NoError(t, writer.WriteBytes(ctx, make([]byte, s3MultipartMinPartSize), ack.fn))
 
 	err = writer.Close(ctx)
 	require.Error(t, err)
 	assert.Equal(t, 1, ack.called)
 	assert.Error(t, ack.err)
+}
+
+func TestS3StreamingWriterPutObjectFailureNacksAndLeavesWriterOpen(t *testing.T) {
+	putErr := errors.New("put failed")
+	var putCalls int
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putCalls++
+			if putCalls == 1 {
+				return nil, putErr
+			}
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:    mockClient,
+		Bucket:      "test-bucket",
+		Key:         "test-key",
+		BackoffCtor: noRetryBackoff,
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	firstAck := &ackRecord{}
+	require.NoError(t, writer.WriteBytes(ctx, []byte("small"), firstAck.fn))
+
+	err = writer.Close(ctx)
+	require.Error(t, err)
+	assert.Equal(t, 1, firstAck.called)
+	assert.Error(t, firstAck.err)
+	assert.False(t, writer.closed)
+
+	secondAck := &ackRecord{}
+	require.NoError(t, writer.WriteBytes(ctx, []byte("small"), secondAck.fn))
+	require.NoError(t, writer.Close(ctx))
+	assert.Equal(t, 1, secondAck.called)
+	require.NoError(t, secondAck.err)
+	assert.True(t, writer.closed)
+	assert.Equal(t, 2, putCalls)
 }
 
 func TestS3StreamingWriterRecoversExactKeyMultipartUpload(t *testing.T) {
@@ -735,6 +839,9 @@ func TestS3StreamingWriterContentEncoding(t *testing.T) {
 	ctx := context.Background()
 	err = writer.Initialize(ctx)
 	require.NoError(t, err)
+	err = writer.WriteBytes(ctx, make([]byte, 6*1024*1024), nil)
+	require.NoError(t, err)
+	require.NoError(t, writer.Close(ctx))
 
 	// Verify content encoding was set
 	require.NotNil(t, capturedInput)
