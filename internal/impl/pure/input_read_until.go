@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	ruiFieldInput       = "input"
-	ruiFieldRestart     = "restart_input"
-	ruiFieldCheck       = "check"
-	ruiFieldIdleTimeout = "idle_timeout"
+	ruiFieldInput          = "input"
+	ruiFieldRestart        = "restart_input"
+	ruiFieldRestartBackoff = "restart_backoff"
+	ruiFieldCheck          = "check"
+	ruiFieldIdleTimeout    = "idle_timeout"
 )
 
 func readUntilInputSpec() *service.ConfigSpec {
@@ -88,6 +89,11 @@ input:
 		service.NewBoolField(ruiFieldRestart).
 			Description("Whether the input should be reopened if it closes itself before the condition has resolved to true.").
 			Default(false),
+		service.NewBackOffField(ruiFieldRestartBackoff, true, &backoff.ExponentialBackOff{
+			InitialInterval: time.Millisecond,
+			MaxInterval:     time.Millisecond * 100,
+			MaxElapsedTime:  0,
+		}).Description("Backoff policy for restarting the child input. Only used when `restart_input` is `true`."),
 	)
 }
 
@@ -106,7 +112,8 @@ func init() {
 }
 
 type readUntilInput struct {
-	restart bool
+	restart        bool
+	restartBackoff *backoff.ExponentialBackOff
 
 	wrappedInputLocked *atomic.Pointer[input.Streamed]
 	check              *mapping.Executor
@@ -142,6 +149,11 @@ func newReadUntilInputFromParsed(conf *service.ParsedConfig, res *service.Resour
 		return nil, err
 	}
 
+	restartBackoff, err := conf.FieldBackOff(ruiFieldRestartBackoff)
+	if err != nil {
+		return nil, err
+	}
+
 	var check *mapping.Executor
 	if checkStr, _ := conf.FieldString(ruiFieldCheck); checkStr != "" {
 		if check, err = mgr.BloblEnvironment().NewMapping(checkStr); err != nil {
@@ -163,7 +175,8 @@ func newReadUntilInputFromParsed(conf *service.ParsedConfig, res *service.Resour
 	wInputLocked := &atomic.Pointer[input.Streamed]{}
 	wInputLocked.Store(&wrapped)
 	rdr := &readUntilInput{
-		restart: restart,
+		restart:        restart,
+		restartBackoff: restartBackoff,
 
 		wrappedCtor:        wrappedCtor,
 		wrappedInputLocked: wInputLocked,
@@ -195,10 +208,8 @@ func (r *readUntilInput) loop() {
 	}()
 
 	// Prevents busy loop when an input never yields messages.
-	restartBackoff := backoff.NewExponentialBackOff()
-	restartBackoff.InitialInterval = time.Millisecond
-	restartBackoff.MaxInterval = time.Millisecond * 100
-	restartBackoff.MaxElapsedTime = 0
+	restartBackoff := *r.restartBackoff
+	restartBackoff.Reset()
 
 	var open bool
 
