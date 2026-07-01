@@ -44,6 +44,47 @@ rules must hold for at-least-once delivery to be correct:
 - Recovery does not attempt to identify or resume nondeterministically generated keys unless the next redelivered message recomputes the exact same key.
 - Because failures never abort, an interrupted upload is always left in progress for recovery to find — recovery is never defeated by the failure-handling path.
 
+## Sub-5 MiB Deadlock With Bounded Inputs
+
+### Problem
+
+When running `aws_s3_stream` against a **bounded input** (e.g. `generate` with `count: 3`, or an AWS Lambda with SQS), the total output for a given S3 key may stay well under S3's 5 MiB multipart minimum. In that case:
+
+1. Output receives messages into its active buffer. No part is ever sealed mid-stream (buffer never reaches `max_buffer_bytes`).
+2. Acks are held in `pendingAcks` / `activeAcks` — they will only be released in `Close()`.
+3. `Close()` is only called when the output's `loop()` sees the input's transaction channel close.
+4. But a finite input won't close its transaction channel until its in-flight transactions are acked.
+5. **Deadlock**: input waits for acks, output waits for channel close, neither progresses.
+
+This was reported in PR #895 (comment, 2026-06-30). It affects any deployment with bounded or self-terminating inputs (Lambda, `generate`, `read_until` with EOF, etc.). On a long-running stream the issue is invisible; on bounded inputs it is a hard hang.
+
+### Resolution
+
+The solution has two parts:
+
+**1. End-of-input as immediate finalize trigger.** When `loop()` detects the transaction channel has closed (the `!open` branch at `output_s3_stream.go:575`), it must flush the batcher if configured, then for every alive `S3StreamingWriter`:
+   - Upload any remaining active bytes as the final part (regardless of size).
+   - Complete the multipart upload.
+   - Ack the final pending callbacks.
+   - Close and remove the writer.
+
+This forces the acks to drain before `loop()` returns, breaking the circular wait. The existing `Close()` call on line 579 already does this in principle, but the deadlock arises because the input won't deliver the channel-close signal until its acks return. The fix is to ensure the finalize-and-ack sequence runs *before* the output's own `Close()` is invoked — i.e. the output must not require `Close()` to resolve pending acks. Instead, the `!open` branch should complete and ack everything inline.
+
+**2. PutObject fallback for single-part sub-5 MiB files.** A single-part multipart upload with a < 5 MiB part IS permitted by S3 (the only part is the last part, which has no minimum). The `EntityTooSmall` error only fires when a **non-final** part is < 5 MiB. Nevertheless, `PutObject` is the right approach for three reasons:
+
+   - **Fewer API calls**: `CreateMultipartUpload` + `UploadPart` + `CompleteMultipartUpload` (3 calls) vs `PutObject` (1 call).
+   - **Avoids S3-compatible store variance**: MinIO and other non-AWS stores may enforce a blanket 5 MiB minimum on all parts, including the last.
+   - **Simpler failure semantics**: `PutObject` is atomic — it either succeeds (object is fully written) or fails (nothing is written), eliminating the "some parts committed, some not" intermediate state that multipart recovery must handle.
+
+   The rule: if a writer has exactly one part and that part is < 5 MiB at finalize time, use `PutObject` instead of `CompleteMultipartUpload`. If the writer has multiple parts (at least one full-sized part already uploaded), complete normally via multipart. The `PutObject` call follows the same "never abort" failure semantics: if it fails, nack the callbacks and leave the writer resumable.
+
+### Test Coverage (additions)
+
+- Integration test with a bounded input (e.g. `generate count: 3`) and no batching, confirming the process exits 0 (no deadlock) and the S3 object is written correctly.
+- Integration test confirming `PutObject` is used (rather than multipart) when the final object is < 5 MiB.
+- Integration test confirming `CompleteMultipartUpload` is still used when the object has multiple parts (≥ 5 MiB).
+- Real-S3 (non-mocked) smoke test for the zero-byte file path with both the `PutObject` path and (for stores that support it) the single-part multipart path.
+
 ## Tests
 
 - Unit test that no ack occurs when messages are only in memory.
