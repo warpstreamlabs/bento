@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"cloud.google.com/go/bigtable"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 

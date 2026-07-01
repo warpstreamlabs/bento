@@ -8,6 +8,7 @@ import (
 	"github.com/Jeffail/shutdown"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 

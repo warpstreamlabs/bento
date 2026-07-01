@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/bigtable/bttest"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )

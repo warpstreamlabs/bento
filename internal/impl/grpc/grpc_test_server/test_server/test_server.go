@@ -16,7 +16,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	test_server "github.com/warpstreamlabs/bento/internal/impl/grpc/grpc_test_server/helloworld"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -25,6 +24,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	status "google.golang.org/grpc/status"
+
+	test_server "github.com/warpstreamlabs/bento/internal/impl/grpc/grpc_test_server/helloworld"
 )
 
 type TestServer struct {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Jeffail/gabs/v2"
+
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"

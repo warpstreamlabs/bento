@@ -12,6 +12,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slacktest"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
