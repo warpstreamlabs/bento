@@ -4,13 +4,19 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/cenkalti/backoff/v4"
 
+	"github.com/Jeffail/shutdown"
+
+	"github.com/warpstreamlabs/bento/internal/component"
+	"github.com/warpstreamlabs/bento/internal/component/interop"
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
+	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -23,6 +29,7 @@ const (
 	ssoFieldMaxBufferBytes     = "max_buffer_bytes"
 	ssoFieldMaxBufferCount     = "max_buffer_count"
 	ssoFieldMaxBufferPeriod    = "max_buffer_period"
+	ssoFieldFinalizeOnIdle     = "finalize_on_idle"
 	ssoFieldBatching           = "batching"
 	ssoFieldContentType        = "content_type"
 	ssoFieldContentEncoding    = "content_encoding"
@@ -46,17 +53,64 @@ path expression is evaluated only once per partition (allowing use of functions 
 for unique filenames). Without `+"`partition_by`"+`, each message evaluates the full path independently.
 
 :::warning
-### Violates Delivery Guarantees 
+### Weakens delivery guarantees
 
-This output weakens the delivery guarantees of the pipeline and therefore should not be used in places 
-where data loss is unacceptable.
+This output can weaken delivery guarantees when the input cannot let the stream reach finalization.
+Final buffered bytes are uploaded and acknowledged when the input closes or the output is closed, so
+bounded inputs are compatible only when they can close their transaction channel without waiting for
+the final message acknowledgement. Inputs that wait for a matching final acknowledgement before
+closing, such as `+"`read_until.check`"+`, can still deadlock if the final buffered output is smaller
+than the S3 multipart part size. For finite drain-and-exit jobs, prefer
+`+"`read_until.idle_timeout`"+`, which lets the input close on idle and allows this output to finalize
+and acknowledge the tail.
 :::
 
-## Expects shutdown of pipeline
+Messages are acknowledged only after their bytes are durably represented in S3. Buffered bytes are
+not acknowledged while they are only held in memory, and the final buffered bytes are acknowledged
+only after the upload is completed successfully.
 
-This output flushes on the shutdown of the stream and therefore is intended to be used with inputs that 
-have a logical end, such as [file](docs/components/inputs/file) or one that is wrapped with the 
-[read_until](docs/components/inputs/file) input. 
+On restart this output attempts to recover one in-progress multipart upload for the exact same S3
+path by using S3 multipart listing APIs. This means crash recovery requires a deterministic `+"`path`"+`
+that redelivered messages can recompute exactly. Paths using nondeterministic functions such as
+`+"`uuid_v4()`"+` or the current timestamp are not crash-recoverable without a future manifest or cache
+feature, unless they still recompute the exact same S3 key. Duplicate records can appear after a
+crash and should be tolerated downstream.
+
+## Delivery and Failures
+
+Each part upload is retried according to `+"`max_retries`"+` and `+"`backoff`"+`. Once those are exhausted the
+affected messages are rejected so an at-least-once input can redeliver them. A failed upload is never
+aborted, so redelivered data resumes the same multipart upload (in-process, or via recovery after a
+crash) rather than restarting the file. To apply back pressure indefinitely instead of giving up on a
+part, set `+"`max_retries`"+` to `+"`0`"+` and leave `+"`backoff.max_elapsed_time`"+` empty.
+
+Because messages are acknowledged only once their bytes are durable in a part, this output relies on a
+continuous flow of messages to release acknowledgements: a part is only sealed and uploaded once enough
+data accumulates, and the final bytes are acknowledged on close. For this reason it **cannot** be wrapped
+in a `+"`drop_on`"+` output — `+"`drop_on`"+` waits for each message to be acknowledged before delivering the next, which
+deadlocks against deferred acknowledgement. For the same reason it should not be fed by an input limited
+to a single in-flight message.
+
+Bounded inputs are safe only when they can close their transaction channel without first waiting for
+the final message acknowledgement. For example, `+"`read_until`"+` with a `+"`check`"+` condition sends the matching
+final message and waits for its acknowledgement before closing, so it can still deadlock with a
+sub-5MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded
+and acknowledged during normal message flow before the final close.
+
+For finite drain-and-exit jobs, configure `+"`finalize_on_idle`"+` so this output can finalize idle S3 writers
+and acknowledge their buffered tails while upstream inputs are still open. If more messages later
+arrive for the same partition and S3 key, this output starts a new upload for that same key. In
+unversioned buckets the later finalized object overwrites the earlier object; enable S3 bucket
+versioning or include a unique value in `+"`path`"+` if each finalized object must be retained.
+
+Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
+or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
+To divert such records to a dead-letter destination, wrap `+"`aws_s3_stream`"+` in a `+"`fallback`"+` output, which
+forwards messages without waiting on acknowledgement and so composes correctly.
+
+Because failed uploads are never aborted, an interrupted or permanently failing upload is left as an
+in-progress multipart upload on S3. Configure an `+"`AbortIncompleteMultipartUpload`"+` lifecycle rule on
+the bucket to clean these up automatically.
 
 ## When to Use
 
@@ -90,16 +144,20 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Default(false).
 				Advanced(),
 			service.NewIntField(ssoFieldMaxBufferBytes).
-				Description("Maximum buffer size in bytes before flushing to S3. Default is 10MB.").
+				Description("Maximum bytes to buffer before uploading a multipart part. A part is only uploaded once the buffer reaches S3's 5MiB minimum part size; smaller amounts are uploaded only as the final part when the writer closes. Default is 10MB.").
 				Default(10*1024*1024).
 				Advanced(),
 			service.NewIntField(ssoFieldMaxBufferCount).
-				Description("Maximum number of messages to buffer before flushing to S3.").
+				Description("Maximum messages to buffer before uploading a multipart part, subject to the same 5MiB minimum part size as `max_buffer_bytes`.").
 				Default(10000).
 				Advanced(),
 			service.NewDurationField(ssoFieldMaxBufferPeriod).
-				Description("Maximum duration to buffer messages before flushing to S3.").
+				Description("Maximum duration to buffer before uploading a multipart part. Data below S3's 5MiB minimum part size is not uploaded on this interval, so low-volume streams are uploaded only as the final part when the writer closes.").
 				Default("10s").
+				Advanced(),
+			service.NewDurationField(ssoFieldFinalizeOnIdle).
+				Description("Optional duration after which an idle S3 writer is finalized and its buffered messages are acknowledged. Intended for finite drain-and-exit jobs where the input may wait for final acknowledgements before closing. If later messages resolve to the same partition and S3 key then a new upload is started for that key; in unversioned buckets the later finalized object overwrites the earlier object.").
+				Optional().
 				Advanced(),
 			service.NewInterpolatedStringField(ssoFieldContentType).
 				Description("The content type to set for uploaded files.").
@@ -169,6 +227,7 @@ type s3StreamConfig struct {
 	MaxBufferBytes  int64
 	MaxBufferCount  int
 	MaxBufferPeriod time.Duration
+	FinalizeOnIdle  time.Duration
 	ContentType     *service.InterpolatedString
 	ContentEncoding *service.InterpolatedString
 
@@ -209,6 +268,12 @@ func s3StreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3StreamConfig,
 
 	if conf.MaxBufferPeriod, err = pConf.FieldDuration(ssoFieldMaxBufferPeriod); err != nil {
 		return
+	}
+
+	if pConf.Contains(ssoFieldFinalizeOnIdle) {
+		if conf.FinalizeOnIdle, err = pConf.FieldDuration(ssoFieldFinalizeOnIdle); err != nil {
+			return
+		}
 	}
 
 	if conf.ContentType, err = pConf.FieldInterpolatedString(ssoFieldContentType); err != nil {
@@ -258,7 +323,15 @@ func init() {
 			if wConf, err = s3StreamConfigFromParsed(conf); err != nil {
 				return
 			}
-			out, err = newS3StreamOutput(wConf, mgr)
+			var streamOut *s3StreamOutput
+			streamOut, err = newS3StreamOutput(wConf, batchPolicy, mgr)
+			// Returning an unwrapped internal output bypasses the framework's
+			// batcher and AsyncWriter, so the returned batchPolicy and maxInFlight
+			// are ignored (the output applies batching itself). They're reset here
+			// only to make that explicit.
+			out = interop.NewUnwrapInternalOutput(streamOut)
+			batchPolicy = service.BatchPolicy{}
+			maxInFlight = 1
 			return
 		})
 	if err != nil {
@@ -267,31 +340,60 @@ func init() {
 }
 
 type s3StreamOutput struct {
-	conf     s3StreamConfig
-	log      *service.Logger
-	s3Client *s3.Client
+	conf         s3StreamConfig
+	batchPolicy  service.BatchPolicy
+	batcher      *service.Batcher
+	log          *service.Logger
+	s3Client     s3StreamingAPI
+	s3ClientCtor func(s3StreamConfig) s3StreamingAPI
 
 	// Writer pool for managing multiple partition paths
 	writersMut sync.RWMutex
 	writers    map[string]*S3StreamingWriter
+
+	transactions <-chan message.Transaction
+	status       atomic.Pointer[component.ConnectionStatus]
+	shutSig      *shutdown.Signaller
+	resources    *service.Resources
 }
 
-func newS3StreamOutput(conf s3StreamConfig, mgr *service.Resources) (*s3StreamOutput, error) {
-	return &s3StreamOutput{
-		conf:    conf,
-		log:     mgr.Logger(),
-		writers: make(map[string]*S3StreamingWriter),
-	}, nil
+func newS3StreamOutput(conf s3StreamConfig, batchPolicy service.BatchPolicy, mgr *service.Resources) (*s3StreamOutput, error) {
+	s := &s3StreamOutput{
+		conf:        conf,
+		batchPolicy: batchPolicy,
+		log:         mgr.Logger(),
+		writers:     make(map[string]*S3StreamingWriter),
+		shutSig:     shutdown.NewSignaller(),
+		resources:   mgr,
+		s3ClientCtor: func(conf s3StreamConfig) s3StreamingAPI {
+			return s3.NewFromConfig(conf.aconf, func(o *s3.Options) {
+				o.UsePathStyle = conf.UsePathStyle
+			})
+		},
+	}
+	s.status.Store(component.ConnectionPending(interop.UnwrapManagement(mgr)))
+	if !batchPolicy.IsNoop() {
+		var err error
+		if s.batcher, err = batchPolicy.NewBatcher(mgr); err != nil {
+			return nil, err
+		}
+	}
+	return s, nil
 }
 
 func (s *s3StreamOutput) Connect(ctx context.Context) error {
-	s.s3Client = s3.NewFromConfig(s.conf.aconf, func(o *s3.Options) {
-		o.UsePathStyle = s.conf.UsePathStyle
-	})
+	s.s3Client = s.s3ClientCtor(s.conf)
+	s.status.Store(component.ConnectionActive(interop.UnwrapManagement(s.resources)))
 	return nil
 }
 
 func (s *s3StreamOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
+	return s.writeBatch(ctx, batch, func(context.Context, error) error {
+		return nil
+	})
+}
+
+func (s *s3StreamOutput) writeBatch(ctx context.Context, batch service.MessageBatch, ackFn s3AckFunc) error {
 	// Group messages by partition key
 	type partitionGroup struct {
 		key  string
@@ -311,6 +413,7 @@ func (s *s3StreamOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 			for j, partExpr := range s.conf.PartitionBy {
 				partitionParts[j], err = batch.TryInterpolatedString(i, partExpr)
 				if err != nil {
+					_ = ackFn(ctx, err)
 					return fmt.Errorf("failed to evaluate partition_by[%d]: %w", j, err)
 				}
 			}
@@ -324,6 +427,7 @@ func (s *s3StreamOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 				// Evaluate full path only once for this partition
 				fullPath, err = batch.TryInterpolatedString(i, s.conf.Path)
 				if err != nil {
+					_ = ackFn(ctx, err)
 					return fmt.Errorf("failed to interpolate path: %w", err)
 				}
 			}
@@ -331,6 +435,7 @@ func (s *s3StreamOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 			// Backwards compatibility: evaluate path per message
 			fullPath, err = batch.TryInterpolatedString(i, s.conf.Path)
 			if err != nil {
+				_ = ackFn(ctx, err)
 				return fmt.Errorf("failed to interpolate path: %w", err)
 			}
 			partitionKey = fullPath
@@ -348,17 +453,21 @@ func (s *s3StreamOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 		}
 	}
 
+	if len(partitionMap) == 0 {
+		return ackFn(ctx, nil)
+	}
+
 	// Write to each partition
+	cAck := newS3CombinedAck(len(partitionMap), ackFn)
 	for _, pg := range partitionMap {
-		if err := s.writeToPartition(ctx, pg.key, pg.path, pg.msgs); err != nil {
+		if err := s.writeToPartition(ctx, pg.key, pg.path, pg.msgs, cAck.Derive()); err != nil {
 			return fmt.Errorf("failed to write to partition %s: %w", pg.key, err)
 		}
 	}
-
 	return nil
 }
 
-func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey string, path string, batch service.MessageBatch) error {
+func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey string, path string, batch service.MessageBatch, ackFn s3AckFunc) error {
 	// Try to get existing writer with read lock
 	s.writersMut.RLock()
 	writer, exists := s.writers[partitionKey]
@@ -379,6 +488,7 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 				contentType, err = batch.TryInterpolatedString(0, s.conf.ContentType)
 				if err != nil {
 					s.writersMut.Unlock()
+					_ = ackFn(ctx, err)
 					return fmt.Errorf("failed to evaluate content_type: %w", err)
 				}
 
@@ -386,6 +496,7 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 					contentEncoding, err = batch.TryInterpolatedString(0, s.conf.ContentEncoding)
 					if err != nil {
 						s.writersMut.Unlock()
+						_ = ackFn(ctx, err)
 						return fmt.Errorf("failed to evaluate content_encoding: %w", err)
 					}
 				}
@@ -404,11 +515,13 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 			})
 			if err != nil {
 				s.writersMut.Unlock()
+				_ = ackFn(ctx, err)
 				return fmt.Errorf("failed to create writer: %w", err)
 			}
 
 			if err := newWriter.Initialize(ctx); err != nil {
 				s.writersMut.Unlock()
+				_ = ackFn(ctx, err)
 				return fmt.Errorf("failed to initialize writer: %w", err)
 			}
 
@@ -419,22 +532,36 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 		s.writersMut.Unlock()
 	}
 
-	// Write messages to writer
+	var partBytes []byte
 	for _, msg := range batch {
 		msgBytes, err := msg.AsBytes()
 		if err != nil {
+			_ = ackFn(ctx, err)
 			return fmt.Errorf("failed to get message bytes: %w", err)
 		}
+		partBytes = append(partBytes, msgBytes...)
+	}
 
-		if err := writer.WriteBytes(ctx, msgBytes); err != nil {
-			return fmt.Errorf("failed to write message: %w", err)
-		}
+	if err := writer.WriteBytes(ctx, partBytes, ackFn); err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
 	}
 
 	return nil
 }
 
 func (s *s3StreamOutput) Close(ctx context.Context) error {
+	lastErr := s.finalizeWriters(ctx)
+	if s.batcher != nil {
+		if err := s.batcher.Close(ctx); err != nil && lastErr == nil {
+			lastErr = err
+		}
+	}
+	s.status.Store(component.ConnectionClosed(interop.UnwrapManagement(s.resources)))
+
+	return lastErr
+}
+
+func (s *s3StreamOutput) finalizeWriters(ctx context.Context) error {
 	s.writersMut.Lock()
 	defer s.writersMut.Unlock()
 
@@ -453,6 +580,223 @@ func (s *s3StreamOutput) Close(ctx context.Context) error {
 	}
 
 	s.writers = make(map[string]*S3StreamingWriter)
-
 	return lastErr
+}
+
+func (s *s3StreamOutput) finalizeIdleWriters(ctx context.Context, idleFor time.Duration) error {
+	s.writersMut.Lock()
+	defer s.writersMut.Unlock()
+
+	var lastErr error
+	for path, writer := range s.writers {
+		stats := writer.Stats()
+		if stats.LastWriteAge < idleFor {
+			continue
+		}
+
+		s.log.Debugf("Finalizing idle writer for %s (idle: %s, messages: %d, parts: %d, bytes: %d)",
+			path, stats.LastWriteAge, stats.TotalMessages, stats.PartsUploaded, stats.TotalBytes)
+
+		if err := writer.Close(ctx); err != nil {
+			s.log.Errorf("Failed to finalize idle writer for %s: %v", path, err)
+			lastErr = err
+			continue
+		}
+		delete(s.writers, path)
+	}
+	return lastErr
+}
+
+func (s *s3StreamOutput) Consume(transactions <-chan message.Transaction) error {
+	if s.transactions != nil {
+		return component.ErrAlreadyStarted
+	}
+	s.transactions = transactions
+	go s.loop()
+	return nil
+}
+
+func (s *s3StreamOutput) loop() {
+	defer s.shutSig.TriggerHasStopped()
+
+	if err := s.Connect(context.Background()); err != nil {
+		s.status.Store(component.ConnectionFailing(interop.UnwrapManagement(s.resources), err))
+		return
+	}
+
+	var pendingAcks []s3AckFunc
+	var idleFinalizeChan <-chan time.Time
+	var idleFinalizeTicker *time.Ticker
+	if s.conf.FinalizeOnIdle > 0 {
+		idleFinalizeTicker = time.NewTicker(s.conf.FinalizeOnIdle)
+		idleFinalizeChan = idleFinalizeTicker.C
+		defer idleFinalizeTicker.Stop()
+	}
+
+	for {
+		var nextTimedBatchChan <-chan time.Time
+		if s.batcher != nil && len(pendingAcks) > 0 {
+			if untilNext, exists := s.batcher.UntilNext(); exists {
+				nextTimedBatchChan = time.After(untilNext)
+			}
+		}
+
+		var tran message.Transaction
+		var open bool
+		flushTimedBatch := false
+		finalizeIdle := false
+		select {
+		case tran, open = <-s.transactions:
+			if !open {
+				if err := s.flushBatcher(context.Background(), pendingAcks); err != nil {
+					s.log.Errorf("Failed to flush final S3 stream batch: %v", err)
+				}
+				pendingAcks = nil
+				if err := s.finalizeWriters(context.Background()); err != nil {
+					s.log.Errorf("Failed to finalize S3 stream writers: %v", err)
+				}
+				if s.batcher != nil {
+					if err := s.batcher.Close(context.Background()); err != nil {
+						s.log.Errorf("Failed to close S3 stream batcher: %v", err)
+					}
+				}
+				s.status.Store(component.ConnectionClosed(interop.UnwrapManagement(s.resources)))
+				return
+			}
+		case <-s.shutSig.HardStopChan():
+			_ = s.Close(context.Background())
+			return
+		case <-nextTimedBatchChan:
+			flushTimedBatch = true
+		case <-idleFinalizeChan:
+			finalizeIdle = true
+		}
+
+		if finalizeIdle {
+			if err := s.flushBatcher(context.Background(), pendingAcks); err != nil {
+				s.log.Errorf("Failed to flush idle S3 stream batch: %v", err)
+			}
+			pendingAcks = nil
+			if err := s.finalizeIdleWriters(context.Background(), s.conf.FinalizeOnIdle); err != nil {
+				s.log.Errorf("Failed to finalize idle S3 stream writers: %v", err)
+			}
+			continue
+		}
+
+		if flushTimedBatch {
+			if err := s.flushBatcher(context.Background(), pendingAcks); err != nil {
+				s.log.Errorf("Failed to write timed S3 stream batch: %v", err)
+			}
+			pendingAcks = nil
+			continue
+		}
+
+		if s.batcher == nil {
+			batch := serviceBatchFromInternal(tran.Payload)
+			if err := s.writeBatch(context.Background(), batch, tran.Ack); err != nil {
+				s.log.Errorf("Failed to write S3 stream batch: %v", err)
+			}
+			continue
+		}
+
+		flush := false
+		_ = tran.Payload.Iter(func(i int, part *message.Part) error {
+			if s.batcher.Add(service.NewInternalMessage(part)) {
+				flush = true
+			}
+			return nil
+		})
+		pendingAcks = append(pendingAcks, tran.Ack)
+		if flush {
+			if err := s.flushBatcher(context.Background(), pendingAcks); err != nil {
+				s.log.Errorf("Failed to write S3 stream batch: %v", err)
+			}
+			pendingAcks = nil
+		}
+	}
+}
+
+func (s *s3StreamOutput) flushBatcher(ctx context.Context, pendingAcks []s3AckFunc) error {
+	if s.batcher == nil || len(pendingAcks) == 0 {
+		return nil
+	}
+	batch, err := s.batcher.Flush(ctx)
+	if err != nil {
+		_ = ackAll(ctx, pendingAcks, err)
+		return err
+	}
+	if len(batch) == 0 {
+		return nil
+	}
+	return s.writeBatch(ctx, batch, func(ctx context.Context, err error) error {
+		return ackAll(ctx, pendingAcks, err)
+	})
+}
+
+func serviceBatchFromInternal(batch message.Batch) service.MessageBatch {
+	out := make(service.MessageBatch, 0, batch.Len())
+	_ = batch.Iter(func(i int, part *message.Part) error {
+		out = append(out, service.NewInternalMessage(part))
+		return nil
+	})
+	return out
+}
+
+func (s *s3StreamOutput) ConnectionStatus() component.ConnectionStatuses {
+	return component.ConnectionStatuses{s.status.Load()}
+}
+
+func (s *s3StreamOutput) TriggerCloseNow() {
+	s.shutSig.TriggerHardStop()
+}
+
+func (s *s3StreamOutput) WaitForClose(ctx context.Context) error {
+	select {
+	case <-s.shutSig.HasStoppedChan():
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+// s3CombinedAck fans a single upstream transaction ack out across the multiple
+// partition writers that one batch may touch. The root ack is resolved exactly
+// once: either when every partition has been durably acked, or as soon as any
+// single partition fails.
+//
+// The done guard is what makes this safe. Without it, a partial failure could
+// either never resolve the root (a leaked in-flight transaction, since unvisited
+// partitions never decrement the counter) or resolve it twice (e.g. a partition
+// that already succeeded later fires its deferred ack after another partition has
+// already nacked the batch). Firing once and then no-oping every later child call
+// avoids both.
+type s3CombinedAck struct {
+	remaining int
+	root      s3AckFunc
+	done      bool
+	mut       sync.Mutex
+}
+
+func newS3CombinedAck(count int, root s3AckFunc) *s3CombinedAck {
+	return &s3CombinedAck{remaining: count, root: root}
+}
+
+func (c *s3CombinedAck) Derive() s3AckFunc {
+	return func(ctx context.Context, err error) error {
+		c.mut.Lock()
+		defer c.mut.Unlock()
+		if c.done {
+			return nil
+		}
+		c.remaining--
+		// Nack the whole batch on the first partition failure: a transaction can
+		// only be resolved as a whole, so redelivery may duplicate the partitions
+		// that already succeeded, which is acceptable. Otherwise ack only once
+		// every partition is durable.
+		if err != nil || c.remaining == 0 {
+			c.done = true
+			return c.root(ctx, err)
+		}
+		return nil
+	}
 }
