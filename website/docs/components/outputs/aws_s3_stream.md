@@ -61,6 +61,7 @@ output:
     max_buffer_bytes: 10485760
     max_buffer_count: 10000
     max_buffer_period: 10s
+    finalize_on_idle: "" # No default (optional)
     content_type: application/octet-stream
     content_encoding: "" # No default (optional)
     max_retries: 2
@@ -144,9 +145,13 @@ Bounded inputs are safe only when they can close their transaction channel witho
 the final message acknowledgement. For example, `read_until` with a `check` condition sends the matching
 final message and waits for its acknowledgement before closing, so it can still deadlock with a
 sub-5MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded
-and acknowledged during normal message flow before the final close. Prefer `read_until.idle_timeout` for finite drain-and-exit jobs: once no more
-messages arrive for the configured idle period, the input closes normally and this output finalizes
-and acknowledges the buffered tail.
+and acknowledged during normal message flow before the final close.
+
+For finite drain-and-exit jobs, configure `finalize_on_idle` so this output can finalize idle S3 writers
+and acknowledge their buffered tails while upstream inputs are still open. If more messages later
+arrive for the same partition and S3 key, this output starts a new upload for that same key. In
+unversioned buckets the later finalized object overwrites the earlier object; enable S3 bucket
+versioning or include a unique value in `path` if each finalized object must be retained.
 
 Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
 or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
@@ -292,6 +297,13 @@ Maximum duration to buffer before uploading a multipart part. Data below S3's 5M
 
 Type: `string`  
 Default: `"10s"`  
+
+### `finalize_on_idle`
+
+Optional duration after which an idle S3 writer is finalized and its buffered messages are acknowledged. Intended for finite drain-and-exit jobs where the input may wait for final acknowledgements before closing. If later messages resolve to the same partition and S3 key then a new upload is started for that key; in unversioned buckets the later finalized object overwrites the earlier object.
+
+
+Type: `string`  
 
 ### `content_type`
 

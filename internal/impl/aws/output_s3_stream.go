@@ -29,6 +29,7 @@ const (
 	ssoFieldMaxBufferBytes     = "max_buffer_bytes"
 	ssoFieldMaxBufferCount     = "max_buffer_count"
 	ssoFieldMaxBufferPeriod    = "max_buffer_period"
+	ssoFieldFinalizeOnIdle     = "finalize_on_idle"
 	ssoFieldBatching           = "batching"
 	ssoFieldContentType        = "content_type"
 	ssoFieldContentEncoding    = "content_encoding"
@@ -94,9 +95,13 @@ Bounded inputs are safe only when they can close their transaction channel witho
 the final message acknowledgement. For example, `+"`read_until`"+` with a `+"`check`"+` condition sends the matching
 final message and waits for its acknowledgement before closing, so it can still deadlock with a
 sub-5MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded
-and acknowledged during normal message flow before the final close. Prefer `+"`read_until.idle_timeout`"+` for finite drain-and-exit jobs: once no more
-messages arrive for the configured idle period, the input closes normally and this output finalizes
-and acknowledges the buffered tail.
+and acknowledged during normal message flow before the final close.
+
+For finite drain-and-exit jobs, configure `+"`finalize_on_idle`"+` so this output can finalize idle S3 writers
+and acknowledge their buffered tails while upstream inputs are still open. If more messages later
+arrive for the same partition and S3 key, this output starts a new upload for that same key. In
+unversioned buckets the later finalized object overwrites the earlier object; enable S3 bucket
+versioning or include a unique value in `+"`path`"+` if each finalized object must be retained.
 
 Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
 or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
@@ -149,6 +154,10 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 			service.NewDurationField(ssoFieldMaxBufferPeriod).
 				Description("Maximum duration to buffer before uploading a multipart part. Data below S3's 5MiB minimum part size is not uploaded on this interval, so low-volume streams are uploaded only as the final part when the writer closes.").
 				Default("10s").
+				Advanced(),
+			service.NewDurationField(ssoFieldFinalizeOnIdle).
+				Description("Optional duration after which an idle S3 writer is finalized and its buffered messages are acknowledged. Intended for finite drain-and-exit jobs where the input may wait for final acknowledgements before closing. If later messages resolve to the same partition and S3 key then a new upload is started for that key; in unversioned buckets the later finalized object overwrites the earlier object.").
+				Optional().
 				Advanced(),
 			service.NewInterpolatedStringField(ssoFieldContentType).
 				Description("The content type to set for uploaded files.").
@@ -218,6 +227,7 @@ type s3StreamConfig struct {
 	MaxBufferBytes  int64
 	MaxBufferCount  int
 	MaxBufferPeriod time.Duration
+	FinalizeOnIdle  time.Duration
 	ContentType     *service.InterpolatedString
 	ContentEncoding *service.InterpolatedString
 
@@ -258,6 +268,12 @@ func s3StreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3StreamConfig,
 
 	if conf.MaxBufferPeriod, err = pConf.FieldDuration(ssoFieldMaxBufferPeriod); err != nil {
 		return
+	}
+
+	if pConf.Contains(ssoFieldFinalizeOnIdle) {
+		if conf.FinalizeOnIdle, err = pConf.FieldDuration(ssoFieldFinalizeOnIdle); err != nil {
+			return
+		}
 	}
 
 	if conf.ContentType, err = pConf.FieldInterpolatedString(ssoFieldContentType); err != nil {
@@ -567,6 +583,30 @@ func (s *s3StreamOutput) finalizeWriters(ctx context.Context) error {
 	return lastErr
 }
 
+func (s *s3StreamOutput) finalizeIdleWriters(ctx context.Context, idleFor time.Duration) error {
+	s.writersMut.Lock()
+	defer s.writersMut.Unlock()
+
+	var lastErr error
+	for path, writer := range s.writers {
+		stats := writer.Stats()
+		if stats.LastWriteAge < idleFor {
+			continue
+		}
+
+		s.log.Debugf("Finalizing idle writer for %s (idle: %s, messages: %d, parts: %d, bytes: %d)",
+			path, stats.LastWriteAge, stats.TotalMessages, stats.PartsUploaded, stats.TotalBytes)
+
+		if err := writer.Close(ctx); err != nil {
+			s.log.Errorf("Failed to finalize idle writer for %s: %v", path, err)
+			lastErr = err
+			continue
+		}
+		delete(s.writers, path)
+	}
+	return lastErr
+}
+
 func (s *s3StreamOutput) Consume(transactions <-chan message.Transaction) error {
 	if s.transactions != nil {
 		return component.ErrAlreadyStarted
@@ -585,6 +625,14 @@ func (s *s3StreamOutput) loop() {
 	}
 
 	var pendingAcks []s3AckFunc
+	var idleFinalizeChan <-chan time.Time
+	var idleFinalizeTicker *time.Ticker
+	if s.conf.FinalizeOnIdle > 0 {
+		idleFinalizeTicker = time.NewTicker(s.conf.FinalizeOnIdle)
+		idleFinalizeChan = idleFinalizeTicker.C
+		defer idleFinalizeTicker.Stop()
+	}
+
 	for {
 		var nextTimedBatchChan <-chan time.Time
 		if s.batcher != nil && len(pendingAcks) > 0 {
@@ -596,6 +644,7 @@ func (s *s3StreamOutput) loop() {
 		var tran message.Transaction
 		var open bool
 		flushTimedBatch := false
+		finalizeIdle := false
 		select {
 		case tran, open = <-s.transactions:
 			if !open {
@@ -619,6 +668,19 @@ func (s *s3StreamOutput) loop() {
 			return
 		case <-nextTimedBatchChan:
 			flushTimedBatch = true
+		case <-idleFinalizeChan:
+			finalizeIdle = true
+		}
+
+		if finalizeIdle {
+			if err := s.flushBatcher(context.Background(), pendingAcks); err != nil {
+				s.log.Errorf("Failed to flush idle S3 stream batch: %v", err)
+			}
+			pendingAcks = nil
+			if err := s.finalizeIdleWriters(context.Background(), s.conf.FinalizeOnIdle); err != nil {
+				s.log.Errorf("Failed to finalize idle S3 stream writers: %v", err)
+			}
+			continue
 		}
 
 		if flushTimedBatch {

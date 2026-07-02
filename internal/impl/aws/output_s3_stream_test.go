@@ -49,6 +49,7 @@ path: 'data/${! timestamp_unix() }.json'
 max_buffer_bytes: 5242880
 max_buffer_count: 5000
 max_buffer_period: 5s
+finalize_on_idle: 100ms
 `,
 			expectError: false,
 		},
@@ -495,6 +496,75 @@ path: bounded.log
 	for i, ack := range acks {
 		require.NoError(t, <-ack, "transaction %d should be acked after final PutObject", i)
 	}
+}
+
+func TestS3StreamOutputFinalizeOnIdleAcksOpenInput(t *testing.T) {
+	uploadedBodies := make(chan []byte, 2)
+	var completeCalled bool
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			body, err := io.ReadAll(input.Body)
+			require.NoError(t, err)
+			uploadedBodies <- body
+			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: idle.log
+finalize_on_idle: 20ms
+`
+
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI {
+		return mockClient
+	}
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+	defer func() {
+		out.TriggerCloseNow()
+		waitCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+		require.NoError(t, out.WaitForClose(waitCtx))
+	}()
+
+	send := func(body []byte) chan error {
+		ack := make(chan error, 1)
+		txChan <- message.NewTransaction(message.QuickBatch([][]byte{body}), ack)
+		return ack
+	}
+
+	ack1 := send([]byte("foo"))
+	select {
+	case body := <-uploadedBodies:
+		assert.Equal(t, []byte("foo"), body)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for idle PutObject")
+	}
+	require.NoError(t, <-ack1)
+
+	ack2 := send([]byte("bar"))
+	select {
+	case body := <-uploadedBodies:
+		assert.Equal(t, []byte("bar"), body)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second idle PutObject")
+	}
+	require.NoError(t, <-ack2)
+	assert.False(t, completeCalled)
 }
 
 // `fallback` consumes a child output by forwarding each transaction with an

@@ -85,6 +85,28 @@ This forces the acks to drain before `loop()` returns, breaking the circular wai
 - Integration test confirming `CompleteMultipartUpload` is still used when the object has multiple parts (≥ 5 MiB).
 - Real-S3 (non-mocked) smoke test for the zero-byte file path with both the `PutObject` path and (for stores that support it) the single-part multipart path.
 
+## Follow-up: Idle Finalization Trigger
+
+Real-S3 smoke tests against the current branch showed that the end-of-input trigger only helps once
+`aws_s3_stream` observes its transaction channel close. Plain bounded inputs such as `generate count`
+or stdin EOF may still hang because the input layer waits for pending transaction acks before closing
+the channel, while the output waits for channel close before finalizing the tail. `read_until` with
+`idle_timeout` can work around this by closing the input side independently of the final ack, but that
+timeout lives upstream of the S3 writer and can race with asynchronous upstream commit mechanisms such
+as `redis_streams` XACK flushing.
+
+The smallest output-local follow-up is an optional `finalize_on_idle` duration on `aws_s3_stream`.
+When a writer has received no new bytes for that duration, the output finalizes that writer, uploads
+the tail via `PutObject` or multipart completion, and releases the owned acks while upstream inputs are
+still alive. This gives bounded/drain-style jobs a finalize trigger that does not depend on pipeline
+shutdown.
+
+If more messages later resolve to the same partition and S3 key, the output should create a new writer
+for that key. In unversioned buckets, the later finalized object overwrites the earlier object. Users
+that need every idle-finalized object retained should enable S3 bucket versioning or include a unique
+value in `path`. This is intentionally not a full object-rotation design; it is a small opt-in
+finalization trigger for finite/drain workloads.
+
 ## Tests
 
 - Unit test that no ack occurs when messages are only in memory.
@@ -109,5 +131,5 @@ This forces the acks to drain before `loop()` returns, breaking the circular wai
 - Because failures never abort, a key that permanently fails (or is simply never completed) leaves an incomplete multipart upload on S3. Operators should configure an `AbortIncompleteMultipartUpload` bucket lifecycle rule to reap orphans.
 - No bespoke give-up/finalize mechanism is built. Dropping un-writable data so a file can finish is left to standard composition: wrap the output in `fallback` to divert un-writable records to a dead-letter destination. This was chosen over a built-in "finalize the durable prefix + drop the tail" to stay idiomatic (Bento never drops data by default) and because publishing a truncated object by default is undesirable.
 - Ack-after-durable requires upstream lookahead: acks are released only as more messages flow (sealing/releasing parts) or on close. The output is therefore **incompatible with `drop_on`** (which blocks for each ack before sending the next message → deadlock) and with inputs limited to a single in-flight message. `fallback` works because it forwards without waiting on acknowledgement.
-- Bounded inputs are safe only when they can close their transaction channel without first waiting for the final message acknowledgement. `read_until` with a `check` condition waits for the matching final transaction to be acked before closing, so it can still deadlock with a sub-5 MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded and acknowledged during normal message flow before the final close. Prefer `read_until.idle_timeout` for finite drain-and-exit jobs: once no more messages arrive for the idle period, the input closes normally and `aws_s3_stream` can finalize and ack the buffered tail.
+- Bounded inputs are safe only when they can close their transaction channel without first waiting for the final message acknowledgement. `read_until` with a `check` condition waits for the matching final transaction to be acked before closing, so it can still deadlock with a sub-5 MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded and acknowledged during normal message flow before the final close. `read_until.idle_timeout` works for some finite drain-and-exit jobs, but it is an upstream workaround and can interact badly with inputs that commit asynchronously during shutdown. Prefer `finalize_on_idle` for workloads that need S3 finalization and final acks while upstream inputs remain open.
 - No cache resource, manifest, or `resume_prefix` is added in this version.
