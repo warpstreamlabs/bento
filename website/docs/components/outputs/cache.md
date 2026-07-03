@@ -113,7 +113,7 @@ When enabled, new messages are appended to existing cache values rather than ove
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.18.0 or newer  
+Requires version 1.19.0 or newer  
 
 ### `ttl`
 
