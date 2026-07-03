@@ -130,7 +130,7 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 		).
 			Description("Digest authentication configuration.").
 			Advanced().
-			Version("1.19.0").
+			Version("1.18.0").
 			Optional(),
 		service.NewObjectField(hcFieldNegotiate,
 			service.NewBoolField(hcFieldNegotiateEnabled).
@@ -151,6 +151,7 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 					Default(""),
 				service.NewStringField(hcFieldNegotiateUserPassword).
 					Description("The password of the user.").
+					Secret().
 					Default(""),
 			).
 				Description("The user to use for the authentication. If the user is not configured, SSPI will use the currently logged-in user and Pure will use the Kerberos keytab file.").
@@ -173,6 +174,7 @@ The underlying package that implements the negotiate (SPNEGO) authentication is 
 
 :::`).
 			Advanced().
+			Version("1.19.0").
 			Optional(),
 		service.NewTransportField(hcFieldTransport),
 	)
