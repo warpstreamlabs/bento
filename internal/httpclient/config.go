@@ -130,11 +130,11 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 		).
 			Description("Digest authentication configuration.").
 			Advanced().
-			Version("1.18.0").
+			Version("1.19.0").
 			Optional(),
 		service.NewObjectField(hcFieldNegotiate,
 			service.NewBoolField(hcFieldNegotiateEnabled).
-				Description("Enable the spnego authentication").
+				Description("Enable the spnego authentication.").
 				Default(false),
 			service.NewStringEnumField(hcFieldNegotiateApi, "sspi", "pure").
 				Description("Change the underlying api, defaults to Pure, sspi only works on windows.").
@@ -166,7 +166,12 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 				Description("Options for Kerberos configuration. These options are ignored under SSPI.").
 				Optional(),
 		).
-			Description("Negotiate (SPNEGO) authentication configuration.").
+			Description(`Negotiate (SPNEGO) authentication configuration.
+:::caution EXPERIMENTAL
+
+The underlying package that implements the negotiate (SPNEGO) authentication is nascent.
+
+:::`).
 			Advanced().
 			Optional(),
 		service.NewTransportField(hcFieldTransport),

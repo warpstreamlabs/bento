@@ -751,7 +751,7 @@ Digest authentication configuration.
 
 
 Type: `object`  
-Requires version 1.18.0 or newer  
+Requires version 1.19.0 or newer  
 
 ### `digest_auth.enabled`
 
@@ -780,13 +780,18 @@ Default: `""`
 ### `negotiate`
 
 Negotiate (SPNEGO) authentication configuration.
+:::caution EXPERIMENTAL
+
+The underlying package that implements the negotiate (SPNEGO) authentication is nascent.
+
+:::
 
 
 Type: `object`  
 
 ### `negotiate.enabled`
 
-Enable the spnego authentication
+Enable the spnego authentication.
 
 
 Type: `bool`  
