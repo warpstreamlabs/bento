@@ -70,7 +70,7 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 `).
 		Fields(
 			service.NewStringListField(esoV2FieldURLs).
-				Description("A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.").
+				Description("A list of URLs to connect to.").
 				Example([]string{"http://localhost:9200"}),
 			service.NewInterpolatedStringField(esoV2FieldIndex).
 				Description("The index to place messages."),

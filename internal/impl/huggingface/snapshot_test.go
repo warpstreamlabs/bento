@@ -1,6 +1,7 @@
 package huggingface_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -62,7 +63,7 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 	}
 
 	// Create a new Hugot Go session
-	session, err := hugot.NewGoSession()
+	session, err := hugot.NewGoSession(context.Background())
 	require.NoError(t, err, "Failed to create session")
 	t.Cleanup(func() {
 		require.NoError(t, session.Destroy())
@@ -101,7 +102,7 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 			opts.OnnxFilePath = tt.modelDownloadPath
 		}
 
-		path, err := hugot.DownloadModel(tt.model, tmpDir, opts)
+		path, err := hugot.DownloadModel(context.Background(), tt.model, tmpDir, opts)
 		require.NoError(t, err, "Failed to download model")
 
 		// Setup
@@ -122,7 +123,7 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 		var results []Result
 		for _, batch := range tt.prompts {
 
-			res, err := pipeline.RunPipeline(batch)
+			res, err := pipeline.RunPipeline(context.Background(), batch)
 			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
 
 			for i, outRes := range res.GetOutput() {
@@ -161,7 +162,7 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 	}
 
 	// Create a new Hugot Go session
-	session, err := hugot.NewGoSession()
+	session, err := hugot.NewGoSession(context.Background())
 	require.NoError(t, err, "Failed to create session")
 	t.Cleanup(func() {
 		require.NoError(t, session.Destroy())
@@ -196,7 +197,7 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		// Download the model from huggingface
-		path, err := hugot.DownloadModel(tt.model, tmpDir, hugot.NewDownloadOptions())
+		path, err := hugot.DownloadModel(context.Background(), tt.model, tmpDir, hugot.NewDownloadOptions())
 		require.NoError(t, err, "Failed to download model")
 
 		// Setup
@@ -216,7 +217,7 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 		var results []Result
 		for _, batch := range tt.prompts {
 
-			res, err := pipeline.RunPipeline(batch)
+			res, err := pipeline.RunPipeline(context.Background(), batch)
 			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
 
 			for i, outRes := range res.GetOutput() {
@@ -255,7 +256,7 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 	}
 
 	// Create a new Hugot Go session
-	session, err := hugot.NewGoSession()
+	session, err := hugot.NewGoSession(context.Background())
 	require.NoError(t, err, "Failed to create session")
 	t.Cleanup(func() {
 		require.NoError(t, session.Destroy())
@@ -302,7 +303,7 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		// Download the model from huggingface
-		path, err := hugot.DownloadModel(tt.model, tmpDir, hugot.NewDownloadOptions())
+		path, err := hugot.DownloadModel(context.Background(), tt.model, tmpDir, hugot.NewDownloadOptions())
 		require.NoError(t, err, "Failed to download model")
 
 		// Setup
@@ -323,7 +324,7 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 		var results []Result
 		for _, batch := range tt.prompts {
 
-			res, err := pipeline.RunPipeline(batch)
+			res, err := pipeline.RunPipeline(context.Background(), batch)
 			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
 
 			for i, outRes := range res.ClassificationOutputs {
@@ -362,7 +363,7 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 	}
 
 	// Create a new Hugot Go session
-	session, err := hugot.NewGoSession()
+	session, err := hugot.NewGoSession(context.Background())
 	require.NoError(t, err, "Failed to create session")
 
 	t.Cleanup(func() {
@@ -412,7 +413,7 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 			opts.OnnxFilePath = tt.modelDownloadPath
 		}
 
-		path, err := hugot.DownloadModel(tt.model, tmpDir, opts)
+		path, err := hugot.DownloadModel(context.Background(), tt.model, tmpDir, opts)
 		require.NoError(t, err, "Failed to download model")
 
 		// Setup
@@ -438,7 +439,7 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 		var results []Result
 		for _, batch := range tt.prompts {
 
-			res, err := pipeline.RunPipeline(batch)
+			res, err := pipeline.RunPipeline(context.Background(), batch)
 			require.NoError(t, err, "Failed to run pipeline for prompt: %s", batch)
 
 			for i, outRes := range res.GetOutput() {

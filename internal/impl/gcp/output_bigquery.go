@@ -51,6 +51,7 @@ type gcpBigQueryOutputConfig struct {
 	ProjectID           string
 	DatasetID           string
 	TableID             *service.InterpolatedString
+	Endpoint            string
 	Format              string
 	WriteDisposition    string
 	CreateDisposition   string
@@ -75,6 +76,9 @@ func gcpBigQueryOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBig
 		return
 	}
 	if gconf.TableID, err = conf.FieldInterpolatedString("table"); err != nil {
+		return
+	}
+	if gconf.Endpoint, err = conf.FieldString("endpoint"); err != nil {
 		return
 	}
 	if gconf.Format, err = conf.FieldString("format"); err != nil {
@@ -106,11 +110,11 @@ func gcpBigQueryOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBig
 
 type gcpBQClientURL string
 
-func (g gcpBQClientURL) NewClient(ctx context.Context, projectID string) (*bigquery.Client, error) {
-	if g == "" {
-		return bigquery.NewClient(ctx, projectID)
+func (g gcpBQClientURL) NewClient(ctx context.Context, projectID string, opts ...option.ClientOption) (*bigquery.Client, error) {
+	if g != "" {
+		opts = append(opts, option.WithoutAuthentication(), option.WithEndpoint(string(g)))
 	}
-	return bigquery.NewClient(ctx, projectID, option.WithoutAuthentication(), option.WithEndpoint(string(g)))
+	return bigquery.NewClient(ctx, projectID, opts...)
 }
 
 func gcpBigQueryConfig() *service.ConfigSpec {
@@ -159,6 +163,10 @@ For the CSV format when the field ` + "`csv.header`" + ` is specified a header r
 It is assumed that the first message in the batch will resolve the bloblang query and that string will be used for all messages in the batch.
 :::
 The table to insert messages to.`)).
+		Field(service.NewStringField("endpoint").
+			Description("An optional endpoint to override the default BigQuery API URL.").
+			Advanced().
+			Default("")).
 		Field(service.NewStringEnumField("format", string(bigquery.JSON), string(bigquery.CSV)).
 			Description("The format of each incoming message.").
 			Default(string(bigquery.JSON))).
@@ -304,7 +312,11 @@ func (g *gcpBigQueryOutput) Connect(ctx context.Context) (err error) {
 	defer g.connMut.Unlock()
 
 	var client *bigquery.Client
-	if client, err = g.clientURL.NewClient(context.Background(), g.conf.ProjectID); err != nil {
+	var opts []option.ClientOption
+	if g.conf.Endpoint != "" {
+		opts = append(opts, option.WithoutAuthentication(), option.WithEndpoint(g.conf.Endpoint))
+	}
+	if client, err = g.clientURL.NewClient(context.Background(), g.conf.ProjectID, opts...); err != nil {
 		err = fmt.Errorf("error creating big query client: %w", err)
 		return
 	}

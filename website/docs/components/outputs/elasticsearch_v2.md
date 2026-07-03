@@ -113,7 +113,7 @@ Both the `id` and `index` fields can be dynamically set using function interpola
 
 ### `urls`
 
-A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.
+A list of URLs to connect to.
 
 
 Type: `array`  

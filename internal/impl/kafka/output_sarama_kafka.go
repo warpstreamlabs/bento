@@ -72,7 +72,7 @@ If you're seeing issues writing to or reading from Kafka with this component the
 
 - I'm seeing logs that report `+"`Failed to connect to kafka: kafka: client has run out of available brokers to talk to (Is your cluster reachable?)`"+`, but the brokers are definitely reachable.
 
-Unfortunately this error message will appear for a wide range of connection problems even when the broker endpoint can be reached. Double check your authentication configuration and also ensure that you have [enabled TLS](#tlsenabled) if applicable.`+service.OutputPerformanceDocs(true, true)).
+Unfortunately this error message will appear for a wide range of connection problems even when the broker endpoint can be reached. Double check your authentication configuration and also ensure that you have [enabled TLS](#tlsenabled) if applicable.`+kafkaSaramaOAuth2Doc+service.OutputPerformanceDocs(true, true)).
 		Fields(
 			service.NewStringListField(oskFieldAddresses).
 				Description("A list of broker addresses to connect to. If an item of the list contains commas it will be expanded into multiple addresses.").

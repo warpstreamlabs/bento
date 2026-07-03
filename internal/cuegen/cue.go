@@ -103,9 +103,9 @@ func doFieldSpec(spec docs.FieldSpec) (*ast.Field, error) {
 
 func doScalarField(spec docs.FieldSpec) (*ast.Field, error) {
 	label := ast.NewIdent(spec.Name)
-	optionalMark := token.Blank.Pos()
+	optionalMark := token.OPTION
 
-	var optional token.Pos
+	var optional token.Token
 	var val ast.Expr
 
 	switch spec.Type {
@@ -164,9 +164,9 @@ func doScalarField(spec docs.FieldSpec) (*ast.Field, error) {
 	}
 
 	return &ast.Field{
-		Label:    label,
-		Value:    val,
-		Optional: optional,
+		Label:      label,
+		Value:      val,
+		Constraint: optional,
 	}, nil
 }
 

@@ -85,6 +85,121 @@ default_encoding: PLAIN
 	require.NoError(t, err)
 }
 
+func TestParquetEncodeDefaultEncodingRLEDictionary(t *testing.T) {
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: id, type: INT64 }
+  - { name: float, type: FLOAT }
+  - { name: utf8, type: UTF8 }
+  - { name: byte_array, type: BYTE_ARRAY }
+  - name: ob
+    type: STRUCT
+    fields:
+      - { name: ob_name, type: UTF8 }
+      - { name: ob_value, type: INT64 }
+    optional: true
+default_encoding: RLE_DICTIONARY
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	// All leaf fields should have RLE_DICTIONARY encoding, including nested ones.
+	var checkLeafEncoding func(fields []parquet.Field)
+	checkLeafEncoding = func(fields []parquet.Field) {
+		for _, field := range fields {
+			if field.Leaf() {
+				require.IsType(t, &parquet.RLEDictionary, field.Encoding(),
+					"leaf field %s should have RLE_DICTIONARY encoding", field.Name())
+			} else {
+				checkLeafEncoding(field.Fields())
+			}
+		}
+	}
+	checkLeafEncoding(encodeProc.schema.Fields())
+
+	tctx := context.Background()
+	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":1,"float":1.5,"utf8":"foo","byte_array":"bar","ob":{"ob_name":"test","ob_value":42}}`)),
+	})
+	require.NoError(t, err)
+}
+
+func TestParquetEncodeDecodeRoundTripRLEDictionaryEncoding(t *testing.T) {
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+default_encoding: RLE_DICTIONARY
+schema:
+  - { name: id, type: INT64 }
+  - { name: as, type: DOUBLE, repeated: true }
+  - { name: b, type: BYTE_ARRAY }
+  - { name: c, type: DOUBLE }
+  - { name: d, type: BOOLEAN }
+  - { name: e, type: INT64, optional: true }
+  - { name: f, type: INT64 }
+  - { name: g, type: UTF8 }
+  - name: nested_stuff
+    optional: true
+    fields:
+      - { name: a_stuff, type: BYTE_ARRAY }
+      - { name: b_stuff, type: BYTE_ARRAY }
+  - { name: h, type: DECIMAL32, decimal_precision: 3, optional: True}
+  - name: ob
+    fields:
+      - name: ob_name
+        type: UTF8
+      - name: bidValue
+        type: FLOAT
+    optional: true
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+byte_array_as_string: true
+`, nil)
+	require.NoError(t, err)
+
+	decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+	require.NoError(t, err)
+
+	testParquetEncodeDecodeRoundTrip(t, encodeProc, decodeProc)
+}
+
+func TestParquetEncodeDecodeRoundTripRLEDictionaryMapList(t *testing.T) {
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+default_encoding: RLE_DICTIONARY
+schema:
+  - { name: id, type: INT64 }
+  - name: mymap
+    type: MAP
+    optional: true
+    fields:
+      - { name: key, type: UTF8 }
+      - { name: value, type: UTF8 }
+  - name: mylist
+    type: LIST
+    fields:
+      - { name: element, type: INT64 }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+byte_array_as_string: true
+`, nil)
+	require.NoError(t, err)
+
+	decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+	require.NoError(t, err)
+
+	testParquetEncodeDecodeRoundTripMapList(t, encodeProc, decodeProc)
+}
+
 func TestParquetEncodeDecodeRoundTrip(t *testing.T) {
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:

@@ -240,6 +240,6 @@ The default encoding type to use for fields. A custom default encoding is only n
 
 Type: `string`  
 Default: `"DELTA_LENGTH_BYTE_ARRAY"`  
-Options: `DELTA_LENGTH_BYTE_ARRAY`, `PLAIN`.
+Options: `DELTA_LENGTH_BYTE_ARRAY`, `PLAIN`, `RLE_DICTIONARY`.
 
 
