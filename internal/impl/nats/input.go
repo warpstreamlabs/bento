@@ -69,7 +69,8 @@ output:
 		Field(service.NewBoolField("send_ack").
 			Description("Whether to send an acknowledgement back to the input subject's reply address after consuming a message.").
 			Default(true).
-			Advanced()).
+			Advanced().
+			Version("1.19.0")).
 		Fields(connectionTailFields()...).
 		Fields(inputTracingDocs()...)
 }
