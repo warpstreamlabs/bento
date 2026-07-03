@@ -62,7 +62,7 @@ In order to create a unique `+"`key`"+` value per item you should use function i
 			service.NewBoolField(coFieldAppend).
 				Description("When enabled, new messages are appended to existing cache values rather than overwriting them. If the key does not exist the message will be stored as a new value.").
 				Default(false).
-				Version("1.18.0"),
+				Version("1.19.0"),
 			service.NewInterpolatedStringField(coFieldTTL).
 				Description("The TTL of each individual item as a duration string. After this period an item will be eligible for removal during the next compaction. Not all caches support per-key TTLs, and those that do not will fall back to their generally configured TTL setting.").
 				Examples("60s", "5m", "36h").
