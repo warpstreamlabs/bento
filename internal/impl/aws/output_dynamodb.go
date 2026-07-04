@@ -589,7 +589,14 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			d.log.Errorf("Failed to extract JSON maps from document: %v", err)
 			return err
 		}
+		gRoot := gabs.Wrap(jRoot)
 		for k, v := range d.conf.JSONMapColumns {
+			// A path that is not found within the document is not populated (as
+			// documented), rather than being written as a NULL attribute. An
+			// empty path refers to the whole document and is always populated.
+			if v != "" && !gRoot.ExistsP(v) {
+				continue
+			}
 			if attr, err := jsonToMap(v, jRoot); err == nil {
 				if k == "" {
 					if mv, ok := attr.(*types.AttributeValueMemberM); ok {

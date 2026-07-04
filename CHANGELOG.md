@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+ - `aws_dynamodb` output no longer writes a `NULL` attribute for a `json_map_columns` path that is absent from the document; the column is left unpopulated as documented @cthorner
+
 ## 1.18.1 - 2026-06-05
 
 ### Fixed

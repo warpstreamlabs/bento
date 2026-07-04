@@ -677,3 +677,40 @@ delete:
 
 	assert.Equal(t, expected, request)
 }
+
+func TestDynamoDBPutJSONMapColumnsMissingPath(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+json_map_columns:
+  id: id
+  category: meta.category`)
+
+	var request map[string][]types.WriteRequest
+
+	db.client = &mockDynamoDB{
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			request = input.RequestItems
+			return &dynamodb.BatchWriteItemOutput{}, nil
+		},
+	}
+
+	// The `meta.category` path is absent from the document, so its column must
+	// not be populated (rather than written as a NULL attribute).
+	msg := service.NewMessage([]byte(`{"id":"foo"}`))
+
+	require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{msg}))
+
+	expected := map[string][]types.WriteRequest{
+		"FooTable": {
+			types.WriteRequest{
+				PutRequest: &types.PutRequest{
+					Item: map[string]types.AttributeValue{
+						"id": &types.AttributeValueMemberS{Value: "foo"},
+					},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, expected, request)
+}
