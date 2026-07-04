@@ -327,7 +327,7 @@ func anyToAttributeValue(root any) types.AttributeValue {
 			Value: v,
 		}
 	case json.Number:
-		return &types.AttributeValueMemberS{
+		return &types.AttributeValueMemberN{
 			Value: v.String(),
 		}
 	case float64:

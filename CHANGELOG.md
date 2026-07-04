@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+ - `aws_dynamodb` output now writes JSON numbers as DynamoDB `N` (number) attributes instead of `S` (string) @cthorner
+
 ## 1.18.1 - 2026-06-05
 
 ### Fixed

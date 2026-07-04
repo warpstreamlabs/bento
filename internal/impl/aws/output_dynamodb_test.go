@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -633,6 +634,55 @@ delete:
 	}
 
 	assert.Equal(t, expected, request)
+}
+
+func TestAnyToAttributeValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    any
+		expected types.AttributeValue
+	}{
+		{
+			name:     "json number integer maps to N",
+			input:    json.Number("98"),
+			expected: &types.AttributeValueMemberN{Value: "98"},
+		},
+		{
+			name:     "json number float maps to N preserving precision",
+			input:    json.Number("42.8"),
+			expected: &types.AttributeValueMemberN{Value: "42.8"},
+		},
+		{
+			name:     "plain string maps to S",
+			input:    "hello",
+			expected: &types.AttributeValueMemberS{Value: "hello"},
+		},
+		{
+			name:     "bool maps to BOOL",
+			input:    true,
+			expected: &types.AttributeValueMemberBOOL{Value: true},
+		},
+		{
+			name: "nested map with numeric leaf maps to M containing N",
+			input: map[string]any{
+				"qty": json.Number("5"),
+			},
+			expected: &types.AttributeValueMemberM{
+				Value: map[string]types.AttributeValue{
+					"qty": &types.AttributeValueMemberN{Value: "5"},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, test.expected, anyToAttributeValue(test.input))
+		})
+	}
 }
 
 func TestDynamoDBDeleteMixedJSONMapColumns(t *testing.T) {
