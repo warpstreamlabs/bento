@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+ - `aws_dynamodb` output no longer drops successfully-built messages when another message in the batch fails request construction @cthorner
+
 ## 1.18.1 - 2026-06-05
 
 ### Fixed
