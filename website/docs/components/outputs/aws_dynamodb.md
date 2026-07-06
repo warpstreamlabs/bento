@@ -55,6 +55,7 @@ output:
     json_map_columns: {}
     ttl: ""
     ttl_key: ""
+    json_number_type: string
     delete:
       condition: ""
       partition_key: ""
@@ -215,6 +216,15 @@ The column key to place the TTL value within.
 
 Type: `string`  
 Default: `""`  
+
+### `json_number_type`
+
+Controls how JSON numbers extracted via `json_map_columns` are stored. When set to `number` JSON numbers are stored as DynamoDB `N` (number) attributes, which is recommended for numeric data. Note that DynamoDB `N` accepts at most 38 digits of precision and rejects values exceeding it. When set to `string` JSON numbers are stored as `S` (string) attributes, preserving the legacy behaviour.
+
+
+Type: `string`  
+Default: `"string"`  
+Options: `string`, `number`.
 
 ### `delete`
 
