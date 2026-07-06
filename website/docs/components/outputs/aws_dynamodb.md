@@ -53,6 +53,7 @@ output:
     table: "" # No default (required)
     string_columns: {}
     json_map_columns: {}
+    omit_if_empty: false
     ttl: ""
     ttl_key: ""
     delete:
@@ -199,6 +200,14 @@ json_map_columns:
 json_map_columns:
   "": .
 ```
+
+### `omit_if_empty`
+
+When set to `true`, a `json_map_columns` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `ttl`
 

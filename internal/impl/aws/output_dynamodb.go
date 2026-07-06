@@ -28,6 +28,7 @@ const (
 	ddboFieldTable              = "table"
 	ddboFieldStringColumns      = "string_columns"
 	ddboFieldJSONMapColumns     = "json_map_columns"
+	ddboFieldOmitIfEmpty        = "omit_if_empty"
 	ddboFieldTTL                = "ttl"
 	ddboFieldTTLKey             = "ttl_key"
 	ddboFieldDelete             = "delete"
@@ -41,6 +42,7 @@ type ddboConfig struct {
 	Table                   string
 	StringColumns           map[string]*service.InterpolatedString
 	JSONMapColumns          map[string]string
+	OmitIfEmpty             bool
 	TTL                     string
 	TTLKey                  string
 	DeleteConditionExec     *bloblang.Executor
@@ -59,6 +61,9 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 		return
 	}
 	if conf.JSONMapColumns, err = pConf.FieldStringMap(ddboFieldJSONMapColumns); err != nil {
+		return
+	}
+	if conf.OmitIfEmpty, err = pConf.FieldBool(ddboFieldOmitIfEmpty); err != nil {
 		return
 	}
 	if conf.TTL, err = pConf.FieldString(ddboFieldTTL); err != nil {
@@ -157,6 +162,10 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example(map[string]string{
 					"": ".",
 				}),
+			service.NewBoolField(ddboFieldOmitIfEmpty).
+				Description("When set to `true`, a `"+ddboFieldJSONMapColumns+"` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.").
+				Advanced().
+				Default(false),
 			service.NewStringField(ddboFieldTTL).
 				Description("An optional TTL to set for items, calculated from the moment the message is sent.").
 				Default("").
@@ -591,10 +600,12 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 		}
 		gRoot := gabs.Wrap(jRoot)
 		for k, v := range d.conf.JSONMapColumns {
-			// A path that is not found within the document is not populated (as
-			// documented), rather than being written as a NULL attribute. An
-			// empty path refers to the whole document and is always populated.
-			if v != "" && !gRoot.ExistsP(v) {
+			// When omit_if_empty is enabled, a path that is not found within the
+			// document is omitted (as documented) rather than being written as a
+			// NULL attribute. When disabled, the legacy behaviour is preserved
+			// and the missing path is written as a NULL attribute. An empty path
+			// refers to the whole document and is always populated.
+			if d.conf.OmitIfEmpty && v != "" && !gRoot.ExistsP(v) {
 				continue
 			}
 			if attr, err := jsonToMap(v, jRoot); err == nil {

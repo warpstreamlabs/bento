@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-### Fixed
+### Added
 
- - `aws_dynamodb` output no longer writes a `NULL` attribute for a `json_map_columns` path that is absent from the document; the column is left unpopulated as documented @cthorner
+ - `omit_if_empty` field on `aws_dynamodb` output enabling `json_map_columns` paths that are missing from a document to be omitted rather than written as `NULL` attributes (default `false` preserves the previous behaviour) @cthorner
 
 ## 1.18.1 - 2026-06-05
 
