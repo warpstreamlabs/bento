@@ -730,7 +730,7 @@ Digest authentication configuration.
 
 
 Type: `object`  
-Requires version 1.19.0 or newer  
+Requires version 1.18.0 or newer  
 
 ### `digest_auth.enabled`
 
@@ -767,6 +767,7 @@ The underlying package that implements the negotiate (SPNEGO) authentication is 
 
 
 Type: `object`  
+Requires version 1.19.0 or newer  
 
 ### `negotiate.enabled`
 
@@ -819,6 +820,9 @@ Default: `""`
 ### `negotiate.user.password`
 
 The password of the user.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
 
 
 Type: `string`  
