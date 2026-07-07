@@ -2,8 +2,10 @@ package aws
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"io"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -13,6 +15,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// gunzip is a test helper that fully decompresses a gzip stream, verifying it
+// is a single valid stream (it reads every member and expects EOF cleanly).
+func gunzip(t *testing.T, data []byte) []byte {
+	t.Helper()
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	require.NoError(t, err, "object is not a valid gzip stream")
+	out, err := io.ReadAll(zr)
+	require.NoError(t, err, "failed to decompress gzip stream")
+	require.NoError(t, zr.Close(), "gzip stream did not close cleanly")
+	return out
+}
 
 // mockS3StreamClient is a mock S3 client for testing
 type mockS3StreamClient struct {
@@ -1009,4 +1023,169 @@ func TestS3StreamingWriterExactly5MBTimer(t *testing.T) {
 
 	err = writer.Close(ctx)
 	require.NoError(t, err)
+}
+
+// --- whole-object gzip compression (compression: gzip) ---
+
+// TestS3StreamingWriterGzipSmallFile verifies that with compression enabled a
+// small object is written via PutObject as a single valid gzip stream that
+// decompresses back to the exact concatenation of the records, and that the
+// gzip Content-Encoding is set automatically.
+func TestS3StreamingWriterGzipSmallFile(t *testing.T) {
+	putObjectCalled := false
+	completeCalled := false
+	var capturedPut []byte
+	var capturedPutInput *s3.PutObjectInput
+
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			capturedPutInput = input
+			capturedPut, _ = io.ReadAll(input.Body)
+			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "test-key.jsonl.gz",
+		ContentType:    "application/json",
+		Compression:    "gzip",
+		MaxBufferBytes: 10 * 1024 * 1024,
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	records := [][]byte{
+		[]byte(`{"a":1}` + "\n"),
+		[]byte(`{"b":2}` + "\n"),
+		[]byte(`{"c":3}` + "\n"),
+	}
+	var raw []byte
+	for _, r := range records {
+		require.NoError(t, writer.WriteBytes(ctx, r))
+		raw = append(raw, r...)
+	}
+
+	require.NoError(t, writer.Close(ctx))
+
+	assert.True(t, putObjectCalled, "small gzip object should use PutObject")
+	assert.False(t, completeCalled, "CompleteMultipartUpload should not be called for a small object")
+	require.NotNil(t, capturedPutInput)
+	assert.Equal(t, "gzip", *capturedPutInput.ContentEncoding, "Content-Encoding must be set to gzip automatically")
+
+	// The stored bytes must be a single valid gzip stream decompressing to the input.
+	assert.Equal(t, raw, gunzip(t, capturedPut))
+	assert.Less(t, len(capturedPut), len(raw)+64, "stored object should be compressed, not raw+overhead")
+}
+
+// TestS3StreamingWriterGzipMultipart verifies that a large (incompressible)
+// payload produces a true multipart upload whose parts, concatenated in order,
+// form ONE valid gzip stream that decompresses to the exact input. This is the
+// property that per-message compression (multi-member gzip) cannot provide.
+func TestS3StreamingWriterGzipMultipart(t *testing.T) {
+	var parts [][]byte
+	completeCalled := false
+	putObjectCalled := false
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			data, _ := io.ReadAll(input.Body)
+			// Store by (1-based) part number to guarantee order.
+			idx := int(*input.PartNumber)
+			for len(parts) < idx {
+				parts = append(parts, nil)
+			}
+			parts[idx-1] = data
+			return &s3.UploadPartOutput{ETag: aws.String("etag")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:       mockClient,
+		Bucket:         "test-bucket",
+		Key:            "big.jsonl.gz",
+		ContentType:    "application/json",
+		Compression:    "gzip",
+		MaxBufferBytes: 5 * 1024 * 1024, // seal parts at 5 MiB of compressed output
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	// ~12 MiB of high-entropy data so the gzip OUTPUT still exceeds the 5 MiB
+	// part threshold and forces multiple parts.
+	rng := rand.New(rand.NewSource(1))
+	raw := make([]byte, 12*1024*1024)
+	_, _ = rng.Read(raw)
+	// Feed it in 1 MiB chunks to mimic streaming.
+	for off := 0; off < len(raw); off += 1024 * 1024 {
+		end := min(off+1024*1024, len(raw))
+		require.NoError(t, writer.WriteBytes(ctx, raw[off:end]))
+	}
+
+	require.NoError(t, writer.Close(ctx))
+
+	assert.True(t, completeCalled, "multipart upload should complete")
+	assert.False(t, putObjectCalled, "large object should not use PutObject")
+	assert.GreaterOrEqual(t, len(parts), 2, "expected a true multipart upload (>=2 parts)")
+	for i := range parts {
+		require.NotNil(t, parts[i], "part %d missing", i+1)
+	}
+
+	// Concatenate parts in order -> single gzip stream -> exact input.
+	assert.Equal(t, raw, gunzip(t, bytes.Join(parts, nil)))
+}
+
+// TestS3StreamingWriterGzipEmpty verifies an empty object is still a valid
+// (empty) gzip stream rather than zero bytes with a gzip Content-Encoding.
+func TestS3StreamingWriterGzipEmpty(t *testing.T) {
+	var capturedPut []byte
+	putObjectCalled := false
+
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObjectCalled = true
+			capturedPut, _ = io.ReadAll(input.Body)
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	config := S3StreamingWriterConfig{
+		S3Client:    mockClient,
+		Bucket:      "test-bucket",
+		Key:         "empty.jsonl.gz",
+		Compression: "gzip",
+	}
+
+	writer, err := NewS3StreamingWriter(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+	require.NoError(t, writer.Close(ctx))
+
+	assert.True(t, putObjectCalled, "empty gzip object should use PutObject")
+	assert.NotEmpty(t, capturedPut, "empty gzip object should still contain a gzip header/footer")
+	assert.Empty(t, gunzip(t, capturedPut), "empty gzip object should decompress to nothing")
 }

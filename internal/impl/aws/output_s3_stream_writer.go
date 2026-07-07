@@ -2,6 +2,7 @@ package aws
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -45,10 +46,17 @@ type S3StreamingWriter struct {
 	completedParts []types.CompletedPart
 	backoffCtor    func() backoff.BackOff
 
-	// Buffering
-	messageBuffer [][]byte
+	// Buffering.
+	//
+	// uploadBuffer holds the bytes pending upload as the next S3 part. When
+	// compression is enabled, gzipWriter streams compressed bytes into
+	// uploadBuffer, so uploadSize (and therefore all part-size decisions) is
+	// measured in COMPRESSED bytes; the single gzip stream is simply split
+	// across parts at arbitrary byte boundaries and reassembled by S3.
+	gzipWriter    *gzip.Writer
 	uploadBuffer  *bytes.Buffer
 	uploadSize    int64
+	bufferedCount int
 
 	// Statistics tracking
 	totalMessages int64
@@ -75,6 +83,7 @@ type S3StreamingWriterConfig struct {
 	MaxBufferPeriod time.Duration // Maximum time to buffer before flushing (default: 10s)
 	ContentType     string        // Content type for S3 object
 	ContentEncoding string        // Content encoding for S3 object (optional)
+	Compression     string        // In-writer compression over the whole object: "" / "none" / "gzip"
 	BackoffCtor     func() backoff.BackOff
 }
 
@@ -118,10 +127,18 @@ func NewS3StreamingWriter(config S3StreamingWriterConfig) (*S3StreamingWriter, e
 		key:             config.Key,
 		backoffCtor:     config.BackoffCtor,
 		uploadBuffer:    bytes.NewBuffer(nil),
-		messageBuffer:   make([][]byte, 0, config.MaxBufferCount),
 		created:         time.Now(),
 		lastWrite:       time.Now(),
 		lastFlush:       time.Now(),
+	}
+
+	// When gzip compression is enabled the writer owns the compression: a single
+	// gzip stream is written across all parts and the object is tagged with the
+	// gzip Content-Encoding. This is the only way to get whole-object (not
+	// per-record) gzip that can still exceed the 5 MiB multipart threshold.
+	if config.Compression == "gzip" {
+		w.gzipWriter = gzip.NewWriter(w.uploadBuffer)
+		w.contentEncoding = "gzip"
 	}
 
 	return w, nil
@@ -177,16 +194,24 @@ func (w *S3StreamingWriter) WriteBytes(ctx context.Context, data []byte) error {
 		return errors.New("writer not initialized")
 	}
 
-	// Add to message buffer
-	w.messageBuffer = append(w.messageBuffer, data)
-	w.uploadBuffer.Write(data)
-	w.uploadSize += int64(len(data))
+	if w.gzipWriter != nil {
+		// Stream the record through gzip into uploadBuffer. Part-size decisions
+		// are made on the compressed bytes accumulated so far.
+		if _, err := w.gzipWriter.Write(data); err != nil {
+			return fmt.Errorf("failed to write to gzip stream: %w", err)
+		}
+		w.uploadSize = int64(w.uploadBuffer.Len())
+	} else {
+		w.uploadBuffer.Write(data)
+		w.uploadSize += int64(len(data))
+	}
+	w.bufferedCount++
 	w.totalMessages++
 	w.totalBytes += int64(len(data))
 	w.lastWrite = time.Now()
 
 	// Check if we should flush
-	if w.uploadSize >= w.maxBufferBytes || len(w.messageBuffer) >= w.maxBufferCount {
+	if w.uploadSize >= w.maxBufferBytes || w.bufferedCount >= w.maxBufferCount {
 		return w.flush(ctx)
 	}
 
@@ -228,10 +253,11 @@ retryLoop:
 				PartNumber: aws.Int32(w.partNumber),
 			})
 
-			// Clear buffers
+			// Clear buffers (gzipWriter keeps streaming into the now-empty
+			// uploadBuffer; the uploaded part is a prefix of the gzip stream).
 			w.uploadBuffer.Reset()
 			w.uploadSize = 0
-			w.messageBuffer = w.messageBuffer[:0]
+			w.bufferedCount = 0
 			w.lastFlush = time.Now()
 
 			// Reset flush timer
@@ -323,7 +349,7 @@ func (w *S3StreamingWriter) forceFlush(ctx context.Context) error {
 	// Clear buffers
 	w.uploadBuffer.Reset()
 	w.uploadSize = 0
-	w.messageBuffer = w.messageBuffer[:0]
+	w.bufferedCount = 0
 	w.lastFlush = time.Now()
 
 	return nil
@@ -368,6 +394,18 @@ func (w *S3StreamingWriter) Close(ctx context.Context) error {
 	// Stop flush timer
 	if w.flushTimer != nil {
 		w.flushTimer.Stop()
+	}
+
+	// Finalize the gzip stream: this flushes any bytes still held inside the
+	// compressor and writes the gzip footer into uploadBuffer, after which
+	// uploadSize reflects the final compressed tail. Must happen before the
+	// size checks below so small/empty objects are sized correctly.
+	if w.gzipWriter != nil {
+		if err := w.gzipWriter.Close(); err != nil {
+			w.abortMultipartUpload(ctx)
+			return fmt.Errorf("failed to finalize gzip stream: %w", err)
+		}
+		w.uploadSize = int64(w.uploadBuffer.Len())
 	}
 
 	// A small or empty object (no parts yet and < 5 MiB buffered) cannot be a
