@@ -128,7 +128,7 @@ json_map_columns:
   "": .
 `+"```"+`
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `+"`NULL`"+` attribute by default. Set `+"`"+ddboFieldOmitIfEmpty+"`"+` to `+"`true`"+` in order to omit the column instead.
 
 ### Credentials
 
