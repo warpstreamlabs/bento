@@ -715,8 +715,12 @@ func isShardFinished(s types.Shard) bool {
 
 func collectShards(ctx context.Context, arn string, svc *kinesis.Client) ([]types.Shard, error) {
 	listShardFn := func(token *string) ([]types.Shard, *string, error) {
+		var streamARN *string
+		if token == nil {
+			streamARN = aws.String(arn)
+		}
 		shardsRes, err := svc.ListShards(ctx, &kinesis.ListShardsInput{
-			StreamARN: aws.String(arn),
+			StreamARN: streamARN,
 			NextToken: token,
 		})
 		return shardsRes.Shards, shardsRes.NextToken, err
