@@ -99,6 +99,7 @@ require (
 	github.com/knights-analytics/hugot v0.7.4
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
+	github.com/lublak/go-spnego v1.0.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/microsoft/gocosmos v1.1.1
@@ -176,10 +177,12 @@ require (
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
+	github.com/Azure/go-ntlmssp v0.1.0 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
+	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/apache/arrow-go/v18 v18.6.0 // indirect
 	github.com/apache/thrift v0.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.1 // indirect
@@ -215,6 +218,7 @@ require (
 	github.com/hamba/avro/v2 v2.31.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/knights-analytics/ortgenai v0.3.1 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
