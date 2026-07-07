@@ -3,12 +3,6 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
-
-### Added
-
- - `json_number_type` field on `aws_dynamodb` output enabling JSON numbers to be stored as DynamoDB `N` attributes (default `string` preserves the previous behaviour) @cthorner
-
 ## 1.18.1 - 2026-06-05
 
 ### Fixed
