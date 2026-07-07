@@ -265,7 +265,10 @@ func newCacheAppendOperator() cacheOperator {
 			}
 			return err
 		}
-		return cache.Set(ctx, key, append(result, value...), ttl)
+		appended := make([]byte, len(result))
+		copy(appended, result)
+		appended = append(appended, value...)
+		return cache.Set(ctx, key, appended, ttl)
 	}
 }
 

@@ -178,12 +178,18 @@ func (c *CacheWriter) writeMulti(ctx context.Context, msg message.Batch) (err er
 		if c.appendCache {
 			var current []byte
 			if cacheItem, ok := items[keyStr]; ok {
-				current = append(cacheItem.Value, p.AsBytes()...)
+				appended := make([]byte, len(cacheItem.Value))
+				copy(appended, cacheItem.Value)
+				appended = append(appended, p.AsBytes()...)
+				current = appended
 			} else {
 				if cerr := c.mgr.AccessCache(ctx, c.target, func(ac cache.V1) {
 					current, err = ac.Get(ctx, keyStr)
 					if err == nil {
-						current = append(current, p.AsBytes()...)
+						appended := make([]byte, len(current))
+						copy(appended, current)
+						appended = append(appended, p.AsBytes()...)
+						current = appended
 					} else if errors.Is(err, component.ErrKeyNotFound) {
 						current = p.AsBytes()
 						err = nil
