@@ -56,6 +56,7 @@ output:
     omit_if_empty: false
     ttl: ""
     ttl_key: ""
+    json_number_type: string
     delete:
       condition: ""
       partition_key: ""
@@ -114,7 +115,7 @@ json_map_columns:
   "": .
 ```
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `NULL` attribute by default. Set `omit_if_empty` to `true` in order to omit the column instead.
 
 ### Credentials
 
@@ -224,6 +225,15 @@ The column key to place the TTL value within.
 
 Type: `string`  
 Default: `""`  
+
+### `json_number_type`
+
+Controls how JSON numbers extracted via `json_map_columns` are stored. When set to `number` JSON numbers are stored as DynamoDB `N` (number) attributes, which is recommended for numeric data. Note that DynamoDB `N` accepts at most 38 digits of precision and rejects values exceeding it. When set to `string` JSON numbers are stored as `S` (string) attributes, preserving the legacy behaviour.
+
+
+Type: `string`  
+Default: `"string"`  
+Options: `string`, `number`.
 
 ### `delete`
 
