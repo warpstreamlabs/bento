@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/bigtable/bttest"
@@ -179,6 +180,117 @@ row_key: key
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestBigTableOutputTimestamp(t *testing.T) {
+	staticTime := time.Date(2024, time.June, 1, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name      string
+		timestamp string
+		prepMsg   func(msg *service.Message)
+		checkTS   func(t *testing.T, ts bigtable.Timestamp)
+		wantErr   bool
+	}{
+		{
+			name:      "static unix timestamp",
+			timestamp: fmt.Sprintf("'%d'", staticTime.Unix()),
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "timestamp from metadata",
+			timestamp: `'metadata("ts")'`,
+			prepMsg: func(msg *service.Message) {
+				msg.MetaSetMut("ts", staticTime.Unix())
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "defaults to wall clock when unset",
+			timestamp: "",
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.WithinDuration(t, time.Now(), ts.Time(), time.Minute)
+			},
+		},
+		{
+			name:      "defaults to server time when -1",
+			timestamp: "-1",
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.WithinDuration(t, time.Now(), ts.Time(), time.Minute)
+			},
+		},
+		{
+			name:      "invalid timestamp value",
+			timestamp: `'"not-a-timestamp"'`,
+			wantErr:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server, err := setupBigTableEmulator(t)
+			require.NoError(t, err)
+			defer server.Close()
+
+			tableID := fmt.Sprintf("ts-table-%s", strings.ReplaceAll(tc.name, " ", "-"))
+			columnFamily := "test-family"
+
+			err = setupTableInstance(t.Context(), &bigtable.TableConf{
+				TableID: tableID,
+				ColumnFamilies: map[string]bigtable.Family{
+					columnFamily: {GCPolicy: bigtable.NoGcPolicy()},
+				},
+			})
+			require.NoError(t, err)
+
+			spec := gcpBigTableOutputSpec()
+			parsedConf, err := spec.ParseYAML(fmt.Sprintf(`
+project: %s
+instance: %s
+table: %s
+column: col
+family: %s
+row_key: key
+timestamp: %s
+`, projectID, instanceID, tableID, columnFamily, tc.timestamp), nil)
+			require.NoError(t, err)
+
+			conf, err := gcpBigTableOutputConfigFromParsed(parsedConf)
+			require.NoError(t, err)
+
+			output, err := newGCPBigTableOutput(conf)
+			require.NoError(t, err)
+
+			err = output.Connect(t.Context())
+			require.NoError(t, err)
+			defer output.Close(t.Context())
+
+			msg := service.NewMessage([]byte("value"))
+			if tc.prepMsg != nil {
+				tc.prepMsg(msg)
+			}
+
+			err = output.WriteBatch(t.Context(), service.MessageBatch{msg})
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			rows, err := readRows(t.Context(), "key", columnFamily, tableID)
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+
+			cells := rows[0][columnFamily]
+			require.Len(t, cells, 1)
+
+			tc.checkTS(t, cells[0].Timestamp)
 		})
 	}
 }

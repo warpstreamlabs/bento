@@ -39,6 +39,7 @@ output:
     row_key: ${!metadata("kafka_key")} # No default (required)
     column: payload # No default (required)
     family: cf1 # No default (required)
+    timestamp: ""
     batching:
       count: 0
       byte_size: 0
@@ -62,6 +63,7 @@ output:
     row_key: ${!metadata("kafka_key")} # No default (required)
     column: payload # No default (required)
     family: cf1 # No default (required)
+    timestamp: ""
     batching:
       count: 0
       byte_size: 0
@@ -171,6 +173,24 @@ Type: `string`
 family: cf1
 
 family: ${!metadata("family")}
+```
+
+### `timestamp`
+
+The timestamp of the record. If this resolves to `-1`, then the BigTable server's timestamp is used. Otherwise, defaults to the local current time.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+timestamp: metadata("timestamp")
+
+timestamp: this.event_ts_ms * 1000 + stable_hash(this.event_id) % 1000
+
+timestamp: "-1"
 ```
 
 ### `batching`
