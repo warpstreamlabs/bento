@@ -3,12 +3,6 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
-
-### Added
-
- - `omit_if_empty` field on `aws_dynamodb` output enabling `json_map_columns` paths that are missing from a document to be omitted rather than written as `NULL` attributes (default `false` preserves the previous behaviour) @cthorner
-
 ## 1.18.1 - 2026-06-05
 
 ### Fixed
