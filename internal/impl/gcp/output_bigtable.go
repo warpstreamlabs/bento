@@ -88,11 +88,11 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example("cf1").
 				Example(`${!metadata("family")}`),
 			service.NewBloblangField(btoFieldTimestamp).
-				Description("Expression for the timestamp of the record. Expects either a UNIX timestamp in seconds (fractional values for sub-second precision), or a string value as `RFC3339Nano`. Timestamps are truncated to millisecond granularity. Otherwise, defaults to the local current time.").Default("").
+				Description("Expression for the timestamp of the record. Expects either a UNIX timestamp in seconds (fractional values for sub-second precision), or a string value as `RFC3339Nano`. Timestamps are truncated to millisecond granularity. Otherwise, defaults to the local current time.").
 				Optional().
 				Example(`metadata("timestamp")`).
-				Example(`root = this.event_ts_ms / 1000`).
-				Example(`root = this.created_at.ts_parse("2006-01-02 15:04:05")`),
+				Example(`json("event_ts_ms").number() / 1000`).
+				Example(`json("created_at").ts_parse("2006-01-02 15:04:05")`),
 			service.NewBatchPolicyField(btoFieldBatching),
 			service.NewOutputMaxInFlightField(),
 		)
@@ -137,19 +137,9 @@ func gcpBigTableOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBig
 	}
 
 	if conf.Contains(btoFieldTimestamp) {
-		var expression string
-		if expression, err = conf.FieldString(btoFieldTimestamp); err != nil {
+		if gconf.Timestamp, err = conf.FieldBloblang(btoFieldTimestamp); err != nil {
 			return
 		}
-
-		// NOTE: if empty string is passed, do not set the executor.
-		if expression != "" {
-			if gconf.Timestamp, err = bloblang.Parse(expression); err != nil {
-				return
-			}
-
-		}
-
 	}
 
 	return

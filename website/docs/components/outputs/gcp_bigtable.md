@@ -39,7 +39,7 @@ output:
     row_key: ${!metadata("kafka_key")} # No default (required)
     column: payload # No default (required)
     family: cf1 # No default (required)
-    timestamp: ""
+    timestamp: metadata("timestamp") # No default (optional)
     batching:
       count: 0
       byte_size: 0
@@ -63,7 +63,7 @@ output:
     row_key: ${!metadata("kafka_key")} # No default (required)
     column: payload # No default (required)
     family: cf1 # No default (required)
-    timestamp: ""
+    timestamp: metadata("timestamp") # No default (optional)
     batching:
       count: 0
       byte_size: 0
@@ -181,16 +181,15 @@ Expression for the timestamp of the record. Expects either a UNIX timestamp in s
 
 
 Type: `string`  
-Default: `""`  
 
 ```yml
 # Examples
 
 timestamp: metadata("timestamp")
 
-timestamp: root = this.event_ts_ms / 1000
+timestamp: json("event_ts_ms").number() / 1000
 
-timestamp: root = this.created_at.ts_parse("2006-01-02 15:04:05")
+timestamp: json("created_at").ts_parse("2006-01-02 15:04:05")
 ```
 
 ### `batching`
