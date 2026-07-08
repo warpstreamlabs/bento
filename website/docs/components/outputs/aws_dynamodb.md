@@ -53,6 +53,7 @@ output:
     table: "" # No default (required)
     string_columns: {}
     json_map_columns: {}
+    omit_if_empty: false
     ttl: ""
     ttl_key: ""
     json_number_type: string
@@ -114,7 +115,7 @@ json_map_columns:
   "": .
 ```
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `NULL` attribute by default. Set `omit_if_empty` to `true` in order to omit the column instead.
 
 ### Credentials
 
@@ -200,6 +201,14 @@ json_map_columns:
 json_map_columns:
   "": .
 ```
+
+### `omit_if_empty`
+
+When set to `true`, a `json_map_columns` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `ttl`
 
