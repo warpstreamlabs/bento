@@ -28,6 +28,7 @@ const (
 	ddboFieldTable              = "table"
 	ddboFieldStringColumns      = "string_columns"
 	ddboFieldJSONMapColumns     = "json_map_columns"
+	ddboFieldOmitIfEmpty        = "omit_if_empty"
 	ddboFieldTTL                = "ttl"
 	ddboFieldTTLKey             = "ttl_key"
 	ddboFieldDelete             = "delete"
@@ -45,6 +46,7 @@ type ddboConfig struct {
 	Table                   string
 	StringColumns           map[string]*service.InterpolatedString
 	JSONMapColumns          map[string]string
+	OmitIfEmpty             bool
 	TTL                     string
 	TTLKey                  string
 	DeleteConditionExec     *bloblang.Executor
@@ -64,6 +66,9 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 		return
 	}
 	if conf.JSONMapColumns, err = pConf.FieldStringMap(ddboFieldJSONMapColumns); err != nil {
+		return
+	}
+	if conf.OmitIfEmpty, err = pConf.FieldBool(ddboFieldOmitIfEmpty); err != nil {
 		return
 	}
 	if conf.TTL, err = pConf.FieldString(ddboFieldTTL); err != nil {
@@ -133,7 +138,7 @@ json_map_columns:
   "": .
 `+"```"+`
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `+"`NULL`"+` attribute by default. Set `+"`"+ddboFieldOmitIfEmpty+"`"+` to `+"`true`"+` in order to omit the column instead.
 
 ### Credentials
 
@@ -167,6 +172,10 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example(map[string]string{
 					"": ".",
 				}),
+			service.NewBoolField(ddboFieldOmitIfEmpty).
+				Description("When set to `true`, a `"+ddboFieldJSONMapColumns+"` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.").
+				Advanced().
+				Default(false),
 			service.NewStringField(ddboFieldTTL).
 				Description("An optional TTL to set for items, calculated from the moment the message is sent.").
 				Default("").
@@ -679,7 +688,16 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			d.log.Errorf("Failed to extract JSON maps from document: %v", err)
 			return err
 		}
+		gRoot := gabs.Wrap(jRoot)
 		for k, v := range d.conf.JSONMapColumns {
+			// When omit_if_empty is enabled, a path that is not found within the
+			// document is omitted (as documented) rather than being written as a
+			// NULL attribute. When disabled, the legacy behaviour is preserved
+			// and the missing path is written as a NULL attribute. An empty path
+			// refers to the whole document and is always populated.
+			if d.conf.OmitIfEmpty && v != "" && !gRoot.ExistsP(v) {
+				continue
+			}
 			if attr, err := jsonToMap(v, jRoot, d.conf.NumbersAsN); err == nil {
 				if k == "" {
 					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
