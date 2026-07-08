@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"cloud.google.com/go/bigtable"
 	"github.com/warpstreamlabs/bento/public/bloblang"
@@ -89,12 +88,11 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example("cf1").
 				Example(`${!metadata("family")}`),
 			service.NewBloblangField(btoFieldTimestamp).
-				Description("Expression for the timestamp of the record. If this resolves to `-1`, then the BigTable server's timestamp is used. Otherwise, defaults to the local current time.").
+				Description("Expression for the timestamp of the record. Otherwise, defaults to the local current time.").
 				Default("").
 				Optional().
 				Example(`metadata("timestamp")`).
-				Example("this.event_ts_ms * 1000 + stable_hash(this.event_id) % 1000").
-				Example(`-1`),
+				Example("root = this.event_ts_ms * 1000 + stable_hash(this.event_id) % 1000"),
 			service.NewBatchPolicyField(btoFieldBatching),
 			service.NewOutputMaxInFlightField(),
 		)
@@ -169,30 +167,6 @@ func newGCPBigTableOutput(conf gcpBigTableOutputConfig) (*gcpBigTableOutput, err
 		conf: conf,
 		mu:   sync.RWMutex{},
 	}, nil
-}
-
-func getTimestamp(exec *service.MessageBatchBloblangExecutor, i int) (bigtable.Timestamp, error) {
-	if exec == nil {
-		return bigtable.Time(time.Now()), nil
-	}
-
-	val, err := exec.QueryValue(i)
-	if err != nil {
-		return 0, err
-	}
-
-	// A value of -1 signals that the BigTable server should assign
-	// its own timestamp to the cell at write time.
-	if iv, ok := val.(int64); ok && iv == -1 {
-		return bigtable.ServerTime, nil
-	}
-
-	t, err := bloblang.ValueAsTimestamp(val)
-	if err != nil {
-		return 0, err
-	}
-
-	return bigtable.Time(t), nil
 }
 
 func (g *gcpBigTableOutput) Connect(ctx context.Context) error {
@@ -275,17 +249,11 @@ func (g *gcpBigTableOutput) WriteBatch(ctx context.Context, batch service.Messag
 				return err
 			}
 
-			if iv, ok := val.(int64); ok && iv == -1 {
-				// A value of -1 signals that the BigTable server should
-				// assign its own timestamp to the cell at write time.
-				ts = bigtable.ServerTime
-			} else {
-				t, err := bloblang.ValueAsTimestamp(val)
-				if err != nil {
-					return err
-				}
-				ts = bigtable.Time(t)
+			t, err := bloblang.ValueAsTimestamp(val)
+			if err != nil {
+				return err
 			}
+			ts = bigtable.Time(t)
 		}
 
 		rowKeys[i] = rowKey

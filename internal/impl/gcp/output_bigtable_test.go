@@ -219,13 +219,6 @@ func TestBigTableOutputTimestamp(t *testing.T) {
 			},
 		},
 		{
-			name:      "defaults to server time when -1",
-			timestamp: "-1",
-			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
-				require.WithinDuration(t, time.Now(), ts.Time(), time.Minute)
-			},
-		},
-		{
 			name:      "invalid timestamp value",
 			timestamp: `'"not-a-timestamp"'`,
 			wantErr:   true,
