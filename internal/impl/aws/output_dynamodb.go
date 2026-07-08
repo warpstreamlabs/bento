@@ -402,8 +402,7 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	// early return before BatchWriteItem was ever called, which meant every
 	// other message in the batch was acked as delivered but never written -
 	// silent data loss.
-	constructionErrs := map[int]error{}
-	var firstConstructionErr error
+	constructionErrs := make([]error, len(b))
 
 	walkErr := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
 		buildErr := func() error {
@@ -435,57 +434,23 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 			return d.addPutRequest(i, &b, writeReqs, p)
 		}()
 		if buildErr != nil {
-			if firstConstructionErr == nil {
-				firstConstructionErr = buildErr
-			}
 			constructionErrs[i] = buildErr
 		}
 		return buildErr
 	})
 
-	// Preserve fatal behaviour: a fatal error (e.g. not connected) short
-	// circuits the whole batch immediately.
-	if errors.Is(walkErr, service.ErrNotConnected) {
-		return walkErr
-	}
-
-	// If every message failed request construction there is nothing to send, so
-	// return the walk error as-is. This also covers the single-message case,
-	// where WalkWithBatchedErrors returns the raw (non-*BatchError) error.
-	if len(b) > 0 && len(constructionErrs) == len(b) {
-		return walkErr
-	}
-
-	// finalize merges per-message construction failures into the final write
-	// result. Semantics: construction failures could not be sent to DynamoDB
-	// and so must be surfaced to the framework, otherwise the successfully
-	// built messages would be considered the whole batch and the failed ones
-	// would be falsely acked as delivered. A plain (non-*BatchError) error
-	// already nacks the entire batch, so construction failures are covered by
-	// it; but a nil or *BatchError result acks every message not explicitly
-	// marked failed, so we must attach the construction failures as indexed
-	// errors on it.
-	finalize := func(err error) error {
-		if len(constructionErrs) == 0 {
-			return err
+	if walkErr != nil {
+		batchError, ok := walkErr.(*service.BatchError)
+		if !ok {
+			// A non-BatchError is fatal/terminal (e.g. ErrNotConnected). This
+			// also covers a single-message batch whose only message failed
+			// construction, where the raw error is returned.
+			return walkErr
 		}
-		if err == nil {
-			batchErr := service.NewBatchError(b, firstConstructionErr)
-			for i, cerr := range constructionErrs {
-				batchErr = batchErr.Failed(i, cerr)
-			}
-			return batchErr
+		if batchError.IndexedErrors() == len(b) {
+			// Every message failed request construction, nothing to send.
+			return batchError
 		}
-		var batchErr *service.BatchError
-		if errors.As(err, &batchErr) {
-			for i, cerr := range constructionErrs {
-				batchErr = batchErr.Failed(i, cerr)
-			}
-			return batchErr
-		}
-		// A plain error fails the whole batch; construction failures are
-		// covered by it.
-		return err
 	}
 
 	// Only messages that were built successfully can be sent. Failed indices
@@ -496,7 +461,7 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 	// nil entries, and the unprocessed-items re-drive operates on the
 	// response's UnprocessedItems.
 	reqItems := writeReqs
-	if len(constructionErrs) > 0 {
+	if walkErr != nil {
 		reqItems = make([]types.WriteRequest, 0, len(writeReqs))
 		for _, req := range writeReqs {
 			if req.PutRequest == nil && req.DeleteRequest == nil {
@@ -568,7 +533,25 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				err = batchErr
 			}
 		}
-		return finalize(err)
+		if err == nil {
+			// Every remaining request was written; the walk error is nil or
+			// the *service.BatchError indexing the construction failures,
+			// which must be surfaced so those messages are nacked rather than
+			// falsely acked as delivered.
+			return walkErr
+		}
+		// Fold the construction failures into the write failures so they are
+		// not falsely acked. A plain error (e.g. an early backoff.Stop before
+		// a full pass) already fails the entire batch, covering them.
+		if batchErr, ok := err.(*service.BatchError); ok {
+			for i, cerr := range constructionErrs {
+				if cerr != nil {
+					batchErr = batchErr.Failed(i, cerr)
+				}
+			}
+			return batchErr
+		}
+		return err
 	}
 
 	unproc := batchResult.UnprocessedItems[*d.table]
@@ -602,7 +585,17 @@ unprocessedLoop:
 			err = errors.New("ran out of request retries")
 		}
 	}
-	return finalize(err)
+	if err != nil {
+		// A plain error fails the entire batch, covering any construction
+		// failures as well.
+		return err
+	}
+
+	// The walk error is nil when every message was built successfully, and
+	// otherwise it is the *service.BatchError indexing the construction
+	// failures, which must be surfaced so those messages are nacked rather
+	// than falsely acked as delivered.
+	return walkErr
 }
 
 func (d *dynamoDBWriter) Close(context.Context) error {

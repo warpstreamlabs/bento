@@ -923,3 +923,45 @@ delete:
 
 	assert.Equal(t, expected, request)
 }
+
+func TestDynamoDBWriteBatchConstructionAndWriteFailures(t *testing.T) {
+	t.Parallel()
+
+	db := testDDBOWriter(t, `
+table: FooTable
+json_map_columns:
+  "": .
+backoff:
+  max_elapsed_time: 100ms
+`)
+
+	var puts []*dynamodb.PutItemInput
+
+	db.client = &mockDynamoDB{
+		fn: func(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+			puts = append(puts, input)
+			return nil, nil
+		},
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			return nil, errors.New("batch broke")
+		},
+	}
+
+	// One message fails construction; the initial batch write fails, driving
+	// the good messages through the individual retry path, which succeeds.
+	// The loop must converge (construction failures never enter its
+	// convergence check) and the returned error must still index the
+	// construction failure so that message is nacked.
+	err := db.WriteBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"foo"}`)),
+		service.NewMessage([]byte(`not-json`)),
+		service.NewMessage([]byte(`{"id":"baz"}`)),
+	})
+
+	require.Len(t, puts, 2)
+
+	require.Error(t, err)
+	var batchErr *service.BatchError
+	require.ErrorAs(t, err, &batchErr)
+	assert.Equal(t, 1, batchErr.IndexedErrors())
+}
