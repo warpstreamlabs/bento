@@ -4,11 +4,9 @@ title: Getting Started
 
 ## Writing Plugins
 
-Bento provides a [plugin development kit (PDK)][pdk] that should be used when writing plugins. This was designed to resemble how traditional bento components are written, handling much of the drama behind-the-scenes of plugin registration and execution.
+Bento provides a [plugin development kit (PDK)][pdk] that should be used when writing plugins. This was designed to resemble how traditional Bento components are written, handling much of the drama behind-the-scenes of plugin registration and execution.
 
 For now, only Go is supported by a PDK, with future versions providing better multi-language support.
-
-### Structure
 
 A plugin requires three key components:
 
@@ -18,7 +16,21 @@ A plugin requires three key components:
 
 Complete working examples are available at [wasm/examples][wasm-examples].
 
-### Configuration
+### Plugin.yaml
+
+A `plugins.yaml` manifest is required for all plugins to register within the Bento component library.
+
+You can see all available manifest fields in the [Manifest Reference][fields].
+
+#### Metadata
+
+```yml
+name: REQUIRED - The name of the plugin.
+type: REQUIRED - The underlying component type. Can only be "processor".
+status: OPTIONAL - The stability status of the plugin. Can be "stable" (default), "beta", or "experimental".
+summary: OPTIONAL - A short summary of the plugin.
+description: OPTIONAL - A detailed description of the plugin and how to use it.
+```
 
 Plugins can accept configuration fields just like native Bento components. Define fields in your `plugin.yaml` manifest:
 ```yml
@@ -29,20 +41,60 @@ fields:
     default: ""
 ```
 
-Then define a config struct that matches your manifest:
+#### Runtime
+
+Next, we need to specify paameters for our WASM environment at `runtime.wasm`:
+```yml
+runtime:
+  wasm: REQUIRED - WASM runtime configuration object for the plugin.
+```
+
+Since our WASM plugin will run within a fully-sandboxed environment, memory constrains, file-mounts, and network access all
+need to be specified upfront:
+```yml
+runtime:
+  wasm:
+    memory:
+      max_pages: REQUIRED - The max amount of pages the plugin can allocate. One page is 64KiB.
+    allowed_hosts: OPTIONAL - List of hosts that the plugin is allowed to connect to.
+    mounts:
+      - host_path: REQUIRED - Path on host to mount.
+        guest_path: REQUIRED - Path inside the WASM container.
+    path: OPTIONAL - Path to the plugin's WASM binary, relative to the plugin directory (default "plugin.wasm").
+```
+
+
+### Implementation
+
+1. Define a config struct that matches your manifest.
 ```go
 type config struct {
 	MyField string `json:"my_field"`
-}
-
-func newMyProcessor(cfg *config, mgr *service.Resources) (service.BatchProcessor, error) {
-	return &myProc{field: cfg.MyField}, nil
 }
 ```
 
 The PDK automatically parses and validates configuration based on your manifest schema and constructor signature.
 
-You can see all available manifest fields in the [Manifest Reference][fields].
+2. Define your component in accordance with the appropriate interface
+
+```go
+func newMyProcessor(cfg *config, mgr *service.Resources) (service.BatchProcessor, error) {
+	return &myProc{field: cfg.MyField}, nil
+}
+```
+
+A component should then be defined and registered to the plugin environment 
+
+```go
+func init() {
+	if err := plugin.RegisterBatchProcessor(newMyProcessor); err != nil {
+		panic(err)
+	}
+}
+```
+
+Next, we need to register
+
 
 ### Compiling
 
