@@ -177,7 +177,7 @@ family: ${!metadata("family")}
 
 ### `timestamp`
 
-Expression for the timestamp of the record. Otherwise, defaults to the local current time.
+Expression for the timestamp of the record. Expects either a UNIX timestamp in seconds (fractional values for sub-second precision), or a string value as `RFC3339Nano`. Timestamps are truncated to millisecond granularity. Otherwise, defaults to the local current time.
 
 
 Type: `string`  
@@ -188,7 +188,9 @@ Default: `""`
 
 timestamp: metadata("timestamp")
 
-timestamp: root = this.event_ts_ms * 1000 + stable_hash(this.event_id) % 1000
+timestamp: root = this.event_ts_ms / 1000
+
+timestamp: root = this.created_at.ts_parse("2006-01-02 15:04:05")
 ```
 
 ### `batching`

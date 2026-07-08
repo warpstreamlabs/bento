@@ -219,6 +219,39 @@ func TestBigTableOutputTimestamp(t *testing.T) {
 			},
 		},
 		{
+			name:      "rfc3339 string from metadata",
+			timestamp: `'metadata("ts")'`,
+			prepMsg: func(msg *service.Message) {
+				msg.MetaSetMut("ts", staticTime.Format(time.RFC3339Nano))
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "ts_parse custom format",
+			timestamp: `'"2024-06-01 12:00:00".ts_parse("2006-01-02 15:04:05")'`,
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "sub-millisecond precision truncated",
+			timestamp: fmt.Sprintf("'%q'", staticTime.Add(123456*time.Microsecond).Format(time.RFC3339Nano)),
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime.Add(123*time.Millisecond)), ts)
+				require.Zero(t, int64(ts)%1000, "cell timestamp must be ms-aligned")
+			},
+		},
+		{
+			name:      "integer millis misinterpreted as seconds",
+			timestamp: fmt.Sprintf("'%d'", staticTime.UnixMilli()),
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				want := bigtable.Time(time.Unix(staticTime.UnixMilli(), 0)).TruncateToMilliseconds()
+				require.Equal(t, want, ts)
+			},
+		},
+		{
 			name:      "invalid timestamp value",
 			timestamp: `'"not-a-timestamp"'`,
 			wantErr:   true,
