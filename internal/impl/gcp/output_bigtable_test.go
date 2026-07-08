@@ -249,7 +249,7 @@ func TestBigTableOutputTimestamp(t *testing.T) {
 			name:      "example json millis to seconds",
 			timestamp: `timestamp: 'json("event_ts_ms").number() / 1000'`,
 			prepMsg: func(msg *service.Message) {
-				msg.SetBytes([]byte(fmt.Sprintf(`{"event_ts_ms": %d}`, staticTime.UnixMilli())))
+				msg.SetBytes(fmt.Appendf([]byte{}, `{"event_ts_ms": %d}`, staticTime.UnixMilli()))
 			},
 			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
 				require.Equal(t, bigtable.Time(staticTime), ts)
