@@ -1,0 +1,40 @@
+{
+	"name": "bento",
+	"image": "golang:1.26.4",
+	"features": {
+		"ghcr.io/jungaretti/features/make:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:4.0.0": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/guiyomh/features/golangci-lint:0": {}
+	},
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"editor.formatOnSave": true,
+				"files.insertFinalNewline": true,
+				"files.trimFinalNewlines": true,
+				"files.autoSave": "afterDelay",
+				"files.autoSaveDelay": 1000,
+				"go.useLanguageServer": true,
+				"go.testFlags": [
+					"-v",
+					"-race"
+				],
+				"go.testTimeout": "10s",
+				"go.coverOnSingleTest": true,
+				"go.coverOnSingleTestFile": true,
+				"go.coverOnTestPackage": true,
+				"go.lintTool": "golangci-lint",
+				"go.lintOnSave": "package"
+			},
+			"extensions": [
+				"golang.go",
+				"ms-azuretools.vscode-docker", //For checking status of Docker
+				"github.vscode-github-actions"
+			]
+		}
+	},
+	"mounts": []
+}
