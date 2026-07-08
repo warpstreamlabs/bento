@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -725,6 +726,159 @@ delete:
 	}
 
 	assert.Equal(t, expected, request)
+}
+
+func TestAnyToAttributeValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		input      any
+		numbersAsN bool
+		expected   types.AttributeValue
+	}{
+		{
+			name:       "json number integer maps to N when numbers_as_n enabled",
+			input:      json.Number("98"),
+			numbersAsN: true,
+			expected:   &types.AttributeValueMemberN{Value: "98"},
+		},
+		{
+			name:       "json number float maps to N preserving precision when numbers_as_n enabled",
+			input:      json.Number("42.8"),
+			numbersAsN: true,
+			expected:   &types.AttributeValueMemberN{Value: "42.8"},
+		},
+		{
+			name:       "json number integer maps to S when numbers_as_n disabled",
+			input:      json.Number("98"),
+			numbersAsN: false,
+			expected:   &types.AttributeValueMemberS{Value: "98"},
+		},
+		{
+			name:       "json number float maps to S when numbers_as_n disabled",
+			input:      json.Number("42.8"),
+			numbersAsN: false,
+			expected:   &types.AttributeValueMemberS{Value: "42.8"},
+		},
+		{
+			name:     "plain string maps to S",
+			input:    "hello",
+			expected: &types.AttributeValueMemberS{Value: "hello"},
+		},
+		{
+			name:     "bool maps to BOOL",
+			input:    true,
+			expected: &types.AttributeValueMemberBOOL{Value: true},
+		},
+		{
+			name: "nested map with numeric leaf maps to M containing N when numbers_as_n enabled",
+			input: map[string]any{
+				"qty": json.Number("5"),
+			},
+			numbersAsN: true,
+			expected: &types.AttributeValueMemberM{
+				Value: map[string]types.AttributeValue{
+					"qty": &types.AttributeValueMemberN{Value: "5"},
+				},
+			},
+		},
+		{
+			name: "nested map with numeric leaf maps to M containing S when numbers_as_n disabled",
+			input: map[string]any{
+				"qty": json.Number("5"),
+			},
+			numbersAsN: false,
+			expected: &types.AttributeValueMemberM{
+				Value: map[string]types.AttributeValue{
+					"qty": &types.AttributeValueMemberS{Value: "5"},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, test.expected, anyToAttributeValue(test.input, test.numbersAsN))
+		})
+	}
+}
+
+func TestDynamoDBJSONNumberType(t *testing.T) {
+	t.Parallel()
+
+	runWithConfig := func(t *testing.T, conf string) map[string][]types.WriteRequest {
+		t.Helper()
+
+		db := testDDBOWriter(t, conf)
+
+		var request map[string][]types.WriteRequest
+
+		db.client = &mockDynamoDB{
+			fn: func(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+				t.Error("not expected")
+				return nil, errors.New("not implemented")
+			},
+			batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+				request = input.RequestItems
+				return &dynamodb.BatchWriteItemOutput{}, nil
+			},
+		}
+
+		require.NoError(t, db.WriteBatch(context.Background(), service.MessageBatch{
+			service.NewMessage([]byte(`{"id":"foo","qty":42}`)),
+		}))
+
+		return request
+	}
+
+	t.Run("default preserves S", func(t *testing.T) {
+		t.Parallel()
+		request := runWithConfig(t, `
+table: FooTable
+json_map_columns:
+  id: id
+  qty: qty
+`)
+		expected := map[string][]types.WriteRequest{
+			"FooTable": {
+				types.WriteRequest{
+					PutRequest: &types.PutRequest{
+						Item: map[string]types.AttributeValue{
+							"id":  &types.AttributeValueMemberS{Value: "foo"},
+							"qty": &types.AttributeValueMemberS{Value: "42"},
+						},
+					},
+				},
+			},
+		}
+		assert.Equal(t, expected, request)
+	})
+
+	t.Run("number stores N", func(t *testing.T) {
+		t.Parallel()
+		request := runWithConfig(t, `
+table: FooTable
+json_number_type: number
+json_map_columns:
+  id: id
+  qty: qty
+`)
+		expected := map[string][]types.WriteRequest{
+			"FooTable": {
+				types.WriteRequest{
+					PutRequest: &types.PutRequest{
+						Item: map[string]types.AttributeValue{
+							"id":  &types.AttributeValueMemberS{Value: "foo"},
+							"qty": &types.AttributeValueMemberN{Value: "42"},
+						},
+					},
+				},
+			},
+		}
+		assert.Equal(t, expected, request)
+	})
 }
 
 func TestDynamoDBDeleteMixedJSONMapColumns(t *testing.T) {

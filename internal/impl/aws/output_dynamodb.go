@@ -35,6 +35,10 @@ const (
 	ddboFieldDeletePartitionKey = "partition_key"
 	ddboFieldDeleteSortKey      = "sort_key"
 	ddboFieldBatching           = "batching"
+	ddboFieldJSONNumberType     = "json_number_type"
+
+	ddboJSONNumberTypeString = "string"
+	ddboJSONNumberTypeNumber = "number"
 )
 
 type ddboConfig struct {
@@ -46,6 +50,7 @@ type ddboConfig struct {
 	DeleteConditionExec     *bloblang.Executor
 	PartitionKeyDeleteField string
 	SortKeyDeleteField      string
+	NumbersAsN              bool
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -67,6 +72,11 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 	if conf.TTLKey, err = pConf.FieldString(ddboFieldTTLKey); err != nil {
 		return
 	}
+	var jsonNumberType string
+	if jsonNumberType, err = pConf.FieldString(ddboFieldJSONNumberType); err != nil {
+		return
+	}
+	conf.NumbersAsN = jsonNumberType == ddboJSONNumberTypeNumber
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
 	}
@@ -164,6 +174,10 @@ This output benefits from sending messages as a batch for improved performance. 
 			service.NewStringField(ddboFieldTTLKey).
 				Description("The column key to place the TTL value within.").
 				Default("").
+				Advanced(),
+			service.NewStringEnumField(ddboFieldJSONNumberType, ddboJSONNumberTypeString, ddboJSONNumberTypeNumber).
+				Description("Controls how JSON numbers extracted via `"+ddboFieldJSONMapColumns+"` are stored. When set to `"+ddboJSONNumberTypeNumber+"` JSON numbers are stored as DynamoDB `N` (number) attributes, which is recommended for numeric data. Note that DynamoDB `N` accepts at most 38 digits of precision and rejects values exceeding it. When set to `"+ddboJSONNumberTypeString+"` JSON numbers are stored as `S` (string) attributes, preserving the legacy behaviour.").
+				Default(ddboJSONNumberTypeString).
 				Advanced(),
 			service.NewObjectField(ddboFieldDelete,
 				service.NewBloblangField(ddboFieldDeleteCondition).
@@ -304,12 +318,12 @@ func (d *dynamoDBWriter) Connect(ctx context.Context) error {
 	return nil
 }
 
-func anyToAttributeValue(root any) types.AttributeValue {
+func anyToAttributeValue(root any, numbersAsN bool) types.AttributeValue {
 	switch v := root.(type) {
 	case map[string]any:
 		m := make(map[string]types.AttributeValue, len(v))
 		for k, v2 := range v {
-			m[k] = anyToAttributeValue(v2)
+			m[k] = anyToAttributeValue(v2, numbersAsN)
 		}
 		return &types.AttributeValueMemberM{
 			Value: m,
@@ -317,7 +331,7 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	case []any:
 		l := make([]types.AttributeValue, len(v))
 		for i, v2 := range v {
-			l[i] = anyToAttributeValue(v2)
+			l[i] = anyToAttributeValue(v2, numbersAsN)
 		}
 		return &types.AttributeValueMemberL{
 			Value: l,
@@ -327,6 +341,11 @@ func anyToAttributeValue(root any) types.AttributeValue {
 			Value: v,
 		}
 	case json.Number:
+		if numbersAsN {
+			return &types.AttributeValueMemberN{
+				Value: v.String(),
+			}
+		}
 		return &types.AttributeValueMemberS{
 			Value: v.String(),
 		}
@@ -356,12 +375,12 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	}
 }
 
-func jsonToMap(path string, root any) (types.AttributeValue, error) {
+func jsonToMap(path string, root any, numbersAsN bool) (types.AttributeValue, error) {
 	gObj := gabs.Wrap(root)
 	if path != "" {
 		gObj = gObj.Path(path)
 	}
-	return anyToAttributeValue(gObj.Data()), nil
+	return anyToAttributeValue(gObj.Data(), numbersAsN), nil
 }
 
 func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch) error {
@@ -602,7 +621,7 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 		if err != nil {
 			return err
 		}
-		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot)
+		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot, d.conf.NumbersAsN)
 		if err != nil {
 			return err
 		}
@@ -623,7 +642,7 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 			if err != nil {
 				return err
 			}
-			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot)
+			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot, d.conf.NumbersAsN)
 			if err != nil {
 				return err
 			}
@@ -668,7 +687,7 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			return err
 		}
 		for k, v := range d.conf.JSONMapColumns {
-			if attr, err := jsonToMap(v, jRoot); err == nil {
+			if attr, err := jsonToMap(v, jRoot, d.conf.NumbersAsN); err == nil {
 				if k == "" {
 					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
 						maps.Copy(items, mv.Value)
