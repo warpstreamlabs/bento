@@ -723,7 +723,10 @@ func collectShards(ctx context.Context, arn string, svc *kinesis.Client) ([]type
 			StreamARN: streamARN,
 			NextToken: token,
 		})
-		return shardsRes.Shards, shardsRes.NextToken, err
+		if err != nil {
+			return nil, nil, err
+		}
+		return shardsRes.Shards, shardsRes.NextToken, nil
 	}
 
 	shardIter := helper.TokenIterator(listShardFn)
