@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -84,7 +85,31 @@ func runSchemaRegistryServer(t testing.TB, fn func(path string) ([]byte, error))
 		reqMut.Lock()
 		defer reqMut.Unlock()
 
-		b, err := fn(r.URL.Path)
+		b, err := fn(r.URL.EscapedPath())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if len(b) == 0 {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write(b)
+	}))
+	t.Cleanup(ts.Close)
+
+	return ts.URL
+}
+
+func runSchemaRegistryServerURL(t testing.TB, fn func(u *url.URL) ([]byte, error)) string {
+	t.Helper()
+
+	var reqMut sync.Mutex
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqMut.Lock()
+		defer reqMut.Unlock()
+
+		b, err := fn(r.URL)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

@@ -519,9 +519,20 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 	var nextFlushChan chan<- asyncMessage
 	commitCtx, commitCtxClose := context.WithTimeout(k.ctx, k.commitPeriod)
 
+	// Reusable timers backing nextTimedBatchChan and nextPullChan. Reusing
+	// timers rather than calling time.After on every empty poll avoids
+	// allocating a new runtime timer per iteration, which is significant when
+	// running thousands of shard consumers.
+	timedBatchTimer := time.NewTimer(time.Hour)
+	timedBatchTimer.Stop()
+	pullTimer := time.NewTimer(time.Hour)
+	pullTimer.Stop()
+
 	go func() {
 		defer func() {
 			commitCtxClose()
+			timedBatchTimer.Stop()
+			pullTimer.Stop()
 			recordBatcher.Close(context.Background(), state == awsKinesisConsumerFinished)
 			boff.Reset()
 			k.boffPool.Put(boff)
@@ -565,7 +576,8 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 			if state == awsKinesisConsumerConsuming && len(pending) == 0 && nextPullChan == unblockedChan {
 				if pending, iter, err = k.getRecords(info, shardID, iter); err != nil {
 					if !awsErrIsTimeout(err) {
-						nextPullChan = time.After(boff.NextBackOff())
+						pullTimer.Reset(boff.NextBackOff())
+						nextPullChan = pullTimer.C
 
 						var aerr *types.ExpiredIteratorException
 						if errors.As(err, &aerr) {
@@ -581,7 +593,8 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 						}
 					}
 				} else if len(pending) == 0 {
-					nextPullChan = time.After(boff.NextBackOff())
+					pullTimer.Reset(boff.NextBackOff())
+					nextPullChan = pullTimer.C
 				} else {
 					boff.Reset()
 					nextPullChan = blockedChan
@@ -636,9 +649,22 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 			if nextTimedBatchChan == nil {
 				if tNext, exists := recordBatcher.UntilNext(); exists {
 					if len(pending) > 0 || recordBatcher.HasPendingMessage() {
-						nextTimedBatchChan = time.After(tNext)
+						timedBatchTimer.Reset(tNext)
+						nextTimedBatchChan = timedBatchTimer.C
 					}
 				}
+			}
+
+			// If we have a message ready for dispatch but the pipeline isn't
+			// keeping up then nextPullChan may be set to the permanently
+			// unblocked (closed) channel, in which case the select below would
+			// never block and this loop would spin hot without making any
+			// progress. Falling through the select is only productive when it
+			// leads to pulling more records, so suppress the pull case until
+			// the pending message has been flushed.
+			pullChan := nextPullChan
+			if pendingMsg.msg != nil && pullChan == unblockedChan {
+				pullChan = blockedChan
 			}
 
 			select {
@@ -664,7 +690,7 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 				nextTimedBatchChan = nil
 			case nextFlushChan <- pendingMsg:
 				pendingMsg = asyncMessage{}
-			case <-nextPullChan:
+			case <-pullChan:
 				nextPullChan = unblockedChan
 			case <-k.ctx.Done():
 				state = awsKinesisConsumerClosing
@@ -689,8 +715,12 @@ func isShardFinished(s types.Shard) bool {
 
 func collectShards(ctx context.Context, arn string, svc *kinesis.Client) ([]types.Shard, error) {
 	listShardFn := func(token *string) ([]types.Shard, *string, error) {
+		var streamARN *string
+		if token == nil {
+			streamARN = aws.String(arn)
+		}
 		shardsRes, err := svc.ListShards(ctx, &kinesis.ListShardsInput{
-			StreamARN: aws.String(arn),
+			StreamARN: streamARN,
 			NextToken: token,
 		})
 		return shardsRes.Shards, shardsRes.NextToken, err

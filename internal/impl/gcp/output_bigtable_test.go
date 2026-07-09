@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/bigtable/bttest"
@@ -180,6 +181,173 @@ row_key: key
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestBigTableOutputTimestamp(t *testing.T) {
+	staticTime := time.Date(2024, time.June, 1, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name      string
+		timestamp string
+		prepMsg   func(msg *service.Message)
+		checkTS   func(t *testing.T, ts bigtable.Timestamp)
+		wantErr   bool
+	}{
+		{
+			name:      "static unix timestamp",
+			timestamp: fmt.Sprintf("timestamp: '%d'", staticTime.Unix()),
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "timestamp from metadata",
+			timestamp: `timestamp: 'metadata("ts")'`,
+			prepMsg: func(msg *service.Message) {
+				msg.MetaSetMut("ts", staticTime.Unix())
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "defaults to wall clock when unset",
+			timestamp: "",
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.WithinDuration(t, time.Now(), ts.Time(), time.Minute)
+			},
+		},
+		{
+			name:      "rfc3339 string from metadata",
+			timestamp: `timestamp: 'metadata("ts")'`,
+			prepMsg: func(msg *service.Message) {
+				msg.MetaSetMut("ts", staticTime.Format(time.RFC3339Nano))
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "ts_parse custom format",
+			timestamp: `timestamp: '"2024-06-01 12:00:00".ts_parse("2006-01-02 15:04:05")'`,
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "example metadata timestamp",
+			timestamp: `timestamp: 'metadata("timestamp")'`,
+			prepMsg: func(msg *service.Message) {
+				msg.MetaSetMut("timestamp", staticTime.Unix())
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "example json millis to seconds",
+			timestamp: `timestamp: 'json("event_ts_ms").number() / 1000'`,
+			prepMsg: func(msg *service.Message) {
+				msg.SetBytes(fmt.Appendf([]byte{}, `{"event_ts_ms": %d}`, staticTime.UnixMilli()))
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "example json ts_parse custom format",
+			timestamp: `timestamp: 'json("created_at").ts_parse("2006-01-02 15:04:05")'`,
+			prepMsg: func(msg *service.Message) {
+				msg.SetBytes([]byte(`{"created_at": "2024-06-01 12:00:00"}`))
+			},
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime), ts)
+			},
+		},
+		{
+			name:      "sub-millisecond precision truncated",
+			timestamp: fmt.Sprintf("timestamp: '%q'", staticTime.Add(123456*time.Microsecond).Format(time.RFC3339Nano)),
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				require.Equal(t, bigtable.Time(staticTime.Add(123*time.Millisecond)), ts)
+				require.Zero(t, int64(ts)%1000, "cell timestamp must be ms-aligned")
+			},
+		},
+		{
+			name:      "integer millis misinterpreted as seconds",
+			timestamp: fmt.Sprintf("timestamp: '%d'", staticTime.UnixMilli()),
+			checkTS: func(t *testing.T, ts bigtable.Timestamp) {
+				want := bigtable.Time(time.Unix(staticTime.UnixMilli(), 0)).TruncateToMilliseconds()
+				require.Equal(t, want, ts)
+			},
+		},
+		{
+			name:      "invalid timestamp value",
+			timestamp: `timestamp: '"not-a-timestamp"'`,
+			wantErr:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server, err := setupBigTableEmulator(t)
+			require.NoError(t, err)
+			defer server.Close()
+
+			tableID := fmt.Sprintf("ts-table-%s", strings.ReplaceAll(tc.name, " ", "-"))
+			columnFamily := "test-family"
+
+			err = setupTableInstance(t.Context(), &bigtable.TableConf{
+				TableID: tableID,
+				ColumnFamilies: map[string]bigtable.Family{
+					columnFamily: {GCPolicy: bigtable.NoGcPolicy()},
+				},
+			})
+			require.NoError(t, err)
+
+			spec := gcpBigTableOutputSpec()
+			parsedConf, err := spec.ParseYAML(fmt.Sprintf(`
+project: %s
+instance: %s
+table: %s
+column: col
+family: %s
+row_key: key
+%s
+`, projectID, instanceID, tableID, columnFamily, tc.timestamp), nil)
+			require.NoError(t, err)
+
+			conf, err := gcpBigTableOutputConfigFromParsed(parsedConf)
+			require.NoError(t, err)
+
+			output, err := newGCPBigTableOutput(conf)
+			require.NoError(t, err)
+
+			err = output.Connect(t.Context())
+			require.NoError(t, err)
+			defer output.Close(t.Context())
+
+			msg := service.NewMessage([]byte("value"))
+			if tc.prepMsg != nil {
+				tc.prepMsg(msg)
+			}
+
+			err = output.WriteBatch(t.Context(), service.MessageBatch{msg})
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			rows, err := readRows(t.Context(), "key", columnFamily, tableID)
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+
+			cells := rows[0][columnFamily]
+			require.Len(t, cells, 1)
+
+			tc.checkTS(t, cells[0].Timestamp)
 		})
 	}
 }

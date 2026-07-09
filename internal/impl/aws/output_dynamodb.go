@@ -28,6 +28,7 @@ const (
 	ddboFieldTable              = "table"
 	ddboFieldStringColumns      = "string_columns"
 	ddboFieldJSONMapColumns     = "json_map_columns"
+	ddboFieldOmitIfEmpty        = "omit_if_empty"
 	ddboFieldTTL                = "ttl"
 	ddboFieldTTLKey             = "ttl_key"
 	ddboFieldDelete             = "delete"
@@ -35,17 +36,23 @@ const (
 	ddboFieldDeletePartitionKey = "partition_key"
 	ddboFieldDeleteSortKey      = "sort_key"
 	ddboFieldBatching           = "batching"
+	ddboFieldJSONNumberType     = "json_number_type"
+
+	ddboJSONNumberTypeString = "string"
+	ddboJSONNumberTypeNumber = "number"
 )
 
 type ddboConfig struct {
 	Table                   string
 	StringColumns           map[string]*service.InterpolatedString
 	JSONMapColumns          map[string]string
+	OmitIfEmpty             bool
 	TTL                     string
 	TTLKey                  string
 	DeleteConditionExec     *bloblang.Executor
 	PartitionKeyDeleteField string
 	SortKeyDeleteField      string
+	NumbersAsN              bool
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -61,12 +68,20 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 	if conf.JSONMapColumns, err = pConf.FieldStringMap(ddboFieldJSONMapColumns); err != nil {
 		return
 	}
+	if conf.OmitIfEmpty, err = pConf.FieldBool(ddboFieldOmitIfEmpty); err != nil {
+		return
+	}
 	if conf.TTL, err = pConf.FieldString(ddboFieldTTL); err != nil {
 		return
 	}
 	if conf.TTLKey, err = pConf.FieldString(ddboFieldTTLKey); err != nil {
 		return
 	}
+	var jsonNumberType string
+	if jsonNumberType, err = pConf.FieldString(ddboFieldJSONNumberType); err != nil {
+		return
+	}
+	conf.NumbersAsN = jsonNumberType == ddboJSONNumberTypeNumber
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
 	}
@@ -123,7 +138,7 @@ json_map_columns:
   "": .
 `+"```"+`
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `+"`NULL`"+` attribute by default. Set `+"`"+ddboFieldOmitIfEmpty+"`"+` to `+"`true`"+` in order to omit the column instead.
 
 ### Credentials
 
@@ -157,6 +172,10 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example(map[string]string{
 					"": ".",
 				}),
+			service.NewBoolField(ddboFieldOmitIfEmpty).
+				Description("When set to `true`, a `"+ddboFieldJSONMapColumns+"` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.").
+				Advanced().
+				Default(false),
 			service.NewStringField(ddboFieldTTL).
 				Description("An optional TTL to set for items, calculated from the moment the message is sent.").
 				Default("").
@@ -164,6 +183,10 @@ This output benefits from sending messages as a batch for improved performance. 
 			service.NewStringField(ddboFieldTTLKey).
 				Description("The column key to place the TTL value within.").
 				Default("").
+				Advanced(),
+			service.NewStringEnumField(ddboFieldJSONNumberType, ddboJSONNumberTypeString, ddboJSONNumberTypeNumber).
+				Description("Controls how JSON numbers extracted via `"+ddboFieldJSONMapColumns+"` are stored. When set to `"+ddboJSONNumberTypeNumber+"` JSON numbers are stored as DynamoDB `N` (number) attributes, which is recommended for numeric data. Note that DynamoDB `N` accepts at most 38 digits of precision and rejects values exceeding it. When set to `"+ddboJSONNumberTypeString+"` JSON numbers are stored as `S` (string) attributes, preserving the legacy behaviour.").
+				Default(ddboJSONNumberTypeString).
 				Advanced(),
 			service.NewObjectField(ddboFieldDelete,
 				service.NewBloblangField(ddboFieldDeleteCondition).
@@ -304,12 +327,12 @@ func (d *dynamoDBWriter) Connect(ctx context.Context) error {
 	return nil
 }
 
-func anyToAttributeValue(root any) types.AttributeValue {
+func anyToAttributeValue(root any, numbersAsN bool) types.AttributeValue {
 	switch v := root.(type) {
 	case map[string]any:
 		m := make(map[string]types.AttributeValue, len(v))
 		for k, v2 := range v {
-			m[k] = anyToAttributeValue(v2)
+			m[k] = anyToAttributeValue(v2, numbersAsN)
 		}
 		return &types.AttributeValueMemberM{
 			Value: m,
@@ -317,7 +340,7 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	case []any:
 		l := make([]types.AttributeValue, len(v))
 		for i, v2 := range v {
-			l[i] = anyToAttributeValue(v2)
+			l[i] = anyToAttributeValue(v2, numbersAsN)
 		}
 		return &types.AttributeValueMemberL{
 			Value: l,
@@ -327,6 +350,11 @@ func anyToAttributeValue(root any) types.AttributeValue {
 			Value: v,
 		}
 	case json.Number:
+		if numbersAsN {
+			return &types.AttributeValueMemberN{
+				Value: v.String(),
+			}
+		}
 		return &types.AttributeValueMemberS{
 			Value: v.String(),
 		}
@@ -356,12 +384,12 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	}
 }
 
-func jsonToMap(path string, root any) (types.AttributeValue, error) {
+func jsonToMap(path string, root any, numbersAsN bool) (types.AttributeValue, error) {
 	gObj := gabs.Wrap(root)
 	if path != "" {
 		gObj = gObj.Path(path)
 	}
-	return anyToAttributeValue(gObj.Data()), nil
+	return anyToAttributeValue(gObj.Data(), numbersAsN), nil
 }
 
 func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch) error {
@@ -524,7 +552,7 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 		if err != nil {
 			return err
 		}
-		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot)
+		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot, d.conf.NumbersAsN)
 		if err != nil {
 			return err
 		}
@@ -545,7 +573,7 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 			if err != nil {
 				return err
 			}
-			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot)
+			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot, d.conf.NumbersAsN)
 			if err != nil {
 				return err
 			}
@@ -589,8 +617,17 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			d.log.Errorf("Failed to extract JSON maps from document: %v", err)
 			return err
 		}
+		gRoot := gabs.Wrap(jRoot)
 		for k, v := range d.conf.JSONMapColumns {
-			if attr, err := jsonToMap(v, jRoot); err == nil {
+			// When omit_if_empty is enabled, a path that is not found within the
+			// document is omitted (as documented) rather than being written as a
+			// NULL attribute. When disabled, the legacy behaviour is preserved
+			// and the missing path is written as a NULL attribute. An empty path
+			// refers to the whole document and is always populated.
+			if d.conf.OmitIfEmpty && v != "" && !gRoot.ExistsP(v) {
+				continue
+			}
+			if attr, err := jsonToMap(v, jRoot, d.conf.NumbersAsN); err == nil {
 				if k == "" {
 					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
 						maps.Copy(items, mv.Value)
