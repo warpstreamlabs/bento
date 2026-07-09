@@ -462,4 +462,4 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-go 1.26.4
+go 1.26.5
