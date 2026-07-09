@@ -972,7 +972,6 @@ func (k *kinesisReader) Connect(ctx context.Context) error {
 
 	k.svc = svc
 	k.checkpointer = checkpointer
-	k.msgChan = make(chan asyncMessage)
 
 	if err = k.waitUntilStreamsExists(ctx); err != nil {
 		return err
@@ -997,6 +996,14 @@ func (k *kinesisReader) Connect(ctx context.Context) error {
 			k.log.Debugf("Enhanced Fan Out consumer registered for stream %s with ARN: %s", stream.id, consumerARN)
 		}
 	}
+
+	// Only assign msgChan once everything above has succeeded, since a non-nil
+	// msgChan is what marks this reader as connected. Assigning it earlier
+	// meant a failure in the steps above left the reader permanently "connected"
+	// but without a running shard consumer, so subsequent Connect calls
+	// returned nil and ReadBatch blocked forever on a channel nothing writes
+	// to.
+	k.msgChan = make(chan asyncMessage)
 
 	if len(k.streams[0].explicitShards) > 0 {
 		go k.runExplicitShards()
@@ -1031,6 +1038,17 @@ func (k *kinesisReader) ReadBatch(ctx context.Context) (service.MessageBatch, se
 // CloseAsync shuts down the Kinesis input and stops processing requests.
 func (k *kinesisReader) Close(ctx context.Context) error {
 	k.done()
+
+	k.cMut.Lock()
+	if k.msgChan == nil {
+		// Connect never completed successfully, so there is no shard runner
+		// goroutine responsible for closing closedChan on our behalf.
+		k.closeOnce.Do(func() {
+			close(k.closedChan)
+		})
+	}
+	k.cMut.Unlock()
+
 	select {
 	case <-k.closedChan:
 	case <-ctx.Done():
