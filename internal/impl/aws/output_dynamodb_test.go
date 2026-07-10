@@ -497,6 +497,98 @@ string_columns:
 	assert.Equal(t, expected, requests)
 }
 
+func TestDynamoDBWriteBatchPartialConstructionFailure(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+json_map_columns:
+  "": .
+`)
+
+	var captured []types.WriteRequest
+
+	db.client = &mockDynamoDB{
+		fn: func(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+			t.Error("not expected")
+			return nil, errors.New("not implemented")
+		},
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			if request, ok := input.RequestItems["FooTable"]; ok {
+				items := make([]types.WriteRequest, len(request))
+				copy(items, request)
+				captured = items
+			} else {
+				t.Error("missing FooTable")
+			}
+			return &dynamodb.BatchWriteItemOutput{}, nil
+		},
+	}
+
+	err := db.WriteBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"foo","content":"foo stuff"}`)),
+		service.NewMessage([]byte(`not-json`)),
+		service.NewMessage([]byte(`{"id":"baz","content":"baz stuff"}`)),
+	})
+
+	// The successfully-built messages must still have been sent to DynamoDB.
+	require.NotNil(t, captured, "batchFn was not called - successfully built messages were dropped")
+
+	expected := []types.WriteRequest{
+		{
+			PutRequest: &types.PutRequest{
+				Item: map[string]types.AttributeValue{
+					"id":      &types.AttributeValueMemberS{Value: "foo"},
+					"content": &types.AttributeValueMemberS{Value: "foo stuff"},
+				},
+			},
+		},
+		{
+			PutRequest: &types.PutRequest{
+				Item: map[string]types.AttributeValue{
+					"id":      &types.AttributeValueMemberS{Value: "baz"},
+					"content": &types.AttributeValueMemberS{Value: "baz stuff"},
+				},
+			},
+		},
+	}
+	assert.Equal(t, expected, captured)
+
+	// The failed message must still be surfaced so the framework nacks it.
+	require.Error(t, err)
+	var batchErr *service.BatchError
+	require.ErrorAs(t, err, &batchErr)
+	assert.Equal(t, 1, batchErr.IndexedErrors())
+}
+
+func TestDynamoDBWriteBatchAllConstructionFailure(t *testing.T) {
+	db := testDDBOWriter(t, `
+table: FooTable
+json_map_columns:
+  "": .
+`)
+
+	var batchCalled bool
+
+	db.client = &mockDynamoDB{
+		fn: func(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+			t.Error("not expected")
+			return nil, errors.New("not implemented")
+		},
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			batchCalled = true
+			t.Error("BatchWriteItem should not be called when every message fails construction")
+			return &dynamodb.BatchWriteItemOutput{}, nil
+		},
+	}
+
+	err := db.WriteBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte(`not-json`)),
+		service.NewMessage([]byte(`also-not-json`)),
+	})
+
+	require.Error(t, err)
+	assert.False(t, batchCalled)
+}
+
 func TestDynamoDBDelete(t *testing.T) {
 	db := testDDBOWriter(t, `
 table: FooTable
@@ -830,6 +922,48 @@ delete:
 	}
 
 	assert.Equal(t, expected, request)
+}
+
+func TestDynamoDBWriteBatchConstructionAndWriteFailures(t *testing.T) {
+	t.Parallel()
+
+	db := testDDBOWriter(t, `
+table: FooTable
+json_map_columns:
+  "": .
+backoff:
+  max_elapsed_time: 100ms
+`)
+
+	var puts []*dynamodb.PutItemInput
+
+	db.client = &mockDynamoDB{
+		fn: func(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+			puts = append(puts, input)
+			return nil, nil
+		},
+		batchFn: func(input *dynamodb.BatchWriteItemInput) (*dynamodb.BatchWriteItemOutput, error) {
+			return nil, errors.New("batch broke")
+		},
+	}
+
+	// One message fails construction; the initial batch write fails, driving
+	// the good messages through the individual retry path, which succeeds.
+	// The loop must converge (construction failures never enter its
+	// convergence check) and the returned error must still index the
+	// construction failure so that message is nacked.
+	err := db.WriteBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"foo"}`)),
+		service.NewMessage([]byte(`not-json`)),
+		service.NewMessage([]byte(`{"id":"baz"}`)),
+	})
+
+	require.Len(t, puts, 2)
+
+	require.Error(t, err)
+	var batchErr *service.BatchError
+	require.ErrorAs(t, err, &batchErr)
+	assert.Equal(t, 1, batchErr.IndexedErrors())
 }
 
 func TestDynamoDBPutJSONMapColumnsMissingPath(t *testing.T) {
