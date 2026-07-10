@@ -179,6 +179,6 @@ EXPERIMENTAL: Starts a new root span with link to parent.
 
 
 Type: `bool`  
-Requires version 1.19.0 or newer  
+Requires version 1.20.0 or newer  
 
 
