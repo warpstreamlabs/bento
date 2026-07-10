@@ -3094,6 +3094,31 @@ root.doc = this.doc.format_yaml().string()
 # Out: {"doc":"foo: bar\n"}
 ```
 
+### `parse_big_decimal`
+
+Parses a [Kafka Connect](https://docs.confluent.io/platform/current/connect/conversions.html#decimal-type) / [Debezium](https://debezium.io/documentation/faq/#how_to_retrieve_decimal_field_from_binary_representation) decimal encoded as a two's complement big-endian unscaled integer and returns its decimal string representation.
+
+#### Parameters
+
+**`scale`** &lt;integer&gt; Number of digits after the decimal point.  
+
+#### Examples
+
+
+```coffee
+root.amount = this.amount.decode("base64").parse_big_decimal(scale: 2)
+
+# In:  {"amount":"MDk="}
+# Out: {"amount":"123.45"}
+```
+
+```coffee
+root.amount = this.amount.decode("base64").parse_big_decimal(scale: 2)
+
+# In:  {"amount":"/w=="}
+# Out: {"amount":"-0.01"}
+```
+
 ### `parse_csv`
 
 Attempts to parse a string into an array of objects by following the CSV format described in RFC 4180.

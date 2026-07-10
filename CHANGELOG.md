@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Next release
+
+### Added
+
+- `parse_big_decimal` bloblang method for Kafka Connect / Debezium decimal decoding @aratz-lasa
+
 ## 1.15.1 - 2026-03-08
 
 ### Added
