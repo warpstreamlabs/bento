@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	ruiFieldInput       = "input"
-	ruiFieldRestart     = "restart_input"
-	ruiFieldCheck       = "check"
-	ruiFieldIdleTimeout = "idle_timeout"
+	ruiFieldInput          = "input"
+	ruiFieldRestart        = "restart_input"
+	ruiFieldRestartBackoff = "restart_backoff"
+	ruiFieldCheck          = "check"
+	ruiFieldIdleTimeout    = "idle_timeout"
 )
 
 func readUntilInputSpec() *service.ConfigSpec {
@@ -82,12 +83,21 @@ input:
 			).
 			Optional(),
 		service.NewDurationField(ruiFieldIdleTimeout).
-			Description("The maximum amount of time without receiving new messages after which the input is closed.").
+			Description("The maximum amount of time without receiving new messages after which the input is closed or restarted, according to `restart_input`").
 			Example("5s").
 			Optional(),
 		service.NewBoolField(ruiFieldRestart).
 			Description("Whether the input should be reopened if it closes itself before the condition has resolved to true.").
 			Default(false),
+		service.NewObjectField(ruiFieldRestartBackoff,
+			service.NewDurationField("initial_interval").
+				Description("The initial period to wait between child input restarts.").
+				Default("1ms").Example("50ms").Example("1s"),
+			service.NewDurationField("max_interval").
+				Description("The maximum period to wait between child input restarts.").
+				Default("100ms").Example("5s").Example("1m"),
+		).Description("Backoff policy for restarting the child input. Only used when `restart_input` is `true`.").
+			Version("1.19.0"),
 	)
 }
 
@@ -106,7 +116,8 @@ func init() {
 }
 
 type readUntilInput struct {
-	restart bool
+	restart        bool
+	restartBackoff *backoff.ExponentialBackOff
 
 	wrappedInputLocked *atomic.Pointer[input.Streamed]
 	check              *mapping.Executor
@@ -142,6 +153,20 @@ func newReadUntilInputFromParsed(conf *service.ParsedConfig, res *service.Resour
 		return nil, err
 	}
 
+	restartBackoff := backoff.NewExponentialBackOff()
+
+	// force this backoff to be unbounded; we won't handle Stop
+	restartBackoff.MaxElapsedTime = 0
+
+	backoffNs := conf.Namespace(ruiFieldRestartBackoff)
+	if restartBackoff.InitialInterval, err = backoffNs.FieldDuration("initial_interval"); err != nil {
+		return nil, err
+	}
+
+	if restartBackoff.MaxInterval, err = backoffNs.FieldDuration("max_interval"); err != nil {
+		return nil, err
+	}
+
 	var check *mapping.Executor
 	if checkStr, _ := conf.FieldString(ruiFieldCheck); checkStr != "" {
 		if check, err = mgr.BloblEnvironment().NewMapping(checkStr); err != nil {
@@ -163,7 +188,8 @@ func newReadUntilInputFromParsed(conf *service.ParsedConfig, res *service.Resour
 	wInputLocked := &atomic.Pointer[input.Streamed]{}
 	wInputLocked.Store(&wrapped)
 	rdr := &readUntilInput{
-		restart: restart,
+		restart:        restart,
+		restartBackoff: restartBackoff,
 
 		wrappedCtor:        wrappedCtor,
 		wrappedInputLocked: wInputLocked,
@@ -195,10 +221,8 @@ func (r *readUntilInput) loop() {
 	}()
 
 	// Prevents busy loop when an input never yields messages.
-	restartBackoff := backoff.NewExponentialBackOff()
-	restartBackoff.InitialInterval = time.Millisecond
-	restartBackoff.MaxInterval = time.Millisecond * 100
-	restartBackoff.MaxElapsedTime = 0
+	restartBackoff := *r.restartBackoff
+	restartBackoff.Reset()
 
 	var open bool
 

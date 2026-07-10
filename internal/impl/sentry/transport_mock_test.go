@@ -1,11 +1,14 @@
 package sentry
 
 import (
+	"context"
 	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/stretchr/testify/mock"
 )
+
+var _ sentry.Transport = &mockTransport{}
 
 var argEvent = mock.AnythingOfType("*sentry.Event")
 
@@ -19,10 +22,23 @@ func (t *mockTransport) Flush(timeout time.Duration) bool {
 	return args.Bool(0)
 }
 
+func (t *mockTransport) FlushWithContext(ctx context.Context) bool {
+	var timeout time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = time.Until(deadline)
+	}
+	args := t.Called(timeout)
+	return args.Bool(0)
+}
+
 func (t *mockTransport) Configure(options sentry.ClientOptions) {
 	t.Called(options)
 }
 
 func (t *mockTransport) SendEvent(event *sentry.Event) {
 	t.Called(event)
+}
+
+func (t *mockTransport) Close() {
+	t.Called()
 }

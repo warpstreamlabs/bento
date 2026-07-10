@@ -7,31 +7,43 @@ import (
 	"net/http"
 	"time"
 
+	spnego_options "github.com/lublak/go-spnego/options"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (
-	hcFieldURL                 = "url"
-	hcFieldVerb                = "verb"
-	hcFieldHeaders             = "headers"
-	hcFieldMetadata            = "metadata"
-	hcFieldExtractHeaders      = "extract_headers"
-	hcFieldRateLimit           = "rate_limit"
-	hcFieldTimeout             = "timeout"
-	hcFieldRetryPeriod         = "retry_period"
-	hcFieldMaxRetryBackoff     = "max_retry_backoff"
-	hcFieldRetries             = "retries"
-	hcFieldBackoffOn           = "backoff_on"
-	hcFieldDropOn              = "drop_on"
-	hcFieldSuccessfulOn        = "successful_on"
-	hcFieldDumpRequestLogLevel = "dump_request_log_level"
-	hcFieldTLS                 = "tls"
-	hcFieldProxyURL            = "proxy_url"
-	hcFieldDigestAuth          = "digest_auth"
-	hcFieldDigestAuthEnabled   = "enabled"
-	hcFieldDigestAuthUserName  = "username"
-	hcFieldDigestAuthPassword  = "password"
-	hcFieldTransport           = "transport"
+	hcFieldURL                             = "url"
+	hcFieldVerb                            = "verb"
+	hcFieldHeaders                         = "headers"
+	hcFieldMetadata                        = "metadata"
+	hcFieldExtractHeaders                  = "extract_headers"
+	hcFieldRateLimit                       = "rate_limit"
+	hcFieldTimeout                         = "timeout"
+	hcFieldRetryPeriod                     = "retry_period"
+	hcFieldMaxRetryBackoff                 = "max_retry_backoff"
+	hcFieldRetries                         = "retries"
+	hcFieldBackoffOn                       = "backoff_on"
+	hcFieldDropOn                          = "drop_on"
+	hcFieldSuccessfulOn                    = "successful_on"
+	hcFieldDumpRequestLogLevel             = "dump_request_log_level"
+	hcFieldTLS                             = "tls"
+	hcFieldProxyURL                        = "proxy_url"
+	hcFieldDigestAuth                      = "digest_auth"
+	hcFieldDigestAuthEnabled               = "enabled"
+	hcFieldDigestAuthUserName              = "username"
+	hcFieldDigestAuthPassword              = "password"
+	hcFieldNegotiate                       = "negotiate"
+	hcFieldNegotiateEnabled                = "enabled"
+	hcFieldNegotiateApi                    = "api"
+	hcFieldNegotiateUserOnlyForFallback    = "user_only_for_fallback"
+	hcFieldNegotiateUser                   = "user"
+	hcFieldNegotiateUserDomain             = "domain"
+	hcFieldNegotiateUserName               = "name"
+	hcFieldNegotiateUserPassword           = "password"
+	hcFieldNegotiateKerberos               = "kerberos"
+	hcFieldNegotiateKerberosConfigFilePath = "config_file_path"
+	hcFieldNegotiateKerberosCCName         = "ccname"
+	hcFieldTransport                       = "transport"
 )
 
 // ConfigField returns a public API config field spec for an HTTP component,
@@ -120,6 +132,50 @@ func ConfigField(defaultVerb string, forOutput bool, extraChildren ...*service.C
 			Advanced().
 			Version("1.18.0").
 			Optional(),
+		service.NewObjectField(hcFieldNegotiate,
+			service.NewBoolField(hcFieldNegotiateEnabled).
+				Description("Enable the spnego authentication.").
+				Default(false),
+			service.NewStringEnumField(hcFieldNegotiateApi, "sspi", "pure").
+				Description("Change the underlying api, defaults to Pure, sspi only works on windows.").
+				Default("pure"),
+			service.NewBoolField(hcFieldNegotiateUserOnlyForFallback).
+				Description("If a fallback to NTLM is required (no Kerberos on Pure api), a user configuration is required. Use this option to use this user only as a fallback.").
+				Default(false),
+			service.NewObjectField(hcFieldNegotiateUser,
+				service.NewStringField(hcFieldNegotiateUserDomain).
+					Description("The domain of the user.").
+					Default(""),
+				service.NewStringField(hcFieldNegotiateUserName).
+					Description("The username of the user.").
+					Default(""),
+				service.NewStringField(hcFieldNegotiateUserPassword).
+					Description("The password of the user.").
+					Secret().
+					Default(""),
+			).
+				Description("The user to use for the authentication. If the user is not configured, SSPI will use the currently logged-in user and Pure will use the Kerberos keytab file.").
+				Optional(),
+			service.NewObjectField(hcFieldNegotiateKerberos,
+				service.NewStringField(hcFieldNegotiateKerberosConfigFilePath).
+					Description("The file path to the kerberos configuration file.").
+					Default(""),
+				service.NewStringField(hcFieldNegotiateKerberosCCName).
+					Description("Setting for the Kerberos cache path. Allowed values would be FILE:/path/to/file for a file or DIR:/path/to/folder for a folder.").
+					Default(""),
+			).
+				Description("Options for Kerberos configuration. These options are ignored under SSPI.").
+				Optional(),
+		).
+			Description(`Negotiate (SPNEGO) authentication configuration.
+:::caution EXPERIMENTAL
+
+The underlying package that implements the negotiate (SPNEGO) authentication is nascent.
+
+:::`).
+			Advanced().
+			Version("1.19.0").
+			Optional(),
 		service.NewTransportField(hcFieldTransport),
 	)
 
@@ -196,6 +252,62 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 		conf.digestAuth = digestAuthOptions
 	}
 
+	negotiate := pConf.Namespace(hcFieldNegotiate)
+
+	negotiateEnabled, _ := negotiate.FieldBool(hcFieldNegotiateEnabled)
+
+	if negotiateEnabled {
+		negotiateAuth := &NegotiateAuth{}
+
+		negotiateApi, _ := negotiate.FieldString(hcFieldNegotiateApi)
+		switch negotiateApi {
+		case "sspi":
+			negotiateAuth.Api = spnego_options.SSPI
+		case "pure":
+			negotiateAuth.Api = spnego_options.PURE
+		default:
+			negotiateAuth.Api = spnego_options.PURE
+		}
+
+		negotiateAuthOptions := spnego_options.Options{
+			AllowBasicAuth: false,
+		}
+
+		negotiateAuthOptions.UserOnlyForFallback, _ = negotiate.FieldBool(hcFieldNegotiateUserOnlyForFallback)
+
+		if negotiate.Contains(hcFieldNegotiateUser) {
+			negotiateUser := negotiate.Namespace(hcFieldNegotiateUser)
+			userDomain, _ := negotiateUser.FieldString(hcFieldNegotiateUserDomain)
+			userName, _ := negotiateUser.FieldString(hcFieldNegotiateUserName)
+			userPassword, _ := negotiateUser.FieldString(hcFieldNegotiateUserPassword)
+
+			if len(userDomain) > 0 || len(userName) > 0 || len(userPassword) > 0 {
+				negotiateAuthOptions.User = &spnego_options.User{
+					Domain:   userDomain,
+					Name:     userName,
+					Password: userPassword,
+				}
+			}
+
+		}
+
+		if negotiate.Contains(hcFieldNegotiateKerberos) {
+			negotiateUser := negotiate.Namespace(hcFieldNegotiateKerberos)
+			filePath, _ := negotiateUser.FieldString(hcFieldNegotiateKerberosConfigFilePath)
+			ccname, _ := negotiateUser.FieldString(hcFieldNegotiateKerberosCCName)
+
+			if len(filePath) > 0 || len(ccname) > 0 {
+				negotiateAuthOptions.Kerberos = &spnego_options.Kerberos{
+					ConfigFilePath: filePath,
+					CCName:         ccname,
+				}
+			}
+		}
+
+		negotiateAuth.Options = negotiateAuthOptions
+
+		conf.negotiateAuth = negotiateAuth
+	}
 	if conf.transport, err = pConf.FieldHTTPTransport(hcFieldTransport); err != nil {
 		return
 	}
@@ -206,6 +318,11 @@ func ConfigFromParsed(pConf *service.ParsedConfig) (conf OldConfig, err error) {
 type DigestAuth struct {
 	Username string
 	Password string
+}
+
+type NegotiateAuth struct {
+	Api     spnego_options.Api
+	Options spnego_options.Options
 }
 
 // OldConfig is a configuration struct for an HTTP client.
@@ -230,6 +347,7 @@ type OldConfig struct {
 	authSigner          func(f fs.FS, req *http.Request) error
 	clientCtor          func(context.Context, *http.Client) *http.Client
 	digestAuth          *DigestAuth
+	negotiateAuth       *NegotiateAuth
 
 	transport *http.Transport
 }
