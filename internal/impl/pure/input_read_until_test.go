@@ -294,3 +294,46 @@ read_until:
 	_, open = <-strm.TransactionChan()
 	require.False(t, open)
 }
+
+func TestReadUntilRestartBackoffConfig(t *testing.T) {
+	content := []byte("hello")
+
+	tmpfile, err := os.CreateTemp("", "bento_read_until_backoff_test")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.Write(content)
+	require.NoError(t, err)
+	require.NoError(t, tmpfile.Close())
+
+	conf, err := testutil.InputFromYAML(fmt.Sprintf(`
+read_until:
+  check: 'false'
+  restart_input: true
+  restart_backoff:
+    initial_interval: 10ms
+    max_interval: 50ms
+  input:
+    file:
+      paths: [ "%v" ]
+`, tmpfile.Name()))
+	require.NoError(t, err)
+
+	ctx, done := context.WithTimeout(context.Background(), time.Second*5)
+	defer done()
+
+	in, err := bmock.NewManager().NewInput(conf)
+	require.NoError(t, err)
+
+	// Read a few messages across restarts to confirm the backoff config is accepted
+	// and the input continues to function correctly.
+	for range 3 {
+		tran, open := <-in.TransactionChan()
+		require.True(t, open)
+		assert.Equal(t, "hello", string(tran.Payload[0].AsBytes()))
+		require.NoError(t, tran.Ack(ctx, nil))
+	}
+
+	in.TriggerStopConsuming()
+	require.NoError(t, in.WaitForClose(ctx))
+}
