@@ -313,7 +313,6 @@ read_until:
   restart_backoff:
     initial_interval: 10ms
     max_interval: 50ms
-    max_elapsed_time: 0s
   input:
     file:
       paths: [ "%v" ]

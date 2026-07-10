@@ -29,7 +29,6 @@ input:
     restart_backoff:
       initial_interval: 1ms
       max_interval: 100ms
-      max_elapsed_time: 0s
 ```
 
 Messages are read continuously while the query check returns false, when the query returns true the message that triggered the check is sent out and the input is closed. Use this to define inputs where the stream should end once a certain message appears.
@@ -111,7 +110,7 @@ check: count("messages") >= 100
 
 ### `idle_timeout`
 
-The maximum amount of time without receiving new messages after which the input is closed.
+The maximum amount of time without receiving new messages after which the input is closed or restarted, according to `restart_input`
 
 
 Type: `string`  
@@ -136,10 +135,11 @@ Backoff policy for restarting the child input. Only used when `restart_input` is
 
 
 Type: `object`  
+Requires version 1.19.0 or newer  
 
 ### `restart_backoff.initial_interval`
 
-The initial period to wait between retry attempts.
+The initial period to wait between child input restarts.
 
 
 Type: `string`  
@@ -155,7 +155,7 @@ initial_interval: 1s
 
 ### `restart_backoff.max_interval`
 
-The maximum period to wait between retry attempts
+The maximum period to wait between child input restarts.
 
 
 Type: `string`  
@@ -167,22 +167,6 @@ Default: `"100ms"`
 max_interval: 5s
 
 max_interval: 1m
-```
-
-### `restart_backoff.max_elapsed_time`
-
-The maximum overall period of time to spend on retry attempts before the request is aborted. Setting this value to a zeroed duration (such as `0s`) will result in unbounded retries.
-
-
-Type: `string`  
-Default: `"0s"`  
-
-```yml
-# Examples
-
-max_elapsed_time: 1m
-
-max_elapsed_time: 1h
 ```
 
 

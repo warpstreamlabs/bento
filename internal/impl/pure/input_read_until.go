@@ -83,17 +83,21 @@ input:
 			).
 			Optional(),
 		service.NewDurationField(ruiFieldIdleTimeout).
-			Description("The maximum amount of time without receiving new messages after which the input is closed.").
+			Description("The maximum amount of time without receiving new messages after which the input is closed or restarted, according to `restart_input`").
 			Example("5s").
 			Optional(),
 		service.NewBoolField(ruiFieldRestart).
 			Description("Whether the input should be reopened if it closes itself before the condition has resolved to true.").
 			Default(false),
-		service.NewBackOffField(ruiFieldRestartBackoff, true, &backoff.ExponentialBackOff{
-			InitialInterval: time.Millisecond,
-			MaxInterval:     time.Millisecond * 100,
-			MaxElapsedTime:  0,
-		}).Description("Backoff policy for restarting the child input. Only used when `restart_input` is `true`."),
+		service.NewObjectField(ruiFieldRestartBackoff,
+			service.NewDurationField("initial_interval").
+				Description("The initial period to wait between child input restarts.").
+				Default("1ms").Example("50ms").Example("1s"),
+			service.NewDurationField("max_interval").
+				Description("The maximum period to wait between child input restarts.").
+				Default("100ms").Example("5s").Example("1m"),
+		).Description("Backoff policy for restarting the child input. Only used when `restart_input` is `true`.").
+			Version("1.19.0"),
 	)
 }
 
@@ -149,8 +153,17 @@ func newReadUntilInputFromParsed(conf *service.ParsedConfig, res *service.Resour
 		return nil, err
 	}
 
-	restartBackoff, err := conf.FieldBackOff(ruiFieldRestartBackoff)
-	if err != nil {
+	restartBackoff := backoff.NewExponentialBackOff()
+
+	// force this backoff to be unbounded; we won't handle Stop
+	restartBackoff.MaxElapsedTime = 0
+
+	backoffNs := conf.Namespace(ruiFieldRestartBackoff)
+	if restartBackoff.InitialInterval, err = backoffNs.FieldDuration("initial_interval"); err != nil {
+		return nil, err
+	}
+
+	if restartBackoff.MaxInterval, err = backoffNs.FieldDuration("max_interval"); err != nil {
 		return nil, err
 	}
 
