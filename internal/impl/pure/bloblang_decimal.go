@@ -1,6 +1,7 @@
 package pure
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -11,16 +12,13 @@ import (
 // twosComplementToBigInt decodes decimal logical-type bytes into a signed unscaled integer.
 //
 // The value is stored as two's complement big-endian bytes. Scale and precision come from
-// the schema (Connect/Debezium/Iceberg), not from the byte payload.
+// the schema (Connect/Debezium/Iceberg), not from the byte payload. Callers must pass a
+// non-empty payload; empty/nil bytes are rejected by parse_big_decimal.
 //
 //   https://docs.confluent.io/platform/current/connect/conversions.html#decimal-type
 //   https://debezium.io/documentation/faq/#how_to_retrieve_decimal_field_from_binary_representation
 //   https://iceberg.apache.org/spec/#decimal-type
 func twosComplementToBigInt(val []byte) *big.Int {
-	if len(val) == 0 {
-		return big.NewInt(0)
-	}
-
 	if val[0]&0x80 != 0 {
 		// MSB of the first byte is the sign bit. Negative values need two's complement
 		// decode (~bytes + 1, then negate). Example: 0xFF is -1.
@@ -83,6 +81,9 @@ func init() {
 			}
 
 			return bloblang.BytesMethod(func(input []byte) (any, error) {
+				if len(input) == 0 {
+					return nil, errors.New("cannot parse empty bytes as big decimal")
+				}
 				return formatScaledDecimal(twosComplementToBigInt(input), int(scale)), nil
 			}), nil
 		},

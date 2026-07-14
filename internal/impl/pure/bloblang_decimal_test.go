@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
 func TestTwosComplementToBigInt(t *testing.T) {
@@ -40,10 +41,6 @@ func TestTwosComplementToBigInt(t *testing.T) {
 		{name: "-64", input: []byte{0xC0}, expected: big.NewInt(-64)},
 		{name: "-512", input: []byte{0xFE, 0x00}, expected: big.NewInt(-512)},
 		{name: "-1024", input: []byte{0xFC, 0x00}, expected: big.NewInt(-1024)},
-
-		// Edge cases.
-		{name: "nil input", input: nil, expected: big.NewInt(0)},
-		{name: "empty input", input: []byte{}, expected: big.NewInt(0)},
 	}
 
 	for _, tc := range tests {
@@ -75,4 +72,26 @@ func TestFormatScaledDecimal(t *testing.T) {
 			require.Equal(t, tc.expected, formatScaledDecimal(tc.unscaled, tc.scale))
 		})
 	}
+}
+
+func TestParseBigDecimalEmptyBytes(t *testing.T) {
+	exec, err := bloblang.Parse(`root = this.parse_big_decimal(scale: 2)`)
+	require.NoError(t, err)
+
+	_, err = exec.Query([]byte{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cannot parse empty bytes as big decimal")
+
+	_, err = exec.Query([]byte(nil))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cannot parse empty bytes as big decimal")
+}
+
+func TestParseBigDecimalZeroBytes(t *testing.T) {
+	exec, err := bloblang.Parse(`root = this.parse_big_decimal(scale: 2)`)
+	require.NoError(t, err)
+
+	v, err := exec.Query([]byte{0x00})
+	require.NoError(t, err)
+	require.Equal(t, "0.00", v)
 }
