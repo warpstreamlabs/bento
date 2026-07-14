@@ -46,7 +46,7 @@ func init() {
 						break
 					}
 
-					for i := 0; i < n; i++ {
+					for i := range n {
 						result = append(result, rowBuf[i])
 					}
 				}

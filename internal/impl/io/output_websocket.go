@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -27,6 +28,14 @@ func websocketOutputSpec() *service.ConfigSpec {
 		Summary("Sends messages to an HTTP server via a websocket connection.").
 		Field(service.NewURLField("url").Description("The URL to connect to.")).
 		Field(service.NewURLField("proxy_url").Description("An optional HTTP proxy URL.").Advanced().Optional()).
+		Field(service.NewInterpolatedStringMapField("headers").
+			Description("A map of custom headers to add to the websocket handshake.").
+			Example(map[string]any{
+				"Sec-WebSocket-Protocol": "graphql-ws",
+				"Authorization":          `Bearer ${! env("TOKEN") }`,
+			}).
+			Advanced().Optional().
+			Default(map[string]any{})).
 		Field(service.NewTLSToggledField("tls"))
 
 	for _, f := range service.NewHTTPRequestAuthSignerFields() {
@@ -71,6 +80,8 @@ type websocketWriter struct {
 	tlsEnabled     bool
 	tlsConf        *tls.Config
 	reqSigner      func(f fs.FS, req *http.Request) error
+
+	headers map[string]*service.InterpolatedString
 }
 
 func newWebsocketWriterFromParsed(conf *service.ParsedConfig, mgr bundle.NewManagement) (*websocketWriter, error) {
@@ -98,6 +109,9 @@ func newWebsocketWriterFromParsed(conf *service.ParsedConfig, mgr bundle.NewMana
 	if ws.reqSigner, err = conf.HTTPRequestAuthSignerFromParsed(); err != nil {
 		return nil, err
 	}
+	if ws.headers, err = conf.FieldInterpolatedStringMap("headers"); err != nil {
+		return nil, err
+	}
 	return ws, nil
 }
 
@@ -117,6 +131,13 @@ func (w *websocketWriter) Connect(ctx context.Context) error {
 	}
 
 	headers := http.Header{}
+	for k, v := range w.headers {
+		value, err := v.TryString(service.NewMessage(nil))
+		if err != nil {
+			return fmt.Errorf(`failed string interpolation on header %q: %w`, k, err)
+		}
+		headers.Add(k, value)
+	}
 
 	err := w.reqSigner(w.mgr.FS(), &http.Request{
 		URL:    w.urlParsed,

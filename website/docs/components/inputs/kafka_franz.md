@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 A Kafka input using the [Franz Kafka client library](https://github.com/twmb/franz-go).
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -83,6 +81,8 @@ input:
       check: ""
       processors: [] # No default (optional)
     rate_limit: ""
+    extract_tracing_map: root = @ # No default (optional)
+    new_root_span_with_link: false # No default (optional)
 ```
 
 </TabItem>
@@ -102,6 +102,7 @@ This input adds the following metadata fields to each message:
 - kafka_partition
 - kafka_offset
 - kafka_timestamp_unix
+- kafka_timestamp_unix_ms
 - kafka_tombstone_message
 - All record headers
 ```
@@ -508,6 +509,64 @@ The token to use for a single session's OAUTHBEARER authentication.
 Type: `string`  
 Default: `""`  
 
+### `sasl[].oauth2`
+
+Allows you to specify open authentication via OAuth version 2 using the client credentials token flow.
+
+
+Type: `object`  
+Requires version 1.18.0 or newer  
+
+### `sasl[].oauth2.enabled`
+
+Whether to use OAuth version 2 in requests.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `sasl[].oauth2.client_key`
+
+A value used to identify the client to the token provider.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].oauth2.client_secret`
+
+A secret used to establish ownership of the client key.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].oauth2.token_url`
+
+The URL of the token provider.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].oauth2.scopes`
+
+A list of optional requested permissions.
+
+
+Type: `array`  
+Default: `[]`  
+
+### `sasl[].oauth2.endpoint_params`
+
+A list of optional endpoint parameters, values should be arrays of strings.
+
+
+Type: `object`  
+
 ### `sasl[].extensions`
 
 Key/value pairs to add to OAUTHBEARER authentication requests.
@@ -587,7 +646,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `sasl[].aws.credentials.role`
 
@@ -747,5 +805,28 @@ An optional [`rate_limit`](/docs/components/rate_limits/about) to throttle invoc
 
 Type: `string`  
 Default: `""`  
+
+### `extract_tracing_map`
+
+EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to extract an object containing tracing propagation information, which will then be used as the root tracing span for the message. The specification of the extracted fields must match the format used by the service wide tracer.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+extract_tracing_map: root = @
+
+extract_tracing_map: root = this.meta.span
+```
+
+### `new_root_span_with_link`
+
+EXPERIMENTAL: Starts a new root span with link to parent.
+
+
+Type: `bool`  
+Requires version 1.17.0 or newer  
 
 

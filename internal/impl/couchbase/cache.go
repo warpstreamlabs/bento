@@ -15,7 +15,6 @@ import (
 func CacheConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		// TODO Stable().
-		Version("1.0.0").
 		Summary(`Use a Couchbase instance as a cache.`).
 		Fields(client.CommonFields()...).
 		Field(service.NewDurationField("default_ttl").

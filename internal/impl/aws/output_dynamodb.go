@@ -28,6 +28,7 @@ const (
 	ddboFieldTable              = "table"
 	ddboFieldStringColumns      = "string_columns"
 	ddboFieldJSONMapColumns     = "json_map_columns"
+	ddboFieldOmitIfEmpty        = "omit_if_empty"
 	ddboFieldTTL                = "ttl"
 	ddboFieldTTLKey             = "ttl_key"
 	ddboFieldDelete             = "delete"
@@ -35,17 +36,23 @@ const (
 	ddboFieldDeletePartitionKey = "partition_key"
 	ddboFieldDeleteSortKey      = "sort_key"
 	ddboFieldBatching           = "batching"
+	ddboFieldJSONNumberType     = "json_number_type"
+
+	ddboJSONNumberTypeString = "string"
+	ddboJSONNumberTypeNumber = "number"
 )
 
 type ddboConfig struct {
 	Table                   string
 	StringColumns           map[string]*service.InterpolatedString
 	JSONMapColumns          map[string]string
+	OmitIfEmpty             bool
 	TTL                     string
 	TTLKey                  string
 	DeleteConditionExec     *bloblang.Executor
 	PartitionKeyDeleteField string
 	SortKeyDeleteField      string
+	NumbersAsN              bool
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -61,12 +68,20 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 	if conf.JSONMapColumns, err = pConf.FieldStringMap(ddboFieldJSONMapColumns); err != nil {
 		return
 	}
+	if conf.OmitIfEmpty, err = pConf.FieldBool(ddboFieldOmitIfEmpty); err != nil {
+		return
+	}
 	if conf.TTL, err = pConf.FieldString(ddboFieldTTL); err != nil {
 		return
 	}
 	if conf.TTLKey, err = pConf.FieldString(ddboFieldTTLKey); err != nil {
 		return
 	}
+	var jsonNumberType string
+	if jsonNumberType, err = pConf.FieldString(ddboFieldJSONNumberType); err != nil {
+		return
+	}
+	conf.NumbersAsN = jsonNumberType == ddboJSONNumberTypeNumber
 	if conf.aconf, err = GetSession(context.TODO(), pConf); err != nil {
 		return
 	}
@@ -95,7 +110,6 @@ func ddboConfigFromParsed(pConf *service.ParsedConfig) (conf ddboConfig, err err
 func ddboOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary(`Inserts items into or deletes items from a DynamoDB table.`).
 		Description(`
@@ -124,7 +138,7 @@ json_map_columns:
   "": .
 `+"```"+`
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `+"`NULL`"+` attribute by default. Set `+"`"+ddboFieldOmitIfEmpty+"`"+` to `+"`true`"+` in order to omit the column instead.
 
 ### Credentials
 
@@ -158,6 +172,10 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example(map[string]string{
 					"": ".",
 				}),
+			service.NewBoolField(ddboFieldOmitIfEmpty).
+				Description("When set to `true`, a `"+ddboFieldJSONMapColumns+"` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.").
+				Advanced().
+				Default(false),
 			service.NewStringField(ddboFieldTTL).
 				Description("An optional TTL to set for items, calculated from the moment the message is sent.").
 				Default("").
@@ -165,6 +183,10 @@ This output benefits from sending messages as a batch for improved performance. 
 			service.NewStringField(ddboFieldTTLKey).
 				Description("The column key to place the TTL value within.").
 				Default("").
+				Advanced(),
+			service.NewStringEnumField(ddboFieldJSONNumberType, ddboJSONNumberTypeString, ddboJSONNumberTypeNumber).
+				Description("Controls how JSON numbers extracted via `"+ddboFieldJSONMapColumns+"` are stored. When set to `"+ddboJSONNumberTypeNumber+"` JSON numbers are stored as DynamoDB `N` (number) attributes, which is recommended for numeric data. Note that DynamoDB `N` accepts at most 38 digits of precision and rejects values exceeding it. When set to `"+ddboJSONNumberTypeString+"` JSON numbers are stored as `S` (string) attributes, preserving the legacy behaviour.").
+				Default(ddboJSONNumberTypeString).
 				Advanced(),
 			service.NewObjectField(ddboFieldDelete,
 				service.NewBloblangField(ddboFieldDeleteCondition).
@@ -305,12 +327,12 @@ func (d *dynamoDBWriter) Connect(ctx context.Context) error {
 	return nil
 }
 
-func anyToAttributeValue(root any) types.AttributeValue {
+func anyToAttributeValue(root any, numbersAsN bool) types.AttributeValue {
 	switch v := root.(type) {
 	case map[string]any:
 		m := make(map[string]types.AttributeValue, len(v))
 		for k, v2 := range v {
-			m[k] = anyToAttributeValue(v2)
+			m[k] = anyToAttributeValue(v2, numbersAsN)
 		}
 		return &types.AttributeValueMemberM{
 			Value: m,
@@ -318,7 +340,7 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	case []any:
 		l := make([]types.AttributeValue, len(v))
 		for i, v2 := range v {
-			l[i] = anyToAttributeValue(v2)
+			l[i] = anyToAttributeValue(v2, numbersAsN)
 		}
 		return &types.AttributeValueMemberL{
 			Value: l,
@@ -328,6 +350,11 @@ func anyToAttributeValue(root any) types.AttributeValue {
 			Value: v,
 		}
 	case json.Number:
+		if numbersAsN {
+			return &types.AttributeValueMemberN{
+				Value: v.String(),
+			}
+		}
 		return &types.AttributeValueMemberS{
 			Value: v.String(),
 		}
@@ -357,12 +384,12 @@ func anyToAttributeValue(root any) types.AttributeValue {
 	}
 }
 
-func jsonToMap(path string, root any) (types.AttributeValue, error) {
+func jsonToMap(path string, root any, numbersAsN bool) (types.AttributeValue, error) {
 	gObj := gabs.Wrap(root)
 	if path != "" {
 		gObj = gObj.Path(path)
 	}
-	return anyToAttributeValue(gObj.Data()), nil
+	return anyToAttributeValue(gObj.Data(), numbersAsN), nil
 }
 
 func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch) error {
@@ -378,41 +405,84 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 
 	writeReqs := make([]types.WriteRequest, len(b))
 
-	if err := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
-		if d.conf.DeleteConditionExec == nil {
+	// Record per-message request construction failures by their original batch
+	// index rather than early-returning. Previously a single construction
+	// failure (e.g. a non-JSON body or a failing delete condition) caused an
+	// early return before BatchWriteItem was ever called, which meant every
+	// other message in the batch was acked as delivered but never written -
+	// silent data loss.
+	constructionErrs := make([]error, len(b))
+
+	walkErr := b.WalkWithBatchedErrors(func(i int, p *service.Message) error {
+		buildErr := func() error {
+			if d.conf.DeleteConditionExec == nil {
+				return d.addPutRequest(i, &b, writeReqs, p)
+			}
+
+			msgWithContext := p.WithContext(ctx)
+
+			result, err := msgWithContext.BloblangQuery(d.conf.DeleteConditionExec)
+			if err != nil {
+				return fmt.Errorf("delete condition exec error: %w", err)
+			}
+
+			resultMsgBytes, err := result.AsBytes()
+			if err != nil {
+				return fmt.Errorf("delete condition result parse error: %w", err)
+			}
+
+			isDelete, err := strconv.ParseBool(string(resultMsgBytes))
+			if err != nil {
+				return fmt.Errorf("delete condition result parse error: %w", err)
+			}
+
+			if isDelete {
+				return d.addDeleteRequest(i, &b, writeReqs, p)
+			}
+
 			return d.addPutRequest(i, &b, writeReqs, p)
+		}()
+		if buildErr != nil {
+			constructionErrs[i] = buildErr
 		}
+		return buildErr
+	})
 
-		msgWithContext := p.WithContext(ctx)
-
-		result, err := msgWithContext.BloblangQuery(d.conf.DeleteConditionExec)
-		if err != nil {
-			return fmt.Errorf("delete condition exec error: %w", err)
+	if walkErr != nil {
+		batchError, ok := walkErr.(*service.BatchError)
+		if !ok {
+			// A non-BatchError is fatal/terminal (e.g. ErrNotConnected). This
+			// also covers a single-message batch whose only message failed
+			// construction, where the raw error is returned.
+			return walkErr
 		}
-
-		resultMsgBytes, err := result.AsBytes()
-		if err != nil {
-			return fmt.Errorf("delete condition result parse error: %w", err)
+		if batchError.IndexedErrors() == len(b) {
+			// Every message failed request construction, nothing to send.
+			return batchError
 		}
+	}
 
-		isDelete, err := strconv.ParseBool(string(resultMsgBytes))
-		if err != nil {
-			return fmt.Errorf("delete condition result parse error: %w", err)
+	// Only messages that were built successfully can be sent. Failed indices
+	// still hold zero-value types.WriteRequest{} entries (both PutRequest and
+	// DeleteRequest nil) which DynamoDB would reject, so filter them out of the
+	// request. Crucially, writeReqs itself is NOT reindexed: the individual
+	// retry path below indexes it by original message index and already skips
+	// nil entries, and the unprocessed-items re-drive operates on the
+	// response's UnprocessedItems.
+	reqItems := writeReqs
+	if walkErr != nil {
+		reqItems = make([]types.WriteRequest, 0, len(writeReqs))
+		for _, req := range writeReqs {
+			if req.PutRequest == nil && req.DeleteRequest == nil {
+				continue
+			}
+			reqItems = append(reqItems, req)
 		}
-
-		if isDelete {
-			return d.addDeleteRequest(i, &b, writeReqs, p)
-		}
-
-		return d.addPutRequest(i, &b, writeReqs, p)
-
-	}); err != nil {
-		return err
 	}
 
 	batchResult, err := d.client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
 		RequestItems: map[string][]types.WriteRequest{
-			*d.table: writeReqs,
+			*d.table: reqItems,
 		},
 	})
 	if err != nil {
@@ -472,6 +542,24 @@ func (d *dynamoDBWriter) WriteBatch(ctx context.Context, b service.MessageBatch)
 				err = batchErr
 			}
 		}
+		if err == nil {
+			// Every remaining request was written; the walk error is nil or
+			// the *service.BatchError indexing the construction failures,
+			// which must be surfaced so those messages are nacked rather than
+			// falsely acked as delivered.
+			return walkErr
+		}
+		// Fold the construction failures into the write failures so they are
+		// not falsely acked. A plain error (e.g. an early backoff.Stop before
+		// a full pass) already fails the entire batch, covering them.
+		if batchErr, ok := err.(*service.BatchError); ok {
+			for i, cerr := range constructionErrs {
+				if cerr != nil {
+					batchErr = batchErr.Failed(i, cerr)
+				}
+			}
+			return batchErr
+		}
 		return err
 	}
 
@@ -506,7 +594,17 @@ unprocessedLoop:
 			err = errors.New("ran out of request retries")
 		}
 	}
-	return err
+	if err != nil {
+		// A plain error fails the entire batch, covering any construction
+		// failures as well.
+		return err
+	}
+
+	// The walk error is nil when every message was built successfully, and
+	// otherwise it is the *service.BatchError indexing the construction
+	// failures, which must be surfaced so those messages are nacked rather
+	// than falsely acked as delivered.
+	return walkErr
 }
 
 func (d *dynamoDBWriter) Close(context.Context) error {
@@ -525,7 +623,7 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 		if err != nil {
 			return err
 		}
-		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot)
+		attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.PartitionKeyDeleteField], jRoot, d.conf.NumbersAsN)
 		if err != nil {
 			return err
 		}
@@ -546,7 +644,7 @@ func (d *dynamoDBWriter) addDeleteRequest(i int, b *service.MessageBatch, writeR
 			if err != nil {
 				return err
 			}
-			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot)
+			attr, err := jsonToMap(d.conf.JSONMapColumns[d.conf.SortKeyDeleteField], jRoot, d.conf.NumbersAsN)
 			if err != nil {
 				return err
 			}
@@ -590,8 +688,17 @@ func (d *dynamoDBWriter) addPutRequest(i int, b *service.MessageBatch, writeReqs
 			d.log.Errorf("Failed to extract JSON maps from document: %v", err)
 			return err
 		}
+		gRoot := gabs.Wrap(jRoot)
 		for k, v := range d.conf.JSONMapColumns {
-			if attr, err := jsonToMap(v, jRoot); err == nil {
+			// When omit_if_empty is enabled, a path that is not found within the
+			// document is omitted (as documented) rather than being written as a
+			// NULL attribute. When disabled, the legacy behaviour is preserved
+			// and the missing path is written as a NULL attribute. An empty path
+			// refers to the whole document and is always populated.
+			if d.conf.OmitIfEmpty && v != "" && !gRoot.ExistsP(v) {
+				continue
+			}
+			if attr, err := jsonToMap(v, jRoot, d.conf.NumbersAsN); err == nil {
 				if k == "" {
 					if mv, ok := attr.(*types.AttributeValueMemberM); ok {
 						maps.Copy(items, mv.Value)

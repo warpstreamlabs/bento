@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends a message to a NATS subject and expects a reply, from a NATS subscriber acting as a responder, back.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Executes a SQL query against [Azure CosmosDB](https://learn.microsoft.com/en-us/azure/cosmos-db/introduction) and creates a batch of messages from each page of items.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },

@@ -145,23 +145,23 @@ func (l *logProcessor) levelToLogFn(level string) (func(logger log.Modular, msg 
 	switch level {
 	case "TRACE":
 		return func(logger log.Modular, msg string) {
-			logger.Trace(msg)
+			logger.Trace("%s", msg)
 		}, nil
 	case "DEBUG":
 		return func(logger log.Modular, msg string) {
-			logger.Debug(msg)
+			logger.Debug("%s", msg)
 		}, nil
 	case "INFO":
 		return func(logger log.Modular, msg string) {
-			logger.Info(msg)
+			logger.Info("%s", msg)
 		}, nil
 	case "WARN":
 		return func(logger log.Modular, msg string) {
-			logger.Warn(msg)
+			logger.Warn("%s", msg)
 		}, nil
 	case "ERROR":
 		return func(logger log.Modular, msg string) {
-			logger.Error(msg)
+			logger.Error("%s", msg)
 		}, nil
 	}
 	return nil, fmt.Errorf("log level not recognised: %v", level)

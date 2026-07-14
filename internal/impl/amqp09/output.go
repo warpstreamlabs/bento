@@ -33,8 +33,7 @@ The fields 'key', 'exchange' and 'type' can be dynamically set using function in
 				Description("A list of URLs to connect to. The first URL to successfully establish a connection will be used until the connection is closed. If an item of the list contains commas it will be expanded into multiple URLs.").
 				Example([]string{"amqp://guest:guest@127.0.0.1:5672/"}).
 				Example([]string{"amqp://127.0.0.1:5672/,amqp://127.0.0.2:5672/"}).
-				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}).
-				Version("1.0.0"),
+				Example([]string{"amqp://127.0.0.1:5672/", "amqp://127.0.0.2:5672/"}),
 			service.NewInterpolatedStringField(exchangeField).
 				Description("An AMQP exchange to publish to."),
 			service.NewObjectField(exchangeDeclareField,
@@ -296,7 +295,7 @@ func (a *amqp09Writer) Connect(ctx context.Context) error {
 
 	if sExchange, isStatic := a.exchange.Static(); isStatic {
 		if err := a.declareExchange(sExchange); err != nil {
-			a.log.Errorf("Failed to declare exchange: %w", err)
+			a.log.Errorf("Failed to declare exchange: %v", err)
 		}
 	}
 	return nil
@@ -312,7 +311,7 @@ func (a *amqp09Writer) disconnect() error {
 	}
 	if a.conn != nil {
 		if err := a.conn.Close(); err != nil {
-			a.log.Errorf("Failed to close connection cleanly: %w", err)
+			a.log.Errorf("Failed to close connection cleanly: %v", err)
 		}
 		a.conn = nil
 	}
@@ -484,7 +483,7 @@ func (a *amqp09Writer) Write(ctx context.Context, msg *service.Message) error {
 	)
 	if err != nil {
 		_ = a.disconnect()
-		a.log.Errorf("Failed to send message: %w", err)
+		a.log.Errorf("Failed to send message: %v", err)
 		return service.ErrNotConnected
 	}
 	if !conf.Wait() {

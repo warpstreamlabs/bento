@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Dequeue objects from an Azure Storage Queue.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -118,7 +116,6 @@ The timeout duration until a dequeued message gets visible again, 30s by default
 
 Type: `string`  
 Default: `"30s"`  
-Requires version 1.0.0 or newer  
 
 ### `max_in_flight`
 

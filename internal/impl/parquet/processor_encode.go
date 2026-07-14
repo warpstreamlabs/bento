@@ -24,16 +24,14 @@ func parquetEncodeProcessorConfig() *service.ConfigSpec {
 			Description("The default compression type to use for fields.").
 			Default("uncompressed")).
 		Field(service.NewStringEnumField("default_encoding",
-			"DELTA_LENGTH_BYTE_ARRAY", "PLAIN",
+			"DELTA_LENGTH_BYTE_ARRAY", "PLAIN", "RLE_DICTIONARY",
 		).
 			Description("The default encoding type to use for fields. A custom default encoding is only necessary when consuming data with libraries that do not support `DELTA_LENGTH_BYTE_ARRAY` and is therefore best left unset where possible.").
 			Default("DELTA_LENGTH_BYTE_ARRAY").
-			Advanced().
-			Version("1.0.0")).
+			Advanced()).
 		Description(`
 This processor uses [https://github.com/parquet-go/parquet-go](https://github.com/parquet-go/parquet-go), which is itself experimental. Therefore changes could be made into how this processor functions outside of major version releases.
 `).
-		Version("1.0.0").
 		// TODO: Add an example that demonstrates error handling
 		Example("Writing Parquet Files to AWS S3",
 			"In this example we use the batching mechanism of an `aws_s3` output to collect a batch of messages in memory, which then converts it to a parquet file and uploads it.",
@@ -189,13 +187,15 @@ func newParquetEncodeProcessorFromConfig(
 	// Note: these values are derived from the supported parquet-go schema struct tags i.e
 	// plain - enables the plain encoding (no-op default)
 	// delta - enables delta encoding on the parquet column (default for string types)
-	// dict  - enables dictionary encoding on the parquet column (not currently unsupported)
+	// dict  - enables dictionary encoding on the parquet column
 	var defaultEncodingTag string
 	switch encodingStr {
 	case parquet.Plain.String():
 		defaultEncodingTag = "plain"
 	case parquet.DeltaLengthByteArray.String():
 		defaultEncodingTag = "delta"
+	case parquet.RLEDictionary.String():
+		defaultEncodingTag = "dict"
 	default:
 		return nil, fmt.Errorf("default_encoding type %v not recognised", encodingStr)
 	}

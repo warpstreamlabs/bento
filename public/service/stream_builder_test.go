@@ -1354,14 +1354,14 @@ func (tpl *mockPrintLogger) Printf(format string, v ...any) {
 	tpl.mut.Lock()
 	defer tpl.mut.Unlock()
 
-	tpl.buf.WriteString(fmt.Sprintf(format, v...))
+	fmt.Fprintf(&tpl.buf, format, v...)
 }
 
 func (tpl *mockPrintLogger) Println(v ...any) {
 	tpl.mut.Lock()
 	defer tpl.mut.Unlock()
 
-	tpl.buf.WriteString(fmt.Sprintln(v...))
+	fmt.Fprintln(&tpl.buf, v...)
 }
 
 func (tpl *mockPrintLogger) Content() string {

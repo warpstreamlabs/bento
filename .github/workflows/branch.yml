@@ -1,0 +1,42 @@
+name: Create a new branch
+on:
+  workflow_dispatch:
+    inputs:
+      branchName:
+        description: 'Name of the branch'
+        required: true
+      ref:
+        description: 'Git reference to create the branch from'
+        required: false
+        default: main
+      cherryPick:
+        # TODO: Consider automating this. Perhaps add 'cherry-pick' labels to PRs and allow
+        # branch to be created, labeled PR commits cherry-picked, and labels removed.
+        description: 'Raw args passed to `git cherry-pick` (e.g. "-x abc123 def456" or "-m 1 <merge-sha>")'
+        required: false
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      BRANCH_NAME: ${{ inputs.branchName }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: '${{ inputs.ref }}'
+          fetch-depth: '0'
+          fetch-tags: 'true'
+      
+      - run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git checkout -b "$BRANCH_NAME"
+
+      - if: ${{ inputs.cherryPick != '' }}
+        run: git cherry-pick $CHERRY_PICK
+        env:
+          CHERRY_PICK: ${{ inputs.cherryPick }}
+
+      - run: git push origin "$BRANCH_NAME"

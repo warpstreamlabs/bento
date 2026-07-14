@@ -46,7 +46,6 @@ func sqlRawOutputConfig() *service.ConfigSpec {
 	}
 
 	spec = spec.Field(service.NewBatchPolicyField("batching")).
-		Version("1.0.0").
 		Example("Table Insert (MySQL)",
 			`
 Here we insert rows into a database by populating the columns id, name and topic with values extracted from messages and metadata:`,
@@ -166,7 +165,7 @@ func newSQLRawOutput(
 	connSettings *connSettings,
 	awsConf aws.Config,
 ) *sqlRawOutput {
-	return &sqlRawOutput{
+	s := &sqlRawOutput{
 		logger:       logger,
 		shutSig:      shutdown.NewSignaller(),
 		driver:       driverStr,
@@ -177,6 +176,21 @@ func newSQLRawOutput(
 		connSettings: connSettings,
 		awsConf:      awsConf,
 	}
+
+	go func() {
+		<-s.shutSig.HardStopChan()
+
+		s.dbMut.Lock()
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
+		s.dbMut.Unlock()
+
+		s.shutSig.TriggerHasStopped()
+	}()
+
+	return s
 }
 
 func (s *sqlRawOutput) Connect(ctx context.Context) error {
@@ -193,16 +207,6 @@ func (s *sqlRawOutput) Connect(ctx context.Context) error {
 	}
 
 	s.connSettings.apply(ctx, s.db, s.logger)
-
-	go func() {
-		<-s.shutSig.HardStopChan()
-
-		s.dbMut.Lock()
-		_ = s.db.Close()
-		s.dbMut.Unlock()
-
-		s.shutSig.TriggerHasStopped()
-	}()
 	return nil
 }
 
@@ -212,9 +216,12 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 		return nil
 	}
 
-	if errors.Is(err, driver.ErrBadConn) {
+	if errors.Is(err, driver.ErrBadConn) || isAuthError(s.driver, err) {
 		s.dbMut.Lock()
-		s.db = nil
+		if s.db != nil {
+			_ = s.db.Close()
+			s.db = nil
+		}
 		s.dbMut.Unlock()
 		return service.ErrNotConnected
 	}
@@ -225,6 +232,10 @@ func (s *sqlRawOutput) WriteBatch(ctx context.Context, batch service.MessageBatc
 func (s *sqlRawOutput) writeBatch(ctx context.Context, batch service.MessageBatch) error {
 	s.dbMut.RLock()
 	defer s.dbMut.RUnlock()
+
+	if s.db == nil {
+		return service.ErrNotConnected
+	}
 
 	var executor *service.MessageBatchBloblangExecutor
 	if s.argsMapping != nil {

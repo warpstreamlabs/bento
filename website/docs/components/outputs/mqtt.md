@@ -128,7 +128,6 @@ The maximum amount of time to wait in order to establish a connection before the
 
 Type: `string`  
 Default: `"30s"`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -375,7 +374,6 @@ The maximum amount of time to wait to write data before the attempt is abandoned
 
 Type: `string`  
 Default: `"3s"`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -400,7 +398,6 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ### `max_in_flight`
 

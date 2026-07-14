@@ -58,7 +58,7 @@ If the query fails to execute then the message will remain unchanged and the err
 		spec = spec.Field(f)
 	}
 
-	spec = spec.Version("1.0.0").
+	spec = spec.
 		Example("Table Query (PostgreSQL)",
 			`
 Here we query a database for columns of footable that share a `+"`user_id`"+`

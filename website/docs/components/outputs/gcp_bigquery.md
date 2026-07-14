@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Sends messages as new rows to a Google Cloud BigQuery table.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -60,6 +58,7 @@ output:
     project: ""
     dataset: "" # No default (required)
     table: "" # No default (required)
+    endpoint: ""
     format: NEWLINE_DELIMITED_JSON
     max_in_flight: 64
     write_disposition: WRITE_APPEND
@@ -155,6 +154,14 @@ This field supports [interpolation functions](/docs/configuration/interpolation#
 
 
 Type: `string`  
+
+### `endpoint`
+
+An optional endpoint to override the default BigQuery API URL.
+
+
+Type: `string`  
+Default: `""`  
 
 ### `format`
 

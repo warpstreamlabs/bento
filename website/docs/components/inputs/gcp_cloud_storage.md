@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Downloads objects within a Google Cloud Storage bucket, optionally filtered by a prefix.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -101,7 +99,6 @@ The [scanner](/docs/components/scanners/about) by which the stream of bytes cons
 
 Type: `scanner`  
 Default: `{"to_the_end":{}}`  
-Requires version 1.0.0 or newer  
 
 ### `delete_objects`
 

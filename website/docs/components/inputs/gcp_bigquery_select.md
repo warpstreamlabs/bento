@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Executes a `SELECT` query against BigQuery and creates a message for each row received.
 
-Introduced in version 1.0.0.
-
 ```yml
 # Config fields, showing default values
 input:

@@ -31,8 +31,7 @@ For basic inserts use the ` + "[`sql_insert`](/docs/components/outputs/sql)" + `
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of inserts to run in parallel.").
 			Default(64)).
-		Field(service.NewBatchPolicyField("batching")).
-		Version("1.0.0")
+		Field(service.NewBatchPolicyField("batching"))
 }
 
 func init() {

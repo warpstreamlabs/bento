@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Inserts items into or deletes items from a DynamoDB table.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -55,8 +53,10 @@ output:
     table: "" # No default (required)
     string_columns: {}
     json_map_columns: {}
+    omit_if_empty: false
     ttl: ""
     ttl_key: ""
+    json_number_type: string
     delete:
       condition: ""
       partition_key: ""
@@ -115,7 +115,7 @@ json_map_columns:
   "": .
 ```
 
-In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column will not be populated.
+In which case the top level document fields will be written at the root of the item, potentially overwriting previously defined column values. If a path is not found within a document the column is written as a `NULL` attribute by default. Set `omit_if_empty` to `true` in order to omit the column instead.
 
 ### Credentials
 
@@ -202,6 +202,14 @@ json_map_columns:
   "": .
 ```
 
+### `omit_if_empty`
+
+When set to `true`, a `json_map_columns` path that is not found within the document is omitted from the item instead of being written as a `NULL` attribute (matching the documented behaviour). When `false`, a missing path is written as `NULL`, preserving the legacy behaviour. A path that is present with an explicit `null` value is always written as `NULL`.
+
+
+Type: `bool`  
+Default: `false`  
+
 ### `ttl`
 
 An optional TTL to set for items, calculated from the moment the message is sent.
@@ -217,6 +225,15 @@ The column key to place the TTL value within.
 
 Type: `string`  
 Default: `""`  
+
+### `json_number_type`
+
+Controls how JSON numbers extracted via `json_map_columns` are stored. When set to `number` JSON numbers are stored as DynamoDB `N` (number) attributes, which is recommended for numeric data. Note that DynamoDB `N` accepts at most 38 digits of precision and rejects values exceeding it. When set to `string` JSON numbers are stored as `S` (string) attributes, preserving the legacy behaviour.
+
+
+Type: `string`  
+Default: `"string"`  
+Options: `string`, `number`.
 
 ### `delete`
 
@@ -451,7 +468,6 @@ Use the credentials of a host EC2 machine configured to assume [an IAM role asso
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `credentials.role`
 

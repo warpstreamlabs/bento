@@ -10,6 +10,7 @@ linters:
     - govet
     - ineffassign
     - mirror
+    - modernize
     - perfsprint
     - predeclared
     - revive

@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Executes a query and creates a message for each document received.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -144,7 +142,6 @@ The mongodb operation to perform.
 
 Type: `string`  
 Default: `"find"`  
-Requires version 1.0.0 or newer  
 Options: `find`, `aggregate`.
 
 ### `json_marshal_mode`
@@ -154,7 +151,6 @@ The json_marshal_mode setting is optional and controls the format of the output 
 
 Type: `string`  
 Default: `"canonical"`  
-Requires version 1.0.0 or newer  
 
 | Option | Summary |
 |---|---|
@@ -191,7 +187,6 @@ A explicit number of documents to batch up before flushing them for processing. 
 
 
 Type: `int`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -205,7 +200,6 @@ An object specifying fields to sort by, and the respective sort order (`1` ascen
 
 
 Type: `object`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples
@@ -223,6 +217,5 @@ An explicit maximum number of documents to return. Operations: `find`
 
 
 Type: `int`  
-Requires version 1.0.0 or newer  
 
 

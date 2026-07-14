@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -37,7 +38,19 @@ const (
 	kiFieldRebalancePeriod = "rebalance_period"
 	kiFieldStartFromOldest = "start_from_oldest"
 	kiFieldBatching        = "batching"
+	kiFieldEnhancedFanOut  = "enhanced_fan_out"
+
+	// Enhanced Fan Out Fields
+	kiEFOFieldEnabled      = "enabled"
+	kiEFOFieldConsumerName = "consumer_name"
+	kiEFOFieldConsumerARN  = "consumer_arn"
 )
+
+type kiEFOConfig struct {
+	Enabled      bool
+	ConsumerName string
+	ConsumerARN  string
+}
 
 type kiConfig struct {
 	Streams         []string
@@ -47,6 +60,7 @@ type kiConfig struct {
 	LeasePeriod     string
 	RebalancePeriod string
 	StartFromOldest bool
+	EnhancedFanOut  *kiEFOConfig
 }
 
 func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, err error) {
@@ -73,13 +87,26 @@ func kinesisInputConfigFromParsed(pConf *service.ParsedConfig) (conf kiConfig, e
 	if conf.StartFromOldest, err = pConf.FieldBool(kiFieldStartFromOldest); err != nil {
 		return
 	}
+	if pConf.Contains(kiFieldEnhancedFanOut) {
+		efoConf := &kiEFOConfig{}
+		efoNs := pConf.Namespace(kiFieldEnhancedFanOut)
+		if efoConf.Enabled, err = efoNs.FieldBool(kiEFOFieldEnabled); err != nil {
+			return
+		}
+		if efoConf.ConsumerName, err = efoNs.FieldString(kiEFOFieldConsumerName); err != nil {
+			return
+		}
+		if efoConf.ConsumerARN, err = efoNs.FieldString(kiEFOFieldConsumerARN); err != nil {
+			return
+		}
+		conf.EnhancedFanOut = efoConf
+	}
 	return
 }
 
 func kinesisInputSpec() *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Stable().
-		Version("1.0.0").
 		Categories("Services", "AWS").
 		Summary("Receive messages from one or more Kinesis streams.").
 		Description(`
@@ -141,9 +168,28 @@ Use the `+"`batching`"+` fields to configure an optional [batching policy](/docs
 		service.NewBoolField(kiFieldStartFromOldest).
 			Description("Whether to consume from the oldest message when a sequence does not yet exist for the stream.").
 			Default(true),
+		service.NewObjectField(kiFieldEnhancedFanOut,
+			service.NewBoolField(kiEFOFieldEnabled).
+				Description("Enable Enhanced Fan Out mode for push-based streaming with dedicated throughput.").
+				Default(false),
+			service.NewStringField(kiEFOFieldConsumerName).
+				Description("Consumer name for EFO registration. Auto-generated if empty: bento-clientID.").
+				Default(""),
+			service.NewStringField(kiEFOFieldConsumerARN).
+				Description("Existing consumer ARN to use. If provided, skips registration.").
+				Default("").
+				Advanced(),
+		).
+			Description("Enhanced Fan Out configuration for push-based streaming. Provides dedicated 2 MB/sec throughput per consumer per shard and lower latency (~70ms). Note: EFO incurs per shard-hour charges.").
+			Version("1.16.0").
+			Optional().
+			Advanced(),
 	).
 		Fields(config.SessionFields()...).
-		Field(service.NewBatchPolicyField(kiFieldBatching))
+		Field(service.NewBatchPolicyField(kiFieldBatching)).
+		LintRule(`root = match {
+this.` + kiFieldEnhancedFanOut + `.` + kiEFOFieldConsumerName + ` != "" && this.` + kiFieldEnhancedFanOut + `.` + kiEFOFieldConsumerARN + ` != "" => ["cannot specify both ` + kiEFOFieldConsumerName + ` and ` + kiEFOFieldConsumerARN + ` in ` + kiFieldEnhancedFanOut + ` config"]
+}`)
 	return spec
 }
 
@@ -174,6 +220,7 @@ type streamInfo struct {
 	explicitShards []string
 	id             string // Either a name or arn, extracted from config and used for balancing shards
 	arn            string
+	efoManager     *kinesisEFOManager // Enhanced Fan Out manager (if EFO is enabled)
 }
 
 type kinesisReader struct {
@@ -189,6 +236,7 @@ type kinesisReader struct {
 
 	svc          *kinesis.Client
 	checkpointer *awsKinesisCheckpointer
+	efoEnabled   bool
 
 	streams []*streamInfo
 
@@ -319,6 +367,13 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 	if k.rebalancePeriod, err = time.ParseDuration(k.conf.RebalancePeriod); err != nil {
 		return nil, fmt.Errorf("failed to parse rebalance period string: %v", err)
 	}
+
+	// Check if Enhanced Fan Out is enabled
+	if k.conf.EnhancedFanOut != nil && k.conf.EnhancedFanOut.Enabled {
+		k.efoEnabled = true
+		k.log.Debugf("Enhanced Fan Out enabled")
+	}
+
 	return &k, nil
 }
 
@@ -464,9 +519,20 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 	var nextFlushChan chan<- asyncMessage
 	commitCtx, commitCtxClose := context.WithTimeout(k.ctx, k.commitPeriod)
 
+	// Reusable timers backing nextTimedBatchChan and nextPullChan. Reusing
+	// timers rather than calling time.After on every empty poll avoids
+	// allocating a new runtime timer per iteration, which is significant when
+	// running thousands of shard consumers.
+	timedBatchTimer := time.NewTimer(time.Hour)
+	timedBatchTimer.Stop()
+	pullTimer := time.NewTimer(time.Hour)
+	pullTimer.Stop()
+
 	go func() {
 		defer func() {
 			commitCtxClose()
+			timedBatchTimer.Stop()
+			pullTimer.Stop()
 			recordBatcher.Close(context.Background(), state == awsKinesisConsumerFinished)
 			boff.Reset()
 			k.boffPool.Put(boff)
@@ -510,7 +576,8 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 			if state == awsKinesisConsumerConsuming && len(pending) == 0 && nextPullChan == unblockedChan {
 				if pending, iter, err = k.getRecords(info, shardID, iter); err != nil {
 					if !awsErrIsTimeout(err) {
-						nextPullChan = time.After(boff.NextBackOff())
+						pullTimer.Reset(boff.NextBackOff())
+						nextPullChan = pullTimer.C
 
 						var aerr *types.ExpiredIteratorException
 						if errors.As(err, &aerr) {
@@ -526,7 +593,8 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 						}
 					}
 				} else if len(pending) == 0 {
-					nextPullChan = time.After(boff.NextBackOff())
+					pullTimer.Reset(boff.NextBackOff())
+					nextPullChan = pullTimer.C
 				} else {
 					boff.Reset()
 					nextPullChan = blockedChan
@@ -580,8 +648,23 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 
 			if nextTimedBatchChan == nil {
 				if tNext, exists := recordBatcher.UntilNext(); exists {
-					nextTimedBatchChan = time.After(tNext)
+					if len(pending) > 0 || recordBatcher.HasPendingMessage() {
+						timedBatchTimer.Reset(tNext)
+						nextTimedBatchChan = timedBatchTimer.C
+					}
 				}
+			}
+
+			// If we have a message ready for dispatch but the pipeline isn't
+			// keeping up then nextPullChan may be set to the permanently
+			// unblocked (closed) channel, in which case the select below would
+			// never block and this loop would spin hot without making any
+			// progress. Falling through the select is only productive when it
+			// leads to pulling more records, so suppress the pull case until
+			// the pending message has been flushed.
+			pullChan := nextPullChan
+			if pendingMsg.msg != nil && pullChan == unblockedChan {
+				pullChan = blockedChan
 			}
 
 			select {
@@ -607,7 +690,7 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 				nextTimedBatchChan = nil
 			case nextFlushChan <- pendingMsg:
 				pendingMsg = asyncMessage{}
-			case <-nextPullChan:
+			case <-pullChan:
 				nextPullChan = unblockedChan
 			case <-k.ctx.Done():
 				state = awsKinesisConsumerClosing
@@ -632,11 +715,18 @@ func isShardFinished(s types.Shard) bool {
 
 func collectShards(ctx context.Context, arn string, svc *kinesis.Client) ([]types.Shard, error) {
 	listShardFn := func(token *string) ([]types.Shard, *string, error) {
+		var streamARN *string
+		if token == nil {
+			streamARN = aws.String(arn)
+		}
 		shardsRes, err := svc.ListShards(ctx, &kinesis.ListShardsInput{
-			StreamARN: aws.String(arn),
+			StreamARN: streamARN,
 			NextToken: token,
 		})
-		return shardsRes.Shards, shardsRes.NextToken, err
+		if err != nil {
+			return nil, nil, err
+		}
+		return shardsRes.Shards, shardsRes.NextToken, nil
 	}
 
 	shardIter := helper.TokenIterator(listShardFn)
@@ -657,9 +747,9 @@ func (k *kinesisReader) runBalancedShards() {
 	for {
 		for _, info := range k.streams {
 			allShards, err := collectShards(k.ctx, info.arn, k.svc)
-			var clientClaims map[string][]awsKinesisClientClaim
+			var checkpointData *awsKinesisCheckpointData
 			if err == nil {
-				clientClaims, err = k.checkpointer.AllClaims(k.ctx, info.id)
+				checkpointData, err = k.checkpointer.GetCheckpointsAndClaims(k.ctx, info.id)
 			}
 			if err != nil {
 				if k.ctx.Err() != nil {
@@ -669,11 +759,18 @@ func (k *kinesisReader) runBalancedShards() {
 				continue
 			}
 
+			clientClaims := checkpointData.ClientClaims
+			shardsWithCheckpoints := checkpointData.ShardsWithCheckpoints
+
 			totalShards := len(allShards)
 			unclaimedShards := make(map[string]string, totalShards)
 			for _, s := range allShards {
-				if !isShardFinished(s) {
-					unclaimedShards[*s.ShardId] = ""
+				// Include shard if:
+				// 1. It's not finished (still open), OR
+				// 2. It's finished but has a checkpoint (meaning it hasn't been fully consumed yet)
+				shardID := *s.ShardId
+				if !isShardFinished(s) || shardsWithCheckpoints[shardID] {
+					unclaimedShards[shardID] = ""
 				}
 			}
 			for clientID, claims := range clientClaims {
@@ -700,7 +797,12 @@ func (k *kinesisReader) runBalancedShards() {
 						continue
 					}
 					wg.Add(1)
-					if err = k.runConsumer(&wg, *info, shardID, sequence); err != nil {
+					if k.efoEnabled {
+						err = k.runEFOConsumer(&wg, *info, shardID, sequence)
+					} else {
+						err = k.runConsumer(&wg, *info, shardID, sequence)
+					}
+					if err != nil {
 						k.log.Errorf("Failed to start consumer: %v\n", err)
 					}
 				}
@@ -749,7 +851,12 @@ func (k *kinesisReader) runBalancedShards() {
 						info.id, randomShard, clientID, k.clientID,
 					)
 					wg.Add(1)
-					if err = k.runConsumer(&wg, *info, randomShard, sequence); err != nil {
+					if k.efoEnabled {
+						err = k.runEFOConsumer(&wg, *info, randomShard, sequence)
+					} else {
+						err = k.runConsumer(&wg, *info, randomShard, sequence)
+					}
+					if err != nil {
 						k.log.Errorf("Failed to start consumer: %v\n", err)
 					} else {
 						// If we successfully stole the shard then that's enough
@@ -790,7 +897,11 @@ func (k *kinesisReader) runExplicitShards() {
 				sequence, err := k.checkpointer.Claim(k.ctx, id, shardID, "")
 				if err == nil {
 					wg.Add(1)
-					err = k.runConsumer(&wg, info, shardID, sequence)
+					if k.efoEnabled {
+						err = k.runEFOConsumer(&wg, info, shardID, sequence)
+					} else {
+						err = k.runConsumer(&wg, info, shardID, sequence)
+					}
 				}
 				if err != nil {
 					if k.ctx.Err() != nil {
@@ -861,11 +972,38 @@ func (k *kinesisReader) Connect(ctx context.Context) error {
 
 	k.svc = svc
 	k.checkpointer = checkpointer
-	k.msgChan = make(chan asyncMessage)
 
 	if err = k.waitUntilStreamsExists(ctx); err != nil {
 		return err
 	}
+
+	// Initialize Enhanced Fan Out if enabled
+	if k.efoEnabled {
+		for _, stream := range k.streams {
+			// Create EFO manager for this stream
+			efoMgr, err := newKinesisEFOManager(k.conf.EnhancedFanOut, stream.arn, k.clientID, k.svc, k.log)
+			if err != nil {
+				return fmt.Errorf("failed to create EFO manager for stream %s: %w", stream.id, err)
+			}
+
+			// Register consumer and wait for ACTIVE status
+			consumerARN, err := efoMgr.ensureConsumerRegistered(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to register EFO consumer for stream %s: %w", stream.id, err)
+			}
+
+			stream.efoManager = efoMgr
+			k.log.Debugf("Enhanced Fan Out consumer registered for stream %s with ARN: %s", stream.id, consumerARN)
+		}
+	}
+
+	// Only assign msgChan once everything above has succeeded, since a non-nil
+	// msgChan is what marks this reader as connected. Assigning it earlier
+	// meant a failure in the steps above left the reader permanently "connected"
+	// but without a running shard consumer, so subsequent Connect calls
+	// returned nil and ReadBatch blocked forever on a channel nothing writes
+	// to.
+	k.msgChan = make(chan asyncMessage)
 
 	if len(k.streams[0].explicitShards) > 0 {
 		go k.runExplicitShards()
@@ -900,6 +1038,17 @@ func (k *kinesisReader) ReadBatch(ctx context.Context) (service.MessageBatch, se
 // CloseAsync shuts down the Kinesis input and stops processing requests.
 func (k *kinesisReader) Close(ctx context.Context) error {
 	k.done()
+
+	k.cMut.Lock()
+	if k.msgChan == nil {
+		// Connect never completed successfully, so there is no shard runner
+		// goroutine responsible for closing closedChan on our behalf.
+		k.closeOnce.Do(func() {
+			close(k.closedChan)
+		})
+	}
+	k.cMut.Unlock()
+
 	select {
 	case <-k.closedChan:
 	case <-ctx.Done():

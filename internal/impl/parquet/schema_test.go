@@ -357,8 +357,7 @@ schema:
 				return
 			}
 
-			for i := 0; i < got.NumField(); i++ {
-				field := got.Field(i)
+			for field := range got.Fields() {
 				want, ok := tt.wantFields[field.Name]
 				if !ok {
 					t.Errorf("unexpected field: %s", field.Name)

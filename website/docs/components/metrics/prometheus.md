@@ -72,7 +72,6 @@ Whether to export timing metrics as a histogram, if `false` a summary is used in
 
 Type: `bool`  
 Default: `false`  
-Requires version 1.0.0 or newer  
 
 ### `histogram_buckets`
 
@@ -81,7 +80,6 @@ Timing metrics histogram buckets (in seconds). If left empty defaults to DefBuck
 
 Type: `array`  
 Default: `[]`  
-Requires version 1.0.0 or newer  
 
 ### `summary_quantiles_objectives`
 
@@ -90,7 +88,6 @@ A list of timing metrics summary buckets (as quantiles). Applicable when `use_hi
 
 Type: `array`  
 Default: `[{"error":0.05,"quantile":0.5},{"error":0.01,"quantile":0.9},{"error":0.001,"quantile":0.99}]`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

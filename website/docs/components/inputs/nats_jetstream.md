@@ -17,8 +17,6 @@ import TabItem from '@theme/TabItem';
 
 Reads messages from NATS JetStream subjects.
 
-Introduced in version 1.0.0.
-
 
 <Tabs defaultValue="common" values={[
   { label: 'Common', value: 'common', },
@@ -441,7 +439,6 @@ EXPERIMENTAL: A [Bloblang mapping](/docs/guides/bloblang/about) that attempts to
 
 
 Type: `string`  
-Requires version 1.0.0 or newer  
 
 ```yml
 # Examples

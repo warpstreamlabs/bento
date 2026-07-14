@@ -59,6 +59,12 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 		return
 	}
 
+	if bytes.HasPrefix(rawBytes, []byte("\n# BENTO LINT DISABLE")) {
+		// TODO(gregfurman): This magic comment approach is devastatingly hacky and should be re-considered
+		// in future iterations.
+		return pathLints
+	}
+
 	startTag, endTag := []byte("```yaml"), []byte("```")
 
 	nextSnippet := bytes.Index(rawBytes, startTag)
@@ -78,7 +84,7 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 		endOfSnippet = nextSnippet + endOfSnippet + len(endTag)
 
 		configBytes := rawBytes[nextSnippet : endOfSnippet-len(endTag)]
-		if nextSnippet = bytes.Index(rawBytes[endOfSnippet:], []byte("```yaml")); nextSnippet != -1 {
+		if nextSnippet = bytes.Index(rawBytes[endOfSnippet:], startTag); nextSnippet != -1 {
 			nextSnippet += endOfSnippet
 		}
 

@@ -87,7 +87,6 @@ The cache ttl of each element
 
 Type: `string`  
 Default: `"5m0s"`  
-Requires version 1.0.0 or newer  
 
 ### `ttl`
 

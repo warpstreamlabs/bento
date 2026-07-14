@@ -16,8 +16,6 @@ import TabItem from '@theme/TabItem';
 
 Use a MongoDB instance as a cache.
 
-Introduced in version 1.0.0.
-
 ```yml
 # Config fields, showing default values
 label: ""

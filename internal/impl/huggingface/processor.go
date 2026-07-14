@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelineBackends"
+	"github.com/knights-analytics/hugot/backends"
 	"github.com/knights-analytics/hugot/pipelines"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -87,7 +87,7 @@ type pipelineProcessor struct {
 	log *service.Logger
 
 	session  *hugot.Session
-	pipeline pipelineBackends.Pipeline
+	pipeline backends.Pipeline
 
 	pipelineName string
 	modelPath    string
@@ -107,7 +107,7 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 	// To prevent multiple sessions being created at once, rather store the constructor and allow it
 	// to be atomically retrieved.
 	ctorValue, _ := mgr.GetOrSetGeneric(sessionConstructorKey{}, func() (*hugot.Session, error) {
-		return hugot.NewGoSession()
+		return hugot.NewGoSession(context.Background())
 	})
 
 	sessCtor, ok := ctorValue.(func() (*hugot.Session, error))
@@ -145,7 +145,7 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 		}
 
 		start := time.Now()
-		if p.modelPath, err = hugot.DownloadModel(modelRepo, p.modelPath, opts); err != nil {
+		if p.modelPath, err = hugot.DownloadModel(context.Background(), modelRepo, p.modelPath, opts); err != nil {
 			return nil, fmt.Errorf("failed to download model %s from HuggingFace to %s: %w", modelRepo, modelPath, err)
 		}
 
@@ -178,7 +178,7 @@ func (p *pipelineProcessor) ProcessBatch(ctx context.Context, b service.MessageB
 		return []service.MessageBatch{batchCopy}, nil
 	}
 
-	results, err := p.pipeline.Run(messages)
+	results, err := p.pipeline.Run(ctx, messages)
 	if err != nil {
 		p.log.Errorf("Failed to process input against model: %v", err)
 		for _, idx := range validIndices {
@@ -214,7 +214,7 @@ func (p *pipelineProcessor) Close(context.Context) error {
 	return p.pipeline.GetModel().Destroy()
 }
 
-func convertPipelineOutput(output pipelineBackends.PipelineBatchOutput) []any {
+func convertPipelineOutput(output backends.PipelineBatchOutput) []any {
 	switch result := output.(type) {
 	case *pipelines.FeatureExtractionOutput:
 		return result.GetOutput()

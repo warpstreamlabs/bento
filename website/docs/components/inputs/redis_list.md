@@ -277,7 +277,6 @@ Optionally sets a limit on the number of messages that can be flowing through a 
 
 Type: `int`  
 Default: `0`  
-Requires version 1.0.0 or newer  
 
 ### `timeout`
 
@@ -294,7 +293,6 @@ The command used to pop elements from the Redis list
 
 Type: `string`  
 Default: `"blpop"`  
-Requires version 1.0.0 or newer  
 Options: `blpop`, `brpop`.
 
 

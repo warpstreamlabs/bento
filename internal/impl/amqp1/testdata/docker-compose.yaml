@@ -1,0 +1,72 @@
+# Adapted docker-compose.yaml from https://github.com/Azure/azure-service-bus-emulator-installer/blob/main/Docker-Compose-Template/docker-compose-default.yml
+# and Config.json pattern from https://jeremydmiller.com/2026/02/19/using-the-azure-service-bus-emulator-for-local-wolverine-development/
+
+# Ran:
+#    docker compose -f internal/impl/amqp1/testdata/docker-compose.yaml up -d
+#    TEST_SB_URL="amqp://localhost:5672" TEST_SB_SOURCE_ADDRESS="/test" go test -v -timeout 120s -run TestIntegrationAzureServiceBus ./internal/impl/amqp1
+#    docker compose -f internal/impl/amqp1/testdata/docker-compose.yaml down
+
+name: microsoft-azure-servicebus-emulator
+
+configs:
+  servicebus_config:
+    content: |
+      {
+        "UserConfig": {
+          "Namespaces": [
+            {
+              "Name": "sbemulatorns",
+              "Queues": [
+                {
+                  "Name": "test",
+                  "Properties": {
+                    "MaxDeliveryCount": 10,
+                    "LockDuration": "PT5S"
+                  }
+                }
+              ]
+            }
+          ],
+          "Logging": {
+            "Type": "File"
+          }
+        }
+      }
+
+services:
+  emulator:
+    container_name: "servicebus-emulator"
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    pull_policy: always
+    configs:
+      - source: servicebus_config
+        target: /ServiceBus_Emulator/ConfigFiles/Config.json
+    ports:
+      - "5672:5672"
+      - "5300:5300"
+    environment:
+      SQL_SERVER: sqledge
+      MSSQL_SA_PASSWORD: "${SQL_PASSWORD:-Dev@12345!}"
+      ACCEPT_EULA: "${ACCEPT_EULA:-Y}"
+      SQL_WAIT_INTERVAL: "${SQL_WAIT_INTERVAL:-15}"
+      EMULATOR_HTTP_PORT: "5300"
+    depends_on:
+      - sqledge
+    networks:
+      sb-emulator:
+        aliases:
+          - "sb-emulator"
+
+  sqledge:
+    container_name: "sqledge"
+    image: "mcr.microsoft.com/azure-sql-edge:latest"
+    networks:
+      sb-emulator:
+        aliases:
+          - "sqledge"
+    environment:
+      ACCEPT_EULA: "${ACCEPT_EULA:-Y}"
+      MSSQL_SA_PASSWORD: "${SQL_PASSWORD:-Dev@12345!}"
+
+networks:
+  sb-emulator:

@@ -30,6 +30,7 @@ const (
 	esoV2FieldTimeout               = "timeout"
 	esoV2FieldTLS                   = "tls"
 	esoV2FieldAuth                  = "basic_auth"
+	esoV2FieldAPIKey                = "api_key"
 	esoV2FieldAuthEnabled           = "enabled"
 	esoV2FieldAuthUsername          = "username"
 	esoV2FieldAuthPassword          = "password"
@@ -69,7 +70,7 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 `).
 		Fields(
 			service.NewStringListField(esoV2FieldURLs).
-				Description("A list of URLs to connect to. If an item of the list contains commas it will be expanded into multiple URLs.").
+				Description("A list of URLs to connect to.").
 				Example([]string{"http://localhost:9200"}),
 			service.NewInterpolatedStringField(esoV2FieldIndex).
 				Description("The index to place messages."),
@@ -100,6 +101,9 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 				Default("5s"),
 			service.NewTLSToggledField(esoV2FieldTLS),
 			service.NewOutputMaxInFlightField(),
+			service.NewStringField(esoV2FieldAPIKey).
+				Description("Allows you to specify a Base64-encoded token for authorization; if set, overrides basic auth.").
+				Optional(),
 			service.NewObjectField(esoV2FieldAuth,
 				service.NewBoolField(esoV2FieldAuthEnabled).
 					Description("Whether to use basic authentication in requests.").
@@ -211,6 +215,11 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 			TLSClientConfig: tlsConf,
 		}
 	}
+	if pConf.Contains(esoV2FieldAPIKey) {
+		if conf.clientConfig.APIKey, err = pConf.FieldString(esoV2FieldAPIKey); err != nil {
+			return
+		}
+	}
 
 	if conf.clientConfig.CompressRequestBody, err = pConf.FieldBool(esoV2FieldCompressRequestBody); err != nil {
 		return
@@ -282,7 +291,7 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	indexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Client: eso.client,
 		OnError: func(ctx context.Context, err error) {
-			eso.log.Errorf("Bulk Indexer Error: %w", err)
+			eso.log.Errorf("Bulk Indexer Error: %v", err)
 		},
 		Timeout: eso.conf.timeout,
 	})

@@ -26,8 +26,8 @@ func (k *kgoLogger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	case kgo.LogLevelWarn:
 		tmpL.Warn(msg)
 	case kgo.LogLevelInfo:
-		tmpL.Debug(msg)
+		tmpL.Info(msg)
 	case kgo.LogLevelDebug:
-		tmpL.Trace(msg)
+		tmpL.Debug(msg)
 	}
 }

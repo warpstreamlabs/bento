@@ -81,8 +81,7 @@ func oAuth2FieldSpec() *service.ConfigField {
 		service.NewStringListField(ao2FieldScopes).
 			Description("A list of optional requested permissions.").
 			Default([]any{}).
-			Advanced().
-			Version("1.0.0"),
+			Advanced(),
 
 		service.NewAnyMapField(ao2FieldEndpointParams).
 			Description("A list of optional endpoint parameters, values should be arrays of strings.").
@@ -92,7 +91,6 @@ func oAuth2FieldSpec() *service.ConfigField {
 				"bar": []string{"woof"},
 			}).
 			Default(map[string]any{}).
-			Version("1.0.0").
 			Optional().
 			LintRule(`
 root = if this.type() == "object" {
