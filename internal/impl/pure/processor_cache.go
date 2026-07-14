@@ -47,11 +47,6 @@ Set a key in the cache to a value. If the key already exists the action fails
 with a 'key already exists' error, which can be detected with
 [processor error handling](/docs/configuration/error_handling).
 
-### `+"`append`"+`
-
-Append a value to an existing cached key. If the key does not exist the value
-is set as if using the `+"`set`"+` operator.
-
 ### `+"`get`"+`
 
 Retrieve the contents of a cached key and replace the original message payload
@@ -132,7 +127,7 @@ cache_resources:
 		Fields(
 			service.NewStringField(cachePFieldResource).
 				Description("The [`cache` resource](/docs/components/caches/about) to target with this processor."),
-			service.NewStringEnumField(cachePFieldOperator, "set", "add", "append", "get", "exists", "delete").
+			service.NewStringEnumField(cachePFieldOperator, "set", "add", "get", "exists", "delete").
 				Description("The [operation](#operators) to perform with the cache."),
 			service.NewInterpolatedStringField(cachePFieldKey).
 				Description("A key to use with the cache."),
@@ -256,22 +251,6 @@ func newCacheAddOperator() cacheOperator {
 	}
 }
 
-func newCacheAppendOperator() cacheOperator {
-	return func(ctx context.Context, part *message.Part, cache cache.V1, key string, value []byte, ttl *time.Duration) error {
-		result, err := cache.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, component.ErrKeyNotFound) {
-				err = cache.Set(ctx, key, value, ttl)
-			}
-			return err
-		}
-		appended := make([]byte, len(result))
-		copy(appended, result)
-		appended = append(appended, value...)
-		return cache.Set(ctx, key, appended, ttl)
-	}
-}
-
 func newCacheGetOperator() cacheOperator {
 	return func(ctx context.Context, part *message.Part, cache cache.V1, key string, _ []byte, _ *time.Duration) error {
 		result, err := cache.Get(ctx, key)
@@ -306,8 +285,6 @@ func cacheOperatorFromString(operator string) (cacheOperator, error) {
 		return newCacheSetOperator(), nil
 	case "add":
 		return newCacheAddOperator(), nil
-	case "append":
-		return newCacheAppendOperator(), nil
 	case "get":
 		return newCacheGetOperator(), nil
 	case "exists":

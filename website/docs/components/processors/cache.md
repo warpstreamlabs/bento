@@ -158,7 +158,7 @@ The [operation](#operators) to perform with the cache.
 
 
 Type: `string`  
-Options: `set`, `add`, `append`, `get`, `exists`, `delete`.
+Options: `set`, `add`, `get`, `exists`, `delete`.
 
 ### `key`
 
@@ -207,11 +207,6 @@ overridden.
 Set a key in the cache to a value. If the key already exists the action fails
 with a 'key already exists' error, which can be detected with
 [processor error handling](/docs/configuration/error_handling).
-
-### `append`
-
-Append a value to an existing cached key. If the key does not exist the value
-is set as if using the `set` operator.
 
 ### `get`
 
