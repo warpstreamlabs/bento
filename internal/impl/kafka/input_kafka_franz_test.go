@@ -85,6 +85,59 @@ topic: foo
 	}
 }
 
+func TestInputKafkaFranzTransactionIsolationLevel(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   string
+		expected kgo.IsolationLevel
+	}{
+		{
+			name:     "defaults to read uncommitted",
+			expected: kgo.ReadUncommitted(),
+		},
+		{
+			name:     "explicit read uncommitted",
+			config:   "transaction_isolation_level: read_uncommitted",
+			expected: kgo.ReadUncommitted(),
+		},
+		{
+			name:     "read committed",
+			config:   "transaction_isolation_level: read_committed",
+			expected: kgo.ReadCommitted(),
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			conf, err := franzKafkaInputConfig().ParseYAML(fmt.Sprintf(`
+seed_brokers: [ example.com:1234 ]
+topics: [ test ]
+consumer_group: test
+%s
+`, test.config), nil)
+			require.NoError(t, err)
+
+			reader, err := newFranzKafkaReaderFromConfig(conf, service.MockResources())
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, reader.isolationLevel)
+		})
+	}
+}
+
+func TestInputKafkaFranzRejectsInvalidTransactionIsolationLevel(t *testing.T) {
+	conf, err := franzKafkaInputConfig().ParseYAML(`
+seed_brokers: [ example.com:1234 ]
+topics: [ test ]
+consumer_group: test
+transaction_isolation_level: eventually_consistent
+`, nil)
+	require.NoError(t, err)
+
+	_, err = newFranzKafkaReaderFromConfig(conf, service.MockResources())
+	require.Error(t, err)
+	assert.EqualError(t, err, `invalid transaction isolation level: "eventually_consistent"`)
+}
+
 func TestInputKafkaFranzRetriableError(t *testing.T) {
 	conf, err := franzKafkaInputConfig().ParseYAML(`
 seed_brokers: [ localhost:9092 ]
