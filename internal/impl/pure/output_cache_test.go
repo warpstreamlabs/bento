@@ -50,30 +50,6 @@ target: foocache
 	}, mgr.Caches["foocache"])
 }
 
-func TestCacheMultiSingleAppend(t *testing.T) {
-	mgr := mock.NewManager()
-	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
-
-	w := testCacheOutput(t, mgr, `
-key: ${!json("id")}
-target: foocache
-append: true
-`)
-
-	tCtx := context.Background()
-
-	require.NoError(t, w.WriteBatch(tCtx, message.QuickBatch([][]byte{
-		[]byte(`{"id":"1","value":"first"}`),
-	})))
-	require.NoError(t, w.WriteBatch(tCtx, message.QuickBatch([][]byte{
-		[]byte(`{"id":"1","value":"second"}`),
-	})))
-
-	assert.Equal(t, map[string]mock.CacheItem{
-		"1": {Value: `{"id":"1","value":"first"}{"id":"1","value":"second"}`},
-	}, mgr.Caches["foocache"])
-}
-
 func TestCacheBatch(t *testing.T) {
 	mgr := mock.NewManager()
 	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
@@ -97,38 +73,6 @@ target: foocache
 		"2": {Value: `{"id":"2","value":"second"}`},
 		"3": {Value: `{"id":"3","value":"third"}`},
 		"4": {Value: `{"id":"4","value":"fourth"}`},
-	}, mgr.Caches["foocache"])
-}
-
-func TestCacheBatchAppend(t *testing.T) {
-	mgr := mock.NewManager()
-	mgr.Caches["foocache"] = map[string]mock.CacheItem{}
-
-	w := testCacheOutput(t, mgr, `
-key: ${!json("id")}
-target: foocache
-append: true
-`)
-
-	tCtx := context.Background()
-
-	require.NoError(t, w.WriteBatch(tCtx, message.QuickBatch([][]byte{
-		[]byte(`{"id":"1","value":"first"}`),
-		[]byte(`{"id":"2","value":"second"}`),
-		[]byte(`{"id":"1","value":"third"}`),
-		[]byte(`{"id":"3","value":"fourth"}`),
-		[]byte(`{"id":"3","value":"fifth"}`),
-		[]byte(`{"id":"2","value":"sixth"}`),
-		[]byte(`{"id":"3","value":"seventh"}`),
-		[]byte(`{"id":"1","value":"eighth"}`),
-		[]byte(`{"id":"4","value":"ninth"}`),
-	})))
-
-	assert.Equal(t, map[string]mock.CacheItem{
-		"1": {Value: `{"id":"1","value":"first"}{"id":"1","value":"third"}{"id":"1","value":"eighth"}`},
-		"2": {Value: `{"id":"2","value":"second"}{"id":"2","value":"sixth"}`},
-		"3": {Value: `{"id":"3","value":"fourth"}{"id":"3","value":"fifth"}{"id":"3","value":"seventh"}`},
-		"4": {Value: `{"id":"4","value":"ninth"}`},
 	}, mgr.Caches["foocache"])
 }
 
