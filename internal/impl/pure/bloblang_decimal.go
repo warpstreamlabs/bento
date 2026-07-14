@@ -15,9 +15,9 @@ import (
 // the schema (Connect/Debezium/Iceberg), not from the byte payload. Callers must pass a
 // non-empty payload; empty/nil bytes are rejected by parse_big_decimal.
 //
-//   https://docs.confluent.io/platform/current/connect/conversions.html#decimal-type
-//   https://debezium.io/documentation/faq/#how_to_retrieve_decimal_field_from_binary_representation
-//   https://iceberg.apache.org/spec/#decimal-type
+//	https://docs.confluent.io/platform/current/connect/conversions.html#decimal-type
+//	https://debezium.io/documentation/faq/#how_to_retrieve_decimal_field_from_binary_representation
+//	https://iceberg.apache.org/spec/#decimal-type
 func twosComplementToBigInt(val []byte) *big.Int {
 	if val[0]&0x80 != 0 {
 		// MSB of the first byte is the sign bit. Negative values need two's complement
