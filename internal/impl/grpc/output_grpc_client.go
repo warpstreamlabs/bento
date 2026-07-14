@@ -6,9 +6,10 @@ import (
 	"io"
 
 	"github.com/jhump/protoreflect/dynamic"
-	"github.com/warpstreamlabs/bento/public/service"
 	_ "google.golang.org/grpc/health"
 	grpcmd "google.golang.org/grpc/metadata"
+
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 const (

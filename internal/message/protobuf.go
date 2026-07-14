@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
-	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 )
 
 func UnmarshalFromProto(b []byte) (*Part, error) {

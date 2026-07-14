@@ -9,6 +9,7 @@ import (
 	"time"
 
 	gzmq4 "github.com/go-zeromq/zmq4"
+
 	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/public/service"
 )

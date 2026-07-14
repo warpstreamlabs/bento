@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/clbanning/mxj/v2"
+
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )

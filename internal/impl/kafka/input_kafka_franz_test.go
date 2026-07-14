@@ -16,6 +16,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )

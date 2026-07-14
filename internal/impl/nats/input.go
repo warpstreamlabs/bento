@@ -66,6 +66,11 @@ output:
 			Advanced().
 			Default(nats.DefaultSubPendingMsgsLimit).
 			LintRule(`root = if this < 0 { ["prefetch count must be greater than or equal to zero"] }`)).
+		Field(service.NewBoolField("send_ack").
+			Description("Whether to send an acknowledgement back to the input subject's reply address after consuming a message.").
+			Default(true).
+			Advanced().
+			Version("1.19.0")).
 		Fields(connectionTailFields()...).
 		Fields(inputTracingDocs()...)
 }
@@ -97,6 +102,7 @@ type natsReader struct {
 	queue         string
 	prefetchCount int
 	nakDelay      time.Duration
+	sendAck       bool
 
 	log *service.Logger
 
@@ -128,6 +134,10 @@ func newNATSReader(conf *service.ParsedConfig, mgr *service.Resources) (*natsRea
 		return nil, err
 	}
 
+	if n.sendAck, err = conf.FieldBool("send_ack"); err != nil {
+		return nil, err
+	}
+
 	if n.prefetchCount < 0 {
 		return nil, errors.New("prefetch count must be greater than or equal to zero")
 	}
@@ -143,6 +153,7 @@ func newNATSReader(conf *service.ParsedConfig, mgr *service.Resources) (*natsRea
 			return nil, err
 		}
 	}
+
 	return &n, nil
 }
 
@@ -247,10 +258,10 @@ func (n *natsReader) Read(ctx context.Context) (*service.Message, service.AckFun
 					return err
 				}
 				ackErr = msg.RespondMsg(replyMsg)
-			} else {
+			} else if n.sendAck {
 				ackErr = msg.Ack()
 			}
-		} else {
+		} else if n.sendAck {
 			ackErr = msg.Ack()
 		}
 		if errors.Is(ackErr, nats.ErrMsgNoReply) {
