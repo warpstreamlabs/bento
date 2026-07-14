@@ -131,6 +131,7 @@ Unfortunately this error message will appear for a wide range of connection prob
 			service.NewStringField(iskFieldConsumerGroup).
 				Description("An identifier for the consumer group of the connection. This field can be explicitly made empty in order to disable stored offsets for the consumed topic partitions.").
 				Default(""),
+			newTransactionIsolationLevelField(),
 			service.NewStringField(iskFieldClientID).
 				Description("An identifier for the client connection.").
 				Advanced().Default("bento"),
@@ -480,6 +481,16 @@ func (k *kafkaReader) saramaConfigFromParsed(conf *service.ParsedConfig) (*saram
 
 	config.Net.DialTimeout = time.Second
 	config.Consumer.Return.Errors = true
+	isolationLevel, err := transactionIsolationLevelFromConfig(conf)
+	if err != nil {
+		return nil, err
+	}
+	switch isolationLevel {
+	case transactionIsolationLevelReadUncommitted:
+		config.Consumer.IsolationLevel = sarama.ReadUncommitted
+	case transactionIsolationLevelReadCommitted:
+		config.Consumer.IsolationLevel = sarama.ReadCommitted
+	}
 	if config.Consumer.MaxProcessingTime, err = conf.FieldDuration(iskFieldMaxProcessingPeriod); err != nil {
 		return nil, err
 	}

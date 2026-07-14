@@ -77,6 +77,7 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 		Field(service.NewStringField("consumer_group").
 			Description("An optional consumer group to consume as. When specified the partitions of specified topics are automatically distributed across consumers sharing a consumer group, and partition offsets are automatically committed and resumed under this name. Consumer groups are not supported when specifying explicit partitions to consume from in the `topics` field.").
 			Optional()).
+		Field(newTransactionIsolationLevelField()).
 		Field(service.NewStringField("client_id").
 			Description("An identifier for the client connection.").
 			Default("bento").
@@ -207,6 +208,7 @@ type franzKafkaReader struct {
 	saslConfs       []sasl.Mechanism
 	checkpointLimit int
 	autoOffsetReset string
+	isolationLevel  kgo.IsolationLevel
 	commitPeriod    time.Duration
 	regexPattern    bool
 	multiHeader     bool
@@ -359,6 +361,17 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 
 	if f.consumerGroup, err = conf.FieldString("consumer_group"); err != nil {
 		return nil, err
+	}
+
+	isolationLevel, err := transactionIsolationLevelFromConfig(conf)
+	if err != nil {
+		return nil, err
+	}
+	switch isolationLevel {
+	case transactionIsolationLevelReadUncommitted:
+		f.isolationLevel = kgo.ReadUncommitted()
+	case transactionIsolationLevelReadCommitted:
+		f.isolationLevel = kgo.ReadCommitted()
 	}
 
 	if f.reconnectOnUnknownTopic, err = conf.FieldBool("reconnect_on_unknown_topic_or_partition"); err != nil {
@@ -851,6 +864,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.ConsumeTopics(f.topics...),
 		kgo.ConsumePartitions(f.topicPartitions),
 		kgo.ConsumeResetOffset(initialOffset),
+		kgo.FetchIsolationLevel(f.isolationLevel),
 		kgo.SASL(f.saslConfs...),
 		kgo.ConsumerGroup(f.consumerGroup),
 		kgo.ClientID(f.clientID),

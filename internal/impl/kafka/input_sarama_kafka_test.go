@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/IBM/sarama"
 	"github.com/Jeffail/gabs/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,4 +48,57 @@ topics: %v
 			assert.Contains(t, err.Error(), test.errStr)
 		})
 	}
+}
+
+func TestKafkaTransactionIsolationLevel(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   string
+		expected sarama.IsolationLevel
+	}{
+		{
+			name:     "defaults to read uncommitted",
+			expected: sarama.ReadUncommitted,
+		},
+		{
+			name:     "explicit read uncommitted",
+			config:   "transaction_isolation_level: read_uncommitted",
+			expected: sarama.ReadUncommitted,
+		},
+		{
+			name:     "read committed",
+			config:   "transaction_isolation_level: read_committed",
+			expected: sarama.ReadCommitted,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			conf, err := iskConfigSpec().ParseYAML(fmt.Sprintf(`
+addresses: [ example.com:1234 ]
+topics: [ test ]
+consumer_group: test
+%s
+`, test.config), nil)
+			require.NoError(t, err)
+
+			reader, err := newKafkaReaderFromParsed(conf, service.MockResources())
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, reader.saramConf.Consumer.IsolationLevel)
+		})
+	}
+}
+
+func TestKafkaRejectsInvalidTransactionIsolationLevel(t *testing.T) {
+	conf, err := iskConfigSpec().ParseYAML(`
+addresses: [ example.com:1234 ]
+topics: [ test ]
+consumer_group: test
+transaction_isolation_level: eventually_consistent
+`, nil)
+	require.NoError(t, err)
+
+	_, err = newKafkaReaderFromParsed(conf, service.MockResources())
+	require.Error(t, err)
+	assert.EqualError(t, err, `invalid transaction isolation level: "eventually_consistent"`)
 }
