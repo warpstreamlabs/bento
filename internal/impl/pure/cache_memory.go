@@ -196,6 +196,14 @@ func (m *memoryCache) Get(_ context.Context, key string) ([]byte, error) {
 	return k.value, nil
 }
 
+func (m *memoryCache) Exists(_ context.Context, key string) (bool, error) {
+	shard := m.getShard(key)
+	shard.RLock()
+	k, exists := shard.items[key]
+	shard.RUnlock()
+	return exists && !shard.isExpired(k), nil
+}
+
 func (m *memoryCache) Set(_ context.Context, key string, value []byte, ttl *time.Duration) error {
 	var expires time.Time
 	if ttl != nil {

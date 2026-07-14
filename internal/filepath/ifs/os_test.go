@@ -21,6 +21,10 @@ func (t testFS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, erro
 	return nil, errors.New("not implemented")
 }
 
+func (t testFS) Exists(name string) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
 func (t testFS) Remove(name string) error {
 	return errors.New("not implemented")
 }

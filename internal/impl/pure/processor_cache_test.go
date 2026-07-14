@@ -160,6 +160,55 @@ cache:
 	assert.Error(t, output[0].Get(2).ErrorGet())
 }
 
+func TestCacheExists(t *testing.T) {
+	mgr := mock.NewManager()
+	mgr.Caches["foocache"] = map[string]mock.CacheItem{
+		"1": {Value: "foo 1"},
+		"2": {Value: "foo 2"},
+	}
+
+	conf, err := testutil.ProcessorFromYAML(`
+cache:
+  operator: exists
+  key: ${!json("key")}
+  resource: foocache
+`)
+	require.NoError(t, err)
+
+	proc, err := mgr.NewProcessor(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := message.QuickBatch([][]byte{
+		[]byte(`{"key":"1"}`),
+		[]byte(`{"key":"2"}`),
+		[]byte(`{"key":"3"}`),
+	})
+	expParts := [][]byte{
+		[]byte(`true`),
+		[]byte(`true`),
+		[]byte(`false`),
+	}
+
+	output, res := proc.ProcessBatch(context.Background(), input)
+	if res != nil {
+		t.Fatal(res)
+	}
+
+	if len(output) != 1 {
+		t.Fatalf("Wrong count of result messages: %v", len(output))
+	}
+
+	if exp, act := expParts, message.GetAllBytes(output[0]); !reflect.DeepEqual(exp, act) {
+		t.Errorf("Wrong result messages: %s != %s", act, exp)
+	}
+
+	assert.NoError(t, output[0].Get(0).ErrorGet())
+	assert.NoError(t, output[0].Get(1).ErrorGet())
+	assert.NoError(t, output[0].Get(2).ErrorGet())
+}
+
 func TestCacheDelete(t *testing.T) {
 	mgr := mock.NewManager()
 	mgr.Caches["foocache"] = map[string]mock.CacheItem{

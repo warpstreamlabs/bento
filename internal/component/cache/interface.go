@@ -30,6 +30,10 @@ type V1 interface {
 	// fails.
 	Add(ctx context.Context, key string, value []byte, ttl *time.Duration) error
 
+	// Exists attempts to locate a cached value by its key, returns
+	// false if the key does not exist, returns an if the command fails.
+	Exists(ctx context.Context, key string) (bool, error)
+
 	// Delete attempts to remove a key. Returns an error if a failure occurs.
 	Delete(ctx context.Context, key string) error
 

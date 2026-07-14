@@ -158,7 +158,7 @@ The [operation](#operators) to perform with the cache.
 
 
 Type: `string`  
-Options: `set`, `add`, `get`, `delete`.
+Options: `set`, `add`, `get`, `exists`, `delete`.
 
 ### `key`
 
@@ -212,6 +212,11 @@ with a 'key already exists' error, which can be detected with
 Retrieve the contents of a cached key and replace the original message payload
 with the result. If the key does not exist the action fails with an error, which
 can be detected with [processor error handling](/docs/configuration/error_handling).
+
+### `exists`
+
+Check if a key exists in the cache and replace the original message payload with
+a boolean value (`true` if the key exists, `false` otherwise).
 
 ### `delete`
 
