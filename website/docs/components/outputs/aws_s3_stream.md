@@ -63,6 +63,7 @@ output:
     max_buffer_period: 10s
     content_type: application/octet-stream
     content_encoding: "" # No default (optional)
+    compression: none
     max_retries: 2
     backoff:
       initial_interval: 1s
@@ -261,11 +262,20 @@ Default: `"application/octet-stream"`
 
 ### `content_encoding`
 
-The content encoding to set for uploaded files (e.g., gzip).
+The content encoding to set for uploaded files (e.g., gzip). This only sets the object's `Content-Encoding` metadata and does not itself compress anything; use `compression` for that. Leave unset when using `compression`, which sets it automatically.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
+
+### `compression`
+
+Compress the object in-stream as it is uploaded. When set to `gzip`, a single gzip stream is written across the whole object (including true multipart uploads that exceed the 5 MiB part size) and the object's `Content-Encoding` is set to `gzip` automatically. This differs from a per-message `compress` processor, which would produce a multi-member gzip file; and from batch-level `archive`+`compress`, which would merge records across partitions. When enabled, do not also set `content_encoding` or a `compress` batch processor.
+
+
+Type: `string`  
+Default: `"none"`  
+Options: `none`, `gzip`.
 
 ### `max_retries`
 
