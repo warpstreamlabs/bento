@@ -367,6 +367,27 @@ func (m *Message) BloblangQuery(blobl *bloblang.Executor) (*Message, error) {
 	return nil, nil
 }
 
+// BloblangQueryBool executes a parsed Bloblang mapping on a message and returns a
+// bool back or an error if the mapping fails, the message gets deleted or value is not a bool.
+func (m *Message) BloblangQueryBool(blobl *bloblang.Executor) (bool, error) {
+	newPart, err := m.BloblangQuery(blobl)
+	if err != nil {
+		return false, err
+	}
+	if newPart == nil {
+		return false, errors.New("query mapping resulted in deleted message, expected a bool value")
+	}
+	newValue, err := newPart.AsStructured()
+	if err != nil {
+		return false, err
+	}
+	if b, ok := newValue.(bool); ok {
+		return b, nil
+	}
+
+	return false, value.NewTypeErrorFrom("mapping", newValue, value.TBool)
+}
+
 // BloblangQueryValue executes a parsed Bloblang mapping on a message and
 // returns the raw value result, or an error if either the mapping fails.
 // The error bloblang.ErrRootDeleted is returned if the root of the mapping
