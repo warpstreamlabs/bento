@@ -66,8 +66,17 @@ output:
 		defer pgConn.Close(ctx)
 
 		result := pgConn.ExecParams(ctx, fmt.Sprintf("SELECT content, id FROM '%v' WHERE id=%v", testID, messageID), nil, nil, nil, nil)
+		defer result.Close()
 
-		result.NextRow()
+		if !result.NextRow() {
+			return "", nil, fmt.Errorf("no row found for messageID %v", messageID)
+		}
+
+		values := result.Values()
+		if len(values) < 2 {
+			return "", nil, fmt.Errorf("expected 2 columns, got %d", len(values))
+		}
+
 		id, err := strconv.Atoi(string(result.Values()[1]))
 		assert.NoError(t, err)
 		data := map[string]any{
