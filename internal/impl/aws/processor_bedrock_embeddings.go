@@ -16,7 +16,12 @@ import (
 
 const (
 	bedFieldModel     = "model"
+	bedFieldProvider  = "provider"
 	bedFieldInputType = "input_type"
+
+	bedProviderAuto   = "auto"
+	bedProviderTitan  = "amazon_titan"
+	bedProviderCohere = "cohere"
 )
 
 func init() {
@@ -28,10 +33,14 @@ func init() {
 
 Requests are signed with AWS Signature Version 4 by the AWS SDK, so no additional authentication configuration is required beyond standard AWS credentials.
 
-The request and response formats differ between model providers, so this processor understands the following families, selected automatically from the ` + "`model`" + ` ID:
+The ` + "`model`" + ` may be a foundation model ID (e.g. ` + "`amazon.titan-embed-text-v2:0`" + `) or an [inference profile](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles.html) ID or ARN. Some models (e.g. Cohere Embed v4) can only be invoked through an inference profile.
+
+The request and response formats differ between model providers, so this processor understands the following families:
 
 - Amazon Titan (` + "`amazon.titan-embed-*`" + `) — one request per message.
-- Cohere Embed (` + "`cohere.embed-*`" + `) — up to 96 messages are sent in a single request, reducing round-trips and Bedrock request-rate throttling.
+- Cohere Embed (` + "`cohere.embed-*`" + `), including v4 — up to 96 messages are sent in a single request, reducing round-trips and Bedrock request-rate throttling.
+
+The family is normally inferred from the ` + "`model`" + ` ID. When ` + "`model`" + ` is an inference profile ARN the family cannot be inferred, so set ` + "`provider`" + ` explicitly.
 
 Batching is driven by the incoming message batch: the messages in each batch are grouped into the largest requests the model supports. If a batched request fails, every message in that group is flagged with the error.
 
@@ -50,6 +59,11 @@ By default Bento will use a shared credentials file when connecting to AWS servi
 				"cohere.embed-english-v3",
 				"cohere.embed-multilingual-v3",
 			)).
+		Field(service.NewStringField(bedFieldProvider).
+			Description("The model provider family, which determines the request and response encoding. When set to `auto` it is inferred from the `model` ID, but this is not possible when `model` is an inference profile ARN, so it must be set explicitly in that case.").
+			Default(bedProviderAuto).
+			LintRule(`root = if ![ "auto", "amazon_titan", "cohere" ].contains(this) { [ "provider must be one of: auto, amazon_titan, cohere" ] }`).
+			Examples(bedProviderAuto, bedProviderTitan, bedProviderCohere)).
 		Field(service.NewStringField(bedFieldInputType).
 			Description("The `input_type` sent to Cohere embedding models, which is required by that family. Ignored by other model families.").
 			Default("search_document").
@@ -87,12 +101,17 @@ pipeline:
 				return nil, err
 			}
 
+			provider, err := conf.FieldString(bedFieldProvider)
+			if err != nil {
+				return nil, err
+			}
+
 			inputType, err := conf.FieldString(bedFieldInputType)
 			if err != nil {
 				return nil, err
 			}
 
-			return newBedrockEmbeddingsProc(bedrockruntime.NewFromConfig(aconf), model, inputType, mgr)
+			return newBedrockEmbeddingsProc(bedrockruntime.NewFromConfig(aconf), model, provider, inputType, mgr)
 		})
 	if err != nil {
 		panic(err)
@@ -116,14 +135,27 @@ type embeddingCodec interface {
 	decodeResponse(body []byte) ([][]float64, error)
 }
 
-func codecForModel(model, inputType string) (embeddingCodec, error) {
-	switch {
-	case strings.HasPrefix(model, "amazon.titan-embed"):
+func codecForModel(model, provider, inputType string) (embeddingCodec, error) {
+	switch provider {
+	case bedProviderTitan:
 		return titanCodec{}, nil
-	case strings.HasPrefix(model, "cohere.embed"):
+	case bedProviderCohere:
 		return cohereCodec{inputType: inputType}, nil
+	case bedProviderAuto:
+		// Infer the family from the model ID. strings.Contains (rather than a
+		// prefix match) also covers cross-region inference profile IDs such as
+		// "us.amazon.titan-embed-text-v2:0". Opaque inference profile ARNs carry
+		// no model name and cannot be inferred.
+		switch {
+		case strings.Contains(model, "amazon.titan-embed"):
+			return titanCodec{}, nil
+		case strings.Contains(model, "cohere.embed"):
+			return cohereCodec{inputType: inputType}, nil
+		default:
+			return nil, fmt.Errorf("could not infer the model family from model '%v' (expected for inference profile ARNs): set the '%v' field to '%v' or '%v'", model, bedFieldProvider, bedProviderTitan, bedProviderCohere)
+		}
 	default:
-		return nil, fmt.Errorf("model '%v' is not a recognised Bedrock embedding model (supported families: amazon.titan-embed-*, cohere.embed-*)", model)
+		return nil, fmt.Errorf("invalid '%v' value '%v': expected one of %v, %v, %v", bedFieldProvider, provider, bedProviderAuto, bedProviderTitan, bedProviderCohere)
 	}
 }
 
@@ -167,23 +199,36 @@ const cohereMaxBatchTexts = 96
 func (cohereCodec) maxBatchTexts() int { return cohereMaxBatchTexts }
 
 func (c cohereCodec) encodeRequest(texts []string) ([]byte, error) {
+	// embedding_types is required by v4 and accepted by v3; requesting it
+	// normalises both onto the {"embeddings": {"float": [...]}} response shape.
 	return json.Marshal(map[string]any{
-		"texts":      texts,
-		"input_type": c.inputType,
+		"texts":           texts,
+		"input_type":      c.inputType,
+		"embedding_types": []string{"float"},
 	})
 }
 
 func (cohereCodec) decodeResponse(body []byte) ([][]float64, error) {
 	var resp struct {
-		Embeddings [][]float64 `json:"embeddings"`
+		Embeddings json.RawMessage `json:"embeddings"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("failed to decode Cohere embedding response: %w", err)
 	}
-	if len(resp.Embeddings) == 0 {
-		return nil, errors.New("cohere embedding response contained no embeddings")
+
+	// v4 (and v3 when embedding_types is set) returns an object keyed by
+	// embedding type; older v3 responses return a bare array of vectors.
+	var byType struct {
+		Float [][]float64 `json:"float"`
 	}
-	return resp.Embeddings, nil
+	if err := json.Unmarshal(resp.Embeddings, &byType); err == nil && len(byType.Float) > 0 {
+		return byType.Float, nil
+	}
+	var bare [][]float64
+	if err := json.Unmarshal(resp.Embeddings, &bare); err == nil && len(bare) > 0 {
+		return bare, nil
+	}
+	return nil, errors.New("cohere embedding response contained no embeddings")
 }
 
 //------------------------------------------------------------------------------
@@ -195,11 +240,11 @@ type bedrockEmbeddingsProc struct {
 	log    *service.Logger
 }
 
-func newBedrockEmbeddingsProc(client bedrockRuntimeAPI, model, inputType string, mgr *service.Resources) (*bedrockEmbeddingsProc, error) {
+func newBedrockEmbeddingsProc(client bedrockRuntimeAPI, model, provider, inputType string, mgr *service.Resources) (*bedrockEmbeddingsProc, error) {
 	if model == "" {
 		return nil, fmt.Errorf("field '%v' must not be empty", bedFieldModel)
 	}
-	codec, err := codecForModel(model, inputType)
+	codec, err := codecForModel(model, provider, inputType)
 	if err != nil {
 		return nil, err
 	}

@@ -36,14 +36,49 @@ func structuredBatch(t *testing.T, batch service.MessageBatch) []any {
 }
 
 func TestBedrockEmbeddingsUnsupportedModel(t *testing.T) {
-	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "anthropic.claude-3-sonnet", "search_document", service.MockResources())
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "anthropic.claude-3-sonnet", "auto", "search_document", service.MockResources())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not a recognised Bedrock embedding model")
+	assert.Contains(t, err.Error(), "could not infer the model family")
 }
 
 func TestBedrockEmbeddingsEmptyModel(t *testing.T) {
-	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "", "search_document", service.MockResources())
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "", "auto", "search_document", service.MockResources())
 	require.Error(t, err)
+}
+
+func TestBedrockEmbeddingsInvalidProvider(t *testing.T) {
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "cohere.embed-english-v3", "openai", "search_document", service.MockResources())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid 'provider'")
+}
+
+// An inference profile ARN carries no model name, so auto-detection must fail
+// with a clear instruction to set the provider explicitly.
+func TestBedrockEmbeddingsInferenceProfileARNNeedsProvider(t *testing.T) {
+	arn := "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/wrdo2nb2muxt"
+
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, arn, "auto", "search_document", service.MockResources())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not infer the model family")
+
+	// With the provider set explicitly the ARN is accepted and passed straight
+	// through to InvokeModel as the model ID.
+	mock := &mockBedrock{
+		fn: func(in *bedrockruntime.InvokeModelInput) (*bedrockruntime.InvokeModelOutput, error) {
+			require.Equal(t, arn, *in.ModelId)
+			return &bedrockruntime.InvokeModelOutput{
+				Body: []byte(`{"embeddings":{"float":[[0.5,0.6]]},"response_type":"embeddings_by_type"}`),
+			}, nil
+		},
+	}
+	p, err := newBedrockEmbeddingsProc(mock, arn, "cohere", "search_document", service.MockResources())
+	require.NoError(t, err)
+
+	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("doc")),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []any{[]float64{0.5, 0.6}}, structuredBatch(t, outBatches[0]))
 }
 
 // Titan has no batch API, so a batch of N messages must produce N separate
@@ -66,7 +101,7 @@ func TestBedrockEmbeddingsTitanOneCallPerMessage(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v2:0", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v2:0", "auto", "search_document", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -88,27 +123,30 @@ func TestBedrockEmbeddingsTitanOneCallPerMessage(t *testing.T) {
 
 // Cohere accepts many texts per request, so a batch of N messages must collapse
 // into a single InvokeModel call and the embeddings must be unnested back onto
-// the messages in order.
-func TestBedrockEmbeddingsCohereBatchesIntoSingleCall(t *testing.T) {
+// the messages in order. The request must set embedding_types and the response
+// is decoded from the {"embeddings": {"float": [...]}} (v4) shape.
+func TestBedrockEmbeddingsCohereV4BatchesIntoSingleCall(t *testing.T) {
 	mock := &mockBedrock{
 		fn: func(in *bedrockruntime.InvokeModelInput) (*bedrockruntime.InvokeModelOutput, error) {
-			require.Equal(t, "cohere.embed-english-v3", *in.ModelId)
+			require.Equal(t, "cohere.embed-v4:0", *in.ModelId)
 
 			var req struct {
-				Texts     []string `json:"texts"`
-				InputType string   `json:"input_type"`
+				Texts          []string `json:"texts"`
+				InputType      string   `json:"input_type"`
+				EmbeddingTypes []string `json:"embedding_types"`
 			}
 			require.NoError(t, json.Unmarshal(in.Body, &req))
 			assert.Equal(t, []string{"a", "b", "c"}, req.Texts)
 			assert.Equal(t, "search_query", req.InputType)
+			assert.Equal(t, []string{"float"}, req.EmbeddingTypes)
 
 			return &bedrockruntime.InvokeModelOutput{
-				Body: []byte(`{"embeddings":[[1.0],[2.0],[3.0]],"id":"x"}`),
+				Body: []byte(`{"embeddings":{"float":[[1.0],[2.0],[3.0]]},"response_type":"embeddings_by_type"}`),
 			}, nil
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "search_query", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_query", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -126,6 +164,26 @@ func TestBedrockEmbeddingsCohereBatchesIntoSingleCall(t *testing.T) {
 	}, structuredBatch(t, outBatches[0]))
 }
 
+// The older v3 bare-array response shape must still decode.
+func TestBedrockEmbeddingsCohereV3BareArrayResponse(t *testing.T) {
+	mock := &mockBedrock{
+		fn: func(in *bedrockruntime.InvokeModelInput) (*bedrockruntime.InvokeModelOutput, error) {
+			return &bedrockruntime.InvokeModelOutput{
+				Body: []byte(`{"embeddings":[[0.4,0.5]],"response_type":"embeddings_floats"}`),
+			}, nil
+		},
+	}
+
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "auto", "search_document", service.MockResources())
+	require.NoError(t, err)
+
+	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("a document")),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []any{[]float64{0.4, 0.5}}, structuredBatch(t, outBatches[0]))
+}
+
 // A batch larger than the provider's per-request limit must be split into
 // multiple calls.
 func TestBedrockEmbeddingsCohereChunksOversizedBatch(t *testing.T) {
@@ -137,17 +195,17 @@ func TestBedrockEmbeddingsCohereChunksOversizedBatch(t *testing.T) {
 			require.NoError(t, json.Unmarshal(in.Body, &req))
 			require.LessOrEqual(t, len(req.Texts), cohereMaxBatchTexts)
 
-			embeddings := make([][]float64, len(req.Texts))
-			for i := range embeddings {
-				embeddings[i] = []float64{float64(i)}
+			floats := make([][]float64, len(req.Texts))
+			for i := range floats {
+				floats[i] = []float64{float64(i)}
 			}
-			body, err := json.Marshal(map[string]any{"embeddings": embeddings})
+			body, err := json.Marshal(map[string]any{"embeddings": map[string]any{"float": floats}})
 			require.NoError(t, err)
 			return &bedrockruntime.InvokeModelOutput{Body: body}, nil
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", service.MockResources())
 	require.NoError(t, err)
 
 	batch := make(service.MessageBatch, 0, 200)
@@ -174,7 +232,7 @@ func TestBedrockEmbeddingsBatchFailureFlagsWholeGroup(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -194,11 +252,11 @@ func TestBedrockEmbeddingsBatchFailureFlagsWholeGroup(t *testing.T) {
 func TestBedrockEmbeddingsCountMismatch(t *testing.T) {
 	mock := &mockBedrock{
 		fn: func(in *bedrockruntime.InvokeModelInput) (*bedrockruntime.InvokeModelOutput, error) {
-			return &bedrockruntime.InvokeModelOutput{Body: []byte(`{"embeddings":[[1.0]]}`)}, nil
+			return &bedrockruntime.InvokeModelOutput{Body: []byte(`{"embeddings":{"float":[[1.0]]}}`)}, nil
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -217,7 +275,7 @@ func TestBedrockEmbeddingsTitanEmptyResponse(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v1", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v1", "auto", "search_document", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{

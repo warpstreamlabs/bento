@@ -37,9 +37,15 @@ func TestIntegrationBedrockEmbeddings(t *testing.T) {
 	awsConf, err := awsconfig.LoadDefaultConfig(ctx)
 	require.NoError(t, err)
 
+	provider := os.Getenv("TEST_AWS_BEDROCK_PROVIDER")
+	if provider == "" {
+		provider = "auto"
+	}
+
 	proc, err := newBedrockEmbeddingsProc(
 		bedrockruntime.NewFromConfig(awsConf),
 		model,
+		provider,
 		"search_document",
 		service.MockResources(),
 	)

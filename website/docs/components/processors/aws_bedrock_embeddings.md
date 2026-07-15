@@ -33,6 +33,7 @@ Generates vector embeddings for each message by invoking an Amazon Bedrock embed
 label: ""
 aws_bedrock_embeddings:
   model: amazon.titan-embed-text-v2:0 # No default (required)
+  provider: auto
 ```
 
 </TabItem>
@@ -43,6 +44,7 @@ aws_bedrock_embeddings:
 label: ""
 aws_bedrock_embeddings:
   model: amazon.titan-embed-text-v2:0 # No default (required)
+  provider: auto
   input_type: search_document
   region: ""
   endpoint: ""
@@ -64,10 +66,14 @@ Invokes an [Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide
 
 Requests are signed with AWS Signature Version 4 by the AWS SDK, so no additional authentication configuration is required beyond standard AWS credentials.
 
-The request and response formats differ between model providers, so this processor understands the following families, selected automatically from the `model` ID:
+The `model` may be a foundation model ID (e.g. `amazon.titan-embed-text-v2:0`) or an [inference profile](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles.html) ID or ARN. Some models (e.g. Cohere Embed v4) can only be invoked through an inference profile.
+
+The request and response formats differ between model providers, so this processor understands the following families:
 
 - Amazon Titan (`amazon.titan-embed-*`) — one request per message.
-- Cohere Embed (`cohere.embed-*`) — up to 96 messages are sent in a single request, reducing round-trips and Bedrock request-rate throttling.
+- Cohere Embed (`cohere.embed-*`), including v4 — up to 96 messages are sent in a single request, reducing round-trips and Bedrock request-rate throttling.
+
+The family is normally inferred from the `model` ID. When `model` is an inference profile ARN the family cannot be inferred, so set `provider` explicitly.
 
 Batching is driven by the incoming message batch: the messages in each batch are grouped into the largest requests the model supports. If a batched request fails, every message in that group is flagged with the error.
 
@@ -122,6 +128,24 @@ model: amazon.titan-embed-text-v1
 model: cohere.embed-english-v3
 
 model: cohere.embed-multilingual-v3
+```
+
+### `provider`
+
+The model provider family, which determines the request and response encoding. When set to `auto` it is inferred from the `model` ID, but this is not possible when `model` is an inference profile ARN, so it must be set explicitly in that case.
+
+
+Type: `string`  
+Default: `"auto"`  
+
+```yml
+# Examples
+
+provider: auto
+
+provider: amazon_titan
+
+provider: cohere
 ```
 
 ### `input_type`
