@@ -4,13 +4,57 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    groups:
-      production-dependencies:
-        dependency-type: "production"
-      development-dependencies:
-        dependency-type: "development"
     open-pull-requests-limit: 10
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      # All major dependencies (security or otherwise) should be updated within individual PR.
+      # Otherwise, group together minor & patch updates into bulk PRs, for security and version
+      # bumps respectively.
+      go-minor-patch: 
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
+      go-minor-patch-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      npm-docusaurus:
+        patterns:
+          - "@docusaurus/*"
+          - "@algolia/*"
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
+      npm-minor-patch-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
