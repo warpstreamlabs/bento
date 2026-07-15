@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/stretchr/testify/assert"
@@ -36,18 +38,18 @@ func structuredBatch(t *testing.T, batch service.MessageBatch) []any {
 }
 
 func TestBedrockEmbeddingsUnsupportedModel(t *testing.T) {
-	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "anthropic.claude-3-sonnet", "auto", "search_document", service.MockResources())
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "anthropic.claude-3-sonnet", "auto", "search_document", "", service.MockResources())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "could not infer the model family")
 }
 
 func TestBedrockEmbeddingsEmptyModel(t *testing.T) {
-	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "", "auto", "search_document", service.MockResources())
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "", "auto", "search_document", "", service.MockResources())
 	require.Error(t, err)
 }
 
 func TestBedrockEmbeddingsInvalidProvider(t *testing.T) {
-	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "cohere.embed-english-v3", "openai", "search_document", service.MockResources())
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "cohere.embed-english-v3", "openai", "search_document", "", service.MockResources())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid 'provider'")
 }
@@ -57,7 +59,7 @@ func TestBedrockEmbeddingsInvalidProvider(t *testing.T) {
 func TestBedrockEmbeddingsInferenceProfileARNNeedsProvider(t *testing.T) {
 	arn := "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/wrdo2nb2muxt"
 
-	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, arn, "auto", "search_document", service.MockResources())
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, arn, "auto", "search_document", "", service.MockResources())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "could not infer the model family")
 
@@ -71,7 +73,7 @@ func TestBedrockEmbeddingsInferenceProfileARNNeedsProvider(t *testing.T) {
 			}, nil
 		},
 	}
-	p, err := newBedrockEmbeddingsProc(mock, arn, "cohere", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, arn, "cohere", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -101,7 +103,7 @@ func TestBedrockEmbeddingsTitanOneCallPerMessage(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v2:0", "auto", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v2:0", "auto", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -146,7 +148,7 @@ func TestBedrockEmbeddingsCohereV4BatchesIntoSingleCall(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_query", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_query", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -174,7 +176,7 @@ func TestBedrockEmbeddingsCohereV3BareArrayResponse(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "auto", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-english-v3", "auto", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -205,7 +207,7 @@ func TestBedrockEmbeddingsCohereChunksOversizedBatch(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	batch := make(service.MessageBatch, 0, 200)
@@ -232,7 +234,7 @@ func TestBedrockEmbeddingsBatchFailureFlagsWholeGroup(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -256,7 +258,7 @@ func TestBedrockEmbeddingsCountMismatch(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "cohere.embed-v4:0", "cohere", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -275,7 +277,7 @@ func TestBedrockEmbeddingsTitanEmptyResponse(t *testing.T) {
 		},
 	}
 
-	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v1", "auto", "search_document", service.MockResources())
+	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v1", "auto", "search_document", "", service.MockResources())
 	require.NoError(t, err)
 
 	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
@@ -283,4 +285,43 @@ func TestBedrockEmbeddingsTitanEmptyResponse(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Error(t, outBatches[0][0].GetError())
+}
+
+// A rate limit that has not been registered as a resource must fail at
+// construction rather than being silently ignored.
+func TestBedrockEmbeddingsUnknownRateLimit(t *testing.T) {
+	_, err := newBedrockEmbeddingsProc(&mockBedrock{}, "cohere.embed-v4:0", "cohere", "search_document", "missing", service.MockResources())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rate limit resource 'missing' was not found")
+}
+
+// Each InvokeModel request must acquire the rate limit once. Titan issues one
+// request per message, so a three-message batch must consult the limiter three
+// times.
+func TestBedrockEmbeddingsRateLimitAcquiredPerRequest(t *testing.T) {
+	var accesses int64
+	res := service.MockResources(service.MockResourcesOptAddRateLimit("throttle", func(context.Context) (time.Duration, error) {
+		atomic.AddInt64(&accesses, 1)
+		return 0, nil
+	}))
+
+	mock := &mockBedrock{
+		fn: func(in *bedrockruntime.InvokeModelInput) (*bedrockruntime.InvokeModelOutput, error) {
+			return &bedrockruntime.InvokeModelOutput{Body: []byte(`{"embedding":[0.1,0.2]}`)}, nil
+		},
+	}
+
+	p, err := newBedrockEmbeddingsProc(mock, "amazon.titan-embed-text-v2:0", "auto", "search_document", "throttle", res)
+	require.NoError(t, err)
+
+	outBatches, err := p.ProcessBatch(context.Background(), service.MessageBatch{
+		service.NewMessage([]byte("one")),
+		service.NewMessage([]byte("two")),
+		service.NewMessage([]byte("three")),
+	})
+	require.NoError(t, err)
+	require.Len(t, outBatches[0], 3)
+
+	assert.Equal(t, 3, mock.calls)
+	assert.Equal(t, int64(3), atomic.LoadInt64(&accesses))
 }

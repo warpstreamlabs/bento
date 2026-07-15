@@ -46,6 +46,7 @@ aws_bedrock_embeddings:
   model: amazon.titan-embed-text-v2:0 # No default (required)
   provider: auto
   input_type: search_document
+  rate_limit: ""
   region: ""
   endpoint: ""
   credentials:
@@ -167,6 +168,14 @@ input_type: classification
 
 input_type: clustering
 ```
+
+### `rate_limit`
+
+An optional [`rate_limit`](/docs/components/rate_limits/about) resource to throttle Bedrock `InvokeModel` requests by. The limit is applied per request, and each Cohere batch (up to 96 texts) counts as one request. Note that Bento rate limits are enforced per running instance, so this does not bound the aggregate rate across horizontally scaled deployments.
+
+
+Type: `string`  
+Default: `""`  
 
 ### `region`
 

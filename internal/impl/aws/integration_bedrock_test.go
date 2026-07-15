@@ -47,6 +47,7 @@ func TestIntegrationBedrockEmbeddings(t *testing.T) {
 		model,
 		provider,
 		"search_document",
+		"",
 		service.MockResources(),
 	)
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -18,6 +19,7 @@ const (
 	bedFieldModel     = "model"
 	bedFieldProvider  = "provider"
 	bedFieldInputType = "input_type"
+	bedFieldRateLimit = "rate_limit"
 
 	bedProviderAuto   = "auto"
 	bedProviderTitan  = "amazon_titan"
@@ -68,6 +70,10 @@ By default Bento will use a shared credentials file when connecting to AWS servi
 			Description("The `input_type` sent to Cohere embedding models, which is required by that family. Ignored by other model families.").
 			Default("search_document").
 			Examples("search_document", "search_query", "classification", "clustering").
+			Advanced()).
+		Field(service.NewStringField(bedFieldRateLimit).
+			Description("An optional [`rate_limit`](/docs/components/rate_limits/about) resource to throttle Bedrock `InvokeModel` requests by. The limit is applied per request, and each Cohere batch (up to 96 texts) counts as one request. Note that Bento rate limits are enforced per running instance, so this does not bound the aggregate rate across horizontally scaled deployments.").
+			Default("").
 			Advanced())
 
 	for _, f := range config.SessionFields() {
@@ -111,7 +117,12 @@ pipeline:
 				return nil, err
 			}
 
-			return newBedrockEmbeddingsProc(bedrockruntime.NewFromConfig(aconf), model, provider, inputType, mgr)
+			rateLimit, err := conf.FieldString(bedFieldRateLimit)
+			if err != nil {
+				return nil, err
+			}
+
+			return newBedrockEmbeddingsProc(bedrockruntime.NewFromConfig(aconf), model, provider, inputType, rateLimit, mgr)
 		})
 	if err != nil {
 		panic(err)
@@ -234,13 +245,15 @@ func (cohereCodec) decodeResponse(body []byte) ([][]float64, error) {
 //------------------------------------------------------------------------------
 
 type bedrockEmbeddingsProc struct {
-	client bedrockRuntimeAPI
-	model  string
-	codec  embeddingCodec
-	log    *service.Logger
+	client    bedrockRuntimeAPI
+	model     string
+	codec     embeddingCodec
+	rateLimit string
+	log       *service.Logger
+	mgr       *service.Resources
 }
 
-func newBedrockEmbeddingsProc(client bedrockRuntimeAPI, model, provider, inputType string, mgr *service.Resources) (*bedrockEmbeddingsProc, error) {
+func newBedrockEmbeddingsProc(client bedrockRuntimeAPI, model, provider, inputType, rateLimit string, mgr *service.Resources) (*bedrockEmbeddingsProc, error) {
 	if model == "" {
 		return nil, fmt.Errorf("field '%v' must not be empty", bedFieldModel)
 	}
@@ -248,12 +261,47 @@ func newBedrockEmbeddingsProc(client bedrockRuntimeAPI, model, provider, inputTy
 	if err != nil {
 		return nil, err
 	}
+	if rateLimit != "" && !mgr.HasRateLimit(rateLimit) {
+		return nil, fmt.Errorf("rate limit resource '%v' was not found", rateLimit)
+	}
 	return &bedrockEmbeddingsProc{
-		client: client,
-		model:  model,
-		codec:  codec,
-		log:    mgr.Logger(),
+		client:    client,
+		model:     model,
+		codec:     codec,
+		rateLimit: rateLimit,
+		log:       mgr.Logger(),
+		mgr:       mgr,
 	}, nil
+}
+
+// waitForAccess blocks until the configured rate limit grants a request, or
+// returns false if ctx is cancelled while waiting. With no rate limit set it
+// returns immediately.
+func (b *bedrockEmbeddingsProc) waitForAccess(ctx context.Context) bool {
+	if b.rateLimit == "" {
+		return true
+	}
+	for {
+		var period time.Duration
+		var err error
+		if rerr := b.mgr.AccessRateLimit(ctx, b.rateLimit, func(rl service.RateLimit) {
+			period, err = rl.Access(ctx)
+		}); rerr != nil {
+			err = rerr
+		}
+		if err != nil {
+			b.log.Errorf("Rate limit error: %v", err)
+			period = time.Second
+		}
+		if period <= 0 {
+			return true
+		}
+		select {
+		case <-time.After(period):
+		case <-ctx.Done():
+			return false
+		}
+	}
 }
 
 // invoke sends a single group of texts to Bedrock and returns one embedding per
@@ -306,6 +354,13 @@ func (b *bedrockEmbeddingsProc) ProcessBatch(ctx context.Context, batch service.
 		end := min(start+chunkSize, len(texts))
 		chunkTexts := texts[start:end]
 		chunkIndices := indices[start:end]
+
+		if !b.waitForAccess(ctx) {
+			for _, idx := range chunkIndices {
+				batch[idx].SetError(ctx.Err())
+			}
+			continue
+		}
 
 		embeddings, err := b.invoke(ctx, chunkTexts)
 		if err != nil {
