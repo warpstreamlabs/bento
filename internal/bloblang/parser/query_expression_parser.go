@@ -234,6 +234,12 @@ func lambdaExpressionParser(pCtx Context) Func[query.Function] {
 		}
 
 		name := res.Payload
+		// Use a local copy instead of reassigning the pCtx variable captured
+		// from the enclosing lambdaExpressionParser(pCtx) call. Reassigning
+		// the captured variable would mutate state shared by every
+		// invocation of this closure, which is unsafe if the closure is
+		// ever reused across calls (e.g. built once and cached).
+		localCtx := pCtx
 		if name != "_" {
 			if pCtx.HasNamedContext(name) {
 				return Fail[query.Function](
@@ -247,10 +253,10 @@ func lambdaExpressionParser(pCtx Context) Func[query.Function] {
 			}[name]; exists {
 				return Fail[query.Function](NewFatalError(input, fmt.Errorf("context label `%v` is not allowed", name)), input)
 			}
-			pCtx = pCtx.WithNamedContext(name)
+			localCtx = pCtx.WithNamedContext(name)
 		}
 
-		queryRes := MustBe(queryParser(pCtx))(res.Remaining)
+		queryRes := MustBe(queryParser(localCtx))(res.Remaining)
 		if queryRes.Err != nil {
 			return queryRes
 		}
