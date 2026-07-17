@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"iter"
 	"sync"
 	"time"
 
@@ -252,6 +253,42 @@ func (s *s3Cache) Delete(ctx context.Context, key string) (err error) {
 		case <-time.After(wait):
 		case <-ctx.Done():
 			return
+		}
+	}
+}
+
+func (s *s3Cache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		boff := s.boffPool.Get().(backoff.BackOff)
+		defer func() {
+			boff.Reset()
+			s.boffPool.Put(boff)
+		}()
+
+		pager := s3.NewListObjectsV2Paginator(s.s3, &s3.ListObjectsV2Input{
+			Bucket: &s.bucket,
+		})
+		for pager.HasMorePages() {
+			page, err := pager.NextPage(ctx)
+			if err != nil {
+				wait := boff.NextBackOff()
+				if wait == backoff.Stop {
+					yield("", err)
+					return
+				}
+				select {
+				case <-time.After(wait):
+				case <-ctx.Done():
+					yield("", err)
+					return
+				}
+				continue
+			}
+			for _, obj := range page.Contents {
+				if obj.Key != nil && !yield(*obj.Key, nil) {
+					return
+				}
+			}
 		}
 	}
 }
