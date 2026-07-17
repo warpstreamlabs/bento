@@ -3,6 +3,7 @@ package io
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -86,6 +87,44 @@ func (f *fileCache) Add(_ context.Context, key string, value []byte, _ *time.Dur
 
 func (f *fileCache) Delete(_ context.Context, key string) error {
 	return f.mgr.FS().Remove(filepath.Join(f.dir, key))
+}
+
+func (f *fileCache) ListKeys(ctx context.Context) ([]string, error) {
+	var keys []string
+	var walk func(rel string) error
+	walk = func(rel string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		dir, err := f.mgr.FS().Open(filepath.Join(f.dir, rel))
+		if err != nil {
+			return err
+		}
+		defer dir.Close()
+
+		rd, ok := dir.(fs.ReadDirFile)
+		if !ok {
+			return fmt.Errorf("unable to list directory: %v", filepath.Join(f.dir, rel))
+		}
+		entries, err := rd.ReadDir(-1)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				if err := walk(filepath.Join(rel, e.Name())); err != nil {
+					return err
+				}
+			} else {
+				keys = append(keys, filepath.Join(rel, e.Name()))
+			}
+		}
+		return nil
+	}
+	if err := walk(""); err != nil {
+		return nil, err
+	}
+	return keys, nil
 }
 
 func (f *fileCache) Close(context.Context) error {

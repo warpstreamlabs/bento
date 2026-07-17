@@ -11,6 +11,13 @@ type TTLItem struct {
 	TTL   *time.Duration
 }
 
+// KeyLister is an optional interface implemented by caches that are capable
+// of enumerating the keys they hold.
+type KeyLister interface {
+	// ListKeys returns a slice of all keys currently held by the cache.
+	ListKeys(ctx context.Context) ([]string, error)
+}
+
 // V1 Defines a common interface of cache implementations.
 type V1 interface {
 	// Get attempts to locate and return a cached value by its key, returns an

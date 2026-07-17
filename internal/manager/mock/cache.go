@@ -66,6 +66,15 @@ func (c *Cache) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+// ListKeys returns all keys of the mock cache.
+func (c *Cache) ListKeys(ctx context.Context) ([]string, error) {
+	keys := make([]string, 0, len(c.Values))
+	for k := range c.Values {
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
 // Close does nothing.
 func (c *Cache) Close(ctx context.Context) error {
 	return nil
