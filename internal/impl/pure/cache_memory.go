@@ -2,6 +2,7 @@ package pure
 
 import (
 	"context"
+	"iter"
 	"sync"
 	"time"
 
@@ -245,6 +246,29 @@ func (m *memoryCache) Delete(_ context.Context, key string) error {
 	delete(shard.items, key)
 	shard.Unlock()
 	return nil
+}
+
+func (m *memoryCache) ListKeys(_ context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		for _, shard := range m.shards {
+			// Snapshot each shard before yielding so that no locks are held
+			// while control is passed to the caller.
+			shard.RLock()
+			keys := make([]string, 0, len(shard.items))
+			for k, v := range shard.items {
+				// Simulate compaction by omitting keys with an expired ttl.
+				if !shard.isExpired(v) {
+					keys = append(keys, k)
+				}
+			}
+			shard.RUnlock()
+			for _, k := range keys {
+				if !yield(k, nil) {
+					return
+				}
+			}
+		}
+	}
 }
 
 func (m *memoryCache) Close(context.Context) error {

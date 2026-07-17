@@ -112,6 +112,34 @@ func CacheTestDelete() CacheTestDefinition {
 	)
 }
 
+// CacheTestListKeys checks that a cache supporting key listing enumerates the
+// keys it holds after n items are set.
+func CacheTestListKeys(n int) CacheTestDefinition {
+	return namedCacheTest(
+		"can list keys",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			cache := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, cache)
+			})
+
+			expKeys := make([]string, 0, n)
+			for i := range n {
+				key := fmt.Sprintf("listkey%v", i)
+				require.NoError(t, cache.Set(env.ctx, key, fmt.Appendf(nil, "value%v", i), nil))
+				expKeys = append(expKeys, key)
+			}
+
+			var keys []string
+			for key, err := range cache.ListKeys(env.ctx) {
+				require.NoError(t, err)
+				keys = append(keys, key)
+			}
+			assert.ElementsMatch(t, expKeys, keys)
+		},
+	)
+}
+
 // CacheTestGetAndSet checks that we can set and then get n items.
 func CacheTestGetAndSet(n int) CacheTestDefinition {
 	return namedCacheTest(

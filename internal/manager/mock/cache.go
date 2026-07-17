@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"iter"
 	"time"
 
 	"github.com/warpstreamlabs/bento/internal/component"
@@ -70,6 +71,17 @@ func (c *Cache) Add(ctx context.Context, key string, value []byte, ttl *time.Dur
 func (c *Cache) Delete(ctx context.Context, key string) error {
 	delete(c.Values, key)
 	return nil
+}
+
+// ListKeys returns an iterator over all keys of the mock cache.
+func (c *Cache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		for k := range c.Values {
+			if !yield(k, nil) {
+				return
+			}
+		}
+	}
 }
 
 // Close does nothing.
