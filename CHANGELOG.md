@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `parse_big_decimal` bloblang method for Kafka Connect / Debezium decimal decoding @aratz-lasa
+- `ListableCache` interface added to the service package. This is an optional interface for caches that are able to enumerate their keys, detected via type assertion on caches obtained from `*Resources.AccessCache` @ecordell
+- `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches now implement `ListableCache` @ecordell
 
 ## 1.19.0 - 2026-07-10
 

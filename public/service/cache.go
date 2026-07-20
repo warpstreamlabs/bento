@@ -39,6 +39,19 @@ type Cache interface {
 	Closer
 }
 
+// ListableCache is an optional interface that can be implemented by caches
+// that are capable of enumerating the keys they hold. Not all caches are able
+// to support this, so in order to detect whether a cache obtained from
+// *Resources.AccessCache is listable perform a type assertion against this
+// interface.
+type ListableCache interface {
+	Cache
+
+	// ListKeys returns a slice of all keys currently held by the cache. The
+	// order of the returned keys is not guaranteed.
+	ListKeys(ctx context.Context) ([]string, error)
+}
+
 // CacheItem represents an individual cache item.
 type CacheItem struct {
 	Key   string
@@ -66,7 +79,11 @@ type airGapCache struct {
 func newAirGapCache(c Cache, stats metrics.Type) cache.V1 {
 	ag := &airGapCache{c: c, cm: nil}
 	ag.cm, _ = c.(batchedCache)
-	return cache.MetricsForCache(ag, stats)
+	var v1 cache.V1 = ag
+	if lc, ok := c.(ListableCache); ok {
+		v1 = &listableAirGapCache{airGapCache: ag, l: lc}
+	}
+	return cache.MetricsForCache(v1, stats)
 }
 
 func (a *airGapCache) Get(ctx context.Context, key string) ([]byte, error) {
@@ -117,6 +134,16 @@ func (a *airGapCache) Close(ctx context.Context) error {
 	return a.c.Close(ctx)
 }
 
+// Implements types.Cache and cache.KeyLister around a ListableCache.
+type listableAirGapCache struct {
+	*airGapCache
+	l ListableCache
+}
+
+func (a *listableAirGapCache) ListKeys(ctx context.Context) ([]string, error) {
+	return a.l.ListKeys(ctx)
+}
+
 //------------------------------------------------------------------------------
 
 // Implements Cache around a types.Cache.
@@ -124,8 +151,12 @@ type reverseAirGapCache struct {
 	c cache.V1
 }
 
-func newReverseAirGapCache(c cache.V1) *reverseAirGapCache {
-	return &reverseAirGapCache{c}
+func newReverseAirGapCache(c cache.V1) Cache {
+	rag := &reverseAirGapCache{c}
+	if kl, ok := c.(cache.KeyLister); ok {
+		return &reverseAirGapListableCache{reverseAirGapCache: rag, kl: kl}
+	}
+	return rag
 }
 
 func (r *reverseAirGapCache) Get(ctx context.Context, key string) ([]byte, error) {
@@ -153,4 +184,15 @@ func (r *reverseAirGapCache) Delete(ctx context.Context, key string) error {
 
 func (r *reverseAirGapCache) Close(ctx context.Context) error {
 	return r.c.Close(ctx)
+}
+
+// Implements ListableCache around a types.Cache that also implements
+// cache.KeyLister.
+type reverseAirGapListableCache struct {
+	*reverseAirGapCache
+	kl cache.KeyLister
+}
+
+func (r *reverseAirGapListableCache) ListKeys(ctx context.Context) ([]string, error) {
+	return r.kl.ListKeys(ctx)
 }
