@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/cache"
@@ -283,6 +284,55 @@ func TestCacheAirGapAddWithTTL(t *testing.T) {
 	assert.EqualError(t, err, "key already exists")
 }
 
+type listableClosableCache struct {
+	*closableCache
+}
+
+func (c *listableClosableCache) ListKeys(ctx context.Context) ([]string, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	keys := make([]string, 0, len(c.m))
+	for k := range c.m {
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
+func TestCacheAirGapListKeys(t *testing.T) {
+	ctx := context.Background()
+	rl := &listableClosableCache{
+		closableCache: &closableCache{
+			m: map[string]testCacheItem{
+				"foo": {
+					b: []byte("bar"),
+				},
+				"baz": {
+					b: []byte("qux"),
+				},
+			},
+		},
+	}
+	agrl := newAirGapCache(rl, metrics.Noop())
+
+	kl, ok := agrl.(cache.KeyLister)
+	require.True(t, ok)
+
+	keys, err := kl.ListKeys(ctx)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
+}
+
+func TestCacheAirGapNotListable(t *testing.T) {
+	rl := &closableCache{
+		m: map[string]testCacheItem{},
+	}
+	agrl := newAirGapCache(rl, metrics.Noop())
+
+	_, ok := agrl.(cache.KeyLister)
+	assert.False(t, ok)
+}
+
 func TestCacheAirGapDelete(t *testing.T) {
 	ctx := context.Background()
 	rl := &closableCache{
@@ -489,4 +539,83 @@ func TestCacheReverseAirGapDelete(t *testing.T) {
 	err := agrl.Delete(context.Background(), "foo")
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]testCacheItem{}, rl.m)
+}
+
+type listableClosableCacheType struct {
+	*closableCacheType
+}
+
+func (c *listableClosableCacheType) ListKeys(ctx context.Context) ([]string, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	keys := make([]string, 0, len(c.m))
+	for k := range c.m {
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
+func TestCacheReverseAirGapListKeys(t *testing.T) {
+	rl := &listableClosableCacheType{
+		closableCacheType: &closableCacheType{
+			m: map[string]testCacheItem{
+				"foo": {
+					b: []byte("bar"),
+				},
+				"baz": {
+					b: []byte("qux"),
+				},
+			},
+		},
+	}
+	agrl := newReverseAirGapCache(rl)
+
+	lc, ok := agrl.(ListableCache)
+	require.True(t, ok)
+
+	keys, err := lc.ListKeys(context.Background())
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
+}
+
+func TestCacheReverseAirGapNotListable(t *testing.T) {
+	rl := &closableCacheType{
+		m: map[string]testCacheItem{},
+	}
+	agrl := newReverseAirGapCache(rl)
+
+	_, ok := agrl.(ListableCache)
+	assert.False(t, ok)
+}
+
+// TestCacheListKeysRoundTrip covers the full journey of a ListableCache
+// implementation registered as a plugin and then accessed as a resource,
+// which passes through the air gap, metrics and reverse air gap wrappers.
+func TestCacheListKeysRoundTrip(t *testing.T) {
+	rl := &listableClosableCache{
+		closableCache: &closableCache{
+			m: map[string]testCacheItem{
+				"foo": {
+					b: []byte("bar"),
+				},
+			},
+		},
+	}
+	agrl := newReverseAirGapCache(newAirGapCache(rl, metrics.Noop()))
+
+	lc, ok := agrl.(ListableCache)
+	require.True(t, ok)
+
+	keys, err := lc.ListKeys(context.Background())
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"foo"}, keys)
+
+	rlNotListable := &closableCache{
+		m: map[string]testCacheItem{},
+	}
+	agrlNotListable := newReverseAirGapCache(newAirGapCache(rlNotListable, metrics.Noop()))
+
+	_, ok = agrlNotListable.(ListableCache)
+	assert.False(t, ok)
 }

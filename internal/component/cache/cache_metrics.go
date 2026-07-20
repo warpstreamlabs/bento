@@ -35,13 +35,14 @@ type metricsCache struct {
 }
 
 // MetricsForCache wraps a cache with a struct that adds standard metrics over
-// each method.
+// each method. If the cache implements KeyLister then the returned cache will
+// also implement it.
 func MetricsForCache(c V1, stats metrics.Type) V1 {
 	cacheSuccess := stats.GetCounterVec("cache_success", "operation")
 	cacheError := stats.GetCounterVec("cache_error", "operation")
 	cacheLatency := stats.GetTimerVec("cache_latency_ns", "operation")
 
-	return &metricsCache{
+	mCache := &metricsCache{
 		c: c, sig: shutdown.NewSignaller(),
 
 		mGetNotFound: stats.GetCounterVec("cache_not_found", "operation").With("get"),
@@ -61,6 +62,19 @@ func MetricsForCache(c V1, stats metrics.Type) V1 {
 		mDelError:   cacheError.With("delete"),
 		mDelSuccess: cacheSuccess.With("delete"),
 		mDelLatency: cacheLatency.With("delete"),
+	}
+
+	kl, ok := c.(KeyLister)
+	if !ok {
+		return mCache
+	}
+	return &listableMetricsCache{
+		metricsCache: mCache,
+		kl:           kl,
+
+		mListKeysError:   cacheError.With("list_keys"),
+		mListKeysSuccess: cacheSuccess.With("list_keys"),
+		mListKeysLatency: cacheLatency.With("list_keys"),
 	}
 }
 
@@ -134,4 +148,27 @@ func (a *metricsCache) Delete(ctx context.Context, key string) error {
 
 func (a *metricsCache) Close(ctx context.Context) error {
 	return a.c.Close(ctx)
+}
+
+//------------------------------------------------------------------------------
+
+type listableMetricsCache struct {
+	*metricsCache
+	kl KeyLister
+
+	mListKeysError   metrics.StatCounter
+	mListKeysSuccess metrics.StatCounter
+	mListKeysLatency metrics.StatTimer
+}
+
+func (a *listableMetricsCache) ListKeys(ctx context.Context) ([]string, error) {
+	started := time.Now()
+	keys, err := a.kl.ListKeys(ctx)
+	a.mListKeysLatency.Timing(int64(time.Since(started)))
+	if err != nil {
+		a.mListKeysError.Incr(1)
+	} else {
+		a.mListKeysSuccess.Incr(1)
+	}
+	return keys, err
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
@@ -252,4 +253,53 @@ func TestCacheAirGapDelete(t *testing.T) {
 	err := agrl.Delete(ctx, "foo")
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]testCacheItem{}, rl.m)
+}
+
+type listableClosableCache struct {
+	*closableCache
+}
+
+func (c *listableClosableCache) ListKeys(ctx context.Context) ([]string, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	keys := make([]string, 0, len(c.m))
+	for k := range c.m {
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
+func TestCacheAirGapListKeys(t *testing.T) {
+	ctx := context.Background()
+	rl := &listableClosableCache{
+		closableCache: &closableCache{
+			m: map[string]testCacheItem{
+				"foo": {
+					b: []byte("bar"),
+				},
+				"baz": {
+					b: []byte("qux"),
+				},
+			},
+		},
+	}
+	agrl := MetricsForCache(rl, metrics.Noop())
+
+	kl, ok := agrl.(KeyLister)
+	require.True(t, ok)
+
+	keys, err := kl.ListKeys(ctx)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
+}
+
+func TestCacheAirGapNotListable(t *testing.T) {
+	rl := &closableCache{
+		m: map[string]testCacheItem{},
+	}
+	agrl := MetricsForCache(rl, metrics.Noop())
+
+	_, ok := agrl.(KeyLister)
+	assert.False(t, ok)
 }

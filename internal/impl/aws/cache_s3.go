@@ -223,6 +223,40 @@ func (s *s3Cache) Delete(ctx context.Context, key string) (err error) {
 	}
 }
 
+func (s *s3Cache) ListKeys(ctx context.Context) ([]string, error) {
+	boff := s.boffPool.Get().(backoff.BackOff)
+	defer func() {
+		boff.Reset()
+		s.boffPool.Put(boff)
+	}()
+
+	var keys []string
+	pager := s3.NewListObjectsV2Paginator(s.s3, &s3.ListObjectsV2Input{
+		Bucket: &s.bucket,
+	})
+	for pager.HasMorePages() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			wait := boff.NextBackOff()
+			if wait == backoff.Stop {
+				return nil, err
+			}
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+				return nil, err
+			}
+			continue
+		}
+		for _, obj := range page.Contents {
+			if obj.Key != nil {
+				keys = append(keys, *obj.Key)
+			}
+		}
+	}
+	return keys, nil
+}
+
 func (s *s3Cache) Close(context.Context) error {
 	return nil
 }

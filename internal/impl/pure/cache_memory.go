@@ -239,6 +239,21 @@ func (m *memoryCache) Delete(_ context.Context, key string) error {
 	return nil
 }
 
+func (m *memoryCache) ListKeys(_ context.Context) ([]string, error) {
+	var keys []string
+	for _, shard := range m.shards {
+		shard.RLock()
+		for k, v := range shard.items {
+			// Simulate compaction by omitting keys with an expired ttl.
+			if !shard.isExpired(v) {
+				keys = append(keys, k)
+			}
+		}
+		shard.RUnlock()
+	}
+	return keys, nil
+}
+
 func (m *memoryCache) Close(context.Context) error {
 	return nil
 }
