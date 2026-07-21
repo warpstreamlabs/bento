@@ -457,6 +457,11 @@ func (ie *interpolationExecutor) exec(i int) (topic string, key []byte, partitio
 			err = fmt.Errorf("key interpolation error: %w", err)
 			return
 		}
+		// TODO: replace with a null aware method on the executor
+		// rather than infer from the returned bytes
+		if slices.Equal(key, []byte("null")) {
+			key = nil
+		}
 	}
 	if ie.partitionExecutor != nil {
 		var partStr string
