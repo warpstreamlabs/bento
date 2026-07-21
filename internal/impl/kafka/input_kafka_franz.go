@@ -471,7 +471,9 @@ type msgWithRecord struct {
 
 func (f *franzKafkaReader) recordToMessage(record *kgo.Record) *msgWithRecord {
 	msg := service.NewMessage(record.Value)
-	msg.MetaSetMut("kafka_key", string(record.Key))
+	if record.Key != nil {
+		msg.MetaSetMut("kafka_key", string(record.Key))
+	}
 	msg.MetaSetMut("kafka_topic", record.Topic)
 	msg.MetaSetMut("kafka_partition", int(record.Partition))
 	msg.MetaSetMut("kafka_offset", int(record.Offset))
