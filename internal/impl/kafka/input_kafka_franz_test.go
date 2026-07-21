@@ -416,3 +416,50 @@ kafka_franz:
 		return messageCount == 2
 	}, time.Second*20, time.Millisecond*500)
 }
+
+func TestRecordToMessageKafkaKeyMeta(t *testing.T) {
+	conf, err := franzKafkaInputConfig().ParseYAML(`
+seed_brokers: [localhost:9092]
+topics: [foo]
+consumer_group: bar
+`, nil)
+	require.NoError(t, err)
+
+	input, err := newFranzKafkaReaderFromConfig(conf, service.MockResources())
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		key        []byte
+		wantExists bool
+		wantKey    string
+	}{
+		{
+			name:       "nil key omits metadata",
+			key:        nil,
+			wantExists: false,
+		},
+		{
+			name:       "empty key sets empty metadata",
+			key:        []byte{},
+			wantExists: true,
+			wantKey:    "",
+		},
+		{
+			name:       "populated key sets metadata",
+			key:        []byte("foobar"),
+			wantExists: true,
+			wantKey:    "foobar",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			msg := input.recordToMessage(&kgo.Record{Key: test.key}).msg
+
+			key, exists := msg.MetaGet("kafka_key")
+			assert.Equal(t, test.wantExists, exists)
+			assert.Equal(t, test.wantKey, key)
+		})
+	}
+}
