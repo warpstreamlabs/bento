@@ -39,6 +39,13 @@ type AsyncSink interface {
 	Close(ctx context.Context) error
 }
 
+// BatchContextPreparer is an optional extension for sinks that derive context
+// values once per dispatched output transaction. The prepared context is
+// reused by connection retry attempts for that transaction.
+type BatchContextPreparer interface {
+	PrepareBatchContext(context.Context, message.Batch) (context.Context, error)
+}
+
 // AsyncWriter is an output type that writes messages to a writer.Type.
 type AsyncWriter struct {
 	connection atomic.Pointer[component.ConnectionStatus]
@@ -155,7 +162,7 @@ func (w *AsyncWriter) loop() {
 	wg.Add(w.maxInflight)
 
 	connectMut := sync.Mutex{}
-	connectLoop := func(msg message.Batch) (latency int64, err error) {
+	connectLoop := func(ctx context.Context, msg message.Batch) (latency int64, err error) {
 		w.connection.Store(component.ConnectionFailing(w.mgr, component.ErrNotConnected))
 
 		connectMut.Lock()
@@ -164,7 +171,7 @@ func (w *AsyncWriter) loop() {
 		// If another goroutine got here first and we're able to send over the
 		// connection, then we gracefully accept defeat.
 		if w.connection.Load().Connected {
-			if latency, err = w.latencyMeasuringWrite(closeLeisureCtx, msg); err != component.ErrNotConnected {
+			if latency, err = w.latencyMeasuringWrite(ctx, msg); err != component.ErrNotConnected {
 				return
 			} else if err != nil {
 				mError.Incr(1)
@@ -178,7 +185,7 @@ func (w *AsyncWriter) loop() {
 				err = component.ErrTypeClosed
 				return
 			}
-			if latency, err = w.latencyMeasuringWrite(closeLeisureCtx, msg); err != component.ErrNotConnected {
+			if latency, err = w.latencyMeasuringWrite(ctx, msg); err != component.ErrNotConnected {
 				w.connection.Store(component.ConnectionActive(w.mgr))
 				mConn.Incr(1)
 				return
@@ -206,11 +213,22 @@ func (w *AsyncWriter) loop() {
 			w.log.Trace("Attempting to write %v messages to '%v'.\n", ts.Payload.Len(), w.typeStr)
 			_, spans := tracing.WithChildSpans(w.tracer, traceName, ts.Payload)
 
-			latency, err := w.latencyMeasuringWrite(closeLeisureCtx, ts.Payload)
+			writeCtx := closeLeisureCtx
+			var err error
+			var attemptedWrite bool
+			if p, ok := w.writer.(BatchContextPreparer); ok {
+				writeCtx, err = p.PrepareBatchContext(writeCtx, ts.Payload)
+			}
+
+			var latency int64
+			if err == nil {
+				attemptedWrite = true
+				latency, err = w.latencyMeasuringWrite(writeCtx, ts.Payload)
+			}
 
 			// If our writer says it is not connected.
-			if errors.Is(err, component.ErrNotConnected) {
-				latency, err = connectLoop(ts.Payload)
+			if attemptedWrite && errors.Is(err, component.ErrNotConnected) {
+				latency, err = connectLoop(writeCtx, ts.Payload)
 			} else if err != nil {
 				mError.Incr(1)
 			}

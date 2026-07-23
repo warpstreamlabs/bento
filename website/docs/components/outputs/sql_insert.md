@@ -59,6 +59,7 @@ output:
     args_mapping: root = [ this.cat.meow, this.doc.woofs[0] ] # No default (required)
     prefix: "" # No default (optional)
     suffix: ON CONFLICT (name) DO NOTHING # No default (optional)
+    clickhouse_settings: {}
     max_in_flight: 64
     init_files: [] # No default (optional)
     init_statement: | # No default (optional)
@@ -111,6 +112,7 @@ output:
 <Tabs defaultValue="Table Insert (MySQL)" values={[
 { label: 'Table Insert (MySQL)', value: 'Table Insert (MySQL)', },
 { label: 'Table Insert (DuckDB)', value: 'Table Insert (DuckDB)', },
+{ label: 'ClickHouse Batch Deduplication', value: 'ClickHouse Batch Deduplication', },
 ]}>
 
 <TabItem value="Table Insert (MySQL)">
@@ -153,6 +155,27 @@ output:
         duck       VARCHAR,
         gold_coins BIGINT
       )
+```
+
+</TabItem>
+<TabItem value="ClickHouse Batch Deduplication">
+
+Assign a unique deduplication token to each dispatched Bento output batch. All rows in the batch and any connection retry of that output transaction use the same token.
+
+```yaml
+output:
+  sql_insert:
+    driver: clickhouse
+    dsn: clickhouse://default:@localhost:9000/default
+    table: events
+    columns: [event_id, payload]
+    args_mapping: 'root = [this.event_id, this]'
+    clickhouse_settings:
+      insert_deduplication_token: '${! uuid_v4() }'
+      deduplicate_blocks_in_dependent_materialized_views: '1'
+    batching:
+      count: 1000
+      period: 1s
 ```
 
 </TabItem>
@@ -279,6 +302,24 @@ Type: `string`
 # Examples
 
 suffix: ON CONFLICT (name) DO NOTHING
+```
+
+### `clickhouse_settings`
+
+A map of ClickHouse query settings to apply to each insert batch. Values support interpolation and are evaluated once against the first message in each dispatched output batch. The resolved settings are reused unchanged if Bento reconnects and retries that output transaction. An upstream nack and reprocessing creates a new output transaction and reevaluates the settings.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
+
+
+Type: `object`  
+Default: `{}`  
+Requires version 1.20.0 or newer  
+
+```yml
+# Examples
+
+clickhouse_settings:
+  deduplicate_blocks_in_dependent_materialized_views: "1"
+  insert_deduplication_token: ${! uuid_v4() }
 ```
 
 ### `max_in_flight`

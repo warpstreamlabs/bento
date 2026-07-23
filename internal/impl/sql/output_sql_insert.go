@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/Masterminds/squirrel"
 
 	"github.com/Jeffail/shutdown"
@@ -46,6 +47,15 @@ func sqlInsertOutputConfig() *service.ConfigSpec {
 			Optional().
 			Advanced().
 			Example("ON CONFLICT (name) DO NOTHING")).
+		Field(service.NewInterpolatedStringMapField("clickhouse_settings").
+			Description("A map of ClickHouse query settings to apply to each insert batch. Values support interpolation and are evaluated once against the first message in each dispatched output batch. The resolved settings are reused unchanged if Bento reconnects and retries that output transaction. An upstream nack and reprocessing creates a new output transaction and reevaluates the settings.").
+			Default(map[string]any{}).
+			Advanced().
+			Version("1.20.0").
+			Example(map[string]any{
+				"insert_deduplication_token":                         `${! uuid_v4() }`,
+				"deduplicate_blocks_in_dependent_materialized_views": "1",
+			})).
 		Field(service.NewIntField("max_in_flight").
 						Description("The maximum number of inserts to run in parallel.").
 						Default(64)).
@@ -92,6 +102,24 @@ output:
         gold_coins BIGINT
       )
 `,
+		).
+		Example("ClickHouse Batch Deduplication",
+			"Assign a unique deduplication token to each dispatched Bento output batch. All rows in the batch and any connection retry of that output transaction use the same token.",
+			`
+output:
+  sql_insert:
+    driver: clickhouse
+    dsn: clickhouse://default:@localhost:9000/default
+    table: events
+    columns: [event_id, payload]
+    args_mapping: 'root = [this.event_id, this]'
+    clickhouse_settings:
+      insert_deduplication_token: '${! uuid_v4() }'
+      deduplicate_blocks_in_dependent_materialized_views: '1'
+    batching:
+      count: 1000
+      period: 1s
+`,
 		)
 	return spec
 }
@@ -106,7 +134,14 @@ func init() {
 			if maxInFlight, err = conf.FieldInt("max_in_flight"); err != nil {
 				return
 			}
-			out, err = newSQLInsertOutputFromConfig(conf, mgr)
+			var sqlOut *sqlInsertOutput
+			if sqlOut, err = newSQLInsertOutputFromConfig(conf, mgr); err == nil {
+				if len(sqlOut.clickhouseSettings) > 0 {
+					out = &sqlInsertOutputWithBatchContext{sqlInsertOutput: sqlOut}
+				} else {
+					out = sqlOut
+				}
+			}
 			return
 		})
 	if err != nil {
@@ -126,6 +161,9 @@ type sqlInsertOutput struct {
 	useTxStmt   bool
 	argsMapping *bloblang.Executor
 
+	clickhouseSettings      map[string]*service.InterpolatedString
+	applyClickhouseSettings func(context.Context, clickhouse.Settings) context.Context
+
 	connSettings *connSettings
 	awsConf      aws.Config
 
@@ -133,10 +171,21 @@ type sqlInsertOutput struct {
 	shutSig *shutdown.Signaller
 }
 
+type sqlInsertOutputWithBatchContext struct {
+	*sqlInsertOutput
+}
+
+func (s *sqlInsertOutputWithBatchContext) PrepareBatchContext(ctx context.Context, batch service.MessageBatch) (context.Context, error) {
+	return s.prepareBatchContext(ctx, batch)
+}
+
 func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resources) (*sqlInsertOutput, error) {
 	s := &sqlInsertOutput{
 		logger:  mgr.Logger(),
 		shutSig: shutdown.NewSignaller(),
+		applyClickhouseSettings: func(ctx context.Context, settings clickhouse.Settings) context.Context {
+			return clickhouse.Context(ctx, clickhouse.WithSettings(settings))
+		},
 	}
 
 	var err error
@@ -153,6 +202,13 @@ func newSQLInsertOutputFromConfig(conf *service.ParsedConfig, mgr *service.Resou
 
 	if s.dsn, err = conf.FieldString("dsn"); err != nil {
 		return nil, err
+	}
+
+	if s.clickhouseSettings, err = conf.FieldInterpolatedStringMap("clickhouse_settings"); err != nil {
+		return nil, err
+	}
+	if s.driver != "clickhouse" && len(s.clickhouseSettings) > 0 {
+		return nil, errors.New("clickhouse_settings can only be used with the clickhouse driver")
 	}
 
 	tableStr, err := conf.FieldString("table")
@@ -297,7 +353,12 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 		if err != nil {
 			return err
 		}
-		if stmt, err = tx.Prepare(sqlStr); err != nil {
+		if len(s.clickhouseSettings) > 0 {
+			stmt, err = tx.PrepareContext(ctx, sqlStr)
+		} else {
+			stmt, err = tx.Prepare(sqlStr)
+		}
+		if err != nil {
 			_ = tx.Rollback()
 			return err
 		}
@@ -337,6 +398,26 @@ func (s *sqlInsertOutput) writeBatch(ctx context.Context, batch service.MessageB
 		err = tx.Commit()
 	}
 	return err
+}
+
+func (s *sqlInsertOutput) prepareBatchContext(ctx context.Context, batch service.MessageBatch) (context.Context, error) {
+	if len(s.clickhouseSettings) == 0 {
+		return ctx, nil
+	}
+	if len(batch) == 0 {
+		return nil, errors.New("cannot resolve clickhouse_settings for an empty batch")
+	}
+
+	settings := make(clickhouse.Settings, len(s.clickhouseSettings))
+	for key, expr := range s.clickhouseSettings {
+		value, err := batch.TryInterpolatedString(0, expr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve ClickHouse setting %q: %w", key, err)
+		}
+		settings[key] = value
+	}
+
+	return s.applyClickhouseSettings(ctx, settings), nil
 }
 
 func (s *sqlInsertOutput) Close(ctx context.Context) error {
