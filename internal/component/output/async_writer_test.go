@@ -64,6 +64,36 @@ func (w *writerCantSend) WriteBatch(ctx context.Context, msg message.Batch) erro
 }
 func (w *writerCantSend) Close(context.Context) error { return nil }
 
+type preparedContextKey struct{}
+
+type contextPreparingMockWriter struct {
+	*mockAsyncWriter
+	prepareCount uint64
+	seenValues   []uint64
+	seenMut      sync.Mutex
+}
+
+type failingContextPreparingMockWriter struct {
+	*mockAsyncWriter
+}
+
+func (w *failingContextPreparingMockWriter) PrepareBatchContext(context.Context, message.Batch) (context.Context, error) {
+	return nil, component.ErrNotConnected
+}
+
+func (w *contextPreparingMockWriter) PrepareBatchContext(ctx context.Context, _ message.Batch) (context.Context, error) {
+	value := atomic.AddUint64(&w.prepareCount, 1)
+	return context.WithValue(ctx, preparedContextKey{}, value), nil
+}
+
+func (w *contextPreparingMockWriter) WriteBatch(ctx context.Context, msg message.Batch) error {
+	value, _ := ctx.Value(preparedContextKey{}).(uint64)
+	w.seenMut.Lock()
+	w.seenValues = append(w.seenValues, value)
+	w.seenMut.Unlock()
+	return w.mockAsyncWriter.WriteBatch(ctx, msg)
+}
+
 //------------------------------------------------------------------------------
 
 func TestAsyncWriterCantConnect(t *testing.T) {
@@ -338,6 +368,87 @@ func TestAsyncWriterCanReconnect(t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
+	w.TriggerCloseNow()
+	require.NoError(t, w.WaitForClose(ctx))
+}
+
+func TestAsyncWriterReusesPreparedBatchContextOnReconnect(t *testing.T) {
+	t.Parallel()
+
+	writerImpl := &contextPreparingMockWriter{mockAsyncWriter: newAsyncMockWriter()}
+	w, err := NewAsyncWriter("foo", 1, writerImpl, component.NoopObservability())
+	require.NoError(t, err)
+
+	msgChan := make(chan message.Transaction)
+	resChan := make(chan error)
+	require.NoError(t, w.Consume(msgChan))
+
+	select {
+	case writerImpl.connChan <- nil:
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+
+	go func() {
+		writerImpl.writeChan <- component.ErrNotConnected
+		writerImpl.connChan <- nil
+		writerImpl.writeChan <- nil
+	}()
+
+	select {
+	case msgChan <- message.NewTransaction(message.QuickBatch(nil), resChan):
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+	select {
+	case err := <-resChan:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+
+	require.Equal(t, uint64(1), atomic.LoadUint64(&writerImpl.prepareCount))
+	writerImpl.seenMut.Lock()
+	require.Equal(t, []uint64{1, 1}, writerImpl.seenValues)
+	writerImpl.seenMut.Unlock()
+
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+	w.TriggerCloseNow()
+	require.NoError(t, w.WaitForClose(ctx))
+}
+
+func TestAsyncWriterDoesNotWriteWhenBatchContextPreparationFails(t *testing.T) {
+	t.Parallel()
+
+	writerImpl := &failingContextPreparingMockWriter{mockAsyncWriter: newAsyncMockWriter()}
+	w, err := NewAsyncWriter("foo", 1, writerImpl, component.NoopObservability())
+	require.NoError(t, err)
+
+	msgChan := make(chan message.Transaction)
+	resChan := make(chan error)
+	require.NoError(t, w.Consume(msgChan))
+
+	select {
+	case writerImpl.connChan <- nil:
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+	select {
+	case msgChan <- message.NewTransaction(message.QuickBatch(nil), resChan):
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+	select {
+	case err := <-resChan:
+		require.ErrorIs(t, err, component.ErrNotConnected)
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+	require.Zero(t, atomic.LoadUint64(&writerImpl.msgsTotal))
+
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
 	w.TriggerCloseNow()
 	require.NoError(t, w.WaitForClose(ctx))
 }

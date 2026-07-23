@@ -70,6 +70,16 @@ type BatchOutput interface {
 	Closer
 }
 
+// BatchOutputContextPreparer is an optional extension of BatchOutput for
+// outputs that need to derive context values once for each dispatched output
+// batch. The returned context is reused when the same output transaction is
+// retried after a connection failure.
+type BatchOutputContextPreparer interface {
+	BatchOutput
+
+	PrepareBatchContext(context.Context, MessageBatch) (context.Context, error)
+}
+
 //------------------------------------------------------------------------------
 
 // Implements output.AsyncSink.
@@ -101,7 +111,14 @@ type airGapBatchWriter struct {
 }
 
 func newAirGapBatchWriter(w BatchOutput) output.AsyncSink {
-	return &airGapBatchWriter{w: w}
+	a := &airGapBatchWriter{w: w}
+	if wc, ok := w.(BatchOutputContextPreparer); ok {
+		return &airGapBatchWriterWithContext{
+			airGapBatchWriter: a,
+			w:                 wc,
+		}
+	}
+	return a
 }
 
 func (a *airGapBatchWriter) Connect(ctx context.Context) error {
@@ -115,6 +132,20 @@ func (a *airGapBatchWriter) WriteBatch(ctx context.Context, msg message.Batch) e
 		return nil
 	})
 	return publicToInternalErr(a.w.WriteBatch(ctx, parts))
+}
+
+type airGapBatchWriterWithContext struct {
+	*airGapBatchWriter
+	w BatchOutputContextPreparer
+}
+
+func (a *airGapBatchWriterWithContext) PrepareBatchContext(ctx context.Context, msg message.Batch) (context.Context, error) {
+	parts := make([]*Message, msg.Len())
+	_ = msg.Iter(func(i int, part *message.Part) error {
+		parts[i] = NewInternalMessage(part)
+		return nil
+	})
+	return a.w.PrepareBatchContext(ctx, parts)
 }
 
 func (a *airGapBatchWriter) Close(ctx context.Context) error {

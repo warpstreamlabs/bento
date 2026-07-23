@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `parse_big_decimal` bloblang method for Kafka Connect / Debezium decimal decoding @aratz-lasa
+- `clickhouse_settings` on the `sql_insert` output for batch-scoped ClickHouse query settings @catkins
 
 ## 1.19.0 - 2026-07-10
 
