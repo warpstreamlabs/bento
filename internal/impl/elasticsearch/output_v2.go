@@ -280,6 +280,8 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	var errorMu sync.Mutex
 	var batchErr *service.BatchError
 	batchErrFailed := func(i int, err error) {
+		errorMu.Lock()
+		defer errorMu.Unlock()
 		if batchErr == nil {
 			batchErr = service.NewBatchError(batch, err)
 		}
@@ -330,7 +332,7 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				Routing:    routing,
 				Body:       bytes.NewReader(updateBodyBytes),
 				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(&errorMu, i, batchErrFailed),
+				OnFailure:  onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
 				batchErrFailed(i, err)
@@ -342,7 +344,7 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				DocumentID: id,
 				Routing:    routing,
 				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(&errorMu, i, batchErrFailed),
+				OnFailure:  onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
 				batchErrFailed(i, err)
@@ -355,7 +357,7 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				Routing:    routing,
 				Body:       bytes.NewReader(msgBytes),
 				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(&errorMu, i, batchErrFailed),
+				OnFailure:  onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
 				batchErrFailed(i, err)
@@ -426,11 +428,8 @@ func onSuccessHandler(eso *EsOutput) func(ctx context.Context, item esutil.BulkI
 	}
 }
 
-func onFailureHandler(errorMu *sync.Mutex, i int, batchErrFailed func(i int, err error)) func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
+func onFailureHandler(i int, batchErrFailed func(i int, err error)) func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
 	return func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
-		errorMu.Lock()
-		defer errorMu.Unlock()
-
 		if err != nil {
 			batchErrFailed(i, err)
 		} else {
