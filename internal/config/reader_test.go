@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -240,4 +242,121 @@ processor_resources:
 	assert.True(t, testMgr.ProbeProcessor("b"))
 	assert.True(t, testMgr.ProbeProcessor("c"))
 	assert.True(t, testMgr.ProbeProcessor("d"))
+}
+
+func TestFetchRemoteConfigSuccess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer mytoken", r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte(`
+input:
+  label: fooin
+  inproc: foo
+
+output:
+  label: fooout
+  inproc: bar
+`))
+	}))
+	defer srv.Close()
+
+	got, err := fetchRemoteConfig(srv.URL, []string{"Authorization: Bearer mytoken"})
+	require.NoError(t, err)
+	assert.Contains(t, string(got), "fooin")
+}
+
+func TestFetchRemoteConfigNon200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	_, err := fetchRemoteConfig(srv.URL, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "404")
+}
+
+func TestFetchRemoteConfigBadHeader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("input:\n  generate:\n    mapping: 'root = {}'\n"))
+	}))
+	defer srv.Close()
+
+	_, err := fetchRemoteConfig(srv.URL, []string{"BadHeader"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected Name: Value format")
+}
+
+func TestReaderRemoteConfig(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
+input:
+  label: fooin
+  inproc: foo
+
+output:
+  label: fooout
+  inproc: bar
+`))
+	}))
+	defer srv.Close()
+
+	rdr := newDummyReader(srv.URL, nil)
+	conf, _, lints, lintWarns, err := rdr.Read()
+	require.NoError(t, err)
+	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
+
+	assert.Equal(t, "fooin", conf.Input.Label)
+	assert.Equal(t, "fooout", conf.Output.Label)
+}
+
+func TestReaderRemoteConfigEnvVar(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
+input:
+  label: ${BENTO_TEST_LABEL:fooin}
+  inproc: foo
+
+output:
+  label: fooout
+  inproc: bar
+`))
+	}))
+	defer srv.Close()
+
+	t.Setenv("BENTO_TEST_LABEL", "customlabel")
+
+	rdr := newDummyReader(srv.URL, nil)
+	conf, _, lints, lintWarns, err := rdr.Read()
+	require.NoError(t, err)
+	require.Empty(t, lints)
+	require.Empty(t, lintWarns)
+
+	assert.Equal(t, "customlabel", conf.Input.Label)
+}
+
+func TestTriggerMainUpdateSkippedForRemote(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`
+input:
+  label: fooin
+  inproc: foo
+
+output:
+  label: fooout
+  inproc: bar
+`))
+	}))
+	defer srv.Close()
+
+	rdr := newDummyReader(srv.URL, nil)
+	_, _, _, _, err := rdr.Read()
+	require.NoError(t, err)
+
+	testMgr, err := manager.New(manager.ResourceConfig{})
+	require.NoError(t, err)
+
+	// TriggerMainUpdate should be a no-op for remote configs
+	err = rdr.TriggerMainUpdate(testMgr, true, srv.URL)
+	require.NoError(t, err)
 }

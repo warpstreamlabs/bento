@@ -1,6 +1,10 @@
 package common
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 
@@ -22,11 +26,18 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 			}
 		}
 	}
+
+	if strings.HasPrefix(path, "https://") && c.Bool("watcher") {
+		fmt.Fprintln(os.Stderr, "error: --watcher is not supported with a remote config URL")
+		os.Exit(1)
+	}
+
 	opts := []config.OptFunc{
 		config.OptSetFullSpec(cliOpts.MainConfigSpecCtor),
 		config.OptAddOverrides(c.StringSlice("set")...),
 		config.OptTestSuffix("_bento_test"),
 		config.OptSetLintConfigWarnDeprecated(),
+		config.OptSetConfigHeaders(c.StringSlice("config-header")),
 	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))

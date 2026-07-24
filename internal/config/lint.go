@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -16,9 +17,28 @@ import (
 // ReadYAMLFileLinted will attempt to read a configuration file path into a
 // structure. Returns an array of lint messages or an error.
 func ReadYAMLFileLinted(fs ifs.FS, spec docs.FieldSpecs, path string, skipEnvVarCheck bool, lConf docs.LintConfig) (Type, []docs.Lint, error) {
-	configBytes, lints, _, err := ReadFileEnvSwap(fs, path, os.LookupEnv)
-	if err != nil {
-		return Type{}, nil, err
+	var configBytes []byte
+	var lints []docs.Lint
+	var err error
+
+	if strings.HasPrefix(path, "https://") {
+		if configBytes, err = fetchRemoteConfig(path, nil); err != nil {
+			return Type{}, nil, err
+		}
+		if configBytes, err = ReplaceEnvVariables(configBytes, os.LookupEnv); err != nil {
+			var errEnvMissing *ErrMissingEnvVars
+			if errors.As(err, &errEnvMissing) {
+				configBytes = errEnvMissing.BestAttempt
+				lints = append(lints, docs.NewLintError(1, docs.LintMissingEnvVar, err))
+			} else {
+				return Type{}, nil, err
+			}
+		}
+	} else {
+		configBytes, lints, _, err = ReadFileEnvSwap(fs, path, os.LookupEnv)
+		if err != nil {
+			return Type{}, nil, err
+		}
 	}
 
 	if skipEnvVarCheck {

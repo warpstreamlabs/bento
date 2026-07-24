@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,11 +86,12 @@ type Reader struct {
 	changeFlushPeriod  time.Duration
 	changeDelayPeriod  time.Duration
 	filesRefreshPeriod time.Duration
+	configHeaders      []string
 }
 
 // NewReader creates a new config reader.
 func NewReader(mainPath string, resourcePaths []string, opts ...OptFunc) *Reader {
-	if mainPath != "" {
+	if mainPath != "" && !strings.HasPrefix(mainPath, "https://") {
 		mainPath = filepath.Clean(mainPath)
 	}
 	r := &Reader{
@@ -120,6 +123,14 @@ func NewReader(mainPath string, resourcePaths []string, opts ...OptFunc) *Reader
 
 // OptFunc is an opt function that changes the behaviour of a config reader.
 type OptFunc func(*Reader)
+
+// OptSetConfigHeaders sets HTTP headers to send when fetching a remote config
+// via HTTPS URL. Each entry should be in "Name: Value" format.
+func OptSetConfigHeaders(headers []string) OptFunc {
+	return func(r *Reader) {
+		r.configHeaders = headers
+	}
+}
 
 // OptSetFullSpec overrides the default general config spec with the provided
 // one.
@@ -302,13 +313,24 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 	if mainPath != "" {
 		var dLints []docs.Lint
 		var modTime time.Time
-		if confBytes, dLints, modTime, err = ReadFileEnvSwap(r.fs, mainPath, os.LookupEnv); err != nil {
-			return
+		if strings.HasPrefix(mainPath, "https://") {
+			if confBytes, err = fetchRemoteConfig(mainPath, r.configHeaders); err != nil {
+				return
+			}
+			if confBytes, err = ReplaceEnvVariables(confBytes, os.LookupEnv); err != nil {
+				return
+			}
+		} else {
+			if confBytes, dLints, modTime, err = ReadFileEnvSwap(r.fs, mainPath, os.LookupEnv); err != nil {
+				return
+			}
+			r.modTimeLastRead[mainPath] = modTime
 		}
+
+		// dLints only populated for file-based configs via ReadFileEnvSwap
 		for _, l := range dLints {
 			lints = append(lints, l.Error())
 		}
-		r.modTimeLastRead[mainPath] = modTime
 
 		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
 			return
@@ -363,6 +385,9 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // the provided main update func, and apply changes to resources to the provided
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
+	if strings.HasPrefix(r.mainPath, "https://") {
+		return nil
+	}
 	conf, _, lints, lintWarns, err := r.readMain(newPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		if r.mainPath != newPath {
@@ -427,4 +452,33 @@ func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPat
 		mgr.Logger().Info("Updated main config")
 	}
 	return nil
+}
+
+func fetchRemoteConfig(url string, headers []string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("invalid config URL: %w", err)
+	}
+	for _, h := range headers {
+		name, value, ok := strings.Cut(h, ":")
+		if !ok {
+			return nil, fmt.Errorf("invalid config header %q: expected Name: Value format", h)
+		}
+		req.Header.Add(strings.TrimSpace(name), strings.TrimSpace(value))
+	}
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch remote config: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("remote config server returned status %s", resp.Status)
+	}
+	return io.ReadAll(resp.Body)
 }

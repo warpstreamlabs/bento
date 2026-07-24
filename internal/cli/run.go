@@ -197,6 +197,10 @@ func App(opts *common.CLIOpts) *cli.App {
 			Value:   "",
 			Usage:   "a path to a configuration file",
 		},
+		&cli.StringSliceFlag{
+			Name:  "config-header",
+			Usage: "an HTTP header to send when fetching a remote config via HTTPS URL, in \"Name: Value\" format (repeatable)",
+		},
 		&cli.BoolFlag{
 			Name:   "help-autocomplete",
 			Value:  false,
