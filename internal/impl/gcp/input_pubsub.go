@@ -117,6 +117,8 @@ You can access these metadata fields using [function interpolation](/docs/config
 			).
 				Description("Allows you to configure the input subscription and creates if it doesn't exist.").
 				Advanced(),
+			service.NewExtractTracingSpanMappingField(),
+			service.NewRootSpanWithLinkField().Version("1.20.0"),
 		)
 }
 
@@ -127,7 +129,11 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			return newGCPPubSubReader(pConf, mgr)
+			r, err := newGCPPubSubReader(pConf, mgr)
+			if err != nil {
+				return nil, err
+			}
+			return conf.WrapInputExtractTracingSpanMapping("gcp_pubsub", r)
 		})
 	if err != nil {
 		panic(err)
