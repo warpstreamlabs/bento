@@ -61,6 +61,7 @@ output:
     max_buffer_bytes: 10485760
     max_buffer_count: 10000
     max_buffer_period: 10s
+    finalize_on_idle: "" # No default (optional)
     content_type: application/octet-stream
     content_encoding: "" # No default (optional)
     max_retries: 2
@@ -102,17 +103,64 @@ path expression is evaluated only once per partition (allowing use of functions 
 for unique filenames). Without `partition_by`, each message evaluates the full path independently.
 
 :::warning
-### Violates Delivery Guarantees 
+### Weakens delivery guarantees
 
-This output weakens the delivery guarantees of the pipeline and therefore should not be used in places 
-where data loss is unacceptable.
+This output can weaken delivery guarantees when the input cannot let the stream reach finalization.
+Final buffered bytes are uploaded and acknowledged when the input closes or the output is closed, so
+bounded inputs are compatible only when they can close their transaction channel without waiting for
+the final message acknowledgement. Inputs that wait for a matching final acknowledgement before
+closing, such as `read_until.check`, can still deadlock if the final buffered output is smaller
+than the S3 multipart part size. For finite drain-and-exit jobs, prefer
+`read_until.idle_timeout`, which lets the input close on idle and allows this output to finalize
+and acknowledge the tail.
 :::
 
-## Expects shutdown of pipeline
+Messages are acknowledged only after their bytes are durably represented in S3. Buffered bytes are
+not acknowledged while they are only held in memory, and the final buffered bytes are acknowledged
+only after the upload is completed successfully.
 
-This output flushes on the shutdown of the stream and therefore is intended to be used with inputs that 
-have a logical end, such as [file](docs/components/inputs/file) or one that is wrapped with the 
-[read_until](docs/components/inputs/file) input. 
+On restart this output attempts to recover one in-progress multipart upload for the exact same S3
+path by using S3 multipart listing APIs. This means crash recovery requires a deterministic `path`
+that redelivered messages can recompute exactly. Paths using nondeterministic functions such as
+`uuid_v4()` or the current timestamp are not crash-recoverable without a future manifest or cache
+feature, unless they still recompute the exact same S3 key. Duplicate records can appear after a
+crash and should be tolerated downstream.
+
+## Delivery and Failures
+
+Each part upload is retried according to `max_retries` and `backoff`. Once those are exhausted the
+affected messages are rejected so an at-least-once input can redeliver them. A failed upload is never
+aborted, so redelivered data resumes the same multipart upload (in-process, or via recovery after a
+crash) rather than restarting the file. To apply back pressure indefinitely instead of giving up on a
+part, set `max_retries` to `0` and leave `backoff.max_elapsed_time` empty.
+
+Because messages are acknowledged only once their bytes are durable in a part, this output relies on a
+continuous flow of messages to release acknowledgements: a part is only sealed and uploaded once enough
+data accumulates, and the final bytes are acknowledged on close. For this reason it **cannot** be wrapped
+in a `drop_on` output — `drop_on` waits for each message to be acknowledged before delivering the next, which
+deadlocks against deferred acknowledgement. For the same reason it should not be fed by an input limited
+to a single in-flight message.
+
+Bounded inputs are safe only when they can close their transaction channel without first waiting for
+the final message acknowledgement. For example, `read_until` with a `check` condition sends the matching
+final message and waits for its acknowledgement before closing, so it can still deadlock with a
+sub-5MiB final buffer. Larger streams may make progress because full multipart parts can be uploaded
+and acknowledged during normal message flow before the final close.
+
+For finite drain-and-exit jobs, configure `finalize_on_idle` so this output can finalize idle S3 writers
+and acknowledge their buffered tails while upstream inputs are still open. If more messages later
+arrive for the same partition and S3 key, this output starts a new upload for that same key. In
+unversioned buckets the later finalized object overwrites the earlier object; enable S3 bucket
+versioning or include a unique value in `path` if each finalized object must be retained.
+
+Data that can never be written — for example a single message larger than S3's 5GiB maximum part size,
+or a key S3 permanently rejects — will otherwise be redelivered indefinitely by an at-least-once input.
+To divert such records to a dead-letter destination, wrap `aws_s3_stream` in a `fallback` output, which
+forwards messages without waiting on acknowledgement and so composes correctly.
+
+Because failed uploads are never aborted, an interrupted or permanently failing upload is left as an
+in-progress multipart upload on S3. Configure an `AbortIncompleteMultipartUpload` lifecycle rule on
+the bucket to clean these up automatically.
 
 ## When to Use
 
@@ -228,7 +276,7 @@ Default: `false`
 
 ### `max_buffer_bytes`
 
-Maximum buffer size in bytes before flushing to S3. Default is 10MB.
+Maximum bytes to buffer before uploading a multipart part. A part is only uploaded once the buffer reaches S3's 5MiB minimum part size; smaller amounts are uploaded only as the final part when the writer closes. Default is 10MB.
 
 
 Type: `int`  
@@ -236,7 +284,7 @@ Default: `10485760`
 
 ### `max_buffer_count`
 
-Maximum number of messages to buffer before flushing to S3.
+Maximum messages to buffer before uploading a multipart part, subject to the same 5MiB minimum part size as `max_buffer_bytes`.
 
 
 Type: `int`  
@@ -244,11 +292,18 @@ Default: `10000`
 
 ### `max_buffer_period`
 
-Maximum duration to buffer messages before flushing to S3.
+Maximum duration to buffer before uploading a multipart part. Data below S3's 5MiB minimum part size is not uploaded on this interval, so low-volume streams are uploaded only as the final part when the writer closes.
 
 
 Type: `string`  
 Default: `"10s"`  
+
+### `finalize_on_idle`
+
+Optional duration after which an idle S3 writer is finalized and its buffered messages are acknowledged. Intended for finite drain-and-exit jobs where the input may wait for final acknowledgements before closing. If later messages resolve to the same partition and S3 key then a new upload is started for that key; in unversioned buckets the later finalized object overwrites the earlier object.
+
+
+Type: `string`  
 
 ### `content_type`
 

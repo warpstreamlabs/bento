@@ -1,11 +1,18 @@
 package aws
 
 import (
+	"context"
+	"errors"
+	"io"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -42,6 +49,7 @@ path: 'data/${! timestamp_unix() }.json'
 max_buffer_bytes: 5242880
 max_buffer_count: 5000
 max_buffer_period: 5s
+finalize_on_idle: 100ms
 `,
 			expectError: false,
 		},
@@ -370,4 +378,359 @@ path: 'logs/${! meta("filename") }.log'
 
 	// Each message should create its own partition
 	assert.NotEqual(t, path0, path1, "Paths should be different without partition_by")
+}
+
+func TestS3StreamOutputConsumeAppliesConfiguredBatching(t *testing.T) {
+	var uploadedBodies [][]byte
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			body, err := io.ReadAll(input.Body)
+			require.NoError(t, err)
+			uploadedBodies = append(uploadedBodies, body)
+			return &s3.PutObjectOutput{}, nil
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: batched.log
+batching:
+  count: 2
+`
+
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+	batchPolicy, err := parsedConf.FieldBatchPolicy(ssoFieldBatching)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, batchPolicy, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI {
+		return mockClient
+	}
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+
+	ack1 := make(chan error, 1)
+	ack2 := make(chan error, 1)
+
+	txChan <- message.NewTransaction(message.QuickBatch([][]byte{[]byte("foo")}), ack1)
+	select {
+	case err := <-ack1:
+		t.Fatalf("first transaction acked before batch flush: %v", err)
+	default:
+	}
+
+	txChan <- message.NewTransaction(message.QuickBatch([][]byte{[]byte("bar")}), ack2)
+	close(txChan)
+
+	waitCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+	require.NoError(t, out.WaitForClose(waitCtx))
+
+	require.Len(t, uploadedBodies, 1)
+	assert.Equal(t, []byte("foobar"), uploadedBodies[0])
+	require.NoError(t, <-ack1)
+	require.NoError(t, <-ack2)
+}
+
+func TestS3StreamOutputBoundedInputSmallObjectFinalizesAndAcks(t *testing.T) {
+	var uploadedBodies [][]byte
+	var completeCalled bool
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			body, err := io.ReadAll(input.Body)
+			require.NoError(t, err)
+			uploadedBodies = append(uploadedBodies, body)
+			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: bounded.log
+`
+
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI {
+		return mockClient
+	}
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+
+	acks := make([]chan error, 3)
+	for i, body := range [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")} {
+		acks[i] = make(chan error, 1)
+		txChan <- message.NewTransaction(message.QuickBatch([][]byte{body}), acks[i])
+		select {
+		case err := <-acks[i]:
+			t.Fatalf("transaction %d acked before bounded input finished: %v", i, err)
+		default:
+		}
+	}
+	close(txChan)
+
+	waitCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+	require.NoError(t, out.WaitForClose(waitCtx), "bounded input must finalize without deadlocking")
+
+	require.Len(t, uploadedBodies, 1)
+	assert.Equal(t, []byte("foobarbaz"), uploadedBodies[0])
+	assert.False(t, completeCalled)
+	for i, ack := range acks {
+		require.NoError(t, <-ack, "transaction %d should be acked after final PutObject", i)
+	}
+}
+
+func TestS3StreamOutputFinalizeOnIdleAcksOpenInput(t *testing.T) {
+	uploadedBodies := make(chan []byte, 2)
+	var completeCalled bool
+	mockClient := &mockS3StreamClient{
+		putObjectFunc: func(ctx context.Context, input *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			body, err := io.ReadAll(input.Body)
+			require.NoError(t, err)
+			uploadedBodies <- body
+			return &s3.PutObjectOutput{}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completeCalled = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: idle.log
+finalize_on_idle: 20ms
+`
+
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI {
+		return mockClient
+	}
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+	defer func() {
+		out.TriggerCloseNow()
+		waitCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+		require.NoError(t, out.WaitForClose(waitCtx))
+	}()
+
+	send := func(body []byte) chan error {
+		ack := make(chan error, 1)
+		txChan <- message.NewTransaction(message.QuickBatch([][]byte{body}), ack)
+		return ack
+	}
+
+	ack1 := send([]byte("foo"))
+	select {
+	case body := <-uploadedBodies:
+		assert.Equal(t, []byte("foo"), body)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for idle PutObject")
+	}
+	require.NoError(t, <-ack1)
+
+	ack2 := send([]byte("bar"))
+	select {
+	case body := <-uploadedBodies:
+		assert.Equal(t, []byte("bar"), body)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second idle PutObject")
+	}
+	require.NoError(t, <-ack2)
+	assert.False(t, completeCalled)
+}
+
+// `fallback` consumes a child output by forwarding each transaction with an
+// async ack interceptor and immediately moving to the next, never blocking on a
+// prior ack (output_fallback.go:221-247). That async model is what lets it work
+// with our deferred-ack output, unlike `drop_on`, which blocks per-transaction
+// waiting for the ack and therefore deadlocks. This verifies our real output
+// behaves correctly under that contract: it makes progress without deadlock, a
+// deferred part-upload failure surfaces as a nack (so a fallback could route it),
+// and the writer resumes past the failure and completes the file.
+func TestS3StreamOutputComposesWithFallbackStyleFeeder(t *testing.T) {
+	var uploadCalls int
+	var completed bool
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			uploadCalls++
+			if uploadCalls == 2 {
+				return nil, errors.New("poison part upload")
+			}
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			completed = true
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+	}
+
+	// 5 MiB buffer + max_retries:0 so each 6 MiB message seals as its own part
+	// and a failed upload fails fast (no backoff stalling the loop).
+	configYAML := `
+bucket: test-bucket
+path: static.log
+max_buffer_bytes: 5242880
+max_retries: 0
+`
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI { return mockClient }
+
+	txChan := make(chan message.Transaction)
+	require.NoError(t, out.Consume(txChan))
+
+	// Forward a transaction with an async interceptor ack and do NOT block on it
+	// (exactly how fallback feeds its child).
+	send := func() chan error {
+		res := make(chan error, 1)
+		ackFn := func(ctx context.Context, err error) error {
+			res <- err
+			return nil
+		}
+		txChan <- message.NewTransactionFunc(message.QuickBatch([][]byte{make([]byte, 6*1024*1024)}), ackFn)
+		return res
+	}
+
+	res1 := send() // part 1 uploads, ack held (deferred)
+	res2 := send() // releases res1 (acked), seals part 2, upload FAILS -> res2 nacked
+	res3 := send() // resumes (reuses part 2 number), uploads, ack held until close
+	close(txChan)
+
+	waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, out.WaitForClose(waitCtx), "must not deadlock under fallback-style feeding")
+
+	getRes := func(c chan error) (error, bool) {
+		select {
+		case e := <-c:
+			return e, true
+		case <-time.After(time.Second):
+			return nil, false
+		}
+	}
+	e1, ok1 := getRes(res1)
+	e2, ok2 := getRes(res2)
+	e3, ok3 := getRes(res3)
+	require.True(t, ok1 && ok2 && ok3, "all transactions must resolve (no deadlock/leak)")
+	assert.NoError(t, e1, "durable message acked")
+	assert.Error(t, e2, "poison part nacked so a fallback output could route it")
+	assert.NoError(t, e3, "writer resumed past the failure; this message acked")
+	assert.True(t, completed, "file completed despite the poison part")
+	assert.Equal(t, 3, uploadCalls)
+}
+
+// A batch spanning multiple partition keys must resolve its upstream
+// transaction exactly once even when a partition fails. Previously a partial
+// failure left the combined-ack counter unable to reach zero, so the
+// transaction was never acked or nacked (leaked in-flight).
+func TestS3StreamOutputPartitionFailureNacksWholeBatchOnce(t *testing.T) {
+	mockClient := &mockS3StreamClient{
+		// Fail recovery listing so every writer's Initialize() errors.
+		listMultipartUploadsFunc: func(ctx context.Context, input *s3.ListMultipartUploadsInput, opts ...func(*s3.Options)) (*s3.ListMultipartUploadsOutput, error) {
+			return nil, errors.New("list failed")
+		},
+	}
+
+	configYAML := `
+bucket: test-bucket
+path: '${! meta("file") }.log'
+`
+	parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+	require.NoError(t, err)
+	conf, err := s3StreamConfigFromParsed(parsedConf)
+	require.NoError(t, err)
+
+	out, err := newS3StreamOutput(conf, service.BatchPolicy{}, service.MockResources())
+	require.NoError(t, err)
+	out.s3ClientCtor = func(s3StreamConfig) s3StreamingAPI { return mockClient }
+	require.NoError(t, out.Connect(context.Background()))
+
+	// Two messages routed to two distinct partition keys ("a.log", "b.log").
+	m0 := service.NewMessage([]byte("aaa"))
+	m0.MetaSet("file", "a")
+	m1 := service.NewMessage([]byte("bbb"))
+	m1.MetaSet("file", "b")
+
+	var rootCalls int
+	var rootErr error
+	rootAck := func(ctx context.Context, e error) error {
+		rootCalls++
+		rootErr = e
+		return nil
+	}
+
+	err = out.writeBatch(context.Background(), service.MessageBatch{m0, m1}, rootAck)
+	require.Error(t, err)
+	assert.Equal(t, 1, rootCalls, "upstream transaction must be resolved exactly once")
+	assert.Error(t, rootErr, "a partition failure must nack the whole batch")
+}
+
+// WriteBytes takes ownership of an ack the moment it is called, so its early
+// failures (closed/uninitialized) must nack it rather than drop it.
+func TestS3StreamingWriterEarlyFailureNacksAck(t *testing.T) {
+	t.Run("not initialized", func(t *testing.T) {
+		writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+			S3Client: &mockS3StreamClient{},
+			Bucket:   "test-bucket",
+			Key:      "test-key",
+		})
+		require.NoError(t, err)
+
+		ack := &ackRecord{}
+		err = writer.WriteBytes(context.Background(), []byte("data"), ack.fn)
+		require.Error(t, err)
+		assert.Equal(t, 1, ack.called)
+		assert.Error(t, ack.err)
+	})
+
+	t.Run("closed", func(t *testing.T) {
+		writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+			S3Client: &mockS3StreamClient{},
+			Bucket:   "test-bucket",
+			Key:      "test-key",
+		})
+		require.NoError(t, err)
+
+		ctx := context.Background()
+		require.NoError(t, writer.Initialize(ctx))
+		require.NoError(t, writer.Close(ctx))
+
+		ack := &ackRecord{}
+		err = writer.WriteBytes(ctx, []byte("data"), ack.fn)
+		require.Error(t, err)
+		assert.Equal(t, 1, ack.called)
+		assert.Error(t, ack.err)
+	})
 }
