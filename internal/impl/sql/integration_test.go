@@ -629,6 +629,7 @@ func TestIntegrationClickhouse(t *testing.T) {
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
 		Repository:   "clickhouse/clickhouse-server",
 		ExposedPorts: []string{"9000/tcp"},
+		Env:          []string{"CLICKHOUSE_SKIP_USER_SETUP=1"},
 	})
 	require.NoError(t, err)
 
@@ -669,6 +670,56 @@ func TestIntegrationClickhouse(t *testing.T) {
 	}))
 
 	testSuite(t, "clickhouse", dsn, createTable)
+	testClickhouseOutputBatchSettings(t, dsn, db)
+}
+
+func testClickhouseOutputBatchSettings(t *testing.T, dsn string, db *sql.DB) {
+	t.Run("output_batch_settings", func(t *testing.T) {
+		tableName, err := gonanoid.Generate("abcdefghijklmnopqrstuvwxyz", 40)
+		require.NoError(t, err)
+		_, err = db.Exec(fmt.Sprintf(`CREATE TABLE %s (
+  id String
+) ENGINE = MergeTree
+ORDER BY id
+SETTINGS non_replicated_deduplication_window = 100`, tableName))
+		require.NoError(t, err)
+
+		builder := service.NewStreamBuilder()
+		require.NoError(t, builder.SetLoggerYAML(`level: OFF`))
+		require.NoError(t, builder.AddOutputYAML(fmt.Sprintf(`
+sql_insert:
+  driver: clickhouse
+  dsn: %s
+  table: %s
+  columns: [ id ]
+  args_mapping: 'root = [ this.id ]'
+  clickhouse_settings:
+    insert_deduplication_token: fixed-integration-token
+    deduplicate_blocks_in_dependent_materialized_views: '1'
+  max_in_flight: 1
+`, dsn, tableName)))
+
+		inFn, err := builder.AddBatchProducerFunc()
+		require.NoError(t, err)
+		stream, err := builder.Build()
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = stream.StopWithin(15 * time.Second) })
+		go func() {
+			assert.NoError(t, stream.Run(context.Background()))
+		}()
+
+		batch := service.MessageBatch{
+			service.NewMessage([]byte(`{"id":"one"}`)),
+			service.NewMessage([]byte(`{"id":"two"}`)),
+		}
+		require.NoError(t, inFn(context.Background(), batch))
+		require.NoError(t, inFn(context.Background(), batch.DeepCopy()))
+		require.NoError(t, stream.StopWithin(15*time.Second))
+
+		var count int
+		require.NoError(t, db.QueryRow(fmt.Sprintf("SELECT count() FROM %s", tableName)).Scan(&count))
+		require.Equal(t, 2, count)
+	})
 }
 
 func TestIntegrationOldClickhouse(t *testing.T) {

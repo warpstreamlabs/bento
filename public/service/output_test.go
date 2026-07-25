@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
+	componentoutput "github.com/warpstreamlabs/bento/internal/component/output"
 	"github.com/warpstreamlabs/bento/internal/message"
 )
 
@@ -112,6 +113,31 @@ func (f *fnBatchOutput) WriteBatch(ctx context.Context, msgs MessageBatch) error
 func (f *fnBatchOutput) Close(ctx context.Context) error {
 	f.closed = true
 	return nil
+}
+
+type contextFnBatchOutput struct {
+	*fnBatchOutput
+	prepared int
+}
+
+func (f *contextFnBatchOutput) PrepareBatchContext(ctx context.Context, msgs MessageBatch) (context.Context, error) {
+	f.prepared += len(msgs)
+	return ctx, nil
+}
+
+func TestBatchOutputAirGapOptionalBatchContext(t *testing.T) {
+	plain := newAirGapBatchWriter(&fnBatchOutput{})
+	_, ok := plain.(componentoutput.BatchContextPreparer)
+	assert.False(t, ok)
+
+	contextualOutput := &contextFnBatchOutput{fnBatchOutput: &fnBatchOutput{}}
+	contextual := newAirGapBatchWriter(contextualOutput)
+	preparer, ok := contextual.(componentoutput.BatchContextPreparer)
+	require.True(t, ok)
+
+	_, err := preparer.PrepareBatchContext(context.Background(), message.QuickBatch([][]byte{[]byte("one"), []byte("two")}))
+	require.NoError(t, err)
+	assert.Equal(t, 2, contextualOutput.prepared)
 }
 
 func TestBatchOutputAirGapShutdown(t *testing.T) {
