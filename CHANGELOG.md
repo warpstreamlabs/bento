@@ -3,12 +3,18 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.20.0 - 2026-07-27
 
 ### Added
 
 - `parse_big_decimal` bloblang method for Kafka Connect / Debezium decimal decoding @aratz-lasa
-- `aws_bedrock_embeddings` processor generates vector embeddings via Amazon Bedrock (Amazon Titan and Cohere models), with an optional `rate_limit` field to throttle `InvokeModel` requests @louisdvs
+- `aws_bedrock_invoke` processor for invoking Amazon Bedrock models @louisdvs & @gregfurman
+
+### Fixed 
+
+- Fixed keyless records in the `kafka_franz` components being routed to a single partition @jem-davies
+- `batchErr` mutex locking in the `elasticsearch_v2` output @jem-davies
+- updated various dependencies to address CVEs 
 
 ## 1.19.0 - 2026-07-10
 
