@@ -117,8 +117,8 @@ You can access these metadata fields using [function interpolation](/docs/config
 			).
 				Description("Allows you to configure the input subscription and creates if it doesn't exist.").
 				Advanced(),
-			service.NewExtractTracingSpanMappingField(),
-			service.NewRootSpanWithLinkField().Version("1.20.0"),
+			service.NewExtractTracingSpanMappingField().Version("1.21.0"),
+			service.NewRootSpanWithLinkField().Version("1.21.0"),
 		)
 }
 
