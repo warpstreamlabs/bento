@@ -22,7 +22,6 @@ const (
 
 func bedrockInvokeProcSpec() *service.ConfigSpec {
 	conf := service.NewConfigSpec().
-		Beta().
 		Categories("AI", "Integration").
 		Summary("Invokes an Amazon Bedrock model for each message, replacing the message contents with the raw model response.").
 		Description(`Sends the contents of each message to the [Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html) ` + "`InvokeModel`" + ` API and replaces the message with the response body.
