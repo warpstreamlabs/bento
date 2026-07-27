@@ -33,12 +33,13 @@ require (
 	github.com/apache/pulsar-client-go v0.17.0
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
-	github.com/aws/aws-sdk-go-v2 v1.41.5
+	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.1
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.6.17
 	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.4.23
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.41
+	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.55.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.2
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.27.1
 	github.com/aws/aws-sdk-go-v2/service/elasticsearchservice v1.32.7
@@ -293,11 +294,11 @@ require (
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
 	github.com/armon/go-metrics v0.3.4 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.14 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.12.17
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.14 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.21 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.21 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.22 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.18.7 // indirect
@@ -311,7 +312,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.40.1
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.9 // indirect
-	github.com/aws/smithy-go v1.24.2
+	github.com/aws/smithy-go v1.27.3
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.4.0 // indirect
