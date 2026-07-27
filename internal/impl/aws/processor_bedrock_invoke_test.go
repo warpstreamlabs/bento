@@ -250,7 +250,7 @@ func TestBedrockProcessorRequestShape(t *testing.T) {
 	require.JSONEq(t, in, string(reqs[0].body))
 
 	require.Contains(t, reqs[0].header.Get("Authorization"), "AWS4-HMAC-SHA256")
-	require.Contains(t, reqs[0].path, "anthropic.claude-sonnet-5")
+	require.Contains(t, reqs[0].path, "test.embedding-model")
 	require.Equal(t, "application/json", reqs[0].header.Get("Content-Type"))
 	require.Equal(t, "application/json", reqs[0].header.Get("Accept"))
 }
