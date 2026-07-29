@@ -84,6 +84,14 @@ func generateStructTypeFromFields(
 
 				components = append(components, fmt.Sprintf("decimal(%d:%d)", scale, precision))
 			}
+
+			if typeStr == "DATE" {
+				components = append(components, "date")
+			}
+
+			if typeStr == "TIMESTAMP_MILLIS" {
+				components = append(components, "timestamp")
+			}
 		}
 
 		if schemaOpts.optionalsAsStructTags {
@@ -264,6 +272,10 @@ func getReflectType(typeStr string) (reflect.Type, error) {
 	case "DECIMAL32":
 		return reflect.TypeFor[int32](), nil
 	case "DECIMAL64":
+		return reflect.TypeFor[int64](), nil
+	case "DATE":
+		return reflect.TypeFor[int32](), nil
+	case "TIMESTAMP_MILLIS":
 		return reflect.TypeFor[int64](), nil
 	default:
 		return nil, fmt.Errorf("unsupported type: %s", typeStr)
