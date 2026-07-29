@@ -304,12 +304,33 @@ func wrapType(
 				return nil, fmt.Errorf("getting optional flag: %w", err)
 			}
 			if optional {
+				// parquet-go's "date"/"timestamp" struct tags only accept a pointer for
+				// *time.Time, not *int32/*int64 (see parquet-go schema.go, case "date"/
+				// "timestamp": a Ptr whose Elem isn't time.Time panics via throwInvalidTag).
+				// Our DATE/TIMESTAMP_MILLIS tokens keep the underlying value as a plain
+				// int32/int64, so optionality has to be carried by the "optional" tag
+				// component alone (already appended above) rather than by wrapping in a
+				// pointer here.
+				if isDateOrTimestampType(field) {
+					return baseType, nil
+				}
 				return reflect.PointerTo(baseType), nil
 			}
 		}
 	}
 
 	return baseType, nil
+}
+
+func isDateOrTimestampType(field *service.ParsedConfig) bool {
+	if !field.Contains("type") {
+		return false
+	}
+	typeStr, err := field.FieldString("type")
+	if err != nil {
+		return false
+	}
+	return typeStr == "DATE" || typeStr == "TIMESTAMP_MILLIS"
 }
 
 func isDeltaLengthByteArrayEncodable(typeStr string) bool {

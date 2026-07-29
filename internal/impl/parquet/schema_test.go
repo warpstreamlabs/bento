@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -381,4 +382,30 @@ schema:
 			}
 		})
 	}
+}
+
+// TestOptionalDateTimestampDoesNotPanic guards against a regression where an optional
+// DATE or TIMESTAMP_MILLIS field, with optionalAsPtrs enabled, produced a *int32/*int64
+// struct field. parquet-go's "date"/"timestamp" struct tags only accept a pointer when
+// the pointee is time.Time, so this panicked via throwInvalidTag. wrapType must keep the
+// base type unwrapped (plain int32/int64) for these two tokens regardless of
+// optionalAsPtrs.
+func TestOptionalDateTimestampDoesNotPanic(t *testing.T) {
+	config, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: processed_time, type: TIMESTAMP_MILLIS, optional: true }
+  - { name: an_optional_date, type: DATE, optional: true }
+`, nil)
+	require.NoError(t, err)
+
+	got, err := GenerateStructType(config, schemaOpts{optionalAsPtrs: true})
+	require.NoError(t, err)
+
+	ts := got.Field(0)
+	assert.Equal(t, reflect.TypeFor[int64](), ts.Type, "TIMESTAMP_MILLIS must stay a plain int64, not *int64")
+	assert.Equal(t, `parquet:"processed_time,timestamp" json:"processed_time"`, string(ts.Tag))
+
+	dt := got.Field(1)
+	assert.Equal(t, reflect.TypeFor[int32](), dt.Type, "DATE must stay a plain int32, not *int32")
+	assert.Equal(t, `parquet:"an_optional_date,date" json:"an_optional_date"`, string(dt.Tag))
 }
