@@ -36,20 +36,24 @@ schema:
   - { name: flt, type: FLOAT }
   - { name: bool, type: BOOLEAN }
   - { name: dec32, type: DECIMAL32, decimal_precision: 3}
-  - { name: dec64, type: DECIMAL64, decimal_scale: 4, decimal_precision: 10}  
+  - { name: dec64, type: DECIMAL64, decimal_scale: 4, decimal_precision: 10}
+  - { name: aDate, type: DATE }
+  - { name: aTimestamp, type: TIMESTAMP_MILLIS }
 `,
 			wantFields: map[string]struct {
 				fieldType reflect.Type
 				tag       string
 			}{
-				"Str":      {reflect.TypeFor[string](), `parquet:"str" json:"str"`},
-				"Num":      {reflect.TypeFor[int64](), `parquet:"num" json:"num"`},
-				"SmallNum": {reflect.TypeFor[int16](), `parquet:"smallNum" json:"smallNum"`},
-				"TinyNum":  {reflect.TypeFor[int8](), `parquet:"tinyNum" json:"tinyNum"`},
-				"Flt":      {reflect.TypeFor[float32](), `parquet:"flt" json:"flt"`},
-				"Bool":     {reflect.TypeFor[bool](), `parquet:"bool" json:"bool"`},
-				"Dec32":    {reflect.TypeFor[int32](), `parquet:"dec32,decimal(0:3)" json:"dec32"`},
-				"Dec64":    {reflect.TypeFor[int64](), `parquet:"dec64,decimal(4:10)" json:"dec64"`},
+				"Str":        {reflect.TypeFor[string](), `parquet:"str" json:"str"`},
+				"Num":        {reflect.TypeFor[int64](), `parquet:"num" json:"num"`},
+				"SmallNum":   {reflect.TypeFor[int16](), `parquet:"smallNum" json:"smallNum"`},
+				"TinyNum":    {reflect.TypeFor[int8](), `parquet:"tinyNum" json:"tinyNum"`},
+				"Flt":        {reflect.TypeFor[float32](), `parquet:"flt" json:"flt"`},
+				"Bool":       {reflect.TypeFor[bool](), `parquet:"bool" json:"bool"`},
+				"Dec32":      {reflect.TypeFor[int32](), `parquet:"dec32,decimal(0:3)" json:"dec32"`},
+				"Dec64":      {reflect.TypeFor[int64](), `parquet:"dec64,decimal(4:10)" json:"dec64"`},
+				"ADate":      {reflect.TypeFor[int32](), `parquet:"aDate,date" json:"aDate"`},
+				"ATimestamp": {reflect.TypeFor[int64](), `parquet:"aTimestamp,timestamp" json:"aTimestamp"`},
 			},
 		},
 		{
