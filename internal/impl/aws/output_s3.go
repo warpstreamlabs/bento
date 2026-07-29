@@ -46,7 +46,7 @@ type s3TagPair struct {
 }
 
 type s3oConfig struct {
-	Bucket string
+	Bucket *service.InterpolatedString
 
 	Path                    *service.InterpolatedString
 	Tags                    []s3TagPair
@@ -68,7 +68,7 @@ type s3oConfig struct {
 }
 
 func s3oConfigFromParsed(pConf *service.ParsedConfig) (conf s3oConfig, err error) {
-	if conf.Bucket, err = pConf.FieldString(s3oFieldBucket); err != nil {
+	if conf.Bucket, err = pConf.FieldInterpolatedString(s3oFieldBucket); err != nil {
 		return
 	}
 
@@ -426,6 +426,11 @@ func (a *amazonS3Writer) WriteBatch(wctx context.Context, msg service.MessageBat
 			websiteRedirectLocation = aws.String(ce)
 		}
 
+		bucket, err := msg.TryInterpolatedString(i, a.conf.Bucket)
+		if err != nil {
+			return fmt.Errorf("bucket interpolation: %w", err)
+		}
+
 		key, err := msg.TryInterpolatedString(i, a.conf.Path)
 		if err != nil {
 			return fmt.Errorf("key interpolation: %w", err)
@@ -447,7 +452,7 @@ func (a *amazonS3Writer) WriteBatch(wctx context.Context, msg service.MessageBat
 		}
 
 		uploadInput := &s3.PutObjectInput{
-			Bucket:                  &a.conf.Bucket,
+			Bucket:                  aws.String(bucket),
 			Key:                     aws.String(key),
 			Body:                    bytes.NewReader(mBytes),
 			ContentType:             aws.String(contentType),
