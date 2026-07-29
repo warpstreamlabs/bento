@@ -91,10 +91,22 @@ type StreamingWriterConfig struct {
 	DataPageStatistics   bool  // Enable page-level statistics (default: false)
 }
 
+// initialRowBufferCap caps the row buffer's starting capacity. Outputs that fan out into many
+// concurrent writers (e.g. one per partition_by key) create one of these per key, so
+// pre-allocating the full row_group_size up front — sometimes tens of thousands of rows — wastes
+// memory for every writer that ends up buffering far fewer rows than that. Go's normal slice
+// growth handles the rare writer that actually needs more.
+const initialRowBufferCap = 128
+
 // NewStreamingParquetWriter creates a new streaming Parquet writer
 func NewStreamingParquetWriter(config StreamingWriterConfig) (*StreamingParquetWriter, error) {
 	if config.RowGroupSize <= 0 {
 		config.RowGroupSize = 1000 // Default
+	}
+
+	initialCap := int(config.RowGroupSize)
+	if initialCap > initialRowBufferCap {
+		initialCap = initialRowBufferCap
 	}
 
 	w := &StreamingParquetWriter{
@@ -109,7 +121,7 @@ func NewStreamingParquetWriter(config StreamingWriterConfig) (*StreamingParquetW
 		columnIndexSizeLimit: config.ColumnIndexSizeLimit,
 		dataPageStatistics:   config.DataPageStatistics,
 		uploadBuffer:         bytes.NewBuffer(nil),
-		rowBuffer:            make([]any, 0, config.RowGroupSize),
+		rowBuffer:            make([]any, 0, initialCap),
 		created:              time.Now(),
 		lastWrite:            time.Now(),
 	}
