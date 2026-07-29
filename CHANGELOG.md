@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
+
 ## 1.20.0 - 2026-07-27
 
 ### Added

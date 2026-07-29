@@ -9,6 +9,12 @@ import (
 	"github.com/warpstreamlabs/bento/public/bloblang"
 )
 
+// maxBigDecimalScale is the maximum scale accepted by parse_big_decimal.
+// Matches PostgreSQL NUMERIC's maximum scale and is well above Iceberg (38)
+// and typical JDBC/Connect decimals. Unbounded scale would allow DoS via
+// big.Int.Exp / FloatString.
+const maxBigDecimalScale = 16383
+
 // twosComplementToBigInt decodes decimal logical-type bytes into a signed unscaled integer.
 //
 // The value is stored as two's complement big-endian bytes. Scale and precision come from
@@ -55,7 +61,7 @@ func init() {
 		Category(query.MethodCategoryParsing).
 		Description(`Parses a [Kafka Connect](https://docs.confluent.io/platform/current/connect/conversions.html#decimal-type) / [Debezium](https://debezium.io/documentation/faq/#how_to_retrieve_decimal_field_from_binary_representation) decimal encoded as a two's complement big-endian unscaled integer and returns its decimal string representation.`).
 		Param(bloblang.NewInt64Param("scale").
-			Description("Number of digits after the decimal point.")).
+			Description(fmt.Sprintf("Number of digits after the decimal point (0-%d).", maxBigDecimalScale))).
 		Example("",
 			`root.amount = this.amount.decode("base64").parse_big_decimal(scale: 2)`,
 			[2]string{
@@ -76,8 +82,8 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			if scale < 0 {
-				return nil, fmt.Errorf("scale must be >= 0, got %d", scale)
+			if scale < 0 || scale > maxBigDecimalScale {
+				return nil, fmt.Errorf("scale must be between 0 and %d, got %d", maxBigDecimalScale, scale)
 			}
 
 			return bloblang.BytesMethod(func(input []byte) (any, error) {

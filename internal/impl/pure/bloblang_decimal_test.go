@@ -1,6 +1,8 @@
 package pure
 
 import (
+	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
@@ -94,4 +96,39 @@ func TestParseBigDecimalZeroBytes(t *testing.T) {
 	v, err := exec.Query([]byte{0x00})
 	require.NoError(t, err)
 	require.Equal(t, "0.00", v)
+}
+
+func TestParseBigDecimalScaleBounds(t *testing.T) {
+	t.Run("rejects negative scale", func(t *testing.T) {
+		_, err := bloblang.Parse(`root = this.parse_big_decimal(scale: -1)`)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "scale must be between 0 and")
+	})
+
+	t.Run("rejects scale above max", func(t *testing.T) {
+		_, err := bloblang.Parse(fmt.Sprintf(`root = this.parse_big_decimal(scale: %d)`, maxBigDecimalScale+1))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "scale must be between 0 and")
+	})
+
+	t.Run("rejects MaxInt64 scale", func(t *testing.T) {
+		_, err := bloblang.Parse(fmt.Sprintf(`root = this.parse_big_decimal(scale: %d)`, int64(math.MaxInt64)))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "scale must be between 0 and")
+	})
+
+	t.Run("accepts max scale", func(t *testing.T) {
+		exec, err := bloblang.Parse(fmt.Sprintf(`root = this.parse_big_decimal(scale: %d)`, maxBigDecimalScale))
+		require.NoError(t, err)
+
+		v, err := exec.Query([]byte{0x01})
+		require.NoError(t, err)
+
+		frac := make([]byte, maxBigDecimalScale)
+		for i := range frac {
+			frac[i] = '0'
+		}
+		frac[maxBigDecimalScale-1] = '1'
+		require.Equal(t, "0."+string(frac), v)
+	})
 }

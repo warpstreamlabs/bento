@@ -3122,7 +3122,7 @@ Parses a [Kafka Connect](https://docs.confluent.io/platform/current/connect/conv
 
 #### Parameters
 
-**`scale`** &lt;integer&gt; Number of digits after the decimal point.  
+**`scale`** &lt;integer&gt; Number of digits after the decimal point (0-16383).  
 
 #### Examples
 
