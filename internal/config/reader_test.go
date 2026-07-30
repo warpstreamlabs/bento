@@ -1,8 +1,6 @@
 package config
 
 import (
-	"errors"
-	"io/fs"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -10,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/stream"
 )
@@ -22,32 +21,8 @@ func newDummyReader(confFilePath string, resourcePaths []string, opts ...OptFunc
 	return rdr
 }
 
-type testFS struct {
-	m fstest.MapFS
-}
-
-func (fs testFS) Open(name string) (fs.File, error) {
-	return fs.m.Open(name)
-}
-
-func (fs testFS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
-	return fs.m.Open(name)
-}
-
-func (fs testFS) Stat(name string) (fs.FileInfo, error) {
-	return fs.m.Stat(name)
-}
-
-func (fs testFS) MkdirAll(name string, perm fs.FileMode) error {
-	return errors.New("not implemented")
-}
-
-func (fs testFS) Remove(name string) error {
-	return errors.New("not implemented")
-}
-
 func TestCustomFileSync(t *testing.T) {
-	testFS := &testFS{m: fstest.MapFS{
+	testFS := &ifs.TestFS{MapFS: fstest.MapFS{
 		"foo_main.yaml": &fstest.MapFile{
 			Data: []byte(`
 input:
@@ -96,7 +71,7 @@ processor_resources:
 }
 
 func TestCustomFileChangeMain(t *testing.T) {
-	testFS := &testFS{m: fstest.MapFS{
+	testFS := &ifs.TestFS{MapFS: fstest.MapFS{
 		"foo_main.yaml": &fstest.MapFile{
 			Data: []byte(`
 input:
@@ -182,7 +157,7 @@ processor_resources:
 }
 
 func TestCustomFileStartEmpty(t *testing.T) {
-	testFS := &testFS{m: fstest.MapFS{
+	testFS := &ifs.TestFS{MapFS: fstest.MapFS{
 		"foo_main.yaml": &fstest.MapFile{
 			Data: []byte(`
 input:

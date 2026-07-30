@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 )
 
 var _ fs.FS = OS()
@@ -12,6 +13,7 @@ var _ fs.FS = OS()
 // FS is a superset of fs.FS that includes goodies that bento components
 // specifically need.
 type FS interface {
+	Chdir(dir string) FS
 	Open(name string) (fs.File, error)
 	OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error)
 	Stat(name string) (fs.FileInfo, error)
@@ -72,24 +74,37 @@ func IsOS(f FS) bool {
 
 var osPTI = &osPT{}
 
-type osPT struct{}
+type osPT struct {
+	workDir string
+}
+
+func (o *osPT) Chdir(dir string) FS {
+	return &osPT{workDir: o.joinWithWorkdir(dir)}
+}
+
+func (o *osPT) joinWithWorkdir(path string) string {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(o.workDir, path)
+	}
+	return path
+}
 
 func (o *osPT) Open(name string) (fs.File, error) {
-	return os.Open(name)
+	return os.Open(o.joinWithWorkdir(name))
 }
 
 func (o *osPT) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
-	return os.OpenFile(name, flag, perm)
+	return os.OpenFile(o.joinWithWorkdir(name), flag, perm)
 }
 
 func (o *osPT) Stat(name string) (fs.FileInfo, error) {
-	return os.Stat(name)
+	return os.Stat(o.joinWithWorkdir(name))
 }
 
 func (o *osPT) Remove(name string) error {
-	return os.Remove(name)
+	return os.Remove(o.joinWithWorkdir(name))
 }
 
 func (o *osPT) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
+	return os.MkdirAll(o.joinWithWorkdir(path), perm)
 }
