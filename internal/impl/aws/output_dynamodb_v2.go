@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Jeffail/gabs/v2"
@@ -12,9 +13,17 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+var (
+	ErrItemTooBig         = errors.New("Item too big")
+	ErrPartitionKeyTooBig = errors.New("Parition key too big")
+	ErrSortKeyTooBig      = errors.New("Sort key too big")
+)
+
 const (
 	// DynamoDB Output Fields
 	ddboFieldTableV2            = "table"
+	ddboFieldParititionKeyV2    = "partition_key"
+	ddboFieldSortKeyV2          = "sort_key"
 	ddboFieldJSONMapColumnsV2   = "json_map_columns"
 	ddboFieldJSONMapDataTypesV2 = "json_map_datatypes"
 	//ddboFieldOmitIfEmptyV2        = "omit_if_empty"
@@ -39,6 +48,12 @@ func dynamoDBOutputSpecV2() *service.ConfigSpec {
 		Fields(
 			service.NewStringField(ddboFieldTableV2).
 				Description("The table to store messages in."),
+			service.NewStringField(ddboFieldParititionKeyV2).
+				Description("The name of the partition key column.").
+				Default(""),
+			service.NewStringField(ddboFieldSortKeyV2).
+				Description("The name of the sort key column (if any).").
+				Default(""),
 			service.NewStringMapField(ddboFieldJSONMapColumnsV2).
 				Description("A map of column keys to [field paths](/docs/configuration/field_paths) pointing to value data within messages.").
 				Default(map[string]any{}).
@@ -87,6 +102,8 @@ type dynamoDBWriterV2 struct {
 	client dynamoDBAPI
 
 	table            string
+	partitionKey     string
+	sortKey          string
 	jsonMapColumns   map[string]string
 	jsonMapDataTypes map[string]string
 
@@ -95,6 +112,16 @@ type dynamoDBWriterV2 struct {
 
 func newDynamoDBWriterV2FromParsed(conf *service.ParsedConfig, _ *service.Resources) (*dynamoDBWriterV2, error) {
 	table, err := conf.FieldString(ddboFieldTableV2)
+	if err != nil {
+		return nil, err
+	}
+
+	partitionKey, err := conf.FieldString(ddboFieldParititionKeyV2)
+	if err != nil {
+		return nil, err
+	}
+
+	sortKey, err := conf.FieldString(ddboFieldSortKeyV2)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +143,8 @@ func newDynamoDBWriterV2FromParsed(conf *service.ParsedConfig, _ *service.Resour
 
 	return &dynamoDBWriterV2{
 		table:            table,
+		partitionKey:     partitionKey,
+		sortKey:          sortKey,
 		jsonMapColumns:   jsonMapColumns,
 		jsonMapDataTypes: jsonMapDataTypes,
 		aConf:            aConf,
@@ -127,19 +156,55 @@ func (ddw *dynamoDBWriterV2) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	ddw.client = dynamodb.NewFromConfig(ddw.aConf)
+	client := dynamodb.NewFromConfig(ddw.aConf)
+	out, err := client.DescribeTable(ctx, &dynamodb.DescribeTableInput{
+		TableName: &ddw.table,
+	})
+	if err != nil {
+		return err
+	} else if out == nil || out.Table == nil || out.Table.TableStatus != types.TableStatusActive {
+		return fmt.Errorf("dynamodb table '%s' must be active", ddw.table)
+	}
+
+	// if the partition_key is supplied check it, if the sort_key is supplied check that too
+	for _, v := range out.Table.KeySchema {
+		if v.KeyType == "HASH" {
+			if ddw.partitionKey != "" && *v.AttributeName != ddw.partitionKey {
+				return fmt.Errorf("supplied partition_key doesn't match Table schema")
+			}
+		}
+		if v.KeyType == "RANGE" {
+			if ddw.sortKey != "" && *v.AttributeName != ddw.sortKey {
+				return fmt.Errorf("supplied sort_key doesn't match Table schema")
+			}
+		}
+	}
+
 	return nil
 }
 
 func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.MessageBatch) error {
 	writeReqs := make([]types.WriteRequest, 0, len(msgBatch))
 
-	for _, msg := range msgBatch {
+	var batchErr *service.BatchError
+	batchErrFailed := func(i int, err error) {
+		if batchErr == nil {
+			batchErr = service.NewBatchError(msgBatch, err)
+		}
+		batchErr.Failed(i, err)
+	}
+
+	for i, msg := range msgBatch {
 		wr, err := ddw.addPutRequest(msg)
 		if err != nil {
-			return err
+			if errors.Is(err, ErrItemTooBig) || errors.Is(err, ErrPartitionKeyTooBig) || errors.Is(err, ErrSortKeyTooBig) {
+				batchErrFailed(i, err)
+			} else {
+				return err
+			}
+		} else {
+			writeReqs = append(writeReqs, wr)
 		}
-		writeReqs = append(writeReqs, wr)
 	}
 
 	for start := 0; start < len(writeReqs); start += 25 {
@@ -149,9 +214,14 @@ func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.Me
 				ddw.table: chunk,
 			},
 		})
+
 		if err != nil {
 			return err
 		}
+	}
+
+	if batchErr != nil && batchErr.IndexedErrors() > 0 {
+		return batchErr
 	}
 
 	return nil
@@ -170,21 +240,33 @@ func (ddw *dynamoDBWriterV2) addPutRequest(msg *service.Message) (x types.WriteR
 	}
 	gRoot := gabs.Wrap(jRoot)
 
-	items := map[string]types.AttributeValue{}
+	attrValues := map[string]types.AttributeValue{}
 
+	itemSize := 0
 	for k, v := range ddw.jsonMapColumns {
+
 		typ := ddw.jsonMapDataTypes[k]
 
 		cont := gRoot.Path(v)
 		val := fmt.Sprintf("%v", cont.Data())
+		itemSize += len(val)
+		if itemSize >= 400000 {
+			return types.WriteRequest{}, ErrItemTooBig
+		}
+		if ddw.partitionKey == k && len(val) > 2048 {
+			return types.WriteRequest{}, ErrPartitionKeyTooBig
+		}
+		if ddw.sortKey == k && len(val) > 1024 {
+			return types.WriteRequest{}, ErrSortKeyTooBig
+		}
 
 		av := stringToDynAttr(val, typ)
-		items[k] = av
+		attrValues[k] = av
 	}
 
 	return types.WriteRequest{
 		PutRequest: &types.PutRequest{
-			Item: items,
+			Item: attrValues,
 		},
 	}, nil
 }
