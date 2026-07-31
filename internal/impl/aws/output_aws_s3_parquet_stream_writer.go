@@ -298,11 +298,43 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 			}
 		}
 
-		// Second pass: collect all OffsetIndex data
-		for _, col := range fileMeta.RowGroups[0].Columns {
+		// Second pass: collect all OffsetIndex data, rebased to final-file absolute offsets.
+		//
+		// The temp buffer's OffsetIndex.PageLocations[].Offset values are relative to the temp
+		// file (i.e. row-group-local, post-PAR1-strip) — they are NOT automatically consistent
+		// with the ColumnChunk.MetaData.DataPageOffset rebase applied below. Every row group
+		// after the first was landing at the wrong (negative-delta) offset once concatenated
+		// into the final file, which strict readers (arrow-rs) reject with an offset underflow
+		// panic on read (doc 39). rebaseDelta is exactly the same shift applied to
+		// DataPageOffset/DictionaryPageOffset a few lines down: w.filePosition - 4 (the final
+		// position this row group starts at, minus the temp file's own 4-byte PAR1 header).
+		//
+		// rebasedOffsetIndexLength records the RE-ENCODED length per column: Thrift Compact
+		// Protocol varint-encodes int64 fields, so adding rebaseDelta to each PageLocation.Offset
+		// can change the encoded byte length. Close() slices pageIndexParts using this length to
+		// find each column's OffsetIndex — using the temp file's original (pre-rebase) length
+		// there would misalign every OffsetIndex read after the first rebased one in this row
+		// group's page index section.
+		rebaseDelta := w.filePosition - 4
+		rebasedOffsetIndexLength := make(map[int]int32, len(fileMeta.RowGroups[0].Columns))
+		for colIdx, col := range fileMeta.RowGroups[0].Columns {
 			if col.OffsetIndexOffset > 0 && col.OffsetIndexLength > 0 {
 				offsetIndexData := fullFileData[col.OffsetIndexOffset : col.OffsetIndexOffset+int64(col.OffsetIndexLength)]
-				pageIndexBuffer.Write(offsetIndexData)
+
+				var offsetIndex format.OffsetIndex
+				if err := thrift.Unmarshal(new(thrift.CompactProtocol), offsetIndexData, &offsetIndex); err != nil {
+					return fmt.Errorf("failed to decode OffsetIndex for rebase: %w", err)
+				}
+				for i := range offsetIndex.PageLocations {
+					offsetIndex.PageLocations[i].Offset += rebaseDelta
+				}
+				rebasedOffsetIndexData, err := thrift.Marshal(new(thrift.CompactProtocol), &offsetIndex)
+				if err != nil {
+					return fmt.Errorf("failed to re-encode rebased OffsetIndex: %w", err)
+				}
+
+				rebasedOffsetIndexLength[colIdx] = int32(len(rebasedOffsetIndexData))
+				pageIndexBuffer.Write(rebasedOffsetIndexData)
 			}
 		}
 
@@ -329,7 +361,12 @@ func (w *StreamingParquetWriter) flushRowGroup(ctx context.Context) error {
 			// IMPORTANT: Keep the Length fields so Close() knows how much data to write.
 			adjustedCol.OffsetIndexOffset = 0
 			adjustedCol.ColumnIndexOffset = 0
-			// Note: ColumnIndexLength and OffsetIndexLength are preserved
+			// ColumnIndexLength is preserved as-is (ColumnIndex is not rebased — it contains no
+			// file offsets, only per-page min/max/null stats). OffsetIndexLength is updated to
+			// the actual re-encoded length computed above.
+			if newLen, ok := rebasedOffsetIndexLength[i]; ok {
+				adjustedCol.OffsetIndexLength = newLen
+			}
 
 			columnChunks[i] = adjustedCol
 		}
