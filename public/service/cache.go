@@ -75,6 +75,7 @@ type airGapCache struct {
 func newAirGapCache(c Cache, stats metrics.Type) cache.V1 {
 	ag := &airGapCache{c: c, cm: nil}
 	ag.cm, _ = c.(batchedCache)
+	ag.ce, _ = c.(existsCache)
 	return cache.MetricsForCache(ag, stats)
 }
 
