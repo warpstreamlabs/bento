@@ -26,6 +26,10 @@ func TestMemoryCache(t *testing.T) {
 		t.Errorf("Wrong error returned: %v != %v", act, expErr)
 	}
 
+	exists, err := c.Exists(ctx, "foo")
+	require.NoError(t, err)
+	require.False(t, exists)
+
 	if err = c.Set(ctx, "foo", []byte("1"), nil); err != nil {
 		t.Error(err)
 	}
@@ -37,6 +41,10 @@ func TestMemoryCache(t *testing.T) {
 		t.Errorf("Wrong result: %v != %v", string(act), exp)
 	}
 
+	exists, err = c.Exists(ctx, "foo")
+	require.NoError(t, err)
+	require.True(t, exists)
+
 	if err = c.Add(ctx, "bar", []byte("2"), nil); err != nil {
 		t.Error(err)
 	}
@@ -47,6 +55,10 @@ func TestMemoryCache(t *testing.T) {
 	} else if string(act) != exp {
 		t.Errorf("Wrong result: %v != %v", string(act), exp)
 	}
+
+	exists, err = c.Exists(ctx, "bar")
+	require.NoError(t, err)
+	require.True(t, exists)
 
 	expErr = service.ErrKeyAlreadyExists
 	if act := c.Add(ctx, "foo", []byte("2"), nil); expErr != act {
@@ -64,6 +76,10 @@ func TestMemoryCache(t *testing.T) {
 		t.Errorf("Wrong result: %v != %v", string(act), exp)
 	}
 
+	exists, err = c.Exists(ctx, "foo")
+	require.NoError(t, err)
+	require.True(t, exists)
+
 	if err = c.Delete(ctx, "foo"); err != nil {
 		t.Error(err)
 	}
@@ -71,6 +87,10 @@ func TestMemoryCache(t *testing.T) {
 	if _, err = c.Get(ctx, "foo"); err != service.ErrKeyNotFound {
 		t.Errorf("Wrong error returned: %v != %v", err, service.ErrKeyNotFound)
 	}
+
+	exists, err = c.Exists(ctx, "foo")
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 func TestMemoryCacheCompaction(t *testing.T) {

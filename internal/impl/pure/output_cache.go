@@ -165,6 +165,7 @@ func (c *CacheWriter) writeMulti(ctx context.Context, msg message.Batch) (err er
 			Value: p.AsBytes(),
 			TTL:   ttl,
 		}
+
 		return nil
 	}); err != nil {
 		return
