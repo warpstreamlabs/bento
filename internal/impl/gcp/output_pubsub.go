@@ -74,6 +74,7 @@ pipeline:
 			service.NewMetadataExcludeFilterField("metadata").
 				Optional().
 				Description("Specify criteria for which metadata values are sent as attributes, all are sent by default."),
+			service.NewInjectTracingSpanMappingField(),
 			service.NewObjectField(
 				"flow_control",
 				service.NewIntField("max_outstanding_bytes").
@@ -360,7 +361,11 @@ func init() {
 			return
 		}
 
-		out, err = newPubSubOutput(conf)
+		if out, err = newPubSubOutput(conf); err != nil {
+			return
+		}
+
+		out, err = conf.WrapBatchOutputExtractTracingSpanMapping("gcp_pubsub", out)
 
 		return
 	}); err != nil {
