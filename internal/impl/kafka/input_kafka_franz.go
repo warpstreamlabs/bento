@@ -77,7 +77,6 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 		Field(service.NewStringField("consumer_group").
 			Description("An optional consumer group to consume as. When specified the partitions of specified topics are automatically distributed across consumers sharing a consumer group, and partition offsets are automatically committed and resumed under this name. Consumer groups are not supported when specifying explicit partitions to consume from in the `topics` field.").
 			Optional()).
-		Field(newTransactionIsolationLevelField()).
 		Field(service.NewStringField("client_id").
 			Description("An identifier for the client connection.").
 			Default("bento").
@@ -148,6 +147,14 @@ With this option, you can return topic order and per-topic partition ordering. T
 			Version("1.3.0").
 			Optional().
 			Advanced()).
+		Field(service.NewStringAnnotatedEnumField("transaction_isolation_level", map[string]string{
+			"read_uncommitted": "Consume all records, including records from aborted or open transactions.",
+			"read_committed":   "Consume only non-transactional records and records from committed transactions.",
+		}).
+			Description("Controls the isolation level used for Kafka fetch requests.").
+			Default("read_uncommitted").
+			Advanced().
+			Version("1.21.0")).
 		Field(service.NewTLSToggledField("tls")).
 		Field(saslField()).
 		Field(service.NewBoolField("multi_header").Description("Decode headers into lists to allow handling of multiple values with the same key").Default(false).Advanced()).
@@ -363,14 +370,11 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 		return nil, err
 	}
 
-	isolationLevel, err := transactionIsolationLevelFromConfig(conf)
-	if err != nil {
+	var isolationLevel string
+	if isolationLevel, err = conf.FieldString("transaction_isolation_level"); err != nil {
 		return nil, err
 	}
-	switch isolationLevel {
-	case transactionIsolationLevelReadUncommitted:
-		f.isolationLevel = kgo.ReadUncommitted()
-	case transactionIsolationLevelReadCommitted:
+	if isolationLevel == "read_committed" {
 		f.isolationLevel = kgo.ReadCommitted()
 	}
 

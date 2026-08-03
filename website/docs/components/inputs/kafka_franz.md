@@ -49,7 +49,6 @@ input:
     topics: [] # No default (required)
     regexp_topics: false
     consumer_group: "" # No default (optional)
-    transaction_isolation_level: read_uncommitted
     client_id: bento
     rack_id: ""
     checkpoint_limit: 1024
@@ -65,6 +64,7 @@ input:
     fetch_max_partition_bytes: 1MiB
     fetch_max_wait: 5s
     preferring_lag: 0 # No default (optional)
+    transaction_isolation_level: read_uncommitted
     tls:
       enabled: false
       skip_cert_verify: false
@@ -182,20 +182,6 @@ An optional consumer group to consume as. When specified the partitions of speci
 
 
 Type: `string`  
-
-### `transaction_isolation_level`
-
-Controls the isolation level used for Kafka fetch requests.
-
-
-Type: `string`  
-Default: `"read_uncommitted"`  
-
-| Option | Summary |
-|---|---|
-| `read_committed` | Consume only non-transactional records and records from committed transactions. |
-| `read_uncommitted` | Consume all records, including records from aborted or open transactions. |
-
 
 ### `client_id`
 
@@ -323,6 +309,21 @@ With this option, you can return topic order and per-topic partition ordering. T
 
 Type: `int`  
 Requires version 1.3.0 or newer  
+
+### `transaction_isolation_level`
+
+Controls the isolation level used for Kafka fetch requests.
+
+
+Type: `string`  
+Default: `"read_uncommitted"`  
+Requires version 1.21.0 or newer  
+
+| Option | Summary |
+|---|---|
+| `read_committed` | Consume only non-transactional records and records from committed transactions. |
+| `read_uncommitted` | Consume all records, including records from aborted or open transactions. |
+
 
 ### `tls`
 
