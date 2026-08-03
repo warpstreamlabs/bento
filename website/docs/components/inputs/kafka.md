@@ -90,6 +90,7 @@ input:
     checkpoint_limit: 1024
     auto_replay_nacks: true
     commit_period: 1s
+    transaction_isolation_level: read_uncommitted
     max_processing_period: 100ms
     extract_tracing_map: root = @ # No default (optional)
     new_root_span_with_link: false # No default (optional)
@@ -667,6 +668,21 @@ The period of time between each commit of the current partition offsets. Offsets
 
 Type: `string`  
 Default: `"1s"`  
+
+### `transaction_isolation_level`
+
+Controls the isolation level used for Kafka fetch requests.
+
+
+Type: `string`  
+Default: `"read_uncommitted"`  
+Requires version 1.21.0 or newer  
+
+| Option | Summary |
+|---|---|
+| `read_committed` | Consume only non-transactional records and records from committed transactions. |
+| `read_uncommitted` | Consume all records, including records from aborted or open transactions. |
+
 
 ### `max_processing_period`
 
