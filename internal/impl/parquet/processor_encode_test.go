@@ -637,6 +637,16 @@ schema:
         type: LIST
         fields:
           - { name: element, type: FLOAT }
+  - name: list_of_list_of_lists
+    type: LIST
+    fields:
+      - name: element
+        type: LIST
+        fields:
+          - name: element
+            type: LIST
+            fields:
+              - { name: element, type: INT32 }
 `, nil)
 	require.NoError(t, err)
 
@@ -651,30 +661,74 @@ schema:
 		{
 			name: "empty lists",
 			input: `{
-  "normal_list": [],
-  "nullable_list": null,
-  "list_of_lists": []
-}`,
+		  "normal_list": [],
+		  "nullable_list": null,
+		  "list_of_lists": [],
+		  "list_of_list_of_lists": []
+		}`,
 			expected: `{
-  "normal_list": {"list": []},
-  "nullable_list": null,
-  "list_of_lists": {"list": []}
-}`,
+		  "normal_list": {"list": []},
+		  "nullable_list": null,
+		  "list_of_lists": {"list": []},
+		  "list_of_list_of_lists": {"list": []}
+		}`,
 		},
 		{
 			name: "nested lists",
 			input: `{
+		  "normal_list": ["a"],
+		  "nullable_list": [1, 2],
+		  "list_of_lists": [[1.1, 2.2], [3.3]],
+		  "list_of_list_of_lists": []
+		}`,
+			expected: `{
+		  "normal_list": {"list": [{"element": "a"}]},
+		  "nullable_list": {"list": [{"element": 1}, {"element": 2}]},
+		  "list_of_lists": {
+		    "list": [
+		      {"element": {"list": [{"element": 1.1}, {"element": 2.2}]}},
+		      {"element": {"list": [{"element": 3.3}]}}
+		    ]
+		  },
+		  "list_of_list_of_lists": {"list": []}
+		}`,
+		},
+		{
+			name: "3d lists",
+			input: `{
   "normal_list": ["a"],
-  "nullable_list": [1, 2],
-  "list_of_lists": [[1.1, 2.2], [3.3]]
+  "nullable_list": null,
+  "list_of_lists": [],
+  "list_of_list_of_lists": [
+    [[1, 2], [3]],
+    [[4, 5, 6]],
+    []
+  ]
 }`,
 			expected: `{
   "normal_list": {"list": [{"element": "a"}]},
-  "nullable_list": {"list": [{"element": 1}, {"element": 2}]},
-  "list_of_lists": {
+  "nullable_list": null,
+  "list_of_lists": {"list": []},
+  "list_of_list_of_lists": {
     "list": [
-      {"element": {"list": [{"element": 1.1}, {"element": 2.2}]}},
-      {"element": {"list": [{"element": 3.3}]}}
+      {
+        "element": {
+          "list": [
+            {"element": {"list": [{"element": 1}, {"element": 2}]}},
+            {"element": {"list": [{"element": 3}]}}
+          ]
+        }
+      },
+      {
+        "element": {
+          "list": [
+            {"element": {"list": [{"element": 4}, {"element": 5}, {"element": 6}]}}
+          ]
+        }
+      },
+      {
+        "element": {"list": []}
+      }
     ]
   }
 }`,

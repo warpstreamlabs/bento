@@ -1677,8 +1677,8 @@ github.com/parquet-go/bitpack v1.0.0 h1:AUqzlKzPPXf2bCdjfj4sTeacrUwsT7NlcYDMUQxP
 github.com/parquet-go/bitpack v1.0.0/go.mod h1:XnVk9TH+O40eOOmvpAVZ7K2ocQFrQwysLMnc6M/8lgs=
 github.com/parquet-go/jsonlite v1.5.0 h1:ulS7lNWdPwiqDMLzTiXHYmIUhu99mavZh2iAVdXet3g=
 github.com/parquet-go/jsonlite v1.5.0/go.mod h1:nDjpkpL4EOtqs6NQugUsi0Rleq9sW/OtC1NnZEnxzF0=
-github.com/parquet-go/parquet-go v0.29.0 h1:xXlPtFVR51jpSVzf+cgHnNIcb7Xet+iuvkbe0HIm90Y=
-github.com/parquet-go/parquet-go v0.29.0/go.mod h1:navtkAYr2LGoJVp141oXPlO/sxLvaOe3la2JEoD8+rg=
+github.com/parquet-go/parquet-go v0.30.2-0.20260713200242-a326b0cd1e5d h1:GSL/GwCWdCKXF8WIfzrWPGM4n9lMgEIssYvnZZ16z1Q=
+github.com/parquet-go/parquet-go v0.30.2-0.20260713200242-a326b0cd1e5d/go.mod h1:navtkAYr2LGoJVp141oXPlO/sxLvaOe3la2JEoD8+rg=
 github.com/pascaldekloe/goe v0.1.0/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/paulmach/orb v0.12.0 h1:z+zOwjmG3MyEEqzv92UN49Lg1JFYx0L9GpGKNVDKk1s=
 github.com/paulmach/orb v0.12.0/go.mod h1:5mULz1xQfs3bmQm63QEJA6lNGujuRafwA5S/EnuLaLU=
