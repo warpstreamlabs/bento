@@ -214,11 +214,12 @@ Default: `500000`
 
 ### `send_ack`
 
-Whether to send an acknowledgement back to the input subject's reply address after consuming a message.
+Whether to send an acknowledgement back to the input subject's reply address after delivering a message.
 
 
 Type: `bool`  
 Default: `true`  
+Requires version 1.21.0 or newer  
 
 ### `tls`
 

@@ -67,10 +67,10 @@ output:
 			Default(nats.DefaultSubPendingMsgsLimit).
 			LintRule(`root = if this < 0 { ["prefetch count must be greater than or equal to zero"] }`)).
 		Field(service.NewBoolField("send_ack").
-			Description("Whether to send an acknowledgement back to the input subject's reply address after consuming a message.").
+			Description("Whether to send an acknowledgement back to the input subject's reply address after delivering a message.").
 			Default(true).
 			Advanced().
-			Version("1.19.0")).
+			Version("1.21.0")).
 		Fields(connectionTailFields()...).
 		Fields(inputTracingDocs()...)
 }
