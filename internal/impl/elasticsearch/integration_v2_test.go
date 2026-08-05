@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/ory/dockertest/v3"
 	"github.com/stretchr/testify/require"
+
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )

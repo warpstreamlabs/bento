@@ -50,6 +50,7 @@ input:
     auto_replay_nacks: true
     nak_delay: 1m # No default (optional)
     prefetch_count: 500000
+    send_ack: true
     tls:
       enabled: false
       skip_cert_verify: false
@@ -210,6 +211,15 @@ The maximum number of messages to pull at a time.
 
 Type: `int`  
 Default: `500000`  
+
+### `send_ack`
+
+Whether to send an acknowledgement back to the input subject's reply address after delivering a message.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.21.0 or newer  
 
 ### `tls`
 

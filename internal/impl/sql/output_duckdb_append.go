@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 	"github.com/duckdb/duckdb-go/v2"
+
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )

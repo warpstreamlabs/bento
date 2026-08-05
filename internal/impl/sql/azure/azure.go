@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+
 	"github.com/warpstreamlabs/bento/internal/impl/sql"
 	"github.com/warpstreamlabs/bento/public/service"
 )

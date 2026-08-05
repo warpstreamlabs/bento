@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/elastic/go-elasticsearch/v9/esutil"
+
 	"github.com/warpstreamlabs/bento/internal/retries"
 	"github.com/warpstreamlabs/bento/public/service"
 )

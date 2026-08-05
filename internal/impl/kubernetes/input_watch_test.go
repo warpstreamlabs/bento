@@ -9,8 +9,9 @@ import (
 	"github.com/Jeffail/shutdown"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/warpstreamlabs/bento/public/service"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/warpstreamlabs/bento/public/service"
 )
 
 func TestKubernetesWatchConfigParse(t *testing.T) {
