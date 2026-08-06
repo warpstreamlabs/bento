@@ -164,6 +164,7 @@ func (kv *kvOutput) Write(ctx context.Context, msg *service.Message) error {
 
 	rev, err := keyValue.Put(ctx, key, value)
 	if err != nil {
+		kv.disconnect()
 		return err
 	}
 
