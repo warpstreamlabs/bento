@@ -67,7 +67,7 @@ max_buffer_period: 1s
 	wConf, err := s3StreamConfigFromParsed(parsedConf)
 	require.NoError(t, err)
 
-	output, err := newS3StreamOutput(wConf, service.MockResources())
+	output, err := newS3StreamOutput(wConf, service.BatchPolicy{}, service.MockResources())
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -146,7 +146,7 @@ max_buffer_period: 1s
 	wConf, err := s3StreamConfigFromParsed(parsedConf)
 	require.NoError(t, err)
 
-	output, err := newS3StreamOutput(wConf, service.MockResources())
+	output, err := newS3StreamOutput(wConf, service.BatchPolicy{}, service.MockResources())
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -258,7 +258,7 @@ max_buffer_period: 1s
 	wConf, err := s3StreamConfigFromParsed(parsedConf)
 	require.NoError(t, err)
 
-	output, err := newS3StreamOutput(wConf, service.MockResources())
+	output, err := newS3StreamOutput(wConf, service.BatchPolicy{}, service.MockResources())
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -332,7 +332,7 @@ max_buffer_period: 1s
 	wConf, err := s3StreamConfigFromParsed(parsedConf)
 	require.NoError(t, err)
 
-	output, err := newS3StreamOutput(wConf, service.MockResources())
+	output, err := newS3StreamOutput(wConf, service.BatchPolicy{}, service.MockResources())
 	require.NoError(t, err)
 
 	ctx := context.Background()
