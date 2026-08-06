@@ -344,7 +344,7 @@ func transformDataWithSchema(data any, fields ...parquet.Field) any {
 		for key, value := range v {
 			field := findFieldByName(fields, key)
 			if field != nil {
-				if lt := field.Type().LogicalType(); lt != nil && lt.Value.FieldID() == 3 {
+				if lt := field.Type().LogicalType(); lt != nil && lt.List != nil {
 					result[key] = transformList(value)
 				} else {
 					result[key] = transformDataWithSchema(value, field.Fields()...)

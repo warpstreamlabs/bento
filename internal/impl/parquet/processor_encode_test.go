@@ -647,6 +647,19 @@ schema:
             type: LIST
             fields:
               - { name: element, type: INT32 }
+  - name: list_of_list_of_list_of_lists
+    type: LIST
+    fields:
+      - name: element
+        type: LIST
+        fields:
+          - name: element
+            type: LIST
+            fields:
+              - name: element
+                type: LIST
+                fields:
+                  - { name: element, type: INT32 }
 `, nil)
 	require.NoError(t, err)
 
@@ -664,13 +677,15 @@ schema:
 		  "normal_list": [],
 		  "nullable_list": null,
 		  "list_of_lists": [],
-		  "list_of_list_of_lists": []
+		  "list_of_list_of_lists": [],
+		  "list_of_list_of_list_of_lists": []
 		}`,
 			expected: `{
 		  "normal_list": {"list": []},
 		  "nullable_list": null,
 		  "list_of_lists": {"list": []},
-		  "list_of_list_of_lists": {"list": []}
+		  "list_of_list_of_lists": {"list": []},
+		  "list_of_list_of_list_of_lists": {"list": []}
 		}`,
 		},
 		{
@@ -679,7 +694,8 @@ schema:
 		  "normal_list": ["a"],
 		  "nullable_list": [1, 2],
 		  "list_of_lists": [[1.1, 2.2], [3.3]],
-		  "list_of_list_of_lists": []
+		  "list_of_list_of_lists": [],
+		  "list_of_list_of_list_of_lists": []
 		}`,
 			expected: `{
 		  "normal_list": {"list": [{"element": "a"}]},
@@ -690,7 +706,8 @@ schema:
 		      {"element": {"list": [{"element": 3.3}]}}
 		    ]
 		  },
-		  "list_of_list_of_lists": {"list": []}
+		  "list_of_list_of_lists": {"list": []},
+		  "list_of_list_of_list_of_lists": {"list": []}
 		}`,
 		},
 		{
@@ -703,7 +720,8 @@ schema:
     [[1, 2], [3]],
     [[4, 5, 6]],
     []
-  ]
+  ],
+  "list_of_list_of_list_of_lists": []
 }`,
 			expected: `{
   "normal_list": {"list": [{"element": "a"}]},
@@ -723,6 +741,75 @@ schema:
         "element": {
           "list": [
             {"element": {"list": [{"element": 4}, {"element": 5}, {"element": 6}]}}
+          ]
+        }
+      },
+      {
+        "element": {"list": []}
+      }
+    ]
+  },
+  "list_of_list_of_list_of_lists": {"list": []}
+}`,
+		},
+		{
+			name: "4d lists",
+			input: `{
+  "normal_list": ["a"],
+  "nullable_list": null,
+  "list_of_lists": [],
+  "list_of_list_of_lists": [],
+  "list_of_list_of_list_of_lists": [
+    [
+      [[1, 2], [3]],
+      [[4, 5, 6]]
+    ],
+    [
+      [],
+      [[7]]
+    ],
+    []
+  ]
+}`,
+			expected: `{
+  "normal_list": {"list": [{"element": "a"}]},
+  "nullable_list": null,
+  "list_of_lists": {"list": []},
+  "list_of_list_of_lists": {"list": []},
+  "list_of_list_of_list_of_lists": {
+    "list": [
+      {
+        "element": {
+          "list": [
+            {
+              "element": {
+                "list": [
+                  {"element": {"list": [{"element": 1}, {"element": 2}]}},
+                  {"element": {"list": [{"element": 3}]}}
+                ]
+              }
+            },
+            {
+              "element": {
+                "list": [
+                  {"element": {"list": [{"element": 4}, {"element": 5}, {"element": 6}]}}
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "element": {
+          "list": [
+            {"element": {"list": []}},
+            {
+              "element": {
+                "list": [
+                  {"element": {"list": [{"element": 7}]}}
+                ]
+              }
+            }
           ]
         }
       },

@@ -115,7 +115,7 @@ require (
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/oschwald/geoip2-golang v1.9.0
-	github.com/parquet-go/parquet-go v0.30.2-0.20260713200242-a326b0cd1e5d
+	github.com/parquet-go/parquet-go v0.29.0
 	github.com/pebbe/zmq4 v1.2.11
 	github.com/pierrec/lz4/v4 v4.1.27
 	github.com/pkg/sftp v1.13.7
@@ -470,3 +470,7 @@ go 1.26.5
 // github.com/warpstreamlabs/bento/public/components/pulsar. Once fixed upstream, this can be dropped.
 // See https://github.com/warpstreamlabs/bento/issues/960.
 replace github.com/hamba/avro/v2 => github.com/iskorotkov/avro/v2 v2.33.0
+
+// TODO: Resolves to a branch at github.com/warpstreamlabs/parquet-go@warpstream/dev. Once we get an official
+// release in github.com/parquet-go/parquet-go with the N-dimension list fix, we can remove this.
+replace github.com/parquet-go/parquet-go => github.com/warpstreamlabs/parquet-go v0.0.0-20260806184926-f69e607ff55d
