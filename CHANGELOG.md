@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
 
+### Security
+
+- **Breaking:** Addressed [GO-2026-5048](https://github.com/advisories/GHSA-mx64-mj3q-7prj) by replacing `github.com/hamba/avro/v2` with `github.com/iskorotkov/avro/v2`, temporarily disabling `go install github.com/warpstreamlabs/bento/cmd/bento@<version>` due to `replace` directive usage.
+
 ## 1.20.0 - 2026-07-27
 
 ### Added
