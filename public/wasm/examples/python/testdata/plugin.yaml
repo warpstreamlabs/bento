@@ -1,0 +1,20 @@
+name: http_processor
+type: processor
+status: stable
+summary: Makes HTTP requests using message data.
+description: "A WASM plugin that makes HTTP requests using message content and writes the response back to the batch."
+fields:
+  - name: url
+    type: string
+    description: "The URL to send requests to."
+  - name: method
+    type: string
+    default: "GET"
+    description: "The HTTP method to use."
+runtime:
+  wasm:
+    memory:
+      max_pages: 256
+      max_http_response_bytes: "10MB"
+    allowed_hosts:
+      - "*"

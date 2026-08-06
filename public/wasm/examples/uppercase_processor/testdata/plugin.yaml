@@ -1,0 +1,20 @@
+name: uppercase
+type: processor
+status: stable
+categories:
+  - Utility
+summary: Converts message content to uppercase using WebAssembly
+description: |
+  A WebAssembly-based processor that converts all message content to uppercase.
+  Optionally adds a prefix to each message. This demonstrates a simple WASM
+  plugin for Bento that processes message batches efficiently.
+
+fields:
+  - name: prefix
+    description: An optional prefix to add before the uppercase content
+    type: string
+
+runtime:
+  wasm:
+    memory:
+      max_pages: 512
