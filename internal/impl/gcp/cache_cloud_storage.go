@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"iter"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -138,6 +140,25 @@ func (c *gcpCloudStorageCache) Add(ctx context.Context, key string, value []byte
 
 func (c *gcpCloudStorageCache) Delete(ctx context.Context, key string) error {
 	return c.bucketHandle.Object(key).Delete(ctx)
+}
+
+func (c *gcpCloudStorageCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		it := c.bucketHandle.Objects(ctx, nil)
+		for {
+			attrs, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				return
+			}
+			if err != nil {
+				yield("", err)
+				return
+			}
+			if !yield(attrs.Name, nil) {
+				return
+			}
+		}
+	}
 }
 
 func (c *gcpCloudStorageCache) Close(ctx context.Context) error {

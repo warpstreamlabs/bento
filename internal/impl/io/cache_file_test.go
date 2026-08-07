@@ -3,6 +3,7 @@ package io
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,4 +68,48 @@ func TestFileCache(t *testing.T) {
 	exists, err = c.Exists(tCtx, "foo")
 	assert.NoError(t, err)
 	assert.False(t, exists)
+}
+
+func TestFileCacheListKeys(t *testing.T) {
+	dir := t.TempDir()
+
+	tCtx := t.Context()
+	c := newFileCache(dir, service.MockResources())
+
+	require.NoError(t, c.Set(tCtx, "foo", []byte("1"), nil))
+	require.NoError(t, c.Set(tCtx, "bar", []byte("2"), nil))
+
+	nestedKey := filepath.Join("nested", "baz")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "nested"), 0o755))
+	require.NoError(t, c.Set(tCtx, nestedKey, []byte("3"), nil))
+
+	var keys []string
+	for k, err := range c.ListKeys(tCtx) {
+		require.NoError(t, err)
+		keys = append(keys, k)
+	}
+	assert.ElementsMatch(t, []string{"foo", "bar", nestedKey}, keys)
+
+	require.NoError(t, c.Delete(tCtx, "foo"))
+
+	keys = nil
+	for k, err := range c.ListKeys(tCtx) {
+		require.NoError(t, err)
+		keys = append(keys, k)
+	}
+	assert.ElementsMatch(t, []string{"bar", nestedKey}, keys)
+}
+
+func TestFileCacheListKeysCancelled(t *testing.T) {
+	dir := t.TempDir()
+
+	c := newFileCache(dir, service.MockResources())
+	require.NoError(t, c.Set(t.Context(), "foo", []byte("1"), nil))
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	for _, err := range c.ListKeys(ctx) {
+		require.ErrorIs(t, err, context.Canceled)
+	}
 }

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"iter"
 	"time"
 )
 
@@ -36,6 +37,11 @@ type V1 interface {
 
 	// Delete attempts to remove a key. Returns an error if a failure occurs.
 	Delete(ctx context.Context, key string) error
+
+	// ListKeys returns an iterator over all keys currently held by the cache.
+	// Iteration stops after the first non-nil error, caches that are unable
+	// to enumerate their keys yield component.ErrKeyListingNotSupported.
+	ListKeys(ctx context.Context) iter.Seq2[string, error]
 
 	// Close the component, blocks until either the underlying resources are
 	// cleaned up or the context is cancelled. Returns an error if the context

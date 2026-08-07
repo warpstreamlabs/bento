@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"iter"
 	"time"
 
 	"github.com/warpstreamlabs/bento/internal/component"
@@ -12,8 +13,9 @@ import (
 
 // Errors returned by cache types.
 var (
-	ErrKeyAlreadyExists = errors.New("key already exists")
-	ErrKeyNotFound      = errors.New("key does not exist")
+	ErrKeyAlreadyExists       = errors.New("key already exists")
+	ErrKeyNotFound            = errors.New("key does not exist")
+	ErrKeyListingNotSupported = errors.New("cache does not support listing keys")
 )
 
 // Cache is an interface implemented by Bento caches.
@@ -63,6 +65,16 @@ type existsCache interface {
 	Exists(ctx context.Context, key string) (bool, error)
 }
 
+// listableCache represents a cache where the underlying implementation is able
+// to enumerate the keys it holds. This interface is optional for caches and
+// when implemented will automatically be utilised where possible, otherwise
+// calls to ListKeys yield ErrKeyListingNotSupported.
+type listableCache interface {
+	// ListKeys returns an iterator over all keys currently held by the cache.
+	// Iteration stops after the first non-nil error.
+	ListKeys(ctx context.Context) iter.Seq2[string, error]
+}
+
 //------------------------------------------------------------------------------
 
 // Implements types.Cache.
@@ -70,12 +82,14 @@ type airGapCache struct {
 	c  Cache
 	cm batchedCache
 	ce existsCache
+	cl listableCache
 }
 
 func newAirGapCache(c Cache, stats metrics.Type) cache.V1 {
-	ag := &airGapCache{c: c, cm: nil}
+	ag := &airGapCache{c: c, cm: nil, cl: nil}
 	ag.cm, _ = c.(batchedCache)
 	ag.ce, _ = c.(existsCache)
+	ag.cl, _ = c.(listableCache)
 	return cache.MetricsForCache(ag, stats)
 }
 
@@ -137,6 +151,23 @@ func (a *airGapCache) Delete(ctx context.Context, key string) error {
 	return a.c.Delete(ctx, key)
 }
 
+func (a *airGapCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		if a.cl == nil {
+			yield("", component.ErrKeyListingNotSupported)
+			return
+		}
+		for key, err := range a.cl.ListKeys(ctx) {
+			if errors.Is(err, ErrKeyListingNotSupported) {
+				err = component.ErrKeyListingNotSupported
+			}
+			if !yield(key, err) {
+				return
+			}
+		}
+	}
+}
+
 func (a *airGapCache) Close(ctx context.Context) error {
 	return a.c.Close(ctx)
 }
@@ -177,6 +208,19 @@ func (r *reverseAirGapCache) Add(ctx context.Context, key string, value []byte, 
 
 func (r *reverseAirGapCache) Delete(ctx context.Context, key string) error {
 	return r.c.Delete(ctx, key)
+}
+
+func (r *reverseAirGapCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		for key, err := range r.c.ListKeys(ctx) {
+			if errors.Is(err, component.ErrKeyListingNotSupported) {
+				err = ErrKeyListingNotSupported
+			}
+			if !yield(key, err) {
+				return
+			}
+		}
+	}
 }
 
 func (r *reverseAirGapCache) Close(ctx context.Context) error {

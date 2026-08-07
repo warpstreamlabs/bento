@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"iter"
 	"time"
 
 	"github.com/Jeffail/shutdown"
@@ -36,6 +37,10 @@ type metricsCache struct {
 	mDelError   metrics.StatCounter
 	mDelSuccess metrics.StatCounter
 	mDelLatency metrics.StatTimer
+
+	mListKeysError   metrics.StatCounter
+	mListKeysSuccess metrics.StatCounter
+	mListKeysLatency metrics.StatTimer
 }
 
 // MetricsForCache wraps a cache with a struct that adds standard metrics over
@@ -69,6 +74,10 @@ func MetricsForCache(c V1, stats metrics.Type) V1 {
 		mDelError:   cacheError.With("delete"),
 		mDelSuccess: cacheSuccess.With("delete"),
 		mDelLatency: cacheLatency.With("delete"),
+
+		mListKeysError:   cacheError.With("list_keys"),
+		mListKeysSuccess: cacheSuccess.With("list_keys"),
+		mListKeysLatency: cacheLatency.With("list_keys"),
 	}
 }
 
@@ -150,6 +159,27 @@ func (a *metricsCache) Delete(ctx context.Context, key string) error {
 		a.mDelSuccess.Incr(1)
 	}
 	return err
+}
+
+func (a *metricsCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+	return func(yield func(string, error) bool) {
+		started := time.Now()
+		errored := false
+		for key, err := range a.c.ListKeys(ctx) {
+			if err != nil {
+				errored = true
+			}
+			if !yield(key, err) {
+				break
+			}
+		}
+		a.mListKeysLatency.Timing(int64(time.Since(started)))
+		if errored {
+			a.mListKeysError.Incr(1)
+		} else {
+			a.mListKeysSuccess.Incr(1)
+		}
+	}
 }
 
 func (a *metricsCache) Close(ctx context.Context) error {
