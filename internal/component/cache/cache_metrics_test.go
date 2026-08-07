@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"iter"
 	"testing"
 	"time"
 
@@ -86,7 +85,7 @@ func (c *closableCache) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func (c *closableCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+func (c *closableCache) Keys(ctx context.Context) KeyIterator {
 	return func(yield func(string, error) bool) {
 		yield("", component.ErrKeyListingNotSupported)
 	}
@@ -274,7 +273,7 @@ type listableClosableCache struct {
 	*closableCache
 }
 
-func (c *listableClosableCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+func (c *listableClosableCache) Keys(ctx context.Context) KeyIterator {
 	return func(yield func(string, error) bool) {
 		if c.err != nil {
 			yield("", c.err)
@@ -288,7 +287,7 @@ func (c *listableClosableCache) ListKeys(ctx context.Context) iter.Seq2[string, 
 	}
 }
 
-func TestCacheAirGapListKeys(t *testing.T) {
+func TestCacheAirGapKeys(t *testing.T) {
 	ctx := t.Context()
 	rl := &listableClosableCache{
 		closableCache: &closableCache{
@@ -305,20 +304,20 @@ func TestCacheAirGapListKeys(t *testing.T) {
 	agrl := MetricsForCache(rl, metrics.Noop())
 
 	var keys []string
-	for k, err := range agrl.ListKeys(ctx) {
+	for k, err := range agrl.Keys(ctx) {
 		require.NoError(t, err)
 		keys = append(keys, k)
 	}
 	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
 }
 
-func TestCacheAirGapListKeysNotSupported(t *testing.T) {
+func TestCacheAirGapKeysNotSupported(t *testing.T) {
 	rl := &closableCache{
 		m: map[string]testCacheItem{},
 	}
 	agrl := MetricsForCache(rl, metrics.Noop())
 
-	for _, err := range agrl.ListKeys(t.Context()) {
+	for _, err := range agrl.Keys(t.Context()) {
 		require.ErrorIs(t, err, component.ErrKeyListingNotSupported)
 	}
 }

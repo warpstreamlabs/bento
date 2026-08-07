@@ -93,7 +93,7 @@ func TestMemoryCache(t *testing.T) {
 	require.False(t, exists)
 }
 
-func TestMemoryCacheListKeys(t *testing.T) {
+func TestMemoryCacheKeys(t *testing.T) {
 	ctx := t.Context()
 
 	for _, nShards := range []int{1, 16} {
@@ -104,7 +104,7 @@ func TestMemoryCacheListKeys(t *testing.T) {
 			require.NoError(t, c.Add(ctx, "baz", []byte("3"), nil))
 
 			var keys []string
-			for k, err := range c.ListKeys(ctx) {
+			for k, err := range c.Keys(ctx) {
 				require.NoError(t, err)
 				keys = append(keys, k)
 			}
@@ -113,7 +113,7 @@ func TestMemoryCacheListKeys(t *testing.T) {
 			require.NoError(t, c.Delete(ctx, "bar"))
 
 			keys = nil
-			for k, err := range c.ListKeys(ctx) {
+			for k, err := range c.Keys(ctx) {
 				require.NoError(t, err)
 				keys = append(keys, k)
 			}
@@ -122,7 +122,7 @@ func TestMemoryCacheListKeys(t *testing.T) {
 	}
 }
 
-func TestMemoryCacheListKeysExpired(t *testing.T) {
+func TestMemoryCacheKeysExpired(t *testing.T) {
 	ctx := t.Context()
 
 	// A long compaction interval so that expired items are retained but
@@ -136,7 +136,7 @@ func TestMemoryCacheListKeysExpired(t *testing.T) {
 	<-time.After(time.Millisecond * 50)
 
 	var keys []string
-	for k, err := range c.ListKeys(ctx) {
+	for k, err := range c.Keys(ctx) {
 		require.NoError(t, err)
 		keys = append(keys, k)
 	}

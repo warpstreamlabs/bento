@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"iter"
 	"sync"
 	"time"
 
@@ -257,8 +256,11 @@ func (s *s3Cache) Delete(ctx context.Context, key string) (err error) {
 	}
 }
 
-func (s *s3Cache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
-	return func(yield func(string, error) bool) {
+func (s *s3Cache) Keys(ctx context.Context) service.KeyIterator {
+	// readAhead is set to the maximum number of keys in a single S3 page so
+	// that the next page can be fetched while the current one is yielded.
+	const readAhead = 1000
+	return service.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
 		boff := s.boffPool.Get().(backoff.BackOff)
 		defer func() {
 			boff.Reset()
@@ -273,24 +275,23 @@ func (s *s3Cache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
 			if err != nil {
 				wait := boff.NextBackOff()
 				if wait == backoff.Stop {
-					yield("", err)
-					return
+					return err
 				}
 				select {
 				case <-time.After(wait):
 				case <-ctx.Done():
-					yield("", err)
-					return
+					return err
 				}
 				continue
 			}
 			for _, obj := range page.Contents {
-				if obj.Key != nil && !yield(*obj.Key, nil) {
-					return
+				if obj.Key != nil && !emit(*obj.Key) {
+					return nil
 				}
 			}
 		}
-	}
+		return nil
+	})
 }
 
 func (s *s3Cache) Close(context.Context) error {

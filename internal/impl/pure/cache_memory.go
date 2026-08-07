@@ -2,7 +2,6 @@ package pure
 
 import (
 	"context"
-	"iter"
 	"sync"
 	"time"
 
@@ -248,7 +247,7 @@ func (m *memoryCache) Delete(_ context.Context, key string) error {
 	return nil
 }
 
-func (m *memoryCache) ListKeys(_ context.Context) iter.Seq2[string, error] {
+func (m *memoryCache) Keys(_ context.Context) service.KeyIterator {
 	return func(yield func(string, error) bool) {
 		for _, shard := range m.shards {
 			// Snapshot each shard before yielding so that no locks are held

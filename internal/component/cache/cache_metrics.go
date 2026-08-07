@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"errors"
-	"iter"
 	"time"
 
 	"github.com/Jeffail/shutdown"
@@ -38,9 +37,9 @@ type metricsCache struct {
 	mDelSuccess metrics.StatCounter
 	mDelLatency metrics.StatTimer
 
-	mListKeysError   metrics.StatCounter
-	mListKeysSuccess metrics.StatCounter
-	mListKeysLatency metrics.StatTimer
+	mKeysError   metrics.StatCounter
+	mKeysSuccess metrics.StatCounter
+	mKeysLatency metrics.StatTimer
 }
 
 // MetricsForCache wraps a cache with a struct that adds standard metrics over
@@ -75,9 +74,9 @@ func MetricsForCache(c V1, stats metrics.Type) V1 {
 		mDelSuccess: cacheSuccess.With("delete"),
 		mDelLatency: cacheLatency.With("delete"),
 
-		mListKeysError:   cacheError.With("list_keys"),
-		mListKeysSuccess: cacheSuccess.With("list_keys"),
-		mListKeysLatency: cacheLatency.With("list_keys"),
+		mKeysError:   cacheError.With("list_keys"),
+		mKeysSuccess: cacheSuccess.With("list_keys"),
+		mKeysLatency: cacheLatency.With("list_keys"),
 	}
 }
 
@@ -161,11 +160,11 @@ func (a *metricsCache) Delete(ctx context.Context, key string) error {
 	return err
 }
 
-func (a *metricsCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+func (a *metricsCache) Keys(ctx context.Context) KeyIterator {
 	return func(yield func(string, error) bool) {
 		started := time.Now()
 		errored := false
-		for key, err := range a.c.ListKeys(ctx) {
+		for key, err := range a.c.Keys(ctx) {
 			if err != nil {
 				errored = true
 			}
@@ -173,11 +172,11 @@ func (a *metricsCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
 				break
 			}
 		}
-		a.mListKeysLatency.Timing(int64(time.Since(started)))
+		a.mKeysLatency.Timing(int64(time.Since(started)))
 		if errored {
-			a.mListKeysError.Incr(1)
+			a.mKeysError.Incr(1)
 		} else {
-			a.mListKeysSuccess.Incr(1)
+			a.mKeysSuccess.Incr(1)
 		}
 	}
 }

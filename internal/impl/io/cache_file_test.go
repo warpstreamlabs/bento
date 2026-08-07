@@ -70,7 +70,7 @@ func TestFileCache(t *testing.T) {
 	assert.False(t, exists)
 }
 
-func TestFileCacheListKeys(t *testing.T) {
+func TestFileCacheKeys(t *testing.T) {
 	dir := t.TempDir()
 
 	tCtx := t.Context()
@@ -84,7 +84,7 @@ func TestFileCacheListKeys(t *testing.T) {
 	require.NoError(t, c.Set(tCtx, nestedKey, []byte("3"), nil))
 
 	var keys []string
-	for k, err := range c.ListKeys(tCtx) {
+	for k, err := range c.Keys(tCtx) {
 		require.NoError(t, err)
 		keys = append(keys, k)
 	}
@@ -93,14 +93,14 @@ func TestFileCacheListKeys(t *testing.T) {
 	require.NoError(t, c.Delete(tCtx, "foo"))
 
 	keys = nil
-	for k, err := range c.ListKeys(tCtx) {
+	for k, err := range c.Keys(tCtx) {
 		require.NoError(t, err)
 		keys = append(keys, k)
 	}
 	assert.ElementsMatch(t, []string{"bar", nestedKey}, keys)
 }
 
-func TestFileCacheListKeysCancelled(t *testing.T) {
+func TestFileCacheKeysCancelled(t *testing.T) {
 	dir := t.TempDir()
 
 	c := newFileCache(dir, service.MockResources())
@@ -109,7 +109,7 @@ func TestFileCacheListKeysCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	for _, err := range c.ListKeys(ctx) {
+	for _, err := range c.Keys(ctx) {
 		require.ErrorIs(t, err, context.Canceled)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"iter"
 	"os"
 	"path/filepath"
 	"time"
@@ -94,7 +93,7 @@ func (f *fileCache) Delete(_ context.Context, key string) error {
 	return f.mgr.FS().Remove(filepath.Join(f.dir, key))
 }
 
-func (f *fileCache) ListKeys(ctx context.Context) iter.Seq2[string, error] {
+func (f *fileCache) Keys(ctx context.Context) service.KeyIterator {
 	return func(yield func(string, error) bool) {
 		var walk func(rel string) bool
 		walk = func(rel string) bool {

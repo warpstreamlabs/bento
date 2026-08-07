@@ -87,15 +87,21 @@ func (e *ErrBackOff) Error() string {
 
 // Manager errors.
 var (
-	ErrInputNotFound          = errors.New("input not found")
-	ErrCacheNotFound          = errors.New("cache not found")
-	ErrProcessorNotFound      = errors.New("processor not found")
-	ErrRateLimitNotFound      = errors.New("rate limit not found")
-	ErrOutputNotFound         = errors.New("output not found")
+	ErrInputNotFound     = errors.New("input not found")
+	ErrCacheNotFound     = errors.New("cache not found")
+	ErrProcessorNotFound = errors.New("processor not found")
+	ErrRateLimitNotFound = errors.New("rate limit not found")
+	ErrOutputNotFound    = errors.New("output not found")
+	ErrPipeNotFound      = errors.New("pipe was not found")
+)
+
+//------------------------------------------------------------------------------
+
+// Cache errors.
+var (
 	ErrKeyAlreadyExists       = errors.New("key already exists")
 	ErrKeyNotFound            = errors.New("key does not exist")
 	ErrKeyListingNotSupported = errors.New("cache does not support listing keys")
-	ErrPipeNotFound           = errors.New("pipe was not found")
 )
 
 //------------------------------------------------------------------------------

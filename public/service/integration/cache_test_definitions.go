@@ -112,9 +112,9 @@ func CacheTestDelete() CacheTestDefinition {
 	)
 }
 
-// CacheTestListKeys checks that a cache supporting key listing enumerates the
+// CacheTestKeys checks that a cache supporting key listing enumerates the
 // keys it holds after n items are set.
-func CacheTestListKeys(n int) CacheTestDefinition {
+func CacheTestKeys(n int) CacheTestDefinition {
 	return namedCacheTest(
 		"can list keys",
 		func(t *testing.T, env *cacheTestEnvironment) {
@@ -131,7 +131,7 @@ func CacheTestListKeys(n int) CacheTestDefinition {
 			}
 
 			var keys []string
-			for key, err := range cache.ListKeys(env.ctx) {
+			for key, err := range cache.Keys(env.ctx) {
 				require.NoError(t, err)
 				keys = append(keys, key)
 			}
