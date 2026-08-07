@@ -473,4 +473,4 @@ replace github.com/hamba/avro/v2 => github.com/iskorotkov/avro/v2 v2.33.0
 
 // TODO: Resolves to a branch at github.com/warpstreamlabs/parquet-go@warpstream/dev. Once we get an official
 // release in github.com/parquet-go/parquet-go with the N-dimension list fix, we can remove this.
-replace github.com/parquet-go/parquet-go => github.com/warpstreamlabs/parquet-go v0.0.0-20260806184926-f69e607ff55d
+replace github.com/parquet-go/parquet-go => github.com/warpstreamlabs/parquet-go v0.0.0-20260806184031-adb6907aa89a
