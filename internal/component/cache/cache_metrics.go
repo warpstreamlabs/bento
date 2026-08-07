@@ -11,8 +11,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
 )
 
-type metricsCache struct {
-	c   V1
+type metricsCache[V V1] struct {
+	c   V
 	sig *shutdown.Signaller
 
 	mGetNotFound metrics.StatCounter
@@ -36,21 +36,16 @@ type metricsCache struct {
 	mDelError   metrics.StatCounter
 	mDelSuccess metrics.StatCounter
 	mDelLatency metrics.StatTimer
-
-	mKeysError   metrics.StatCounter
-	mKeysSuccess metrics.StatCounter
-	mKeysLatency metrics.StatTimer
 }
 
-// MetricsForCache wraps a cache with a struct that adds standard metrics over
-// each method.
-func MetricsForCache(c V1, stats metrics.Type) V1 {
+func newMetricsCache[V V1](c V, stats metrics.Type) *metricsCache[V] {
 	cacheSuccess := stats.GetCounterVec("cache_success", "operation")
 	cacheError := stats.GetCounterVec("cache_error", "operation")
 	cacheLatency := stats.GetTimerVec("cache_latency_ns", "operation")
 
-	return &metricsCache{
-		c: c, sig: shutdown.NewSignaller(),
+	return &metricsCache[V]{
+		c:   c,
+		sig: shutdown.NewSignaller(),
 
 		mGetNotFound: stats.GetCounterVec("cache_not_found", "operation").With("get"),
 		mGetError:    cacheError.With("get"),
@@ -73,14 +68,16 @@ func MetricsForCache(c V1, stats metrics.Type) V1 {
 		mDelError:   cacheError.With("delete"),
 		mDelSuccess: cacheSuccess.With("delete"),
 		mDelLatency: cacheLatency.With("delete"),
-
-		mKeysError:   cacheError.With("list_keys"),
-		mKeysSuccess: cacheSuccess.With("list_keys"),
-		mKeysLatency: cacheLatency.With("list_keys"),
 	}
 }
 
-func (a *metricsCache) Get(ctx context.Context, key string) ([]byte, error) {
+// MetricsForCache wraps a cache with a struct that adds standard metrics over
+// each method.
+func MetricsForCache(c V1, stats metrics.Type) V1 {
+	return newMetricsCache(c, stats)
+}
+
+func (a *metricsCache[V]) Get(ctx context.Context, key string) ([]byte, error) {
 	started := time.Now()
 	b, err := a.c.Get(ctx, key)
 	a.mGetLatency.Timing(int64(time.Since(started)))
@@ -96,7 +93,7 @@ func (a *metricsCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return b, err
 }
 
-func (a *metricsCache) Exists(ctx context.Context, key string) (bool, error) {
+func (a *metricsCache[V]) Exists(ctx context.Context, key string) (bool, error) {
 	started := time.Now()
 	b, err := a.c.Exists(ctx, key)
 	a.mExistsLatency.Timing(int64(time.Since(started)))
@@ -108,7 +105,7 @@ func (a *metricsCache) Exists(ctx context.Context, key string) (bool, error) {
 	return b, err
 }
 
-func (a *metricsCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
+func (a *metricsCache[V]) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	started := time.Now()
 	err := a.c.Set(ctx, key, value, ttl)
 	a.mSetLatency.Timing(int64(time.Since(started)))
@@ -120,7 +117,7 @@ func (a *metricsCache) Set(ctx context.Context, key string, value []byte, ttl *t
 	return err
 }
 
-func (a *metricsCache) SetMulti(ctx context.Context, items map[string]TTLItem) error {
+func (a *metricsCache[V]) SetMulti(ctx context.Context, items map[string]TTLItem) error {
 	started := time.Now()
 	err := a.c.SetMulti(ctx, items)
 	a.mSetLatency.Timing(int64(time.Since(started)))
@@ -132,7 +129,7 @@ func (a *metricsCache) SetMulti(ctx context.Context, items map[string]TTLItem) e
 	return err
 }
 
-func (a *metricsCache) Add(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
+func (a *metricsCache[V]) Add(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	started := time.Now()
 	err := a.c.Add(ctx, key, value, ttl)
 	a.mAddLatency.Timing(int64(time.Since(started)))
@@ -148,7 +145,7 @@ func (a *metricsCache) Add(ctx context.Context, key string, value []byte, ttl *t
 	return err
 }
 
-func (a *metricsCache) Delete(ctx context.Context, key string) error {
+func (a *metricsCache[V]) Delete(ctx context.Context, key string) error {
 	started := time.Now()
 	err := a.c.Delete(ctx, key)
 	a.mDelLatency.Timing(int64(time.Since(started)))
@@ -160,7 +157,35 @@ func (a *metricsCache) Delete(ctx context.Context, key string) error {
 	return err
 }
 
-func (a *metricsCache) Keys(ctx context.Context) KeyIterator {
+func (a *metricsCache[V]) Close(ctx context.Context) error {
+	return a.c.Close(ctx)
+}
+
+//------------------------------------------------------------------------------
+
+type metricsListableCache struct {
+	*metricsCache[Listable]
+
+	mKeysError   metrics.StatCounter
+	mKeysSuccess metrics.StatCounter
+	mKeysLatency metrics.StatTimer
+}
+
+func MetricsForListableCache(c Listable, stats metrics.Type) Listable {
+	cacheSuccess := stats.GetCounterVec("cache_success", "operation")
+	cacheError := stats.GetCounterVec("cache_error", "operation")
+	cacheLatency := stats.GetTimerVec("cache_latency_ns", "operation")
+
+	return &metricsListableCache{
+		metricsCache: newMetricsCache(c, stats),
+
+		mKeysError:   cacheError.With("list_keys"),
+		mKeysSuccess: cacheSuccess.With("list_keys"),
+		mKeysLatency: cacheLatency.With("list_keys"),
+	}
+}
+
+func (a *metricsListableCache) Keys(ctx context.Context) KeyIterator {
 	return func(yield func(string, error) bool) {
 		started := time.Now()
 		errored := false
@@ -179,8 +204,4 @@ func (a *metricsCache) Keys(ctx context.Context) KeyIterator {
 			a.mKeysSuccess.Incr(1)
 		}
 	}
-}
-
-func (a *metricsCache) Close(ctx context.Context) error {
-	return a.c.Close(ctx)
 }

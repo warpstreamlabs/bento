@@ -328,22 +328,11 @@ func TestCacheAirGapKeys(t *testing.T) {
 	agrl := newAirGapCache(rl, metrics.Noop())
 
 	var keys []string
-	for k, err := range agrl.Keys(ctx) {
+	for k, err := range agrl.(cache.Listable).Keys(ctx) {
 		require.NoError(t, err)
 		keys = append(keys, k)
 	}
 	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
-}
-
-func TestCacheAirGapKeysNotSupported(t *testing.T) {
-	rl := &closableCache{
-		m: map[string]testCacheItem{},
-	}
-	agrl := newAirGapCache(rl, metrics.Noop())
-
-	for _, err := range agrl.Keys(t.Context()) {
-		require.ErrorIs(t, err, component.ErrKeyListingNotSupported)
-	}
 }
 
 func TestCacheAirGapDelete(t *testing.T) {
@@ -602,22 +591,11 @@ func TestCacheReverseAirGapKeys(t *testing.T) {
 	agrl := newReverseAirGapCache(rl)
 
 	var keys []string
-	for k, err := range agrl.Keys(t.Context()) {
+	for k, err := range agrl.(listableCache).Keys(t.Context()) {
 		require.NoError(t, err)
 		keys = append(keys, k)
 	}
 	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
-}
-
-func TestCacheReverseAirGapKeysNotSupported(t *testing.T) {
-	rl := &closableCacheType{
-		m: map[string]testCacheItem{},
-	}
-	agrl := newReverseAirGapCache(rl)
-
-	for _, err := range agrl.Keys(t.Context()) {
-		require.ErrorIs(t, err, ErrKeyListingNotSupported)
-	}
 }
 
 func TestPrefetchKeys(t *testing.T) {
@@ -753,12 +731,8 @@ func TestCacheKeysRoundTrip(t *testing.T) {
 
 	var agrlNotListable Cache = newReverseAirGapCache(newAirGapCache(rlNotListable, metrics.Noop()))
 
-	lcNotListable, ok := agrlNotListable.(interface {
+	_, ok = agrlNotListable.(interface {
 		Keys(ctx context.Context) KeyIterator
 	})
-	require.True(t, ok)
-
-	for _, err := range lcNotListable.Keys(t.Context()) {
-		require.ErrorIs(t, err, ErrKeyListingNotSupported)
-	}
+	require.False(t, ok)
 }

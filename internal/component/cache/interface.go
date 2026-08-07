@@ -42,13 +42,17 @@ type V1 interface {
 	// Delete attempts to remove a key. Returns an error if a failure occurs.
 	Delete(ctx context.Context, key string) error
 
-	// Keys returns an iterator over all keys currently held by the cache.
-	// Iteration stops after the first non-nil error, caches that are unable
-	// to enumerate their keys yield component.ErrKeyListingNotSupported.
-	Keys(ctx context.Context) KeyIterator
-
 	// Close the component, blocks until either the underlying resources are
 	// cleaned up or the context is cancelled. Returns an error if the context
 	// is cancelled.
 	Close(ctx context.Context) error
+}
+
+type Listable interface {
+	V1
+
+	// Keys returns an iterator over all keys currently held by the cache.
+	// Iteration stops after the first non-nil error, caches that are unable
+	// to enumerate their keys yield component.ErrKeyListingNotSupported.
+	Keys(ctx context.Context) KeyIterator
 }

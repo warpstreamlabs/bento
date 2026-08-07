@@ -142,19 +142,26 @@ func PrefetchKeys(ctx context.Context, readAhead int, produce func(ctx context.C
 
 //------------------------------------------------------------------------------
 
-// Implements types.Cache.
+// Implements cache.V1.
 type airGapCache struct {
 	c  Cache
 	cm batchedCache
 	ce existsCache
-	cl listableCache
 }
 
 func newAirGapCache(c Cache, stats metrics.Type) cache.V1 {
-	ag := &airGapCache{c: c, cm: nil, cl: nil}
+	ag := &airGapCache{c: c}
 	ag.cm, _ = c.(batchedCache)
 	ag.ce, _ = c.(existsCache)
-	ag.cl, _ = c.(listableCache)
+
+	if cl, ok := c.(listableCache); ok {
+		lag := &listableAirGapCache{
+			airGapCache: ag,
+			cl:          cl,
+		}
+		return cache.MetricsForListableCache(lag, stats)
+	}
+
 	return cache.MetricsForCache(ag, stats)
 }
 
@@ -216,12 +223,20 @@ func (a *airGapCache) Delete(ctx context.Context, key string) error {
 	return a.c.Delete(ctx, key)
 }
 
-func (a *airGapCache) Keys(ctx context.Context) KeyIterator {
+func (a *airGapCache) Close(ctx context.Context) error {
+	return a.c.Close(ctx)
+}
+
+//------------------------------------------------------------------------------
+
+// Implements cache.Listable.
+type listableAirGapCache struct {
+	*airGapCache
+	cl listableCache
+}
+
+func (a *listableAirGapCache) Keys(ctx context.Context) KeyIterator {
 	return func(yield func(string, error) bool) {
-		if a.cl == nil {
-			yield("", component.ErrKeyListingNotSupported)
-			return
-		}
 		for key, err := range a.cl.Keys(ctx) {
 			if errors.Is(err, ErrKeyListingNotSupported) {
 				err = component.ErrKeyListingNotSupported
@@ -233,10 +248,6 @@ func (a *airGapCache) Keys(ctx context.Context) KeyIterator {
 	}
 }
 
-func (a *airGapCache) Close(ctx context.Context) error {
-	return a.c.Close(ctx)
-}
-
 //------------------------------------------------------------------------------
 
 // Implements Cache around a types.Cache.
@@ -244,8 +255,17 @@ type reverseAirGapCache struct {
 	c cache.V1
 }
 
-func newReverseAirGapCache(c cache.V1) *reverseAirGapCache {
-	return &reverseAirGapCache{c}
+func newReverseAirGapCache(c cache.V1) Cache {
+	rag := reverseAirGapCache{c: c}
+
+	if cl, ok := c.(cache.Listable); ok {
+		return &listableReverseAirGapCache{
+			reverseAirGapCache: &rag,
+			cl:                 cl,
+		}
+	}
+
+	return &rag
 }
 
 func (r *reverseAirGapCache) Get(ctx context.Context, key string) ([]byte, error) {
@@ -275,9 +295,21 @@ func (r *reverseAirGapCache) Delete(ctx context.Context, key string) error {
 	return r.c.Delete(ctx, key)
 }
 
-func (r *reverseAirGapCache) Keys(ctx context.Context) KeyIterator {
+func (r *reverseAirGapCache) Close(ctx context.Context) error {
+	return r.c.Close(ctx)
+}
+
+//------------------------------------------------------------------------------
+
+// Implements listableCache around a cache.Listable.
+type listableReverseAirGapCache struct {
+	*reverseAirGapCache
+	cl cache.Listable
+}
+
+func (r *listableReverseAirGapCache) Keys(ctx context.Context) KeyIterator {
 	return func(yield func(string, error) bool) {
-		for key, err := range r.c.Keys(ctx) {
+		for key, err := range r.cl.Keys(ctx) {
 			if errors.Is(err, component.ErrKeyListingNotSupported) {
 				err = ErrKeyListingNotSupported
 			}
@@ -286,8 +318,4 @@ func (r *reverseAirGapCache) Keys(ctx context.Context) KeyIterator {
 			}
 		}
 	}
-}
-
-func (r *reverseAirGapCache) Close(ctx context.Context) error {
-	return r.c.Close(ctx)
 }
