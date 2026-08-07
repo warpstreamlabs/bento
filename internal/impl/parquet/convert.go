@@ -1,6 +1,7 @@
 package parquet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -191,6 +192,16 @@ func setField(field reflect.Value, value any) error {
 				return nil
 			}
 			return fmt.Errorf("cannot represent %v as int32", value)
+		case json.Number:
+			i64, err := v.Int64()
+			if err != nil {
+				return fmt.Errorf("cannot convert json.Number %v to int32: %w", v, err)
+			}
+			if i64 >= math.MinInt32 && i64 <= math.MaxInt32 {
+				field.SetInt(i64)
+				return nil
+			}
+			return fmt.Errorf("cannot represent %v as int32", i64)
 		default:
 			return fmt.Errorf("cannot convert %T to int64", value)
 		}
@@ -219,6 +230,12 @@ func setField(field reflect.Value, value any) error {
 				return nil
 			}
 			return fmt.Errorf("cannot represent %v as int64", value)
+		case json.Number:
+			i64, err := v.Int64()
+			if err != nil {
+				return fmt.Errorf("cannot convert json.Number %v to int64: %w", v, err)
+			}
+			field.SetInt(i64)
 		default:
 			return fmt.Errorf("cannot convert %T to int64", value)
 		}
