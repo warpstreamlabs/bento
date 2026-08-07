@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: '0 0/2 * * *' # Every two hours
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: test (${{ matrix.name }})
@@ -82,3 +86,7 @@ jobs:
       with:
         node-version: 20.x
     - run: yarn --cwd ./website install && yarn --cwd ./website build
+
+  integration-tests:
+    needs: [test, golangci-lint, build-docsite]
+    uses: ./.github/workflows/integration_test.yml
