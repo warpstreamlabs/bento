@@ -182,18 +182,12 @@ func (f *fsEventWatcher) Connect(ctx context.Context) error {
 					st, err := os.Stat(event.Name)
 					if err != nil {
 						f.log.Warnf("Cannot check for new subpath: %s", err)
-						continue
-					}
-
-					// if it is a file dont add it.
-					if !st.IsDir() {
-						continue
-					}
-
-					// adding the same path more than once is a noop,
-					// so safe even though it is already in the watchlist
-					if err := f.watcher.Add(event.Name); err != nil {
-						f.log.Warnf("Failed to add path %v: %s", event.Name, err)
+					} else if st.IsDir() {
+						// adding the same path more than once is a noop,
+						// so safe even though it is already in the watchlist
+						if err := f.watcher.Add(event.Name); err != nil {
+							f.log.Warnf("Failed to add path %v: %s", event.Name, err)
+						}
 					}
 				}
 
