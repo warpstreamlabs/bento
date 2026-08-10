@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
 - `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
 
+### Changed
+
+- Bloblang field reads over maps no longer allocate per path segment, reducing allocations in mappings that read several fields @slachiewicz
+
 ### Fixed
 
 - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
