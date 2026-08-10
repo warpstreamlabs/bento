@@ -23,6 +23,12 @@ func TestIntegrationRedisRateLimit(t *testing.T) {
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
+	t.Cleanup(func() {
+		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	resource, err := pool.Run(t.Context(), "redis",
 		dockertest.WithTag("latest"),
@@ -51,8 +57,6 @@ func TestIntegrationRedisRateLimit(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	defer pool.CloseT(t)
 
 	defer client.Close()
 

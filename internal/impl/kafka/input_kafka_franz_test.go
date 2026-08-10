@@ -178,7 +178,12 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	t.Cleanup(func() { pool.CloseT(t) })
+	t.Cleanup(func() {
+		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
@@ -279,7 +284,12 @@ func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	t.Cleanup(func() { pool.CloseT(t) })
+	t.Cleanup(func() {
+		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
