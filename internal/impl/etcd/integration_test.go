@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	"github.com/moby/moby/api/types/container"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,29 +20,27 @@ import (
 )
 
 func setupEtcd(t testing.TB) (*clientv3.Client, string) {
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-	pool.MaxWait = time.Second * 60
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*60))
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "gcr.io/etcd-development/etcd",
-		Tag:        "v3.6.5",
-		Cmd: []string{
+	resource := pool.RunT(t, "gcr.io/etcd-development/etcd",
+		dockertest.WithTag("v3.6.5"),
+		dockertest.WithCmd([]string{
 			"/usr/local/bin/etcd",
 			"--listen-client-urls=http://0.0.0.0:2379",
 			"--advertise-client-urls=http://0.0.0.0:2379",
-		},
-	}, func(config *docker.HostConfig) {
-		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{Name: "no"}
-	})
-	require.NoError(t, err)
+		}),
+		// AutoRemove is deliberately not set: the cleanup registered by
+		// NewPoolT removes the container, and letting the daemon race it
+		// produces "removal already in progress" errors.
+		dockertest.WithHostConfig(func(config *container.HostConfig) {
+			config.RestartPolicy = container.RestartPolicy{Name: container.RestartPolicyDisabled}
+		}),
+	)
 
 	etcdDockerAddress := fmt.Sprintf("http://localhost:%s", resource.GetPort("2379/tcp"))
 
-	_ = resource.Expire(900)
 	var etcdClient *clientv3.Client
-	require.NoError(t, pool.Retry(func() (err error) {
+	require.NoError(t, pool.Retry(t.Context(), time.Second*60, func() (err error) {
 		defer func() {
 			if err != nil {
 				t.Logf("error: %v", err)
@@ -69,8 +67,8 @@ func setupEtcd(t testing.TB) (*clientv3.Client, string) {
 		return nil
 	}))
 
+	// The container is purged by the cleanup NewPoolT registers.
 	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
 		assert.NotNil(t, etcdClient)
 		assert.NoError(t, etcdClient.Close())
 	})
