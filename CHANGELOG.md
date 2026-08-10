@@ -49,6 +49,7 @@ All notable changes to this project will be documented in this file.
 - stale buffer example path in internal/impl README @youdie006
 - `fsevent` preserves file create events when watching new subdirs @mattfaltyn
 - `aws_s3_stream` handles files smaller than S3's minimum multipart size @triddell
+- **Breaking:** JSON Schema validation understands drafts 2019-09 and 2020-12, replacing `github.com/xeipuuv/gojsonschema` with `github.com/santhosh-tekuri/jsonschema/v6`. Schemas declaring either draft previously loaded with the newer keywords silently ignored, so `json_schema` checks that pass today may start failing. Schemas without a `$schema` that mix draft-4 spellings no longer compile, and validation error messages have changed shape @slachiewicz
 
 ### Changed
 

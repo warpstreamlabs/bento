@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 
-	jsonschema "github.com/xeipuuv/gojsonschema"
+	"github.com/warpstreamlabs/bento/internal/jsonschema"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -205,10 +205,10 @@ func TestJSONSchema(t *testing.T) {
 	testSchema, err := env.FullConfigSchema("xxx", "yyy").MarshalJSONSchema()
 	require.NoError(t, err)
 
-	schema, err := jsonschema.NewSchema(jsonschema.NewStringLoader(string(testSchema)))
+	schema, err := jsonschema.CompileString(string(testSchema))
 	require.NoError(t, err)
 
-	res, err := schema.Validate(jsonschema.NewGoLoader(map[string]any{
+	err = jsonschema.Validate(schema, map[string]any{
 		"input": map[string]any{
 			"testinput": map[string]any{
 				"woof": "uhhhhh, woof!",
@@ -221,7 +221,6 @@ func TestJSONSchema(t *testing.T) {
 				},
 			},
 		},
-	}))
+	})
 	require.NoError(t, err)
-	require.Empty(t, res.Errors())
 }

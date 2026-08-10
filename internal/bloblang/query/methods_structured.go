@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/Jeffail/gabs/v2"
-	jsonschema "github.com/xeipuuv/gojsonschema"
+	"github.com/warpstreamlabs/bento/internal/jsonschema"
 
 	"github.com/warpstreamlabs/bento/internal/value"
 )
@@ -763,7 +763,7 @@ var _ = registerSimpleMethod(
 			`{"foo":"bar"}`,
 			`{"foo":"bar"}`,
 			`{"foo":5}`,
-			`Error("failed assignment (line 1): field `+"`this`"+`: foo invalid type. expected: string, given: integer")`,
+			`Error("failed assignment (line 1): field `+"`this`"+`: - at '/foo': got number, want string")`,
 		),
 		NewExampleSpec(
 			"In order to load a schema from a file use the `file` function.",
@@ -775,28 +775,13 @@ var _ = registerSimpleMethod(
 		if err != nil {
 			return nil, err
 		}
-		schema, err := jsonschema.NewSchema(jsonschema.NewStringLoader(schemaStr))
+		schema, err := jsonschema.CompileString(schemaStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse json schema definition: %w", err)
 		}
 		return func(res any, ctx FunctionContext) (any, error) {
-			result, err := schema.Validate(jsonschema.NewGoLoader(res))
-			if err != nil {
+			if err := jsonschema.Validate(schema, res); err != nil {
 				return nil, err
-			}
-			if !result.Valid() {
-				var errStr string
-				for i, desc := range result.Errors() {
-					if i > 0 {
-						errStr += "\n"
-					}
-					description := strings.ToLower(desc.Description())
-					if property := desc.Details()["property"]; property != nil {
-						description = property.(string) + strings.TrimPrefix(description, strings.ToLower(property.(string)))
-					}
-					errStr = errStr + desc.Field() + " " + description
-				}
-				return nil, errors.New(errStr)
 			}
 			return res, nil
 		}, nil
