@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
  - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
  - The Hugging Face processors use hugot v0.8.3, which replaces the ONNX Runtime backend, and `enable_download` now creates the `path` directory when it is missing @slachiewicz
+ - **Breaking:** JSON Schema validation understands drafts 2019-09 and 2020-12, replacing `github.com/xeipuuv/gojsonschema` with `github.com/santhosh-tekuri/jsonschema/v6`. Schemas declaring either draft previously loaded with the newer keywords silently ignored, so `json_schema` checks that pass today may start failing. Schemas without a `$schema` that mix draft-4 spellings no longer compile, and validation error messages have changed shape @slachiewicz
 
 ### Fixed
 
