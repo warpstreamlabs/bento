@@ -74,7 +74,33 @@ func (f *fieldFunction) Exec(ctx FunctionContext) (any, error) {
 	if len(f.path) == 0 {
 		return target, nil
 	}
-	return gabs.Wrap(target).S(f.path...).Data(), nil
+	return resolveFieldPath(target, f.path), nil
+}
+
+// resolveFieldPath walks a path of field names, and is equivalent to
+// gabs.Wrap(target).S(path...).Data() while avoiding the Container allocations that gabs makes
+// per segment.
+//
+// Only the all-maps case is handled here, which is the overwhelmingly common one. Arrays are
+// deliberately left to gabs: its Search permits a "*" wildcard segment over an array, and
+// duplicating that behaviour is not worth the risk of drifting from it. Anything that is not a
+// map[string]any is therefore delegated, walking again from the original target so the result is
+// gabs' own.
+func resolveFieldPath(target any, path []string) any {
+	current := target
+	for _, segment := range path {
+		obj, ok := current.(map[string]any)
+		if !ok {
+			// Not a map: hand the whole path back to gabs from the top.
+			return gabs.Wrap(target).S(path...).Data()
+		}
+		if current, ok = obj[segment]; !ok {
+			// gabs reports a missing key as an error, which Search swallows into a nil
+			// Container, and Data() on a nil Container is nil.
+			return nil
+		}
+	}
+	return current
 }
 
 func (f *fieldFunction) QueryTargets(ctx TargetsContext) (TargetsContext, []TargetPath) {

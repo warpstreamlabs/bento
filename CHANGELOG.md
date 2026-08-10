@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Bloblang field reads over maps no longer allocate per path segment, reducing allocations in mappings that read several fields @slachiewicz
+
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
