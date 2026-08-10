@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,12 +21,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
 	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	igcp "github.com/warpstreamlabs/bento/internal/impl/gcp/tests"
 	isql "github.com/warpstreamlabs/bento/internal/impl/sql"
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -620,23 +622,27 @@ func TestIntegrationClickhouse(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "clickhouse/clickhouse-server",
-		ExposedPorts: []string{"9000/tcp"},
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
 	})
-	require.NoError(t, err)
+
+	resource := pool.RunT(t, "clickhouse/clickhouse-server",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("9000/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -652,7 +658,7 @@ func TestIntegrationClickhouse(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("clickhouse://localhost:%s/", resource.GetPort("9000/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("clickhouse", dsn)
 		if err != nil {
 			return err
@@ -675,23 +681,27 @@ func TestIntegrationOldClickhouse(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "clickhouse/clickhouse-server",
-		ExposedPorts: []string{"9000/tcp"},
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
 	})
-	require.NoError(t, err)
+
+	resource := pool.RunT(t, "clickhouse/clickhouse-server",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("9000/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -707,7 +717,7 @@ func TestIntegrationOldClickhouse(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("tcp://localhost:%s/", resource.GetPort("9000/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("clickhouse", dsn)
 		if err != nil {
 			return err
@@ -730,28 +740,32 @@ func TestIntegrationPostgres(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "postgres",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: []string{
+	resource := pool.RunT(t, "postgres",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("5432/tcp"): {},
+			}
+		}),
+		dockertest.WithEnv([]string{
 			"POSTGRES_USER=testuser",
 			"POSTGRES_PASSWORD=testpass",
 			"POSTGRES_DB=testdb",
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -768,7 +782,7 @@ func TestIntegrationPostgres(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("postgres://testuser:testpass@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("postgres", dsn)
 		if err != nil {
 			return err
@@ -790,105 +804,43 @@ func TestIntegrationPostgres(t *testing.T) {
 func TestIntegrationSpanner(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Name:         fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8]),
-		Repository:   "gcr.io/cloud-spanner-emulator/emulator",
-		Tag:          "latest",
-		ExposedPorts: []string{"9010/tcp", "9020/tcp"},
-	})
-	if err != nil {
-		t.Logf("Could not start resource: %s", err)
-	}
-	require.NoError(t, err)
-
-	emulatorHost := fmt.Sprintf("localhost:%s", resource.GetPort("9010/tcp"))
-
-	// This needs to be set so that the Spanner connector will pick up that we are using the emulator.
-	t.Setenv("SPANNER_EMULATOR_HOST", emulatorHost)
-
-	project := "test-project"
-	instance := "test-instance"
-	database := "test-database"
-
-	dsn := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
-
 	t.Cleanup(func() {
-		if err := pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
 		}
 	})
 
-	require.NoError(t, pool.Retry(func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if _, err := igcp.CreateInstance(ctx, project, instance); err != nil {
-			t.Logf("create instance error: %s", err)
-			return err
-		}
-		if _, err := igcp.CreateDatabase(ctx, fmt.Sprintf("projects/%s/instances/%s", project, instance), database); err != nil {
-			t.Logf("create database error: %s", err)
-			return err
-		}
-		return nil
-	}))
-
-	createTable := func(name string) (string, error) {
-		db, err := sql.Open("spanner", dsn)
-		if err != nil {
-			return name, err
-		}
-		defer db.Close()
-		_, err = db.Exec(fmt.Sprintf(`CREATE TABLE %s (
-  foo STRING(50) NOT NULL,
-  bar INT64 NOT NULL,
-  baz STRING(50) NOT NULL,
-) PRIMARY KEY (foo)`, name))
-		return name, err
-	}
-
-	_, err = createTable("footable")
-	require.NoError(t, err)
-
-	testSuite(t, "spanner", dsn, createTable)
-}
-
-func TestIntegrationMySQL(t *testing.T) {
-	integration.CheckSkip(t)
-	t.Parallel()
-
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	pool.MaxWait = 3 * time.Minute
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "mysql",
-		ExposedPorts: []string{"3306/tcp"},
-		Cmd: []string{
+	resource := pool.RunT(t, "mysql",
+		dockertest.WithName(fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8])),
+		dockertest.WithTag("latest"),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("3306/tcp"): {},
+			}
+		}),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("3306/tcp"): {},
+			}
+		}),
+		dockertest.WithCmd([]string{
 			"--sql_mode=ANSI_QUOTES",
-		},
-		Env: []string{
+		}),
+		dockertest.WithEnv([]string{
 			"MYSQL_USER=testuser",
 			"MYSQL_PASSWORD=testpass",
 			"MYSQL_DATABASE=testdb",
 			"MYSQL_RANDOM_ROOT_PASSWORD=yes",
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -905,7 +857,7 @@ func TestIntegrationMySQL(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("testuser:testpass@tcp(localhost:%s)/testdb", resource.GetPort("3306/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		if db, err = sql.Open("mysql", dsn); err != nil {
 			return err
 		}
@@ -927,28 +879,32 @@ func TestIntegrationMSSQL(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	testPassword := "ins4n3lyStrongP4ssword"
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "mcr.microsoft.com/mssql/server",
-		ExposedPorts: []string{"1433/tcp"},
-		Env: []string{
+	resource := pool.RunT(t, "mcr.microsoft.com/mssql/server",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("1433/tcp"): {},
+			}
+		}),
+		dockertest.WithEnv([]string{
 			"ACCEPT_EULA=Y",
 			"SA_PASSWORD=" + testPassword,
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -965,7 +921,7 @@ func TestIntegrationMSSQL(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("sqlserver://sa:"+testPassword+"@localhost:%s?database=master", resource.GetPort("1433/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("mssql", dsn)
 		if err != nil {
 			return err
@@ -1031,27 +987,31 @@ func TestIntegrationOracle(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "gvenzl/oracle-free",
-		Tag:          "slim-faststart",
-		ExposedPorts: []string{"1521/tcp"},
-		Env: []string{
-			"ORACLE_PASSWORD=testpass",
-		},
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
 	})
-	require.NoError(t, err)
+
+	resource := pool.RunT(t, "gvenzl/oracle-free",
+		dockertest.WithTag("slim-faststart"),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("1521/tcp"): {},
+			}
+		}),
+		dockertest.WithEnv([]string{
+			"ORACLE_PASSWORD=testpass",
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -1068,7 +1028,7 @@ func TestIntegrationOracle(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("oracle://system:testpass@localhost:%s/FREEPDB1", resource.GetPort("1521/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("oracle", dsn)
 		if err != nil {
 			return err
@@ -1093,27 +1053,31 @@ func TestIntegrationTrino(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	testPassword := ""
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "trinodb/trino",
-		ExposedPorts: []string{"8080/tcp"},
-		Env: []string{
+	resource := pool.RunT(t, "trinodb/trino",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("8080/tcp"): {},
+			}
+		}),
+		dockertest.WithEnv([]string{
 			"PASSWORD=" + testPassword,
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -1131,7 +1095,7 @@ create table %s (
 	}
 
 	dsn := fmt.Sprintf("http://trinouser:"+testPassword+"@localhost:%s", resource.GetPort("8080/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("trino", dsn)
 		if err != nil {
 			return err
@@ -1154,31 +1118,33 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
-		Tag:        "latest",
-		Env: []string{
+	resource := pool.RunT(t, "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
+		dockertest.WithTag("latest"),
+		dockertest.WithEnv([]string{
 			// The bigger the value, the longer it takes for the container to start up.
 			"AZURE_COSMOS_EMULATOR_PARTITION_COUNT=2",
 			"AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=false",
-		},
-		ExposedPorts: []string{"8081/tcp"},
-	})
-	require.NoError(t, err)
-
-	_ = resource.Expire(900)
+		}),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("8081/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -1197,7 +1163,7 @@ func TestIntegrationCosmosDB(t *testing.T) {
 		resource.GetPort("8081/tcp"), emulatorAccountKey, dummyDatabase,
 	)
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("gocosmos", dsn)
 		if err != nil {
 			return err
@@ -1289,11 +1255,15 @@ args_mapping: 'root = [ this.foo ]'
 }
 
 func TestIntegrationRedshiftSecret(t *testing.T) {
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	// we need a localstack pro image
 	if os.Getenv("LOCALSTACK_AUTH_TOKEN") == "" {
@@ -1303,27 +1273,29 @@ func TestIntegrationRedshiftSecret(t *testing.T) {
 	tfPath, err := filepath.Abs("./resources/redshiftsecret.tf")
 	require.NoError(t, err)
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "localstack/localstack-pro",
-		Env: []string{
+	resource, err := pool.Run(t.Context(), "localstack/localstack-pro",
+		dockertest.WithEnv([]string{
 			"LOCALSTACK_AUTH_TOKEN=" + os.Getenv("LOCALSTACK_AUTH_TOKEN"),
 			"EXTENSION_AUTO_INSTALL=localstack-extension-terraform-init",
-		},
-		Mounts: []string{
+		}),
+		dockertest.WithMounts([]string{
 			tfPath + ":/etc/localstack/init/ready.d/main.tf",
 			"/var/run/docker.sock:/var/run/docker.sock",
-		},
-		ExposedPorts: []string{"4566/tcp", "4510-4559/tcp"},
-	})
+		}),
+		// GetPort reads 4566 and 4510, neither of which is bound, so the
+		// declarations must survive for v4 to wait on the bindings.
+		// MustParsePort rejects ranges, hence the range helper.
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("4566/tcp"): {},
+			}
+			for port := range dockernetwork.MustParsePortRange("4510-4559/tcp").All() {
+				c.ExposedPorts[port] = struct{}{}
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
-	})
-
-	_ = resource.Expire(900)
 
 	// grab some ports and wait for the tf to boot up redshift etc.
 	localstackPort := resource.GetPort("4566/tcp")
@@ -1420,11 +1392,15 @@ func TestIntegrationRdsIamAuth(t *testing.T) {
 	// TODO SKIP TEST - LOCALSTACK ISSUE
 	t.Skip("issue with localstack and IAM Auth with RDS")
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	// we need a localstack pro image
 	if os.Getenv("LOCALSTACK_AUTH_TOKEN") == "" {
@@ -1434,31 +1410,30 @@ func TestIntegrationRdsIamAuth(t *testing.T) {
 	tfPath, err := filepath.Abs("./resources/rdsIamAuth.tf")
 	require.NoError(t, err)
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "localstack/localstack-pro",
-		Env: []string{
+	resource, err := pool.Run(t.Context(), "localstack/localstack-pro",
+		dockertest.WithEnv([]string{
 			"LOCALSTACK_AUTH_TOKEN=" + os.Getenv("LOCALSTACK_AUTH_TOKEN"),
 			"EXTENSION_AUTO_INSTALL=localstack-extension-terraform-init",
-		},
-		Mounts: []string{
+		}),
+		dockertest.WithMounts([]string{
 			tfPath + ":/etc/localstack/init/ready.d/main.tf",
 			"/var/run/docker.sock:/var/run/docker.sock",
-		},
-		ExposedPorts: []string{"4566/tcp", "4510-4559/tcp"},
-	})
+		}),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("4566/tcp"): {},
+			}
+			for port := range dockernetwork.MustParsePortRange("4510-4559/tcp").All() {
+				c.ExposedPorts[port] = struct{}{}
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
-	})
 
 	// grab some ports and wait for the tf to boot up rds etc.
 	localstackPort := resource.GetPort("4566/tcp")
 	rdsPort := resource.GetPort("4510/tcp")
-
-	_ = resource.Expire(900)
 
 	err = waitForRds(localstackPort)
 	require.NoError(t, err)
@@ -1555,36 +1530,35 @@ func TestIntegrationCheckReconnectLogic(t *testing.T) {
 	require.NoError(t, err)
 	freePort := strconv.Itoa(freePortInt)
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "postgres",
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"5432/tcp": {
+	resource := pool.RunT(t, "postgres",
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("5432/tcp"): {
 				{
-					HostIP:   "0.0.0.0",
+					HostIP:   netip.MustParseAddr("0.0.0.0"),
 					HostPort: freePort,
 				},
 			},
-		},
-		ExposedPorts: []string{"5432/tcp"},
-		Env: []string{
+		}),
+		dockertest.WithEnv([]string{
 			"POSTGRES_USER=testuser",
 			"POSTGRES_PASSWORD=testpass",
 			"POSTGRES_DB=testdb",
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -1600,7 +1574,7 @@ func TestIntegrationCheckReconnectLogic(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("postgres://testuser:testpass@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("postgres", dsn)
 		if err != nil {
 			return err
@@ -1660,19 +1634,16 @@ output:
 		return count > 1000
 	}, time.Minute, time.Second)
 
-	err = pool.Client.StopContainer(resource.Container.ID, 60)
+	stopTimeout := 60
+	_, err = pool.Client().ContainerStop(t.Context(), resource.Container().ID, mobyclient.ContainerStopOptions{
+		Timeout: &stopTimeout,
+	})
 	require.NoError(t, err)
 
-	err = pool.Client.StartContainer(resource.Container.ID, &docker.HostConfig{
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"5432/tcp": {
-				{
-					HostIP:   "0.0.0.0",
-					HostPort: freePort,
-				},
-			},
-		},
-	})
+	// The port binding set at creation survives the restart, so no host config
+	// is passed here. v3 accepted one but only sent it to daemons older than
+	// API 1.24, making it dead weight on any modern daemon.
+	_, err = pool.Client().ContainerStart(t.Context(), resource.Container().ID, mobyclient.ContainerStartOptions{})
 	require.NoError(t, err)
 
 	// we should now have reconnected and have more rows in the table

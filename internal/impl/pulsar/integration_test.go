@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -17,30 +16,21 @@ func TestIntegrationPulsar(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 2
-	if dline, ok := t.Deadline(); ok && time.Until(dline) < pool.MaxWait {
-		pool.MaxWait = time.Until(dline)
+	if dline, ok := t.Deadline(); ok && time.Until(dline) < time.Minute {
+
 	}
 
-	runOpts := dockertest.RunOptions{
-		Repository:   "apachepulsar/pulsar",
-		Tag:          "latest",
-		ExposedPorts: []string{"6650", "8080"},
+	// The image already EXPOSEs 6650 and 8080, so PublishAllPorts covers them.
+	resource := pool.RunT(t, "apachepulsar/pulsar",
+		dockertest.WithTag("latest"),
 		// Run a Pulsar cluster in standalone-mode https://pulsar.apache.org/docs/next/standalone-docker/
-		Cmd: []string{"bin/pulsar", "standalone"},
-	}
+		dockertest.WithCmd([]string{"bin/pulsar", "standalone"}),
+		dockertest.WithoutReuse(),
+	)
 
-	resource, err := pool.RunWithOptions(&runOpts)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		client, err := pulsar.NewClient(pulsar.ClientOptions{
 			URL:    fmt.Sprintf("pulsar://localhost:%v/", resource.GetPort("6650/tcp")),
 			Logger: NoopLogger(),

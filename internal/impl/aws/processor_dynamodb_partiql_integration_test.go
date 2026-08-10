@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,29 +24,25 @@ import (
 func TestIntegrationDDBPartiql(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
+	resource := pool.RunT(t, "amazon/dynamodb-local",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("8000/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "amazon/dynamodb-local",
-		ExposedPorts: []string{"8000/tcp"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return createMusicTable(context.Background(), t, resource.GetPort("8000/tcp"))
 	}))
 
 	// use bento to populate the table
 	popDataBuilder := service.NewStreamBuilder()
 
-	err = popDataBuilder.SetYAML(fmt.Sprintf(`
+	err := popDataBuilder.SetYAML(fmt.Sprintf(`
 input:
   csv:
     paths: ["./resources/dynamodbMusicTestDataPopTable.csv"]
