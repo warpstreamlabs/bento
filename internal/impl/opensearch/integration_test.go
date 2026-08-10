@@ -14,7 +14,7 @@ import (
 	os "github.com/opensearch-project/opensearch-go/v4"
 	osapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -40,16 +40,20 @@ func TestIntegration(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Second*60))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = time.Second * 60
+	t.Cleanup(func() { pool.CloseT(t) })
 
-	resource, err := pool.Run("opensearchproject/opensearch", "latest", []string{
-		"discovery.type=single-node",
-		"DISABLE_SECURITY_PLUGIN=true",
-	})
+	resource, err := pool.Run(t.Context(), "opensearchproject/opensearch",
+		dockertest.WithTag("latest"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"DISABLE_SECURITY_PLUGIN=true",
+		}),
+		dockertest.WithoutReuse(),
+	)
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
@@ -58,7 +62,7 @@ func TestIntegration(t *testing.T) {
 
 	var client *os.Client
 
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		opts := os.Config{
 			Addresses: urls,
 			Transport: http.DefaultTransport,
@@ -142,12 +146,6 @@ func TestIntegration(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	defer func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %v", err)
-		}
-	}()
 
 	t.Run("TestOpenSearchNoIndex", func(te *testing.T) {
 		testOpenSearchNoIndex(urls, client, te)

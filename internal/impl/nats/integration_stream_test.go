@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/nats-io/stan.go"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -17,18 +16,14 @@ func TestIntegrationNatsStream(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("nats-streaming", "latest", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "nats-streaming",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		natsConn, err := stan.Connect(
 			"test-cluster", "bento_test_client",
 			stan.NatsURL(fmt.Sprintf("tcp://localhost:%v", resource.GetPort("4222/tcp"))),

@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
@@ -20,15 +19,12 @@ func TestIntegrationRedis(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("redis", "latest", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "redis",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
 	urlStr := fmt.Sprintf("tcp://localhost:%v", resource.GetPort("6379/tcp"))
 	uri, err := url.Parse(urlStr)
@@ -41,8 +37,7 @@ func TestIntegrationRedis(t *testing.T) {
 		Network: uri.Scheme,
 	})
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return client.Ping(context.Background()).Err()
 	}))
 
@@ -261,15 +256,12 @@ output:
 func BenchmarkIntegrationRedis(b *testing.B) {
 	integration.CheckSkip(b)
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(b, err)
+	pool := dockertest.NewPoolT(b, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("redis", "latest", nil)
-	require.NoError(b, err)
-	b.Cleanup(func() {
-		assert.NoError(b, pool.Purge(resource))
-	})
+	resource := pool.RunT(b, "redis",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
 	urlStr := fmt.Sprintf("tcp://localhost:%v", resource.GetPort("6379/tcp"))
 	uri, err := url.Parse(urlStr)
@@ -282,8 +274,7 @@ func BenchmarkIntegrationRedis(b *testing.B) {
 		Network: uri.Scheme,
 	})
 
-	_ = resource.Expire(900)
-	require.NoError(b, pool.Retry(func() error {
+	require.NoError(b, pool.Retry(b.Context(), 0, func() error {
 		return client.Ping(context.Background()).Err()
 	}))
 
