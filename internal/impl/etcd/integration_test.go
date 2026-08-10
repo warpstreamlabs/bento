@@ -29,6 +29,10 @@ func setupEtcd(t testing.TB) (*clientv3.Client, string) {
 			"--listen-client-urls=http://0.0.0.0:2379",
 			"--advertise-client-urls=http://0.0.0.0:2379",
 		}),
+		// v4 reuses containers keyed on repository:tag alone, so parallel
+		// tests sharing an image would share state. etcd is stateful and
+		// each subtest expects its own revision history.
+		dockertest.WithoutReuse(),
 		// AutoRemove is deliberately not set: the cleanup registered by
 		// NewPoolT removes the container, and letting the daemon race it
 		// produces "removal already in progress" errors.
@@ -40,7 +44,9 @@ func setupEtcd(t testing.TB) (*clientv3.Client, string) {
 	etcdDockerAddress := fmt.Sprintf("http://localhost:%s", resource.GetPort("2379/tcp"))
 
 	var etcdClient *clientv3.Client
-	require.NoError(t, pool.Retry(t.Context(), time.Second*60, func() (err error) {
+	// A zero timeout falls back to the pool's MaxWait, matching how v3 coupled
+	// Retry to MaxWait.
+	require.NoError(t, pool.Retry(t.Context(), 0, func() (err error) {
 		defer func() {
 			if err != nil {
 				t.Logf("error: %v", err)
