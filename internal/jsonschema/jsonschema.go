@@ -47,7 +47,10 @@ func newCompiler() *jsonschema.Compiler {
 	return c
 }
 
-// CompileString compiles a schema supplied inline.
+// CompileString compiles a schema supplied inline. An inline schema has no
+// location to resolve relative references against, but absolute ones are
+// resolved on the same terms as CompilePath so that both config fields of a
+// component behave alike.
 func CompileString(schema string) (*Schema, error) {
 	doc, err := jsonschema.UnmarshalJSON(strings.NewReader(schema))
 	if err != nil {
@@ -55,6 +58,8 @@ func CompileString(schema string) (*Schema, error) {
 	}
 
 	c := newCompiler()
+	c.UseLoader(remoteOnlyLoader())
+
 	if err := c.AddResource(inlineURL, doc); err != nil {
 		return nil, err
 	}
@@ -74,6 +79,16 @@ func CompilePath(path string, f fs.FS) (*Schema, error) {
 		"https": remote,
 	})
 	return c.Compile(path)
+}
+
+// remoteOnlyLoader resolves absolute http(s) references but no file ones, for
+// schemas that did not come from a path on disk.
+func remoteOnlyLoader() jsonschema.SchemeURLLoader {
+	remote := &httpLoader{client: &http.Client{Timeout: remoteTimeout}}
+	return jsonschema.SchemeURLLoader{
+		"http":  remote,
+		"https": remote,
+	}
 }
 
 // RegistryURL names a registry-supplied schema. Relative references within a
