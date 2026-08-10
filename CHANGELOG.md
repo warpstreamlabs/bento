@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Bloblang field reads over maps no longer allocate per path segment, reducing allocations in mappings that read several fields @slachiewicz
+- Bloblang mappings that assign no variables no longer allocate a variables map per execution @slachiewicz
 
 ## 1.21.2 - 2026-09-11 
 
