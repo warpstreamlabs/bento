@@ -17,7 +17,10 @@ func parquetEncodeProcessorConfig() *service.ConfigSpec {
 		// Stable(). TODO
 		Categories("Parsing").
 		Summary("Encodes [Parquet files](https://parquet.apache.org/docs/) from a batch of structured messages.").
-		Field(service.NewBoolField("v2").Description("Whether V2 engine is used for encoding.").Advanced().Default(true)).
+		Field(service.NewBoolField("v2").
+			Description("Whether V2 engine is used for encoding.").
+			Advanced().
+			Default(true)). // TODO: Remove this -- just here to ensure we trigger the V2 processor in CI.
 		Field(parquetSchemaConfig()).
 		Field(service.NewStringEnumField("default_compression",
 			"uncompressed", "snappy", "gzip", "brotli", "zstd", "lz4raw",
