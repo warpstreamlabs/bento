@@ -345,11 +345,7 @@ func transformDataWithSchema(data any, fields ...parquet.Field) any {
 		for key, value := range v {
 			field := findFieldByName(fields, key)
 			if field != nil {
-				if lt := field.Type().LogicalType(); lt != nil && lt.List != nil {
-					result[key] = transformList(value)
-				} else {
-					result[key] = transformDataWithSchema(value, field.Fields()...)
-				}
+				result[key] = transformFieldWithSchema(value, field)
 			} else {
 				result[key] = value
 			}
@@ -397,6 +393,30 @@ func transformDataWithSchemaV2(data any, fields ...parquet.Field) (any, error) {
 	}
 }
 
+func transformFieldWithSchema(data any, field parquet.Field) any {
+	if lt := field.Type().LogicalType(); lt != nil && lt.List != nil {
+		return transformList(data, listElementOf(field))
+	}
+	return transformDataWithSchema(data, field.Fields()...)
+}
+
+func transformList(data any, elem parquet.Field) any {
+	slice, ok := data.([]any)
+	if !ok {
+		return data
+	}
+
+	wrapped := make([]any, len(slice))
+	for i, item := range slice {
+		if elem != nil {
+			item = transformFieldWithSchema(item, elem)
+		}
+		wrapped[i] = map[string]any{"element": item}
+	}
+
+	return map[string]any{"list": wrapped}
+}
+
 func findFieldByName(fields []parquet.Field, name string) parquet.Field {
 	for _, field := range fields {
 		if field.Name() == name {
@@ -406,13 +426,24 @@ func findFieldByName(fields []parquet.Field, name string) parquet.Field {
 	return nil
 }
 
-func transformList(data any) any {
-	if slice, ok := data.([]any); ok {
-		wrapped := make([]any, len(slice))
-		for i, item := range slice {
-			wrapped[i] = map[string]any{"element": item}
-		}
-		return map[string]any{"list": wrapped}
+// listElementOf returns the element node of a LIST field, which is nested within
+// the intermediary repeated group of the three-level list structure:
+//
+//	<list-repetition> group <name> (LIST) {
+//	  repeated group list {
+//	    <element-repetition> <element-type> element;
+//	  }
+//	}
+func listElementOf(field parquet.Field) parquet.Field {
+	repeated := field.Fields()
+	if len(repeated) != 1 {
+		return nil
 	}
-	return data
+
+	elements := repeated[0].Fields()
+	if len(elements) != 1 {
+		return nil
+	}
+
+	return elements[0]
 }
