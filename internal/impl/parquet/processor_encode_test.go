@@ -28,7 +28,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	tctx := context.Background()
@@ -46,7 +46,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err = newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err = newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	_, err = encodeProc.ProcessBatch(tctx, service.MessageBatch{
@@ -65,7 +65,7 @@ default_encoding: PLAIN
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	for _, field := range encodeProc.schema.Fields() {
@@ -102,7 +102,7 @@ default_encoding: RLE_DICTIONARY
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	// All leaf fields should have RLE_DICTIONARY encoding, including nested ones.
@@ -154,7 +154,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
@@ -186,7 +186,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
@@ -227,7 +227,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
@@ -259,7 +259,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
@@ -301,7 +301,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
@@ -315,7 +315,7 @@ byte_array_as_string: true
 	testParquetEncodeDecodeRoundTrip(t, encodeProc, decodeProc)
 }
 
-func testParquetEncodeDecodeRoundTripMapList(t *testing.T, encodeProc *parquetEncodeV2Processor, decodeProc *parquetDecodeProcessor) {
+func testParquetEncodeDecodeRoundTripMapList(t *testing.T, encodeProc *parquetEncodeProcessor, decodeProc *parquetDecodeProcessor) {
 	tctx := context.Background()
 
 	for _, test := range []struct {
@@ -385,7 +385,7 @@ func testParquetEncodeDecodeRoundTripMapList(t *testing.T, encodeProc *parquetEn
 	}
 }
 
-func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodeV2Processor, decodeProc *parquetDecodeProcessor) {
+func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodeProcessor, decodeProc *parquetDecodeProcessor) {
 	tctx := context.Background()
 
 	for _, test := range []struct {
@@ -516,7 +516,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	input := `{
@@ -643,7 +643,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -723,7 +723,7 @@ schema:
 `, nil)
 	require.NoError(t, err)
 
-	encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 	require.NoError(t, err)
 
 	inBatch := service.MessageBatch{}
@@ -945,7 +945,7 @@ schema:
 		encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(tt.config, nil)
 		require.NoError(t, err)
 
-		encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+		encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 		require.NoError(t, err)
 
 		schema := parquet.NewSchema("", tt.expected)
@@ -977,7 +977,7 @@ func TestEncodeDecimalOptional(t *testing.T) {
 		encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(tt.config, nil)
 		require.NoError(t, err)
 
-		encodeProc, err := newParquetEncodeV2ProcessorFromConfig(encodeConf, nil)
+		encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
 		require.NoError(t, err)
 
 		schema := parquet.NewSchema("", tt.expected)

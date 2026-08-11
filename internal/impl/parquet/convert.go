@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/parquet-go/parquet-go"
+	// "golang.org/x/exp/constraints"
 )
 
 // MapToStruct converts a map[string]any to a struct using reflection.
@@ -356,6 +357,43 @@ func transformDataWithSchema(data any, fields ...parquet.Field) any {
 		return result
 	default:
 		return data
+	}
+}
+
+// transformDataWithSchemaV2 recursively walks the parquet schema fields and decoded daata,
+// attempting to convert values to their closest Go equivalent to satisty the schema.
+func transformDataWithSchemaV2(data any, fields ...parquet.Field) (any, error) {
+	switch v := data.(type) {
+	case map[string]any:
+		for key, val := range v {
+			if field := findFieldByName(fields, key); field != nil {
+				var err error
+				if len(field.Fields()) > 0 {
+					v[key], err = transformDataWithSchemaV2(val, field.Fields()...)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					v[key], err = valueOf(val, field)
+					if err != nil {
+						return nil, fmt.Errorf("field %q: %w", key, err)
+					}
+				}
+
+			}
+		}
+		return v, nil
+	case []any:
+		for i, val := range v {
+			res, err := transformDataWithSchemaV2(val, fields...)
+			if err != nil {
+				return nil, fmt.Errorf("index %d: %w", i, err)
+			}
+			v[i] = res
+		}
+		return v, nil
+	default:
+		return data, nil
 	}
 }
 

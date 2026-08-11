@@ -17,6 +17,7 @@ func parquetEncodeProcessorConfig() *service.ConfigSpec {
 		// Stable(). TODO
 		Categories("Parsing").
 		Summary("Encodes [Parquet files](https://parquet.apache.org/docs/) from a batch of structured messages.").
+		Field(service.NewBoolField("v2").Description("Whether V2 engine is used for encoding.").Advanced().Default(true)).
 		Field(parquetSchemaConfig()).
 		Field(service.NewStringEnumField("default_compression",
 			"uncompressed", "snappy", "gzip", "brotli", "zstd", "lz4raw",
@@ -156,6 +157,13 @@ func newParquetEncodeProcessorFromConfig(
 	conf *service.ParsedConfig,
 	logger *service.Logger,
 ) (*parquetEncodeProcessor, error) {
+	if isV2, _ := conf.FieldBool("v2"); isV2 {
+		// When v2 is set, schema creation is done dynamically via parquet.Node types. Otherwise,
+		// we default to building a struct type via reflection and useing parquet.SchemaOf to convert to
+		// build a parquet.Schema type.
+		return newParquetEncodeV2ProcessorFromConfig(conf, logger)
+	}
+
 	compressStr, err := conf.FieldString("default_compression")
 	if err != nil {
 		return nil, err
@@ -238,7 +246,7 @@ type parquetEncodeProcessor struct {
 	logger          *service.Logger
 	schema          *parquet.Schema
 	compressionType compress.Codec
-	messageType     reflect.Type
+	encoder         parquetEncoder
 }
 
 func newParquetEncodeProcessor(
@@ -247,11 +255,15 @@ func newParquetEncodeProcessor(
 	compressionType compress.Codec,
 	messageType reflect.Type,
 ) (*parquetEncodeProcessor, error) {
+	enc := &reflectionEncoder{
+		messageType: messageType,
+	}
+
 	s := &parquetEncodeProcessor{
 		logger:          logger,
 		schema:          schema,
 		compressionType: compressionType,
-		messageType:     messageType,
+		encoder:         enc,
 	}
 	return s, nil
 }
@@ -288,7 +300,7 @@ func (s *parquetEncodeProcessor) ProcessBatch(ctx context.Context, batch service
 
 	rows := make([]any, len(batch))
 	for i, m := range batch {
-		ms, err := m.AsStructured()
+		ms, err := m.AsStructuredMut()
 		if err != nil {
 			return nil, err
 		}
@@ -298,13 +310,12 @@ func (s *parquetEncodeProcessor) ProcessBatch(ctx context.Context, batch service
 			return nil, fmt.Errorf("unable to encode message type %T as parquet row", ms)
 		}
 
-		v := reflect.New(s.messageType)
-
-		if err := MapToStruct(scrubbed, v.Interface()); err != nil {
-			return nil, fmt.Errorf("conversion to struct failed, err: %w", err)
+		row, err := s.encoder.Encode(scrubbed)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode row: %w", err)
 		}
 
-		rows[i] = v.Interface()
+		rows[i] = row
 	}
 
 	if err := writeWithoutPanic(pWtr, rows); err != nil {
