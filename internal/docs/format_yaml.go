@@ -920,6 +920,49 @@ func (f FieldSpec) YAMLToValue(node *yaml.Node, conf ToValueConfig) (any, error)
 	return node, nil
 }
 
+type yamlNodePair struct {
+	key   *yaml.Node
+	value *yaml.Node
+}
+
+// mergeAliases returns the mapping nodes referenced by a "<<" merge-key value,
+// which may be a single alias or a sequence of aliases.
+func mergeAliases(node *yaml.Node) []*yaml.Node {
+	switch node.Kind {
+	case yaml.AliasNode:
+		if node.Alias != nil {
+			return []*yaml.Node{node.Alias}
+		}
+	case yaml.SequenceNode:
+		var out []*yaml.Node
+		for _, item := range node.Content {
+			if item.Kind == yaml.AliasNode && item.Alias != nil {
+				out = append(out, item.Alias)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// resolveMergeKeys flattens a mapping node's key/value pairs, expanding any YAML
+// merge keys ("<<": *anchor, or "<<": [*a, *b]) into additional pairs. Pairs set
+// explicitly on the node are returned before merged ones so that explicit keys
+// win, following YAML merge semantics.
+func resolveMergeKeys(node *yaml.Node) []yamlNodePair {
+	var explicit, merged []yamlNodePair
+	for i := 0; i < len(node.Content)-1; i += 2 {
+		if node.Content[i].Tag == "!!merge" {
+			for _, alias := range mergeAliases(node.Content[i+1]) {
+				merged = append(merged, resolveMergeKeys(alias)...)
+			}
+			continue
+		}
+		explicit = append(explicit, yamlNodePair{node.Content[i], node.Content[i+1]})
+	}
+	return append(explicit, merged...)
+}
+
 // YAMLToMap converts a yaml node into a generic map structure by referencing
 // expected fields, adding default values to the map when the node does not
 // contain them.
@@ -933,18 +976,27 @@ func (f FieldSpecs) YAMLToMap(node *yaml.Node, conf ToValueConfig) (map[string]a
 
 	resultMap := map[string]any{}
 
-	for i := 0; i < len(node.Content)-1; i += 2 {
-		fieldName := node.Content[i].Value
+	// Resolve YAML merge keys ("<<") so that fields supplied via an anchor are
+	// recognised, matching how linting resolves them (LintYAML). Without this a
+	// config that lints clean fails at init with the merged fields reported as
+	// missing. Explicit keys take precedence over merged ones.
+	seen := map[string]struct{}{}
+	for _, pair := range resolveMergeKeys(node) {
+		fieldName := pair.key.Value
+		if _, ok := seen[fieldName]; ok {
+			continue
+		}
+		seen[fieldName] = struct{}{}
 
 		if f, exists := pendingFieldsMap[fieldName]; exists {
 			delete(pendingFieldsMap, f.Name)
 			var err error
-			if resultMap[fieldName], err = f.YAMLToValue(node.Content[i+1], conf); err != nil {
+			if resultMap[fieldName], err = f.YAMLToValue(pair.value, conf); err != nil {
 				return nil, fmt.Errorf("field '%v': %w", fieldName, err)
 			}
 		} else {
 			var v any
-			if err := node.Content[i+1].Decode(&v); err != nil {
+			if err := pair.value.Decode(&v); err != nil {
 				return nil, err
 			}
 			resultMap[fieldName] = v

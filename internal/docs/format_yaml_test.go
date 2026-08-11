@@ -1401,3 +1401,41 @@ processors:
 		})
 	}
 }
+
+func TestFieldsNodeToMapMergeKeys(t *testing.T) {
+	spec := docs.FieldSpecs{
+		docs.FieldString("driver", ""),
+		docs.FieldString("dsn", ""),
+		docs.FieldString("query", "").HasDefault("select 1"),
+	}
+
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`
+defaults: &defaults
+  driver: postgres
+  dsn: postgres://localhost
+config:
+  <<: *defaults
+  dsn: postgres://override
+`), &doc))
+
+	// The "config" mapping pulls driver/dsn in via a "<<" merge key; without
+	// resolving it those required fields would be reported missing (issue #872).
+	top := doc.Content[0]
+	var configNode *yaml.Node
+	for i := 0; i < len(top.Content)-1; i += 2 {
+		if top.Content[i].Value == "config" {
+			configNode = top.Content[i+1]
+		}
+	}
+	require.NotNil(t, configNode)
+
+	generic, err := spec.YAMLToMap(configNode, docs.ToValueConfig{})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]any{
+		"driver": "postgres",            // merged in via <<
+		"dsn":    "postgres://override", // explicit key overrides the merged one
+		"query":  "select 1",            // default
+	}, generic)
+}
