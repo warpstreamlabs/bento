@@ -93,6 +93,56 @@ func TestMemoryCache(t *testing.T) {
 	require.False(t, exists)
 }
 
+func TestMemoryCacheKeys(t *testing.T) {
+	ctx := t.Context()
+
+	for _, nShards := range []int{1, 16} {
+		t.Run(fmt.Sprintf("%v shards", nShards), func(t *testing.T) {
+			c := newMemCache(0, 0, nShards, map[string]string{"foo": "1"})
+
+			require.NoError(t, c.Set(ctx, "bar", []byte("2"), nil))
+			require.NoError(t, c.Add(ctx, "baz", []byte("3"), nil))
+
+			var keys []string
+			for k, err := range c.Keys(ctx) {
+				require.NoError(t, err)
+				keys = append(keys, k)
+			}
+			assert.ElementsMatch(t, []string{"foo", "bar", "baz"}, keys)
+
+			require.NoError(t, c.Delete(ctx, "bar"))
+
+			keys = nil
+			for k, err := range c.Keys(ctx) {
+				require.NoError(t, err)
+				keys = append(keys, k)
+			}
+			assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
+		})
+	}
+}
+
+func TestMemoryCacheKeysExpired(t *testing.T) {
+	ctx := t.Context()
+
+	// A long compaction interval so that expired items are retained but
+	// considered expired by reads.
+	c := newMemCache(time.Hour, time.Hour, 1, nil)
+
+	ttl := time.Millisecond
+	require.NoError(t, c.Set(ctx, "expires", []byte("1"), &ttl))
+	require.NoError(t, c.Set(ctx, "remains", []byte("2"), nil))
+
+	<-time.After(time.Millisecond * 50)
+
+	var keys []string
+	for k, err := range c.Keys(ctx) {
+		require.NoError(t, err)
+		keys = append(keys, k)
+	}
+	assert.ElementsMatch(t, []string{"remains"}, keys)
+}
+
 func TestMemoryCacheCompaction(t *testing.T) {
 	defConf, err := memCacheConfig().ParseYAML(`
 default_ttl: 0s

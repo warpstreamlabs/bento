@@ -12,8 +12,9 @@ import (
 
 // Errors returned by cache types.
 var (
-	ErrKeyAlreadyExists = errors.New("key already exists")
-	ErrKeyNotFound      = errors.New("key does not exist")
+	ErrKeyAlreadyExists       = errors.New("key already exists")
+	ErrKeyNotFound            = errors.New("key does not exist")
+	ErrKeyListingNotSupported = errors.New("cache does not support listing keys")
 )
 
 // Cache is an interface implemented by Bento caches.
@@ -46,6 +47,10 @@ type CacheItem struct {
 	TTL   *time.Duration
 }
 
+// KeyIterator is an iterator over the keys held by a cache, as returned by the
+// optional Keys method. Iteration stops after the first non-nil error.
+type KeyIterator = cache.KeyIterator
+
 // batchedCache represents a cache where the underlying implementation is able
 // to benefit from batched set requests. This interface is optional for caches
 // and when implemented will automatically be utilised where possible.
@@ -63,9 +68,19 @@ type existsCache interface {
 	Exists(ctx context.Context, key string) (bool, error)
 }
 
+// listableCache represents a cache where the underlying implementation is able
+// to enumerate the keys it holds. This interface is optional for caches and
+// when implemented will automatically be utilised where possible, otherwise
+// calls to Keys yield ErrKeyListingNotSupported.
+type listableCache interface {
+	// Keys returns an iterator over all keys currently held by the cache.
+	// Iteration stops after the first non-nil error.
+	Keys(ctx context.Context) KeyIterator
+}
+
 //------------------------------------------------------------------------------
 
-// Implements types.Cache.
+// Implements cache.V1.
 type airGapCache struct {
 	c  Cache
 	cm batchedCache
@@ -73,9 +88,18 @@ type airGapCache struct {
 }
 
 func newAirGapCache(c Cache, stats metrics.Type) cache.V1 {
-	ag := &airGapCache{c: c, cm: nil}
+	ag := &airGapCache{c: c}
 	ag.cm, _ = c.(batchedCache)
 	ag.ce, _ = c.(existsCache)
+
+	if cl, ok := c.(listableCache); ok {
+		lag := &listableAirGapCache{
+			airGapCache: ag,
+			cl:          cl,
+		}
+		return cache.MetricsForListableCache(lag, stats)
+	}
+
 	return cache.MetricsForCache(ag, stats)
 }
 
@@ -143,13 +167,43 @@ func (a *airGapCache) Close(ctx context.Context) error {
 
 //------------------------------------------------------------------------------
 
+// Implements cache.Listable.
+type listableAirGapCache struct {
+	*airGapCache
+	cl listableCache
+}
+
+func (a *listableAirGapCache) Keys(ctx context.Context) KeyIterator {
+	return func(yield func(string, error) bool) {
+		for key, err := range a.cl.Keys(ctx) {
+			if errors.Is(err, ErrKeyListingNotSupported) {
+				err = component.ErrKeyListingNotSupported
+			}
+			if !yield(key, err) {
+				return
+			}
+		}
+	}
+}
+
+//------------------------------------------------------------------------------
+
 // Implements Cache around a types.Cache.
 type reverseAirGapCache struct {
 	c cache.V1
 }
 
-func newReverseAirGapCache(c cache.V1) *reverseAirGapCache {
-	return &reverseAirGapCache{c}
+func newReverseAirGapCache(c cache.V1) Cache {
+	rag := reverseAirGapCache{c: c}
+
+	if cl, ok := c.(cache.Listable); ok {
+		return &listableReverseAirGapCache{
+			reverseAirGapCache: &rag,
+			cl:                 cl,
+		}
+	}
+
+	return &rag
 }
 
 func (r *reverseAirGapCache) Get(ctx context.Context, key string) ([]byte, error) {
@@ -181,4 +235,25 @@ func (r *reverseAirGapCache) Delete(ctx context.Context, key string) error {
 
 func (r *reverseAirGapCache) Close(ctx context.Context) error {
 	return r.c.Close(ctx)
+}
+
+//------------------------------------------------------------------------------
+
+// Implements listableCache around a cache.Listable.
+type listableReverseAirGapCache struct {
+	*reverseAirGapCache
+	cl cache.Listable
+}
+
+func (r *listableReverseAirGapCache) Keys(ctx context.Context) KeyIterator {
+	return func(yield func(string, error) bool) {
+		for key, err := range r.cl.Keys(ctx) {
+			if errors.Is(err, component.ErrKeyListingNotSupported) {
+				err = ErrKeyListingNotSupported
+			}
+			if !yield(key, err) {
+				return
+			}
+		}
+	}
 }
