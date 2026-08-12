@@ -7,8 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Optional `ListKeys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
-- `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `ListKeys` @ecordell
+- Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
+- `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
 
 ### Fixed
 
