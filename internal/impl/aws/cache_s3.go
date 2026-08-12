@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/cenkalti/backoff/v4"
 
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -260,7 +261,7 @@ func (s *s3Cache) Keys(ctx context.Context) service.KeyIterator {
 	// readAhead is set to the maximum number of keys in a single S3 page so
 	// that the next page can be fetched while the current one is yielded.
 	const readAhead = 1000
-	return service.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
+	return cache.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
 		boff := s.boffPool.Get().(backoff.BackOff)
 		defer func() {
 			boff.Reset()

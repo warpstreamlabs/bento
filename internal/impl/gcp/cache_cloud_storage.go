@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -145,7 +146,7 @@ func (c *gcpCloudStorageCache) Keys(ctx context.Context) service.KeyIterator {
 	// readAhead matches the storage client's default page size so that the next
 	// page can be fetched while the current one is yielded.
 	const readAhead = 1000
-	return service.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
+	return cache.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
 		it := c.bucketHandle.Objects(ctx, nil)
 		for {
 			attrs, err := it.Next()

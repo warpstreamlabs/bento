@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
+	icache "github.com/warpstreamlabs/bento/internal/component/cache"
 )
 
 // CacheTestOpenClose checks that the cache can be started, an item added, and
@@ -130,8 +131,11 @@ func CacheTestKeys(n int) CacheTestDefinition {
 				expKeys = append(expKeys, key)
 			}
 
+			lister, ok := cache.(icache.Listable)
+			require.True(t, ok, "cache does not support key listing")
+
 			var keys []string
-			for key, err := range cache.Keys(env.ctx) {
+			for key, err := range lister.Keys(env.ctx) {
 				require.NoError(t, err)
 				keys = append(keys, key)
 			}

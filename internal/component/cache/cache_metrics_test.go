@@ -301,7 +301,7 @@ func TestCacheAirGapKeys(t *testing.T) {
 			},
 		},
 	}
-	agrl := MetricsForCache(rl, metrics.Noop())
+	agrl := MetricsForListableCache(rl, metrics.Noop())
 
 	var keys []string
 	for k, err := range agrl.Keys(ctx) {
@@ -317,7 +317,7 @@ func TestCacheAirGapKeysNotSupported(t *testing.T) {
 	}
 	agrl := MetricsForCache(rl, metrics.Noop())
 
-	for _, err := range agrl.Keys(t.Context()) {
-		require.ErrorIs(t, err, component.ErrKeyListingNotSupported)
-	}
+	// A cache that cannot enumerate its keys is not wrapped as Listable.
+	_, ok := agrl.(Listable)
+	assert.False(t, ok)
 }
