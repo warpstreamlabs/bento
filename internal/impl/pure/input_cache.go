@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"iter"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -101,13 +100,13 @@ func (c *cacheInput) Connect(ctx context.Context) error {
 	var listErr error
 	if err := c.res.AccessCache(ctx, c.cacheName, func(cache service.Cache) {
 		lister, ok := cache.(interface {
-			ListKeys(ctx context.Context) iter.Seq2[string, error]
+			Keys(ctx context.Context) service.KeyIterator
 		})
 		if !ok {
 			listErr = fmt.Errorf("cache resource '%v' does not support listing keys", c.cacheName)
 			return
 		}
-		for key, err := range lister.ListKeys(ctx) {
+		for key, err := range lister.Keys(ctx) {
 			if err != nil {
 				listErr = err
 				return
