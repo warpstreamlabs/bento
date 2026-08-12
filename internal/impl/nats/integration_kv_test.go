@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -404,10 +406,22 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	require.NoError(t, err)
 	pool.MaxWait = 30 * time.Second
 
+	// Pin the host port: the container is restarted mid-test and the daemon
+	// is not guaranteed to reassign the same ephemeral port on restart, while
+	// the cache under test has the original URL baked into its config.
+	natsPortInt, err := integration.GetFreePort()
+	require.NoError(t, err)
+	natsPort := strconv.Itoa(natsPortInt)
+	portBindings := map[docker.Port][]docker.PortBinding{
+		"4222/tcp": {{HostIP: "0.0.0.0", HostPort: natsPort}},
+	}
+
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "nats",
-		Tag:        "latest",
-		Cmd:        []string{"--js"},
+		Repository:   "nats",
+		Tag:          "latest",
+		Cmd:          []string{"--js"},
+		PortBindings: portBindings,
+		ExposedPorts: []string{"4222/tcp"},
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -415,7 +429,6 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	})
 	_ = resource.Expire(120)
 
-	natsPort := resource.GetPort("4222/tcp")
 	natsURL := fmt.Sprintf("tcp://localhost:%s", natsPort)
 	bucketName := "reconnect-test"
 
@@ -464,9 +477,13 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	}, 10*time.Second, 50*time.Millisecond,
 		"DisconnectErrHandler should have cleared natsConn after server stop")
 
-	// Restart the container — Docker reuses the original port bindings when
-	// no HostConfig is specified.
-	require.NoError(t, pool.Client.StartContainer(resource.Container.ID, nil))
+	// Restart the container, re-asserting the pinned port binding — a HostConfig
+	// passed here replaces the original one (which only requested an ephemeral
+	// port via PublishAllPorts), so without this the daemon could publish 4222
+	// on a different host port.
+	require.NoError(t, pool.Client.StartContainer(resource.Container.ID, &docker.HostConfig{
+		PortBindings: portBindings,
+	}))
 
 	// Wait for NATS to accept connections again, then recreate the KV bucket
 	// (JetStream state is not persisted across restarts by default).
