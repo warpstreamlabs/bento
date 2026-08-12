@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- `apache/pulsar-client-go` updated to v0.21.0, picking up fixes for a consumer busy-spin deadlock, a connection panic on close, and a race that dropped messages before handler registration @slachiewicz
+
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
