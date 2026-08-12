@@ -234,7 +234,7 @@ fsevent:
 	time.Sleep(time.Second)
 
 	fileInSubdir := filepath.Join(subdir, "file.txt")
-	require.NoError(t, os.WriteFile(fileInSubdir, []byte("content"), 0o644))
+	require.NoError(t, os.WriteFile(fileInSubdir, nil, 0o644))
 
 	// We should receive events for both the subdir creation and the file creation
 	var subdirCreated, fileCreated bool
@@ -251,7 +251,7 @@ fsevent:
 
 			if eventPath == subdir && operation == "CREATE" {
 				subdirCreated = true
-			} else if eventPath == fileInSubdir && (operation == "WRITE" || operation == "CREATE") {
+			} else if eventPath == fileInSubdir && operation == "CREATE" {
 				fileCreated = true
 			}
 
