@@ -215,7 +215,7 @@ func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.Me
 			partitionKeys = append(partitionKeys, val)
 		}
 
-		wr, err := ddw.addPutRequest(msg)
+		wr, err := ddw.addPutRequest(msg, gRoot)
 		if err != nil {
 			if errors.Is(err, ErrItemTooBig) || errors.Is(err, ErrPartitionKeyTooBig) || errors.Is(err, ErrSortKeyTooBig) {
 				batchErrFailed(i, err)
@@ -253,13 +253,7 @@ func (ddw *dynamoDBWriterV2) Close(ctx context.Context) error {
 
 //------------------------------------------------------------------------------
 
-func (ddw *dynamoDBWriterV2) addPutRequest(msg *service.Message) (x types.WriteRequest, err error) {
-	jRoot, err := msg.AsStructured()
-	if err != nil {
-		return types.WriteRequest{}, err
-	}
-	gRoot := gabs.Wrap(jRoot)
-
+func (ddw *dynamoDBWriterV2) addPutRequest(msg *service.Message, gRoot *gabs.Container) (x types.WriteRequest, err error) {
 	attrValues := map[string]types.AttributeValue{}
 
 	itemSize := 0
