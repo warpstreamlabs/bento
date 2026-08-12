@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/parquet-go/parquet-go"
-	// "golang.org/x/exp/constraints"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // MapToStruct converts a map[string]any to a struct using reflection.
@@ -334,6 +334,8 @@ func setField(field reflect.Value, value any) error {
 	return nil
 }
 
+//------------------------------------------------------------------------------
+
 // transformDataWithSchema recursively walks through decoded data and converts any instance of a LIST into
 // its Logical Type format.
 //
@@ -354,6 +356,15 @@ func transformDataWithSchema(data any, fields ...parquet.Field) any {
 	default:
 		return data
 	}
+}
+
+func findFieldByName(fields []parquet.Field, name string) parquet.Field {
+	for _, field := range fields {
+		if field.Name() == name {
+			return field
+		}
+	}
+	return nil
 }
 
 // transformDataWithSchemaV2 recursively walks the parquet schema fields and decoded daata,
@@ -417,15 +428,6 @@ func transformList(data any, elem parquet.Field) any {
 	return map[string]any{"list": wrapped}
 }
 
-func findFieldByName(fields []parquet.Field, name string) parquet.Field {
-	for _, field := range fields {
-		if field.Name() == name {
-			return field
-		}
-	}
-	return nil
-}
-
 // listElementOf returns the element node of a LIST field, which is nested within
 // the intermediary repeated group of the three-level list structure:
 //
@@ -446,4 +448,40 @@ func listElementOf(field parquet.Field) parquet.Field {
 	}
 
 	return elements[0]
+}
+
+func valueOf(val any, field parquet.Field) (any, error) {
+	if val == nil {
+		return nil, nil
+	}
+
+	if !field.Leaf() {
+		return val, nil
+	}
+
+	if arr, ok := val.([]any); ok {
+		for i, v := range arr {
+			res, err := valueOf(v, field)
+			if err != nil {
+				return nil, fmt.Errorf("index %d: %w", i, err)
+			}
+			arr[i] = res
+		}
+		return arr, nil
+	}
+
+	switch field.Type().Kind() {
+	case parquet.Int32:
+		return value.IToInt32(val)
+	case parquet.Int64:
+		return value.IToInt(val)
+	case parquet.Float:
+		return value.IToFloat32(val)
+	case parquet.Double:
+		return value.IToFloat64(val)
+	case parquet.Boolean:
+		return value.IToBool(val)
+	default:
+		return val, nil
+	}
 }
