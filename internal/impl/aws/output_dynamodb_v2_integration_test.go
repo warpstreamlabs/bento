@@ -269,7 +269,7 @@ credentials:
 	assert.Equal(t, int32(4), y.Count)
 }
 
-func TestHandleParitionKeyTooBig(t *testing.T) {
+func TestHandlePartitionKeyTooBig(t *testing.T) {
 	integration.CheckSkip(t)
 
 	port := startDynamodbLocal(t, "FooTable")
@@ -315,7 +315,7 @@ credentials:
 	err = db.WriteBatch(writeCtx, batch)
 
 	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
-	require.ErrorContains(t, bErr, "Parition key too big")
+	require.ErrorContains(t, bErr, "Partition key too big")
 	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
 		if err != nil {
 			errs = append(errs, err)
@@ -323,7 +323,7 @@ credentials:
 		return true
 	})
 	require.Len(t, errs, 1, "expected one error in batch error")
-	require.ErrorContains(t, errs[0], "Parition key too big")
+	require.ErrorContains(t, errs[0], "Partition key too big")
 
 	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
 	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
@@ -505,4 +505,47 @@ credentials:
 			}
 		})
 	}
+}
+
+func TestDuplicatePartitionKeysFailsBatch(t *testing.T) {
+	integration.CheckSkip(t)
+
+	port := startDynamodbLocal(t, "FooTable")
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: FooTable
+partition_key: id
+json_map_columns: 
+  id: id
+  name: name
+json_map_datatypes:
+  id: S
+  name: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+	for range 2 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "00000000-0000-0000-0000-000000000000", "name": "%v"}`, faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.ErrorContains(t, err, "Partition keys not unique in message batch")
 }

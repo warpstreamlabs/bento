@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -14,9 +15,10 @@ import (
 )
 
 var (
-	ErrItemTooBig         = errors.New("Item too big")
-	ErrPartitionKeyTooBig = errors.New("Parition key too big")
-	ErrSortKeyTooBig      = errors.New("Sort key too big")
+	ErrItemTooBig            = errors.New("Item too big")
+	ErrPartitionKeyTooBig    = errors.New("Partition key too big")
+	ErrPartitionKeyNotUnique = errors.New("Partition keys not unique in message batch")
+	ErrSortKeyTooBig         = errors.New("Sort key too big")
 )
 
 const (
@@ -180,6 +182,8 @@ func (ddw *dynamoDBWriterV2) Connect(ctx context.Context) error {
 		}
 	}
 
+	ddw.client = client
+
 	return nil
 }
 
@@ -194,7 +198,23 @@ func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.Me
 		batchErr.Failed(i, err)
 	}
 
+	partitionKeys := []string{}
 	for i, msg := range msgBatch {
+		jRoot, err := msg.AsStructured()
+		if err != nil {
+			return err
+		}
+		gRoot := gabs.Wrap(jRoot)
+
+		cont := gRoot.Path(ddw.partitionKey)
+		val := fmt.Sprintf("%v", cont.Data())
+
+		if slices.Contains(partitionKeys, val) {
+			return ErrPartitionKeyNotUnique
+		} else {
+			partitionKeys = append(partitionKeys, val)
+		}
+
 		wr, err := ddw.addPutRequest(msg)
 		if err != nil {
 			if errors.Is(err, ErrItemTooBig) || errors.Is(err, ErrPartitionKeyTooBig) || errors.Is(err, ErrSortKeyTooBig) {
@@ -253,6 +273,7 @@ func (ddw *dynamoDBWriterV2) addPutRequest(msg *service.Message) (x types.WriteR
 		if itemSize >= 400000 {
 			return types.WriteRequest{}, ErrItemTooBig
 		}
+
 		if ddw.partitionKey == k && len(val) > 2048 {
 			return types.WriteRequest{}, ErrPartitionKeyTooBig
 		}
