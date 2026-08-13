@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/cenkalti/backoff/v4"
 
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -254,6 +255,44 @@ func (s *s3Cache) Delete(ctx context.Context, key string) (err error) {
 			return
 		}
 	}
+}
+
+func (s *s3Cache) Keys(ctx context.Context) service.KeyIterator {
+	// readAhead is set to the maximum number of keys in a single S3 page so
+	// that the next page can be fetched while the current one is yielded.
+	const readAhead = 1000
+	return cache.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
+		boff := s.boffPool.Get().(backoff.BackOff)
+		defer func() {
+			boff.Reset()
+			s.boffPool.Put(boff)
+		}()
+
+		pager := s3.NewListObjectsV2Paginator(s.s3, &s3.ListObjectsV2Input{
+			Bucket: &s.bucket,
+		})
+		for pager.HasMorePages() {
+			page, err := pager.NextPage(ctx)
+			if err != nil {
+				wait := boff.NextBackOff()
+				if wait == backoff.Stop {
+					return err
+				}
+				select {
+				case <-time.After(wait):
+				case <-ctx.Done():
+					return err
+				}
+				continue
+			}
+			for _, obj := range page.Contents {
+				if obj.Key != nil && !emit(*obj.Key) {
+					return nil
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func (s *s3Cache) Close(context.Context) error {

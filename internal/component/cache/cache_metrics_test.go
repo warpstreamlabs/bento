@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
 	"github.com/warpstreamlabs/bento/internal/component/metrics"
@@ -82,6 +83,12 @@ func (c *closableCache) Delete(ctx context.Context, key string) error {
 	}
 	delete(c.m, key)
 	return nil
+}
+
+func (c *closableCache) Keys(ctx context.Context) KeyIterator {
+	return func(yield func(string, error) bool) {
+		yield("", component.ErrKeyListingNotSupported)
+	}
 }
 
 func (c *closableCache) Close(ctx context.Context) error {
@@ -260,4 +267,57 @@ func TestCacheAirGapDelete(t *testing.T) {
 	err := agrl.Delete(ctx, "foo")
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]testCacheItem{}, rl.m)
+}
+
+type listableClosableCache struct {
+	*closableCache
+}
+
+func (c *listableClosableCache) Keys(ctx context.Context) KeyIterator {
+	return func(yield func(string, error) bool) {
+		if c.err != nil {
+			yield("", c.err)
+			return
+		}
+		for k := range c.m {
+			if !yield(k, nil) {
+				return
+			}
+		}
+	}
+}
+
+func TestCacheAirGapKeys(t *testing.T) {
+	ctx := t.Context()
+	rl := &listableClosableCache{
+		closableCache: &closableCache{
+			m: map[string]testCacheItem{
+				"foo": {
+					b: []byte("bar"),
+				},
+				"baz": {
+					b: []byte("qux"),
+				},
+			},
+		},
+	}
+	agrl := MetricsForListableCache(rl, metrics.Noop())
+
+	var keys []string
+	for k, err := range agrl.Keys(ctx) {
+		require.NoError(t, err)
+		keys = append(keys, k)
+	}
+	assert.ElementsMatch(t, []string{"foo", "baz"}, keys)
+}
+
+func TestCacheAirGapKeysNotSupported(t *testing.T) {
+	rl := &closableCache{
+		m: map[string]testCacheItem{},
+	}
+	agrl := MetricsForCache(rl, metrics.Noop())
+
+	// A cache that cannot enumerate its keys is not wrapped as Listable.
+	_, ok := agrl.(Listable)
+	assert.False(t, ok)
 }
