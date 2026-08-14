@@ -86,10 +86,6 @@ func (p *kvCache) connect(ctx context.Context) error {
 		return nil
 	}
 
-	// disconnectHandler fires when the underlying TCP connection is lost. It
-	// proactively clears the cached handles so that the next operation calls
-	// connect() and obtains a fresh connection, rather than attempting to use
-	// a stale one and failing first.
 	disconnectHandler := nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
 		p.log.Warnf("NATS KV cache disconnected, will reconnect on next operation: %v", err)
 		p.connMut.Lock()
@@ -118,8 +114,6 @@ func (p *kvCache) connect(ctx context.Context) error {
 		return err
 	}
 
-	// KeyValue uses ctx so the write lock is not held indefinitely if
-	// JetStream stalls, which would block all goroutines using this cache.
 	if p.kv, err = js.KeyValue(ctx, p.bucket); err != nil {
 		return err
 	}
