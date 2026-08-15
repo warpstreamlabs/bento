@@ -26,13 +26,13 @@ const (
 	ssoFieldBatching           = "batching"
 	ssoFieldContentType        = "content_type"
 	ssoFieldContentEncoding    = "content_encoding"
+	ssoFieldCompression        = "compression"
 	ssoFieldBackoff            = "backoff"
 	ssoFieldMaxRetries         = "max_retries"
 )
 
 func s3StreamOutputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
 		Version("1.16.0").
 		Categories("Services", "AWS").
 		Summary(`Streams data to S3 using multipart uploads.`).
@@ -45,6 +45,19 @@ The `+"`partition_by`"+` parameter allows you to maintain separate S3 multipart 
 partition values. Messages with matching partition values are written to the same file, and the full
 path expression is evaluated only once per partition (allowing use of functions like `+"`uuid_v4()`"+`
 for unique filenames). Without `+"`partition_by`"+`, each message evaluates the full path independently.
+
+:::warning
+### Violates Delivery Guarantees 
+
+This output weakens the delivery guarantees of the pipeline and therefore should not be used in places 
+where data loss is unacceptable.
+:::
+
+## Expects shutdown of pipeline
+
+This output flushes on the shutdown of the stream and therefore is intended to be used with inputs that 
+have a logical end, such as [file](docs/components/inputs/file) or one that is wrapped with the 
+[read_until](docs/components/inputs/file) input. 
 
 ## When to Use
 
@@ -94,8 +107,12 @@ You can find out more [in this document](/docs/guides/cloud/aws).
 				Default("application/octet-stream").
 				Advanced(),
 			service.NewInterpolatedStringField(ssoFieldContentEncoding).
-				Description("The content encoding to set for uploaded files (e.g., gzip).").
+				Description("The content encoding to set for uploaded files (e.g., gzip). This only sets the object's `Content-Encoding` metadata and does not itself compress anything; use `compression` for that. Leave unset when using `compression`, which sets it automatically.").
 				Optional().
+				Advanced(),
+			service.NewStringEnumField(ssoFieldCompression, "none", "gzip").
+				Description("Compress the object in-stream as it is uploaded. When set to `gzip`, a single gzip stream is written across the whole object (including true multipart uploads that exceed the 5 MiB part size) and the object's `Content-Encoding` is set to `gzip` automatically. This differs from a per-message `compress` processor, which would produce a multi-member gzip file; and from batch-level `archive`+`compress`, which would merge records across partitions. When enabled, do not also set `content_encoding` or a `compress` batch processor.").
+				Default("none").
 				Advanced(),
 			service.NewIntField(ssoFieldMaxRetries).
 				Description("The maximum number of retries for each individual part upload. Set to zero to disable retries.").
@@ -159,6 +176,7 @@ type s3StreamConfig struct {
 	MaxBufferPeriod time.Duration
 	ContentType     *service.InterpolatedString
 	ContentEncoding *service.InterpolatedString
+	Compression     string
 
 	aconf       aws.Config
 	backoffCtor func() backoff.BackOff
@@ -208,6 +226,11 @@ func s3StreamConfigFromParsed(pConf *service.ParsedConfig) (conf s3StreamConfig,
 		if conf.ContentEncoding, err = pConf.FieldInterpolatedString(ssoFieldContentEncoding); err != nil {
 			return
 		}
+	}
+
+	// In-writer compression (defaults to "none").
+	if conf.Compression, err = pConf.FieldString(ssoFieldCompression); err != nil {
+		return
 	}
 
 	// AWS config
@@ -388,6 +411,7 @@ func (s *s3StreamOutput) writeToPartition(ctx context.Context, partitionKey stri
 				MaxBufferPeriod: s.conf.MaxBufferPeriod,
 				ContentType:     contentType,
 				ContentEncoding: contentEncoding,
+				Compression:     s.conf.Compression,
 				BackoffCtor:     s.conf.backoffCtor,
 			})
 			if err != nil {

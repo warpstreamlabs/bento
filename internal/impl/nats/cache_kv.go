@@ -155,6 +155,22 @@ func (p *kvCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return entry.Value(), nil
 }
 
+func (p *kvCache) Exists(ctx context.Context, key string) (bool, error) {
+	kv, err := p.getKV(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = kv.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (p *kvCache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) error {
 	kv, err := p.getKV(ctx)
 	if err != nil {

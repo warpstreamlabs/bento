@@ -147,6 +147,14 @@ With this option, you can return topic order and per-topic partition ordering. T
 			Version("1.3.0").
 			Optional().
 			Advanced()).
+		Field(service.NewStringAnnotatedEnumField("transaction_isolation_level", map[string]string{
+			"read_uncommitted": "Consume all records, including records from aborted or open transactions.",
+			"read_committed":   "Consume only non-transactional records and records from committed transactions.",
+		}).
+			Description("Controls the isolation level used for Kafka fetch requests.").
+			Default("read_uncommitted").
+			Advanced().
+			Version("1.21.0")).
 		Field(service.NewTLSToggledField("tls")).
 		Field(saslField()).
 		Field(service.NewBoolField("multi_header").Description("Decode headers into lists to allow handling of multiple values with the same key").Default(false).Advanced()).
@@ -207,6 +215,7 @@ type franzKafkaReader struct {
 	saslConfs       []sasl.Mechanism
 	checkpointLimit int
 	autoOffsetReset string
+	isolationLevel  kgo.IsolationLevel
 	commitPeriod    time.Duration
 	regexPattern    bool
 	multiHeader     bool
@@ -361,6 +370,14 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 		return nil, err
 	}
 
+	var isolationLevel string
+	if isolationLevel, err = conf.FieldString("transaction_isolation_level"); err != nil {
+		return nil, err
+	}
+	if isolationLevel == "read_committed" {
+		f.isolationLevel = kgo.ReadCommitted()
+	}
+
 	if f.reconnectOnUnknownTopic, err = conf.FieldBool("reconnect_on_unknown_topic_or_partition"); err != nil {
 		return nil, err
 	}
@@ -471,7 +488,9 @@ type msgWithRecord struct {
 
 func (f *franzKafkaReader) recordToMessage(record *kgo.Record) *msgWithRecord {
 	msg := service.NewMessage(record.Value)
-	msg.MetaSetMut("kafka_key", string(record.Key))
+	if record.Key != nil {
+		msg.MetaSetMut("kafka_key", string(record.Key))
+	}
 	msg.MetaSetMut("kafka_topic", record.Topic)
 	msg.MetaSetMut("kafka_partition", int(record.Partition))
 	msg.MetaSetMut("kafka_offset", int(record.Offset))
@@ -851,6 +870,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.ConsumeTopics(f.topics...),
 		kgo.ConsumePartitions(f.topicPartitions),
 		kgo.ConsumeResetOffset(initialOffset),
+		kgo.FetchIsolationLevel(f.isolationLevel),
 		kgo.SASL(f.saslConfs...),
 		kgo.ConsumerGroup(f.consumerGroup),
 		kgo.ClientID(f.clientID),

@@ -11,7 +11,7 @@ jobs:
     steps:
 
     - name: Check Out Repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1
@@ -34,7 +34,7 @@ jobs:
         sudo swapon --show
 
     - name: Install Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version-file: go.mod
         check-latest: true
@@ -58,7 +58,7 @@ jobs:
     steps:
 
     - name: Check Out Repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
+	icache "github.com/warpstreamlabs/bento/internal/component/cache"
 )
 
 // CacheTestOpenClose checks that the cache can be started, an item added, and
@@ -44,6 +45,23 @@ func CacheTestMissingKey() CacheTestDefinition {
 
 			_, err := cache.Get(env.ctx, "missingkey")
 			assert.EqualError(t, err, "key does not exist")
+		},
+	)
+}
+
+// CacheTestMissingKeyExists checks that we get a false on missing key.
+func CacheTestMissingKeyExists() CacheTestDefinition {
+	return namedCacheTest(
+		"return false on missing key",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			c := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, c)
+			})
+
+			res, err := c.Exists(env.ctx, "missingkey")
+			assert.NoError(t, err)
+			assert.False(t, res)
 		},
 	)
 }
@@ -95,6 +113,37 @@ func CacheTestDelete() CacheTestDefinition {
 	)
 }
 
+// CacheTestKeys checks that a cache supporting key listing enumerates the
+// keys it holds after n items are set.
+func CacheTestKeys(n int) CacheTestDefinition {
+	return namedCacheTest(
+		"can list keys",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			cache := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, cache)
+			})
+
+			expKeys := make([]string, 0, n)
+			for i := range n {
+				key := fmt.Sprintf("listkey%v", i)
+				require.NoError(t, cache.Set(env.ctx, key, fmt.Appendf(nil, "value%v", i), nil))
+				expKeys = append(expKeys, key)
+			}
+
+			lister, ok := cache.(icache.Listable)
+			require.True(t, ok, "cache does not support key listing")
+
+			var keys []string
+			for key, err := range lister.Keys(env.ctx) {
+				require.NoError(t, err)
+				keys = append(keys, key)
+			}
+			assert.ElementsMatch(t, expKeys, keys)
+		},
+	)
+}
+
 // CacheTestGetAndSet checks that we can set and then get n items.
 func CacheTestGetAndSet(n int) CacheTestDefinition {
 	return namedCacheTest(
@@ -118,6 +167,33 @@ func CacheTestGetAndSet(n int) CacheTestDefinition {
 				res, err := cache.Get(env.ctx, key)
 				require.NoError(t, err)
 				assert.Equal(t, value, string(res))
+			}
+		},
+	)
+}
+
+// CacheTestExistsAndSet checks that we can set and then n items exists.
+func CacheTestExistsAndSet(n int) CacheTestDefinition {
+	return namedCacheTest(
+		"can exists and set",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			c := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, c)
+			})
+
+			for i := range n {
+				key := fmt.Sprintf("key%v", i)
+				value := fmt.Sprintf("value%v", i)
+				require.NoError(t, c.Set(env.ctx, key, []byte(value), nil))
+			}
+
+			for i := range n {
+				key := fmt.Sprintf("key%v", i)
+
+				res, err := c.Exists(env.ctx, key)
+				require.NoError(t, err)
+				assert.True(t, res)
 			}
 		},
 	)

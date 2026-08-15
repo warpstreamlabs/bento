@@ -2,7 +2,7 @@
 title: aws_s3_stream
 slug: aws_s3_stream
 type: output
-status: beta
+status: experimental
 categories: ["Services","AWS"]
 ---
 
@@ -15,8 +15,8 @@ categories: ["Services","AWS"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
+:::caution EXPERIMENTAL
+This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
 Streams data to S3 using multipart uploads.
 
@@ -63,6 +63,7 @@ output:
     max_buffer_period: 10s
     content_type: application/octet-stream
     content_encoding: "" # No default (optional)
+    compression: none
     max_retries: 2
     backoff:
       initial_interval: 1s
@@ -100,6 +101,19 @@ The `partition_by` parameter allows you to maintain separate S3 multipart upload
 partition values. Messages with matching partition values are written to the same file, and the full
 path expression is evaluated only once per partition (allowing use of functions like `uuid_v4()`
 for unique filenames). Without `partition_by`, each message evaluates the full path independently.
+
+:::warning
+### Violates Delivery Guarantees 
+
+This output weakens the delivery guarantees of the pipeline and therefore should not be used in places 
+where data loss is unacceptable.
+:::
+
+## Expects shutdown of pipeline
+
+This output flushes on the shutdown of the stream and therefore is intended to be used with inputs that 
+have a logical end, such as [file](docs/components/inputs/file) or one that is wrapped with the 
+[read_until](docs/components/inputs/file) input. 
 
 ## When to Use
 
@@ -248,11 +262,20 @@ Default: `"application/octet-stream"`
 
 ### `content_encoding`
 
-The content encoding to set for uploaded files (e.g., gzip).
+The content encoding to set for uploaded files (e.g., gzip). This only sets the object's `Content-Encoding` metadata and does not itself compress anything; use `compression` for that. Leave unset when using `compression`, which sets it automatically.
 This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
+
+### `compression`
+
+Compress the object in-stream as it is uploaded. When set to `gzip`, a single gzip stream is written across the whole object (including true multipart uploads that exceed the 5 MiB part size) and the object's `Content-Encoding` is set to `gzip` automatically. This differs from a per-message `compress` processor, which would produce a multi-member gzip file; and from batch-level `archive`+`compress`, which would merge records across partitions. When enabled, do not also set `content_encoding` or a `compress` batch processor.
+
+
+Type: `string`  
+Default: `"none"`  
+Options: `none`, `gzip`.
 
 ### `max_retries`
 

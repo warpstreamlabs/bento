@@ -3,6 +3,62 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
+- `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
+
+### Fixed
+
+- `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
+
+### Security
+
+- **Breaking:** Addressed [GO-2026-5048](https://github.com/advisories/GHSA-mx64-mj3q-7prj) by replacing `github.com/hamba/avro/v2` with `github.com/iskorotkov/avro/v2`, temporarily disabling `go install github.com/warpstreamlabs/bento/cmd/bento@<version>` due to `replace` directive usage.
+
+## 1.20.0 - 2026-07-27
+
+### Added
+
+- `parse_big_decimal` bloblang method for Kafka Connect / Debezium decimal decoding @aratz-lasa
+- `aws_bedrock_invoke` processor for invoking Amazon Bedrock models @louisdvs & @gregfurman
+
+### Fixed 
+
+- Fixed keyless records in the `kafka_franz` components being routed to a single partition @jem-davies
+- `batchErr` mutex locking in the `elasticsearch_v2` output @jem-davies
+- updated various dependencies to address CVEs 
+
+## 1.19.0 - 2026-07-10
+
+### Added
+
+ - `grpc_client` input component @jem-davies
+ - `sync_response` added to nats input NATS @henrikschristensen
+ - `endpoint` config option added to `gcp_bigquery` output @Shareed2k
+ - RLE_DICTIONARY support to `parquet` default encoding @georgeTobia
+ - `elasticsearch` processor @Omar1H1
+ - `json_number_type` config option added to `aws_dynamodb` output enables JSON numbers to be either stored as dynamoDB Strings / Numbers @cthorner
+ - `negotiate` config options added to `http` components to enable SPNEGO auth @lublak
+ - `timestamp` field added to `gcp_bigtable` enabling setting timestamps @gregfurman
+ - `restart_backoff` fields added to `read_until` input enable setting a backoff policy for when the child input restarts @aramperes
+
+### Fixed
+
+ - `aws_dynamodb` output no longer drops successfully-built messages when another message in the batch fails request construction @cthorner
+ - `aws_kinesis` assign msgChan after succesful connection @richardartoul
+ - `aws_kinesis` input fixed a nil pointer panic when `ListShards` returned an error @richardartoul
+ - `aws_kinesis` input fixed `ListShards` pagination error @gregfurman
+ - `omit_if_empty` config option added to `aws_dynamodb` enabling the correction of previously documented behaviour that missing paths are omitted rather than written as null @cthorner
+ - `aws_kinesis` input fixed shard consumer busy-loop and excess timer allocations noticible at high shard counts @richardartoul
+ - `schema_registry_decode` & `schema_registry_encode` fixed for schema's whose subject contained a `/` @PitchBlack07
+
+### Changed
+
+ - `aws_kinesis` input simplified EFO architecture to align with Amazon's Kinesis Client @matus-tomlein
+
 ## 1.18.1 - 2026-06-05
 
 ### Fixed

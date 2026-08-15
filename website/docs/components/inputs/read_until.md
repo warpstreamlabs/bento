@@ -26,6 +26,9 @@ input:
     check: this.type == "foo" # No default (optional)
     idle_timeout: 5s # No default (optional)
     restart_input: false
+    restart_backoff:
+      initial_interval: 1ms
+      max_interval: 100ms
 ```
 
 Messages are read continuously while the query check returns false, when the query returns true the message that triggered the check is sent out and the input is closed. Use this to define inputs where the stream should end once a certain message appears.
@@ -37,51 +40,6 @@ Sometimes inputs close themselves. For example, when the `file` input type reach
 ### Metadata
 
 A metadata key `bento_read_until` containing the value `final` is added to the first part of the message that triggers the input to stop.
-
-## Fields
-
-### `input`
-
-The child input to consume from.
-
-
-Type: `input`  
-
-### `check`
-
-A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether the input should now be closed.
-
-
-Type: `string`  
-
-```yml
-# Examples
-
-check: this.type == "foo"
-
-check: count("messages") >= 100
-```
-
-### `idle_timeout`
-
-The maximum amount of time without receiving new messages after which the input is closed.
-
-
-Type: `string`  
-
-```yml
-# Examples
-
-idle_timeout: 5s
-```
-
-### `restart_input`
-
-Whether the input should be reopened if it closes itself before the condition has resolved to true.
-
-
-Type: `bool`  
-Default: `false`  
 
 ## Examples
 
@@ -125,5 +83,90 @@ input:
 
 </TabItem>
 </Tabs>
+
+## Fields
+
+### `input`
+
+The child input to consume from.
+
+
+Type: `input`  
+
+### `check`
+
+A [Bloblang query](/docs/guides/bloblang/about/) that should return a boolean value indicating whether the input should now be closed.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+check: this.type == "foo"
+
+check: count("messages") >= 100
+```
+
+### `idle_timeout`
+
+The maximum amount of time without receiving new messages after which the input is closed or restarted, according to `restart_input`
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+idle_timeout: 5s
+```
+
+### `restart_input`
+
+Whether the input should be reopened if it closes itself before the condition has resolved to true.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `restart_backoff`
+
+Backoff policy for restarting the child input. Only used when `restart_input` is `true`.
+
+
+Type: `object`  
+Requires version 1.19.0 or newer  
+
+### `restart_backoff.initial_interval`
+
+The initial period to wait between child input restarts.
+
+
+Type: `string`  
+Default: `"1ms"`  
+
+```yml
+# Examples
+
+initial_interval: 50ms
+
+initial_interval: 1s
+```
+
+### `restart_backoff.max_interval`
+
+The maximum period to wait between child input restarts.
+
+
+Type: `string`  
+Default: `"100ms"`  
+
+```yml
+# Examples
+
+max_interval: 5s
+
+max_interval: 1m
+```
 
 

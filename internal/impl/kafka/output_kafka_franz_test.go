@@ -107,3 +107,32 @@ topic: foo
 		})
 	}
 }
+
+func TestFranzWriterInterpolatedKey(t *testing.T) {
+	conf := `
+seed_brokers: [ foo:1234 ]
+topic: foo
+key: '${! json("key") }'
+`
+
+	pConf, err := franzKafkaOutputConfig().ParseYAML(conf, nil)
+	require.NoError(t, err)
+
+	out, err := newFranzKafkaWriterFromConfig(pConf, service.MockResources().Logger())
+	require.NoError(t, err)
+
+	msgBatch := service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"foo","content":"foo stuff"}`)),
+		service.NewMessage([]byte(`{"id":"bar","content":"bar stuff", "key": 1234}`)),
+	}
+
+	ie := out.newInterpolationExecutor(msgBatch)
+
+	_, key, _, err := ie.exec(0)
+	require.NoError(t, err)
+	assert.Nil(t, key)
+
+	_, key, _, err = ie.exec(1)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("1234"), key)
+}

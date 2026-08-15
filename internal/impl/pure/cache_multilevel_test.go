@@ -147,6 +147,46 @@ func TestMultilevelCacheGetting(t *testing.T) {
 	assert.Equal(t, err, service.ErrKeyNotFound)
 }
 
+func TestMultilevelCacheExisting(t *testing.T) {
+	memCache1 := newMemCache(time.Minute, 0, 1, nil)
+	memCache2 := newMemCache(time.Minute, 0, 1, nil)
+	p := &mockCacheProv{
+		caches: map[string]service.Cache{
+			"foo": memCache1,
+			"bar": memCache2,
+		},
+	}
+
+	c, err := newMultilevelCache([]string{"foo", "bar"}, p, nil)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	exists, err := c.Exists(ctx, "not_exist")
+	require.NoError(t, err)
+	assert.False(t, exists)
+
+	require.NoError(t, memCache2.Set(ctx, "foo", []byte("test value 1"), nil))
+
+	exists, err = c.Exists(ctx, "foo")
+	require.NoError(t, err)
+	assert.True(t, exists)
+
+	exists, err = memCache1.Exists(ctx, "foo")
+	require.NoError(t, err)
+	assert.True(t, exists)
+
+	require.NoError(t, memCache2.Delete(ctx, "foo"))
+
+	exists, err = memCache1.Exists(ctx, "foo")
+	require.NoError(t, err)
+	assert.True(t, exists)
+
+	exists, err = memCache2.Exists(ctx, "foo")
+	require.NoError(t, err)
+	assert.False(t, exists)
+}
+
 func TestMultilevelCacheSet(t *testing.T) {
 	memCache1 := newMemCache(time.Minute, 0, 1, nil)
 	memCache2 := newMemCache(time.Minute, 0, 1, nil)

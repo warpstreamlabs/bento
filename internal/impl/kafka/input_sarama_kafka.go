@@ -147,6 +147,14 @@ Unfortunately this error message will appear for a wide range of connection prob
 			service.NewDurationField(iskFieldCommitPeriod).
 				Description("The period of time between each commit of the current partition offsets. Offsets are always committed during shutdown.").
 				Advanced().Default("1s"),
+			service.NewStringAnnotatedEnumField("transaction_isolation_level", map[string]string{
+				"read_uncommitted": "Consume all records, including records from aborted or open transactions.",
+				"read_committed":   "Consume only non-transactional records and records from committed transactions.",
+			}).
+				Description("Controls the isolation level used for Kafka fetch requests.").
+				Default("read_uncommitted").
+				Advanced().
+				Version("1.21.0"),
 			service.NewDurationField(iskFieldMaxProcessingPeriod).
 				Description("A maximum estimate for the time taken to process a message, this is used for tuning consumer group synchronization.").
 				Advanced().Default("100ms"),
@@ -480,6 +488,15 @@ func (k *kafkaReader) saramaConfigFromParsed(conf *service.ParsedConfig) (*saram
 
 	config.Net.DialTimeout = time.Second
 	config.Consumer.Return.Errors = true
+
+	var isolationLevel string
+	if isolationLevel, err = conf.FieldString("transaction_isolation_level"); err != nil {
+		return nil, err
+	}
+	if isolationLevel == "read_committed" {
+		config.Consumer.IsolationLevel = sarama.ReadCommitted
+	}
+
 	if config.Consumer.MaxProcessingTime, err = conf.FieldDuration(iskFieldMaxProcessingPeriod); err != nil {
 		return nil, err
 	}

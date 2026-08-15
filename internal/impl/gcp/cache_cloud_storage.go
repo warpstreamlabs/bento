@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -87,6 +89,17 @@ func (c *gcpCloudStorageCache) Get(ctx context.Context, key string) ([]byte, err
 	return data, nil
 }
 
+func (c *gcpCloudStorageCache) Exists(ctx context.Context, key string) (bool, error) {
+	_, err := c.bucketHandle.Object(key).Attrs(ctx)
+	if err != nil {
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (c *gcpCloudStorageCache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) error {
 	writer := c.bucketHandle.Object(key).NewWriter(ctx)
 
@@ -127,6 +140,27 @@ func (c *gcpCloudStorageCache) Add(ctx context.Context, key string, value []byte
 
 func (c *gcpCloudStorageCache) Delete(ctx context.Context, key string) error {
 	return c.bucketHandle.Object(key).Delete(ctx)
+}
+
+func (c *gcpCloudStorageCache) Keys(ctx context.Context) service.KeyIterator {
+	// readAhead matches the storage client's default page size so that the next
+	// page can be fetched while the current one is yielded.
+	const readAhead = 1000
+	return cache.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
+		it := c.bucketHandle.Objects(ctx, nil)
+		for {
+			attrs, err := it.Next()
+			if errors.Is(err, iterator.Done) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if !emit(attrs.Name) {
+				return nil
+			}
+		}
+	})
 }
 
 func (c *gcpCloudStorageCache) Close(ctx context.Context) error {

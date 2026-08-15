@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jeffail/shutdown"
 	"github.com/slack-go/slack"
+
 	"github.com/warpstreamlabs/bento/public/service"
 )
 

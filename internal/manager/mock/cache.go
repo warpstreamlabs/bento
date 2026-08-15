@@ -28,6 +28,12 @@ func (c *Cache) Get(ctx context.Context, key string) ([]byte, error) {
 	return []byte(i.Value), nil
 }
 
+// Check if a mock cache item exists.
+func (c *Cache) Exists(ctx context.Context, key string) (bool, error) {
+	_, ok := c.Values[key]
+	return ok, nil
+}
+
 // Set a mock cache item.
 func (c *Cache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	c.Values[key] = CacheItem{
@@ -64,6 +70,17 @@ func (c *Cache) Add(ctx context.Context, key string, value []byte, ttl *time.Dur
 func (c *Cache) Delete(ctx context.Context, key string) error {
 	delete(c.Values, key)
 	return nil
+}
+
+// Keys returns an iterator over all keys of the mock cache.
+func (c *Cache) Keys(ctx context.Context) cache.KeyIterator {
+	return func(yield func(string, error) bool) {
+		for k := range c.Values {
+			if !yield(k, nil) {
+				return
+			}
+		}
+	}
 }
 
 // Close does nothing.

@@ -152,6 +152,34 @@ func (m *memcachedCache) Get(ctx context.Context, key string) ([]byte, error) {
 	}
 }
 
+func (m *memcachedCache) Exists(ctx context.Context, key string) (bool, error) {
+	boff := m.boffPool.Get().(backoff.BackOff)
+	defer func() {
+		boff.Reset()
+		m.boffPool.Put(boff)
+	}()
+
+	for {
+		_, err := m.mc.Get(m.prefix + key)
+		if err == nil {
+			return true, nil
+		}
+		if errors.Is(err, memcache.ErrCacheMiss) {
+			return false, nil
+		}
+
+		wait := boff.NextBackOff()
+		if wait == backoff.Stop {
+			return false, err
+		}
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
+	}
+}
+
 func (m *memcachedCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
 	boff := m.boffPool.Get().(backoff.BackOff)
 	defer func() {

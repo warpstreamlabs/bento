@@ -3,6 +3,7 @@ package io
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -65,6 +66,10 @@ func (f *fileCache) Get(_ context.Context, key string) ([]byte, error) {
 	return b, err
 }
 
+func (f *fileCache) Exists(_ context.Context, key string) (bool, error) {
+	return ifs.FileExists(f.mgr.FS(), filepath.Join(f.dir, key))
+}
+
 func (f *fileCache) Set(_ context.Context, key string, value []byte, _ *time.Duration) error {
 	return ifs.WriteFile(f.mgr.FS(), filepath.Join(f.dir, key), value, 0o644)
 }
@@ -86,6 +91,46 @@ func (f *fileCache) Add(_ context.Context, key string, value []byte, _ *time.Dur
 
 func (f *fileCache) Delete(_ context.Context, key string) error {
 	return f.mgr.FS().Remove(filepath.Join(f.dir, key))
+}
+
+func (f *fileCache) Keys(ctx context.Context) service.KeyIterator {
+	return func(yield func(string, error) bool) {
+		var walk func(rel string) bool
+		walk = func(rel string) bool {
+			if err := ctx.Err(); err != nil {
+				yield("", err)
+				return false
+			}
+			dir, err := f.mgr.FS().Open(filepath.Join(f.dir, rel))
+			if err != nil {
+				yield("", err)
+				return false
+			}
+			defer dir.Close()
+
+			rd, ok := dir.(fs.ReadDirFile)
+			if !ok {
+				yield("", fmt.Errorf("unable to list directory: %v", filepath.Join(f.dir, rel)))
+				return false
+			}
+			entries, err := rd.ReadDir(-1)
+			if err != nil {
+				yield("", err)
+				return false
+			}
+			for _, e := range entries {
+				if e.IsDir() {
+					if !walk(filepath.Join(rel, e.Name())) {
+						return false
+					}
+				} else if !yield(filepath.Join(rel, e.Name()), nil) {
+					return false
+				}
+			}
+			return true
+		}
+		walk("")
+	}
 }
 
 func (f *fileCache) Close(context.Context) error {

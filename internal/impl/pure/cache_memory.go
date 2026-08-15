@@ -196,6 +196,14 @@ func (m *memoryCache) Get(_ context.Context, key string) ([]byte, error) {
 	return k.value, nil
 }
 
+func (m *memoryCache) Exists(_ context.Context, key string) (bool, error) {
+	shard := m.getShard(key)
+	shard.RLock()
+	k, exists := shard.items[key]
+	shard.RUnlock()
+	return exists && !shard.isExpired(k), nil
+}
+
 func (m *memoryCache) Set(_ context.Context, key string, value []byte, ttl *time.Duration) error {
 	var expires time.Time
 	if ttl != nil {
@@ -237,6 +245,29 @@ func (m *memoryCache) Delete(_ context.Context, key string) error {
 	delete(shard.items, key)
 	shard.Unlock()
 	return nil
+}
+
+func (m *memoryCache) Keys(_ context.Context) service.KeyIterator {
+	return func(yield func(string, error) bool) {
+		for _, shard := range m.shards {
+			// Snapshot each shard before yielding so that no locks are held
+			// while control is passed to the caller.
+			shard.RLock()
+			keys := make([]string, 0, len(shard.items))
+			for k, v := range shard.items {
+				// Simulate compaction by omitting keys with an expired ttl.
+				if !shard.isExpired(v) {
+					keys = append(keys, k)
+				}
+			}
+			shard.RUnlock()
+			for _, k := range keys {
+				if !yield(k, nil) {
+					return
+				}
+			}
+		}
+	}
 }
 
 func (m *memoryCache) Close(context.Context) error {

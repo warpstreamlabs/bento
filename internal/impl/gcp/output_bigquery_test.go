@@ -2,6 +2,7 @@ package gcp
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -417,6 +418,25 @@ table: table_meow
 	require.NoError(t, err)
 
 	output.clientURL = gcpBQClientURL(server.URL)
+
+	err = output.Connect(context.Background())
+	defer output.Close(context.Background())
+
+	require.NoError(t, err)
+}
+
+func TestGCPBigQueryOutputConnectOkEndpointConfig(t *testing.T) {
+	emulator := setupBigQueryEmulator(t, "project_meow", "dataset_meow", "table_meow", nil)
+
+	config := gcpBigQueryConfFromYAML(t, fmt.Sprintf(`
+project: project_meow
+dataset: dataset_meow
+table: table_meow
+endpoint: %s
+`, emulator.httpEndpoint))
+
+	output, err := newGCPBigQueryOutput(config, nil)
+	require.NoError(t, err)
 
 	err = output.Connect(context.Background())
 	defer output.Close(context.Background())

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"iter"
 	"time"
 )
 
@@ -10,6 +11,10 @@ type TTLItem struct {
 	Value []byte
 	TTL   *time.Duration
 }
+
+// KeyIterator is an iterator over the keys held by a cache. Iteration stops
+// after the first non-nil error.
+type KeyIterator = iter.Seq2[string, error]
 
 // V1 Defines a common interface of cache implementations.
 type V1 interface {
@@ -30,6 +35,10 @@ type V1 interface {
 	// fails.
 	Add(ctx context.Context, key string, value []byte, ttl *time.Duration) error
 
+	// Exists attempts to locate a cached value by its key, returns
+	// false if the key does not exist, returns an if the command fails.
+	Exists(ctx context.Context, key string) (bool, error)
+
 	// Delete attempts to remove a key. Returns an error if a failure occurs.
 	Delete(ctx context.Context, key string) error
 
@@ -37,4 +46,13 @@ type V1 interface {
 	// cleaned up or the context is cancelled. Returns an error if the context
 	// is cancelled.
 	Close(ctx context.Context) error
+}
+
+type Listable interface {
+	V1
+
+	// Keys returns an iterator over all keys currently held by the cache.
+	// Iteration stops after the first non-nil error, caches that are unable
+	// to enumerate their keys yield component.ErrKeyListingNotSupported.
+	Keys(ctx context.Context) KeyIterator
 }

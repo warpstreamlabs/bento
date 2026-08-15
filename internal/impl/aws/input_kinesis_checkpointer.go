@@ -352,7 +352,9 @@ func (k *awsKinesisCheckpointer) Claim(ctx context.Context, streamID, shardID, f
 		if err != nil {
 			return "", err
 		}
-		startingSequence = cp.SequenceNumber
+		if cp != nil {
+			startingSequence = cp.SequenceNumber
+		}
 	}
 
 	return startingSequence, nil

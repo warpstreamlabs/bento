@@ -6,6 +6,7 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/aws/aws-msk-iam-sasl-signer-go/signer"
 	"github.com/aws/aws-sdk-go-v2/aws"
+
 	"github.com/warpstreamlabs/bento/internal/impl/kafka"
 	"github.com/warpstreamlabs/bento/public/service"
 

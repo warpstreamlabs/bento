@@ -29,6 +29,24 @@ This input adds the following metadata fields to each message:
 
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).
 
+### Request-Reply
+
+When a message arrives with a reply subject (i.e. it was sent via ` + "`nats.Request`" + `), you can reply to it by including a ` + "`sync_response`" + ` output in your pipeline. The input will forward the response payload (and its metadata as NATS headers, if supported) back to the caller automatically once the pipeline acknowledges the message.
+
+For more details, see the [Synchronous Responses guide](/docs/guides/sync_responses) and the [NATS Request-Reply example](https://natsbyexample.com/examples/messaging/request-reply/go/).
+
+` + "```yaml" + `
+input:
+  nats:
+    urls: [ nats://localhost:4222 ]
+    subject: rpc.>
+
+output:
+  sync_response: {}
+  processors:
+    - mapping: 'root = content().uppercase()'
+` + "```" + `
+
 ` + connectionNameDescription() + authDescription()).
 		Fields(connectionHeadFields()...).
 		Field(service.NewStringField("subject").
@@ -48,6 +66,11 @@ You can access these metadata fields using [function interpolation](/docs/config
 			Advanced().
 			Default(nats.DefaultSubPendingMsgsLimit).
 			LintRule(`root = if this < 0 { ["prefetch count must be greater than or equal to zero"] }`)).
+		Field(service.NewBoolField("send_ack").
+			Description("Whether to send an acknowledgement back to the input subject's reply address after delivering a message.").
+			Default(true).
+			Advanced().
+			Version("1.21.0")).
 		Fields(connectionTailFields()...).
 		Fields(inputTracingDocs()...)
 }
@@ -79,6 +102,7 @@ type natsReader struct {
 	queue         string
 	prefetchCount int
 	nakDelay      time.Duration
+	sendAck       bool
 
 	log *service.Logger
 
@@ -110,6 +134,10 @@ func newNATSReader(conf *service.ParsedConfig, mgr *service.Resources) (*natsRea
 		return nil, err
 	}
 
+	if n.sendAck, err = conf.FieldBool("send_ack"); err != nil {
+		return nil, err
+	}
+
 	if n.prefetchCount < 0 {
 		return nil, errors.New("prefetch count must be greater than or equal to zero")
 	}
@@ -125,6 +153,7 @@ func newNATSReader(conf *service.ParsedConfig, mgr *service.Resources) (*natsRea
 			return nil, err
 		}
 	}
+
 	return &n, nil
 }
 
@@ -207,6 +236,11 @@ func (n *natsReader) Read(ctx context.Context) (*service.Message, service.AckFun
 		}
 	}
 
+	// Attach a sync response store so that a sync_response output in the
+	// pipeline can provide the NATS reply payload without needing a separate
+	// nats_respond output.
+	bmsg, store := bmsg.WithSyncResponseStore()
+
 	return bmsg, func(_ context.Context, res error) error {
 		var ackErr error
 		if res != nil {
@@ -215,7 +249,19 @@ func (n *natsReader) Read(ctx context.Context) (*service.Message, service.AckFun
 			} else {
 				ackErr = msg.Nak()
 			}
-		} else {
+		} else if msg.Reply != "" {
+			// Request-reply: if sync_response populated the store, use it as
+			// the NATS reply; otherwise fall through to the normal Ack path.
+			if responses := store.Read(); len(responses) > 0 && len(responses[0]) > 0 {
+				replyMsg, err := natsReplyFromServiceMsg(responses[0][0], natsConn.HeadersSupported())
+				if err != nil {
+					return err
+				}
+				ackErr = msg.RespondMsg(replyMsg)
+			} else if n.sendAck {
+				ackErr = msg.Ack()
+			}
+		} else if n.sendAck {
 			ackErr = msg.Ack()
 		}
 		if errors.Is(ackErr, nats.ErrMsgNoReply) {
@@ -233,4 +279,20 @@ func (n *natsReader) Close(ctx context.Context) (err error) {
 		close(n.interruptChan)
 	})
 	return
+}
+
+func natsReplyFromServiceMsg(m *service.Message, headersSupported bool) (*nats.Msg, error) {
+	data, err := m.AsBytes()
+	if err != nil {
+		return nil, err
+	}
+	reply := nats.NewMsg("")
+	reply.Data = data
+	if headersSupported {
+		_ = m.MetaWalk(func(key, value string) error {
+			reply.Header.Add(key, value)
+			return nil
+		})
+	}
+	return reply, nil
 }

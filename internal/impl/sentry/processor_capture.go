@@ -245,9 +245,16 @@ func (proc *captureProcessor) Process(ctx context.Context, msg *service.Message)
 }
 
 func (proc *captureProcessor) Close(ctx context.Context) error {
-	if flushed := proc.hub.Flush(proc.flushTimeout); !flushed {
+
+	tctx, cancel := context.WithTimeout(ctx, proc.flushTimeout)
+	defer cancel()
+
+	if flushed := proc.hub.FlushWithContext(tctx); !flushed {
 		return errors.New("failed to flush sentry events before timeout")
 	}
+
+	// TODO: Should this always happen?
+	proc.hub.Client().Close()
 
 	return nil
 }
@@ -292,7 +299,8 @@ func (proc *captureProcessor) queryContext(msg *service.Message) (map[string]sen
 
 		// Print a useful warning if user is going to override one of the context
 		// keys that sentry-go automatically populates for each event.
-		if key == "device" || key == "os" || key == "runtime" {
+		switch key {
+		case "device", "os", "runtime", "trace":
 			proc.logger.Warnf("sentry context mapping will override a built-in context: %s", key)
 		}
 

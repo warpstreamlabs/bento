@@ -106,6 +106,17 @@ input:
       enabled: false
       username: ""
       password: ""
+    negotiate:
+      enabled: false
+      api: pure
+      user_only_for_fallback: false
+      user:
+        domain: ""
+        name: ""
+        password: ""
+      kerberos:
+        config_file_path: ""
+        ccname: ""
     transport:
       dial_context:
         timeout: 30s
@@ -761,6 +772,101 @@ Default: `""`
 ### `digest_auth.password`
 
 The password of the user.
+
+
+Type: `string`  
+Default: `""`  
+
+### `negotiate`
+
+Negotiate (SPNEGO) authentication configuration.
+:::caution EXPERIMENTAL
+
+The underlying package that implements the negotiate (SPNEGO) authentication is nascent.
+
+:::
+
+
+Type: `object`  
+Requires version 1.19.0 or newer  
+
+### `negotiate.enabled`
+
+Enable the spnego authentication.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `negotiate.api`
+
+Change the underlying api, defaults to Pure, sspi only works on windows.
+
+
+Type: `string`  
+Default: `"pure"`  
+Options: `sspi`, `pure`.
+
+### `negotiate.user_only_for_fallback`
+
+If a fallback to NTLM is required (no Kerberos on Pure api), a user configuration is required. Use this option to use this user only as a fallback.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `negotiate.user`
+
+The user to use for the authentication. If the user is not configured, SSPI will use the currently logged-in user and Pure will use the Kerberos keytab file.
+
+
+Type: `object`  
+
+### `negotiate.user.domain`
+
+The domain of the user.
+
+
+Type: `string`  
+Default: `""`  
+
+### `negotiate.user.name`
+
+The username of the user.
+
+
+Type: `string`  
+Default: `""`  
+
+### `negotiate.user.password`
+
+The password of the user.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `negotiate.kerberos`
+
+Options for Kerberos configuration. These options are ignored under SSPI.
+
+
+Type: `object`  
+
+### `negotiate.kerberos.config_file_path`
+
+The file path to the kerberos configuration file.
+
+
+Type: `string`  
+Default: `""`  
+
+### `negotiate.kerberos.ccname`
+
+Setting for the Kerberos cache path. Allowed values would be FILE:/path/to/file for a file or DIR:/path/to/folder for a folder.
 
 
 Type: `string`  
