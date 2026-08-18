@@ -464,7 +464,7 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-go 1.26.5
+go 1.26.6
 
 // TODO(gregfurman): Fixes CVE GO-2026-5048 in archived github.com/hamba/avro/v2, required by
 // github.com/warpstreamlabs/bento/public/components/pulsar. Once fixed upstream, this can be dropped.
