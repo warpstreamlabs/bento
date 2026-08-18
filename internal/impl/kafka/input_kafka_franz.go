@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -137,6 +138,13 @@ Finally, it's also possible to specify an explicit offset to consume from by add
 			Version("1.3.0").
 			Default("5s").
 			Advanced()).
+		Field(service.NewStringField("broker_read_max_bytes").
+			Description("broker_read_max_bytes sets the maximum response size that can be read from Kafka.").
+			Advanced().
+			Version("1.21.0").
+			Default("100MiB").
+			Example("100MB").
+			Example("50mib")).
 		Field(service.NewIntField("preferring_lag").
 			Description(`
 This allows you to re-order partitions before they are fetched, given each partition's current lag.
@@ -226,6 +234,7 @@ type franzKafkaReader struct {
 	metadataMaxAge         time.Duration
 	fetchMaxBytes          int32
 	fetchMaxPartitionBytes int32
+	brokerReadMaxBytes     int32
 	fetchMaxWait           time.Duration
 	preferringLagFn        kgo.PreferLagFn
 	balancers              []kgo.GroupBalancer
@@ -403,6 +412,9 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	if err != nil {
 		return nil, err
 	}
+	if fetchMaxBytes > uint64(math.MaxInt32) {
+		return nil, fmt.Errorf("invalid fetch_max_bytes, must not exceed %v", math.MaxInt32)
+	}
 	f.fetchMaxBytes = int32(fetchMaxBytes)
 
 	fetchMaxPartitionBytesStr, err := conf.FieldString("fetch_max_partition_bytes")
@@ -414,11 +426,28 @@ func newFranzKafkaReaderFromConfig(conf *service.ParsedConfig, res *service.Reso
 	if err != nil {
 		return nil, err
 	}
+	if fetchMaxPartitionBytes > uint64(math.MaxInt32) {
+		return nil, fmt.Errorf("invalid fetch_max_partition_bytes, must not exceed %v", math.MaxInt32)
+	}
 	f.fetchMaxPartitionBytes = int32(fetchMaxPartitionBytes)
 
 	if f.fetchMaxWait, err = conf.FieldDuration("fetch_max_wait"); err != nil {
 		return nil, err
 	}
+
+	brokerReadMaxBytesStr, err := conf.FieldString("broker_read_max_bytes")
+	if err != nil {
+		return nil, err
+	}
+
+	brokerReadMaxBytes, err := humanize.ParseBytes(brokerReadMaxBytesStr)
+	if err != nil {
+		return nil, err
+	}
+	if brokerReadMaxBytes > uint64(math.MaxInt32) {
+		return nil, fmt.Errorf("invalid broker_read_max_bytes, must not exceed %v", math.MaxInt32)
+	}
+	f.brokerReadMaxBytes = int32(brokerReadMaxBytes)
 
 	if conf.Contains("preferring_lag") {
 		if preferringLag, err := conf.FieldInt("preferring_lag"); err != nil {
@@ -879,6 +908,7 @@ func (f *franzKafkaReader) Connect(ctx context.Context) error {
 		kgo.MetadataMaxAge(f.metadataMaxAge),
 		kgo.FetchMaxBytes(f.fetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(f.fetchMaxPartitionBytes),
+		kgo.BrokerMaxReadBytes(f.brokerReadMaxBytes),
 		kgo.FetchMaxWait(f.fetchMaxWait),
 		kgo.ConsumePreferringLagFn(f.preferringLagFn),
 		kgo.Balancers(f.balancers...),

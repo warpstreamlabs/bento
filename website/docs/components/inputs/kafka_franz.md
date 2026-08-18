@@ -63,6 +63,7 @@ input:
     fetch_max_bytes: 50MiB
     fetch_max_partition_bytes: 1MiB
     fetch_max_wait: 5s
+    broker_read_max_bytes: 100MiB
     preferring_lag: 0 # No default (optional)
     transaction_isolation_level: read_uncommitted
     tls:
@@ -297,6 +298,23 @@ This sets the maximum amount of time a broker will wait for a fetch response to 
 Type: `string`  
 Default: `"5s"`  
 Requires version 1.3.0 or newer  
+
+### `broker_read_max_bytes`
+
+broker_read_max_bytes sets the maximum response size that can be read from Kafka.
+
+
+Type: `string`  
+Default: `"100MiB"`  
+Requires version 1.21.0 or newer  
+
+```yml
+# Examples
+
+broker_read_max_bytes: 100MB
+
+broker_read_max_bytes: 50mib
+```
 
 ### `preferring_lag`
 
