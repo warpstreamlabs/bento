@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
+- `aws_sqs` input refreshes in-flight message visibility with the queue's `VisibilityTimeout` instead of a hardcoded 30s, which could let messages lapse and be redelivered under a backlog @ReguiguiMohamed
 
 ### Security
 

@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
@@ -25,6 +26,8 @@ type mockSqsInput struct {
 	queueTimeout int32
 	messages     []types.Message
 	mesTimeouts  map[string]int32
+
+	getQueueAttributesErr error
 }
 
 func (m *mockSqsInput) do(fn func()) {
@@ -70,7 +73,10 @@ func (m *mockSqsInput) ReceiveMessage(context.Context, *sqs.ReceiveMessageInput,
 	return &sqs.ReceiveMessageOutput{Messages: messages}, nil
 }
 
-func (m *mockSqsInput) GetQueueAttributes(input *sqs.GetQueueAttributesInput) (*sqs.GetQueueAttributesOutput, error) {
+func (m *mockSqsInput) GetQueueAttributes(context.Context, *sqs.GetQueueAttributesInput, ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error) {
+	if m.getQueueAttributesErr != nil {
+		return nil, m.getQueueAttributesErr
+	}
 	return &sqs.GetQueueAttributesOutput{Attributes: map[string]string{sqsiAttributeNameVisibilityTimeout: strconv.Itoa(int(m.queueTimeout))}}, nil
 }
 
@@ -282,4 +288,55 @@ func TestSQSInputBatchAck(t *testing.T) {
 		})
 		return msgsLen == 0
 	}, 5*time.Second, time.Second)
+}
+
+func TestSQSInputVisibilityTimeoutFollowsQueue(t *testing.T) {
+	tests := []struct {
+		name         string
+		queueTimeout int32
+		attributeErr error
+		expected     int
+	}{
+		{
+			name:         "takes the timeout the queue is configured with",
+			queueTimeout: 600,
+			expected:     600,
+		},
+		{
+			name:         "falls back when the queue cannot be read",
+			attributeErr: errors.New("access denied"),
+			expected:     defaultVisibilityTimeoutSeconds,
+		},
+		{
+			name:         "falls back when the queue reports zero",
+			queueTimeout: 0,
+			expected:     defaultVisibilityTimeoutSeconds,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r, err := newAWSSQSReader(sqsiConfig{URL: "http://foo.example.com"}, aws.Config{}, nil)
+			require.NoError(t, err)
+			r.sqs = &mockSqsInput{
+				queueTimeout:          test.queueTimeout,
+				getQueueAttributesErr: test.attributeErr,
+			}
+
+			timeout := r.queueVisibilityTimeout(t.Context())
+			assert.Equal(t, test.expected, timeout)
+
+			// The timeout read at connect time is what in-flight handles get
+			// refreshed with.
+			tracker := &sqsInFlightTracker{
+				handles:                  map[string]sqsInFlightHandle{},
+				visibilityTimeoutSeconds: timeout,
+			}
+			tracker.AddNew(types.Message{
+				MessageId:     aws.String("message-1"),
+				ReceiptHandle: aws.String("message-1"),
+			})
+			assert.Equal(t, test.expected, tracker.handles["message-1"].timeoutSeconds)
+		})
+	}
 }

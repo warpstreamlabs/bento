@@ -154,6 +154,7 @@ type sqsAPI interface {
 	DeleteMessageBatch(context.Context, *sqs.DeleteMessageBatchInput, ...func(*sqs.Options)) (*sqs.DeleteMessageBatchOutput, error)
 	ChangeMessageVisibilityBatch(context.Context, *sqs.ChangeMessageVisibilityBatchInput, ...func(*sqs.Options)) (*sqs.ChangeMessageVisibilityBatchOutput, error)
 	SendMessageBatch(context.Context, *sqs.SendMessageBatchInput, ...func(*sqs.Options)) (*sqs.SendMessageBatchOutput, error)
+	GetQueueAttributes(context.Context, *sqs.GetQueueAttributesInput, ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error)
 }
 
 type awsSQSReader struct {
@@ -194,7 +195,8 @@ func (a *awsSQSReader) Connect(ctx context.Context) error {
 	}
 
 	ift := &sqsInFlightTracker{
-		handles: map[string]sqsInFlightHandle{},
+		handles:                  map[string]sqsInFlightHandle{},
+		visibilityTimeoutSeconds: a.queueVisibilityTimeout(ctx),
 	}
 
 	var wg sync.WaitGroup
@@ -208,6 +210,30 @@ func (a *awsSQSReader) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Used when the queue's own VisibilityTimeout cannot be read, for example when
+// sqs:GetQueueAttributes is not granted.
+const defaultVisibilityTimeoutSeconds = 30
+
+// queueVisibilityTimeout reads the queue's configured VisibilityTimeout, which
+// is the value in-flight messages should be refreshed with. It is a queue level
+// attribute, so ReceiveMessage never reports it per message.
+func (a *awsSQSReader) queueVisibilityTimeout(ctx context.Context) int {
+	res, err := a.sqs.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
+		QueueUrl:       aws.String(a.conf.URL),
+		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameVisibilityTimeout},
+	})
+	if err != nil {
+		a.log.Warnf("Failed to read the queue's %v, falling back to %vs: %v", sqsiAttributeNameVisibilityTimeout, defaultVisibilityTimeoutSeconds, err)
+		return defaultVisibilityTimeoutSeconds
+	}
+	seconds, err := strconv.Atoi(res.Attributes[sqsiAttributeNameVisibilityTimeout])
+	if err != nil || seconds <= 0 {
+		a.log.Warnf("Queue reported no usable %v, falling back to %vs", sqsiAttributeNameVisibilityTimeout, defaultVisibilityTimeoutSeconds)
+		return defaultVisibilityTimeoutSeconds
+	}
+	return seconds
+}
+
 type sqsInFlightHandle struct {
 	receiptHandle  string
 	timeoutSeconds int
@@ -215,8 +241,9 @@ type sqsInFlightHandle struct {
 }
 
 type sqsInFlightTracker struct {
-	handles map[string]sqsInFlightHandle
-	m       sync.Mutex
+	handles                  map[string]sqsInFlightHandle
+	visibilityTimeoutSeconds int
+	m                        sync.Mutex
 }
 
 func (t *sqsInFlightTracker) PullToRefresh() (handles []sqsMessageHandle, timeoutSeconds int) {
@@ -254,19 +281,11 @@ func (t *sqsInFlightTracker) AddNew(messages ...types.Message) {
 			continue
 		}
 
-		handle := sqsInFlightHandle{
-			timeoutSeconds: 30,
+		t.handles[*m.MessageId] = sqsInFlightHandle{
+			timeoutSeconds: t.visibilityTimeoutSeconds,
 			receiptHandle:  *m.ReceiptHandle,
 			addedAt:        time.Now(),
 		}
-		if timeoutStr, exists := m.Attributes[sqsiAttributeNameVisibilityTimeout]; exists {
-			// Might as well keep the queue timeout setting refreshed as we
-			// consume new data.
-			if tmpTimeoutSeconds, err := strconv.Atoi(timeoutStr); err == nil {
-				handle.timeoutSeconds = tmpTimeoutSeconds
-			}
-		}
-		t.handles[*m.MessageId] = handle
 	}
 }
 
