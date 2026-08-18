@@ -73,3 +73,13 @@ func (c *customHeaderSQSClient) SendMessageBatch(
 	allOptFns := append(c.getAPIOptions(), optFns...)
 	return c.sqsAPI.SendMessageBatch(ctx, params, allOptFns...)
 }
+
+// GetQueueAttributes wraps the standard GetQueueAttributes call and adds custom headers
+func (c *customHeaderSQSClient) GetQueueAttributes(
+	ctx context.Context,
+	params *sqs.GetQueueAttributesInput,
+	optFns ...func(*sqs.Options),
+) (*sqs.GetQueueAttributesOutput, error) {
+	allOptFns := append(c.getAPIOptions(), optFns...)
+	return c.sqsAPI.GetQueueAttributes(ctx, params, allOptFns...)
+}
