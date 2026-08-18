@@ -89,10 +89,24 @@ This output often out-performs the traditional ` + "`kafka`" + ` output as well 
 			Default("1MB").
 			Example("100MB").
 			Example("50mib")).
+		Field(service.NewStringField("max_buffered_bytes").
+			Description("max_buffered_bytes sets the max amount of bytes that the client will buffer while producing, blocking produces until records are finished if this limit is reached. This overrides the unlimited default.").
+			Advanced().
+			Version("1.21.0").
+			Default("0").
+			Example("100MB").
+			Example("50mib")).
 		Field(service.NewIntField("max_buffered_records").
 			Description("Sets the max amount of records the client will buffer, blocking produces until records are finished if this limit is reached. This overrides the `franz-kafka` default of 10,000.").
 			Default(10_000).
 			Advanced()).
+		Field(service.NewStringField("broker_write_max_bytes").
+			Description("broker_write_max_bytes upper bounds the number of bytes written to a broker connection in a single write, overriding the default 100MiB. This number corresponds to the a broker's socket.request.max.bytes.").
+			Advanced().
+			Version("1.21.0").
+			Default("100MiB").
+			Example("100MB").
+			Example("50mib")).
 		Field(service.NewDurationField("metadata_max_age").
 			Description("This sets the maximum age for the client's cached metadata, to allow detection of new topics, partitions, etc.").
 			Default("5m").
@@ -138,22 +152,24 @@ func init() {
 //------------------------------------------------------------------------------
 
 type franzKafkaWriter struct {
-	seedBrokers        []string
-	topicStr           string
-	topic              *service.InterpolatedString
-	key                *service.InterpolatedString
-	partition          *service.InterpolatedString
-	clientID           string
-	rackID             string
-	idempotentWrite    bool
-	tlsConf            *tls.Config
-	saslConfs          []sasl.Mechanism
-	metaFilter         *service.MetadataFilter
-	partitioner        kgo.Partitioner
-	timeout            time.Duration
-	metadataMaxAge     time.Duration
-	produceMaxBytes    int32
-	maxBufferedRecords int
+	seedBrokers         []string
+	topicStr            string
+	topic               *service.InterpolatedString
+	key                 *service.InterpolatedString
+	partition           *service.InterpolatedString
+	clientID            string
+	rackID              string
+	idempotentWrite     bool
+	tlsConf             *tls.Config
+	saslConfs           []sasl.Mechanism
+	metaFilter          *service.MetadataFilter
+	partitioner         kgo.Partitioner
+	timeout             time.Duration
+	metadataMaxAge      time.Duration
+	produceMaxBytes     int32
+	maxBufferedRecords  int
+	maxBufferedBytes    int
+	brokerWriteMaxBytes int32
 
 	compressionPrefs []kgo.CompressionCodec
 
@@ -223,11 +239,37 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 	}
 	f.produceMaxBytes = int32(maxBytes)
 
+	maxBufferedBytesStr, err := conf.FieldString("max_buffered_bytes")
+	if err != nil {
+		return nil, err
+	}
+	maxBufferedBytes, err := humanize.ParseBytes(maxBufferedBytesStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse max_buffered_bytes: %w", err)
+	}
+	if maxBufferedBytes > uint64(math.MaxInt) {
+		return nil, fmt.Errorf("invalid max_buffered_bytes, must not exceed %v", math.MaxInt64)
+	}
+	f.maxBufferedBytes = int(maxBufferedBytes)
+
 	var maxBufferedRecords int
 	if maxBufferedRecords, err = conf.FieldInt("max_buffered_records"); err != nil {
 		return nil, err
 	}
 	f.maxBufferedRecords = maxBufferedRecords
+
+	brokerWriteMaxBytesStr, err := conf.FieldString("broker_write_max_bytes")
+	if err != nil {
+		return nil, err
+	}
+	brokerWriteMaxBytes, err := humanize.ParseBytes(brokerWriteMaxBytesStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse broker_write_max_bytes: %w", err)
+	}
+	if brokerWriteMaxBytes > uint64(math.MaxInt32) {
+		return nil, fmt.Errorf("invalid broker_write_max_bytes, must not exceed %v", math.MaxInt32)
+	}
+	f.brokerWriteMaxBytes = int32(maxBufferedBytes)
 
 	if conf.Contains("compression") {
 		cStr, err := conf.FieldString("compression")
@@ -345,6 +387,7 @@ func (f *franzKafkaWriter) Connect(ctx context.Context) error {
 		kgo.WithLogger(&kgoLogger{f.log}),
 		kgo.MaxBufferedRecords(f.maxBufferedRecords),
 		kgo.MetadataMaxAge(f.metadataMaxAge),
+		kgo.BrokerMaxWriteBytes(f.brokerWriteMaxBytes),
 	}
 	if f.tlsConf != nil {
 		clientOpts = append(clientOpts, kgo.DialTLSConfig(f.tlsConf))
@@ -357,6 +400,9 @@ func (f *franzKafkaWriter) Connect(ctx context.Context) error {
 	}
 	if len(f.compressionPrefs) > 0 {
 		clientOpts = append(clientOpts, kgo.ProducerBatchCompression(f.compressionPrefs...))
+	}
+	if f.maxBufferedBytes > 0 {
+		clientOpts = append(clientOpts, kgo.MaxBufferedBytes(f.maxBufferedBytes))
 	}
 
 	cl, err := kgo.NewClient(clientOpts...)
