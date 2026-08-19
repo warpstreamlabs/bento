@@ -27,6 +27,7 @@ const (
 	sqsiFieldDeleteMessage        = "delete_message"
 	sqsiFieldResetVisibility      = "reset_visibility"
 	sqsiFieldUpdateVisibility     = "update_visibility"
+	sqsiFieldVisibilityTimeout    = "visibility_timeout"
 	sqsiFieldMaxNumberOfMessages  = "max_number_of_messages"
 	sqsiFieldCustomRequestHeaders = "custom_request_headers"
 
@@ -39,6 +40,7 @@ type sqsiConfig struct {
 	DeleteMessage        bool
 	ResetVisibility      bool
 	UpdateVisibility     bool
+	VisibilityTimeout    time.Duration
 	MaxNumberOfMessages  int
 	CustomRequestHeaders map[string]string
 }
@@ -57,6 +59,9 @@ func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err err
 		return
 	}
 	if conf.UpdateVisibility, err = pConf.FieldBool(sqsiFieldUpdateVisibility); err != nil {
+		return
+	}
+	if conf.VisibilityTimeout, err = pConf.FieldDuration(sqsiFieldVisibilityTimeout); err != nil {
 		return
 	}
 	if conf.MaxNumberOfMessages, err = pConf.FieldInt(sqsiFieldMaxNumberOfMessages); err != nil {
@@ -109,6 +114,11 @@ You can access these metadata fields using
 				Description("Whether to periodically refresh the visibility timeout of in-flight messages to prevent more-than-once delivery while still processing.").
 				Version("1.6.0").
 				Default(true).
+				Advanced(),
+			service.NewDurationField(sqsiFieldVisibilityTimeout).
+				Description("The visibility timeout to request for consumed messages, and the value in-flight messages are refreshed with. Zero uses whatever the queue itself is configured with. SQS counts this in whole seconds, so anything finer is rounded down.").
+				Version("1.21.0").
+				Default("0s").
 				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
 				Description("The maximum number of messages to return on one poll. Valid values: 1 to 10.").
@@ -196,7 +206,7 @@ func (a *awsSQSReader) Connect(ctx context.Context) error {
 
 	ift := &sqsInFlightTracker{
 		handles:                  map[string]sqsInFlightHandle{},
-		visibilityTimeoutSeconds: a.queueVisibilityTimeout(ctx),
+		visibilityTimeoutSeconds: a.visibilityTimeoutSeconds(ctx),
 	}
 
 	var wg sync.WaitGroup
@@ -214,10 +224,18 @@ func (a *awsSQSReader) Connect(ctx context.Context) error {
 // sqs:GetQueueAttributes is not granted.
 const defaultVisibilityTimeoutSeconds = 30
 
-// queueVisibilityTimeout reads the queue's configured VisibilityTimeout, which
-// is the value in-flight messages should be refreshed with. It is a queue level
-// attribute, so ReceiveMessage never reports it per message.
-func (a *awsSQSReader) queueVisibilityTimeout(ctx context.Context) int {
+// visibilityTimeoutSeconds is the value in-flight messages are refreshed with.
+// Without a configured timeout the queue has to be asked for its own, since
+// VisibilityTimeout is a queue level attribute ReceiveMessage never reports.
+func (a *awsSQSReader) visibilityTimeoutSeconds(ctx context.Context) int {
+	if a.conf.VisibilityTimeout > 0 {
+		return int(a.conf.VisibilityTimeout.Seconds())
+	}
+	if !a.conf.UpdateVisibility {
+		// Nothing refreshes, so nothing needs the queue's value.
+		return 0
+	}
+
 	res, err := a.sqs.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
 		QueueUrl:       aws.String(a.conf.URL),
 		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameVisibilityTimeout},
@@ -402,6 +420,7 @@ func (a *awsSQSReader) readLoop(wg *sync.WaitGroup, inFlightTracker *sqsInFlight
 			QueueUrl:              aws.String(a.conf.URL),
 			MaxNumberOfMessages:   int32(a.conf.MaxNumberOfMessages),
 			WaitTimeSeconds:       int32(a.conf.WaitTimeSeconds),
+			VisibilityTimeout:     int32(a.conf.VisibilityTimeout.Seconds()),
 			AttributeNames:        []types.QueueAttributeName{types.QueueAttributeNameAll},
 			MessageAttributeNames: []string{"All"},
 		})

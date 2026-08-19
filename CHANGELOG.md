@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 - Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
 - `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
+- `aws_sqs` input field `visibility_timeout`, which overrides the timeout the queue is configured with @ReguiguiMohamed
 
 ### Fixed
 
