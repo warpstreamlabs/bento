@@ -205,7 +205,15 @@ func (f *fsEventWatcher) Connect(ctx context.Context) error {
 				if !ok {
 					return
 				}
-				f.log.Errorf("error: %v", err)
+				// A watcher error (for example a watched path backed by an SMB
+				// share reporting "The specified network name is no longer
+				// available" once the session is torn down) leaves the
+				// underlying fsnotify watch dead with no way to recover it in
+				// place. Stop the read loop so that Read surfaces a disconnect
+				// and the framework rebuilds the watcher via Connect, instead of
+				// silently blocking until the process is restarted.
+				f.log.Errorf("filesystem watcher error, reconnecting: %v", err)
+				return
 			}
 		}
 	}()
@@ -230,8 +238,15 @@ func (f *fsEventWatcher) Read(ctx context.Context) (*service.Message, service.Ac
 			f.cMut.Lock()
 			defer f.cMut.Unlock()
 			f.eventChan = nil
-			f.watcher = nil
-			return nil, nil, service.ErrEndOfInput
+			if f.watcher != nil {
+				_ = f.watcher.Close()
+				f.watcher = nil
+			}
+			// The watch loop stopped (the watcher errored, or was closed
+			// because nothing remained to watch). Report a disconnect rather
+			// than end-of-input so the framework reconnects and rebuilds the
+			// watch, instead of permanently terminating the input.
+			return nil, nil, service.ErrNotConnected
 		}
 
 		message := service.NewMessage(nil)
