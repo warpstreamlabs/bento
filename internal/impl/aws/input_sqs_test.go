@@ -332,8 +332,8 @@ func TestSQSInputVisibilityTimeout(t *testing.T) {
 			expected:     300,
 		},
 		{
-			name:         "leaves the queue alone when nothing refreshes",
-			conf:         sqsiConfig{UpdateVisibility: false},
+			name:         "leaves the timeout to the queue when nothing refreshes",
+			conf:         sqsiConfig{UpdateVisibility: false, VisibilityTimeout: 5 * time.Minute},
 			queueTimeout: 600,
 			expected:     0,
 		},
@@ -369,35 +369,56 @@ func TestSQSInputVisibilityTimeout(t *testing.T) {
 	}
 }
 
-func TestSQSInputReceiveWithConfiguredVisibilityTimeout(t *testing.T) {
-	r, err := newAWSSQSReader(sqsiConfig{
-		URL:                 "http://foo.example.com",
-		MaxNumberOfMessages: 10,
-		VisibilityTimeout:   5 * time.Minute,
-	}, aws.Config{}, nil)
-	require.NoError(t, err)
-
-	mockInput := &mockSqsInput{
-		mtx:          make(chan struct{}, 1),
-		queueTimeout: 30,
-		messages: []types.Message{{
-			Body:          aws.String("message-1"),
-			MessageId:     aws.String("message-1"),
-			ReceiptHandle: aws.String("message-1"),
-		}},
-		mesTimeouts: map[string]int32{},
+func TestSQSInputReceiveVisibilityTimeout(t *testing.T) {
+	tests := []struct {
+		name             string
+		updateVisibility bool
+		expected         int32
+	}{
+		{
+			name:             "carries the configured timeout",
+			updateVisibility: true,
+			expected:         300,
+		},
+		{
+			name:             "asks for nothing when visibility is left to the queue",
+			updateVisibility: false,
+			expected:         0,
+		},
 	}
-	mockInput.mtx <- struct{}{}
-	r.sqs = mockInput
 
-	defer r.closeSignal.TriggerHardStop()
-	require.NoError(t, r.Connect(t.Context()))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			r, err := newAWSSQSReader(sqsiConfig{
+				URL:                 "http://foo.example.com",
+				MaxNumberOfMessages: 10,
+				UpdateVisibility:    test.updateVisibility,
+				VisibilityTimeout:   5 * time.Minute,
+			}, aws.Config{}, nil)
+			require.NoError(t, err)
 
-	_, _, err = r.Read(t.Context())
-	require.NoError(t, err)
+			mockInput := &mockSqsInput{
+				mtx:          make(chan struct{}, 1),
+				queueTimeout: 30,
+				messages: []types.Message{{
+					Body:          aws.String("message-1"),
+					MessageId:     aws.String("message-1"),
+					ReceiptHandle: aws.String("message-1"),
+				}},
+				mesTimeouts: map[string]int32{},
+			}
+			mockInput.mtx <- struct{}{}
+			r.sqs = mockInput
 
-	// Refreshing is off here, so the request itself has to carry the timeout.
-	mockInput.do(func() {
-		assert.Equal(t, int32(300), mockInput.receivedTimeout)
-	})
+			defer r.closeSignal.TriggerHardStop()
+			require.NoError(t, r.Connect(t.Context()))
+
+			_, _, err = r.Read(t.Context())
+			require.NoError(t, err)
+
+			mockInput.do(func() {
+				assert.Equal(t, test.expected, mockInput.receivedTimeout)
+			})
+		})
+	}
 }

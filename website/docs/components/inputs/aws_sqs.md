@@ -45,7 +45,7 @@ input:
     delete_message: true
     reset_visibility: true
     update_visibility: true
-    visibility_timeout: 0s
+    visibility_timeout: 30s
     max_number_of_messages: 10
     wait_time_seconds: 0
     custom_request_headers: {}
@@ -122,11 +122,11 @@ Requires version 1.6.0 or newer
 
 ### `visibility_timeout`
 
-The visibility timeout to request for consumed messages, and the value in-flight messages are refreshed with. Zero uses whatever the queue itself is configured with. SQS counts this in whole seconds, so anything finer is rounded down.
+Visibility timeout (truncated to whole seconds) requested when retrieving messages, and used when refreshing in-flight messages. A value of `0` defers to the SQS queue's configured timeout, as does disabling `update_visibility`.
 
 
 Type: `string`  
-Default: `"0s"`  
+Default: `"30s"`  
 Requires version 1.21.0 or newer  
 
 ### `max_number_of_messages`

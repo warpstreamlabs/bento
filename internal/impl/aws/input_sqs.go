@@ -116,9 +116,9 @@ You can access these metadata fields using
 				Default(true).
 				Advanced(),
 			service.NewDurationField(sqsiFieldVisibilityTimeout).
-				Description("The visibility timeout to request for consumed messages, and the value in-flight messages are refreshed with. Zero uses whatever the queue itself is configured with. SQS counts this in whole seconds, so anything finer is rounded down.").
+				Description("Visibility timeout (truncated to whole seconds) requested when retrieving messages, and used when refreshing in-flight messages. A value of `0` defers to the SQS queue's configured timeout, as does disabling `update_visibility`.").
 				Version("1.21.0").
-				Default("0s").
+				Default("30s").
 				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
 				Description("The maximum number of messages to return on one poll. Valid values: 1 to 10.").
@@ -228,12 +228,12 @@ const defaultVisibilityTimeoutSeconds = 30
 // Without a configured timeout the queue has to be asked for its own, since
 // VisibilityTimeout is a queue level attribute ReceiveMessage never reports.
 func (a *awsSQSReader) visibilityTimeoutSeconds(ctx context.Context) int {
+	if !a.conf.UpdateVisibility {
+		// Visibility is left entirely to the queue.
+		return 0
+	}
 	if a.conf.VisibilityTimeout > 0 {
 		return int(a.conf.VisibilityTimeout.Seconds())
-	}
-	if !a.conf.UpdateVisibility {
-		// Nothing refreshes, so nothing needs the queue's value.
-		return 0
 	}
 
 	res, err := a.sqs.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
@@ -250,6 +250,15 @@ func (a *awsSQSReader) visibilityTimeoutSeconds(ctx context.Context) int {
 		return defaultVisibilityTimeoutSeconds
 	}
 	return seconds
+}
+
+// Zero leaves the queue's own timeout in place, which is also what happens when
+// Bento is told not to manage visibility.
+func (a *awsSQSReader) receiveVisibilityTimeout() int32 {
+	if !a.conf.UpdateVisibility {
+		return 0
+	}
+	return int32(a.conf.VisibilityTimeout.Seconds())
 }
 
 type sqsInFlightHandle struct {
@@ -420,7 +429,7 @@ func (a *awsSQSReader) readLoop(wg *sync.WaitGroup, inFlightTracker *sqsInFlight
 			QueueUrl:              aws.String(a.conf.URL),
 			MaxNumberOfMessages:   int32(a.conf.MaxNumberOfMessages),
 			WaitTimeSeconds:       int32(a.conf.WaitTimeSeconds),
-			VisibilityTimeout:     int32(a.conf.VisibilityTimeout.Seconds()),
+			VisibilityTimeout:     a.receiveVisibilityTimeout(),
 			AttributeNames:        []types.QueueAttributeName{types.QueueAttributeNameAll},
 			MessageAttributeNames: []string{"All"},
 		})

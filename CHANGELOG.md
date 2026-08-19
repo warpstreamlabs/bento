@@ -9,12 +9,12 @@ All notable changes to this project will be documented in this file.
 
 - Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
 - `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
-- `aws_sqs` input field `visibility_timeout`, which overrides the timeout the queue is configured with @ReguiguiMohamed
+- `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
 
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
-- `aws_sqs` input refreshes in-flight message visibility with the queue's `VisibilityTimeout` instead of a hardcoded 30s, which could let messages lapse and be redelivered under a backlog @ReguiguiMohamed
+- `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
 
 ### Security
 
