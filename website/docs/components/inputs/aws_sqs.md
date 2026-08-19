@@ -45,6 +45,7 @@ input:
     delete_message: true
     reset_visibility: true
     update_visibility: true
+    visibility_timeout: 30s
     max_number_of_messages: 10
     wait_time_seconds: 0
     custom_request_headers: {}
@@ -118,6 +119,15 @@ Whether to periodically refresh the visibility timeout of in-flight messages to 
 Type: `bool`  
 Default: `true`  
 Requires version 1.6.0 or newer  
+
+### `visibility_timeout`
+
+Visibility timeout (truncated to whole seconds) requested when retrieving messages, and used when refreshing in-flight messages. A value of `0` defers to the SQS queue's configured timeout, as does disabling `update_visibility`.
+
+
+Type: `string`  
+Default: `"30s"`  
+Requires version 1.21.0 or newer  
 
 ### `max_number_of_messages`
 

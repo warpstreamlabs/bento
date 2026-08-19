@@ -27,6 +27,7 @@ const (
 	sqsiFieldDeleteMessage        = "delete_message"
 	sqsiFieldResetVisibility      = "reset_visibility"
 	sqsiFieldUpdateVisibility     = "update_visibility"
+	sqsiFieldVisibilityTimeout    = "visibility_timeout"
 	sqsiFieldMaxNumberOfMessages  = "max_number_of_messages"
 	sqsiFieldCustomRequestHeaders = "custom_request_headers"
 
@@ -39,6 +40,7 @@ type sqsiConfig struct {
 	DeleteMessage        bool
 	ResetVisibility      bool
 	UpdateVisibility     bool
+	VisibilityTimeout    time.Duration
 	MaxNumberOfMessages  int
 	CustomRequestHeaders map[string]string
 }
@@ -57,6 +59,9 @@ func sqsiConfigFromParsed(pConf *service.ParsedConfig) (conf sqsiConfig, err err
 		return
 	}
 	if conf.UpdateVisibility, err = pConf.FieldBool(sqsiFieldUpdateVisibility); err != nil {
+		return
+	}
+	if conf.VisibilityTimeout, err = pConf.FieldDuration(sqsiFieldVisibilityTimeout); err != nil {
 		return
 	}
 	if conf.MaxNumberOfMessages, err = pConf.FieldInt(sqsiFieldMaxNumberOfMessages); err != nil {
@@ -110,6 +115,11 @@ You can access these metadata fields using
 				Version("1.6.0").
 				Default(true).
 				Advanced(),
+			service.NewDurationField(sqsiFieldVisibilityTimeout).
+				Description("Visibility timeout (truncated to whole seconds) requested when retrieving messages, and used when refreshing in-flight messages. A value of `0` defers to the SQS queue's configured timeout, as does disabling `update_visibility`.").
+				Version("1.21.0").
+				Default("30s").
+				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
 				Description("The maximum number of messages to return on one poll. Valid values: 1 to 10.").
 				Default(10).
@@ -154,6 +164,7 @@ type sqsAPI interface {
 	DeleteMessageBatch(context.Context, *sqs.DeleteMessageBatchInput, ...func(*sqs.Options)) (*sqs.DeleteMessageBatchOutput, error)
 	ChangeMessageVisibilityBatch(context.Context, *sqs.ChangeMessageVisibilityBatchInput, ...func(*sqs.Options)) (*sqs.ChangeMessageVisibilityBatchOutput, error)
 	SendMessageBatch(context.Context, *sqs.SendMessageBatchInput, ...func(*sqs.Options)) (*sqs.SendMessageBatchOutput, error)
+	GetQueueAttributes(context.Context, *sqs.GetQueueAttributesInput, ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error)
 }
 
 type awsSQSReader struct {
@@ -194,7 +205,8 @@ func (a *awsSQSReader) Connect(ctx context.Context) error {
 	}
 
 	ift := &sqsInFlightTracker{
-		handles: map[string]sqsInFlightHandle{},
+		handles:                  map[string]sqsInFlightHandle{},
+		visibilityTimeoutSeconds: a.visibilityTimeoutSeconds(ctx),
 	}
 
 	var wg sync.WaitGroup
@@ -208,6 +220,47 @@ func (a *awsSQSReader) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Used when the queue's own VisibilityTimeout cannot be read, for example when
+// sqs:GetQueueAttributes is not granted.
+const defaultVisibilityTimeoutSeconds = 30
+
+// visibilityTimeoutSeconds is the value in-flight messages are refreshed with.
+// Without a configured timeout the queue has to be asked for its own, since
+// VisibilityTimeout is a queue level attribute ReceiveMessage never reports.
+func (a *awsSQSReader) visibilityTimeoutSeconds(ctx context.Context) int {
+	if !a.conf.UpdateVisibility {
+		// Visibility is left entirely to the queue.
+		return 0
+	}
+	if a.conf.VisibilityTimeout > 0 {
+		return int(a.conf.VisibilityTimeout.Seconds())
+	}
+
+	res, err := a.sqs.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
+		QueueUrl:       aws.String(a.conf.URL),
+		AttributeNames: []types.QueueAttributeName{types.QueueAttributeNameVisibilityTimeout},
+	})
+	if err != nil {
+		a.log.Warnf("Failed to read the queue's %v, falling back to %vs: %v", sqsiAttributeNameVisibilityTimeout, defaultVisibilityTimeoutSeconds, err)
+		return defaultVisibilityTimeoutSeconds
+	}
+	seconds, err := strconv.Atoi(res.Attributes[sqsiAttributeNameVisibilityTimeout])
+	if err != nil || seconds <= 0 {
+		a.log.Warnf("Queue reported no usable %v, falling back to %vs", sqsiAttributeNameVisibilityTimeout, defaultVisibilityTimeoutSeconds)
+		return defaultVisibilityTimeoutSeconds
+	}
+	return seconds
+}
+
+// Zero leaves the queue's own timeout in place, which is also what happens when
+// Bento is told not to manage visibility.
+func (a *awsSQSReader) receiveVisibilityTimeout() int32 {
+	if !a.conf.UpdateVisibility {
+		return 0
+	}
+	return int32(a.conf.VisibilityTimeout.Seconds())
+}
+
 type sqsInFlightHandle struct {
 	receiptHandle  string
 	timeoutSeconds int
@@ -215,8 +268,9 @@ type sqsInFlightHandle struct {
 }
 
 type sqsInFlightTracker struct {
-	handles map[string]sqsInFlightHandle
-	m       sync.Mutex
+	handles                  map[string]sqsInFlightHandle
+	visibilityTimeoutSeconds int
+	m                        sync.Mutex
 }
 
 func (t *sqsInFlightTracker) PullToRefresh() (handles []sqsMessageHandle, timeoutSeconds int) {
@@ -254,19 +308,11 @@ func (t *sqsInFlightTracker) AddNew(messages ...types.Message) {
 			continue
 		}
 
-		handle := sqsInFlightHandle{
-			timeoutSeconds: 30,
+		t.handles[*m.MessageId] = sqsInFlightHandle{
+			timeoutSeconds: t.visibilityTimeoutSeconds,
 			receiptHandle:  *m.ReceiptHandle,
 			addedAt:        time.Now(),
 		}
-		if timeoutStr, exists := m.Attributes[sqsiAttributeNameVisibilityTimeout]; exists {
-			// Might as well keep the queue timeout setting refreshed as we
-			// consume new data.
-			if tmpTimeoutSeconds, err := strconv.Atoi(timeoutStr); err == nil {
-				handle.timeoutSeconds = tmpTimeoutSeconds
-			}
-		}
-		t.handles[*m.MessageId] = handle
 	}
 }
 
@@ -383,6 +429,7 @@ func (a *awsSQSReader) readLoop(wg *sync.WaitGroup, inFlightTracker *sqsInFlight
 			QueueUrl:              aws.String(a.conf.URL),
 			MaxNumberOfMessages:   int32(a.conf.MaxNumberOfMessages),
 			WaitTimeSeconds:       int32(a.conf.WaitTimeSeconds),
+			VisibilityTimeout:     a.receiveVisibilityTimeout(),
 			AttributeNames:        []types.QueueAttributeName{types.QueueAttributeNameAll},
 			MessageAttributeNames: []string{"All"},
 		})
