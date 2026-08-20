@@ -21,6 +21,8 @@ import (
 	"github.com/warpstreamlabs/bento/public/service/integration"
 )
 
+//------------------------------------------------------------------------------
+
 type dynamoDBClientWatcher struct {
 	dynamoDBAPI
 
@@ -42,33 +44,62 @@ func (dcw *dynamoDBClientWatcher) PutItem(
 	return dcw.dynamoDBAPI.PutItem(ctx, in, opts...)
 }
 
-func startDynamodbLocal(t *testing.T, tableName string, opts ...bool) (port string) {
+//------------------------------------------------------------------------------
+
+type dynamodbLocal struct {
+	tableName           string
+	keySchemaElement    []types.KeySchemaElement
+	attributeDefinition []types.AttributeDefinition
+
+	port      string
+	container *dockertest.Resource
+}
+
+func startDynamodbLocal(t *testing.T, opts ...dynamodbLocalOpt) *dynamodbLocal {
 	t.Helper()
+
+	dynamodbLocal := &dynamodbLocal{
+		tableName: "FooTable",
+		keySchemaElement: []types.KeySchemaElement{{
+			AttributeName: aws.String("id"),
+			KeyType:       types.KeyTypeHash,
+		}},
+		attributeDefinition: []types.AttributeDefinition{{
+			AttributeName: aws.String("id"),
+			AttributeType: types.ScalarAttributeTypeS,
+		}},
+	}
+
+	for _, opt := range opts {
+		opt(dynamodbLocal)
+	}
 
 	pool, err := dockertest.NewPool("")
 	require.NoError(t, err)
 
 	pool.MaxWait = time.Second * 30
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+	dynamodbLocal.container, err = pool.RunWithOptions(&dockertest.RunOptions{
 		Repository:   "amazon/dynamodb-local",
 		ExposedPorts: []string{"8000/tcp"},
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
+		assert.NoError(t, pool.Purge(dynamodbLocal.container))
 	})
 
-	_ = resource.Expire(900)
+	dynamodbLocal.port = dynamodbLocal.container.GetPort("8000/tcp")
+
+	_ = dynamodbLocal.container.Expire(900)
 	require.NoError(t, pool.Retry(func() error {
-		return createDynamodDbTable(tableName, resource.GetPort("8000/tcp"), opts...)
+		return dynamodbLocal.createDynamodDbTable()
 	}))
 
-	return resource.GetPort("8000/tcp")
+	return dynamodbLocal
 }
 
-func createDynamodDbTable(tableName, port string, opts ...bool) (err error) {
-	endpoint := fmt.Sprintf("http://localhost:%v", port)
+func (dl *dynamodbLocal) createDynamodDbTable() (err error) {
+	endpoint := fmt.Sprintf("http://localhost:%v", dl.port)
 
 	conf, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -85,46 +116,10 @@ func createDynamodDbTable(tableName, port string, opts ...bool) (err error) {
 	conf.BaseEndpoint = &endpoint
 	client := dynamodb.NewFromConfig(conf)
 
-	var ks []types.KeySchemaElement
-	var ad []types.AttributeDefinition
-	if opts == nil { // TODO sort this opts out...
-		ks = []types.KeySchemaElement{{
-			AttributeName: aws.String("id"),
-			KeyType:       types.KeyTypeHash,
-		}}
-		ad = []types.AttributeDefinition{
-			{
-				AttributeName: aws.String("id"),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
-		}
-	} else {
-		ks = []types.KeySchemaElement{
-			{
-				AttributeName: aws.String("id"),
-				KeyType:       types.KeyTypeHash,
-			},
-			{
-				AttributeName: aws.String("sort"),
-				KeyType:       types.KeyTypeRange,
-			},
-		}
-		ad = []types.AttributeDefinition{
-			{
-				AttributeName: aws.String("id"),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
-			{
-				AttributeName: aws.String("sort"),
-				AttributeType: types.ScalarAttributeTypeS,
-			},
-		}
-	}
-
 	_, err = client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
-		AttributeDefinitions: ad,
-		KeySchema:            ks,
-		TableName:            aws.String(tableName),
+		AttributeDefinitions: dl.attributeDefinition,
+		KeySchema:            dl.keySchemaElement,
+		TableName:            aws.String(dl.tableName),
 		BillingMode:          types.BillingModePayPerRequest,
 	})
 	if err != nil {
@@ -132,7 +127,7 @@ func createDynamodDbTable(tableName, port string, opts ...bool) (err error) {
 	} else {
 		waiter := dynamodb.NewTableExistsWaiter(client)
 		err = waiter.Wait(context.Background(), &dynamodb.DescribeTableInput{
-			TableName: aws.String(tableName)}, 5*time.Minute)
+			TableName: aws.String(dl.tableName)}, 5*time.Minute)
 		if err != nil {
 			return err
 		}
@@ -140,10 +135,46 @@ func createDynamodDbTable(tableName, port string, opts ...bool) (err error) {
 	return nil
 }
 
+//------------------------------------------------------------------------------
+
+type dynamodbLocalOpt func(*dynamodbLocal)
+
+func withSortKeyTable() dynamodbLocalOpt {
+
+	var schemaWithSortKey = []types.KeySchemaElement{
+		{
+			AttributeName: aws.String("id"),
+			KeyType:       types.KeyTypeHash,
+		},
+		{
+			AttributeName: aws.String("sort"),
+			KeyType:       types.KeyTypeRange,
+		},
+	}
+
+	var attributeDefinitionWithSortKey = []types.AttributeDefinition{
+		{
+			AttributeName: aws.String("id"),
+			AttributeType: types.ScalarAttributeTypeS,
+		},
+		{
+			AttributeName: aws.String("sort"),
+			AttributeType: types.ScalarAttributeTypeS,
+		},
+	}
+
+	return func(dl *dynamodbLocal) {
+		dl.keySchemaElement = schemaWithSortKey
+		dl.attributeDefinition = attributeDefinitionWithSortKey
+	}
+}
+
+//------------------------------------------------------------------------------
+
 func TestHandleBatchSizeGreaterThan25(t *testing.T) {
 	integration.CheckSkip(t)
 
-	port := startDynamodbLocal(t, "FooTable")
+	dynamodbLocal := startDynamodbLocal(t)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
 table: FooTable
@@ -159,7 +190,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()
@@ -188,10 +219,10 @@ credentials:
 func TestHandleItemSizeOver400KB(t *testing.T) {
 	integration.CheckSkip(t)
 
-	port := startDynamodbLocal(t, "FooTable")
+	dynamodbLocal := startDynamodbLocal(t)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 partition_key: id
 json_map_columns:
   id: id
@@ -204,7 +235,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()
@@ -244,7 +275,7 @@ credentials:
 	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
 	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
 
-	endpoint := fmt.Sprintf("http://localhost:%v", port)
+	endpoint := fmt.Sprintf("http://localhost:%v", dynamodbLocal.port)
 
 	conf, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -272,10 +303,10 @@ credentials:
 func TestHandlePartitionKeyTooBig(t *testing.T) {
 	integration.CheckSkip(t)
 
-	port := startDynamodbLocal(t, "FooTable")
+	dynamodbLocal := startDynamodbLocal(t)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 partition_key: id
 json_map_columns:
   id: id
@@ -288,7 +319,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()
@@ -315,7 +346,7 @@ credentials:
 	err = db.WriteBatch(writeCtx, batch)
 
 	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
-	require.ErrorContains(t, bErr, "Partition key too big")
+	require.ErrorContains(t, bErr, "Key too big")
 	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
 		if err != nil {
 			errs = append(errs, err)
@@ -323,12 +354,12 @@ credentials:
 		return true
 	})
 	require.Len(t, errs, 1, "expected one error in batch error")
-	require.ErrorContains(t, errs[0], "Partition key too big")
+	require.ErrorContains(t, errs[0], "Key too big")
 
 	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
 	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
 
-	endpoint := fmt.Sprintf("http://localhost:%v", port)
+	endpoint := fmt.Sprintf("http://localhost:%v", dynamodbLocal.port)
 
 	conf, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -356,13 +387,14 @@ credentials:
 func TestHandleSortKeyTooBig(t *testing.T) {
 	integration.CheckSkip(t)
 
-	// with a sort key
-	opts := []bool{true}
+	opts := []dynamodbLocalOpt{
+		// Add OVERRIDE
+	}
 
-	port := startDynamodbLocal(t, "FooTable", opts...)
+	dynamodbLocal := startDynamodbLocal(t, opts...)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 partition_key: id
 sort_key: sort
 json_map_columns:
@@ -378,7 +410,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()
@@ -418,7 +450,7 @@ credentials:
 	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
 	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
 
-	endpoint := fmt.Sprintf("http://localhost:%v", port)
+	endpoint := fmt.Sprintf("http://localhost:%v", dynamodbLocal.port)
 
 	conf, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -447,25 +479,25 @@ func TestCheckTableKeySchema(t *testing.T) {
 	integration.CheckSkip(t)
 
 	tests := map[string]struct {
-		opts         []bool
+		opts         []dynamodbLocalOpt
 		partitionKey string
 		sortKey      string
 		expected     string
 	}{
 		"No supplied keys skips check": {
-			opts:         []bool{},
+			opts:         []dynamodbLocalOpt{},
 			partitionKey: "",
 			sortKey:      "",
 			expected:     "",
 		},
 		"Check Partition Key does not match": {
-			opts:         []bool{},
+			opts:         []dynamodbLocalOpt{},
 			partitionKey: "partition_key: id_dne",
 			sortKey:      "",
 			expected:     "supplied partition_key doesn't match Table schema",
 		},
 		"Check Sort Key does not match": {
-			opts:         []bool{true},
+			opts:         []dynamodbLocalOpt{withSortKeyTable()},
 			partitionKey: "partition_key: id",
 			sortKey:      "sort_key: sort_dne",
 			expected:     "supplied sort_key doesn't match Table schema",
@@ -474,10 +506,10 @@ func TestCheckTableKeySchema(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			port := startDynamodbLocal(t, "FooTable", test.opts...)
+			dynamodbLocal := startDynamodbLocal(t, test.opts...)
 
 			db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 %v
 %v
 json_map_columns:
@@ -493,7 +525,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, test.partitionKey, test.sortKey, port))
+  token: xxxxx`, dynamodbLocal.tableName, test.partitionKey, test.sortKey, dynamodbLocal.port))
 
 			connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 			defer connectDone()
@@ -510,10 +542,10 @@ credentials:
 func TestDuplicatePartitionKeysFailsBatch(t *testing.T) {
 	integration.CheckSkip(t)
 
-	port := startDynamodbLocal(t, "FooTable")
+	dynamodbLocal := startDynamodbLocal(t)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 partition_key: id
 json_map_columns: 
   id: id
@@ -526,7 +558,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()
@@ -553,12 +585,10 @@ credentials:
 func TestDuplicateCompositeKeysFailsBatch(t *testing.T) {
 	integration.CheckSkip(t)
 
-	opts := []bool{true}
-
-	port := startDynamodbLocal(t, "FooTable", opts...)
+	dynamodbLocal := startDynamodbLocal(t, []dynamodbLocalOpt{withSortKeyTable()}...)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 partition_key: id
 sort_key: sort
 json_map_columns:
@@ -574,7 +604,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()
@@ -602,10 +632,10 @@ credentials:
 func TestInferTypes(t *testing.T) {
 	integration.CheckSkip(t)
 
-	port := startDynamodbLocal(t, "FooTable")
+	dynamodbLocal := startDynamodbLocal(t)
 
 	db := testDDBOWriterV2(t, fmt.Sprintf(`
-table: FooTable
+table: %v
 partition_key: id
 json_map_columns:
   id: id
@@ -615,7 +645,7 @@ region: us-east-1
 credentials:
   id: xxxxx
   secret: xxxxx
-  token: xxxxx`, port))
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
 
 	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer connectDone()

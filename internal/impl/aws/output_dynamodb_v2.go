@@ -18,7 +18,7 @@ import (
 
 var (
 	ErrItemTooBig            = errors.New("Item too big")
-	ErrPartitionKeyTooBig    = errors.New("Partition key too big")
+	ErrPartitionKeyTooBig    = errors.New("Key too big")
 	ErrPartitionKeyNotUnique = errors.New("Keys not unique in message batch")
 	ErrSortKeyTooBig         = errors.New("Sort key too big")
 )
