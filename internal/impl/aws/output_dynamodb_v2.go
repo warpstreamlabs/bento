@@ -2,9 +2,11 @@ package aws
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -17,7 +19,7 @@ import (
 var (
 	ErrItemTooBig            = errors.New("Item too big")
 	ErrPartitionKeyTooBig    = errors.New("Partition key too big")
-	ErrPartitionKeyNotUnique = errors.New("Partition keys not unique in message batch")
+	ErrPartitionKeyNotUnique = errors.New("Keys not unique in message batch")
 	ErrSortKeyTooBig         = errors.New("Sort key too big")
 )
 
@@ -28,7 +30,6 @@ const (
 	ddboFieldSortKeyV2          = "sort_key"
 	ddboFieldJSONMapColumnsV2   = "json_map_columns"
 	ddboFieldJSONMapDataTypesV2 = "json_map_datatypes"
-	//ddboFieldOmitIfEmptyV2        = "omit_if_empty"
 	//ddboFieldTTLV2                = "ttl"
 	//ddboFieldTTLKeyV2             = "ttl_key"
 	//ddboFieldDeleteV2             = "delete"
@@ -198,7 +199,7 @@ func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.Me
 		batchErr.Failed(i, err)
 	}
 
-	partitionKeys := []string{}
+	keys := []string{}
 	for i, msg := range msgBatch {
 		jRoot, err := msg.AsStructured()
 		if err != nil {
@@ -206,16 +207,24 @@ func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.Me
 		}
 		gRoot := gabs.Wrap(jRoot)
 
-		cont := gRoot.Path(ddw.partitionKey)
-		val := fmt.Sprintf("%v", cont.Data())
+		pCont := gRoot.Path(ddw.partitionKey)
+		val := fmt.Sprintf("%v", pCont.Data())
 
-		if slices.Contains(partitionKeys, val) {
+		sCont := gRoot.Path(ddw.sortKey)
+		val = val + fmt.Sprintf("%v", sCont.Data())
+
+		if slices.Contains(keys, val) {
 			return ErrPartitionKeyNotUnique
 		} else {
-			partitionKeys = append(partitionKeys, val)
+			keys = append(keys, val)
 		}
 
-		wr, err := ddw.addPutRequest(msg, gRoot)
+		var wr types.WriteRequest
+		if len(ddw.jsonMapDataTypes) == 0 {
+			wr, err = ddw.addPutRequestInferTypes(gRoot)
+		} else {
+			wr, err = ddw.addPutRequest(gRoot)
+		}
 		if err != nil {
 			if errors.Is(err, ErrItemTooBig) || errors.Is(err, ErrPartitionKeyTooBig) || errors.Is(err, ErrSortKeyTooBig) {
 				batchErrFailed(i, err)
@@ -227,6 +236,7 @@ func (ddw *dynamoDBWriterV2) WriteBatch(ctx context.Context, msgBatch service.Me
 		}
 	}
 
+	// wait group - keep track of errors
 	for start := 0; start < len(writeReqs); start += 25 {
 		chunk := writeReqs[start:min(start+25, len(writeReqs))]
 		_, err := ddw.client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
@@ -253,7 +263,7 @@ func (ddw *dynamoDBWriterV2) Close(ctx context.Context) error {
 
 //------------------------------------------------------------------------------
 
-func (ddw *dynamoDBWriterV2) addPutRequest(msg *service.Message, gRoot *gabs.Container) (x types.WriteRequest, err error) {
+func (ddw *dynamoDBWriterV2) addPutRequest(gRoot *gabs.Container) (x types.WriteRequest, err error) {
 	attrValues := map[string]types.AttributeValue{}
 
 	itemSize := 0
@@ -300,3 +310,97 @@ func stringToDynAttr(val string, typ string) types.AttributeValue {
 		panic("NOT IMPLEMENTED")
 	}
 }
+
+//------------------------------------------------------------------------------
+
+func (ddw *dynamoDBWriterV2) addPutRequestInferTypes(gRoot *gabs.Container) (x types.WriteRequest, err error) {
+	attrValues := map[string]types.AttributeValue{}
+	for k, v := range ddw.jsonMapColumns {
+		if attr, err := jsonToMap_(v, gRoot); err == nil {
+			// if k == "" {
+			// 	// if mv, ok := attr.(*types.AttributeValueMemberM); ok {
+			// 	// 	maps.Copy(items, mv.Value)
+			// 	// } else {
+			// 	// 	items[k] = attr
+			// 	// }
+			// } else {
+			attrValues[k] = attr
+			// }
+		} else {
+			//d.log.Warnf("Unable to extract JSON map path '%v' from document: %v", v, err)
+			return types.WriteRequest{}, err
+		}
+	}
+
+	return types.WriteRequest{
+		PutRequest: &types.PutRequest{
+			Item: attrValues,
+		},
+	}, nil
+}
+
+func jsonToMap_(path string, root *gabs.Container) (types.AttributeValue, error) {
+	cont := root
+	if path != "" {
+		cont = root.Path(path)
+	}
+	if cont == nil {
+		return nil, fmt.Errorf("path '%v' not found in document", path)
+	}
+	return anyToAttributeValue_(cont.Data()), nil
+}
+
+func anyToAttributeValue_(root any) types.AttributeValue {
+	switch v := root.(type) {
+	// TODO: additional cases
+	case map[string]any:
+		m := make(map[string]types.AttributeValue, len(v))
+		for k, v2 := range v {
+			m[k] = anyToAttributeValue_(v2)
+		}
+		return &types.AttributeValueMemberM{
+			Value: m,
+		}
+	case []any:
+		l := make([]types.AttributeValue, len(v))
+		for i, v2 := range v {
+			l[i] = anyToAttributeValue_(v2)
+		}
+		return &types.AttributeValueMemberL{
+			Value: l,
+		}
+	case string:
+		return &types.AttributeValueMemberS{
+			Value: v,
+		}
+	case json.Number:
+		return &types.AttributeValueMemberN{
+			Value: v.String(),
+		}
+	case float64:
+		return &types.AttributeValueMemberN{
+			Value: strconv.FormatFloat(v, 'f', -1, 64),
+		}
+	case int:
+		return &types.AttributeValueMemberN{
+			Value: strconv.Itoa(v),
+		}
+	case int64:
+		return &types.AttributeValueMemberN{
+			Value: strconv.Itoa(int(v)),
+		}
+	case bool:
+		return &types.AttributeValueMemberBOOL{
+			Value: v,
+		}
+	case nil:
+		return &types.AttributeValueMemberNULL{
+			Value: true,
+		}
+	}
+	return &types.AttributeValueMemberS{
+		Value: fmt.Sprintf("%v", root),
+	}
+}
+
+//------------------------------------------------------------------------------

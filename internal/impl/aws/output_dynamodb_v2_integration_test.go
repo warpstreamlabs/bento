@@ -547,5 +547,95 @@ credentials:
 	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
 	defer writeDone()
 	err = db.WriteBatch(writeCtx, batch)
-	require.ErrorContains(t, err, "Partition keys not unique in message batch")
+	require.ErrorContains(t, err, "Keys not unique in message batch")
+}
+
+func TestDuplicateCompositeKeysFailsBatch(t *testing.T) {
+	integration.CheckSkip(t)
+
+	opts := []bool{true}
+
+	port := startDynamodbLocal(t, "FooTable", opts...)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: FooTable
+partition_key: id
+sort_key: sort
+json_map_columns:
+  id: id
+  name: name
+  sort: sort
+json_map_datatypes:
+  id: S
+  name: S
+  sort: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "sort": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Email(), faker.Name())))
+	}
+
+	for range 2 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "00000000-0000-0000-0000-000000000000", "name": "%v"}`, faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.ErrorContains(t, err, "Keys not unique in message batch")
+}
+
+func TestInferTypes(t *testing.T) {
+	integration.CheckSkip(t)
+
+	port := startDynamodbLocal(t, "FooTable")
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: FooTable
+partition_key: id
+json_map_columns:
+  id: id
+  name: name
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 1 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.NoError(t, err)
+
+	// we break the batch down and continue to use BatchWriteItem not PutItem
+	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
+	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
 }
