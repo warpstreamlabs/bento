@@ -65,6 +65,22 @@ sasl:
 		},
 	}
 
+	t.Run("GSSAPI missing keytab_path", func(t *testing.T) {
+		gssapiConf := `
+sasl:
+  - mechanism: GSSAPI
+    kerberos_config_path: /tmp/krb5.conf
+    principal: user/host@REALM
+    realm: REALM
+`
+		pConf, err := saslConf.ParseYAML(gssapiConf, nil)
+		require.NoError(t, err)
+
+		mechanisms, err := saslMechanismsFromConfig(pConf)
+		require.Error(t, err)
+		assert.Nil(t, mechanisms)
+	})
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			pConf, err := saslConf.ParseYAML(test.conf, nil)

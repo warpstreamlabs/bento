@@ -497,6 +497,14 @@ sasl:
   - mechanism: SCRAM-SHA-512
     password: bar
     username: foo
+
+sasl:
+  - kerberos_config_path: /etc/krb5.conf
+    keytab_path: /etc/security/keytabs/kafka.keytab
+    mechanism: GSSAPI
+    principal: kafka_client/host.example.com
+    realm: EXAMPLE.COM
+    service_name: kafka
 ```
 
 ### `sasl[].mechanism`
@@ -509,6 +517,7 @@ Type: `string`
 | Option | Summary |
 |---|---|
 | `AWS_MSK_IAM` | AWS IAM based authentication as specified by the 'aws-msk-iam-auth' java library. |
+| `GSSAPI` | GSSAPI / Kerberos based authentication. |
 | `OAUTHBEARER` | OAuth Bearer based authentication. |
 | `PLAIN` | Plain text authentication. |
 | `SCRAM-SHA-256` | SCRAM based authentication as specified in RFC5802. |
@@ -704,6 +713,54 @@ Allow the credentials to trigger refreshing prior to the credentials actually ex
 
 Type: `string`  
 Default: `""`  
+
+### `sasl[].kerberos_config_path`
+
+The path to a kerberos configuration file (krb5.conf). Required when mechanism is set to `GSSAPI`.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].keytab_path`
+
+The path to a keytab file to use for authentication with the kerberos client.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].principal`
+
+The principal to use for kerberos authentication, e.g. `kafka_client/host.example.com`.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].realm`
+
+The realm to use for kerberos authentication.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].service_name`
+
+The service name to use when constructing a service ticket with the kerberos client, e.g. `kafka` (default).
+
+
+Type: `string`  
+Default: `"kafka"`  
+
+### `sasl[].disable_pafx_fast`
+
+Controls whether to use PA_FX_FAST in AS_REQ (pre-authentication fast).
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `multi_header`
 
