@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/jcmturner/gokrb5/v8/client"
@@ -43,35 +44,36 @@ func kerberosSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
 		return nil, err
 	}
 
+	if keytabPath == "" {
+		return nil, fmt.Errorf("field 'keytab_path' is required for GSSAPI SASL mechanism")
+	}
+
+	// Load once at config parse time. The actual gokrb5 client is created
+	// fresh per SASL session so reconnects get a clean login.
 	krb5Conf, err := config.Load(krbConfPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kerberos config from '%s': %w", krbConfPath, err)
 	}
 
-	var krbClient *client.Client
-	if keytabPath != "" {
-		kt, err := keytab.Load(keytabPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load keytab from '%s': %w", keytabPath, err)
-		}
+	kt, err := keytab.Load(keytabPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load keytab from '%s': %w", keytabPath, err)
+	}
+
+	return kerberos.Kerberos(func(ctx context.Context) (kerberos.Auth, error) {
 		var settings []func(*client.Settings)
 		if disablePAFXFAST {
 			settings = append(settings, client.DisablePAFXFAST(true))
 		}
-		krbClient = client.NewWithKeytab(principal, realm, kt, krb5Conf, settings...)
-	} else {
-		// Password-based auth not supported for now; keytab is the primary
-		// use case for Kafka service accounts.
-		return nil, fmt.Errorf("field 'keytab_path' is required for GSSAPI SASL mechanism")
-	}
+		krbClient := client.NewWithKeytab(principal, realm, kt, krb5Conf, settings...)
 
-	if err := krbClient.Login(); err != nil {
-		return nil, fmt.Errorf("failed to login to kerberos: %w", err)
-	}
+		if err := krbClient.Login(); err != nil {
+			return kerberos.Auth{}, fmt.Errorf("failed to login to kerberos: %w", err)
+		}
 
-	auth := kerberos.Auth{
-		Client:  krbClient,
-		Service: serviceName,
-	}
-	return auth.AsMechanismWithClose(), nil
+		return kerberos.Auth{
+			Client:  krbClient,
+			Service: serviceName,
+		}, nil
+	}), nil
 }
