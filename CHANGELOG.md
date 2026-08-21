@@ -3,20 +3,31 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.21.0 - 2026-08-21
 
 ### Added
 
 - Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
 - `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
+- `bucket` field on `aws_s3` output supports bloblang interpolation @jem-davies
+- Cache operation `exists` which checks caches for keys @lublak
+- `extract_tracing_map` and `new_root_span_with_link` on the `gcp_pubsub` input & `inject_tracing_map` on the `gcp_pubsub` output @jesperanzasolo
+- `transaction_isolation_level` field to `kafka` & `kafka_franz` components @mbuckley2000
+- `send_ack` field on `nats` input enables/disables sending acknowledgement back to nats' input subject reply address @ahart97
+- Optional ListableCache interface for caches that support key listing - with implementations for `memory`, `file`, `aws_s3` & `gcp_cloud_storage`
+- `broker_read_max_bytes` to `kafka_franz` input and `broker_write_max_bytes` & `max_buffered_bytes` options to `kafka_franz` output @jem-davies
 
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
+- stale buffer example path in internal/impl README @youdie006
+- `fsevent` preserves file create events when watching new subdirs @mattfaltyn
+- `aws_s3_stream` handles files smaller than S3's minimum multipart size @triddell
 
 ### Security
 
 - **Breaking:** Addressed [GO-2026-5048](https://github.com/advisories/GHSA-mx64-mj3q-7prj) by replacing `github.com/hamba/avro/v2` with `github.com/iskorotkov/avro/v2`, temporarily disabling `go install github.com/warpstreamlabs/bento/cmd/bento@<version>` due to `replace` directive usage.
+- bump Go version to 1.26.6 to fix various CVEs in the standard library @jem-davies
 
 ## 1.20.0 - 2026-07-27
 
