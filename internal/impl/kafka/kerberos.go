@@ -43,10 +43,6 @@ func kerberosSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
 		return nil, err
 	}
 
-	if krbConfPath == "" {
-		return nil, fmt.Errorf("field 'kerberos_config_path' is required for GSSAPI SASL mechanism")
-	}
-
 	krb5Conf, err := config.Load(krbConfPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kerberos config from '%s': %w", krbConfPath, err)

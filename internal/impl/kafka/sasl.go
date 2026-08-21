@@ -97,8 +97,8 @@ func saslField() *service.ConfigField {
 			Description("Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.").
 			Optional(),
 		service.NewStringField("kerberos_config_path").
-			Description("The path to a kerberos configuration file (krb5.conf). Required when mechanism is set to `GSSAPI`.").
-			Default(""),
+			Description("The path to a kerberos configuration file (krb5.conf). Used when mechanism is set to `GSSAPI`.").
+			Default("/etc/krb5.conf"),
 		service.NewStringField("keytab_path").
 			Description("The path to a keytab file to use for authentication with the kerberos client.").
 			Default(""),
