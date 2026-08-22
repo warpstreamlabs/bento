@@ -408,3 +408,66 @@ func TestProgressWatchdogWarnsWhenNothingMoves(t *testing.T) {
 			"a pipeline that was still making progress was reported as stalled")
 	})
 }
+
+// TestOptionalPropertiesTolerateAbsentMetadata covers the configuration the
+// output's own documentation recommends for bridging: each MQTT 5 property
+// named from the metadata the input wrote. Most messages carry only some of
+// them, and an absent metadata field interpolates to the string "null" rather
+// than to an empty one — so treating that as a value failed every message whose
+// source had no expiry, permanently, because the output retries and the input
+// then holds every acknowledgement behind it.
+func TestOptionalPropertiesTolerateAbsentMetadata(t *testing.T) {
+	writerFor := func(t *testing.T) *mqttWriterV5 {
+		t.Helper()
+		conf, err := outputConfigSpecV5().ParseYAML(`
+urls: [ tcp://localhost:1883 ]
+topic: out
+content_type: ${! meta("mqtt_content_type") }
+response_topic: ${! meta("mqtt_response_topic") }
+correlation_data: ${! meta("mqtt_correlation_data") }
+message_expiry_interval: ${! meta("mqtt_message_expiry_interval") }
+payload_format_indicator: ${! meta("mqtt_payload_format_indicator") }
+`, nil)
+		require.NoError(t, err)
+		w, err := newMQTTWriterV5FromParsed(conf, service.MockResources())
+		require.NoError(t, err)
+		return w
+	}
+
+	t.Run("a message carrying none of them sets none of them", func(t *testing.T) {
+		props, err := writerFor(t).properties(service.NewMessage([]byte(`{}`)))
+		require.NoError(t, err, "a message without these properties must still be publishable")
+		assert.Empty(t, props.ContentType)
+		assert.Empty(t, props.ResponseTopic)
+		assert.Empty(t, props.CorrelationData)
+		assert.Nil(t, props.MessageExpiry)
+		assert.Nil(t, props.PayloadFormat)
+	})
+
+	t.Run("a message carrying them all sets them all", func(t *testing.T) {
+		msg := service.NewMessage([]byte(`{}`))
+		msg.MetaSetMut("mqtt_content_type", "application/json")
+		msg.MetaSetMut("mqtt_response_topic", "replies")
+		msg.MetaSetMut("mqtt_correlation_data", "corr-1")
+		msg.MetaSetMut("mqtt_message_expiry_interval", 300)
+		msg.MetaSetMut("mqtt_payload_format_indicator", 1)
+
+		props, err := writerFor(t).properties(msg)
+		require.NoError(t, err)
+		assert.Equal(t, "application/json", props.ContentType)
+		assert.Equal(t, "replies", props.ResponseTopic)
+		assert.Equal(t, []byte("corr-1"), props.CorrelationData)
+		require.NotNil(t, props.MessageExpiry)
+		assert.EqualValues(t, 300, *props.MessageExpiry)
+		require.NotNil(t, props.PayloadFormat)
+		assert.EqualValues(t, 1, *props.PayloadFormat)
+	})
+
+	t.Run("a value that is present but malformed is still an error", func(t *testing.T) {
+		msg := service.NewMessage([]byte(`{}`))
+		msg.MetaSetMut("mqtt_message_expiry_interval", "half an hour")
+		_, err := writerFor(t).properties(msg)
+		require.Error(t, err, "a malformed value is a configuration mistake and must not pass silently")
+		assert.Contains(t, err.Error(), "whole number of seconds")
+	})
+}

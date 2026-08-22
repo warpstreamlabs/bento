@@ -161,6 +161,8 @@ output:
 
 The same applies to `response_topic`, `message_expiry_interval` and `payload_format_indicator`: name the ones the bridge should carry.
 
+Naming one is safe even when a message does not have it. These fields are all optional, and an interpolation that resolves to nothing — which is what reading an absent metadata field gives you — leaves the property unset rather than failing the message. A value that is present but malformed is still an error, because that is a configuration mistake rather than an absent property.
+
 ## Performance
 
 This output benefits from sending multiple messages in flight in parallel for improved performance. You can tune the max number of in flight messages (or message batches) with the field `max_in_flight`.

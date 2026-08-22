@@ -114,7 +114,9 @@ output:
     correlation_data: ${! meta("mqtt_correlation_data") }
 `+"```"+`
 
-The same applies to `+"`response_topic`"+`, `+"`message_expiry_interval`"+` and `+"`payload_format_indicator`"+`: name the ones the bridge should carry.`+service.OutputPerformanceDocs(true, false)).
+The same applies to `+"`response_topic`"+`, `+"`message_expiry_interval`"+` and `+"`payload_format_indicator`"+`: name the ones the bridge should carry.
+
+Naming one is safe even when a message does not have it. These fields are all optional, and an interpolation that resolves to nothing — which is what reading an absent metadata field gives you — leaves the property unset rather than failing the message. A value that is present but malformed is still an error, because that is a configuration mistake rather than an absent property.`+service.OutputPerformanceDocs(true, false)).
 		Fields(clientFieldsV5()...).
 		Fields(
 			service.NewInterpolatedStringField(mov5FieldTopic).
@@ -340,6 +342,19 @@ func (m *mqttWriterV5) publishError(resp *paho.PublishResponse, cause error) err
 	return fmt.Errorf("server refused the publication: %v (0x%02X)", reason, resp.ReasonCode)
 }
 
+// propertyUnset reports whether an interpolated optional property resolved to
+// nothing worth sending.
+//
+// A metadata key that does not exist interpolates to the string "null", not to
+// an empty one, and that is the ordinary case rather than a mistake: bridging
+// one server to another means naming each property to carry, and most messages
+// carry only some of them. Treating it as a value made a bridge fail every
+// message whose source had no message expiry — permanently, because the output
+// retries and the input then holds the acknowledgement behind it. A value that
+// is present but malformed is still an error, because that is a configuration
+// mistake worth stopping for.
+func propertyUnset(v string) bool { return v == "" || v == "null" }
+
 func (m *mqttWriterV5) properties(msg *service.Message) (*paho.PublishProperties, error) {
 	props := &paho.PublishProperties{}
 
@@ -355,41 +370,50 @@ func (m *mqttWriterV5) properties(msg *service.Message) (*paho.PublishProperties
 		if err != nil {
 			return nil, fmt.Errorf("content_type interpolation error: %w", err)
 		}
-		props.ContentType = v
+		if !propertyUnset(v) {
+			props.ContentType = v
+		}
 	}
 	if m.responseTopic != nil {
 		v, err := m.responseTopic.TryString(msg)
 		if err != nil {
 			return nil, fmt.Errorf("response_topic interpolation error: %w", err)
 		}
-		props.ResponseTopic = v
+		if !propertyUnset(v) {
+			props.ResponseTopic = v
+		}
 	}
 	if m.correlation != nil {
 		v, err := m.correlation.TryString(msg)
 		if err != nil {
 			return nil, fmt.Errorf("correlation_data interpolation error: %w", err)
 		}
-		props.CorrelationData = []byte(v)
+		if !propertyUnset(v) {
+			props.CorrelationData = []byte(v)
+		}
 	}
 	if m.messageExpiry != nil {
 		v, err := m.messageExpiry.TryString(msg)
 		if err != nil {
 			return nil, fmt.Errorf("message_expiry_interval interpolation error: %w", err)
 		}
-		secs, err := strconv.ParseUint(v, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("message_expiry_interval must be a whole number of seconds, got %q", v)
+		if !propertyUnset(v) {
+			secs, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("message_expiry_interval must be a whole number of seconds, got %q", v)
+			}
+			expiry := uint32(secs)
+			props.MessageExpiry = &expiry
 		}
-		expiry := uint32(secs)
-		props.MessageExpiry = &expiry
 	}
 	if m.payloadFormat != nil {
 		v, err := m.payloadFormat.TryString(msg)
 		if err != nil {
 			return nil, fmt.Errorf("payload_format_indicator interpolation error: %w", err)
 		}
-		switch v {
-		case "0", "1":
+		switch {
+		case propertyUnset(v):
+		case v == "0", v == "1":
 			format := v[0] - '0'
 			props.PayloadFormat = &format
 		default:
