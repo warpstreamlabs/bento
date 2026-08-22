@@ -104,7 +104,23 @@ A shared subscription is an ordinary topic filter of the form `$share/<group>/<f
 
 ### Acknowledgement
 
-Messages are acknowledged to the server only once the pipeline has finished with them, so a message is not lost if a destination is unavailable. Acknowledgements are released strictly in the order the messages arrived: a message still in flight holds back the acknowledgement of everything received after it, and if it is eventually rejected the server redelivers that whole run on the next connection. This is at-least-once delivery working as intended, but it does mean a single slow or failing message delays acknowledgements behind it. Pipelines that need messages processed in order should also set `pipeline.threads: 1`.
+Messages are acknowledged to the server only once the pipeline has finished with them, so a message is not lost if a destination is unavailable.
+
+Acknowledgements are released strictly in the order the messages arrived, because that is the only order MQTT 5 allows them to be sent in. A message still being worked on holds back the acknowledgement of everything received after it, even messages the pipeline has already finished with.
+
+**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `receive_maximum` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages. A warning is logged the first time a message is rejected, saying exactly this.
+
+**So do not reject messages you cannot ever process.** Send them somewhere instead — a [`fallback`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
+
+```yaml
+output:
+  fallback:
+    - kafka_franz: { } # the real destination
+    - file:
+        path: ./dead-letter.jsonl
+```
+
+Pipelines that need messages processed in order should also set `pipeline.threads: 1`.
 
 ### Metadata
 

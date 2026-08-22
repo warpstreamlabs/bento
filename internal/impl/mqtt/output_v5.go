@@ -86,7 +86,35 @@ Note that `+"`0x10`"+` "no matching subscribers" is a success, not a failure: it
 
 ### Metadata as user properties
 
-Every metadata field on a message is sent as an MQTT 5 user property unless excluded by the `+"`metadata`"+` setting. This is the part MQTT 3.1.1 cannot do at all, and it is what carries an identifier or a routing key alongside the payload rather than inside it.`+service.OutputPerformanceDocs(true, false)).
+Every metadata field on a message is sent as an MQTT 5 user property unless excluded by the `+"`metadata`"+` setting. This is the part MQTT 3.1.1 cannot do at all, and it is what carries an identifier or a routing key alongside the payload rather than inside it.
+
+### Bridging one MQTT 5 server to another
+
+Reading with the `+"`mqtt_v5`"+` input and writing with this output needs two settings, because the input describes each message it receives in metadata fields named `+"`mqtt_*`"+`, and those are metadata like any other:
+
+`+"```yaml"+`
+input:
+  mqtt_v5:
+    urls: [ tcp://source:1883 ]
+    topics: [ events/# ]
+
+output:
+  mqtt_v5:
+    urls: [ tcp://destination:1883 ]
+    topic: ${! meta("mqtt_topic") }
+    # Without this, every message crosses the bridge carrying six extra user
+    # properties describing the hop it just made. On a server that limits the
+    # number or size of properties that is a refused publication.
+    metadata:
+      exclude_prefixes: [ mqtt_ ]
+    # And these are re-stated deliberately: an inbound content type arrives as
+    # metadata, so without naming it here it would be forwarded as a user
+    # property called mqtt_content_type rather than as a content type.
+    content_type: ${! meta("mqtt_content_type") }
+    correlation_data: ${! meta("mqtt_correlation_data") }
+`+"```"+`
+
+The same applies to `+"`response_topic`"+`, `+"`message_expiry_interval`"+` and `+"`payload_format_indicator`"+`: name the ones the bridge should carry.`+service.OutputPerformanceDocs(true, false)).
 		Fields(clientFieldsV5()...).
 		Fields(
 			service.NewInterpolatedStringField(mov5FieldTopic).

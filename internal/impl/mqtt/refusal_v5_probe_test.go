@@ -104,11 +104,14 @@ func TestRefusedSubscribeIsLoggedWithItsCode(t *testing.T) {
 	// The connection itself succeeds — that is exactly the problem.
 	require.NoError(t, rdr.Connect(testCtx(t)))
 
-	waitForLog(t, captured, "0x87", "a refused subscription")
+	// Wait for the retry line rather than the reason code: it is logged after
+	// the refusal, so waiting for the code and then snapshotting can catch the
+	// log between the two writes. That is what made this test flaky.
+	waitForLog(t, captured, "Retrying the subscription", "a refused subscription under the default policy")
 	logged := captured.String()
+	assert.Contains(t, logged, "0x87", "the reason code was not logged")
 	assert.Contains(t, logged, "not authorized", "the reason code was not decoded")
 	assert.Contains(t, logged, "events/#", "the log does not say which filter was refused")
-	assert.Contains(t, logged, "Retrying the subscription", "retry is the default and must keep trying")
 }
 
 // TestRefusedSubscribeCanStopTheInput covers on_subscribe_refused: fail, for a

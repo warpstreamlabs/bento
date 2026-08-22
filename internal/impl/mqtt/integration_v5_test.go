@@ -115,6 +115,9 @@ input:
 	t.Run("mqtt 5 properties and user properties survive a round trip", func(t *testing.T) {
 		testPropertiesRoundTripV5(t, port)
 	})
+	t.Run("a rejected message warns that consumption will stop", func(t *testing.T) {
+		testRejectionWarnsV5(t, port)
+	})
 }
 
 // connectV5 opens a plain MQTT 5 connection, used for publishing into these
@@ -144,6 +147,12 @@ func connectV5(ctx context.Context, port, clientID string) (*autopaho.Connection
 
 func readerOnPort(t *testing.T, port, topics, extra string) *mqttReaderV5 {
 	t.Helper()
+	rdr, _ := readerOnPortLogged(t, port, topics, extra)
+	return rdr
+}
+
+func readerOnPortLogged(t *testing.T, port, topics, extra string) (*mqttReaderV5, *syncBuffer) {
+	t.Helper()
 	yaml := fmt.Sprintf(`
 urls: [ tcp://localhost:%v ]
 topics: %v
@@ -152,9 +161,10 @@ qos: 1
 `, port, topics, extra)
 	conf, err := inputConfigSpecV5().ParseYAML(yaml, nil)
 	require.NoError(t, err)
-	rdr, err := newMQTTReaderV5FromParsed(conf, service.MockResources())
+	res, captured := capturedLogger()
+	rdr, err := newMQTTReaderV5FromParsed(conf, res)
 	require.NoError(t, err)
-	return rdr
+	return rdr, captured
 }
 
 func writerOnPort(t *testing.T, port, topic, extra string) *mqttWriterV5 {
@@ -353,6 +363,47 @@ func testSharedSubscriptionV5(t *testing.T, port string) {
 	// Which member gets what is the server's business, so no count is asserted
 	// beyond both having been able to receive at all.
 	t.Logf("split across the group: %v", perReader)
+}
+
+// testRejectionWarnsV5 covers the warning that stops a stalled input being
+// silent. Acknowledgements can only be sent in arrival order, so a message that
+// is never acknowledged holds back every one behind it, and once the receive
+// window is full the server stops delivering while the input still reports
+// itself healthy. Saying so at the first rejection is the whole mitigation, so
+// an untested log line would be no mitigation at all.
+func testRejectionWarnsV5(t *testing.T, port string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	topic := fmt.Sprintf("reject-warn-%v", time.Now().UnixNano())
+	rdr, captured := readerOnPortLogged(t, port, fmt.Sprintf("[ %v ]", topic), fmt.Sprintf(
+		"client_id: reject-warn-%v\nreceive_maximum: 4", time.Now().UnixNano()))
+	t.Cleanup(func() { _ = rdr.Close(context.Background()) })
+	require.NoError(t, rdr.Connect(ctx))
+	time.Sleep(500 * time.Millisecond)
+
+	publisher, err := connectV5(ctx, port, "reject-warn-publisher")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = publisher.Disconnect(context.Background()) })
+
+	_, err = publisher.Publish(ctx, &paho.Publish{
+		Topic: topic, QoS: 1, Payload: []byte("cannot be handled"),
+	})
+	require.NoError(t, err)
+
+	readCtx, readCancel := context.WithTimeout(ctx, 20*time.Second)
+	defer readCancel()
+	_, ack, err := rdr.Read(readCtx)
+	require.NoError(t, err)
+
+	require.NotContains(t, captured.String(), "was rejected", "the warning fired before anything was rejected")
+	require.NoError(t, ack(readCtx, assert.AnError))
+
+	logged := captured.String()
+	assert.Contains(t, logged, "was rejected", "a rejection was not reported at all")
+	assert.Contains(t, logged, topic, "the warning does not say which message")
+	assert.Contains(t, logged, "4 are outstanding", "the warning does not say when delivery will stop")
+	assert.Contains(t, logged, "dead-letter", "the warning does not say what to do instead")
 }
 
 // testAckIsNotRedeliveredV5 is the control for the test below it. Without it a

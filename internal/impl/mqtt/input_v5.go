@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/eclipse/paho.golang/autopaho"
@@ -68,7 +69,23 @@ A shared subscription is an ordinary topic filter of the form `+"`$share/<group>
 
 ### Acknowledgement
 
-Messages are acknowledged to the server only once the pipeline has finished with them, so a message is not lost if a destination is unavailable. Acknowledgements are released strictly in the order the messages arrived: a message still in flight holds back the acknowledgement of everything received after it, and if it is eventually rejected the server redelivers that whole run on the next connection. This is at-least-once delivery working as intended, but it does mean a single slow or failing message delays acknowledgements behind it. Pipelines that need messages processed in order should also set `+"`pipeline.threads: 1`"+`.
+Messages are acknowledged to the server only once the pipeline has finished with them, so a message is not lost if a destination is unavailable.
+
+Acknowledgements are released strictly in the order the messages arrived, because that is the only order MQTT 5 allows them to be sent in. A message still being worked on holds back the acknowledgement of everything received after it, even messages the pipeline has already finished with.
+
+**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `+"`receive_maximum`"+` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages. A warning is logged the first time a message is rejected, saying exactly this.
+
+**So do not reject messages you cannot ever process.** Send them somewhere instead — a [`+"`fallback`"+`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
+
+`+"```yaml"+`
+output:
+  fallback:
+    - kafka_franz: { } # the real destination
+    - file:
+        path: ./dead-letter.jsonl
+`+"```"+`
+
+Pipelines that need messages processed in order should also set `+"`pipeline.threads: 1`"+`.
 
 ### Metadata
 
@@ -184,6 +201,20 @@ type mqttReaderV5 struct {
 	fatalMut sync.Mutex
 	fatalErr error
 	fatalCh  chan struct{}
+
+	// rejected counts messages the pipeline refused, so that the warning
+	// explaining what that costs is logged once rather than per message.
+	rejected atomic.Int64
+}
+
+// outstandingLimit describes how many unacknowledged messages the server will
+// allow before it stops sending, for the warning above. Unset means the server
+// chose, and this client has no way to know what it chose.
+func (m *mqttReaderV5) outstandingLimit() string {
+	if m.clientConf.receiveMaximum != nil {
+		return fmt.Sprintf("%v are outstanding", *m.clientConf.receiveMaximum)
+	}
+	return "enough are outstanding"
 }
 
 func newMQTTReaderV5FromParsed(conf *service.ParsedConfig, mgr *service.Resources) (*mqttReaderV5, error) {
@@ -478,6 +509,22 @@ func (m *mqttReaderV5) messageFromPublish(pr paho.PublishReceived) (*service.Mes
 		if res != nil {
 			// Withholding the acknowledgement is the point: the server keeps
 			// the message and delivers it again.
+			//
+			// It is also the moment consumption starts winding down, and that
+			// is worth saying out loud. Acknowledgements can only be sent in
+			// the order the messages arrived, so this one holds back every
+			// acknowledgement behind it; when enough are outstanding the
+			// server stops sending and the input receives nothing further
+			// while still reporting itself connected and healthy. Warning on
+			// the first rejection is what stops that being silent.
+			if m.rejected.Add(1) == 1 {
+				m.log.Warnf("A message on %v was rejected and will not be acknowledged: %v. "+
+					"Acknowledgements are sent in the order messages arrived, so this holds back every "+
+					"acknowledgement behind it, and once %v the server will stop delivering and this input "+
+					"will consume nothing further. Route messages that cannot succeed to a dead-letter "+
+					"output instead of rejecting them.",
+					pkt.Topic, res, m.outstandingLimit())
+			}
 			return nil
 		}
 		if err := pr.Client.Ack(pkt); err != nil {

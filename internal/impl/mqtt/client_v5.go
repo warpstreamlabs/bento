@@ -524,7 +524,15 @@ type connectionV5 struct {
 
 func newConnectionV5(log *service.Logger, onRefused string) *connectionV5 {
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &connectionV5{
+	// down starts open. autopaho releases AwaitConnection when it closes its
+	// own connUp channel and only calls OnConnectionUp afterwards, so a down
+	// channel that started closed would still be closed for a moment after
+	// connect had already reported success — and a read in that window would
+	// report a live connection as down. Bento recovers from that by
+	// reconnecting, so it cost a wasted cycle and a misleading metric rather
+	// than data, but it is a connection contradicting itself. Nothing reads
+	// this before connect returns.
+	return &connectionV5{
 		log:       log,
 		onRefused: onRefused,
 		ctx:       ctx,
@@ -532,8 +540,6 @@ func newConnectionV5(log *service.Logger, onRefused string) *connectionV5 {
 		down:      make(chan struct{}),
 		connErrs:  make(chan error, 1),
 	}
-	close(c.down) // Nothing is connected until the first OnConnectionUp.
-	return c
 }
 
 // installHooks wires the connection lifecycle onto cfg. onUp is called after
