@@ -351,6 +351,48 @@ func TestProgressWatchdogWarnsWhenNothingMoves(t *testing.T) {
 			"a quiet topic was reported as a stall")
 	})
 
+	t.Run("a slow but backlogged pipeline is reported once, not per message", func(t *testing.T) {
+		// A pipeline whose honest per-message latency exceeds the window
+		// reaches the same condition as a stalled one. Re-arming on any
+		// movement made this warn once per message for the healthy case and
+		// once in total for the broken one, which is the wrong way round.
+		rdr, captured := newReader(t)
+		rdr.handed.Store(4)
+		rdr.settled.Store(0)
+		go rdr.watchProgress()
+
+		for range 4 {
+			time.Sleep(120 * time.Millisecond) // longer than the window
+			rdr.settled.Add(1)                 // a message legitimately finishes
+			rdr.handed.Add(1)                  // and another arrives behind it
+		}
+		time.Sleep(120 * time.Millisecond)
+
+		assert.Equal(t, 1, strings.Count(captured.String(), "has not finished a message in at least"),
+			"a slow pipeline was reported once per message rather than once")
+	})
+
+	t.Run("an input that catches up is reported again if it stalls later", func(t *testing.T) {
+		rdr, captured := newReader(t)
+		rdr.handed.Store(2)
+		rdr.settled.Store(1)
+		go rdr.watchProgress()
+
+		require.Eventually(t, func() bool {
+			return strings.Count(captured.String(), "has not finished a message in at least") == 1
+		}, 5*time.Second, 10*time.Millisecond, "the first stall was never reported")
+
+		// Caught up: nothing is owed.
+		rdr.settled.Store(2)
+		time.Sleep(120 * time.Millisecond)
+
+		// And stalls again.
+		rdr.handed.Store(3)
+		require.Eventually(t, func() bool {
+			return strings.Count(captured.String(), "has not finished a message in at least") == 2
+		}, 5*time.Second, 10*time.Millisecond, "a second stall after catching up went unreported")
+	})
+
 	t.Run("a slow but advancing pipeline stays quiet", func(t *testing.T) {
 		rdr, captured := newReader(t)
 		rdr.handed.Store(4)

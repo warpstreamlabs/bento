@@ -112,6 +112,8 @@ Acknowledgements are released strictly in the order the messages arrived, becaus
 
 Two warnings exist to stop that being silent. One is logged the first time a message is rejected. The other is logged once when this input has held messages for a minute without finishing any of them, which is the only signal available under the default `auto_replay_nacks`: a message being retried inside Bento for ever never reports an error to this component at all, so there is nothing to react to except the absence of progress.
 
+A pipeline that simply takes longer than a minute to finish each message reaches that second condition too, and for it the warning is expected rather than a fault. It is logged once either way, and again only after the input has caught up and stalled afresh.
+
 **So do not reject messages you cannot ever process.** Send them somewhere instead — a [`fallback`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
 
 ```yaml

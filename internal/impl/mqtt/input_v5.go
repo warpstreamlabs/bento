@@ -77,6 +77,8 @@ Acknowledgements are released strictly in the order the messages arrived, becaus
 
 Two warnings exist to stop that being silent. One is logged the first time a message is rejected. The other is logged once when this input has held messages for a minute without finishing any of them, which is the only signal available under the default `+"`auto_replay_nacks`"+`: a message being retried inside Bento for ever never reports an error to this component at all, so there is nothing to react to except the absence of progress.
 
+A pipeline that simply takes longer than a minute to finish each message reaches that second condition too, and for it the warning is expected rather than a fault. It is logged once either way, and again only after the input has caught up and stalled afresh.
+
 **So do not reject messages you cannot ever process.** Send them somewhere instead — a [`+"`fallback`"+`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
 
 `+"```yaml"+`
@@ -257,13 +259,23 @@ func (m *mqttReaderV5) watchProgress() {
 		handed, settled := m.handed.Load(), m.settled.Load()
 		outstanding := handed - settled
 
-		if handed != lastHanded || settled != lastSettled {
+		if outstanding <= 0 {
+			// Nothing owed: a quiet topic, or an input that has caught up.
+			// Either way a later stall is a new one worth reporting, so this
+			// is the only place the warning re-arms.
 			lastHanded, lastSettled = handed, settled
 			still, warned = 0, false
 			continue
 		}
-		if outstanding <= 0 {
-			continue // Idle with nothing owed is just a quiet topic.
+		if handed != lastHanded || settled != lastSettled {
+			// Something moved, so the wait starts again — but the warning is
+			// not re-armed. Re-arming on any movement made this report once
+			// for an input that had genuinely stopped and once per message for
+			// a pipeline that was merely slow, which is the wrong way round:
+			// noisy about the healthy case and quiet about the broken one.
+			lastHanded, lastSettled = handed, settled
+			still = 0
+			continue
 		}
 
 		still++
@@ -276,7 +288,9 @@ func (m *mqttReaderV5) watchProgress() {
 			"never finishes with — retried indefinitely, or rejected — holds back every acknowledgement "+
 			"behind it, and the server stops delivering once its receive window is full. If a message "+
 			"cannot ever succeed, route it to a dead-letter output rather than retrying or rejecting it "+
-			"for ever.", sample*time.Duration(stallAfter), outstanding)
+			"for ever. A pipeline that simply takes longer than this to finish each message reaches the "+
+			"same point, and for that this is expected rather than a fault. Reported once either way, "+
+			"until the input catches up.", sample*time.Duration(stallAfter), outstanding)
 	}
 }
 
