@@ -9,7 +9,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,27 +24,21 @@ func TestIntegrationExploration(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "cockroachdb/cockroach",
-		Tag:        "latest",
-		Cmd:        []string{"start-single-node", "--insecure"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "cockroachdb/cockroach",
+		dockertest.WithTag("latest"),
+		dockertest.WithCmd([]string{"start-single-node", "--insecure"}),
+		dockertest.WithoutReuse(),
+	)
 
 	port := resource.GetPort("26257/tcp")
 	dsn := fmt.Sprintf("postgres://root@localhost:%v/defaultdb?sslmode=disable", port)
 
 	var pgpool *pgxpool.Pool
-	require.NoError(t, resource.Expire(900))
+	var err error
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		if pgpool == nil {
 			if pgpool, err = pgxpool.New(context.Background(), dsn); err != nil {
 				return err

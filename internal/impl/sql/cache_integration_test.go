@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -18,28 +20,32 @@ func TestIntegrationCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "postgres",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: []string{
+	resource := pool.RunT(t, "postgres",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("5432/tcp"): {},
+			}
+		}),
+		dockertest.WithEnv([]string{
 			"POSTGRES_USER=testuser",
 			"POSTGRES_PASSWORD=testpass",
 			"POSTGRES_DB=testdb",
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var db *sql.DB
 	t.Cleanup(func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %s", err)
-		}
 		if db != nil {
 			db.Close()
 		}
@@ -55,7 +61,7 @@ func TestIntegrationCache(t *testing.T) {
 	}
 
 	dsn := fmt.Sprintf("postgres://testuser:testpass@localhost:%s/testdb?sslmode=disable", resource.GetPort("5432/tcp"))
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		db, err = sql.Open("postgres", dsn)
 		if err != nil {
 			return err

@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/colinmarc/hdfs"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -18,31 +17,21 @@ func TestIntegrationHDFS(t *testing.T) {
 	// t.Skip() // Skip until we fix the static port bindings
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 5
+	pool.RunT(t, "cybermaggedon/hadoop",
+		dockertest.WithTag("2.8.2"),
+		dockertest.WithHostname("localhost"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9000/tcp"):  {{HostPort: "9000"}},
+			dockernetwork.MustParsePort("50070/tcp"): {{HostPort: "50070"}},
+			dockernetwork.MustParsePort("50075/tcp"): {{HostPort: "50075"}},
+			dockernetwork.MustParsePort("50010/tcp"): {{HostPort: "50010"}},
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	options := &dockertest.RunOptions{
-		Repository:   "cybermaggedon/hadoop",
-		Tag:          "2.8.2",
-		Hostname:     "localhost",
-		ExposedPorts: []string{"9000", "50075", "50070", "50010"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9000/tcp":  {{HostIP: "", HostPort: "9000"}},
-			"50070/tcp": {{HostIP: "", HostPort: "50070"}},
-			"50075/tcp": {{HostIP: "", HostPort: "50075"}},
-			"50010/tcp": {{HostIP: "", HostPort: "50010"}},
-		},
-	}
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		testFile := "/cluster_ready" + time.Now().Format("20060102150405")
 		client, err := hdfs.NewClient(hdfs.ClientOptions{
 			Addresses: []string{"localhost:9000"},

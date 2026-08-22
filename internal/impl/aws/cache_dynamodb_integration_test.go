@@ -11,8 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -82,22 +83,18 @@ func TestIntegrationDynamoDBCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
+	resource := pool.RunT(t, "amazon/dynamodb-local",
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("8000/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "amazon/dynamodb-local",
-		ExposedPorts: []string{"8000/tcp"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return createTable(context.Background(), t, resource.GetPort("8000/tcp"), "poketable")
 	}))
 

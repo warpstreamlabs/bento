@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -25,8 +25,7 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 
 	port = strconv.Itoa(portInt)
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	lsImageName := "localstack/localstack"
 	var env []string
@@ -39,28 +38,26 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 	}
 	env = append(env, "LS_LOG=debug")
 
-	pool.MaxWait = time.Minute * 300
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   lsImageName,
-		Tag:          "4.9.2", // pinning version: latest needs a license.
-		ExposedPorts: []string{"4566/tcp"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			docker.Port(port + "/tcp"): {
-				docker.PortBinding{HostIP: "", HostPort: port},
+	resource := pool.RunT(t, lsImageName,
+		dockertest.WithTag("4.9.2"), // pinning version: latest needs a license.
+		// 4566 has no binding of its own, and GetPort reads it below. v4 only
+		// waits for bindings when ExposedPorts is set, so this must stay.
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("4566/tcp"): {},
+			}
+		}),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort(port + "/tcp"): {
+				dockernetwork.PortBinding{HostPort: port},
 			},
-		},
-		Env: env,
-	})
+		}),
+		dockertest.WithEnv(env),
+		dockertest.WithoutReuse(),
+	)
 	port = resource.GetPort("4566/tcp")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
 
-	_ = resource.Expire(900)
-
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		var err error
 		defer func() {
 			if err != nil {
@@ -81,7 +78,7 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 	}))
 
 	for _, readyFn := range readyFns {
-		require.NoError(t, pool.Retry(func() error {
+		require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 			return readyFn(port)
 		}))
 	}
