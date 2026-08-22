@@ -111,6 +111,10 @@ This input adds the following metadata fields to each message:
 
 MQTT 5 user properties are also added, each under its own key with no prefix — this is the part MQTT 3.1.1 cannot carry at all. They are written before the fields above, so a publisher cannot overwrite `+"`mqtt_topic`"+` or any other of them by sending a user property of the same name. Where a key appears more than once in one message, which MQTT 5 permits, the last occurrence wins.
 
+The `+"`mqtt_`"+` fields describe the delivery this input received rather than the message itself, so the [`+"`mqtt_v5`"+` output](/docs/components/outputs/mqtt_v5) holds them back by default: publishing to another MQTT server sends the publisher's own user properties and not this input's bookkeeping. Everything else — the user properties above, and any metadata a pipeline adds — is sent. That default is a setting on the output rather than a rule here, so a pipeline that wants the bookkeeping forwarded can say so.
+
+Outputs for other destinations have no such default, so a `+"`kafka_franz`"+` or `+"`aws_s3`"+` output receives these fields like any other metadata and can carry them as headers or object metadata.
+
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).`).
 		Fields(clientFieldsV5()...).
 		Fields(

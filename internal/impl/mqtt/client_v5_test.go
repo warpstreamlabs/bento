@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -469,5 +470,70 @@ payload_format_indicator: ${! meta("mqtt_payload_format_indicator") }
 		_, err := writerFor(t).properties(msg)
 		require.Error(t, err, "a malformed value is a configuration mistake and must not pass silently")
 		assert.Contains(t, err.Error(), "whole number of seconds")
+	})
+}
+
+// TestMetadataExclusionDefault covers the default that makes an MQTT-to-MQTT
+// bridge correct without configuration: the mqtt_ namespace is what the input
+// writes to describe a message it received, so forwarding it would add a
+// handful of properties describing the previous hop to every message, on every
+// hop. It stays overridable, because a pipeline that genuinely wants those
+// forwarded should be able to say so.
+func TestMetadataExclusionDefault(t *testing.T) {
+	writerFor := func(t *testing.T, metadataYAML string) *mqttWriterV5 {
+		t.Helper()
+		conf, err := outputConfigSpecV5().ParseYAML(
+			"urls: [ tcp://localhost:1883 ]\ntopic: out\n"+metadataYAML, nil)
+		require.NoError(t, err)
+		w, err := newMQTTWriterV5FromParsed(conf, service.MockResources())
+		require.NoError(t, err)
+		return w
+	}
+
+	// A message as the input would hand it over: the sender's own property,
+	// plus the bookkeeping the input wrote about the delivery.
+	bridged := func() *service.Message {
+		msg := service.NewMessage([]byte(`{}`))
+		msg.MetaSetMut("sensor-id", "temp-1")
+		msg.MetaSetMut("mqtt_topic", "src/a")
+		msg.MetaSetMut("mqtt_qos", 1)
+		msg.MetaSetMut("mqtt_retained", false)
+		msg.MetaSetMut("mqtt_content_type", "application/json")
+		return msg
+	}
+
+	keys := func(props *paho.PublishProperties) []string {
+		var out []string
+		for _, u := range props.User {
+			out = append(out, u.Key)
+		}
+		sort.Strings(out)
+		return out
+	}
+
+	t.Run("by default the input's own namespace is not forwarded", func(t *testing.T) {
+		props, err := writerFor(t, "").properties(bridged())
+		require.NoError(t, err)
+		assert.Equal(t, []string{"sensor-id"}, keys(props),
+			"a bridge forwarded the bookkeeping describing the previous hop")
+	})
+
+	t.Run("an empty list forwards everything", func(t *testing.T) {
+		props, err := writerFor(t, "metadata:\n  exclude_prefixes: []").properties(bridged())
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"mqtt_content_type", "mqtt_qos", "mqtt_retained", "mqtt_topic", "sensor-id",
+		}, keys(props), "the default must be overridable")
+	})
+
+	t.Run("a prefix of the pipeline's own still works", func(t *testing.T) {
+		msg := bridged()
+		msg.MetaSetMut("secret_token", "must not travel")
+		props, err := writerFor(t, "metadata:\n  exclude_prefixes: [ secret_ ]").properties(msg)
+		require.NoError(t, err)
+		// Naming a prefix replaces the default rather than adding to it, which
+		// is how a list-valued setting behaves everywhere else in Bento.
+		assert.NotContains(t, keys(props), "secret_token")
+		assert.Contains(t, keys(props), "mqtt_topic")
 	})
 }

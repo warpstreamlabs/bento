@@ -43,7 +43,8 @@ output:
     write_timeout: 3s
     retained: false
     metadata:
-      exclude_prefixes: []
+      exclude_prefixes:
+        - mqtt_
     max_in_flight: 64
 ```
 
@@ -94,7 +95,8 @@ output:
     message_expiry_interval: "300" # No default (optional)
     payload_format_indicator: "" # No default (optional)
     metadata:
-      exclude_prefixes: []
+      exclude_prefixes:
+        - mqtt_
     max_in_flight: 64
 ```
 
@@ -131,11 +133,15 @@ Note that `0x10` "no matching subscribers" is a success, not a failure: it means
 
 ### Metadata as user properties
 
-Every metadata field on a message is sent as an MQTT 5 user property unless excluded by the `metadata` setting. This is the part MQTT 3.1.1 cannot do at all, and it is what carries an identifier or a routing key alongside the payload rather than inside it.
+Every metadata field on a message is sent as an MQTT 5 user property, except those excluded by the `metadata` setting — which by default holds back the `mqtt_` namespace the `mqtt_v5` input writes about a delivery. So a pipeline's own metadata travels and the previous hop's bookkeeping does not, and either can be changed.
+
+This is the part MQTT 3.1.1 cannot do at all, and it is what carries an identifier or a routing key alongside the payload rather than inside it.
 
 ### Bridging one MQTT 5 server to another
 
-Reading with the `mqtt_v5` input and writing with this output needs two settings, because the input describes each message it receives in metadata fields named `mqtt_*`, and those are metadata like any other:
+Reading with the `mqtt_v5` input and writing with this output works without configuring metadata at all: the input describes each delivery in fields named `mqtt_*`, and this output holds that namespace back by default rather than forwarding it to the next server.
+
+What does need naming is the MQTT 5 properties you want carried. They arrive as metadata, so unless the field is named here they would not be sent as properties at all:
 
 ```yaml
 input:
@@ -147,14 +153,10 @@ output:
   mqtt_v5:
     urls: [ tcp://destination:1883 ]
     topic: ${! meta("mqtt_topic") }
-    # Without this, every message crosses the bridge carrying six extra user
-    # properties describing the hop it just made. On a server that limits the
-    # number or size of properties that is a refused publication.
-    metadata:
-      exclude_prefixes: [ mqtt_ ]
-    # And these are re-stated deliberately: an inbound content type arrives as
-    # metadata, so without naming it here it would be forwarded as a user
-    # property called mqtt_content_type rather than as a content type.
+    # These are re-stated deliberately: an inbound content type arrives as
+    # metadata, so without naming it here it would not be sent as a content
+    # type. The bookkeeping the input wrote — topic, QoS, delivery flags — is
+    # held back by default and needs nothing said about it.
     content_type: ${! meta("mqtt_content_type") }
     correlation_data: ${! meta("mqtt_correlation_data") }
 ```
@@ -610,18 +612,32 @@ Type: `string`
 
 ### `metadata`
 
-Specify criteria for which metadata values are sent as MQTT 5 user properties.
+Which metadata values are sent as MQTT 5 user properties. Everything is sent except the prefixes listed here.
+
+The default excludes `mqtt_`, because that is the namespace the `mqtt_v5` input writes to describe a message it received — its topic, its QoS, its delivery flags. Those describe the hop the message just made rather than the message, and forwarding them means every server-to-server hop adds another handful of properties a consumer did not ask for and a strict server may refuse.
+
+Set it to an empty list to send them, and to other prefixes to hold back metadata of your own:
+
+```yaml
+metadata:
+  exclude_prefixes: []                    # send everything, mqtt_ fields included
+  exclude_prefixes: [ mqtt_, secret_ ]    # the default, plus one of your own
+```
+
+Note that this setting replaces the default rather than adding to it, so a list naming only your own prefixes will send the `mqtt_` fields again. Include `mqtt_` alongside yours if you want both held back.
+
+Metadata can also be shaped before it reaches here with a [`mapping`](/docs/components/processors/mapping) processor, which is the way to rename a field, drop one, or promote one into the payload.
 
 
 Type: `object`  
 
 ### `metadata.exclude_prefixes`
 
-Provide a list of explicit metadata key prefixes to be excluded when adding metadata to sent messages.
+Metadata keys beginning with any of these are not sent.
 
 
 Type: `array`  
-Default: `[]`  
+Default: `["mqtt_"]`  
 
 ### `max_in_flight`
 
