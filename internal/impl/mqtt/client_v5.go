@@ -549,7 +549,18 @@ func newConnectionV5(log *service.Logger, onRefused string) *connectionV5 {
 func (c *connectionV5) installHooks(cfg *autopaho.ClientConfig, onUp func(*autopaho.ConnectionManager, *paho.Connack)) {
 	cfg.OnConnectionUp = func(cm *autopaho.ConnectionManager, connack *paho.Connack) {
 		c.mu.Lock()
-		c.down = make(chan struct{})
+		select {
+		case <-c.down:
+			// The previous connection's channel has been closed, so a fresh
+			// one is needed for this connection.
+			c.down = make(chan struct{})
+		default:
+			// Still open, which means this is the first connection and nothing
+			// has replaced the channel built with the connection. A reader can
+			// already be holding it, because autopaho releases AwaitConnection
+			// before calling this — so it has to stay, or it would be orphaned
+			// open and that reader would never learn the link had dropped.
+		}
 		c.mu.Unlock()
 		c.log.Info("Connection established.")
 		if onUp != nil {

@@ -46,21 +46,43 @@ func capturedLogger() (*service.Resources, *syncBuffer) {
 	return service.MockResources(service.MockResourcesOptUseSlogger(logger)), captured
 }
 
-// waitForLog polls until the log contains want. It exists because
-// require.Eventually evaluates its failure message when it is called rather
-// than when it fails, so a buffer passed there is always reported empty — which
-// looks exactly like "the component logged nothing" and sent one debugging
-// session down the wrong path.
-func waitForLog(t *testing.T, captured *syncBuffer, want, why string) {
+// waitForLogs polls until the log contains every one of want.
+//
+// It takes them all rather than one at a time on purpose. Waiting for a single
+// line and then asserting on a snapshot is a race whenever the other lines are
+// written after it, and the component writes the reason code before the policy
+// it then applies. That shape has now produced two flaky tests — one found in
+// audit 01 and its sibling in audit 02 — so waiting for the whole set removes
+// it rather than fixing each site as it surfaces. Negative assertions can
+// safely follow, because by then the state being asserted about has settled.
+//
+// It also exists because require.Eventually evaluates its failure message when
+// it is called rather than when it fails, so a buffer passed there is always
+// reported empty — which looks exactly like "the component logged nothing" and
+// sent one debugging session down the wrong path.
+func waitForLogs(t *testing.T, captured *syncBuffer, why string, want ...string) {
 	t.Helper()
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
-		if strings.Contains(captured.String(), want) {
+		logged := captured.String()
+		missing := false
+		for _, w := range want {
+			if !strings.Contains(logged, w) {
+				missing = true
+				break
+			}
+		}
+		if !missing {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("%v: never logged %q.\nlog was:\n%v", why, want, captured.String())
+	logged := captured.String()
+	for _, w := range want {
+		if !strings.Contains(logged, w) {
+			t.Fatalf("%v: never logged %q.\nlog was:\n%v", why, w, logged)
+		}
+	}
 }
 
 func readerFor(t *testing.T, yaml string) (*mqttReaderV5, *syncBuffer) {
@@ -104,14 +126,12 @@ func TestRefusedSubscribeIsLoggedWithItsCode(t *testing.T) {
 	// The connection itself succeeds — that is exactly the problem.
 	require.NoError(t, rdr.Connect(testCtx(t)))
 
-	// Wait for the retry line rather than the reason code: it is logged after
-	// the refusal, so waiting for the code and then snapshotting can catch the
-	// log between the two writes. That is what made this test flaky.
-	waitForLog(t, captured, "Retrying the subscription", "a refused subscription under the default policy")
-	logged := captured.String()
-	assert.Contains(t, logged, "0x87", "the reason code was not logged")
-	assert.Contains(t, logged, "not authorized", "the reason code was not decoded")
-	assert.Contains(t, logged, "events/#", "the log does not say which filter was refused")
+	waitForLogs(t, captured, "a refused subscription under the default policy",
+		"0x87",                      // the reason code, read off the SUBACK
+		"not authorized",            // decoded rather than passed through
+		"events/#",                  // which filter was refused
+		"Retrying the subscription", // and that the default keeps trying
+	)
 }
 
 // TestRefusedSubscribeCanStopTheInput covers on_subscribe_refused: fail, for a
@@ -142,11 +162,13 @@ func TestRefusedSubscribeCanContinueOnTheRest(t *testing.T) {
 	rdr, captured := readerFor(t, stubInputYAML(server, "[ events/#, secrets/# ]", "on_subscribe_refused: continue"))
 	require.NoError(t, rdr.Connect(testCtx(t)))
 
-	waitForLog(t, captured, "0x87", "a refusal among granted filters")
+	waitForLogs(t, captured, "a refusal among granted filters",
+		"0x87",
+		"secrets/#",
+		"Carrying on with the filters that were granted",
+	)
 	logged := captured.String()
-	assert.Contains(t, logged, "secrets/#", "the log names the wrong filter")
 	assert.NotContains(t, logged, "Subscription to events/# refused", "a granted filter was reported as refused")
-	assert.Contains(t, logged, "Carrying on with the filters that were granted")
 	assert.NotContains(t, logged, "Retrying the subscription", "continue must not also retry")
 }
 
@@ -165,8 +187,7 @@ func TestRefusedConnectIsLoggedWithItsCode(t *testing.T) {
 	assert.Contains(t, err.Error(), "0x86")
 	assert.Contains(t, err.Error(), "bad user name or password")
 
-	waitForLog(t, captured, "Server refused the connection", "a refused connection")
-	assert.Contains(t, captured.String(), "0x86")
+	waitForLogs(t, captured, "a refused connection", "Server refused the connection", "0x86")
 }
 
 // TestRefusedConnectRetriesByDefault is the other half of the same field: the
@@ -180,8 +201,7 @@ func TestRefusedConnectRetriesByDefault(t *testing.T) {
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, service.ErrEndOfInput, "the default must not end the input")
 
-	waitForLog(t, captured, "0x87", "a refused connection")
-	assert.Contains(t, captured.String(), "not authorized")
+	waitForLogs(t, captured, "a refused connection", "0x87", "not authorized")
 }
 
 func stubOutputYAML(server *stubServerV5, qos int) string {

@@ -2,7 +2,9 @@ package mqtt
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -248,4 +250,119 @@ func TestServerDisconnectIsLoggedWithItsReason(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDownSignalIsClosedOnEveryConnection guards the invariant the down channel
+// exists for: every channel a reader can be holding must be closed when the
+// connection it stands for drops.
+//
+// The first connection is the awkward one. autopaho releases AwaitConnection
+// before it calls OnConnectionUp, so connect can return — and a read can
+// capture the channel — while OnConnectionUp has not run. If that handler
+// replaced the channel unconditionally, the one the reader holds would be
+// orphaned open and that reader would never learn the link had dropped.
+func TestDownSignalIsClosedOnEveryConnection(t *testing.T) {
+	conn := newConnectionV5(service.MockResources().Logger(), mv5RefusedRetry)
+
+	var cfg autopaho.ClientConfig
+	conn.installHooks(&cfg, nil)
+
+	// What a reader that beat OnConnectionUp would be holding.
+	captured := conn.downSignal()
+
+	cfg.OnConnectionUp(nil, nil)
+	select {
+	case <-captured:
+		t.Fatal("the connection reported itself down at the moment it came up")
+	default:
+	}
+
+	require.NotNil(t, cfg.OnConnectionDown)
+	cfg.OnConnectionDown()
+
+	select {
+	case <-captured:
+	default:
+		t.Fatal("a reader holding the channel from before OnConnectionUp never learned the link dropped")
+	}
+
+	// And a later connection gets a channel of its own, closed in its turn.
+	cfg.OnConnectionUp(nil, nil)
+	second := conn.downSignal()
+	select {
+	case <-second:
+		t.Fatal("the second connection started already down")
+	default:
+	}
+	cfg.OnConnectionDown()
+	select {
+	case <-second:
+	default:
+		t.Fatal("the second connection's channel was never closed")
+	}
+}
+
+// TestProgressWatchdogWarnsWhenNothingMoves covers the stall this input can
+// reach without ever seeing an error: under the default auto_replay_nacks a
+// message that can never succeed is retried inside Bento for ever, so the
+// acknowledgement function here is never called at all, the acknowledgement is
+// never released, and once the server's receive window is full it stops
+// delivering. Nothing about that is an error anything can report — only the
+// counters standing still show it.
+func TestProgressWatchdogWarnsWhenNothingMoves(t *testing.T) {
+	newReader := func(t *testing.T) (*mqttReaderV5, *syncBuffer) {
+		t.Helper()
+		conf, err := inputConfigSpecV5().ParseYAML("urls: [ tcp://localhost:1883 ]\ntopics: [ x ]", nil)
+		require.NoError(t, err)
+		res, captured := capturedLogger()
+		rdr, err := newMQTTReaderV5FromParsed(conf, res)
+		require.NoError(t, err)
+		rdr.stallSample, rdr.stallAfter = 20*time.Millisecond, 3
+		t.Cleanup(func() { _ = rdr.Close(context.Background()) })
+		return rdr, captured
+	}
+
+	t.Run("messages outstanding and nothing moving warns", func(t *testing.T) {
+		rdr, captured := newReader(t)
+		// Four handed to the pipeline, three finished with: one is stuck, and
+		// no error was ever reported for it.
+		rdr.handed.Store(4)
+		rdr.settled.Store(3)
+		go rdr.watchProgress()
+
+		require.Eventually(t, func() bool {
+			return strings.Contains(captured.String(), "has not finished a message in at least")
+		}, 5*time.Second, 10*time.Millisecond, "a stalled input warned about nothing")
+
+		logged := captured.String()
+		assert.Contains(t, logged, "1 are outstanding")
+		assert.Contains(t, logged, "dead-letter")
+		assert.Equal(t, 1, strings.Count(logged, "has not finished a message"), "the warning repeated")
+	})
+
+	t.Run("an idle input owing nothing stays quiet", func(t *testing.T) {
+		rdr, captured := newReader(t)
+		rdr.handed.Store(7)
+		rdr.settled.Store(7)
+		go rdr.watchProgress()
+
+		time.Sleep(300 * time.Millisecond)
+		assert.NotContains(t, captured.String(), "has not finished a message",
+			"a quiet topic was reported as a stall")
+	})
+
+	t.Run("a slow but advancing pipeline stays quiet", func(t *testing.T) {
+		rdr, captured := newReader(t)
+		rdr.handed.Store(4)
+		rdr.settled.Store(1)
+		go rdr.watchProgress()
+
+		for range 12 {
+			time.Sleep(25 * time.Millisecond)
+			rdr.handed.Add(1)
+			rdr.settled.Add(1)
+		}
+		assert.NotContains(t, captured.String(), "has not finished a message",
+			"a pipeline that was still making progress was reported as stalled")
+	})
 }

@@ -73,7 +73,9 @@ Messages are acknowledged to the server only once the pipeline has finished with
 
 Acknowledgements are released strictly in the order the messages arrived, because that is the only order MQTT 5 allows them to be sent in. A message still being worked on holds back the acknowledgement of everything received after it, even messages the pipeline has already finished with.
 
-**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `+"`receive_maximum`"+` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages. A warning is logged the first time a message is rejected, saying exactly this.
+**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `+"`receive_maximum`"+` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages.
+
+Two warnings exist to stop that being silent. One is logged the first time a message is rejected. The other is logged once when this input has held messages for a minute without finishing any of them, which is the only signal available under the default `+"`auto_replay_nacks`"+`: a message being retried inside Bento for ever never reports an error to this component at all, so there is nothing to react to except the absence of progress.
 
 **So do not reject messages you cannot ever process.** Send them somewhere instead — a [`+"`fallback`"+`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
 
@@ -205,6 +207,77 @@ type mqttReaderV5 struct {
 	// rejected counts messages the pipeline refused, so that the warning
 	// explaining what that costs is logged once rather than per message.
 	rejected atomic.Int64
+
+	// handed and settled count messages given to the pipeline and messages it
+	// finished with. Their difference is what the server is still waiting to
+	// hear about, and a difference that stops changing is a stalled input.
+	handed  atomic.Int64
+	settled atomic.Int64
+
+	// How long the watchdog waits before deciding nothing is moving. Fields
+	// rather than constants so a test can drive it in milliseconds; there is
+	// no reason for an operator to change them, so they are not configuration.
+	stallSample time.Duration
+	stallAfter  int
+}
+
+// watchProgress warns, once, when this input stops making progress while
+// holding messages the server has not been told about.
+//
+// It is keyed on the condition rather than on a rejection because a rejection
+// is not where the common case shows up. Under the default auto_replay_nacks
+// the pipeline's error never reaches this component at all: Bento re-queues the
+// message and retries it internally for ever, and the acknowledgement function
+// here is only ever called on eventual success. A message that can never
+// succeed therefore holds its acknowledgement — and every acknowledgement
+// behind it — with nothing in this component seeing an error to report. Once
+// the receive window is full the server stops delivering and the pipeline sits
+// healthy and idle. Watching the counters catches that; watching for rejections
+// does not.
+func (m *mqttReaderV5) watchProgress() {
+	sample, stallAfter := m.stallSample, m.stallAfter
+
+	ticker := time.NewTicker(sample)
+	defer ticker.Stop()
+
+	// Seeded from the counters as they stand, so the first tick is a real
+	// comparison. Starting them at a sentinel made the first tick always read
+	// as movement and pushed the warning out by a whole sample, which is a
+	// quarter longer than the interval this reports.
+	lastHanded, lastSettled := m.handed.Load(), m.settled.Load()
+	still, warned := 0, false
+
+	for {
+		select {
+		case <-ticker.C:
+		case <-m.ctx.Done():
+			return
+		}
+
+		handed, settled := m.handed.Load(), m.settled.Load()
+		outstanding := handed - settled
+
+		if handed != lastHanded || settled != lastSettled {
+			lastHanded, lastSettled = handed, settled
+			still, warned = 0, false
+			continue
+		}
+		if outstanding <= 0 {
+			continue // Idle with nothing owed is just a quiet topic.
+		}
+
+		still++
+		if still < stallAfter || warned {
+			continue
+		}
+		warned = true
+		m.log.Warnf("This input has not finished a message in at least %v, and %v are outstanding. "+
+			"Acknowledgements are sent in the order messages arrived, so one message the pipeline "+
+			"never finishes with — retried indefinitely, or rejected — holds back every acknowledgement "+
+			"behind it, and the server stops delivering once its receive window is full. If a message "+
+			"cannot ever succeed, route it to a dead-letter output rather than retrying or rejecting it "+
+			"for ever.", sample*time.Duration(stallAfter), outstanding)
+	}
 }
 
 // outstandingLimit describes how many unacknowledged messages the server will
@@ -223,6 +296,8 @@ func newMQTTReaderV5FromParsed(conf *service.ParsedConfig, mgr *service.Resource
 		msgChan:      make(chan paho.PublishReceived),
 		subscribeReq: make(chan struct{}, 1),
 		fatalCh:      make(chan struct{}),
+		stallSample:  20 * time.Second,
+		stallAfter:   3, // so a minute of complete stasis
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 
@@ -316,7 +391,10 @@ func (m *mqttReaderV5) Connect(ctx context.Context) error {
 	cfg.EnableManualAcknowledgment = true
 	cfg.SendAcksInterval = m.ackInterval
 
-	m.startOnce.Do(func() { go m.subscriber() })
+	m.startOnce.Do(func() {
+		go m.subscriber()
+		go m.watchProgress()
+	})
 
 	if err := m.conn.connect(ctx, cfg); err != nil {
 		if errors.Is(err, errConnectionRefused) {
@@ -455,6 +533,7 @@ func (m *mqttReaderV5) Read(ctx context.Context) (*service.Message, service.AckF
 	select {
 	case pr := <-m.msgChan:
 		msg, ackFn := m.messageFromPublish(pr)
+		m.handed.Add(1)
 		return msg, ackFn, nil
 	case <-m.fatalCh:
 		return nil, nil, m.stopped()
@@ -527,6 +606,7 @@ func (m *mqttReaderV5) messageFromPublish(pr paho.PublishReceived) (*service.Mes
 			}
 			return nil
 		}
+		m.settled.Add(1)
 		if err := pr.Client.Ack(pkt); err != nil {
 			// Acknowledging after the link has dropped is documented as
 			// unpredictable, and there is nothing Bento could do with an error

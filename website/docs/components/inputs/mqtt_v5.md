@@ -108,7 +108,9 @@ Messages are acknowledged to the server only once the pipeline has finished with
 
 Acknowledgements are released strictly in the order the messages arrived, because that is the only order MQTT 5 allows them to be sent in. A message still being worked on holds back the acknowledgement of everything received after it, even messages the pipeline has already finished with.
 
-**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `receive_maximum` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages. A warning is logged the first time a message is rejected, saying exactly this.
+**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `receive_maximum` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages.
+
+Two warnings exist to stop that being silent. One is logged the first time a message is rejected. The other is logged once when this input has held messages for a minute without finishing any of them, which is the only signal available under the default `auto_replay_nacks`: a message being retried inside Bento for ever never reports an error to this component at all, so there is nothing to react to except the absence of progress.
 
 **So do not reject messages you cannot ever process.** Send them somewhere instead — a [`fallback`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
 
