@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `send_queue_capacity`, `buf_pool_capacity` & `send_loop_count` fields on the `statsd` metrics exporter to tune the underlying `go-statsd` client and avoid packet loss under high throughput @triddell
+- New `mqtt_v5` input and output speaking MQTT 5, supporting user properties as metadata, shared subscriptions, session expiry and reason codes @ifnesi
 
 ## 1.21.1 - 2026-08-26
 
