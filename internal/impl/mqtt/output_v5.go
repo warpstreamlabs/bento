@@ -116,7 +116,9 @@ output:
 
 The same applies to `+"`response_topic`"+`, `+"`message_expiry_interval`"+` and `+"`payload_format_indicator`"+`: name the ones the bridge should carry.
 
-Naming one is safe even when a message does not have it. These fields are all optional, and an interpolation that resolves to nothing — which is what reading an absent metadata field gives you — leaves the property unset rather than failing the message. A value that is present but malformed is still an error, because that is a configuration mistake rather than an absent property.`+service.OutputPerformanceDocs(true, false)).
+Naming one is safe even when a message does not have it. These fields are all optional, and an interpolation that resolves to nothing — which is what reading an absent metadata field gives you — leaves the property unset rather than failing the message. A value that is present but malformed is still an error, because that is a configuration mistake rather than an absent property.
+
+Reading an absent metadata field yields the text `+"`null`"+`, so that text is what marks a property as unset. A value that is genuinely the four characters `+"`null`"+` — conceivable as correlation data, if nothing else — is therefore not sent. The same is true of the `+"`retained_interpolated`"+` field, whose configured `+"`retained`"+` value stands when the field it reads is absent.`+service.OutputPerformanceDocs(true, false)).
 		Fields(clientFieldsV5()...).
 		Fields(
 			service.NewInterpolatedStringField(mov5FieldTopic).
@@ -297,10 +299,18 @@ func (m *mqttWriterV5) Write(ctx context.Context, msg *service.Message) error {
 	retained := m.retained
 	if m.retainedInterp != nil {
 		retainedStr, parseErr := m.retainedInterp.TryString(msg)
-		if parseErr != nil {
+		switch {
+		case parseErr != nil:
 			m.log.Errorf("Retained interpolation error: %v", parseErr)
-		} else if retained, parseErr = strconv.ParseBool(retainedStr); parseErr != nil {
-			m.log.Errorf("Error parsing boolean value from retained flag: %v", parseErr)
+		case propertyUnset(retainedStr):
+			// The field it reads is absent, so the configured retained value
+			// stands. Reporting that as a parse failure described a malformed
+			// value when nothing was malformed, and did so once per message.
+		default:
+			if retained, parseErr = strconv.ParseBool(retainedStr); parseErr != nil {
+				m.log.Errorf("Error parsing boolean value from retained flag: %v", parseErr)
+				retained = m.retained
+			}
 		}
 	}
 

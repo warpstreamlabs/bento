@@ -281,3 +281,56 @@ func TestNoMatchingSubscribersIsNotAFailure(t *testing.T) {
 	assert.NoError(t, writer.Write(ctx, service.NewMessage([]byte("nobody listening"))),
 		"0x10 no matching subscribers is a success and must not fail the message")
 }
+
+// TestRetainedInterpolatedTreatsAbsentAsUnset covers the one interpolated field
+// that is not an MQTT 5 property but reads metadata the same way. An absent
+// source field interpolates to "null", which used to be reported once per
+// message as a malformed boolean — describing a mistake where there was only an
+// absence, and inconsistently with the five properties beside it.
+func TestRetainedInterpolatedTreatsAbsentAsUnset(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		metaValue     any
+		hasMeta       bool
+		wantRetained  bool
+		wantParseWarn bool
+	}{
+		{name: "absent leaves the configured value standing", wantRetained: false},
+		{name: "present and true is honoured", metaValue: "true", hasMeta: true, wantRetained: true},
+		{name: "present and unparseable still complains", metaValue: "yes-please", hasMeta: true, wantParseWarn: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server := newStubServerV5(t, stubConfig{})
+			conf, err := outputConfigSpecV5().ParseYAML(fmt.Sprintf(`
+urls: [ %v ]
+topic: out
+qos: 1
+connect_timeout: 5s
+retained: false
+retained_interpolated: ${! meta("want_retained") }
+`, server.url()), nil)
+			require.NoError(t, err)
+			res, captured := capturedLogger()
+			writer, err := newMQTTWriterV5FromParsed(conf, res)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = writer.Close(context.Background()) })
+
+			ctx := testCtx(t)
+			require.NoError(t, writer.Connect(ctx))
+
+			msg := service.NewMessage([]byte("body"))
+			if test.hasMeta {
+				msg.MetaSetMut("want_retained", test.metaValue)
+			}
+			require.NoError(t, writer.Write(ctx, msg), "the message must publish whatever the flag says")
+
+			require.Eventually(t, func() bool { return len(server.publishes()) > 0 },
+				10*time.Second, 20*time.Millisecond, "the server never received the publication")
+			assert.Equal(t, test.wantRetained, server.publishes()[0].Retain)
+
+			complained := strings.Contains(captured.String(), "Error parsing boolean value")
+			assert.Equal(t, test.wantParseWarn, complained,
+				"an absent field must not be reported as a malformed one, and a malformed one must be reported")
+		})
+	}
+}
