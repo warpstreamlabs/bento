@@ -1,0 +1,496 @@
+package mqtt
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/eclipse/paho.golang/autopaho"
+	"github.com/eclipse/paho.golang/paho"
+
+	"github.com/warpstreamlabs/bento/public/service"
+)
+
+const (
+	miv5FieldTopics             = "topics"
+	miv5FieldQoS                = "qos"
+	miv5FieldNoLocal            = "no_local"
+	miv5FieldRetainAsPublished  = "retain_as_published"
+	miv5FieldRetainHandling     = "retain_handling"
+	miv5FieldAckInterval        = "ack_interval"
+	miv5FieldOnSubscribeRefused = "on_subscribe_refused"
+	miv5FieldOnConnectRefused   = "on_connect_refused"
+)
+
+// mv5SubackReasons names the reason codes a server can refuse a subscription
+// with. The client library reports more than one refused filter as "at least
+// one requested subscription failed" and a single one as a sentence ending in a
+// reason string most servers never send, so the codes have to be read off the
+// SUBACK itself.
+var mv5SubackReasons = map[byte]string{
+	0x80: "unspecified error",
+	0x83: "implementation specific error",
+	0x87: "not authorized",
+	0x8F: "topic filter invalid",
+	0x91: "packet identifier in use",
+	0x97: "quota exceeded",
+	0x9E: "shared subscriptions not supported",
+	0xA1: "subscription identifiers not supported",
+	0xA2: "wildcard subscriptions not supported",
+}
+
+func mv5SubackReason(code byte) string {
+	if name, ok := mv5SubackReasons[code]; ok {
+		return name
+	}
+	return "unrecognised reason code"
+}
+
+func inputConfigSpecV5() *service.ConfigSpec {
+	// Deliberately not marked Stable: components resting on a v0 dependency are
+	// documented as experimental, which is what a plugin spec defaults to.
+	return service.NewConfigSpec().
+		Categories("Services").
+		Summary("Subscribe to topics on MQTT 5 brokers.").
+		Description(`
+This input speaks MQTT 5 only, and will not fall back to 3.1.1. Use the `+"`mqtt`"+` input for servers that speak the older protocol.
+
+### Durable subscriptions
+
+Receiving messages published while the pipeline was down needs three settings together: `+"`clean_start: false`"+`, a fixed `+"`client_id`"+`, and a `+"`session_expiry_interval`"+` longer than the outage you want to survive. Any one of them left at its default loses the messages.
+
+### Shared subscriptions
+
+A shared subscription is an ordinary topic filter of the form `+"`$share/<group>/<filter>`"+`, so it needs no setting of its own. Scaling out means running more instances of the same configuration with the same group.
+
+### Acknowledgement
+
+Messages are acknowledged to the server only once the pipeline has finished with them, so a message is not lost if a destination is unavailable. Acknowledgements are released strictly in the order the messages arrived: a message still in flight holds back the acknowledgement of everything received after it, and if it is eventually rejected the server redelivers that whole run on the next connection. This is at-least-once delivery working as intended, but it does mean a single slow or failing message delays acknowledgements behind it. Pipelines that need messages processed in order should also set `+"`pipeline.threads: 1`"+`.
+
+### Metadata
+
+This input adds the following metadata fields to each message:
+
+`+"``` text"+`
+- mqtt_topic
+- mqtt_qos
+- mqtt_retained
+- mqtt_duplicate
+- mqtt_message_id
+- mqtt_content_type (if set)
+- mqtt_response_topic (if set)
+- mqtt_correlation_data (if set)
+- mqtt_message_expiry_interval (if set)
+- mqtt_payload_format_indicator (if set)
+- mqtt_subscription_identifier (if set)
+`+"```"+`
+
+MQTT 5 user properties are also added, each under its own key with no prefix — this is the part MQTT 3.1.1 cannot carry at all. They are written before the fields above, so a publisher cannot overwrite `+"`mqtt_topic`"+` or any other of them by sending a user property of the same name. Where a key appears more than once in one message, which MQTT 5 permits, the last occurrence wins.
+
+You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).`).
+		Fields(clientFieldsV5()...).
+		Fields(
+			service.NewStringListField(miv5FieldTopics).
+				Description("A list of topic filters to consume from. A filter of the form `$share/<group>/<filter>` is a shared subscription, splitting the stream across every instance using the same group."),
+			service.NewIntField(miv5FieldQoS).
+				Description("The level of delivery guarantee to enforce. Has options 0, 1, 2. At QoS 0 the server neither redelivers nor waits for an acknowledgement, so a message lost in transit stays lost.").
+				Advanced().
+				Default(1),
+			service.NewBoolField(miv5FieldNoLocal).
+				Description("Whether to ask the server not to deliver back messages this same client published. Applied to every filter.").
+				Advanced().
+				Default(false),
+			service.NewBoolField(miv5FieldRetainAsPublished).
+				Description("Whether messages forwarded by the server keep the retained flag they were published with. Applied to every filter.").
+				Advanced().
+				Default(false),
+			service.NewIntField(miv5FieldRetainHandling).
+				Description("Whether the server should send retained messages when this subscription is made: `0` always, `1` only if the subscription is new, `2` never. Applied to every filter.").
+				Advanced().
+				Default(0),
+			service.NewDurationField(miv5FieldAckInterval).
+				Description("How often acknowledgements finished by the pipeline are flushed to the server. A longer interval sends fewer, larger batches; a shorter one returns capacity to the server sooner.").
+				Advanced().
+				Default("50ms"),
+			service.NewStringEnumField(miv5FieldOnConnectRefused, mv5RefusedRetry, mv5RefusedFail).
+				Description(`What to do when the server refuses the connection outright, which it reports with a reason code such as `+"`0x86`"+` bad user name or password, `+"`0x87`"+` not authorized, or `+"`0x8A`"+` banned.
+
+- `+"`retry`"+` reconnects for ever, logging the reason code each time. A refusal caused by a missing permission then recovers on its own once the permission is granted, with no restart.
+- `+"`fail`"+` stops the input instead. Prefer it for batch and one-shot pipelines, where a run that hangs is worse than a run that fails.
+
+The reason code the server sent is logged either way, because the client library's own error text does not carry it.`).
+				Advanced().
+				Default(mv5RefusedRetry),
+			service.NewStringEnumField(miv5FieldOnSubscribeRefused, mv5RefusedRetry, mv5RefusedFail, mv5RefusedContinue).
+				Description(`What to do when the server refuses one or more of the topic filters, which it reports with a reason code such as `+"`0x87`"+` not authorized or `+"`0x8F`"+` topic filter invalid.
+
+A refusal does not close the connection, so without one of these the pipeline would sit connected and healthy while receiving nothing at all.
+
+- `+"`retry`"+` subscribes again on a growing delay, for ever, logging each refusal. A filter refused because a permission is missing then starts working on its own once the permission is granted, with no restart.
+- `+"`fail`"+` stops the input. Prefer it for batch and one-shot pipelines, where a run that hangs is worse than a run that fails.
+- `+"`continue`"+` carries on with whichever filters were granted. Use it when one filter of several is expendable — but note that the pipeline then runs while knowingly missing that data.
+
+Every refused filter is logged with its own reason code whichever is chosen.`).
+				Advanced().
+				Default(mv5RefusedRetry),
+			service.NewAutoRetryNacksToggleField(),
+		)
+}
+
+func init() {
+	err := service.RegisterInput("mqtt_v5", inputConfigSpecV5(), func(conf *service.ParsedConfig, mgr *service.Resources) (service.Input, error) {
+		rdr, err := newMQTTReaderV5FromParsed(conf, mgr)
+		if err != nil {
+			return nil, err
+		}
+		return service.AutoRetryNacksToggled(conf, rdr)
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+type mqttReaderV5 struct {
+	clientConf clientConfigV5
+
+	topics             []string
+	qos                byte
+	noLocal            bool
+	retainAsPublished  bool
+	retainHandling     byte
+	ackInterval        time.Duration
+	onSubscribeRefused string
+	onConnectRefused   string
+
+	log  *service.Logger
+	conn *connectionV5
+
+	msgChan chan paho.PublishReceived
+
+	// subscribeReq carries a request from the connection-up handler, which is
+	// not allowed to block, to the goroutine that does the subscribing, which
+	// has to wait for a SUBACK and may have to wait out a refusal.
+	subscribeReq chan struct{}
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	startOnce sync.Once
+	closeOnce sync.Once
+
+	fatalMut sync.Mutex
+	fatalErr error
+	fatalCh  chan struct{}
+}
+
+func newMQTTReaderV5FromParsed(conf *service.ParsedConfig, mgr *service.Resources) (*mqttReaderV5, error) {
+	m := &mqttReaderV5{
+		log:          mgr.Logger(),
+		msgChan:      make(chan paho.PublishReceived),
+		subscribeReq: make(chan struct{}, 1),
+		fatalCh:      make(chan struct{}),
+	}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+
+	var err error
+	if m.clientConf, err = clientConfigV5FromParsed(conf); err != nil {
+		return nil, err
+	}
+	if m.topics, err = conf.FieldStringList(miv5FieldTopics); err != nil {
+		return nil, err
+	}
+	if len(m.topics) == 0 {
+		return nil, errors.New("at least one topic filter is required")
+	}
+
+	var qos int
+	if qos, err = conf.FieldInt(miv5FieldQoS); err != nil {
+		return nil, err
+	}
+	if qos < 0 || qos > 2 {
+		return nil, errors.New("qos must be 0, 1 or 2")
+	}
+	m.qos = byte(qos)
+
+	if m.noLocal, err = conf.FieldBool(miv5FieldNoLocal); err != nil {
+		return nil, err
+	}
+	if m.retainAsPublished, err = conf.FieldBool(miv5FieldRetainAsPublished); err != nil {
+		return nil, err
+	}
+	var retainHandling int
+	if retainHandling, err = conf.FieldInt(miv5FieldRetainHandling); err != nil {
+		return nil, err
+	}
+	if retainHandling < 0 || retainHandling > 2 {
+		return nil, errors.New("retain_handling must be 0, 1 or 2")
+	}
+	m.retainHandling = byte(retainHandling)
+
+	if m.ackInterval, err = conf.FieldDuration(miv5FieldAckInterval); err != nil {
+		return nil, err
+	}
+	if m.ackInterval <= 0 {
+		return nil, errors.New("ack_interval must be greater than zero")
+	}
+	if m.onSubscribeRefused, err = conf.FieldString(miv5FieldOnSubscribeRefused); err != nil {
+		return nil, err
+	}
+	if m.onConnectRefused, err = conf.FieldString(miv5FieldOnConnectRefused); err != nil {
+		return nil, err
+	}
+
+	m.conn = newConnectionV5(m.log, m.onConnectRefused)
+	return m, nil
+}
+
+// stop records a condition the input cannot work through, so that both Connect
+// and Read report it as the end of the input rather than looping.
+func (m *mqttReaderV5) stop(err error) {
+	m.fatalMut.Lock()
+	defer m.fatalMut.Unlock()
+	if m.fatalErr != nil {
+		return
+	}
+	m.fatalErr = err
+	close(m.fatalCh)
+}
+
+func (m *mqttReaderV5) stopped() error {
+	m.fatalMut.Lock()
+	defer m.fatalMut.Unlock()
+	if m.fatalErr == nil {
+		return nil
+	}
+	// ErrEndOfInput is what Bento reads as "this input is finished"; it stops
+	// the reader loop rather than reconnecting for ever.
+	return fmt.Errorf("%v: %w", m.fatalErr, service.ErrEndOfInput)
+}
+
+func (m *mqttReaderV5) Connect(ctx context.Context) error {
+	if err := m.stopped(); err != nil {
+		return err
+	}
+
+	var cfg autopaho.ClientConfig
+	m.clientConf.apply(&cfg)
+	m.conn.installHooks(&cfg, m.onConnectionUp)
+
+	cfg.OnPublishReceived = []func(paho.PublishReceived) (bool, error){m.onPublishReceived}
+	// Acknowledgements are held until the pipeline has finished with a message,
+	// which is the reason this component exists.
+	cfg.EnableManualAcknowledgment = true
+	cfg.SendAcksInterval = m.ackInterval
+
+	m.startOnce.Do(func() { go m.subscriber() })
+
+	if err := m.conn.connect(ctx, cfg); err != nil {
+		if errors.Is(err, errConnectionRefused) {
+			m.stop(err)
+			return m.stopped()
+		}
+		return err
+	}
+	return nil
+}
+
+// onConnectionUp runs on autopaho's goroutine, which documents that it must not
+// block. Subscribing means waiting for a SUBACK, and a refusal may mean waiting
+// out a delay before trying again, so the work is handed to the subscriber.
+func (m *mqttReaderV5) onConnectionUp(*autopaho.ConnectionManager, *paho.Connack) {
+	select {
+	case m.subscribeReq <- struct{}{}:
+	default: // A request is already pending and will use the live connection.
+	}
+}
+
+func (m *mqttReaderV5) onPublishReceived(pr paho.PublishReceived) (bool, error) {
+	select {
+	case m.msgChan <- pr:
+	case <-m.ctx.Done():
+	}
+	return true, nil
+}
+
+func (m *mqttReaderV5) subscriber() {
+	for {
+		select {
+		case <-m.subscribeReq:
+		case <-m.ctx.Done():
+			return
+		}
+		m.subscribeUntilGranted()
+	}
+}
+
+// subscribeUntilGranted applies on_subscribe_refused. A refusal leaves the
+// connection up and healthy while delivering nothing, so doing nothing about it
+// is the one option that is never right.
+func (m *mqttReaderV5) subscribeUntilGranted() {
+	for attempt := 0; ; attempt++ {
+		cm := m.conn.manager()
+		if cm == nil {
+			return
+		}
+
+		refused, err := m.subscribe(cm)
+		switch {
+		case err == nil:
+			return
+		case !refused:
+			// The request never got an answer. A reconnection will ask again.
+			m.log.Errorf("Subscribe failed: %v", err)
+			return
+		}
+
+		switch m.onSubscribeRefused {
+		case mv5RefusedFail:
+			m.stop(err)
+			return
+		case mv5RefusedContinue:
+			m.log.Warn("Carrying on with the filters that were granted; the refused ones deliver nothing.")
+			return
+		}
+
+		wait := time.Duration(1<<min(attempt, 6)) * time.Second
+		m.log.Infof("Retrying the subscription in %v.", wait)
+		select {
+		case <-time.After(wait):
+		case <-m.subscribeReq:
+			attempt = -1 // Reconnected: start the delay from the beginning.
+		case <-m.ctx.Done():
+			return
+		}
+	}
+}
+
+// subscribe sends one SUBSCRIBE and reports what came back. refused separates a
+// server that answered and said no from a request that never got an answer,
+// because only the first is worth applying a policy to.
+func (m *mqttReaderV5) subscribe(cm *autopaho.ConnectionManager) (refused bool, err error) {
+	subs := make([]paho.SubscribeOptions, 0, len(m.topics))
+	for _, topic := range m.topics {
+		subs = append(subs, paho.SubscribeOptions{
+			Topic:             topic,
+			QoS:               m.qos,
+			NoLocal:           m.noLocal,
+			RetainAsPublished: m.retainAsPublished,
+			RetainHandling:    m.retainHandling,
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(m.ctx, m.clientConf.connectTimeout)
+	defer cancel()
+
+	suback, subErr := cm.Subscribe(ctx, &paho.Subscribe{Subscriptions: subs})
+	if suback == nil {
+		return false, subErr
+	}
+
+	// Read the packet rather than the error: the library's message reports that
+	// a subscription failed and drops the code saying why.
+	var refusals []string
+	granted := 0
+	for i, code := range suback.Reasons {
+		topic := "unnamed filter"
+		if i < len(m.topics) {
+			topic = m.topics[i]
+		}
+		if code < 0x80 {
+			granted++
+			m.log.Debugf("Subscribed to %v at QoS %v.", topic, code)
+			continue
+		}
+		m.log.Errorf("Subscription to %v refused: %v (0x%02X).", topic, mv5SubackReason(code), code)
+		refusals = append(refusals, fmt.Sprintf("%v: %v (0x%02X)", topic, mv5SubackReason(code), code))
+	}
+
+	if len(refusals) == 0 {
+		m.log.Infof("Subscribed to %v topic filter(s).", granted)
+		return false, nil
+	}
+	return true, fmt.Errorf("server refused %v of %v topic filters — %v",
+		len(refusals), len(suback.Reasons), strings.Join(refusals, "; "))
+}
+
+func (m *mqttReaderV5) Read(ctx context.Context) (*service.Message, service.AckFunc, error) {
+	if err := m.stopped(); err != nil {
+		return nil, nil, err
+	}
+
+	select {
+	case pr := <-m.msgChan:
+		msg, ackFn := m.messageFromPublish(pr)
+		return msg, ackFn, nil
+	case <-m.fatalCh:
+		return nil, nil, m.stopped()
+	case <-m.conn.downSignal():
+		return nil, nil, service.ErrNotConnected
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	}
+}
+
+func (m *mqttReaderV5) messageFromPublish(pr paho.PublishReceived) (*service.Message, service.AckFunc) {
+	pkt := pr.Packet
+	msg := service.NewMessage(pkt.Payload)
+
+	// User properties are written first so that the fields below always
+	// describe the message as it arrived: a publisher sending a user property
+	// named mqtt_topic overwrites nothing.
+	if pkt.Properties != nil {
+		for _, prop := range pkt.Properties.User {
+			msg.MetaSetMut(prop.Key, prop.Value)
+		}
+	}
+
+	msg.MetaSetMut("mqtt_topic", pkt.Topic)
+	msg.MetaSetMut("mqtt_qos", int(pkt.QoS))
+	msg.MetaSetMut("mqtt_retained", pkt.Retain)
+	msg.MetaSetMut("mqtt_duplicate", pkt.Duplicate())
+	msg.MetaSetMut("mqtt_message_id", int(pkt.PacketID))
+
+	if props := pkt.Properties; props != nil {
+		if props.ContentType != "" {
+			msg.MetaSetMut("mqtt_content_type", props.ContentType)
+		}
+		if props.ResponseTopic != "" {
+			msg.MetaSetMut("mqtt_response_topic", props.ResponseTopic)
+		}
+		if len(props.CorrelationData) > 0 {
+			msg.MetaSetMut("mqtt_correlation_data", props.CorrelationData)
+		}
+		if props.MessageExpiry != nil {
+			msg.MetaSetMut("mqtt_message_expiry_interval", int(*props.MessageExpiry))
+		}
+		if props.PayloadFormat != nil {
+			msg.MetaSetMut("mqtt_payload_format_indicator", int(*props.PayloadFormat))
+		}
+		if props.SubscriptionIdentifier != nil {
+			msg.MetaSetMut("mqtt_subscription_identifier", *props.SubscriptionIdentifier)
+		}
+	}
+
+	return msg, func(ctx context.Context, res error) error {
+		if res != nil {
+			// Withholding the acknowledgement is the point: the server keeps
+			// the message and delivers it again.
+			return nil
+		}
+		if err := pr.Client.Ack(pkt); err != nil {
+			// Acknowledging after the link has dropped is documented as
+			// unpredictable, and there is nothing Bento could do with an error
+			// here that redelivery does not already do.
+			m.log.Debugf("Could not acknowledge a message on %v: %v", pkt.Topic, err)
+		}
+		return nil
+	}
+}
+
+func (m *mqttReaderV5) Close(ctx context.Context) error {
+	m.closeOnce.Do(m.cancel)
+	return m.conn.close(ctx)
+}
