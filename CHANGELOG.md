@@ -23,6 +23,11 @@ All notable changes to this project will be documented in this file.
 - Optional ListableCache interface for caches that support key listing - with implementations for `memory`, `file`, `aws_s3` & `gcp_cloud_storage`
 - `broker_read_max_bytes` to `kafka_franz` input and `broker_write_max_bytes` & `max_buffered_bytes` options to `kafka_franz` output @jem-davies
 
+### Changed
+
+- Bloblang field reads over maps no longer allocate per path segment, reducing allocations in mappings that read several fields @slachiewicz
+- Bloblang mappings that assign no variables no longer allocate a variables map per execution @slachiewicz
+
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa

@@ -222,6 +222,22 @@ func (e *Executor) QueryTargets(ctx query.TargetsContext) (query.TargetsContext,
 	return ctx, paths
 }
 
+// AssignsVariables returns true if any statement within the mapping assigns to
+// a variable, and therefore whether executing it requires a writable variables
+// map.
+//
+// Maps applied with the `apply` method are deliberately not consulted: that
+// method isolates variables by replacing the map before invoking the target, so
+// a named map cannot write to its caller's variables.
+func (e *Executor) AssignsVariables() bool {
+	for _, t := range e.AssignmentTargets() {
+		if t.Type == TargetVariable {
+			return true
+		}
+	}
+	return false
+}
+
 // AssignmentTargets returns a slice of all targets assigned to by statements
 // within the mapping.
 func (e *Executor) AssignmentTargets() []TargetPath {
