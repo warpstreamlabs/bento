@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## 1.21.1 - 2026-08-26
+
+### Fixed
+
+- `kafka_franz` output field `broker_write_max_bytes` misconfigured (introduced in version 1.21.0) @jem-davies
+
 ## 1.21.0 - 2026-08-21
 
 ### Added
