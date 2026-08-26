@@ -23,6 +23,10 @@ All notable changes to this project will be documented in this file.
 - Optional ListableCache interface for caches that support key listing - with implementations for `memory`, `file`, `aws_s3` & `gcp_cloud_storage`
 - `broker_read_max_bytes` to `kafka_franz` input and `broker_write_max_bytes` & `max_buffered_bytes` options to `kafka_franz` output @jem-davies
 
+### Added
+
+- Nested list-of-list support to `parquet` processors @gregfurman
+
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
