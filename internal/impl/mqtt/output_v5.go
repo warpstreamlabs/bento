@@ -170,7 +170,7 @@ The default excludes `+"`mqtt_`"+`, because that is the namespace the `+"`mqtt_v
 
 Set it to an empty list to send them, and to other prefixes to hold back metadata of your own:
 
-`+"```yaml"+`
+`+"```yml"+`
 metadata:
   exclude_prefixes: []                    # send everything, mqtt_ fields included
   exclude_prefixes: [ mqtt_, secret_ ]    # the default, plus one of your own

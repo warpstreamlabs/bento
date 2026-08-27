@@ -84,7 +84,9 @@ A pipeline that simply takes longer than a minute to finish each message reaches
 `+"```yaml"+`
 output:
   fallback:
-    - kafka_franz: { } # the real destination
+    - kafka_franz:                       # the real destination
+        seed_brokers: [ localhost:9092 ]
+        topic: events
     - file:
         path: ./dead-letter.jsonl
 `+"```"+`
