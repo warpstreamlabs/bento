@@ -54,6 +54,7 @@ func saslField() *service.ConfigField {
 			"SCRAM-SHA-256": "SCRAM based authentication as specified in RFC5802.",
 			"SCRAM-SHA-512": "SCRAM based authentication as specified in RFC5802.",
 			"AWS_MSK_IAM":   "AWS IAM based authentication as specified by the 'aws-msk-iam-auth' java library.",
+			"GSSAPI":        "GSSAPI / Kerberos based authentication.",
 		}).
 			Description("The SASL mechanism to use."),
 		service.NewStringField("username").
@@ -95,6 +96,25 @@ func saslField() *service.ConfigField {
 		service.NewObjectField("aws", config.SessionFields()...).
 			Description("Contains AWS specific fields for when the `mechanism` is set to `AWS_MSK_IAM`.").
 			Optional(),
+		service.NewStringField("kerberos_config_path").
+			Description("The path to a kerberos configuration file (krb5.conf). Used when mechanism is set to `GSSAPI`.").
+			Default("/etc/krb5.conf"),
+		service.NewStringField("keytab_path").
+			Description("The path to a keytab file to use for authentication with the kerberos client.").
+			Default(""),
+		service.NewStringField("principal").
+			Description("The principal to use for kerberos authentication, e.g. `kafka_client/host.example.com`.").
+			Default(""),
+		service.NewStringField("realm").
+			Description("The realm to use for kerberos authentication.").
+			Default(""),
+		service.NewStringField("service_name").
+			Description("The service name to use when constructing a service ticket with the kerberos client, e.g. `kafka` (default).").
+			Default("kafka"),
+		service.NewBoolField("disable_pafx_fast").
+			Description("Controls whether to use PA_FX_FAST in AS_REQ (pre-authentication fast).").
+			Default(false).
+			Advanced(),
 	).
 		Description("Specify one or more methods of SASL authentication. SASL is tried in order; if the broker supports the first mechanism, all connections will use that mechanism. If the first mechanism fails, the client will pick the first supported mechanism. If the broker does not support any client mechanisms, connections will fail.").
 		Advanced().Optional().
@@ -104,6 +124,18 @@ func saslField() *service.ConfigField {
 					"mechanism": "SCRAM-SHA-512",
 					"username":  "foo",
 					"password":  "bar",
+				},
+			},
+		).
+		Example(
+			[]any{
+				map[string]any{
+					"mechanism":            "GSSAPI",
+					"kerberos_config_path": "/etc/krb5.conf",
+					"keytab_path":          "/etc/security/keytabs/kafka.keytab",
+					"principal":            "kafka_client/host.example.com",
+					"realm":                "EXAMPLE.COM",
+					"service_name":         "kafka",
 				},
 			},
 		)
@@ -141,6 +173,9 @@ func saslMechanismsFromConfig(c *service.ParsedConfig) ([]sasl.Mechanism, error)
 				mechanisms = append(mechanisms, mechanism)
 			case "AWS_MSK_IAM":
 				mechanism, err = AWSSASLFromConfigFn(mConf)
+				mechanisms = append(mechanisms, mechanism)
+			case "GSSAPI":
+				mechanism, err = kerberosSaslFromConfig(mConf)
 				mechanisms = append(mechanisms, mechanism)
 			default:
 				err = fmt.Errorf("unknown mechanism: %v", mechStr)
