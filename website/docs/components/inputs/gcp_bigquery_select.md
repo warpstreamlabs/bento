@@ -17,8 +17,16 @@ import TabItem from '@theme/TabItem';
 
 Executes a `SELECT` query against BigQuery and creates a message for each row received.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 input:
   label: ""
   gcp_bigquery_select:
@@ -33,6 +41,32 @@ input:
     prefix: "" # No default (optional)
     suffix: "" # No default (optional)
 ```
+
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+input:
+  label: ""
+  gcp_bigquery_select:
+    project: "" # No default (required)
+    table: bigquery-public-data.samples.shakespeare # No default (required)
+    columns: [] # No default (required)
+    where: type = ? and created_at > ? # No default (optional)
+    auto_replay_nacks: true
+    job_labels: {}
+    priority: ""
+    args_mapping: root = [ "article", now().ts_format("2006-01-02") ] # No default (optional)
+    prefix: "" # No default (optional)
+    suffix: "" # No default (optional)
+    credentials:
+      impersonate_service_account: ""
+      impersonate_delegates: []
+```
+
+</TabItem>
+</Tabs>
 
 Once the rows from the query are exhausted, this input shuts down, allowing the pipeline to gracefully terminate (or the next input in a [sequence](/docs/components/inputs/sequence) to execute).
 
@@ -161,5 +195,35 @@ An optional suffix to append to the select query.
 
 
 Type: `string`  
+
+### `credentials`
+
+Optional manual configuration of GCP credentials to use. More information can be found [in this document](/docs/guides/cloud/gcp).
+
+
+Type: `object`  
+Requires version 1.22.0 or newer  
+
+### `credentials.impersonate_service_account`
+
+The email address of a service account to impersonate. The base credentials (Application Default Credentials) must be granted `roles/iam.serviceAccountTokenCreator` on this service account, or on the first delegate when `impersonate_delegates` is set.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+impersonate_service_account: target@my-project.iam.gserviceaccount.com
+```
+
+### `credentials.impersonate_delegates`
+
+An optional chain of service account email addresses to delegate through when impersonating. Each service account must be granted `roles/iam.serviceAccountTokenCreator` on the next service account in the chain, with the final one granted on `impersonate_service_account`.
+
+
+Type: `array`  
+Default: `[]`  
 
 

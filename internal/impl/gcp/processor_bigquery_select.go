@@ -21,6 +21,8 @@ type bigQuerySelectProcessorConfig struct {
 	jobLabels   map[string]string
 	argsMapping *bloblang.Executor
 	unsafeDyn   bool
+
+	clientOptions []option.ClientOption
 }
 
 func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf bigQuerySelectProcessorConfig, err error) {
@@ -28,6 +30,10 @@ func bigQuerySelectProcessorConfigFromParsed(inConf *service.ParsedConfig) (conf
 	conf.queryParts = &queryParts
 
 	if conf.project, err = inConf.FieldString("project"); err != nil {
+		return
+	}
+
+	if conf.clientOptions, err = gcpClientOptionsFromParsed(inConf); err != nil {
 		return
 	}
 
@@ -146,6 +152,7 @@ func newBigQuerySelectProcessorConfig() *service.ConfigSpec {
 			Default(false).
 			Version("1.5.0").
 			Optional()).
+		Field(gcpCredentialsField()).
 		Example("Word count",
 			`
 Given a stream of English terms, enrich the messages with the word count from Shakespeare's public works:`,
@@ -212,7 +219,7 @@ func newBigQuerySelectProcessor(inConf *service.ParsedConfig, options *bigQueryP
 
 	closeCtx, closeF := context.WithCancel(context.Background())
 
-	wrapped, err := bigquery.NewClient(closeCtx, conf.project, options.clientOptions...)
+	wrapped, err := bigquery.NewClient(closeCtx, conf.project, append(conf.clientOptions, options.clientOptions...)...)
 	if err != nil {
 		closeF()
 		return nil, fmt.Errorf("failed to create bigquery client: %w", err)

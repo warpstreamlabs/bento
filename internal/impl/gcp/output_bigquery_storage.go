@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
@@ -68,7 +69,8 @@ sets the type of stream this write client is managing.`).Default(string(managedw
 		Field(service.NewBatchPolicyField("batching").Advanced().LintRule(`root = if this.byte_size >= 1000000 { "the amount of bytes in a batch cannot exceed 10 MB" }`)).
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of message batches to have in flight at a given time. Increase this to improve throughput.").
-			Default(64).Advanced())
+			Default(64).Advanced()).
+		Field(gcpCredentialsField())
 }
 
 func bigQueryStorageWriterConfigFromParsed(pConf *service.ParsedConfig) (conf bigQueryStorageWriterConfig, err error) {
@@ -102,6 +104,10 @@ func bigQueryStorageWriterConfigFromParsed(pConf *service.ParsedConfig) (conf bi
 	}
 
 	if conf.grpcEndpoint, err = pConf.FieldString("endpoint", "grpc"); err != nil {
+		return
+	}
+
+	if conf.clientOptions, err = gcpClientOptionsFromParsed(pConf); err != nil {
 		return
 	}
 
@@ -188,6 +194,8 @@ type bigQueryStorageWriterConfig struct {
 	httpEndpoint string
 	grpcEndpoint string
 
+	clientOptions []option.ClientOption
+
 	streamType managedwriter.StreamType
 
 	messageFormat string
@@ -198,7 +206,7 @@ type bigQueryStorageWriterConfig struct {
 
 func (bq *bigQueryStorageWriter) Connect(ctx context.Context) error {
 
-	var bqClientOpts []option.ClientOption
+	bqClientOpts := slices.Clone(bq.conf.clientOptions)
 	if bq.conf.httpEndpoint != "" {
 		bqClientOpts = append(bqClientOpts, option.WithoutAuthentication(), option.WithEndpoint(bq.conf.httpEndpoint))
 	}
@@ -208,7 +216,7 @@ func (bq *bigQueryStorageWriter) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
-	var storageClientOpts []option.ClientOption
+	storageClientOpts := slices.Clone(bq.conf.clientOptions)
 	if bq.conf.grpcEndpoint != "" {
 		conn, err := grpc.NewClient(bq.conf.grpcEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
