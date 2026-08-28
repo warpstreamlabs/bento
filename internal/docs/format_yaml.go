@@ -684,8 +684,7 @@ func (f FieldSpecs) LintYAML(ctx LintContext, node *yaml.Node) []Lint {
 	var walkNodeContent func(*yaml.Node)
 	walkNodeContent = func(walkNode *yaml.Node) {
 		for i := 0; i < len(walkNode.Content)-1; i += 2 {
-			if walkNode.Content[i].Tag == "!!merge" && walkNode.Content[i+1].Alias != nil {
-				walkNodeContent(walkNode.Content[i+1].Alias)
+			if walkNode.Content[i].Tag == "!!merge" {
 				continue
 			}
 			spec, exists := specNamesAll[walkNode.Content[i].Value]
