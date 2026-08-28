@@ -22,8 +22,16 @@ Consumes Spanner Change Stream Events from a GCP Spanner instance.
 
 Introduced in version 1.11.0.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 input:
   label: ""
   gcp_spanner_cdc:
@@ -34,6 +42,28 @@ input:
     end_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
     prefetch_count: 1024
 ```
+
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+input:
+  label: ""
+  gcp_spanner_cdc:
+    spanner_dsn: projects/{projectId}/instances/{instanceId}/databases/{databaseName} # No default (required)
+    stream_name: "" # No default (required)
+    heartbeat_interval: 3s
+    start_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
+    end_time: 2006-01-02T15:04:05Z07:00 # No default (optional)
+    prefetch_count: 1024
+    credentials:
+      impersonate_service_account: ""
+      impersonate_delegates: []
+```
+
+</TabItem>
+</Tabs>
 
 For information on how to set up credentials check out [this guide](https://cloud.google.com/docs/authentication/production).
 
@@ -124,5 +154,35 @@ Default: `1024`
 
 prefetch_count: 1024
 ```
+
+### `credentials`
+
+Optional manual configuration of GCP credentials to use. More information can be found [in this document](/docs/guides/cloud/gcp).
+
+
+Type: `object`  
+Requires version 1.22.0 or newer  
+
+### `credentials.impersonate_service_account`
+
+The email address of a service account to impersonate. The base credentials (Application Default Credentials) must be granted `roles/iam.serviceAccountTokenCreator` on this service account, or on the first delegate when `impersonate_delegates` is set.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+impersonate_service_account: target@my-project.iam.gserviceaccount.com
+```
+
+### `credentials.impersonate_delegates`
+
+An optional chain of service account email addresses to delegate through when impersonating. Each service account must be granted `roles/iam.serviceAccountTokenCreator` on the next service account in the chain, with the final one granted on `impersonate_service_account`.
+
+
+Type: `array`  
+Default: `[]`  
 
 
