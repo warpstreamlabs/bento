@@ -3,8 +3,9 @@ package statsd
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"net"
 	"testing"
+	"time"
 
 	statsd "github.com/smira/go-statsd"
 	"github.com/stretchr/testify/assert"
@@ -58,24 +59,44 @@ send_loop_count: 4
 	assert.Equal(t, 4, sendLoopCount)
 }
 
-// channelCapacity reads the capacity of an unexported chan field on the vendored
-// statsd.Client via reflection. go-statsd doesn't expose SendQueueCapacity/BufPoolCapacity
-// once a Client is built, so this is the only way to assert the options passed to
-// NewClient actually reached the transport, rather than just asserting config parsing.
-func channelCapacity(t testing.TB, c *statsd.Client, fieldName string) int {
+// setupListener starts a UDP listener on localhost and returns it along with
+// a channel that receives every datagram read off the socket.
+func setupListener(t testing.TB) (*net.UDPConn, chan []byte) {
 	t.Helper()
 
-	trans := reflect.ValueOf(c).Elem().FieldByName("trans").Elem()
-	return trans.FieldByName(fieldName).Cap()
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = conn.Close()
+	})
+
+	out := make(chan []byte, 100)
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := conn.Read(buf)
+			if err != nil {
+				return
+			}
+			packet := make([]byte, n)
+			copy(packet, buf[:n])
+			out <- packet
+		}
+	}()
+
+	return conn, out
 }
 
 func TestNewStatsdFromParsedWiresTuningOptions(t *testing.T) {
+	conn, out := setupListener(t)
+
 	pConf := parseStatsdYAML(t, `
-address: localhost:8125
+address: %v
+flush_period: 1ms
 send_queue_capacity: 123
 buf_pool_capacity: 45
 send_loop_count: 2
-`)
+`, conn.LocalAddr().String())
 
 	m, err := newStatsdFromParsed(pConf, nil)
 	require.NoError(t, err)
@@ -83,6 +104,12 @@ send_loop_count: 2
 		_ = m.Close(context.Background())
 	})
 
-	assert.Equal(t, 123, channelCapacity(t, m.s, "sendQueue"))
-	assert.Equal(t, 45, channelCapacity(t, m.s, "bufPool"))
+	m.NewCounterCtor("test.counter")().Incr(1)
+
+	select {
+	case packet := <-out:
+		assert.Equal(t, "test.counter:1|c", string(packet))
+	case <-time.After(time.Second):
+		assert.Fail(t, "timed out waiting for metric packet")
+	}
 }
