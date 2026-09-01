@@ -977,9 +977,7 @@ func (f FieldSpecs) YAMLToMap(node *yaml.Node, conf ToValueConfig) (map[string]a
 	resultMap := map[string]any{}
 
 	// Resolve YAML merge keys ("<<") so that fields supplied via an anchor are
-	// recognised, matching how linting resolves them (LintYAML). Without this a
-	// config that lints clean fails at init with the merged fields reported as
-	// missing. Explicit keys take precedence over merged ones.
+	// recognised. Explicit keys take precedence over merged ones.
 	seen := map[string]struct{}{}
 	for _, pair := range resolveMergeKeys(node) {
 		fieldName := pair.key.Value

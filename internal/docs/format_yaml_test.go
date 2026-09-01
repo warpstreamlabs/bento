@@ -1403,39 +1403,193 @@ processors:
 }
 
 func TestFieldsNodeToMapMergeKeys(t *testing.T) {
-	spec := docs.FieldSpecs{
+	specSimple := docs.FieldSpecs{
+		docs.FieldInt("x", ""),
+		docs.FieldInt("y", ""),
+		docs.FieldInt("r", ""),
+		docs.FieldString("label", ""),
+	}
+
+	specSQL := docs.FieldSpecs{
 		docs.FieldString("driver", ""),
 		docs.FieldString("dsn", ""),
 		docs.FieldString("query", "").HasDefault("select 1"),
 	}
 
-	var doc yaml.Node
-	require.NoError(t, yaml.Unmarshal([]byte(`
+	expectedSimple := map[string]any{
+		"x":     1,
+		"y":     2,
+		"r":     10,
+		"label": "center/big",
+	}
+
+	expectedSQL := map[string]any{
+		"driver": "postgres",
+		"dsn":    "postgres://override",
+		"query":  "select 1",
+	}
+
+	tests := map[string]struct {
+		spec       docs.FieldSpecs
+		yamlConfig string
+		expected   map[string]any
+	}{
+		"Explicit Keys": {
+			spec: specSimple,
+			yamlConfig: `
+config:
+  x: 1
+  y: 2
+  r: 10
+  label: center/big
+`,
+			expected: expectedSimple,
+		},
+		"Merge one map": {
+			spec: specSimple,
+			yamlConfig: `
+CENTER: &CENTER
+  x: 1
+  y: 2
+config:
+  << : *CENTER
+  r: 10
+  label: center/big
+`,
+			expected: expectedSimple,
+		}, "Merge multiple maps": {
+			spec: specSimple,
+			yamlConfig: `
+CENTER: &CENTER
+  x: 1
+  y: 2
+BIG: &BIG
+  r: 10
+config:
+  << : [*CENTER, *BIG]
+  label: center/big
+`,
+			expected: expectedSimple,
+		},
+		"Override": {
+			spec: specSimple,
+			yamlConfig: `
+BIG: &BIG
+  r: 10
+LEFT: &LEFT
+  x: 0
+  y: 2
+SMALL: &SMALL
+  r: 1
+config:
+  << : [*BIG, *LEFT, *SMALL]
+  x: 1
+  label: center/big
+`,
+			expected: expectedSimple,
+		},
+		"SQL merge one map": {
+			spec: specSQL,
+			yamlConfig: `
 defaults: &defaults
   driver: postgres
   dsn: postgres://localhost
 config:
   <<: *defaults
   dsn: postgres://override
-`), &doc))
-
-	// The "config" mapping pulls driver/dsn in via a "<<" merge key; without
-	// resolving it those required fields would be reported missing (issue #872).
-	top := doc.Content[0]
-	var configNode *yaml.Node
-	for i := 0; i < len(top.Content)-1; i += 2 {
-		if top.Content[i].Value == "config" {
-			configNode = top.Content[i+1]
-		}
+`,
+			expected: expectedSQL,
+		},
+		"SQL merge two maps": {
+			spec: specSQL,
+			yamlConfig: `
+defaults: &defaults
+  driver: postgres
+  dsn: postgres://localhost
+defaults_two: &defaults_two
+  driver: mssql
+config:
+  <<: [*defaults, *defaults_two]
+  dsn: postgres://override
+`,
+			expected: expectedSQL,
+		},
+		"SQL check precendence": {
+			spec: specSQL,
+			yamlConfig: `
+defaults: &defaults
+  driver: postgres
+  dsn: postgres://localhost
+defaults_two: &defaults_two
+  driver: mssql
+config:
+  <<: [*defaults_two, *defaults]
+  dsn: postgres://override
+`,
+			expected: map[string]any{
+				"driver": "mssql",
+				"dsn":    "postgres://override",
+				"query":  "select 1",
+			},
+		},
+		"Nested": {
+			spec: specSimple,
+			yamlConfig: `
+ONE: &ONE
+  x: 1
+TWO: &TWO
+  <<: *ONE
+  y: 2
+THREE: &THREE
+  <<: *TWO
+  r: 10
+config:
+  <<: *THREE
+  label: center/big
+`,
+			expected: expectedSimple,
+		},
+		"Nested with scalar reference": {
+			spec: specSimple,
+			yamlConfig: `
+defaults:
+  x: &REF 1
+ONE: &ONE
+  x: *REF
+TWO: &TWO
+  <<: *ONE
+  y: 2
+THREE: &THREE
+  <<: *TWO
+  r: 10
+config:
+  <<: *THREE
+  label: center/big
+`,
+			expected: expectedSimple,
+		},
 	}
-	require.NotNil(t, configNode)
 
-	generic, err := spec.YAMLToMap(configNode, docs.ToValueConfig{})
-	require.NoError(t, err)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	assert.Equal(t, map[string]any{
-		"driver": "postgres",            // merged in via <<
-		"dsn":    "postgres://override", // explicit key overrides the merged one
-		"query":  "select 1",            // default
-	}, generic)
+			var doc yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(test.yamlConfig), &doc))
+
+			top := doc.Content[0]
+			var configNode *yaml.Node
+			for i := 0; i < len(top.Content)-1; i += 2 {
+				if top.Content[i].Value == "config" {
+					configNode = top.Content[i+1]
+				}
+			}
+			require.NotNil(t, configNode)
+
+			generic, err := test.spec.YAMLToMap(configNode, docs.ToValueConfig{})
+			require.NoError(t, err)
+
+			assert.Equal(t, test.expected, generic)
+		})
+	}
 }
