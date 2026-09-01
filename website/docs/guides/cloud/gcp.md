@@ -43,11 +43,15 @@ Delegated impersonation chains can be expressed with `impersonate_delegates`, wh
 granted `roles/iam.serviceAccountTokenCreator` on the next one in the chain, and the final delegate on the target:
 
 ```yaml
-credentials:
-  impersonate_service_account: target@my-project.iam.gserviceaccount.com
-  impersonate_delegates:
-    - hop-one@my-project.iam.gserviceaccount.com
-    - hop-two@my-project.iam.gserviceaccount.com
+input:
+  gcp_pubsub:
+    project: my-project
+    subscription: my-subscription
+    credentials:
+      impersonate_service_account: target@my-project.iam.gserviceaccount.com
+      impersonate_delegates:
+        - hop-one@my-project.iam.gserviceaccount.com
+        - hop-two@my-project.iam.gserviceaccount.com
 ```
 
 Impersonated tokens are requested with the `https://www.googleapis.com/auth/cloud-platform` scope and are refreshed

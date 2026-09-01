@@ -42,8 +42,9 @@ func gcpCredentialsField() *service.ConfigField {
 // gcpClientOptionsFromParsed returns client options that apply the credentials
 // configuration to a GCP client. When no credentials are configured the
 // returned options are empty and clients fall back to Application Default
-// Credentials.
-func gcpClientOptionsFromParsed(pConf *service.ParsedConfig) ([]option.ClientOption, error) {
+// Credentials. The variadic impersonateOpts are applied to the impersonation
+// client itself and exist so tests can redirect its IAM Credentials API calls.
+func gcpClientOptionsFromParsed(pConf *service.ParsedConfig, impersonateOpts ...option.ClientOption) ([]option.ClientOption, error) {
 	if !pConf.Contains(gcpFieldCredentials) {
 		return nil, nil
 	}
@@ -53,20 +54,24 @@ func gcpClientOptionsFromParsed(pConf *service.ParsedConfig) ([]option.ClientOpt
 	if err != nil {
 		return nil, err
 	}
-	if target == "" {
-		return nil, nil
-	}
-
 	delegates, err := cConf.FieldStringList(gcpFieldImpersonateDelegates)
 	if err != nil {
 		return nil, err
+	}
+	if target == "" {
+		// The lint rule catches this in config files, but configs built
+		// programmatically or via interpolation can bypass linting.
+		if len(delegates) > 0 {
+			return nil, fmt.Errorf("%v requires %v to be set", gcpFieldImpersonateDelegates, gcpFieldImpersonateServiceAccount)
+		}
+		return nil, nil
 	}
 
 	ts, err := impersonate.CredentialsTokenSource(context.Background(), impersonate.CredentialsConfig{
 		TargetPrincipal: target,
 		Delegates:       delegates,
 		Scopes:          []string{gcpImpersonationScope},
-	})
+	}, impersonateOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create impersonated credentials for %v: %w", target, err)
 	}
