@@ -25,8 +25,6 @@ func testCredentialsSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().Field(gcpCredentialsField())
 }
 
-// setFakeADC points GOOGLE_APPLICATION_CREDENTIALS at a syntactically valid
-// service account key so that base credentials can be resolved offline.
 func setFakeADC(t *testing.T) {
 	t.Helper()
 
@@ -117,8 +115,6 @@ credentials:
 	}
 }
 
-// redirectTransport rewrites every request to the given test server host,
-// since the impersonate library hardcodes the IAM Credentials API URL.
 type redirectTransport struct {
 	host string
 }
@@ -130,12 +126,7 @@ func (rt redirectTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	return http.DefaultTransport.RoundTrip(r)
 }
 
-// TestGCPCredentialsImpersonationFailure verifies how a component behaves when
-// the IAM Credentials API denies impersonation: construction succeeds (tokens
-// are minted lazily) and the first operation fails with a clear error. The
-// entire flow is served by a local test server.
 func TestGCPCredentialsImpersonationFailure(t *testing.T) {
-	// Fake IAM Credentials API that denies every generateAccessToken request.
 	iamSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
@@ -154,15 +145,11 @@ credentials:
 	iamHost := strings.TrimPrefix(iamSrv.URL, "http://")
 	iamClient := &http.Client{Transport: redirectTransport{host: iamHost}}
 
-	// Component construction must succeed: impersonated tokens are minted on
-	// first use, not at startup.
 	opts, err := gcpClientOptionsFromParsed(pConf, option.WithHTTPClient(iamClient))
 	require.NoError(t, err)
 	require.Len(t, opts, 1)
 
-	// The first client operation triggers token minting and must surface the
-	// denial as a clear error. The endpoint override keeps the client from
-	// reaching real GCS (the request fails at auth, before any data call).
+	// The endpoint override keeps the client from reaching real GCS.
 	client, err := storage.NewClient(context.Background(), append(opts, option.WithEndpoint(iamSrv.URL))...)
 	require.NoError(t, err)
 	defer client.Close()
