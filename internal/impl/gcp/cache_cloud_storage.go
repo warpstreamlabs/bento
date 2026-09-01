@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -21,7 +22,11 @@ func gcpCloudStorageCacheConfig() *service.ConfigSpec {
 		Field(service.NewStringField("bucket").
 			Description("The Google Cloud Storage bucket to store items in.")).
 		Field(service.NewStringField("content_type").
-			Description("Optional field to explicitly set the Content-Type.").Optional())
+			Description("Optional field to explicitly set the Content-Type.").Optional()).
+		Field(service.NewStringField("prefix").
+			Description("An optional string to prefix item keys with in order to prevent collisions with similar services. The prefix is also used to scope key listings, and is stripped from the keys returned.").
+			Advanced().
+			Default(""))
 
 	return spec
 }
@@ -51,6 +56,11 @@ func newGcpCloudStorageCacheFromConfig(parsedConf *service.ParsedConfig) (*gcpCl
 		}
 	}
 
+	prefix, err := parsedConf.FieldString("prefix")
+	if err != nil {
+		return nil, err
+	}
+
 	client, err := storage.NewClient(context.Background())
 	if err != nil {
 		return nil, err
@@ -59,6 +69,7 @@ func newGcpCloudStorageCacheFromConfig(parsedConf *service.ParsedConfig) (*gcpCl
 	return &gcpCloudStorageCache{
 		bucketHandle: client.Bucket(bucket),
 		contentType:  contentType,
+		prefix:       prefix,
 	}, nil
 }
 
@@ -67,10 +78,15 @@ func newGcpCloudStorageCacheFromConfig(parsedConf *service.ParsedConfig) (*gcpCl
 type gcpCloudStorageCache struct {
 	bucketHandle *storage.BucketHandle
 	contentType  string
+	prefix       string
+}
+
+func (c *gcpCloudStorageCache) object(key string) *storage.ObjectHandle {
+	return c.bucketHandle.Object(c.prefix + key)
 }
 
 func (c *gcpCloudStorageCache) Get(ctx context.Context, key string) ([]byte, error) {
-	reader, err := c.bucketHandle.Object(key).NewReader(ctx)
+	reader, err := c.object(key).NewReader(ctx)
 	if err != nil {
 		// Check if the object does not exist and return the proper error
 		if errors.Is(err, storage.ErrObjectNotExist) {
@@ -90,7 +106,7 @@ func (c *gcpCloudStorageCache) Get(ctx context.Context, key string) ([]byte, err
 }
 
 func (c *gcpCloudStorageCache) Exists(ctx context.Context, key string) (bool, error) {
-	_, err := c.bucketHandle.Object(key).Attrs(ctx)
+	_, err := c.object(key).Attrs(ctx)
 	if err != nil {
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			return false, nil
@@ -101,7 +117,7 @@ func (c *gcpCloudStorageCache) Exists(ctx context.Context, key string) (bool, er
 }
 
 func (c *gcpCloudStorageCache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) error {
-	writer := c.bucketHandle.Object(key).NewWriter(ctx)
+	writer := c.object(key).NewWriter(ctx)
 
 	if c.contentType != "" {
 		writer.ContentType = c.contentType
@@ -116,7 +132,7 @@ func (c *gcpCloudStorageCache) Set(ctx context.Context, key string, value []byte
 }
 
 func (c *gcpCloudStorageCache) Add(ctx context.Context, key string, value []byte, _ *time.Duration) error {
-	objectHandle := c.bucketHandle.Object(key)
+	objectHandle := c.object(key)
 
 	// Check if the object already exists
 	_, err := objectHandle.Attrs(ctx)
@@ -139,15 +155,20 @@ func (c *gcpCloudStorageCache) Add(ctx context.Context, key string, value []byte
 }
 
 func (c *gcpCloudStorageCache) Delete(ctx context.Context, key string) error {
-	return c.bucketHandle.Object(key).Delete(ctx)
+	return c.object(key).Delete(ctx)
 }
 
 func (c *gcpCloudStorageCache) Keys(ctx context.Context) service.KeyIterator {
 	// readAhead matches the storage client's default page size so that the next
 	// page can be fetched while the current one is yielded.
+	var query *storage.Query
+	if c.prefix != "" {
+		query = &storage.Query{Prefix: c.prefix}
+	}
+
 	const readAhead = 1000
 	return cache.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
-		it := c.bucketHandle.Objects(ctx, nil)
+		it := c.bucketHandle.Objects(ctx, query)
 		for {
 			attrs, err := it.Next()
 			if errors.Is(err, iterator.Done) {
@@ -156,7 +177,9 @@ func (c *gcpCloudStorageCache) Keys(ctx context.Context) service.KeyIterator {
 			if err != nil {
 				return err
 			}
-			if !emit(attrs.Name) {
+			// The prefix is stripped so that yielded keys round-trip through
+			// the other cache methods.
+			if !emit(strings.TrimPrefix(attrs.Name, c.prefix)) {
 				return nil
 			}
 		}

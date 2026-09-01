@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `send_queue_capacity`, `buf_pool_capacity` & `send_loop_count` fields on the `statsd` metrics exporter to tune the underlying `go-statsd` client and avoid packet loss under high throughput @triddell
+- `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
 
 ## 1.21.1 - 2026-08-26
 

@@ -19,13 +19,36 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Use a Google Cloud Storage bucket as a cache.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 label: ""
 gcp_cloud_storage:
   bucket: "" # No default (required)
   content_type: "" # No default (optional)
 ```
+
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+label: ""
+gcp_cloud_storage:
+  bucket: "" # No default (required)
+  content_type: "" # No default (optional)
+  prefix: ""
+```
+
+</TabItem>
+</Tabs>
 
 It is not possible to atomically upload cloud storage objects exclusively when the target does not already exist, therefore this cache is not suitable for deduplication.
 
@@ -44,5 +67,13 @@ Optional field to explicitly set the Content-Type.
 
 
 Type: `string`  
+
+### `prefix`
+
+An optional string to prefix item keys with in order to prevent collisions with similar services. The prefix is also used to scope key listings, and is stripped from the keys returned.
+
+
+Type: `string`  
+Default: `""`  
 
 
