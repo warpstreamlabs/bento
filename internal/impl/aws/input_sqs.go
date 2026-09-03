@@ -117,7 +117,7 @@ You can access these metadata fields using
 				Advanced(),
 			service.NewDurationField(sqsiFieldVisibilityTimeout).
 				Description("Visibility timeout (truncated to whole seconds) requested when retrieving messages, and used when refreshing in-flight messages. A value of `0` defers to the SQS queue's configured timeout, as does disabling `update_visibility`.").
-				Version("1.21.0").
+				Version("1.22.0").
 				Default("30s").
 				Advanced(),
 			service.NewIntField(sqsiFieldMaxNumberOfMessages).
