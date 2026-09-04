@@ -15,14 +15,11 @@ const (
 	gcpFieldImpersonateServiceAccount = "impersonate_service_account"
 	gcpFieldImpersonateDelegates      = "impersonate_delegates"
 
-	// gcpImpersonationScope grants the impersonated token access to all GCP
-	// APIs, mirroring the scope granted to Application Default Credentials.
+	// Same scope as Application Default Credentials.
 	gcpImpersonationScope = "https://www.googleapis.com/auth/cloud-platform"
 )
 
-// gcpCredentialsField defines a re-usable set of config fields for
-// customising the credentials used by GCP components. By default components
-// rely on Application Default Credentials.
+// gcpCredentialsField returns the shared `credentials` config field for GCP components.
 func gcpCredentialsField() *service.ConfigField {
 	return service.NewObjectField(gcpFieldCredentials,
 		service.NewStringField(gcpFieldImpersonateServiceAccount).
@@ -39,11 +36,9 @@ func gcpCredentialsField() *service.ConfigField {
 		LintRule(`root = if this.impersonate_delegates.length() > 0 && this.impersonate_service_account == "" { "impersonate_delegates requires impersonate_service_account to be set" }`)
 }
 
-// gcpClientOptionsFromParsed returns client options that apply the credentials
-// configuration to a GCP client. When no credentials are configured the
-// returned options are empty and clients fall back to Application Default
-// Credentials. The variadic impersonateOpts are applied to the impersonation
-// client itself and exist so tests can redirect its IAM Credentials API calls.
+// gcpClientOptionsFromParsed builds client options from the `credentials` config.
+// Returns nil for clients to fall back to Application Default Credentials when unset.
+// impersonateOpts are passed to the impersonation client (used by tests).
 func gcpClientOptionsFromParsed(pConf *service.ParsedConfig, impersonateOpts ...option.ClientOption) ([]option.ClientOption, error) {
 	if !pConf.Contains(gcpFieldCredentials) {
 		return nil, nil
@@ -59,8 +54,7 @@ func gcpClientOptionsFromParsed(pConf *service.ParsedConfig, impersonateOpts ...
 		return nil, err
 	}
 	if target == "" {
-		// The lint rule catches this in config files, but configs built
-		// programmatically or via interpolation can bypass linting.
+		// Lint rule doesn't cover programmatically built configs.
 		if len(delegates) > 0 {
 			return nil, fmt.Errorf("%v requires %v to be set", gcpFieldImpersonateDelegates, gcpFieldImpersonateServiceAccount)
 		}
