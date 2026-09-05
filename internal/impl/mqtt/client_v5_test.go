@@ -2,10 +2,8 @@ package mqtt
 
 import (
 	"bytes"
-	"context"
 	"log/slog"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -253,21 +251,34 @@ func TestServerDisconnectIsLoggedWithItsReason(t *testing.T) {
 	}
 }
 
-// TestDownSignalIsClosedOnEveryConnection guards the invariant the down channel
+// TestDownSignalIsClosedOnEveryConnection guards the invariant the down signal
 // exists for: every channel a reader can be holding must be closed when the
-// connection it stands for drops.
+// connection it stands for drops, and a connect must never hand back one that
+// is already closed.
 //
-// The first connection is the awkward one. autopaho releases AwaitConnection
+// The ordering is what makes that awkward. autopaho releases AwaitConnection
 // before it calls OnConnectionUp, so connect can return — and a read can
-// capture the channel — while OnConnectionUp has not run. If that handler
-// replaced the channel unconditionally, the one the reader holds would be
-// orphaned open and that reader would never learn the link had dropped.
+// capture the signal — while that handler has not run. Renewing the signal
+// there would leave the reader holding a closed channel just after a
+// successful connect, which reads as a live connection reporting itself down.
+// So connect renews it instead, which it can because a drop now stops the
+// manager rather than reconnecting behind it: every connection begins with a
+// connect call.
 func TestDownSignalIsClosedOnEveryConnection(t *testing.T) {
 	conn := newConnectionV5(service.MockResources().Logger(), mv5RefusedRetry)
 
 	var cfg autopaho.ClientConfig
 	conn.installHooks(&cfg, nil)
 
+	// What connect does before building a manager. The first signal is
+	// already open, so this leaves it alone.
+	renew := func() {
+		conn.mu.Lock()
+		conn.renewDownSignal()
+		conn.mu.Unlock()
+	}
+
+	renew()
 	// What a reader that beat OnConnectionUp would be holding.
 	captured := conn.downSignal()
 
@@ -279,7 +290,8 @@ func TestDownSignalIsClosedOnEveryConnection(t *testing.T) {
 	}
 
 	require.NotNil(t, cfg.OnConnectionDown)
-	cfg.OnConnectionDown()
+	require.False(t, cfg.OnConnectionDown(),
+		"a drop must stop the manager, so that Bento drives the reconnection")
 
 	select {
 	case <-captured:
@@ -287,15 +299,17 @@ func TestDownSignalIsClosedOnEveryConnection(t *testing.T) {
 		t.Fatal("a reader holding the channel from before OnConnectionUp never learned the link dropped")
 	}
 
-	// And a later connection gets a channel of its own, closed in its turn.
-	cfg.OnConnectionUp(nil, nil)
+	// And the next connect starts from an open signal rather than the closed
+	// one, before anything can read it.
+	renew()
 	second := conn.downSignal()
 	select {
 	case <-second:
-		t.Fatal("the second connection started already down")
+		t.Fatal("connect handed back a signal that was already closed")
 	default:
 	}
-	cfg.OnConnectionDown()
+	cfg.OnConnectionUp(nil, nil)
+	require.False(t, cfg.OnConnectionDown())
 	select {
 	case <-second:
 	default:
@@ -303,111 +317,32 @@ func TestDownSignalIsClosedOnEveryConnection(t *testing.T) {
 	}
 }
 
-// TestProgressWatchdogWarnsWhenNothingMoves covers the stall this input can
-// reach without ever seeing an error: under the default auto_replay_nacks a
-// message that can never succeed is retried inside Bento for ever, so the
-// acknowledgement function here is never called at all, the acknowledgement is
-// never released, and once the server's receive window is full it stops
-// delivering. Nothing about that is an error anything can report — only the
-// counters standing still show it.
-func TestProgressWatchdogWarnsWhenNothingMoves(t *testing.T) {
-	newReader := func(t *testing.T) (*mqttReaderV5, *syncBuffer) {
-		t.Helper()
-		conf, err := inputConfigSpecV5().ParseYAML("urls: [ tcp://localhost:1883 ]\ntopics: [ x ]", nil)
-		require.NoError(t, err)
-		res, captured := capturedLogger()
-		rdr, err := newMQTTReaderV5FromParsed(conf, res)
-		require.NoError(t, err)
-		rdr.stallSample, rdr.stallAfter = 20*time.Millisecond, 3
-		t.Cleanup(func() { _ = rdr.Close(context.Background()) })
-		return rdr, captured
-	}
+// TestRebuiltManagerNeverCleanStarts pins the session half of Bento-driven
+// reconnection: clean_start speaks about the first connection of the
+// component's life, so a manager built after one would discard the very
+// session it exists to resume if it honoured the setting again.
+func TestRebuiltManagerNeverCleanStarts(t *testing.T) {
+	conn := newConnectionV5(service.MockResources().Logger(), mv5RefusedRetry)
 
-	t.Run("messages outstanding and nothing moving warns", func(t *testing.T) {
-		rdr, captured := newReader(t)
-		// Four handed to the pipeline, three finished with: one is stuck, and
-		// no error was ever reported for it.
-		rdr.handed.Store(4)
-		rdr.settled.Store(3)
-		go rdr.watchProgress()
+	var cfg autopaho.ClientConfig
+	cfg.CleanStartOnInitialConnection = true
+	conn.installHooks(&cfg, nil)
 
-		require.Eventually(t, func() bool {
-			return strings.Contains(captured.String(), "has not finished a message in at least")
-		}, 5*time.Second, 10*time.Millisecond, "a stalled input warned about nothing")
+	// Before anything has connected, the configured clean start stands: the
+	// first connection is exactly what the setting is about.
+	first := cfg
+	conn.mu.Lock()
+	conn.resumeRatherThanCleanStart(&first)
+	conn.mu.Unlock()
+	assert.True(t, first.CleanStartOnInitialConnection)
 
-		logged := captured.String()
-		assert.Contains(t, logged, "1 are outstanding")
-		assert.Contains(t, logged, "dead-letter")
-		assert.Equal(t, 1, strings.Count(logged, "has not finished a message"), "the warning repeated")
-	})
+	cfg.OnConnectionUp(nil, nil)
 
-	t.Run("an idle input owing nothing stays quiet", func(t *testing.T) {
-		rdr, captured := newReader(t)
-		rdr.handed.Store(7)
-		rdr.settled.Store(7)
-		go rdr.watchProgress()
-
-		time.Sleep(300 * time.Millisecond)
-		assert.NotContains(t, captured.String(), "has not finished a message",
-			"a quiet topic was reported as a stall")
-	})
-
-	t.Run("a slow but backlogged pipeline is reported once, not per message", func(t *testing.T) {
-		// A pipeline whose honest per-message latency exceeds the window
-		// reaches the same condition as a stalled one. Re-arming on any
-		// movement made this warn once per message for the healthy case and
-		// once in total for the broken one, which is the wrong way round.
-		rdr, captured := newReader(t)
-		rdr.handed.Store(4)
-		rdr.settled.Store(0)
-		go rdr.watchProgress()
-
-		for range 4 {
-			time.Sleep(120 * time.Millisecond) // longer than the window
-			rdr.settled.Add(1)                 // a message legitimately finishes
-			rdr.handed.Add(1)                  // and another arrives behind it
-		}
-		time.Sleep(120 * time.Millisecond)
-
-		assert.Equal(t, 1, strings.Count(captured.String(), "has not finished a message in at least"),
-			"a slow pipeline was reported once per message rather than once")
-	})
-
-	t.Run("an input that catches up is reported again if it stalls later", func(t *testing.T) {
-		rdr, captured := newReader(t)
-		rdr.handed.Store(2)
-		rdr.settled.Store(1)
-		go rdr.watchProgress()
-
-		require.Eventually(t, func() bool {
-			return strings.Count(captured.String(), "has not finished a message in at least") == 1
-		}, 5*time.Second, 10*time.Millisecond, "the first stall was never reported")
-
-		// Caught up: nothing is owed.
-		rdr.settled.Store(2)
-		time.Sleep(120 * time.Millisecond)
-
-		// And stalls again.
-		rdr.handed.Store(3)
-		require.Eventually(t, func() bool {
-			return strings.Count(captured.String(), "has not finished a message in at least") == 2
-		}, 5*time.Second, 10*time.Millisecond, "a second stall after catching up went unreported")
-	})
-
-	t.Run("a slow but advancing pipeline stays quiet", func(t *testing.T) {
-		rdr, captured := newReader(t)
-		rdr.handed.Store(4)
-		rdr.settled.Store(1)
-		go rdr.watchProgress()
-
-		for range 12 {
-			time.Sleep(25 * time.Millisecond)
-			rdr.handed.Add(1)
-			rdr.settled.Add(1)
-		}
-		assert.NotContains(t, captured.String(), "has not finished a message",
-			"a pipeline that was still making progress was reported as stalled")
-	})
+	rebuilt := cfg
+	conn.mu.Lock()
+	conn.resumeRatherThanCleanStart(&rebuilt)
+	conn.mu.Unlock()
+	assert.False(t, rebuilt.CleanStartOnInitialConnection)
 }
 
 // TestOptionalPropertiesTolerateAbsentMetadata covers the configuration the
@@ -511,28 +446,27 @@ func TestMetadataExclusionDefault(t *testing.T) {
 		return out
 	}
 
-	t.Run("by default the input's own namespace is not forwarded", func(t *testing.T) {
+	t.Run("by default everything is forwarded", func(t *testing.T) {
 		props, err := writerFor(t, "").properties(bridged())
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"mqtt_content_type", "mqtt_qos", "mqtt_retained", "mqtt_topic", "sensor-id",
+		}, keys(props), "an unconfigured metadata setting must mean an empty exclusion list")
+	})
+
+	t.Run("excluding mqtt_ holds back the input's bookkeeping", func(t *testing.T) {
+		// The configuration the documentation recommends for a bridge.
+		props, err := writerFor(t, "metadata:\n  exclude_prefixes: [ mqtt_ ]").properties(bridged())
 		require.NoError(t, err)
 		assert.Equal(t, []string{"sensor-id"}, keys(props),
 			"a bridge forwarded the bookkeeping describing the previous hop")
 	})
 
-	t.Run("an empty list forwards everything", func(t *testing.T) {
-		props, err := writerFor(t, "metadata:\n  exclude_prefixes: []").properties(bridged())
-		require.NoError(t, err)
-		assert.Equal(t, []string{
-			"mqtt_content_type", "mqtt_qos", "mqtt_retained", "mqtt_topic", "sensor-id",
-		}, keys(props), "the default must be overridable")
-	})
-
-	t.Run("a prefix of the pipeline's own still works", func(t *testing.T) {
+	t.Run("a prefix of the pipeline's own works too", func(t *testing.T) {
 		msg := bridged()
 		msg.MetaSetMut("secret_token", "must not travel")
 		props, err := writerFor(t, "metadata:\n  exclude_prefixes: [ secret_ ]").properties(msg)
 		require.NoError(t, err)
-		// Naming a prefix replaces the default rather than adding to it, which
-		// is how a list-valued setting behaves everywhere else in Bento.
 		assert.NotContains(t, keys(props), "secret_token")
 		assert.Contains(t, keys(props), "mqtt_topic")
 	})

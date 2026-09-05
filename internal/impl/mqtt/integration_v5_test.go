@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -117,6 +118,9 @@ input:
 	})
 	t.Run("a rejected message warns that consumption will stop", func(t *testing.T) {
 		testRejectionWarnsV5(t, port)
+	})
+	t.Run("a dropped connection is handed back to Bento", func(t *testing.T) {
+		testBentoDrivenReconnectV5(t, port)
 	})
 }
 
@@ -511,4 +515,95 @@ func testNackIsRedeliveredV5(t *testing.T, port string) {
 	payload, err = redelivered.AsBytes()
 	require.NoError(t, err)
 	assert.Equal(t, "needs redelivery", string(payload))
+}
+
+// testBentoDrivenReconnectV5 covers the half of a reconnection no unit test can
+// reach. A dropped link has to be reported as service.ErrNotConnected rather
+// than waited through, so that Bento counts a lost connection as one and
+// applies its own backoff; nothing may quietly reconnect behind it; and the
+// connection Bento then asks for has to arrive subscribed, because a client
+// that reconnected without re-subscribing reads as a healthy input receiving
+// nothing at all.
+//
+// The session is deliberately not durable here: with nothing kept on the
+// server, a message can only arrive after the reconnection if this input
+// really did subscribe again. The subscription log is what counts them, one
+// line per SUBACK.
+func testBentoDrivenReconnectV5(t *testing.T, port string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	stamp := time.Now().UnixNano()
+	topic := fmt.Sprintf("reconnect-%v", stamp)
+	rdr, captured := readerOnPortLogged(t, port, fmt.Sprintf("[ %v ]", topic),
+		fmt.Sprintf("client_id: reconnect-in-%v", stamp))
+	t.Cleanup(func() { _ = rdr.Close(context.Background()) })
+
+	// The summary line, one per SUBACK. Counting "Subscribed to" instead would
+	// also count the debug line each granted filter logs.
+	subscribes := func() int {
+		return strings.Count(captured.String(), "topic filter(s)")
+	}
+
+	require.NoError(t, rdr.Connect(ctx))
+	time.Sleep(500 * time.Millisecond)
+	require.Equal(t, 1, subscribes(), "the first connection did not subscribe once")
+
+	publisher, err := connectV5(ctx, port, fmt.Sprintf("reconnect-pub-%v", stamp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = publisher.Disconnect(context.Background()) })
+
+	publish := func(payload string) {
+		t.Helper()
+		_, err := publisher.Publish(ctx, &paho.Publish{
+			Topic: topic, QoS: 1, Payload: []byte(payload),
+		})
+		require.NoError(t, err)
+	}
+	readOne := func() string {
+		t.Helper()
+		readCtx, cancelRead := context.WithTimeout(ctx, 20*time.Second)
+		defer cancelRead()
+		msg, ack, err := rdr.Read(readCtx)
+		require.NoError(t, err)
+		require.NoError(t, ack(readCtx, nil))
+		body, err := msg.AsBytes()
+		require.NoError(t, err)
+		return string(body)
+	}
+
+	publish("before the drop")
+	assert.Equal(t, "before the drop", readOne())
+
+	// What a network failure looks like from underneath the client library.
+	dropped := rdr.conn.manager()
+	require.NotNil(t, dropped)
+	dropped.TerminateConnectionForTest()
+
+	downCtx, cancelDown := context.WithTimeout(ctx, 20*time.Second)
+	defer cancelDown()
+	_, _, err = rdr.Read(downCtx)
+	require.ErrorIs(t, err, service.ErrNotConnected,
+		"a read that met the dropped link did not report it to Bento")
+
+	// Nothing brings the link back on its own. A silent reconnection would
+	// fire the connection-up handler and subscribe a second time.
+	time.Sleep(3 * time.Second)
+	require.Equal(t, 1, subscribes(), "something reconnected and subscribed behind Bento")
+
+	// What Bento does about it. The manager that dropped is released rather
+	// than left running, and a fresh one takes its place.
+	require.NoError(t, rdr.Connect(ctx))
+	time.Sleep(500 * time.Millisecond)
+	assert.Equal(t, 2, subscribes(), "the reconnection did not subscribe again")
+
+	select {
+	case <-dropped.Done():
+	case <-time.After(20 * time.Second):
+		t.Fatal("the manager whose connection dropped was left running")
+	}
+	assert.NotSame(t, dropped, rdr.conn.manager(), "the reconnection reused a stopped manager")
+
+	publish("after the reconnect")
+	assert.Equal(t, "after the reconnect", readOne())
 }

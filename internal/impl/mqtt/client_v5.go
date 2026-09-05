@@ -71,8 +71,7 @@ func clientFieldsV5() []*service.ConfigField {
 		}).
 			Description("Append a dynamically generated suffix to the specified `client_id` on each run of the pipeline. This can be useful when clustering Bento producers. Note that a generated suffix produces a new client identifier on every run, and therefore a new session: combining it with `clean_start: false` will not resume anything.").
 			Optional().
-			Advanced().
-			LintRule(`root = []`), // Disable linting for now
+			Advanced(),
 		service.NewDurationField(mv5FieldConnectTimeout).
 			Description("The maximum amount of time to wait in order to establish a connection before the attempt is abandoned.").
 			Default("30s").
@@ -100,7 +99,7 @@ func clientFieldsV5() []*service.ConfigField {
 			Default("0s").
 			Examples("1h", "24h"),
 		service.NewIntField(mv5FieldReceiveMaximum).
-			Description("The number of QoS 1 and QoS 2 messages this client is willing to have in flight at once — in effect, how far ahead of the pipeline the server is allowed to read. Left unset, the server chooses.").
+			Description("The number of QoS 1 and QoS 2 messages this client is willing to have in flight to it at once. On the input this is how far ahead of the pipeline the server may read; on the output the only inbound traffic it could bound is acknowledgements. Left unset, the server chooses.").
 			Optional().
 			Advanced(),
 		service.NewIntField(mv5FieldMaximumPacketSize).
@@ -139,6 +138,11 @@ func clientFieldsV5() []*service.ConfigField {
 				Default("1m"),
 		).
 			Description("How long to wait between attempts to re-establish a dropped connection. The wait grows from `min` towards `max`, and is reset once a connection succeeds.").
+			LintRule(`root = if this.min.parse_duration() <= 0 {
+  [ "reconnect_backoff.min must be greater than zero" ]
+} else if this.max.parse_duration() <= this.min.parse_duration() {
+  [ "reconnect_backoff.max must be greater than reconnect_backoff.min" ]
+} else { [] }`).
 			Advanced(),
 	}
 }
@@ -282,9 +286,9 @@ func clientConfigV5FromParsed(conf *service.ParsedConfig) (c clientConfigV5, err
 	if c.backoffMax, err = backoff.FieldDuration(mv5FieldReconnectBackoffMax); err != nil {
 		return
 	}
-	// autopaho.NewExponentialBackoff panics rather than returning an error, so
-	// its constraints are checked here where a bad value is still a
-	// configuration error the user can read.
+	// The field's lint rule reports these at config time; they are checked
+	// again here because autopaho.NewExponentialBackoff panics rather than
+	// returning an error, and a lint can be suppressed.
 	if c.backoffMin <= 0 {
 		err = errors.New("reconnect_backoff.min must be greater than zero")
 		return
@@ -475,8 +479,7 @@ func mv5DisconnectReason(code byte) string {
 }
 
 // errConnectionRefused marks a connection the server answered and turned down,
-// as opposed to one that never got an answer at all. Components test for it
-// with errors.Is to honour on_connect_refused.
+// as opposed to one that never got an answer at all.
 var errConnectionRefused = errors.New("server refused the connection")
 
 // connackRefusal reports the reason code when err is the server refusing the
@@ -499,19 +502,21 @@ func (l mv5PahoLogger) Println(v ...any) { l.log.Error(fmt.Sprint(v...)) }
 
 func (l mv5PahoLogger) Printf(format string, v ...any) { l.log.Errorf(format, v...) }
 
-// connectionV5 owns the connection manager for one component. autopaho
-// reconnects and resumes sessions on its own, which is the reason for using it,
-// but it does so silently: left to itself it would retry a refused connection
-// for ever behind a Connect call that never returns, so Bento would log
-// nothing, count nothing, and show a healthy pipeline moving no data.
-// connectionV5 exists to put that back in front of Bento.
+// connectionV5 owns the connection manager for one component, and keeps the
+// connection lifecycle in front of Bento rather than behind autopaho. A
+// dropped connection ends the manager and the component reports
+// service.ErrNotConnected, so Bento drives the reconnection with its own
+// backoff and its metrics count a lost connection as a lost connection
+// rather than as a run of failed sends. What autopaho still owns is the dial:
+// within one Connect it retries failed attempts on reconnect_backoff until
+// the link is up or the manager is stopped.
 type connectionV5 struct {
 	log       *service.Logger
 	onRefused string
 
-	// ctx governs the connection manager itself, which keeps retrying in the
-	// background and must outlive any single call to connect — Bento cancels
-	// the context it passes to Connect as soon as Connect returns.
+	// ctx governs the connection managers, which dial in the background and
+	// must outlive any single call to connect — Bento cancels the context it
+	// passes to Connect as soon as Connect returns.
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -519,19 +524,24 @@ type connectionV5 struct {
 	cm   *autopaho.ConnectionManager
 	down chan struct{}
 
+	// managerStopped records that the manager's connection dropped, which now
+	// ends that manager: the next connect releases it and builds another.
+	managerStopped bool
+
+	// connectedOnce records that some connection has succeeded, so that a
+	// manager rebuilt after a drop can never clean-start: whatever clean_start
+	// says, it applies to the first connection of the component's life and not
+	// to a reconnection, or a session established once would be thrown away by
+	// the very mechanism meant to resume it.
+	connectedOnce bool
+
 	connErrs chan error
 }
 
 func newConnectionV5(log *service.Logger, onRefused string) *connectionV5 {
 	ctx, cancel := context.WithCancel(context.Background())
-	// down starts open. autopaho releases AwaitConnection when it closes its
-	// own connUp channel and only calls OnConnectionUp afterwards, so a down
-	// channel that started closed would still be closed for a moment after
-	// connect had already reported success — and a read in that window would
-	// report a live connection as down. Bento recovers from that by
-	// reconnecting, so it cost a wasted cycle and a misleading metric rather
-	// than data, but it is a connection contradicting itself. Nothing reads
-	// this before connect returns.
+	// down starts open, and connect renews it for every connection after the
+	// first (renewDownSignal). Nothing reads it before connect returns.
 	return &connectionV5{
 		log:       log,
 		onRefused: onRefused,
@@ -549,28 +559,24 @@ func newConnectionV5(log *service.Logger, onRefused string) *connectionV5 {
 func (c *connectionV5) installHooks(cfg *autopaho.ClientConfig, onUp func(*autopaho.ConnectionManager, *paho.Connack)) {
 	cfg.OnConnectionUp = func(cm *autopaho.ConnectionManager, connack *paho.Connack) {
 		c.mu.Lock()
-		select {
-		case <-c.down:
-			// The previous connection's channel has been closed, so a fresh
-			// one is needed for this connection.
-			c.down = make(chan struct{})
-		default:
-			// Still open, which means this is the first connection and nothing
-			// has replaced the channel built with the connection. A reader can
-			// already be holding it, because autopaho releases AwaitConnection
-			// before calling this — so it has to stay, or it would be orphaned
-			// open and that reader would never learn the link had dropped.
-		}
+		c.connectedOnce = true
 		c.mu.Unlock()
-		c.log.Info("Connection established.")
 		if onUp != nil {
 			onUp(cm, connack)
 		}
 	}
+	// Returning false stops this manager for good: reconnection belongs to
+	// Bento, which learns of the drop through service.ErrNotConnected and
+	// calls Connect again — where a fresh manager is built. Left to reconnect
+	// here instead, a drop surfaced as a run of timed-out sends, which Bento's
+	// metrics counted as message failures rather than as a lost connection.
 	cfg.OnConnectionDown = func() bool {
+		c.mu.Lock()
+		c.managerStopped = true
+		c.mu.Unlock()
 		c.markDown()
-		c.log.Warn("Connection lost, reconnecting.")
-		return true
+		c.log.Warn("Connection lost.")
+		return false
 	}
 	cfg.OnConnectError = func(err error) {
 		if code, refused := connackRefusal(err); refused {
@@ -585,8 +591,8 @@ func (c *connectionV5) installHooks(cfg *autopaho.ClientConfig, onUp func(*autop
 	}
 	cfg.OnServerDisconnect = func(disconnect *paho.Disconnect) {
 		// Reached only when the server sends a DISCONNECT, which is it saying
-		// why it is hanging up. autopaho reconnects either way, so there is
-		// nothing to decide here — but the reason is the only thing that
+		// why it is hanging up. The reconnection happens either way, so there
+		// is nothing to decide here — but the reason is the only thing that
 		// separates "another client took this client_id" from a bad network.
 		reason := mv5DisconnectReason(disconnect.ReasonCode)
 		if disconnect.Properties != nil {
@@ -600,6 +606,47 @@ func (c *connectionV5) installHooks(cfg *autopaho.ClientConfig, onUp func(*autop
 		c.log.Errorf("Server closed the connection: %v (0x%02X).", reason, disconnect.ReasonCode)
 	}
 	cfg.Errors = mv5PahoLogger{log: c.log}
+}
+
+// takeStoppedManager hands back the manager whose connection dropped, clearing
+// it so that connect builds another, or nil while the current one is usable.
+func (c *connectionV5) takeStoppedManager() *autopaho.ConnectionManager {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cm == nil || !c.managerStopped {
+		return nil
+	}
+	stopped := c.cm
+	c.cm, c.managerStopped = nil, false
+	return stopped
+}
+
+// renewDownSignal replaces a signal that has already been closed, so that the
+// connection this call is about to make starts with an open one. Callers hold
+// c.mu.
+//
+// It happens here rather than in OnConnectionUp because autopaho releases
+// AwaitConnection before calling that handler: a signal renewed there could
+// still be the closed one at the moment connect returns, and the first read
+// afterwards would report a live connection as down. Every connection is now
+// begun by a connect call — a drop stops the manager rather than reconnecting
+// behind it — so this is the one place that has to know.
+func (c *connectionV5) renewDownSignal() {
+	select {
+	case <-c.down:
+		c.down = make(chan struct{})
+	default:
+	}
+}
+
+// resumeRatherThanCleanStart forces clean start off on any manager built after
+// the component's first successful connection. clean_start speaks about the
+// first connection of the component's life, and a reconnection that honoured
+// it would discard the very session it exists to resume. Callers hold c.mu.
+func (c *connectionV5) resumeRatherThanCleanStart(cfg *autopaho.ClientConfig) {
+	if c.connectedOnce {
+		cfg.CleanStartOnInitialConnection = false
+	}
 }
 
 func (c *connectionV5) markDown() {
@@ -626,14 +673,30 @@ func (c *connectionV5) manager() *autopaho.ConnectionManager {
 	return c.cm
 }
 
-// connect builds the connection manager on first use and waits for the link to
+// connect builds a connection manager when there is none — on first use, and
+// again after a drop has ended the previous one — and waits for the link to
 // come up. A refusal by the server is returned rather than waited through: the
-// manager goes on retrying in the background either way, but returning lets
+// manager goes on dialling in the background either way, but returning lets
 // Bento log it, count it against its failed-connection metric, and apply its
 // own backoff before calling again.
 func (c *connectionV5) connect(ctx context.Context, cfg autopaho.ClientConfig) error {
+	// Releasing a manager that has stopped is not tidiness: cancelling its
+	// context is what stops the goroutine it keeps for its publish queue, and
+	// autopaho waits on that goroutine before it reports the manager done. Left
+	// alone, every reconnection would leak one. Disconnect cancels before it
+	// waits, so the release happens whether or not this wait does.
+	if stopped := c.takeStoppedManager(); stopped != nil {
+		releaseCtx, cancelRelease := context.WithTimeout(c.ctx, 10*time.Second)
+		if err := stopped.Disconnect(releaseCtx); err != nil {
+			c.log.Debugf("Releasing the connection that dropped: %v", err)
+		}
+		cancelRelease()
+	}
+
 	c.mu.Lock()
 	if c.cm == nil {
+		c.renewDownSignal()
+		c.resumeRatherThanCleanStart(&cfg)
 		cm, err := autopaho.NewConnection(c.ctx, cfg)
 		if err != nil {
 			c.mu.Unlock()
