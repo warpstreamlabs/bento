@@ -65,6 +65,7 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/duckdb/duckdb-go/v2 v2.10505.0
 	github.com/dustin/go-humanize v1.0.1
+	github.com/eclipse/paho.golang v0.23.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/elastic/go-elasticsearch/v9 v9.0.0
 	github.com/fatih/color v1.18.0
