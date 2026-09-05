@@ -43,8 +43,7 @@ output:
     write_timeout: 3s
     retained: false
     metadata:
-      exclude_prefixes:
-        - mqtt_
+      exclude_prefixes: []
     max_in_flight: 64
 ```
 
@@ -95,8 +94,7 @@ output:
     message_expiry_interval: "300" # No default (optional)
     payload_format_indicator: "" # No default (optional)
     metadata:
-      exclude_prefixes:
-        - mqtt_
+      exclude_prefixes: []
     max_in_flight: 64
 ```
 
@@ -105,9 +103,11 @@ output:
 
 This output speaks MQTT 5 only, and will not fall back to 3.1.1. Use the `mqtt` output for servers that speak the older protocol.
 
+This output uses https://github.com/eclipse/paho.golang, which is itself experimental.
+
 ### Refused publications
 
-At QoS 1 and above the server answers each publication with a reason code, and a refusal — `0x87` not authorized, `0x97` quota exceeded, `0x90` topic name invalid — is returned as an error carrying that code. There is no setting here for what to do about it, because Bento already has a better one: a [`fallback`](/docs/components/outputs/fallback) output puts the error text into a `fallback_error` metadata field, which a [`switch`](/docs/components/outputs/switch) can then route on. That gives a different destination per reason code rather than one blanket behaviour:
+At QoS 1 and above the server answers each publication with a reason code, and a refusal — `0x87` not authorized, `0x97` quota exceeded, `0x90` topic name invalid — is returned as an error carrying that code. There is no setting here for what to do about it: a [`fallback`](/docs/components/outputs/fallback) output puts the error text into a `fallback_error` metadata field, which a [`switch`](/docs/components/outputs/switch) can route on for a different destination per reason code.
 
 ```yaml
 output:
@@ -133,39 +133,26 @@ Note that `0x10` "no matching subscribers" is a success, not a failure: it means
 
 ### Metadata as user properties
 
-Every metadata field on a message is sent as an MQTT 5 user property, except those excluded by the `metadata` setting — which by default holds back the `mqtt_` namespace the `mqtt_v5` input writes about a delivery. So a pipeline's own metadata travels and the previous hop's bookkeeping does not, and either can be changed.
+Every metadata field on a message is sent as an MQTT 5 user property, except those excluded by the `metadata` setting. This is the part MQTT 3.1.1 cannot do at all, and it is what carries an identifier or a routing key alongside the payload rather than inside it.
 
-This is the part MQTT 3.1.1 cannot do at all, and it is what carries an identifier or a routing key alongside the payload rather than inside it.
-
-### Bridging one MQTT 5 server to another
-
-Reading with the `mqtt_v5` input and writing with this output works without configuring metadata at all: the input describes each delivery in fields named `mqtt_*`, and this output holds that namespace back by default rather than forwarding it to the next server.
-
-What does need naming is the MQTT 5 properties you want carried. They arrive as metadata, so unless the field is named here they would not be sent as properties at all:
+The MQTT 5 properties themselves are separate fields on this output. They arrive from an input as metadata, so unless the field is named here they are not sent as properties at all:
 
 ```yaml
-input:
-  mqtt_v5:
-    urls: [ tcp://source:1883 ]
-    topics: [ events/# ]
-
 output:
   mqtt_v5:
     urls: [ tcp://destination:1883 ]
     topic: ${! meta("mqtt_topic") }
-    # These are re-stated deliberately: an inbound content type arrives as
-    # metadata, so without naming it here it would not be sent as a content
-    # type. The bookkeeping the input wrote — topic, QoS, delivery flags — is
-    # held back by default and needs nothing said about it.
     content_type: ${! meta("mqtt_content_type") }
     correlation_data: ${! meta("mqtt_correlation_data") }
+    # The mqtt_ fields describe the delivery an mqtt_v5 input received
+    # rather than the message, so a further hop leaves them behind.
+    metadata:
+      exclude_prefixes: [ mqtt_ ]
 ```
 
-The same applies to `response_topic`, `message_expiry_interval` and `payload_format_indicator`: name the ones the bridge should carry.
+The same applies to `response_topic`, `message_expiry_interval` and `payload_format_indicator`.
 
-Naming one is safe even when a message does not have it. These fields are all optional, and an interpolation that resolves to nothing — which is what reading an absent metadata field gives you — leaves the property unset rather than failing the message. A value that is present but malformed is still an error, because that is a configuration mistake rather than an absent property.
-
-Reading an absent metadata field yields the text `null`, so that text is what marks a property as unset. A value that is genuinely the four characters `null` — conceivable as correlation data, if nothing else — is therefore not sent. The same is true of the `retained_interpolated` field, whose configured `retained` value stands when the field it reads is absent.
+Naming one is safe even where a message does not carry it: reading an absent metadata field yields the text `null`, which leaves the property unset rather than failing the message — so a value that is genuinely those four characters is not sent either. The `retained_interpolated` field reads an absent value the same way, leaving the configured `retained` value standing. A value that is present but malformed is still an error, because that is a configuration mistake.
 
 ## Performance
 
@@ -418,7 +405,7 @@ session_expiry_interval: 24h
 
 ### `receive_maximum`
 
-The number of QoS 1 and QoS 2 messages this client is willing to have in flight at once — in effect, how far ahead of the pipeline the server is allowed to read. Left unset, the server chooses.
+The number of QoS 1 and QoS 2 messages this client is willing to have in flight to it at once. On the input this is how far ahead of the pipeline the server may read; on the output the only inbound traffic it could bound is acknowledgements. Left unset, the server chooses.
 
 
 Type: `int`  
@@ -616,17 +603,13 @@ Type: `string`
 
 Which metadata values are sent as MQTT 5 user properties. Everything is sent except the prefixes listed here.
 
-The default excludes `mqtt_`, because that is the namespace the `mqtt_v5` input writes to describe a message it received — its topic, its QoS, its delivery flags. Those describe the hop the message just made rather than the message, and forwarding them means every server-to-server hop adds another handful of properties a consumer did not ask for and a strict server may refuse.
-
-Set it to an empty list to send them, and to other prefixes to hold back metadata of your own:
+When bridging from the `mqtt_v5` input, exclude `mqtt_`: that is the namespace the input writes to describe a message it received — its topic, its QoS, its delivery flags — which describes the hop the message just made rather than the message.
 
 ```yml
 metadata:
-  exclude_prefixes: []                    # send everything, mqtt_ fields included
-  exclude_prefixes: [ mqtt_, secret_ ]    # the default, plus one of your own
+  exclude_prefixes: [ mqtt_ ]             # the input's delivery bookkeeping
+  exclude_prefixes: [ mqtt_, secret_ ]    # and a prefix of your own
 ```
-
-Note that this setting replaces the default rather than adding to it, so a list naming only your own prefixes will send the `mqtt_` fields again. Include `mqtt_` alongside yours if you want both held back.
 
 Metadata can also be shaped before it reaches here with a [`mapping`](/docs/components/processors/mapping) processor, which is the way to rename a field, drop one, or promote one into the payload.
 
@@ -639,7 +622,7 @@ Metadata keys beginning with any of these are not sent.
 
 
 Type: `array`  
-Default: `["mqtt_"]`  
+Default: `[]`  
 
 ### `max_in_flight`
 
