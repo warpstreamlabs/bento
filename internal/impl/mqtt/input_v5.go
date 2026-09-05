@@ -59,32 +59,28 @@ func inputConfigSpecV5() *service.ConfigSpec {
 		Description(`
 This input speaks MQTT 5 only, and will not fall back to 3.1.1. Use the `+"`mqtt`"+` input for servers that speak the older protocol.
 
+This input uses https://github.com/eclipse/paho.golang, which is itself experimental.
+
 ### Durable subscriptions
 
-Receiving messages published while the pipeline was down needs three settings together: `+"`clean_start: false`"+`, a fixed `+"`client_id`"+`, and a `+"`session_expiry_interval`"+` longer than the outage you want to survive. Any one of them left at its default loses the messages.
+Receiving messages published while the pipeline was down needs three settings together: `+"`clean_start: false`"+`, a fixed `+"`client_id`"+`, and a `+"`session_expiry_interval`"+` longer than the outage. Any one of them left at its default loses the messages.
 
 ### Shared subscriptions
 
-A shared subscription is an ordinary topic filter of the form `+"`$share/<group>/<filter>`"+`, so it needs no setting of its own. Scaling out means running more instances of the same configuration with the same group.
+A shared subscription is an ordinary topic filter of the form `+"`$share/<group>/<filter>`"+`, so it needs no setting of its own. Scaling out means more instances of the same configuration using the same group.
 
 ### Acknowledgement
 
-Messages are acknowledged to the server only once the pipeline has finished with them, so a message is not lost if a destination is unavailable.
+Messages are acknowledged to the server once the pipeline has finished with them, and strictly in the order they arrived, because that is the only order MQTT 5 allows. A message still being worked on therefore holds back the acknowledgement of everything received after it.
 
-Acknowledgements are released strictly in the order the messages arrived, because that is the only order MQTT 5 allows them to be sent in. A message still being worked on holds back the acknowledgement of everything received after it, even messages the pipeline has already finished with.
+**A message that never succeeds stops consumption altogether**: nothing behind it is acknowledged either, and once `+"`receive_maximum`"+` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending. Nothing is lost, and the run is redelivered on the next connection, but the pipeline reports itself healthy while consuming nothing. A warning is logged the first time a message is rejected.
 
-**A message that never succeeds therefore stops consumption altogether.** It is never acknowledged, so nothing behind it is acknowledged either; once `+"`receive_maximum`"+` messages are outstanding — or the server's own limit, if that field is unset — the server stops sending and this input receives nothing further. Nothing is lost, and the whole run is redelivered on the next connection, but the pipeline goes on reporting itself healthy while consuming zero messages.
-
-Two warnings exist to stop that being silent. One is logged the first time a message is rejected. The other is logged once when this input has held messages for a minute without finishing any of them, which is the only signal available under the default `+"`auto_replay_nacks`"+`: a message being retried inside Bento for ever never reports an error to this component at all, so there is nothing to react to except the absence of progress.
-
-A pipeline that simply takes longer than a minute to finish each message reaches that second condition too, and for it the warning is expected rather than a fault. It is logged once either way, and again only after the input has caught up and stalled afresh.
-
-**So do not reject messages you cannot ever process.** Send them somewhere instead — a [`+"`fallback`"+`](/docs/components/outputs/fallback) output to a dead-letter destination, so every message is eventually acknowledged and the stream keeps moving:
+So route messages that cannot succeed to a dead-letter destination rather than rejecting them, with a [`+"`fallback`"+`](/docs/components/outputs/fallback) output:
 
 `+"```yaml"+`
 output:
   fallback:
-    - kafka_franz:                       # the real destination
+    - kafka_franz:
         seed_brokers: [ localhost:9092 ]
         topic: events
     - file:
@@ -111,11 +107,9 @@ This input adds the following metadata fields to each message:
 - mqtt_subscription_identifier (if set)
 `+"```"+`
 
-MQTT 5 user properties are also added, each under its own key with no prefix — this is the part MQTT 3.1.1 cannot carry at all. They are written before the fields above, so a publisher cannot overwrite `+"`mqtt_topic`"+` or any other of them by sending a user property of the same name. Where a key appears more than once in one message, which MQTT 5 permits, the last occurrence wins.
+MQTT 5 user properties are added under their own keys with no prefix, which is the part MQTT 3.1.1 cannot carry. They are written before the fields above, so a publisher cannot overwrite `+"`mqtt_topic`"+` by sending a user property of that name; where MQTT 5 permits a repeated key, the last occurrence wins.
 
-The `+"`mqtt_`"+` fields describe the delivery this input received rather than the message itself, so the [`+"`mqtt_v5`"+` output](/docs/components/outputs/mqtt_v5) holds them back by default: publishing to another MQTT server sends the publisher's own user properties and not this input's bookkeeping. Everything else — the user properties above, and any metadata a pipeline adds — is sent. That default is a setting on the output rather than a rule here, so a pipeline that wants the bookkeeping forwarded can say so.
-
-Outputs for other destinations have no such default, so a `+"`kafka_franz`"+` or `+"`aws_s3`"+` output receives these fields like any other metadata and can carry them as headers or object metadata.
+The `+"`mqtt_`"+` fields describe the delivery rather than the message. When publishing on to another MQTT server, exclude that prefix with the [`+"`mqtt_v5`"+` output](/docs/components/outputs/mqtt_v5)'s `+"`metadata`"+` setting; other outputs carry them like any other metadata.
 
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).`).
 		Fields(clientFieldsV5()...).
@@ -215,89 +209,6 @@ type mqttReaderV5 struct {
 	// rejected counts messages the pipeline refused, so that the warning
 	// explaining what that costs is logged once rather than per message.
 	rejected atomic.Int64
-
-	// handed and settled count messages given to the pipeline and messages it
-	// finished with. Their difference is what the server is still waiting to
-	// hear about, and a difference that stops changing is a stalled input.
-	handed  atomic.Int64
-	settled atomic.Int64
-
-	// How long the watchdog waits before deciding nothing is moving. Fields
-	// rather than constants so a test can drive it in milliseconds; there is
-	// no reason for an operator to change them, so they are not configuration.
-	stallSample time.Duration
-	stallAfter  int
-}
-
-// watchProgress warns, once, when this input stops making progress while
-// holding messages the server has not been told about.
-//
-// It is keyed on the condition rather than on a rejection because a rejection
-// is not where the common case shows up. Under the default auto_replay_nacks
-// the pipeline's error never reaches this component at all: Bento re-queues the
-// message and retries it internally for ever, and the acknowledgement function
-// here is only ever called on eventual success. A message that can never
-// succeed therefore holds its acknowledgement — and every acknowledgement
-// behind it — with nothing in this component seeing an error to report. Once
-// the receive window is full the server stops delivering and the pipeline sits
-// healthy and idle. Watching the counters catches that; watching for rejections
-// does not.
-func (m *mqttReaderV5) watchProgress() {
-	sample, stallAfter := m.stallSample, m.stallAfter
-
-	ticker := time.NewTicker(sample)
-	defer ticker.Stop()
-
-	// Seeded from the counters as they stand, so the first tick is a real
-	// comparison. Starting them at a sentinel made the first tick always read
-	// as movement and pushed the warning out by a whole sample, which is a
-	// quarter longer than the interval this reports.
-	lastHanded, lastSettled := m.handed.Load(), m.settled.Load()
-	still, warned := 0, false
-
-	for {
-		select {
-		case <-ticker.C:
-		case <-m.ctx.Done():
-			return
-		}
-
-		handed, settled := m.handed.Load(), m.settled.Load()
-		outstanding := handed - settled
-
-		if outstanding <= 0 {
-			// Nothing owed: a quiet topic, or an input that has caught up.
-			// Either way a later stall is a new one worth reporting, so this
-			// is the only place the warning re-arms.
-			lastHanded, lastSettled = handed, settled
-			still, warned = 0, false
-			continue
-		}
-		if handed != lastHanded || settled != lastSettled {
-			// Something moved, so the wait starts again — but the warning is
-			// not re-armed. Re-arming on any movement made this report once
-			// for an input that had genuinely stopped and once per message for
-			// a pipeline that was merely slow, which is the wrong way round:
-			// noisy about the healthy case and quiet about the broken one.
-			lastHanded, lastSettled = handed, settled
-			still = 0
-			continue
-		}
-
-		still++
-		if still < stallAfter || warned {
-			continue
-		}
-		warned = true
-		m.log.Warnf("This input has not finished a message in at least %v, and %v are outstanding. "+
-			"Acknowledgements are sent in the order messages arrived, so one message the pipeline "+
-			"never finishes with — retried indefinitely, or rejected — holds back every acknowledgement "+
-			"behind it, and the server stops delivering once its receive window is full. If a message "+
-			"cannot ever succeed, route it to a dead-letter output rather than retrying or rejecting it "+
-			"for ever. A pipeline that simply takes longer than this to finish each message reaches the "+
-			"same point, and for that this is expected rather than a fault. Reported once either way, "+
-			"until the input catches up.", sample*time.Duration(stallAfter), outstanding)
-	}
 }
 
 // outstandingLimit describes how many unacknowledged messages the server will
@@ -316,8 +227,6 @@ func newMQTTReaderV5FromParsed(conf *service.ParsedConfig, mgr *service.Resource
 		msgChan:      make(chan paho.PublishReceived),
 		subscribeReq: make(chan struct{}, 1),
 		fatalCh:      make(chan struct{}),
-		stallSample:  20 * time.Second,
-		stallAfter:   3, // so a minute of complete stasis
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 
@@ -413,7 +322,6 @@ func (m *mqttReaderV5) Connect(ctx context.Context) error {
 
 	m.startOnce.Do(func() {
 		go m.subscriber()
-		go m.watchProgress()
 	})
 
 	if err := m.conn.connect(ctx, cfg); err != nil {
@@ -553,7 +461,6 @@ func (m *mqttReaderV5) Read(ctx context.Context) (*service.Message, service.AckF
 	select {
 	case pr := <-m.msgChan:
 		msg, ackFn := m.messageFromPublish(pr)
-		m.handed.Add(1)
 		return msg, ackFn, nil
 	case <-m.fatalCh:
 		return nil, nil, m.stopped()
@@ -626,7 +533,6 @@ func (m *mqttReaderV5) messageFromPublish(pr paho.PublishReceived) (*service.Mes
 			}
 			return nil
 		}
-		m.settled.Add(1)
 		if err := pr.Client.Ack(pkt); err != nil {
 			// Acknowledging after the link has dropped is documented as
 			// unpredictable, and there is nothing Bento could do with an error
