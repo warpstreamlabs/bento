@@ -617,10 +617,7 @@ use_parquet_list_format: false
 }
 
 func TestParquetDecodeListFormatEdgeCases(t *testing.T) {
-	// FIXME: Close https://github.com/warpstreamlabs/bento/issues/360 when 2D array support added to parquet-go.
-	t.Skip("2D slices are not currently supported by parquet encoder.")
-
-	tctx := context.Background()
+	tctx := t.Context()
 
 	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
 schema:
@@ -640,6 +637,29 @@ schema:
         type: LIST
         fields:
           - { name: element, type: FLOAT }
+  - name: list_of_list_of_lists
+    type: LIST
+    fields:
+      - name: element
+        type: LIST
+        fields:
+          - name: element
+            type: LIST
+            fields:
+              - { name: element, type: INT32 }
+  - name: list_of_list_of_list_of_lists
+    type: LIST
+    fields:
+      - name: element
+        type: LIST
+        fields:
+          - name: element
+            type: LIST
+            fields:
+              - name: element
+                type: LIST
+                fields:
+                  - { name: element, type: INT32 }
 `, nil)
 	require.NoError(t, err)
 
@@ -654,30 +674,148 @@ schema:
 		{
 			name: "empty lists",
 			input: `{
-  "normal_list": [],
-  "nullable_list": null,
-  "list_of_lists": []
-}`,
+		  "normal_list": [],
+		  "nullable_list": null,
+		  "list_of_lists": [],
+		  "list_of_list_of_lists": [],
+		  "list_of_list_of_list_of_lists": []
+		}`,
 			expected: `{
-  "normal_list": {"list": []},
-  "nullable_list": null,
-  "list_of_lists": {"list": []}
-}`,
+		  "normal_list": {"list": []},
+		  "nullable_list": null,
+		  "list_of_lists": {"list": []},
+		  "list_of_list_of_lists": {"list": []},
+		  "list_of_list_of_list_of_lists": {"list": []}
+		}`,
 		},
 		{
 			name: "nested lists",
 			input: `{
+		  "normal_list": ["a"],
+		  "nullable_list": [1, 2],
+		  "list_of_lists": [[1.1, 2.2], [3.3]],
+		  "list_of_list_of_lists": [],
+		  "list_of_list_of_list_of_lists": []
+		}`,
+			expected: `{
+		  "normal_list": {"list": [{"element": "a"}]},
+		  "nullable_list": {"list": [{"element": 1}, {"element": 2}]},
+		  "list_of_lists": {
+		    "list": [
+		      {"element": {"list": [{"element": 1.1}, {"element": 2.2}]}},
+		      {"element": {"list": [{"element": 3.3}]}}
+		    ]
+		  },
+		  "list_of_list_of_lists": {"list": []},
+		  "list_of_list_of_list_of_lists": {"list": []}
+		}`,
+		},
+		{
+			name: "3d lists",
+			input: `{
   "normal_list": ["a"],
-  "nullable_list": [1, 2],
-  "list_of_lists": [[1.1, 2.2], [3.3]]
+  "nullable_list": null,
+  "list_of_lists": [],
+  "list_of_list_of_lists": [
+    [[1, 2], [3]],
+    [[4, 5, 6]],
+    []
+  ],
+  "list_of_list_of_list_of_lists": []
 }`,
 			expected: `{
   "normal_list": {"list": [{"element": "a"}]},
-  "nullable_list": {"list": [{"element": 1}, {"element": 2}]},
-  "list_of_lists": {
+  "nullable_list": null,
+  "list_of_lists": {"list": []},
+  "list_of_list_of_lists": {
     "list": [
-      {"element": {"list": [{"element": 1.1}, {"element": 2.2}]}},
-      {"element": {"list": [{"element": 3.3}]}}
+      {
+        "element": {
+          "list": [
+            {"element": {"list": [{"element": 1}, {"element": 2}]}},
+            {"element": {"list": [{"element": 3}]}}
+          ]
+        }
+      },
+      {
+        "element": {
+          "list": [
+            {"element": {"list": [{"element": 4}, {"element": 5}, {"element": 6}]}}
+          ]
+        }
+      },
+      {
+        "element": {"list": []}
+      }
+    ]
+  },
+  "list_of_list_of_list_of_lists": {"list": []}
+}`,
+		},
+		{
+			name: "4d lists",
+			input: `{
+  "normal_list": ["a"],
+  "nullable_list": null,
+  "list_of_lists": [],
+  "list_of_list_of_lists": [],
+  "list_of_list_of_list_of_lists": [
+    [
+      [[1, 2], [3]],
+      [[4, 5, 6]]
+    ],
+    [
+      [],
+      [[7]]
+    ],
+    []
+  ]
+}`,
+			expected: `{
+  "normal_list": {"list": [{"element": "a"}]},
+  "nullable_list": null,
+  "list_of_lists": {"list": []},
+  "list_of_list_of_lists": {"list": []},
+  "list_of_list_of_list_of_lists": {
+    "list": [
+      {
+        "element": {
+          "list": [
+            {
+              "element": {
+                "list": [
+                  {"element": {"list": [{"element": 1}, {"element": 2}]}},
+                  {"element": {"list": [{"element": 3}]}}
+                ]
+              }
+            },
+            {
+              "element": {
+                "list": [
+                  {"element": {"list": [{"element": 4}, {"element": 5}, {"element": 6}]}}
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "element": {
+          "list": [
+            {"element": {"list": []}},
+            {
+              "element": {
+                "list": [
+                  {"element": {"list": [{"element": 7}]}}
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "element": {"list": []}
+      }
     ]
   }
 }`,
@@ -700,6 +838,154 @@ use_parquet_list_format: true
 			require.NoError(t, err)
 
 			decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+			require.NoError(t, err)
+
+			decodedBatch, err := decodeProc.Process(tctx, service.NewMessage(encodedBytes))
+			require.NoError(t, err)
+
+			decodedBytes, err := decodedBatch[0].AsBytes()
+			require.NoError(t, err)
+
+			assert.JSONEq(t, test.expected, string(decodedBytes))
+		})
+	}
+}
+
+func TestParquetDecodeListNullableElements(t *testing.T) {
+	tctx := t.Context()
+
+	encodeConf, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - name: nullable_elements
+    type: LIST
+    fields:
+      - { name: element, type: UTF8, optional: true }
+  - name: nullable_inner_lists
+    type: LIST
+    fields:
+      - name: element
+        type: LIST
+        optional: true
+        fields:
+          - { name: element, type: INT32, optional: true }
+  - name: nullable_all_levels
+    type: LIST
+    optional: true
+    fields:
+      - name: element
+        type: LIST
+        optional: true
+        fields:
+          - name: element
+            type: LIST
+            optional: true
+            fields:
+              - { name: element, type: INT32, optional: true }
+`, nil)
+	require.NoError(t, err)
+
+	encodeProc, err := newParquetEncodeProcessorFromConfig(encodeConf, nil)
+	require.NoError(t, err)
+
+	decodeConf, err := parquetDecodeProcessorConfig().ParseYAML(`
+use_parquet_list_format: true
+`, nil)
+	require.NoError(t, err)
+
+	decodeProc, err := newParquetDecodeProcessorFromConfig(decodeConf, nil)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "nulls interleaved with elements",
+			input: `{
+		  "nullable_elements": ["a", null, "c"],
+		  "nullable_inner_lists": [],
+		  "nullable_all_levels": null
+		}`,
+			expected: `{
+		  "nullable_elements": {"list": [{"element": "a"}, {"element": null}, {"element": "c"}]},
+		  "nullable_inner_lists": {"list": []},
+		  "nullable_all_levels": null
+		}`,
+		},
+		{
+			name: "every element null",
+			input: `{
+				  "nullable_elements": [null, null],
+				  "nullable_inner_lists": [],
+				  "nullable_all_levels": null
+				}`,
+			expected: `{
+				  "nullable_elements": {"list": [{"element": null}, {"element": null}]},
+				  "nullable_inner_lists": {"list": []},
+				  "nullable_all_levels": null
+				}`,
+		},
+		{
+			name: "null inner list vs empty inner list",
+			input: `{
+		  "nullable_elements": [],
+		  "nullable_inner_lists": [[], null, [1, null]],
+		  "nullable_all_levels": null
+		}`,
+			expected: `{
+		  "nullable_elements": {"list": []},
+		  "nullable_inner_lists": {
+		    "list": [
+		      {"element": {"list": []}},
+		      {"element": null},
+		      {"element": {"list": [{"element": 1}, {"element": null}]}}
+		    ]
+		  },
+		  "nullable_all_levels": null
+		}`,
+		},
+		{
+			name: "nulls at every level",
+			input: `{
+		  "nullable_elements": [],
+		  "nullable_inner_lists": [],
+		  "nullable_all_levels": [
+		    [[1, null], null, []],
+		    null,
+		    []
+		  ]
+		}`,
+			expected: `{
+		  "nullable_elements": {"list": []},
+		  "nullable_inner_lists": {"list": []},
+		  "nullable_all_levels": {
+		    "list": [
+		      {
+		        "element": {
+		          "list": [
+		            {"element": {"list": [{"element": 1}, {"element": null}]}},
+		            {"element": null},
+		            {"element": {"list": []}}
+		          ]
+		        }
+		      },
+		      {"element": null},
+		      {"element": {"list": []}}
+		    ]
+		  }
+		}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			encodedBatches, err := encodeProc.ProcessBatch(tctx, service.MessageBatch{
+				service.NewMessage([]byte(test.input)),
+			})
+			require.NoError(t, err)
+
+			encodedBytes, err := encodedBatches[0][0].AsBytes()
 			require.NoError(t, err)
 
 			decodedBatch, err := decodeProc.Process(tctx, service.NewMessage(encodedBytes))
