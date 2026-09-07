@@ -30,6 +30,10 @@ All notable changes to this project will be documented in this file.
 - `fsevent` preserves file create events when watching new subdirs @mattfaltyn
 - `aws_s3_stream` handles files smaller than S3's minimum multipart size @triddell
 
+### Changed
+
+- `apache/pulsar-client-go` updated to v0.21.0, picking up fixes for a consumer busy-spin deadlock, a connection panic on close, and a race that dropped messages before handler registration @slachiewicz
+
 ### Security
 
 - **Breaking:** Addressed [GO-2026-5048](https://github.com/advisories/GHSA-mx64-mj3q-7prj) by replacing `github.com/hamba/avro/v2` with `github.com/iskorotkov/avro/v2`, temporarily disabling `go install github.com/warpstreamlabs/bento/cmd/bento@<version>` due to `replace` directive usage.
