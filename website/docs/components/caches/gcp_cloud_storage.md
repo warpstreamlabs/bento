@@ -19,13 +19,38 @@ This component is mostly stable but breaking changes could still be made outside
 :::
 Use a Google Cloud Storage bucket as a cache.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 label: ""
 gcp_cloud_storage:
   bucket: "" # No default (required)
   content_type: "" # No default (optional)
 ```
+
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+label: ""
+gcp_cloud_storage:
+  bucket: "" # No default (required)
+  content_type: "" # No default (optional)
+  credentials:
+    impersonate_service_account: ""
+    impersonate_delegates: []
+```
+
+</TabItem>
+</Tabs>
 
 It is not possible to atomically upload cloud storage objects exclusively when the target does not already exist, therefore this cache is not suitable for deduplication.
 
@@ -44,5 +69,35 @@ Optional field to explicitly set the Content-Type.
 
 
 Type: `string`  
+
+### `credentials`
+
+Optional manual configuration of GCP credentials to use. More information can be found [in this document](/docs/guides/cloud/gcp).
+
+
+Type: `object`  
+Requires version 1.22.0 or newer  
+
+### `credentials.impersonate_service_account`
+
+The email address of a service account to impersonate. The base credentials (Application Default Credentials) must be granted `roles/iam.serviceAccountTokenCreator` on this service account, or on the first delegate when `impersonate_delegates` is set.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+impersonate_service_account: target@my-project.iam.gserviceaccount.com
+```
+
+### `credentials.impersonate_delegates`
+
+An optional chain of service account email addresses to delegate through when impersonating. Each service account must be granted `roles/iam.serviceAccountTokenCreator` on the next service account in the chain, with the final one granted on `impersonate_service_account`.
+
+
+Type: `array`  
+Default: `[]`  
 
 

@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/gofrs/uuid"
 	"go.uber.org/multierr"
+	"google.golang.org/api/option"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -48,6 +49,7 @@ type csoConfig struct {
 	ChunkSize       int
 	CollisionMode   string
 	Timeout         time.Duration
+	ClientOptions   []option.ClientOption
 }
 
 func csoConfigFromParsed(pConf *service.ParsedConfig) (conf csoConfig, err error) {
@@ -70,6 +72,9 @@ func csoConfigFromParsed(pConf *service.ParsedConfig) (conf csoConfig, err error
 		return
 	}
 	if conf.Timeout, err = pConf.FieldDuration(csoFieldTimeout); err != nil {
+		return
+	}
+	if conf.ClientOptions, err = gcpClientOptionsFromParsed(pConf); err != nil {
 		return
 	}
 	return
@@ -161,6 +166,7 @@ output:
 			service.NewOutputMaxInFlightField().
 				Description("The maximum number of message batches to have in flight at a given time. Increase this to improve throughput."),
 			service.NewBatchPolicyField(csoFieldBatching),
+			gcpCredentialsField(),
 		)
 }
 
@@ -214,7 +220,7 @@ func (g *gcpCloudStorageOutput) Connect(ctx context.Context) error {
 	defer g.connMut.Unlock()
 
 	var err error
-	g.client, err = storage.NewClient(context.Background())
+	g.client, err = storage.NewClient(context.Background(), g.conf.ClientOptions...)
 	if err != nil {
 		return err
 	}

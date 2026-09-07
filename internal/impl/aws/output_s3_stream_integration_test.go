@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -363,4 +365,97 @@ max_buffer_period: 1s
 	require.NoError(t, err)
 
 	assert.Equal(t, "single message\n", string(content))
+}
+
+// TestS3StreamOutput_IntegrationGzipCompression tests the compression: gzip
+// option end-to-end: the object must download as a single valid gzip stream
+// (Content-Encoding gzip) that decompresses to the exact concatenation of the
+// records — for both a small PutObject-path object and a large multipart one.
+func TestS3StreamOutput_IntegrationGzipCompression(t *testing.T) {
+	integration.CheckSkip(t)
+
+	servicePort := GetLocalStack(t, nil)
+	bucketName := "test-stream-gzip"
+
+	s3Client := getTestS3Client(context.Background(), t, servicePort)
+	_, err := s3Client.CreateBucket(context.Background(), &s3.CreateBucketInput{
+		Bucket: aws.String(bucketName),
+	})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		key     string
+		records int
+		// bufBytes seals parts at this compressed size; small value + many
+		// records forces a true multipart upload.
+		bufBytes int
+	}{
+		{name: "small_putobject", key: "gz/small.jsonl.gz", records: 20, bufBytes: 10 * 1024 * 1024},
+		{name: "large_multipart", key: "gz/large.jsonl.gz", records: 400000, bufBytes: 5 * 1024 * 1024},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configYAML := fmt.Sprintf(`
+bucket: %s
+path: '%s'
+region: us-east-1
+force_path_style_urls: true
+endpoint: http://localhost:%s
+content_type: 'application/json'
+compression: gzip
+max_buffer_bytes: %d
+max_buffer_count: 1000000
+max_buffer_period: 1s
+`, bucketName, tc.key, servicePort, tc.bufBytes)
+
+			parsedConf, err := s3StreamOutputSpec().ParseYAML(configYAML, nil)
+			require.NoError(t, err)
+
+			wConf, err := s3StreamConfigFromParsed(parsedConf)
+			require.NoError(t, err)
+			require.Equal(t, "gzip", wConf.Compression)
+
+			output, err := newS3StreamOutput(wConf, service.MockResources())
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			require.NoError(t, output.Connect(ctx))
+
+			var expected bytes.Buffer
+			batch := service.MessageBatch{}
+			for i := range tc.records {
+				line := fmt.Appendf(nil, `{"id":%d,"msg":"gzip stream test record"}%s`, i, "\n")
+				expected.Write(line)
+				batch = append(batch, service.NewMessage(line))
+			}
+
+			require.NoError(t, output.WriteBatch(ctx, batch))
+			require.NoError(t, output.Close(ctx))
+
+			getResp, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
+				Bucket: aws.String(bucketName),
+				Key:    aws.String(tc.key),
+			})
+			require.NoError(t, err)
+			defer getResp.Body.Close()
+
+			assert.Equal(t, "gzip", aws.ToString(getResp.ContentEncoding), "Content-Encoding should be gzip")
+
+			raw, err := io.ReadAll(getResp.Body)
+			require.NoError(t, err)
+
+			// The stored object must be ONE valid gzip stream (not multi-member
+			// per-record) that decompresses to the exact input.
+			zr, err := gzip.NewReader(bytes.NewReader(raw))
+			require.NoError(t, err, "object is not a valid gzip stream")
+			got, err := io.ReadAll(zr)
+			require.NoError(t, err)
+			require.NoError(t, zr.Close())
+
+			assert.Equal(t, expected.Bytes(), got)
+			assert.Less(t, len(raw), expected.Len(), "gzip object should be smaller than the raw input")
+		})
+	}
 }

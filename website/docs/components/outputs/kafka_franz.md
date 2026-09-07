@@ -79,7 +79,9 @@ output:
       check: ""
       processors: [] # No default (optional)
     max_message_bytes: 1MB
+    max_buffered_bytes: "0"
     max_buffered_records: 10000
+    broker_write_max_bytes: 100MiB
     metadata_max_age: 5m
     compression: "" # No default (optional)
     tls:
@@ -422,6 +424,23 @@ max_message_bytes: 100MB
 max_message_bytes: 50mib
 ```
 
+### `max_buffered_bytes`
+
+max_buffered_bytes sets the max amount of bytes that the client will buffer while producing, blocking produces until records are finished if this limit is reached. This overrides the unlimited default.
+
+
+Type: `string`  
+Default: `"0"`  
+Requires version 1.21.0 or newer  
+
+```yml
+# Examples
+
+max_buffered_bytes: 100MB
+
+max_buffered_bytes: 50mib
+```
+
 ### `max_buffered_records`
 
 Sets the max amount of records the client will buffer, blocking produces until records are finished if this limit is reached. This overrides the `franz-kafka` default of 10,000.
@@ -429,6 +448,23 @@ Sets the max amount of records the client will buffer, blocking produces until r
 
 Type: `int`  
 Default: `10000`  
+
+### `broker_write_max_bytes`
+
+broker_write_max_bytes upper bounds the number of bytes written to a broker connection in a single write, overriding the default 100MiB. This number corresponds to the a broker's socket.request.max.bytes.
+
+
+Type: `string`  
+Default: `"100MiB"`  
+Requires version 1.21.0 or newer  
+
+```yml
+# Examples
+
+broker_write_max_bytes: 100MB
+
+broker_write_max_bytes: 50mib
+```
 
 ### `metadata_max_age`
 
