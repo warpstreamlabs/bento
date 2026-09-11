@@ -73,8 +73,7 @@ func (m *kinesisEFOManager) ensureConsumerRegistered(ctx context.Context) (strin
 
 	output, err := m.svc.RegisterStreamConsumer(ctx, registerInput)
 	if err != nil {
-		var resourceInUse *types.ResourceInUseException
-		if errors.As(err, &resourceInUse) {
+		if _, ok := errors.AsType[*types.ResourceInUseException](err); ok {
 			m.log.Debugf("Consumer %s already exists, describing to get ARN", m.consumerName)
 			return m.describeAndWaitForActive(ctx)
 		}

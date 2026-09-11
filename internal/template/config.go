@@ -109,8 +109,7 @@ func (c Config) compile() (*compiled, error) {
 	}
 	mapping, err := bloblang.GlobalEnvironment().NewMapping(c.Mapping)
 	if err != nil {
-		var perr *parser.Error
-		if errors.As(err, &perr) {
+		if perr, ok := errors.AsType[*parser.Error](err); ok {
 			return nil, fmt.Errorf("parse mapping: %v", perr.ErrorAtPositionStructured("", []rune(c.Mapping)))
 		}
 		return nil, fmt.Errorf("parse mapping: %w", err)

@@ -57,12 +57,12 @@ func (o *fanOutOutputBroker) ConnectionStatus() (s component.ConnectionStatuses)
 
 func (o *fanOutOutputBroker) loop() {
 	ackInterruptChan := make(chan struct{})
-	var ackPending int64
+	var ackPending atomic.Int64
 
 	defer func() {
 		// Wait for pending acks to be resolved, or forceful termination
 	ackWaitLoop:
-		for atomic.LoadInt64(&ackPending) > 0 {
+		for ackPending.Load() > 0 {
 			select {
 			case <-ackInterruptChan:
 			case <-time.After(time.Millisecond * 100):
@@ -90,7 +90,7 @@ func (o *fanOutOutputBroker) loop() {
 			return
 		}
 
-		_ = atomic.AddInt64(&ackPending, 1)
+		_ = ackPending.Add(1)
 		pendingResponses := int64(len(o.outputTSChans))
 		for target := range o.outputTSChans {
 			msgCopy, i := ts.Payload.ShallowCopy(), target
@@ -99,7 +99,7 @@ func (o *fanOutOutputBroker) loop() {
 				if atomic.AddInt64(&pendingResponses, -1) == 0 || err != nil {
 					atomic.StoreInt64(&pendingResponses, 0)
 					ackErr := ts.Ack(ctx, err)
-					_ = atomic.AddInt64(&ackPending, -1)
+					_ = ackPending.Add(-1)
 					select {
 					case ackInterruptChan <- struct{}{}:
 					default:

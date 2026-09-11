@@ -43,8 +43,7 @@ func Run() {
 		if err != nil {
 			// TODO: Make this configurable somehow maybe, along with linting
 			// errors.
-			var errEnvMissing *config.ErrMissingEnvVars
-			if errors.As(err, &errEnvMissing) {
+			if errEnvMissing, ok := errors.AsType[*config.ErrMissingEnvVars](err); ok {
 				confBytes = errEnvMissing.BestAttempt
 			} else {
 				fmt.Fprintf(os.Stderr, "Configuration file read error: %v\n", err)

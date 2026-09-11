@@ -99,8 +99,7 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 
 		pConf, err := spec.ParsedConfigFromAny(cNode)
 		if err != nil {
-			var l docs.Lint
-			if errors.As(err, &l) {
+			if l, ok := errors.AsType[docs.Lint](err); ok {
 				l.Line += snippetLine - 1
 				pathLints = append(pathLints, pathLint{
 					source: path,
@@ -115,8 +114,7 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 		}
 
 		if _, err := config.FromParsed(lConf.DocsProvider, pConf, nil); err != nil {
-			var l docs.Lint
-			if errors.As(err, &l) {
+			if l, ok := errors.AsType[docs.Lint](err); ok {
 				l.Line += snippetLine - 1
 				pathLints = append(pathLints, pathLint{
 					source: path,

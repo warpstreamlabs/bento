@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 
 - `kafka_franz` output field `broker_write_max_bytes` misconfigured (introduced in version 1.21.0) @jem-davies
 
+### Changed 
+
+ - Updated to Go version 1.27.1 @gregfurman
+
 ## 1.21.0 - 2026-08-21
 
 ### Added
