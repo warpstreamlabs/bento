@@ -134,7 +134,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.8.22
 	github.com/sirupsen/logrus v1.9.4
 	github.com/smira/go-statsd v1.3.4
-	github.com/snowflakedb/gosnowflake v1.18.1
+	github.com/snowflakedb/gosnowflake/v2 v2.2.0
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.12.1
 	github.com/tetratelabs/wazero v1.6.0
@@ -186,7 +186,6 @@ require (
 	github.com/RoaringBitmap/roaring/v2 v2.8.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/apache/arrow-go/v18 v18.8.0 // indirect
-	github.com/apache/thrift v0.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.10.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -237,7 +236,6 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/parquet-go/bitpack v1.0.0 // indirect
 	github.com/parquet-go/jsonlite v1.5.0 // indirect
-	github.com/snowflakedb/gosnowflake/v2 v2.2.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.7.0 // indirect
@@ -305,7 +303,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.3 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.18.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.19 // indirect
