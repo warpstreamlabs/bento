@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,9 +14,10 @@ import (
 	"github.com/jcmturner/gokrb5/v8/client"
 	"github.com/jcmturner/gokrb5/v8/config"
 	"github.com/jcmturner/gokrb5/v8/keytab"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -149,49 +151,38 @@ tail -f /dev/null
 	require.NoError(t, os.WriteFile(kadmAclPath, []byte(kadmAclContent), 0644))
 	require.NoError(t, os.WriteFile(setupScriptPath, []byte(kdcSetupScript), 0755))
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(3*time.Minute))
 
 	kdcPort, err := integration.GetFreePort()
 	require.NoError(t, err)
 	kdcPortStr := strconv.Itoa(kdcPort)
 
 	networkName := fmt.Sprintf("bento-krb5-%d", time.Now().UnixNano())
-	network, err := pool.CreateNetwork(networkName)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = pool.RemoveNetwork(network)
-	})
+	// CreateNetworkT tracks the network so the pool removes it during cleanup.
+	pool.CreateNetworkT(t, networkName, nil)
 
-	kdcOptions := &dockertest.RunOptions{
-		Repository:   "ubuntu",
-		Tag:          "22.04",
-		Hostname:     "kdc",
-		ExposedPorts: []string{"88/tcp", "88/udp", "749/tcp"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"88/tcp": {{HostIP: "", HostPort: kdcPortStr}},
-			"88/udp": {{HostIP: "", HostPort: kdcPortStr}},
-		},
-		Networks: []*dockertest.Network{network},
-		Mounts: []string{
+	pool.RunT(t, "ubuntu",
+		dockertest.WithTag("22.04"),
+		dockertest.WithHostname("kdc"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("88/tcp"): {{HostPort: kdcPortStr}},
+			dockernetwork.MustParsePort("88/udp"): {{HostPort: kdcPortStr}},
+		}),
+		dockertest.WithHostConfig(func(hc *dockercontainer.HostConfig) {
+			hc.NetworkMode = dockercontainer.NetworkMode(networkName)
+		}),
+		dockertest.WithMounts([]string{
 			fmt.Sprintf("%s:/testdata", tmpDir),
 			fmt.Sprintf("%s:/keytabs", keytabsDir),
-		},
-		Cmd: []string{
+		}),
+		dockertest.WithCmd([]string{
 			"bash", "-c",
 			"/testdata/kdc-setup.sh",
-		},
-	}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	pool.MaxWait = 2 * time.Minute
-	kdcResource, err := pool.RunWithOptions(kdcOptions)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(kdcResource))
-	})
-
-	pool.MaxWait = 3 * time.Minute
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		if _, err := os.Stat(filepath.Join(keytabsDir, "client.keytab")); os.IsNotExist(err) {
 			return fmt.Errorf("keytab not ready yet")
 		}
@@ -268,53 +259,42 @@ transaction.state.log.replication.factor=1
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "kafka-krb5.conf"), []byte(kafkaKrb5ConfContent), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "kafka_server_jaas.conf"), []byte(jaasConfig), 0644))
 
-	kafkaOptions := &dockertest.RunOptions{
-		Repository:   "apache/kafka",
-		Tag:          "4.1.2",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Networks: []*dockertest.Network{network},
-		Env: []string{
+	kafkaResource := pool.RunT(t, "apache/kafka",
+		dockertest.WithTag("4.1.2"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithHostConfig(func(hc *dockercontainer.HostConfig) {
+			hc.NetworkMode = dockercontainer.NetworkMode(networkName)
+		}),
+		dockertest.WithEnv([]string{
 			"KAFKA_OPTS=-Djava.security.krb5.conf=/testclient/kafka-krb5.conf -Djava.security.auth.login.config=/testclient/kafka_server_jaas.conf",
-		},
-		Mounts: []string{
+		}),
+		dockertest.WithMounts([]string{
 			fmt.Sprintf("%s:/testclient", tmpDir),
 			fmt.Sprintf("%s:/keytabs", keytabsDir),
-		},
-		Cmd: []string{
+		}),
+		dockertest.WithCmd([]string{
 			"sh", "-c",
 			"/opt/kafka/bin/kafka-storage.sh format -t MkU3OEVBNTcwNTJENDM2Qk -c /testclient/server.properties --ignore-formatted && exec /opt/kafka/bin/kafka-server-start.sh /testclient/server.properties",
-		},
-	}
-
-	pool.MaxWait = 2 * time.Minute
-	kafkaResource, err := pool.RunWithOptions(kafkaOptions)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(kafkaResource))
-	})
-
-	_ = kafkaResource.Expire(900)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var lastErr error
-	pool.MaxWait = 3 * time.Minute
-	retryErr := pool.Retry(func() error {
+	retryErr := pool.Retry(t.Context(), 0, func() error {
 		lastErr = createKafkaTopicGSSAPI(context.Background(), "127.0.0.1:"+kafkaPortStr, clientKrb5ConfPath, filepath.Join(keytabsDir, "client.keytab"), "testingconnection", 1)
 		return lastErr
 	})
 	if retryErr != nil {
 		var logBuf bytes.Buffer
-		_ = pool.Client.Logs(docker.LogsOptions{
-			Container:    kafkaResource.Container.ID,
-			OutputStream: &logBuf,
-			ErrorStream:  &logBuf,
-			Stdout:       true,
-			Stderr:       true,
-			Timestamps:   false,
-			Follow:       false,
-		})
+		if logs, err := pool.Client().ContainerLogs(t.Context(), kafkaResource.Container().ID, mobyclient.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+		}); err == nil {
+			_, _ = io.Copy(&logBuf, logs)
+			_ = logs.Close()
+		}
 		t.Logf("Kafka container logs:\n%s", logBuf.String())
 		require.NoError(t, retryErr)
 	}

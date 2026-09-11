@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgconn"
 	qdb "github.com/questdb/go-questdb-client/v3"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,19 +24,17 @@ func TestIntegrationQuestDB(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute*3))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err := pool.Run("questdb/questdb", "8.0.0", []string{
-		"JAVA_OPTS=-Xms512m -Xmx512m",
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "questdb/questdb",
+		dockertest.WithTag("8.0.0"),
+		dockertest.WithEnv([]string{
+			"JAVA_OPTS=-Xms512m -Xmx512m",
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	if err = pool.Retry(func() error {
+	if err := pool.Retry(t.Context(), 0, func() error {
 		clientConfStr := fmt.Sprintf("http::addr=localhost:%v", resource.GetPort("9000/tcp"))
 		sender, err := qdb.LineSenderFromConf(ctx, clientConfStr)
 		if err != nil {
@@ -51,8 +49,6 @@ func TestIntegrationQuestDB(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	_ = resource.Expire(900)
 
 	template := `
 output:

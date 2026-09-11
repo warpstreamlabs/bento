@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/elastic/go-elasticsearch/v9"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -36,8 +36,6 @@ func TestIntegrationV2ElasticsearchV8(t *testing.T) {
 	client := &http.Client{}
 
 	waitForElasticsearch(t, pool, client, url)
-
-	_ = resource.Expire(900)
 
 	template := `
 output:
@@ -253,13 +251,12 @@ tls:
 			if tc.name == "TLS" {
 
 				var stdout bytes.Buffer
-				err := pool.Retry(func() error {
-					exitCode, err := resource.Exec(
+				err := pool.Retry(t.Context(), 0, func() error {
+					execRes, err := resource.Exec(t.Context(),
 						[]string{"cat", "config/certs/http_ca.crt"},
-						dockertest.ExecOptions{
-							StdOut: &stdout,
-						},
 					)
+					exitCode := execRes.ExitCode
+					stdout.WriteString(execRes.StdOut)
 					if err != nil {
 						return err
 					}
@@ -299,24 +296,21 @@ tls:
 
 //------------------------------------------------------------------------------
 
-func startElasticsearch(t *testing.T, env []string) (pool *dockertest.Pool, resource *dockertest.Resource, port string) {
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+func startElasticsearch(t *testing.T, env []string) (pool dockertest.Pool, resource dockertest.Resource, port string) {
+	pool = dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err = pool.Run("elasticsearch", "8.16.5", env)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		require.NoError(t, pool.Purge(resource))
-	})
+	resource = pool.RunT(t, "elasticsearch",
+		dockertest.WithTag("8.16.5"),
+		dockertest.WithEnv(env),
+		dockertest.WithoutReuse(),
+	)
 
 	port = resource.GetPort("9200/tcp")
 	return pool, resource, port
 }
 
-func waitForElasticsearch(t *testing.T, pool *dockertest.Pool, client *http.Client, url string) {
-	err := pool.Retry(func() error {
+func waitForElasticsearch(t *testing.T, pool dockertest.Pool, client *http.Client, url string) {
+	err := pool.Retry(t.Context(), 0, func() error {
 		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", url))
 		if err != nil {
 			return err

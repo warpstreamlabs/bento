@@ -11,7 +11,7 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,26 +26,19 @@ func TestIntegrationMQTTv5(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "eclipse-mosquitto",
-		Tag:        "2",
+	resource := pool.RunT(t, "eclipse-mosquitto",
+		dockertest.WithTag("2"),
 		// The image ships this configuration for exactly this purpose; the
 		// default one listens on no port at all and accepts nobody.
-		Cmd: []string{"mosquitto", "-c", "/mosquitto-no-auth.conf"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+		dockertest.WithCmd([]string{"mosquitto", "-c", "/mosquitto-no-auth.conf"}),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
 	port := resource.GetPort("1883/tcp")
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		client, err := connectV5(context.Background(), port, "readiness-probe")
 		if err != nil {
 			return err

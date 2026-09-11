@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,26 +24,20 @@ func TestIntegrationCRDB(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "cockroachdb/cockroach",
-		Tag:        "latest",
-		Cmd:        []string{"start-single-node", "--insecure"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "cockroachdb/cockroach",
+		dockertest.WithTag("latest"),
+		dockertest.WithCmd([]string{"start-single-node", "--insecure"}),
+		dockertest.WithoutReuse(),
+	)
 
 	port := resource.GetPort("26257/tcp")
 
 	var pgpool *pgxpool.Pool
-	require.NoError(t, resource.Expire(900))
+	var err error
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		if pgpool == nil {
 			if pgpool, err = pgxpool.New(context.Background(), fmt.Sprintf("postgresql://root@localhost:%v/defaultdb?sslmode=disable", port)); err != nil {
 				return err
