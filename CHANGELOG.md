@@ -3,12 +3,14 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.21.2 - 2026-09-11 
 
-### Added
+### Changed
 
-- `send_queue_capacity`, `buf_pool_capacity` & `send_loop_count` fields on the `statsd` metrics exporter to tune the underlying `go-statsd` client and avoid packet loss under high throughput @triddell
-- New `mqtt_v5` input and output speaking MQTT 5, supporting user properties as metadata, shared subscriptions, session expiry and reason codes @ifnesi
+ - Updated to Go version 1.27.1 @gregfurman
+ - migrated MSSQL driver to official microsoft/go-mssqldb @cmelanson
+ - upgraded apache/pulsar client to v0.21.0 @slachiewicz
+ - upgraded gosnowflake to v2 @jem-davies
 
 ## 1.21.1 - 2026-08-26
 
@@ -36,6 +38,10 @@ All notable changes to this project will be documented in this file.
 - stale buffer example path in internal/impl README @youdie006
 - `fsevent` preserves file create events when watching new subdirs @mattfaltyn
 - `aws_s3_stream` handles files smaller than S3's minimum multipart size @triddell
+
+### Changed
+
+- `apache/pulsar-client-go` updated to v0.21.0, picking up fixes for a consumer busy-spin deadlock, a connection panic on close, and a race that dropped messages before handler registration @slachiewicz
 
 ### Security
 

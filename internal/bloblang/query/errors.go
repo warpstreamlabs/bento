@@ -50,8 +50,7 @@ func ErrFrom(err error, from Function) error {
 	if _, isTypeMismatchErr := err.(*TypeMismatch); isTypeMismatchErr {
 		return err
 	}
-	var fErr *errFrom
-	if errors.As(err, &fErr) {
+	if _, ok := errors.AsType[*errFrom](err); ok {
 		return err
 	}
 	return &errFrom{from: from, err: err}

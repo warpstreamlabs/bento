@@ -184,6 +184,7 @@ go build github.com/warpstreamlabs/bento/cmd/serverless/bento-lambda
 zip bento-lambda.zip bento-lambda
 go build -o bootstrap github.com/warpstreamlabs/bento/cmd/serverless/bento-lambda
 zip bento-lambda.zip bootstrap
+```
 
 [releases]: https://github.com/warpstreamlabs/bento/releases
 [sam-template-al2023]: https://github.com/warpstreamlabs/bento/tree/main/resources/serverless/lambda/bento-lambda-al2023-sam.yaml

@@ -187,8 +187,7 @@ func createMusicTable(ctx context.Context, t testing.TB, dynamoPort string) erro
 		TableName: &tableName,
 	})
 	if err != nil {
-		var derr *types.ResourceNotFoundException
-		if !errors.As(err, &derr) {
+		if _, ok := errors.AsType[*types.ResourceNotFoundException](err); !ok {
 			return err
 		}
 	}

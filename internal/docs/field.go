@@ -796,8 +796,7 @@ type Lint struct {
 
 // NewLintError returns an error lint.
 func NewLintError(line int, t LintType, err error) Lint {
-	var inner Lint
-	if errors.As(err, &inner) {
+	if inner, ok := errors.AsType[Lint](err); ok {
 		return inner
 	}
 	return Lint{Line: line, Column: 1, Level: LintError, Type: t, What: err.Error()}
