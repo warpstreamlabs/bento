@@ -486,8 +486,7 @@ var errConnectionRefused = errors.New("server refused the connection")
 // connection. The code survives on the wrapped error even though the message
 // built from it does not.
 func connackRefusal(err error) (byte, bool) {
-	var refusal *autopaho.ConnackError
-	if errors.As(err, &refusal) {
+	if refusal, ok := errors.AsType[*autopaho.ConnackError](err); ok {
 		return refusal.ReasonCode, true
 	}
 	return 0, false

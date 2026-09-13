@@ -138,7 +138,7 @@ func connectV5(ctx context.Context, port, clientID string) (*autopaho.Connection
 		ServerUrls:                    []*url.URL{u},
 		KeepAlive:                     30,
 		CleanStartOnInitialConnection: true,
-		ClientConfig:                  paho.ClientConfig{ClientID: clientID},
+		ClientID:                      clientID,
 	})
 	if err != nil {
 		return nil, err
