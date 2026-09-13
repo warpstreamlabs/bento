@@ -8,7 +8,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
  - Updated to Go version 1.27.1 @gregfurman
- - 
+ - migrated MSSQL driver to official microsoft/go-mssqldb @cmelanson
+ - upgraded apache/pulsar client to v0.21.0 @slachiewicz
+ - upgraded gosnowflake to v2 @jem-davies
 
 ## 1.21.1 - 2026-08-26
 
