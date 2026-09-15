@@ -127,7 +127,7 @@ Visibility timeout (truncated to whole seconds) requested when retrieving messag
 
 Type: `string`  
 Default: `"30s"`  
-Requires version 1.21.0 or newer  
+Requires version 1.22.0 or newer  
 
 ### `max_number_of_messages`
 
