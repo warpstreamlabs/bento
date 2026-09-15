@@ -391,4 +391,38 @@ cache_resources:
 			}),
 		)
 	})
+
+	t.Run("cache with prefix", func(t *testing.T) {
+		template := `
+cache_resources:
+  - label: testcache
+    aws_s3:
+      endpoint: http://localhost:$PORT
+      region: eu-west-1
+      force_path_style_urls: true
+      bucket: $ID
+      prefix: sub/dir/
+      credentials:
+        id: xxxxx
+        secret: xxxxx
+        token: xxxxx
+`
+		suite := integration.CacheTests(
+			integration.CacheTestOpenClose(),
+			integration.CacheTestMissingKey(),
+			integration.CacheTestDoubleAdd(),
+			integration.CacheTestDelete(),
+			integration.CacheTestGetAndSet(1),
+			integration.CacheTestMissingKey(),
+			integration.CacheTestExistsAndSet(1),
+			integration.CacheTestKeys(5),
+		)
+		suite.Run(
+			t, template,
+			integration.CacheTestOptPort(lsPort),
+			integration.CacheTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.CacheTestConfigVars) {
+				require.NoError(t, createBucket(ctx, lsPort, vars.ID))
+			}),
+		)
+	})
 }

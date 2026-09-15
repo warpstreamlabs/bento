@@ -44,6 +44,7 @@ label: ""
 gcp_cloud_storage:
   bucket: "" # No default (required)
   content_type: "" # No default (optional)
+  prefix: ""
   credentials:
     impersonate_service_account: ""
     impersonate_delegates: []
@@ -69,6 +70,14 @@ Optional field to explicitly set the Content-Type.
 
 
 Type: `string`  
+
+### `prefix`
+
+An optional string to prefix item keys with in order to prevent collisions with similar services. The prefix is also used to scope key listings, and is stripped from the keys returned.
+
+
+Type: `string`  
+Default: `""`  
 
 ### `credentials`
 

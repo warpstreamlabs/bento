@@ -3,6 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+## Added
+
+- `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
+
+
 ## 1.21.2 - 2026-09-11 
 
 ### Changed
