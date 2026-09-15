@@ -131,12 +131,12 @@ func (r *indefiniteRetry) loop() {
 	defer cnDone()
 
 	errInterruptChan := make(chan struct{})
-	var errLooped int64
+	var errLooped atomic.Int64
 
 	for !r.shutSig.IsSoftStopSignalled() {
 		// Do not consume another message while pending messages are being
 		// reattempted.
-		for atomic.LoadInt64(&errLooped) > 0 {
+		for errLooped.Load() > 0 {
 			select {
 			case <-errInterruptChan:
 			case <-time.After(time.Millisecond * 100):
@@ -173,7 +173,7 @@ func (r *indefiniteRetry) loop() {
 			defer func() {
 				wg.Done()
 				if inErrLoop {
-					atomic.AddInt64(&errLooped, -1)
+					errLooped.Add(-1)
 
 					// We're exiting our error loop, so (attempt to) interrupt the
 					// consumer.
@@ -195,7 +195,7 @@ func (r *indefiniteRetry) loop() {
 				if res != nil {
 					if !inErrLoop {
 						inErrLoop = true
-						atomic.AddInt64(&errLooped, 1)
+						errLooped.Add(1)
 					}
 
 					if backOff == nil {

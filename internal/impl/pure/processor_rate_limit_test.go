@@ -19,9 +19,9 @@ import (
 )
 
 func TestRateLimitBasic(t *testing.T) {
-	var hits int32
+	var hits atomic.Int32
 	rlFn := func(context.Context) (time.Duration, error) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		return 0, nil
 	}
 
@@ -58,7 +58,7 @@ rate_limit:
 		t.Errorf("Wrong result messages: %s != %s", act, exp)
 	}
 
-	if exp, act := int32(3), atomic.LoadInt32(&hits); exp != act {
+	if exp, act := int32(3), hits.Load(); exp != act {
 		t.Errorf("Wrong count of rate limit hits: %v != %v", act, exp)
 	}
 }

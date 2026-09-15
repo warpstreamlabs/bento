@@ -1132,8 +1132,7 @@ func (s *StreamBuilder) getYAMLNode(b []byte) (*yaml.Node, error) {
 	if b, err = config.ReplaceEnvVariables(b, s.envVarLookupFn); err != nil {
 		// TODO: Allow users to specify whether they care about env variables
 		// missing, in which case we error or not based on that.
-		var errEnvMissing *config.ErrMissingEnvVars
-		if errors.As(err, &errEnvMissing) {
+		if errEnvMissing, ok := errors.AsType[*config.ErrMissingEnvVars](err); ok {
 			b = errEnvMissing.BestAttempt
 		} else {
 			return nil, err

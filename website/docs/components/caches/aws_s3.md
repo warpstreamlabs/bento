@@ -41,6 +41,7 @@ label: ""
 aws_s3:
   bucket: "" # No default (required)
   content_type: application/octet-stream
+  prefix: ""
   force_path_style_urls: false
   retries:
     initial_interval: 1s
@@ -80,6 +81,14 @@ The content type to set for each item.
 
 Type: `string`  
 Default: `"application/octet-stream"`  
+
+### `prefix`
+
+An optional string to prefix item keys with in order to prevent collisions with similar services. The prefix is also used to scope key listings, and is stripped from the keys returned.
+
+
+Type: `string`  
+Default: `""`  
 
 ### `force_path_style_urls`
 

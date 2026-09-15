@@ -56,6 +56,9 @@ gcp_bigquery_select:
   prefix: "" # No default (optional)
   suffix: "" # No default (optional)
   unsafe_dynamic_query: false
+  credentials:
+    impersonate_service_account: ""
+    impersonate_delegates: []
 ```
 
 </TabItem>
@@ -212,5 +215,35 @@ Whether to enable [interpolation functions](/docs/configuration/interpolation/#b
 Type: `bool`  
 Default: `false`  
 Requires version 1.5.0 or newer  
+
+### `credentials`
+
+Optional manual configuration of GCP credentials to use. More information can be found [in this document](/docs/guides/cloud/gcp).
+
+
+Type: `object`  
+Requires version 1.22.0 or newer  
+
+### `credentials.impersonate_service_account`
+
+The email address of a service account to impersonate. The base credentials (Application Default Credentials) must be granted `roles/iam.serviceAccountTokenCreator` on this service account, or on the first delegate when `impersonate_delegates` is set.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+impersonate_service_account: target@my-project.iam.gserviceaccount.com
+```
+
+### `credentials.impersonate_delegates`
+
+An optional chain of service account email addresses to delegate through when impersonating. Each service account must be granted `roles/iam.serviceAccountTokenCreator` on the next service account in the chain, with the final one granted on `impersonate_service_account`.
+
+
+Type: `array`  
+Default: `[]`  
 
 

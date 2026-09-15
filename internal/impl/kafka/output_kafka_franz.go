@@ -269,7 +269,7 @@ func newFranzKafkaWriterFromConfig(conf *service.ParsedConfig, log *service.Logg
 	if brokerWriteMaxBytes > uint64(math.MaxInt32) {
 		return nil, fmt.Errorf("invalid broker_write_max_bytes, must not exceed %v", math.MaxInt32)
 	}
-	f.brokerWriteMaxBytes = int32(maxBufferedBytes)
+	f.brokerWriteMaxBytes = int32(brokerWriteMaxBytes)
 
 	if conf.Contains("compression") {
 		cStr, err := conf.FieldString("compression")

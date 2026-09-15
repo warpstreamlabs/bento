@@ -964,7 +964,7 @@ func TestIntegrationMSSQL(t *testing.T) {
 		return name, err
 	}
 
-	dsn := fmt.Sprintf("sqlserver://sa:"+testPassword+"@localhost:%s?database=master", resource.GetPort("1433/tcp"))
+	dsn := fmt.Sprintf("sqlserver://sa:"+testPassword+"@localhost:%s?database=master&encrypt=disable", resource.GetPort("1433/tcp"))
 	require.NoError(t, pool.Retry(func() error {
 		db, err = sql.Open("mssql", dsn)
 		if err != nil {

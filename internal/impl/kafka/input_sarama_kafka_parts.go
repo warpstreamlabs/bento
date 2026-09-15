@@ -132,7 +132,7 @@ func (k *kafkaReader) offsetPartitionPutRequest(consumerGroup string) *sarama.Of
 	return req
 }
 
-func (k *kafkaReader) connectExplicitTopics(ctx context.Context, config *sarama.Config) (err error) {
+func (k *kafkaReader) connectExplicitTopics(_ context.Context, config *sarama.Config) (err error) {
 	var coordinator *sarama.Broker
 	var consumer sarama.Consumer
 	var client sarama.Client

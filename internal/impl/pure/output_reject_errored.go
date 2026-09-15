@@ -237,8 +237,7 @@ func (t *rejectErroredBroker) loop() {
 				return tran.Ack(ctx, batchErr)
 			}
 
-			var tmpBatchErr *batch.Error
-			if errors.As(err, &tmpBatchErr) {
+			if tmpBatchErr, ok := errors.AsType[*batch.Error](err); ok {
 				tmpBatchErr.WalkPartsBySource(sortGroup, sortedBatch, func(i int, p *message.Part, err error) bool {
 					if err != nil {
 						batchErr.Failed(i, err)
