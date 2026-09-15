@@ -242,10 +242,6 @@ func (f *fsEventWatcher) Read(ctx context.Context) (*service.Message, service.Ac
 				_ = f.watcher.Close()
 				f.watcher = nil
 			}
-			// The watch loop stopped (the watcher errored, or was closed
-			// because nothing remained to watch). Report a disconnect rather
-			// than end-of-input so the framework reconnects and rebuilds the
-			// watch, instead of permanently terminating the input.
 			return nil, nil, service.ErrNotConnected
 		}
 
