@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
 - `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
 
+### Fixed
+
+- `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
 
 ## 1.21.2 - 2026-09-11 
 
@@ -25,7 +28,6 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - `kafka_franz` output field `broker_write_max_bytes` misconfigured (introduced in version 1.21.0) @jem-davies
-- `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
 
 ## 1.21.0 - 2026-08-21
 
@@ -33,10 +35,24 @@ All notable changes to this project will be documented in this file.
 
 - Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
 - `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
+- `bucket` field on `aws_s3` output supports bloblang interpolation @jem-davies
+- Cache operation `exists` which checks caches for keys @lublak
+- `extract_tracing_map` and `new_root_span_with_link` on the `gcp_pubsub` input & `inject_tracing_map` on the `gcp_pubsub` output @jesperanzasolo
+- `transaction_isolation_level` field to `kafka` & `kafka_franz` components @mbuckley2000
+- `send_ack` field on `nats` input enables/disables sending acknowledgement back to nats' input subject reply address @ahart97
+- Optional ListableCache interface for caches that support key listing - with implementations for `memory`, `file`, `aws_s3` & `gcp_cloud_storage`
+- `broker_read_max_bytes` to `kafka_franz` input and `broker_write_max_bytes` & `max_buffered_bytes` options to `kafka_franz` output @jem-davies
 
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
+- stale buffer example path in internal/impl README @youdie006
+- `fsevent` preserves file create events when watching new subdirs @mattfaltyn
+- `aws_s3_stream` handles files smaller than S3's minimum multipart size @triddell
+
+### Changed
+
+- `apache/pulsar-client-go` updated to v0.21.0, picking up fixes for a consumer busy-spin deadlock, a connection panic on close, and a race that dropped messages before handler registration @slachiewicz
 
 ### Security
 
