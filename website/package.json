@@ -14,9 +14,9 @@
     "deploy": "docusaurus deploy"
   },
   "dependencies": {
-    "@algolia/client-search": "^4.17.0",
-    "@docusaurus/core": "^3.0.0",
-    "@docusaurus/preset-classic": "^3.0.0",
+    "@algolia/client-search": "^5.56.0",
+    "@docusaurus/core": "^3.10.2",
+    "@docusaurus/preset-classic": "^3.10.2",
     "@types/node": "^18.15.13",
     "classnames": "^2.5.1",
     "react": "18",
@@ -39,8 +39,8 @@
     ]
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.0.0",
-    "@docusaurus/tsconfig": "^3.0.0",
+    "@docusaurus/module-type-aliases": "^3.10.2",
+    "@docusaurus/tsconfig": "^3.10.2",
     "@types/fs-extra": "^11.0.4"
   }
 }
