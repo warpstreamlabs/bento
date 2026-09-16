@@ -16,8 +16,18 @@ import (
 
 type DSNBuilder func(dsn, driver string) (builtDSN string, err error)
 
-var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb").
+var driverNames = []string{"mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb"}
+
+var driverField = service.NewStringEnumField("driver", driverNames...).
 	Description("A database [driver](#drivers) to use.")
+
+// The deprecated sql components expose `data_source_name` rather than `dsn`, and
+// the driver table lives in the `dsn` field docs, so #drivers is not on their
+// pages. Point them at a component that does render it.
+func deprecatedDriverField(sqlRawPath string) *service.ConfigField {
+	return service.NewStringEnumField("driver", driverNames...).
+		Description("A database [driver](" + sqlRawPath + "#drivers) to use.")
+}
 
 var dsnField = service.NewStringField("dsn").
 	Description(`A Data Source Name to identify the target database.

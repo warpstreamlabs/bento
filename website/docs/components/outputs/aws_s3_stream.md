@@ -112,8 +112,8 @@ where data loss is unacceptable.
 ## Expects shutdown of pipeline
 
 This output flushes on the shutdown of the stream and therefore is intended to be used with inputs that 
-have a logical end, such as [file](docs/components/inputs/file) or one that is wrapped with the 
-[read_until](docs/components/inputs/file) input. 
+have a logical end, such as [file](/docs/components/inputs/file) or one that is wrapped with the 
+[read_until](/docs/components/inputs/read_until) input. 
 
 ## When to Use
 
