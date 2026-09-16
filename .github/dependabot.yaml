@@ -25,6 +25,15 @@ updates:
           - "minor"
           - "patch"
 
+  - package-ecosystem: "gomod"
+    # Ensures that we keep the plugin in-sync with upstream
+    directory: "/resources/plugin_example"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-name: "github.com/warpstreamlabs/bento"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
