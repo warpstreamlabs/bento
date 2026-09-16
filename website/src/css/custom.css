@@ -294,6 +294,11 @@ html[data-theme='dark'] [class*="hero__title"] {
 
 /* DocSearch styling for light mode */
 .DocSearch {
+  --docsearch-highlight-color: var(--ifm-color-primary);
+  --docsearch-search-button-text-color: var(--docsearch-muted-color);
+  --docsearch-icon-color: var(--docsearch-muted-color);
+  --docsearch-secondary-text-color: var(--docsearch-muted-color);
+  --docsearch-hit-highlight-color: var(--ifm-color-primary);
   --docsearch-searchbox-background: #ffbcba34;
   --docsearch-searchbox-focus-background: #ffbcba55;
   --docsearch-key-gradient: linear-gradient(
@@ -308,6 +313,14 @@ html[data-theme='dark'] [class*="hero__title"] {
 .DocSearch-Button {
   background-color: #FDE5D8 !important;
   padding: 0px 6px 0px 10px !important;
+  border-radius: 40px !important;
+}
+
+.DocSearch-Button:hover,
+.DocSearch-Button:focus,
+.DocSearch-Button:active {
+  box-shadow: inset 0 0 0 2px var(--ifm-color-primary);
+  color: var(--docsearch-text-color) !important;
 }
 
 /* Extra selectors to ensure the style is applied */
@@ -318,7 +331,18 @@ div[class*="searchBox_"] button {
   padding: 0px 6px 0px 10px !important;
 }
 
-.DocSearch-Button-Key {
+.DocSearch .DocSearch-Button-Keys {
+  min-width: 0 !important;
+  gap: 3px;
+  padding-inline-end: 8px !important;
+}
+
+.DocSearch .DocSearch-Button-Key {
+  height: 1.3em !important;
+  /* NOTE(gregfurman): Ensure the v3 proportions for the cmd + k buttons */
+  aspect-ratio: 10 / 9 !important; 
+  width: auto !important;
+  margin-inline-end: 0 !important;
   background: linear-gradient(to bottom, #654641 0%, #553630 100%) !important;
   border: 1px solid #44291e !important;
   border-radius: 6px !important;
@@ -326,7 +350,7 @@ div[class*="searchBox_"] button {
   color: #fff !important;
   transform: translateY(0);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  padding: 0 6px !important;
+  padding: 0 !important;
 }
 
 .DocSearch-Button:hover .DocSearch-Button-Key {
@@ -339,7 +363,32 @@ div[class*="searchBox_"] button {
   box-shadow: 0 1px 0 #44291e !important;
 }
 
+.DocSearch .DocSearch-SearchBar {
+  border: 2px solid var(--ifm-color-primary);
+  border-radius: inherit;
+  margin: var(--docsearch-spacing) var(--docsearch-spacing) 0;
+}
+
+.DocSearch .DocSearch-Hit-source {
+  color: var(--ifm-color-primary);
+}
+
+.DocSearch .DocSearch-Hit[aria-selected='true'] .DocSearch-Hit-title,
+.DocSearch .DocSearch-Hit[aria-selected='true'] .DocSearch-Hit-path,
+.DocSearch .DocSearch-Hit[aria-selected='true'] .DocSearch-Hit-text,
+.DocSearch .DocSearch-Hit[aria-selected='true'] .DocSearch-Hit-Tree,
+.DocSearch .DocSearch-Hit[aria-selected='true'] .DocSearch-Hit-action,
+.DocSearch .DocSearch-Hit[aria-selected='true'] .DocSearch-Hit-icon,
+.DocSearch .DocSearch-Hit[aria-selected='true'] mark {
+  color: #fff;
+}
+
 html[data-theme='dark'] .DocSearch {
+  --docsearch-highlight-color: var(--ifm-color-primary);
+  --docsearch-search-button-text-color: var(--docsearch-muted-color);
+  --docsearch-icon-color: var(--docsearch-muted-color);
+  --docsearch-secondary-text-color: var(--docsearch-muted-color);
+  --docsearch-hit-highlight-color: var(--ifm-color-primary);
   --docsearch-text-color: var(--ifm-font-color-base);
   --docsearch-muted-color: var(--ifm-color-secondary-darkest);
   --docsearch-container-background: rgba(46, 47, 40, 0.8);
@@ -347,7 +396,6 @@ html[data-theme='dark'] .DocSearch {
   --docsearch-searchbox-background: var(--ifm-background-color);
   --docsearch-searchbox-focus-background: var(--ifm-color-black);
   --docsearch-hit-color: var(--ifm-font-color-base);
-  --docsearch-hit-active-color: var(--ifm-color-white);
   --docsearch-hit-background: var(--ifm-color-emphasis-100);
   --docsearch-footer-background: var(--ifm-background-surface-color);
   --docsearch-key-gradient: linear-gradient(
@@ -358,7 +406,6 @@ html[data-theme='dark'] .DocSearch {
 }
 
 html[data-theme='dark'] .DocSearch-Button,
-html[data-theme='dark'] [class*="DocSearch-Button"],
 html[data-theme='dark'] [class*="docSearchButton_"],
 html[data-theme='dark'] [class^="docSearchButton"],
 html[data-theme='dark'] div[class*="searchBox_"] button {

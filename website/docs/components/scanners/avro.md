@@ -54,7 +54,7 @@ For example, the union schema `["null","string","Foo"]`, where `Foo` is a record
 - the string `"a"` as `{"string": "a"}`; and
 - a `Foo` instance as `{"Foo": {...}}`, where `{...}` indicates the JSON encoding of a `Foo` instance.
 
-However, it is possible to instead create documents in [standard/raw JSON format](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) by setting the field [`avro_raw_json`](#avro_raw_json) to `true`.
+However, it is possible to instead create documents in [standard/raw JSON format](https://pkg.go.dev/github.com/linkedin/goavro/v2#NewCodecForStandardJSONFull) by setting the field [`raw_json`](#raw_json) to `true`.
 
 
 ## Fields

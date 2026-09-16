@@ -2,6 +2,9 @@
   "compilerOptions": {
     "outDir": "compiled",
     "esModuleInterop": true,
+    // Docusaurus loads this compiled plugin as CommonJS; TS >=7 defaults to ESM.
+    "module": "commonjs",
+    "skipLibCheck": true,
   },
-  "include": ["index.ts","markdownLoader.ts"]
+  "include": ["index.ts"]
 }

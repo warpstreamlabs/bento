@@ -21,7 +21,7 @@ func xmlDocumentScannerSpec() *service.ConfigSpec {
 		Summary("Consumes a stream of one or more XML documents and performs a mutation on the data.").
 		Fields(
 			service.NewStringEnumField(pFieldOperator, "to_json").
-				Description("An XML [operation](#operators) to apply to messages.").
+				Description("An XML [operation](/docs/components/processors/xml#operators) to apply to messages.").
 				Default(""),
 			service.NewBoolField(pFieldCast).
 				Description("Whether to try to cast values that are numbers and booleans to the right type. Default: all values are strings.").
