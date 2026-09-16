@@ -25,7 +25,7 @@
     "react-loadable": "^5.5.0",
     "react-player": "^2.16.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "browserslist": {
     "production": [
