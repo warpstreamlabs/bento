@@ -18,7 +18,7 @@
     "@algolia/client-search": "^5.59.0",
     "@docusaurus/core": "^3.10.2",
     "@docusaurus/preset-classic": "^3.10.2",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.5.1",
     "classnames": "^2.5.1",
     "react": "18",
     "react-dom": "18",
