@@ -93,7 +93,9 @@ func TestFanInConnected(t *testing.T) {
 	assert.True(t, fanIn.ConnectionStatus().AllActive())
 
 	close(tInOne)
-	time.Sleep(time.Millisecond * 100)
+	require.Eventually(t, func() bool {
+		return len(fanIn.ConnectionStatus()) == 1
+	}, time.Second, time.Millisecond*10)
 	assert.True(t, fanIn.ConnectionStatus().AllActive())
 
 	close(tInTwo)
