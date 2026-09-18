@@ -2,7 +2,9 @@ package huggingface
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
 
@@ -134,8 +136,8 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 	}
 
 	if shouldDownload {
-		if st, err := os.Stat(p.modelPath); err == nil && !st.IsDir() {
-			return nil, fmt.Errorf("path %s must be a directory when enable_download is set", p.modelPath)
+		if err := checkDownloadDir(p.modelPath); err != nil {
+			return nil, err
 		}
 
 		opts := hugot.NewDownloadOptions()
@@ -162,6 +164,24 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 }
 
 //------------------------------------------------------------------------------
+
+// checkDownloadDir rejects an existing path that cannot hold the downloaded
+// model files: a regular file, a symlink to one, or a dangling symlink.
+// hugot.DownloadModel only writes under the path after the whole model has
+// been fetched, so this is checked up front. A path that does not exist yet
+// is fine, the download creates it.
+func checkDownloadDir(path string) error {
+	st, err := os.Stat(path)
+	switch {
+	case err == nil && !st.IsDir():
+		return fmt.Errorf("path %s must be a directory when enable_download is set", path)
+	case errors.Is(err, fs.ErrNotExist):
+		if _, lerr := os.Lstat(path); lerr == nil {
+			return fmt.Errorf("path %s is a symlink to a location that does not exist", path)
+		}
+	}
+	return nil
+}
 
 func (p *pipelineProcessor) ProcessBatch(ctx context.Context, b service.MessageBatch) ([]service.MessageBatch, error) {
 	messages := make([]string, 0, len(b))
