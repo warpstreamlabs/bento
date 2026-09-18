@@ -622,15 +622,7 @@ func TestIntegrationClickhouse(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "clickhouse/clickhouse-server",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -641,7 +633,10 @@ func TestIntegrationClickhouse(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -681,15 +676,7 @@ func TestIntegrationOldClickhouse(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "clickhouse/clickhouse-server",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -700,7 +687,10 @@ func TestIntegrationOldClickhouse(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -740,15 +730,7 @@ func TestIntegrationPostgres(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "postgres",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -764,7 +746,10 @@ func TestIntegrationPostgres(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -804,15 +789,7 @@ func TestIntegrationPostgres(t *testing.T) {
 func TestIntegrationSpanner(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "mysql",
 		dockertest.WithName(fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8])),
@@ -839,7 +816,10 @@ func TestIntegrationSpanner(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -879,15 +859,7 @@ func TestIntegrationMSSQL(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	testPassword := "ins4n3lyStrongP4ssword"
 	resource := pool.RunT(t, "mcr.microsoft.com/mssql/server",
@@ -903,7 +875,10 @@ func TestIntegrationMSSQL(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -944,8 +919,10 @@ func TestIntegrationSQLite(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	var db *sql.DB
-	var err error
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -987,15 +964,7 @@ func TestIntegrationOracle(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "gvenzl/oracle-free",
 		dockertest.WithTag("slim-faststart"),
@@ -1010,7 +979,10 @@ func TestIntegrationOracle(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -1053,15 +1025,7 @@ func TestIntegrationTrino(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	testPassword := ""
 	resource := pool.RunT(t, "trinodb/trino",
@@ -1076,7 +1040,10 @@ func TestIntegrationTrino(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -1118,15 +1085,7 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
 		dockertest.WithTag("latest"),
@@ -1143,7 +1102,10 @@ func TestIntegrationCosmosDB(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()
@@ -1260,15 +1222,7 @@ func TestIntegrationRedshiftSecret(t *testing.T) {
 		t.Skip("LOCALSTACK_AUTH_TOKEN is not set")
 	}
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	tfPath, err := filepath.Abs("./resources/redshiftsecret.tf")
 	require.NoError(t, err)
@@ -1392,15 +1346,7 @@ func TestIntegrationRdsIamAuth(t *testing.T) {
 	// TODO SKIP TEST - LOCALSTACK ISSUE
 	t.Skip("issue with localstack and IAM Auth with RDS")
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	// we need a localstack pro image
 	if os.Getenv("LOCALSTACK_AUTH_TOKEN") == "" {
@@ -1530,15 +1476,7 @@ func TestIntegrationCheckReconnectLogic(t *testing.T) {
 	require.NoError(t, err)
 	freePort := strconv.Itoa(freePortInt)
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "postgres",
 		dockertest.WithPortBindings(dockernetwork.PortMap{

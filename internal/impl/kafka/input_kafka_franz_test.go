@@ -174,16 +174,7 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	ctx, cc := context.WithCancel(context.Background())
 	defer cc()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
@@ -282,16 +273,7 @@ func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 
 	ctx := t.Context()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)

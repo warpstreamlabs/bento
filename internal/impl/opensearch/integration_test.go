@@ -40,16 +40,7 @@ func TestIntegration(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Second*60))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*60))
 
 	resource, err := pool.Run(t.Context(), "opensearchproject/opensearch",
 		dockertest.WithTag("latest"),
