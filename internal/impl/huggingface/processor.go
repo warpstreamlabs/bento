@@ -3,6 +3,7 @@ package huggingface
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/knights-analytics/hugot"
@@ -133,6 +134,10 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 	}
 
 	if shouldDownload {
+		if st, err := os.Stat(p.modelPath); err == nil && !st.IsDir() {
+			return nil, fmt.Errorf("path %s must be a directory when enable_download is set", p.modelPath)
+		}
+
 		opts := hugot.NewDownloadOptions()
 		opts.Verbose = false
 
