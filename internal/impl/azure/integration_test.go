@@ -261,6 +261,7 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	_, servicePort, err := net.SplitHostPort(listener.Addr().String())
 	require.NoError(t, err)
 
+	// A zero timeout falls back to the pool MaxWait.
 	err = pool.Retry(t.Context(), 0, func() error {
 		resp, err := http.Get("http://localhost:" + servicePort + "/_explorer/emulator.pem")
 		if err != nil {

@@ -54,15 +54,7 @@ func TestIntegrationProcessor(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(3*time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(3*time.Minute))
 
 	resource, err := pool.Run(t.Context(), "elasticsearch",
 		dockertest.WithTag("8.16.5"),

@@ -26,15 +26,7 @@ func TestInfluxIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource, err := pool.Run(t.Context(), "influxdb",
 		dockertest.WithTag("1.8.3-alpine"),
