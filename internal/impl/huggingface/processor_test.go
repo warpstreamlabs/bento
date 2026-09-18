@@ -18,8 +18,11 @@ func TestHugotConfigParsing(t *testing.T) {
 
 	// An existing file, so that the download case is rejected by validation
 	// rather than by a failed download.
-	modelFile := filepath.Join(t.TempDir(), "model.onnx")
+	tmpDir := t.TempDir()
+	modelFile := filepath.Join(tmpDir, "model.onnx")
 	require.NoError(t, os.WriteFile(modelFile, nil, 0o644))
+	danglingLink := filepath.Join(tmpDir, "dangling")
+	require.NoError(t, os.Symlink(filepath.Join(tmpDir, "gone"), danglingLink))
 
 	tests := []struct {
 		name        string
@@ -46,6 +49,18 @@ download_options:
 `, modelFile),
 			expectError: true,
 			errContains: "must be a directory",
+		},
+		{
+			name: "download with dangling symlink path should fail",
+			config: fmt.Sprintf(`
+name: test-pipeline
+path: %v
+enable_download: true
+download_options:
+  repository: foo/bar
+`, danglingLink),
+			expectError: true,
+			errContains: "does not exist",
 		},
 		{
 			name: "download without repository should fail",
