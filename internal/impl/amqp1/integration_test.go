@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-amqp"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -18,21 +17,17 @@ func TestIntegrationAMQP1(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("rmohr/activemq", "latest", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "rmohr/activemq",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
 	ctx, done := context.WithTimeout(context.Background(), time.Minute)
 	defer done()
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		client, err := amqp.Dial(ctx, fmt.Sprintf("amqp://guest:guest@localhost:%v/", resource.GetPort("5672/tcp")), nil)
 		if err == nil {
 			client.Close()

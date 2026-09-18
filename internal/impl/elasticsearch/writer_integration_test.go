@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/olivere/elastic/v7"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,25 +35,28 @@ func TestIntegrationWriter(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = time.Minute * 3
+	t.Cleanup(func() { pool.CloseT(t) })
 
-	resource, err := pool.Run("elasticsearch", "7.17.0", []string{
-		"discovery.type=single-node",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
-	})
+	resource, err := pool.Run(t.Context(), "elasticsearch",
+		dockertest.WithTag("7.17.0"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
+		}),
+		dockertest.WithoutReuse(),
+	)
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
 
 	urls := []string{fmt.Sprintf("http://127.0.0.1:%v", resource.GetPort("9200/tcp"))}
-
 	var client *elastic.Client
 
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		opts := []elastic.ClientOptionFunc{
 			elastic.SetURL(urls...),
 			elastic.SetHttpClient(&http.Client{
@@ -101,12 +104,6 @@ func TestIntegrationWriter(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	defer func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %v", err)
-		}
-	}()
 
 	t.Run("TestElasticNoIndex", func(te *testing.T) {
 		testElasticNoIndex(urls, client, te)

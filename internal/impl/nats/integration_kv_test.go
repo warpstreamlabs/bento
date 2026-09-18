@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,23 +26,17 @@ func TestIntegrationNatsKV(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "nats",
-		Tag:        "latest",
-		Cmd:        []string{"--js", "--trace"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "nats",
+		dockertest.WithTag("latest"),
+		dockertest.WithCmd([]string{"--js", "--trace"}),
+		dockertest.WithoutReuse(),
+	)
 
 	var natsConn *nats.Conn
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	var err error
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		natsConn, err = nats.Connect(fmt.Sprintf("tcp://localhost:%v", resource.GetPort("4222/tcp")))
 		return err
 	}))
@@ -404,9 +400,7 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-	pool.MaxWait = 30 * time.Second
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	// Pin the host port: the container is restarted mid-test and the daemon
 	// is not guaranteed to reassign the same ephemeral port on restart, while
@@ -414,29 +408,27 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	natsPortInt, err := integration.GetFreePort()
 	require.NoError(t, err)
 	natsPort := strconv.Itoa(natsPortInt)
-	portBindings := map[docker.Port][]docker.PortBinding{
-		"4222/tcp": {{HostIP: "0.0.0.0", HostPort: natsPort}},
-	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "nats",
-		Tag:          "latest",
-		Cmd:          []string{"--js"},
-		PortBindings: portBindings,
-		ExposedPorts: []string{"4222/tcp"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-	_ = resource.Expire(120)
+	resource := pool.RunT(t, "nats",
+		dockertest.WithTag("latest"),
+		dockertest.WithCmd([]string{"--js"}),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("4222/tcp"): {
+				{
+					HostIP:   netip.MustParseAddr("0.0.0.0"),
+					HostPort: natsPort,
+				},
+			},
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	natsURL := fmt.Sprintf("tcp://localhost:%s", natsPort)
 	bucketName := "reconnect-test"
 
 	// Wait for NATS to be ready.
 	var setupConn *nats.Conn
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		setupConn, err = nats.Connect(natsURL)
 		return err
 	}))
@@ -468,7 +460,11 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	assert.Equal(t, []byte("v1"), val)
 
 	// Stop the container — this drops the TCP connection.
-	require.NoError(t, pool.Client.StopContainer(resource.Container.ID, 5))
+	stopTimeout := 5
+	_, err = pool.Client().ContainerStop(t.Context(), resource.Container().ID, mobyclient.ContainerStopOptions{
+		Timeout: &stopTimeout,
+	})
+	require.NoError(t, err)
 
 	// The DisconnectErrHandler should clear natsConn promptly (TCP RST/FIN
 	// from the server means no need to wait for a ping timeout).
@@ -479,21 +475,17 @@ func TestIntegrationNatsKVCacheReconnect(t *testing.T) {
 	}, 10*time.Second, 50*time.Millisecond,
 		"DisconnectErrHandler should have cleared natsConn after server stop")
 
-	// Restart the container, re-asserting the pinned port binding — a HostConfig
-	// passed here replaces the original one (which only requested an ephemeral
-	// port via PublishAllPorts), so without this the daemon could publish 4222
-	// on a different host port.
-	require.NoError(t, pool.Client.StartContainer(resource.Container.ID, &docker.HostConfig{
-		PortBindings: portBindings,
-	}))
+	// Restart the container. The port binding set at creation survives the
+	// restart, so no host config is passed here.
+	_, err = pool.Client().ContainerStart(t.Context(), resource.Container().ID, mobyclient.ContainerStartOptions{})
+	require.NoError(t, err)
 
 	// Wait for NATS to accept connections again, then recreate the KV bucket
 	// (JetStream state is not persisted across restarts by default).
 	// Use a longer deadline here — container restart can take longer than the
 	// initial startup.
-	pool.MaxWait = 60 * time.Second
 	var recoveryConn *nats.Conn
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), time.Minute, func() error {
 		recoveryConn, err = nats.Connect(natsURL)
 		return err
 	}))
