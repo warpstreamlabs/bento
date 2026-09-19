@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,20 +37,24 @@ schema:
   - { name: flt, type: FLOAT }
   - { name: bool, type: BOOLEAN }
   - { name: dec32, type: DECIMAL32, decimal_precision: 3}
-  - { name: dec64, type: DECIMAL64, decimal_scale: 4, decimal_precision: 10}  
+  - { name: dec64, type: DECIMAL64, decimal_scale: 4, decimal_precision: 10}
+  - { name: aDate, type: DATE }
+  - { name: aTimestamp, type: TIMESTAMP_MILLIS }
 `,
 			wantFields: map[string]struct {
 				fieldType reflect.Type
 				tag       string
 			}{
-				"Str":      {reflect.TypeFor[string](), `parquet:"str" json:"str"`},
-				"Num":      {reflect.TypeFor[int64](), `parquet:"num" json:"num"`},
-				"SmallNum": {reflect.TypeFor[int16](), `parquet:"smallNum" json:"smallNum"`},
-				"TinyNum":  {reflect.TypeFor[int8](), `parquet:"tinyNum" json:"tinyNum"`},
-				"Flt":      {reflect.TypeFor[float32](), `parquet:"flt" json:"flt"`},
-				"Bool":     {reflect.TypeFor[bool](), `parquet:"bool" json:"bool"`},
-				"Dec32":    {reflect.TypeFor[int32](), `parquet:"dec32,decimal(0:3)" json:"dec32"`},
-				"Dec64":    {reflect.TypeFor[int64](), `parquet:"dec64,decimal(4:10)" json:"dec64"`},
+				"Str":        {reflect.TypeFor[string](), `parquet:"str" json:"str"`},
+				"Num":        {reflect.TypeFor[int64](), `parquet:"num" json:"num"`},
+				"SmallNum":   {reflect.TypeFor[int16](), `parquet:"smallNum" json:"smallNum"`},
+				"TinyNum":    {reflect.TypeFor[int8](), `parquet:"tinyNum" json:"tinyNum"`},
+				"Flt":        {reflect.TypeFor[float32](), `parquet:"flt" json:"flt"`},
+				"Bool":       {reflect.TypeFor[bool](), `parquet:"bool" json:"bool"`},
+				"Dec32":      {reflect.TypeFor[int32](), `parquet:"dec32,decimal(0:3)" json:"dec32"`},
+				"Dec64":      {reflect.TypeFor[int64](), `parquet:"dec64,decimal(4:10)" json:"dec64"`},
+				"ADate":      {reflect.TypeFor[int32](), `parquet:"aDate,date" json:"aDate"`},
+				"ATimestamp": {reflect.TypeFor[int64](), `parquet:"aTimestamp,timestamp" json:"aTimestamp"`},
 			},
 		},
 		{
@@ -377,4 +382,30 @@ schema:
 			}
 		})
 	}
+}
+
+// TestOptionalDateTimestampDoesNotPanic guards against a regression where an optional
+// DATE or TIMESTAMP_MILLIS field, with optionalAsPtrs enabled, produced a *int32/*int64
+// struct field. parquet-go's "date"/"timestamp" struct tags only accept a pointer when
+// the pointee is time.Time, so this panicked via throwInvalidTag. wrapType must keep the
+// base type unwrapped (plain int32/int64) for these two tokens regardless of
+// optionalAsPtrs.
+func TestOptionalDateTimestampDoesNotPanic(t *testing.T) {
+	config, err := parquetEncodeProcessorConfig().ParseYAML(`
+schema:
+  - { name: processed_time, type: TIMESTAMP_MILLIS, optional: true }
+  - { name: an_optional_date, type: DATE, optional: true }
+`, nil)
+	require.NoError(t, err)
+
+	got, err := GenerateStructType(config, schemaOpts{optionalAsPtrs: true})
+	require.NoError(t, err)
+
+	ts := got.Field(0)
+	assert.Equal(t, reflect.TypeFor[int64](), ts.Type, "TIMESTAMP_MILLIS must stay a plain int64, not *int64")
+	assert.Equal(t, `parquet:"processed_time,timestamp" json:"processed_time"`, string(ts.Tag))
+
+	dt := got.Field(1)
+	assert.Equal(t, reflect.TypeFor[int32](), dt.Type, "DATE must stay a plain int32, not *int32")
+	assert.Equal(t, `parquet:"an_optional_date,date" json:"an_optional_date"`, string(dt.Tag))
 }
