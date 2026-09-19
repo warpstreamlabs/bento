@@ -43,6 +43,7 @@ parquet_encode:
 # All config fields, showing default values
 label: ""
 parquet_encode:
+  v2: true
   schema: [] # No default (required)
   default_compression: uncompressed
   default_encoding: DELTA_LENGTH_BYTE_ARRAY
@@ -152,6 +153,14 @@ output:
 </Tabs>
 
 ## Fields
+
+### `v2`
+
+Whether V2 engine is used for encoding.
+
+
+Type: `bool`  
+Default: `true`  
 
 ### `schema`
 
