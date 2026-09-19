@@ -2,6 +2,7 @@ package query
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"testing"
 
@@ -2021,6 +2022,82 @@ func TestMethods(t *testing.T) {
 			input:  methods(literalFn(5.3), method("round")),
 			output: int64(5),
 		},
+		"check round with precision": {
+			input:  methods(literalFn(2.675), method("round", 2)),
+			output: 2.68,
+		},
+		"check round half_even tie down": {
+			input:  methods(literalFn(0.125), method("round", 2, "half_even")),
+			output: 0.12,
+		},
+		"check round half_even tie up": {
+			input:  methods(literalFn(0.375), method("round", 2, "half_even")),
+			output: 0.38,
+		},
+		"check round half_even integer tie even": {
+			input:  methods(literalFn(2.5), method("round", 0, "half_even")),
+			output: int64(2),
+		},
+		"check round half_even integer tie odd": {
+			input:  methods(literalFn(3.5), method("round", 0, "half_even")),
+			output: int64(4),
+		},
+		"check round half_even beyond tie": {
+			input:  methods(literalFn(0.1251), method("round", 2, "half_even")),
+			output: 0.13,
+		},
+		"check round truncate positive": {
+			input:  methods(literalFn(2.99), method("round", 1, "truncate")),
+			output: 2.9,
+		},
+		"check round truncate negative": {
+			input:  methods(literalFn(-1.9), method("round", 0, "truncate")),
+			output: int64(-1),
+		},
+		"check round half_up negative tie": {
+			input:  methods(literalFn(-1.5), method("round")),
+			output: int64(-2),
+		},
+		"check round negative precision": {
+			input:  methods(literalFn(267.5), method("round", -1)),
+			output: int64(270),
+		},
+		"check round negative precision carry": {
+			input:  methods(literalFn(996.0), method("round", -2)),
+			output: int64(1000),
+		},
+		"check round negative precision below half": {
+			input:  methods(literalFn(50.0), method("round", -3)),
+			output: int64(0),
+		},
+		"check round negative precision integer input": {
+			input:  methods(literalFn(int64(150)), method("round", -2)),
+			output: int64(200),
+		},
+		"check round negative precision huge integer": {
+			input:  methods(literalFn(int64(1)<<60), method("round", -18)),
+			output: int64(1000000000000000000),
+		},
+		"check round precision integer input untouched": {
+			input:  methods(literalFn(int64(5)), method("round", 2)),
+			output: int64(5),
+		},
+		"check round precision whole result coerces to int": {
+			input:  methods(literalFn(41.995), method("round", 2)),
+			output: int64(42),
+		},
+		"check round extreme precision positive": {
+			input:  methods(literalFn(2.675), method("round", math.MaxInt64)),
+			output: 2.675,
+		},
+		"check round extreme precision negative": {
+			input:  methods(literalFn(2.675), method("round", math.MinInt64)),
+			output: int64(0),
+		},
+		"check round huge negative precision": {
+			input:  methods(literalFn(-1.5e308), method("round", -1000000000)),
+			output: int64(0),
+		},
 		"check replace_many string": {
 			input: methods(literalFn("<i>hello</i> <b>world</b>"), method("replace_all_many", []any{
 				"<b>", "BOLD",
@@ -2191,6 +2268,11 @@ func TestMethodTargets(t *testing.T) {
 			assert.Equal(t, test.output, res)
 		})
 	}
+}
+
+func TestRoundMethodBadStyle(t *testing.T) {
+	_, err := InitMethodHelper("round", NewLiteralFunction("", 1.5), 2, "half_sideways")
+	require.EqualError(t, err, `unknown rounding style "half_sideways": must be one of half_up, half_even, truncate`)
 }
 
 func TestMethodNoArgsTargets(t *testing.T) {
