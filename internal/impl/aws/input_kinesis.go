@@ -247,6 +247,18 @@ type kinesisReader struct {
 	cMut    sync.Mutex
 	msgChan chan asyncMessage
 
+	// runningShards tracks the shards this client currently has a consumer
+	// goroutine for, keyed by streamID+shardID. The balancer consults it before
+	// claiming a shard so that a lease which looks stale — most often because
+	// the consumer is blocked waiting for a busy pipeline — cannot cause a
+	// second consumer to be started for a shard we are already consuming.
+	runningMut    sync.Mutex
+	runningShards map[string]struct{}
+
+	// checkpointFn overrides the periodic checkpoint call in tests. Nil in
+	// production, where the real checkpointer is used.
+	checkpointFn func(ctx context.Context, streamID, shardID, sequence string) (bool, error)
+
 	ctx  context.Context
 	done func()
 
@@ -255,6 +267,66 @@ type kinesisReader struct {
 }
 
 var errCannotMixBalancedShards = errors.New("it is not currently possible to include balanced and explicit shard streams in the same kinesis input")
+
+func shardKey(streamID, shardID string) string {
+	return streamID + "/" + shardID
+}
+
+// claimRunningShard registers a shard as being consumed by this client,
+// reporting false if a consumer for it is already running.
+func (k *kinesisReader) claimRunningShard(streamID, shardID string) bool {
+	key := shardKey(streamID, shardID)
+	k.runningMut.Lock()
+	defer k.runningMut.Unlock()
+	if _, exists := k.runningShards[key]; exists {
+		return false
+	}
+	k.runningShards[key] = struct{}{}
+	return true
+}
+
+// releaseRunningShard deregisters a shard once its consumer goroutine exits.
+func (k *kinesisReader) releaseRunningShard(streamID, shardID string) {
+	k.runningMut.Lock()
+	delete(k.runningShards, shardKey(streamID, shardID))
+	k.runningMut.Unlock()
+}
+
+// isShardRunning reports whether this client already has a consumer goroutine
+// for the given shard.
+func (k *kinesisReader) isShardRunning(streamID, shardID string) bool {
+	k.runningMut.Lock()
+	defer k.runningMut.Unlock()
+	_, exists := k.runningShards[shardKey(streamID, shardID)]
+	return exists
+}
+
+// startConsumer starts the appropriate consumer for a shard, guarding against
+// starting a second consumer for a shard this client is already consuming. It
+// takes ownership of the wait group increment, releasing it if the consumer is
+// not started.
+func (k *kinesisReader) startConsumer(wg *sync.WaitGroup, info streamInfo, shardID, sequence string) error {
+	if !k.claimRunningShard(info.id, shardID) {
+		k.log.Debugf(
+			"Skipping consumer for stream '%v' shard '%v': this client is already consuming it",
+			info.id, shardID,
+		)
+		wg.Done()
+		return nil
+	}
+
+	var err error
+	if k.efoEnabled {
+		err = k.runEFOConsumer(wg, info, shardID, sequence)
+	} else {
+		err = k.runConsumer(wg, info, shardID, sequence)
+	}
+	if err != nil {
+		// The consumer never started, so nothing will deregister it.
+		k.releaseRunningShard(info.id, shardID)
+	}
+	return err
+}
 
 func newKinesisReaderFromParsed(pConf *service.ParsedConfig, mgr *service.Resources) (*kinesisReader, error) {
 	conf, err := kinesisInputConfigFromParsed(pConf)
@@ -296,12 +368,13 @@ func newKinesisReaderFromConfig(conf kiConfig, batcher service.BatchPolicy, sess
 	}
 
 	k := kinesisReader{
-		conf:       conf,
-		sess:       sess,
-		batcher:    batcher,
-		log:        mgr.Logger(),
-		mgr:        mgr,
-		closedChan: make(chan struct{}),
+		conf:          conf,
+		sess:          sess,
+		batcher:       batcher,
+		log:           mgr.Logger(),
+		mgr:           mgr,
+		closedChan:    make(chan struct{}),
+		runningShards: map[string]struct{}{},
 	}
 	k.ctx, k.done = context.WithCancel(context.Background())
 
@@ -536,6 +609,7 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 			recordBatcher.Close(context.Background(), state == awsKinesisConsumerFinished)
 			boff.Reset()
 			k.boffPool.Put(boff)
+			k.releaseRunningShard(info.id, shardID)
 
 			reason := ""
 			switch state {
@@ -785,6 +859,12 @@ func (k *kinesisReader) runBalancedShards() {
 			// Have a go at grabbing any unclaimed shards
 			if len(unclaimedShards) > 0 {
 				for shardID, clientID := range unclaimedShards {
+					// A shard we are already consuming is not up for grabs,
+					// even if its lease looks stale — the consumer is most
+					// likely blocked on a busy pipeline rather than dead.
+					if k.isShardRunning(info.id, shardID) {
+						continue
+					}
 					sequence, err := k.checkpointer.Claim(k.ctx, info.id, shardID, clientID)
 					if err != nil {
 						if k.ctx.Err() != nil {
@@ -796,12 +876,7 @@ func (k *kinesisReader) runBalancedShards() {
 						continue
 					}
 					wg.Add(1)
-					if k.efoEnabled {
-						err = k.runEFOConsumer(&wg, *info, shardID, sequence)
-					} else {
-						err = k.runConsumer(&wg, *info, shardID, sequence)
-					}
-					if err != nil {
+					if err := k.startConsumer(&wg, *info, shardID, sequence); err != nil {
 						k.log.Errorf("Failed to start consumer: %v\n", err)
 					}
 				}
@@ -850,12 +925,7 @@ func (k *kinesisReader) runBalancedShards() {
 						info.id, randomShard, clientID, k.clientID,
 					)
 					wg.Add(1)
-					if k.efoEnabled {
-						err = k.runEFOConsumer(&wg, *info, randomShard, sequence)
-					} else {
-						err = k.runConsumer(&wg, *info, randomShard, sequence)
-					}
-					if err != nil {
+					if err := k.startConsumer(&wg, *info, randomShard, sequence); err != nil {
 						k.log.Errorf("Failed to start consumer: %v\n", err)
 					} else {
 						// If we successfully stole the shard then that's enough
@@ -896,11 +966,7 @@ func (k *kinesisReader) runExplicitShards() {
 				sequence, err := k.checkpointer.Claim(k.ctx, id, shardID, "")
 				if err == nil {
 					wg.Add(1)
-					if k.efoEnabled {
-						err = k.runEFOConsumer(&wg, info, shardID, sequence)
-					} else {
-						err = k.runConsumer(&wg, info, shardID, sequence)
-					}
+					err = k.startConsumer(&wg, info, shardID, sequence)
 				}
 				if err != nil {
 					if k.ctx.Err() != nil {

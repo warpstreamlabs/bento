@@ -23,6 +23,10 @@ All notable changes to this project will be documented in this file.
  - upgraded apache/pulsar client to v0.21.0 @slachiewicz
  - upgraded gosnowflake to v2 @jem-davies
 
+### Fixed
+
+- `aws_kinesis` input with `enhanced_fan_out` no longer accumulates duplicate shard consumers when the pipeline applies sustained backpressure, which previously grew memory usage until the process was killed @matus-tomlein
+
 ## 1.21.1 - 2026-08-26
 
 ### Fixed
