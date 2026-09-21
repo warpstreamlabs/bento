@@ -2,13 +2,11 @@ name: Integration Test
 
 on:
   # TODO(gregfurman): Select subset of integration tests to run on each PR or merge to main,
-  # triggered from test.yaml.
+  # triggered from test.yaml via a workflow_call.
   schedule:
     - cron: '0 1 * * *' # run at 1 AM UTC
   # Allow to trigger the integration tests manually
   workflow_dispatch:
-  # Allow this workflow to be called from other workflows
-  workflow_call:
 
 
 jobs:
@@ -90,16 +88,6 @@ jobs:
     env:
       CGO_ENABLED: 0
     steps:
-
-    - name: Checkout code
-      uses: actions/checkout@v7
-
-    - name: Install Go
-      uses: actions/setup-go@v7
-      with:
-        go-version-file: go.mod
-        check-latest: true
-        cache: true
 
     - name: Install gotestsum
       run: go install gotest.tools/gotestsum@latest
