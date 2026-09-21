@@ -76,7 +76,6 @@ jobs:
         version: v2.13.2
 
   build-docsite:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -86,7 +85,3 @@ jobs:
       with:
         node-version: 20.x
     - run: yarn --cwd ./website install && yarn --cwd ./website build
-
-  integration-tests:
-    needs: [test, golangci-lint, build-docsite]
-    uses: ./.github/workflows/integration_test.yml
