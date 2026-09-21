@@ -10,30 +10,9 @@ on:
 
 
 jobs:
-  deps:
-    if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
-    name: Check dependencies
-    runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: 0
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-
-    - name: Install Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
-        check-latest: true
-        cache: true
-
-    - name: Deps
-      run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
-
   integration-test:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
     name: Integration Test - ${{ matrix.name }}
-    needs: [deps]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -88,6 +67,18 @@ jobs:
     env:
       CGO_ENABLED: 0
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Install Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+        check-latest: true
+        cache: true
+
+    - name: Deps
+      run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
 
     - name: Install gotestsum
       run: go install gotest.tools/gotestsum@latest
