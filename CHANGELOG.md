@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
+- `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
 
 ## 1.21.2 - 2026-09-11 
 
