@@ -20,8 +20,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/gofrs/uuid"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,30 +36,29 @@ func TestIntegrationAzure(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = 30 * time.Second
+	maxWait := time.Minute
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mcr.microsoft.com/azure-storage/azurite",
-		// Expose blob, queue and table service ports
-		ExposedPorts: []string{"10000/tcp", "10001/tcp", "10002/tcp"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
 
-	_ = resource.Expire(900)
+	resource := pool.RunT(t, "mcr.microsoft.com/azure-storage/azurite",
+		// Expose blob, queue and table service ports,
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("10000/tcp"): {},
+				dockernetwork.MustParsePort("10001/tcp"): {},
+				dockernetwork.MustParsePort("10002/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	connString := getEmulatorConnectionString(resource.GetPort("10000/tcp"), resource.GetPort("10001/tcp"), resource.GetPort("10002/tcp"))
 
 	// Wait for Azurite to start up
-	err = pool.Retry(func() error {
+	err := pool.Retry(t.Context(), 0, func() error {
 		client, err := azblob.NewClientFromConnectionString(connString, nil)
 		if err != nil {
 			return err
@@ -208,30 +208,27 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = 30 * time.Second
+	maxWait := time.Minute
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
-		Tag:        "latest",
-		Env: []string{
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
+
+	resource := pool.RunT(t, "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
+		dockertest.WithTag("latest"),
+		dockertest.WithEnv([]string{
 			// The bigger the value, the longer it takes for the container to start up.
 			"AZURE_COSMOS_EMULATOR_PARTITION_COUNT=4",
 			"AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=false",
-		},
-		ExposedPorts: []string{"8081/tcp"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
+		}),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("8081/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	// Start a HTTP -> HTTPS proxy server on a background goroutine to work around the self-signed certificate that the
 	// CosmosDB container provides, because unfortunately, it doesn't expose a plain HTTP endpoint.
@@ -264,7 +261,7 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	_, servicePort, err := net.SplitHostPort(listener.Addr().String())
 	require.NoError(t, err)
 
-	err = pool.Retry(func() error {
+	err = pool.Retry(t.Context(), 0, func() error {
 		resp, err := http.Get("http://localhost:" + servicePort + "/_explorer/emulator.pem")
 		if err != nil {
 			return err
@@ -509,14 +506,13 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
 	// Set timeout to 5 minutes for containers to start (Microsoft SQL Server + Service Bus emulator)
-	pool.MaxWait = 5 * time.Minute
+	maxWait := 5 * time.Minute
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
+
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
 
 	dummyQueue := "bento-test-queue"
 
@@ -524,30 +520,25 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	networkUUID, err := uuid.NewV4()
 	require.NoError(t, err)
 	networkName := fmt.Sprintf("servicebus-test-network-%s", networkUUID.String())
-	network, err := pool.Client.CreateNetwork(docker.CreateNetworkOptions{
-		Name: networkName,
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = pool.Client.RemoveNetwork(networkName)
-	})
+	// CreateNetworkT tracks the network so the pool removes it during cleanup.
+	pool.CreateNetworkT(t, networkName, nil)
 
 	sqlPassword := "StrongP@ssw0rd!"
-	sqlResource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mcr.microsoft.com/mssql/server",
-		Tag:        "2022-latest",
-		Env: []string{
+	// NetworkMode attaches at creation, so the emulator can resolve "sqlserver"
+	// from the moment it boots. Connecting after start would leave a window
+	// where the name does not resolve.
+	pool.RunT(t, "mcr.microsoft.com/mssql/server",
+		dockertest.WithTag("2022-latest"),
+		dockertest.WithEnv([]string{
 			"ACCEPT_EULA=Y",
 			fmt.Sprintf("MSSQL_SA_PASSWORD=%s", sqlPassword),
-		},
-		NetworkID: network.ID,
-		Hostname:  "sqlserver",
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(sqlResource))
-	})
-	_ = sqlResource.Expire(900)
+		}),
+		dockertest.WithHostname("sqlserver"),
+		dockertest.WithHostConfig(func(hc *dockercontainer.HostConfig) {
+			hc.NetworkMode = dockercontainer.NetworkMode(networkName)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	// Create Config.json for the emulator with queue definition
 	configJSON := fmt.Sprintf(`{
@@ -575,27 +566,28 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Start Azure Service Bus emulator connected to Microsoft SQL Server
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mcr.microsoft.com/azure-messaging/servicebus-emulator",
-		Tag:        "latest",
-		Env: []string{
+	resource := pool.RunT(t, "mcr.microsoft.com/azure-messaging/servicebus-emulator",
+		dockertest.WithTag("latest"),
+		dockertest.WithEnv([]string{
 			"ACCEPT_EULA=Y",
 			"CONFIG_PATH=/ServiceBus_Emulator/ConfigFiles/Config.json",
 			fmt.Sprintf("MSSQL_SA_PASSWORD=%s", sqlPassword),
 			"SQL_SERVER=sqlserver",
-		},
-		Mounts: []string{
+		}),
+		dockertest.WithMounts([]string{
 			fmt.Sprintf("%s:/ServiceBus_Emulator/ConfigFiles", tmpDir),
-		},
-		NetworkID:    network.ID,
-		ExposedPorts: []string{"5672/tcp"}, // AMQP port
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
+		}),
+		dockertest.WithHostConfig(func(hc *dockercontainer.HostConfig) {
+			hc.NetworkMode = dockercontainer.NetworkMode(networkName)
+		}),
+		// 5672 is unbound and GetPort reads it below.
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("5672/tcp"): {}, // AMQP port
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	// Get the mapped AMQP port for host access
 	amqpPort := resource.GetPort("5672/tcp")
@@ -628,7 +620,7 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 	}
 
 	// Wait for Service Bus emulator to start
-	err = pool.Retry(func() error {
+	err = pool.Retry(t.Context(), 0, func() error {
 		ctx, done := context.WithTimeout(context.Background(), 5*time.Second)
 		defer done()
 

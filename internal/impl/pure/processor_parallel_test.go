@@ -125,14 +125,14 @@ parallel:
 }
 
 func TestParallelCapped(t *testing.T) {
-	var reqs int64
+	var reqs atomic.Int64
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if req := atomic.AddInt64(&reqs, 1); req > 5 {
+		if req := reqs.Add(1); req > 5 {
 			t.Errorf("Beyond parallelism cap: %v", req)
 		}
 		<-time.After(time.Millisecond * 10)
 		_, _ = w.Write([]byte("foobar"))
-		atomic.AddInt64(&reqs, -1)
+		reqs.Add(-1)
 	}))
 	defer ts.Close()
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,13 +20,21 @@ import (
 func TestIntegrationRedisProcessor(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Second*30))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = time.Second * 30
+	t.Cleanup(func() {
+		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
-	resource, err := pool.Run("redis", "latest", nil)
+	resource, err := pool.Run(t.Context(), "redis",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
@@ -43,17 +51,11 @@ func TestIntegrationRedisProcessor(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		return client.Ping(ctx).Err()
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	defer func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %v", err)
-		}
-	}()
 
 	defer client.Close()
 

@@ -146,6 +146,44 @@ func TestWatcherErrors(t *testing.T) {
 	assert.Equal(t, errB1.Error(), errB2.Error())
 }
 
+// requireStreamLabels waits for the config watcher to deliver each stream's
+// expected output label, where "" means the stream must have been removed.
+// The watcher makes no promise of exactly one callback per file change, so
+// this polls for the final state rather than counting callbacks.
+func requireStreamLabels(t *testing.T, mut *sync.Mutex, confs map[string]*stream.Config, want map[string]string) {
+	t.Helper()
+
+	matches := func(id, label string) bool {
+		conf := confs[id]
+		if label == "" {
+			return conf == nil
+		}
+		return conf != nil && conf.Output.Label == label
+	}
+
+	assert.Eventually(t, func() bool {
+		mut.Lock()
+		defer mut.Unlock()
+		for id, label := range want {
+			if !matches(id, label) {
+				return false
+			}
+		}
+		return true
+	}, time.Second*5, time.Millisecond*10)
+
+	mut.Lock()
+	defer mut.Unlock()
+	for id, label := range want {
+		if label == "" {
+			require.Nil(t, confs[id], "stream %v", id)
+			continue
+		}
+		require.NotNil(t, confs[id], "stream %v", id)
+		require.Equal(t, label, confs[id].Output.Label, "stream %v", id)
+	}
+}
+
 func TestReaderStreamDirectWatching(t *testing.T) {
 	confDir := t.TempDir()
 
@@ -173,12 +211,10 @@ func TestReaderStreamDirectWatching(t *testing.T) {
 
 	var confsMut sync.Mutex
 	updatedConfs := map[string]*stream.Config{}
-	changeChan := make(chan struct{})
 	require.NoError(t, rdr.SubscribeStreamChanges(func(id string, conf *stream.Config) error {
 		confsMut.Lock()
 		defer confsMut.Unlock()
 		updatedConfs[id] = conf
-		changeChan <- struct{}{}
 		return nil
 	}))
 
@@ -191,45 +227,14 @@ func TestReaderStreamDirectWatching(t *testing.T) {
 	require.NoError(t, os.WriteFile(confBPath, []byte(`output: { label: b2, drop: {} }`), 0o644))
 	require.NoError(t, os.WriteFile(confCPath, []byte(`output: { label: c2, drop: {} }`), 0o644))
 
-	for range 3 {
-		// Wait for the config watcher to reload each config
-		select {
-		case <-changeChan:
-		case <-time.After(time.Second * 5):
-			t.Fatal("Expected a config change to be triggered")
-		}
-	}
-
-	confsMut.Lock()
-	require.NotNil(t, updatedConfs["a"])
-	assert.Equal(t, "a2", updatedConfs["a"].Output.Label)
-	require.NotNil(t, updatedConfs["b"])
-	assert.Equal(t, "b2", updatedConfs["b"].Output.Label)
-	require.NotNil(t, updatedConfs["c"])
-	assert.Equal(t, "c2", updatedConfs["c"].Output.Label)
-	confsMut.Unlock()
+	requireStreamLabels(t, &confsMut, updatedConfs, map[string]string{"a": "a2", "b": "b2", "c": "c2"})
 
 	// Update two and delete one of the files
 	require.NoError(t, os.WriteFile(confAPath, []byte(`output: { label: a3, drop: {} }`), 0o644))
 	require.NoError(t, os.Remove(confBPath))
 	require.NoError(t, os.WriteFile(confCPath, []byte(`output: { label: c3, drop: {} }`), 0o644))
 
-	for range 3 {
-		// Wait for the config watcher to reload each config
-		select {
-		case <-changeChan:
-		case <-time.After(time.Second * 5):
-			t.Fatal("Expected a config change to be triggered")
-		}
-	}
-
-	confsMut.Lock()
-	require.NotNil(t, updatedConfs["a"])
-	assert.Equal(t, "a3", updatedConfs["a"].Output.Label)
-	require.Nil(t, updatedConfs["b"])
-	require.NotNil(t, updatedConfs["c"])
-	assert.Equal(t, "c3", updatedConfs["c"].Output.Label)
-	confsMut.Unlock()
+	requireStreamLabels(t, &confsMut, updatedConfs, map[string]string{"a": "a3", "b": "", "c": "c3"})
 }
 
 func TestReaderStreamWildcardWatching(t *testing.T) {
@@ -258,12 +263,10 @@ func TestReaderStreamWildcardWatching(t *testing.T) {
 
 	var confsMut sync.Mutex
 	updatedConfs := map[string]*stream.Config{}
-	changeChan := make(chan struct{})
 	require.NoError(t, rdr.SubscribeStreamChanges(func(id string, conf *stream.Config) error {
 		confsMut.Lock()
 		defer confsMut.Unlock()
 		updatedConfs[id] = conf
-		changeChan <- struct{}{}
 		return nil
 	}))
 
@@ -276,45 +279,14 @@ func TestReaderStreamWildcardWatching(t *testing.T) {
 	require.NoError(t, os.WriteFile(confBPath, []byte(`output: { label: b2, drop: {} }`), 0o644))
 	require.NoError(t, os.WriteFile(confCPath, []byte(`output: { label: c2, drop: {} }`), 0o644))
 
-	for range 3 {
-		// Wait for the config watcher to reload each config
-		select {
-		case <-changeChan:
-		case <-time.After(time.Second * 5):
-			t.Fatal("Expected a config change to be triggered")
-		}
-	}
-
-	confsMut.Lock()
-	require.NotNil(t, updatedConfs["a"])
-	assert.Equal(t, "a2", updatedConfs["a"].Output.Label)
-	require.NotNil(t, updatedConfs["b"])
-	assert.Equal(t, "b2", updatedConfs["b"].Output.Label)
-	require.NotNil(t, updatedConfs["c"])
-	assert.Equal(t, "c2", updatedConfs["c"].Output.Label)
-	confsMut.Unlock()
+	requireStreamLabels(t, &confsMut, updatedConfs, map[string]string{"a": "a2", "b": "b2", "c": "c2"})
 
 	// Update two and delete one of the files
 	require.NoError(t, os.WriteFile(confAPath, []byte(`output: { label: a3, drop: {} }`), 0o644))
 	require.NoError(t, os.WriteFile(confBPath, []byte(`output: { label: b3, drop: {} }`), 0o644))
 	require.NoError(t, os.Remove(confCPath))
 
-	for range 3 {
-		// Wait for the config watcher to reload each config
-		select {
-		case <-changeChan:
-		case <-time.After(time.Second * 5):
-			t.Fatal("Expected a config change to be triggered")
-		}
-	}
-
-	confsMut.Lock()
-	require.NotNil(t, updatedConfs["a"])
-	assert.Equal(t, "a3", updatedConfs["a"].Output.Label)
-	require.NotNil(t, updatedConfs["b"])
-	assert.Equal(t, "b3", updatedConfs["b"].Output.Label)
-	require.Nil(t, updatedConfs["c"])
-	confsMut.Unlock()
+	requireStreamLabels(t, &confsMut, updatedConfs, map[string]string{"a": "a3", "b": "b3", "c": ""})
 }
 
 func TestReaderStreamDirWatching(t *testing.T) {
@@ -343,12 +315,10 @@ func TestReaderStreamDirWatching(t *testing.T) {
 
 	var confsMut sync.Mutex
 	updatedConfs := map[string]*stream.Config{}
-	changeChan := make(chan struct{})
 	require.NoError(t, rdr.SubscribeStreamChanges(func(id string, conf *stream.Config) error {
 		confsMut.Lock()
 		defer confsMut.Unlock()
 		updatedConfs[id] = conf
-		changeChan <- struct{}{}
 		return nil
 	}))
 
@@ -361,45 +331,14 @@ func TestReaderStreamDirWatching(t *testing.T) {
 	require.NoError(t, os.WriteFile(confBPath, []byte(`output: { label: b2, drop: {} }`), 0o644))
 	require.NoError(t, os.WriteFile(confCPath, []byte(`output: { label: c2, drop: {} }`), 0o644))
 
-	for range 3 {
-		// Wait for the config watcher to reload each config
-		select {
-		case <-changeChan:
-		case <-time.After(time.Second * 5):
-			t.Fatal("Expected a config change to be triggered")
-		}
-	}
-
-	confsMut.Lock()
-	require.NotNil(t, updatedConfs["inner_a"])
-	assert.Equal(t, "a2", updatedConfs["inner_a"].Output.Label)
-	require.NotNil(t, updatedConfs["b"])
-	assert.Equal(t, "b2", updatedConfs["b"].Output.Label)
-	require.NotNil(t, updatedConfs["c"])
-	assert.Equal(t, "c2", updatedConfs["c"].Output.Label)
-	confsMut.Unlock()
+	requireStreamLabels(t, &confsMut, updatedConfs, map[string]string{"inner_a": "a2", "b": "b2", "c": "c2"})
 
 	// Update two and delete one of the files
 	require.NoError(t, os.WriteFile(confAPath, []byte(`output: { label: a3, drop: {} }`), 0o644))
 	require.NoError(t, os.WriteFile(confBPath, []byte(`output: { label: b3, drop: {} }`), 0o644))
 	require.NoError(t, os.Remove(confCPath))
 
-	for range 3 {
-		// Wait for the config watcher to reload each config
-		select {
-		case <-changeChan:
-		case <-time.After(time.Second * 5):
-			t.Fatal("Expected a config change to be triggered")
-		}
-	}
-
-	confsMut.Lock()
-	require.NotNil(t, updatedConfs["inner_a"])
-	assert.Equal(t, "a3", updatedConfs["inner_a"].Output.Label)
-	require.NotNil(t, updatedConfs["b"])
-	assert.Equal(t, "b3", updatedConfs["b"].Output.Label)
-	require.Nil(t, updatedConfs["c"])
-	confsMut.Unlock()
+	requireStreamLabels(t, &confsMut, updatedConfs, map[string]string{"inner_a": "a3", "b": "b3", "c": ""})
 }
 
 func TestReaderWatcherRace(t *testing.T) {

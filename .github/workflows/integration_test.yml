@@ -1,42 +1,101 @@
 name: Integration Test
 
 on:
+  # TODO(gregfurman): Select subset of integration tests to run on each PR or merge to main,
+  # triggered from test.yaml via a workflow_call.
   schedule:
     - cron: '0 1 * * *' # run at 1 AM UTC
-
   # Allow to trigger the integration tests manually
   workflow_dispatch:
+
 
 jobs:
   integration-test:
     if: ${{ github.repository == 'warpstreamlabs/bento' || github.event_name != 'schedule' }}
+    name: Integration Test - ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - name: kafka
+            packages: ./internal/impl/kafka
+          - name: sql
+            packages: ./internal/impl/sql
+          - name: aws
+            packages: >-
+              ./internal/impl/aws
+              ./internal/impl/elasticsearch/aws
+          - name: azure
+            packages: ./internal/impl/azure
+          - name: gcp
+            packages: ./internal/impl/gcp
+          - name: search
+            packages: >-
+              ./internal/impl/elasticsearch
+              ./internal/impl/opensearch
+          - name: databases
+            packages: >-
+              ./internal/impl/mongodb
+              ./internal/impl/couchbase
+              ./internal/impl/cassandra
+              ./internal/impl/cockroachdb
+              ./internal/impl/cypher
+              ./internal/impl/questdb
+          - name: messaging
+            packages: >-
+              ./internal/impl/nats
+              ./internal/impl/pulsar
+              ./internal/impl/amqp09
+              ./internal/impl/amqp1
+              ./internal/impl/beanstalkd
+              ./internal/impl/mqtt
+              ./internal/impl/nsq
+          - name: storage-and-misc
+            packages: >-
+              ./internal/impl/redis
+              ./internal/impl/etcd
+              ./internal/impl/hdfs
+              ./internal/impl/influxdb
+              ./internal/impl/memcached
+              ./internal/impl/sftp
+              ./internal/impl/huggingface
+              ./internal/impl/nanomsg
+              ./internal/impl/pure
+              ./internal/impl/zeromq
     env:
       CGO_ENABLED: 0
     steps:
-
     - name: Checkout code
       uses: actions/checkout@v7
-
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@v1.3.1
-      with:
-        tool-cache: false
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        docker-images: true
-        swap-storage: true
 
     - name: Install Go
       uses: actions/setup-go@v7
       with:
         go-version-file: go.mod
         check-latest: true
+        cache: true
 
     - name: Deps
       run: make deps && git diff-index --quiet HEAD || { >&2 echo "Stale go.{mod,sum} detected. This can be fixed with 'make deps'."; exit 1; }
 
-    - name: Integration Test
-      run: go test -run "^Test.*Integration.*$" -timeout 60m ./...
+    - name: Install gotestsum
+      run: go install gotest.tools/gotestsum@latest
+
+    - name: Run integration tests
+      env:
+        TEST_PACKAGES: ${{ matrix.packages }}
+      run: |
+        read -r -a packages <<< "$TEST_PACKAGES"
+        printf 'Running package: %s\n' "${packages[@]}"
+        gotestsum --junitfile shard-summary.xml --format short-verbose -- \
+          -count=1 -p=1 -run '^Test.*Integration.*$' -timeout=60m "${packages[@]}"
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: junit-integration-summary-${{ matrix.name }}
+        path: shard-summary.xml
+        retention-days: 1

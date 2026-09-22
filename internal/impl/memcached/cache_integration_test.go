@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -17,19 +16,14 @@ func TestIntegrationMemcachedCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
+	resource := pool.RunT(t, "memcached",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
-	resource, err := pool.Run("memcached", "latest", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		client := memcache.New(fmt.Sprintf("localhost:%v", resource.GetPort("11211/tcp")))
 		cErr := client.Set(&memcache.Item{
 			Key:        "testkey",

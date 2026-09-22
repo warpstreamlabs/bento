@@ -38,9 +38,9 @@ func clientConfig(t testing.TB, confStr string, args ...any) OldConfig {
 }
 
 func TestHTTPClientRetries(t *testing.T) {
-	var reqCount uint32
+	var reqCount atomic.Uint32
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddUint32(&reqCount, 1)
+		reqCount.Add(1)
 		http.Error(w, "test error", http.StatusForbidden)
 	}))
 	defer ts.Close()
@@ -57,7 +57,7 @@ retries: 3
 
 	_, err = h.Send(context.Background(), service.MessageBatch{service.NewMessage([]byte("test"))})
 	assert.Error(t, err)
-	assert.Equal(t, uint32(4), atomic.LoadUint32(&reqCount))
+	assert.Equal(t, uint32(4), reqCount.Load())
 }
 
 func TestHTTPClientBadRequest(t *testing.T) {
@@ -168,11 +168,11 @@ drop_on: [ 400 ]
 }
 
 func TestHTTPClientSuccessfulOn(t *testing.T) {
-	var reqs int32
+	var reqs atomic.Int32
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"foo":"bar"}`))
-		atomic.AddInt32(&reqs, 1)
+		reqs.Add(1)
 	}))
 	defer ts.Close()
 
@@ -191,7 +191,7 @@ successful_on: [ 400 ]
 	mBytes, err := resMsg[0].AsBytes()
 	require.NoError(t, err)
 	assert.Equal(t, `{"foo":"bar"}`, string(mBytes))
-	assert.Equal(t, int32(1), atomic.LoadInt32(&reqs))
+	assert.Equal(t, int32(1), reqs.Load())
 }
 
 func TestHTTPClientSendInterpolate(t *testing.T) {

@@ -17,7 +17,7 @@ import (
 
 // StreamStatus tracks a stream along with information regarding its internals.
 type StreamStatus struct {
-	stoppedAfter int64
+	stoppedAfter atomic.Int64
 	config       stream.Config
 	strm         *stream.Type
 	metrics      *metrics.Local
@@ -39,7 +39,7 @@ func (s *StreamStatus) setStream(strm *stream.Type) {
 // IsRunning returns a boolean indicating whether the stream is currently
 // running.
 func (s *StreamStatus) IsRunning() bool {
-	return atomic.LoadInt64(&s.stoppedAfter) == 0
+	return s.stoppedAfter.Load() == 0
 }
 
 // IsReady returns a boolean indicating whether the stream is connected at both
@@ -50,7 +50,7 @@ func (s *StreamStatus) IsReady() bool {
 
 // Uptime returns a time.Duration indicating the current uptime of the stream.
 func (s *StreamStatus) Uptime() time.Duration {
-	if stoppedAfter := atomic.LoadInt64(&s.stoppedAfter); stoppedAfter > 0 {
+	if stoppedAfter := s.stoppedAfter.Load(); stoppedAfter > 0 {
 		return time.Duration(stoppedAfter)
 	}
 	return time.Since(s.createdAt)
@@ -68,7 +68,7 @@ func (s *StreamStatus) Metrics() *metrics.Local {
 
 // setClosed sets the flag indicating that the stream is closed.
 func (s *StreamStatus) setClosed() {
-	atomic.SwapInt64(&s.stoppedAfter, int64(time.Since(s.createdAt)))
+	s.stoppedAfter.Swap(int64(time.Since(s.createdAt)))
 }
 
 //------------------------------------------------------------------------------

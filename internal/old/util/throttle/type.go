@@ -12,7 +12,7 @@ import (
 // fails to reach its destination.
 type Type struct {
 	// consecutiveRetries is the live count of consecutive retries.
-	consecutiveRetries int64
+	consecutiveRetries atomic.Int64
 
 	// throttlePeriod is the current throttle period, by default this is set to
 	// the baseThrottlePeriod.
@@ -98,7 +98,7 @@ func (t *Type) Retry() bool {
 // retry may be attempted (returning true) or that the close channel has closed
 // (returning false), or that the context was cancelled (false).
 func (t *Type) RetryWithContext(ctx context.Context) bool {
-	if rets := atomic.AddInt64(&t.consecutiveRetries, 1); rets <= t.unthrottledRetries {
+	if rets := t.consecutiveRetries.Add(1); rets <= t.unthrottledRetries {
 		return true
 	}
 	select {
@@ -120,7 +120,7 @@ func (t *Type) ExponentialRetry() bool {
 // ExponentialRetryWithContext is the same as RetryWithContext except also sets
 // the throttle period to exponentially increase after each consecutive retry.
 func (t *Type) ExponentialRetryWithContext(ctx context.Context) bool {
-	if atomic.LoadInt64(&t.consecutiveRetries) > t.unthrottledRetries {
+	if t.consecutiveRetries.Load() > t.unthrottledRetries {
 		if throtPrd := atomic.LoadInt64(&t.throttlePeriod); throtPrd < t.maxExponentialPeriod {
 			throtPrd *= 2
 			if throtPrd > t.maxExponentialPeriod {
@@ -135,7 +135,7 @@ func (t *Type) ExponentialRetryWithContext(ctx context.Context) bool {
 // Reset clears the count of consecutive retries and resets the exponential
 // backoff.
 func (t *Type) Reset() {
-	atomic.StoreInt64(&t.consecutiveRetries, 0)
+	t.consecutiveRetries.Store(0)
 	atomic.StoreInt64(&t.throttlePeriod, t.baseThrottlePeriod)
 }
 

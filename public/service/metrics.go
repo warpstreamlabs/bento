@@ -194,12 +194,12 @@ func newAirGapMetrics(m MetricsExporter) metrics.Type {
 type airGapGauge struct {
 	// TODO: This is a hack and we don't really use incr/decr internally in our
 	// metrics. Can we ditch it?
-	v         int64
+	v         atomic.Int64
 	airGapped MetricsExporterGauge
 }
 
 func (a *airGapGauge) Incr(by int64) {
-	value := atomic.AddInt64(&a.v, by)
+	value := a.v.Add(by)
 	a.airGapped.Set(value)
 }
 
@@ -208,7 +208,7 @@ func (a *airGapGauge) IncrFloat64(count float64) {
 }
 
 func (a *airGapGauge) SetFloat64(value float64) {
-	atomic.StoreInt64(&a.v, int64(value))
+	a.v.Store(int64(value))
 	if fer, ok := a.airGapped.(interface {
 		SetFloat64(float64)
 	}); ok {
@@ -219,7 +219,7 @@ func (a *airGapGauge) SetFloat64(value float64) {
 }
 
 func (a *airGapGauge) Decr(by int64) {
-	value := atomic.AddInt64(&a.v, -by)
+	value := a.v.Add(-by)
 	a.airGapped.Set(value)
 }
 
@@ -228,7 +228,7 @@ func (a *airGapGauge) DecrFloat64(count float64) {
 }
 
 func (a *airGapGauge) Set(value int64) {
-	atomic.StoreInt64(&a.v, value)
+	a.v.Store(value)
 	a.airGapped.Set(value)
 }
 

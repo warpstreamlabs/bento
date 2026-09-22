@@ -6,13 +6,13 @@
  */
 
 import path from 'path';
-import logger from '@docusaurus/logger';
 import {
   normalizeUrl,
   docuHash,
   aliasedSitePath,
   addTrailingPathSeparator,
   getContentPathList,
+  resolveMarkdownLinkPathname,
   DEFAULT_PLUGIN_ID,
 } from '@docusaurus/utils';
 import {
@@ -25,7 +25,6 @@ import type {
   PluginOptions,
   CookbookContent,
   CookbookContentPaths,
-  CookbookMarkdownLoaderOptions,
 } from './types';
 
 export default async function pluginContentCookbook(
@@ -37,7 +36,7 @@ export default async function pluginContentCookbook(
     siteConfig,
     generatedFilesDir,
   } = context;
-  const {onBrokenMarkdownLinks, baseUrl} = siteConfig;
+  const {baseUrl} = siteConfig;
 
   const contentPaths: CookbookContentPaths = {
     contentPath: path.resolve(siteDir, options.path),
@@ -147,19 +146,7 @@ export default async function pluginContentCookbook(
         remarkPlugins,
       } = options;
 
-      const markdownLoaderOptions: CookbookMarkdownLoaderOptions = {
-        siteDir,
-        contentPaths,
-        sourceToPermalink: getSourceToPermalink(content.cookbookPosts),
-        onBrokenMarkdownLink: (brokenMarkdownLink) => {
-          if (onBrokenMarkdownLinks === 'ignore') {
-            return;
-          }
-          logger.report(
-            onBrokenMarkdownLinks,
-          )`Blog markdown link couldn't be resolved: (url=${brokenMarkdownLink.link}) in path=${brokenMarkdownLink.filePath}`;
-        },
-      };
+      const sourceToPermalink = getSourceToPermalink(content.cookbookPosts);
 
       const contentDirs = getContentPathList(contentPaths);
       return {
@@ -180,6 +167,7 @@ export default async function pluginContentCookbook(
                   options: {
                     remarkPlugins,
                     rehypePlugins,
+                    siteDir,
                     staticDirs: siteConfig.staticDirectories.map((dir) =>
                       path.resolve(siteDir, dir),
                     ),
@@ -194,11 +182,20 @@ export default async function pluginContentCookbook(
                       );
                     },
                     markdownConfig: siteConfig.markdown,
+                    resolveMarkdownLink: ({
+                      linkPathname,
+                      sourceFilePath,
+                    }: {
+                      linkPathname: string;
+                      sourceFilePath: string;
+                    }) =>
+                      resolveMarkdownLinkPathname(linkPathname, {
+                        sourceFilePath,
+                        sourceToPermalink,
+                        siteDir,
+                        contentPaths,
+                      }),
                   },
-                },
-                {
-                  loader: path.resolve(__dirname, './markdownLoader.js'),
-                  options: markdownLoaderOptions,
                 },
               ].filter(Boolean),
             },

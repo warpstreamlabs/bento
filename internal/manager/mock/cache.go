@@ -72,6 +72,17 @@ func (c *Cache) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+// Keys returns an iterator over all keys of the mock cache.
+func (c *Cache) Keys(ctx context.Context) cache.KeyIterator {
+	return func(yield func(string, error) bool) {
+		for k := range c.Values {
+			if !yield(k, nil) {
+				return
+			}
+		}
+	}
+}
+
 // Close does nothing.
 func (c *Cache) Close(ctx context.Context) error {
 	return nil

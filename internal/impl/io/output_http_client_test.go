@@ -195,9 +195,9 @@ func TestHTTPClientRetries(t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
-	var reqCount uint32
+	var reqCount atomic.Uint32
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddUint32(&reqCount, 1)
+		reqCount.Add(1)
 		http.Error(w, "test error", http.StatusForbidden)
 	}))
 	defer ts.Close()
@@ -213,7 +213,7 @@ http_client:
 	require.NoError(t, err)
 
 	require.Error(t, writeBatchToStreamed(ctx, t, message.QuickBatch([][]byte{[]byte("test")}), h))
-	if exp, act := uint32(4), atomic.LoadUint32(&reqCount); exp != act {
+	if exp, act := uint32(4), reqCount.Load(); exp != act {
 		t.Errorf("Wrong count of HTTP attempts: %v != %v", exp, act)
 	}
 

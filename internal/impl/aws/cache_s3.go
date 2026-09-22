@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/cenkalti/backoff/v4"
 
+	"github.com/warpstreamlabs/bento/internal/component/cache"
 	"github.com/warpstreamlabs/bento/internal/impl/aws/config"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -31,6 +33,10 @@ func s3CacheConfig() *service.ConfigSpec {
 		Field(service.NewStringField("content_type").
 			Description("The content type to set for each item.").
 			Default("application/octet-stream")).
+		Field(service.NewStringField("prefix").
+			Description("An optional string to prefix item keys with in order to prevent collisions with similar services. The prefix is also used to scope key listings, and is stripped from the keys returned.").
+			Advanced().
+			Default("")).
 		Field(service.NewBoolField("force_path_style_urls").
 			Description("Forces the client API to use path style URLs, which helps when connecting to custom endpoints.").
 			Advanced().
@@ -68,6 +74,10 @@ func newS3CacheFromConfig(conf *service.ParsedConfig) (*s3Cache, error) {
 	if err != nil {
 		return nil, err
 	}
+	prefix, err := conf.FieldString("prefix")
+	if err != nil {
+		return nil, err
+	}
 	forcePathStyleURLs, err := conf.FieldBool("force_path_style_urls")
 	if err != nil {
 		return nil, err
@@ -87,7 +97,7 @@ func newS3CacheFromConfig(conf *service.ParsedConfig) (*s3Cache, error) {
 		return nil, err
 	}
 
-	return newS3Cache(bucket, contentType, backOff, client), nil
+	return newS3Cache(bucket, contentType, prefix, backOff, client), nil
 }
 
 //------------------------------------------------------------------------------
@@ -97,16 +107,18 @@ type s3Cache struct {
 
 	bucket      string
 	contentType string
+	prefix      string
 
 	boffPool sync.Pool
 }
 
-func newS3Cache(bucket, contentType string, backOff *backoff.ExponentialBackOff, s3 *s3.Client) *s3Cache {
+func newS3Cache(bucket, contentType, prefix string, backOff *backoff.ExponentialBackOff, s3 *s3.Client) *s3Cache {
 	return &s3Cache{
 		s3: s3,
 
 		bucket:      bucket,
 		contentType: contentType,
+		prefix:      prefix,
 
 		boffPool: sync.Pool{
 			New: func() any {
@@ -121,6 +133,7 @@ func newS3Cache(bucket, contentType string, backOff *backoff.ExponentialBackOff,
 //------------------------------------------------------------------------------
 
 func (s *s3Cache) Get(ctx context.Context, key string) (body []byte, err error) {
+	key = s.prefix + key
 	boff := s.boffPool.Get().(backoff.BackOff)
 	defer func() {
 		boff.Reset()
@@ -133,8 +146,7 @@ func (s *s3Cache) Get(ctx context.Context, key string) (body []byte, err error) 
 			Bucket: &s.bucket,
 			Key:    &key,
 		}); err != nil {
-			var aerr *types.NoSuchKey
-			if errors.As(err, &aerr) {
+			if _, ok := errors.AsType[*types.NoSuchKey](err); ok {
 				err = service.ErrKeyNotFound
 				return
 			}
@@ -157,6 +169,7 @@ func (s *s3Cache) Get(ctx context.Context, key string) (body []byte, err error) 
 }
 
 func (s *s3Cache) Exists(ctx context.Context, key string) (exists bool, err error) {
+	key = s.prefix + key
 	boff := s.boffPool.Get().(backoff.BackOff)
 	defer func() {
 		boff.Reset()
@@ -169,8 +182,7 @@ func (s *s3Cache) Exists(ctx context.Context, key string) (exists bool, err erro
 			Key:    &key,
 		})
 		if err != nil {
-			var aerr *types.NoSuchKey
-			if errors.As(err, &aerr) {
+			if _, ok := errors.AsType[*types.NoSuchKey](err); ok {
 				return false, nil
 			}
 		} else {
@@ -191,6 +203,7 @@ func (s *s3Cache) Exists(ctx context.Context, key string) (exists bool, err erro
 
 // Set attempts to set the value of a key.
 func (s *s3Cache) Set(ctx context.Context, key string, value []byte, _ *time.Duration) (err error) {
+	key = s.prefix + key
 	boff := s.boffPool.Get().(backoff.BackOff)
 	defer func() {
 		boff.Reset()
@@ -220,9 +233,12 @@ func (s *s3Cache) Set(ctx context.Context, key string, value []byte, _ *time.Dur
 }
 
 func (s *s3Cache) Add(ctx context.Context, key string, value []byte, _ *time.Duration) error {
+	// Set prepends the prefix itself, so it is only applied to the local copy
+	// used for the existence check.
+	prefixedKey := s.prefix + key
 	if _, err := s.s3.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: &s.bucket,
-		Key:    &key,
+		Key:    &prefixedKey,
 	}); err == nil {
 		return service.ErrKeyAlreadyExists
 	}
@@ -230,6 +246,7 @@ func (s *s3Cache) Add(ctx context.Context, key string, value []byte, _ *time.Dur
 }
 
 func (s *s3Cache) Delete(ctx context.Context, key string) (err error) {
+	key = s.prefix + key
 	boff := s.boffPool.Get().(backoff.BackOff)
 	defer func() {
 		boff.Reset()
@@ -254,6 +271,50 @@ func (s *s3Cache) Delete(ctx context.Context, key string) (err error) {
 			return
 		}
 	}
+}
+
+func (s *s3Cache) Keys(ctx context.Context) service.KeyIterator {
+	// readAhead is set to the maximum number of keys in a single S3 page so
+	// that the next page can be fetched while the current one is yielded.
+	const readAhead = 1000
+	return cache.PrefetchKeys(ctx, readAhead, func(ctx context.Context, emit func(string) bool) error {
+		boff := s.boffPool.Get().(backoff.BackOff)
+		defer func() {
+			boff.Reset()
+			s.boffPool.Put(boff)
+		}()
+
+		input := &s3.ListObjectsV2Input{
+			Bucket: &s.bucket,
+		}
+		if s.prefix != "" {
+			input.Prefix = &s.prefix
+		}
+		pager := s3.NewListObjectsV2Paginator(s.s3, input)
+		for pager.HasMorePages() {
+			page, err := pager.NextPage(ctx)
+			if err != nil {
+				wait := boff.NextBackOff()
+				if wait == backoff.Stop {
+					return err
+				}
+				select {
+				case <-time.After(wait):
+				case <-ctx.Done():
+					return err
+				}
+				continue
+			}
+			for _, obj := range page.Contents {
+				// The prefix is stripped so that yielded keys round-trip
+				// through the other cache methods.
+				if obj.Key != nil && !emit(strings.TrimPrefix(*obj.Key, s.prefix)) {
+					return nil
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func (s *s3Cache) Close(context.Context) error {

@@ -16,8 +16,18 @@ import (
 
 type DSNBuilder func(dsn, driver string) (builtDSN string, err error)
 
-var driverField = service.NewStringEnumField("driver", "mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb").
+var driverNames = []string{"mysql", "postgres", "clickhouse", "mssql", "sqlite", "oracle", "snowflake", "trino", "gocosmos", "spanner", "duckdb"}
+
+var driverField = service.NewStringEnumField("driver", driverNames...).
 	Description("A database [driver](#drivers) to use.")
+
+// The deprecated sql components expose `data_source_name` rather than `dsn`, and
+// the driver table lives in the `dsn` field docs, so #drivers is not on their
+// pages. Point them at a component that does render it.
+func deprecatedDriverField(sqlRawPath string) *service.ConfigField {
+	return service.NewStringEnumField("driver", driverNames...).
+		Description("A database [driver](" + sqlRawPath + "#drivers) to use.")
+}
 
 var dsnField = service.NewStringField("dsn").
 	Description(`A Data Source Name to identify the target database.
@@ -41,6 +51,8 @@ The following is a list of supported drivers, their placeholder style, and their
 ` + "| `duckdb` | `/path/to/filename.duckdb[?config_option=value&...]` or `:memory:` for ephemeral in-process storage. |" + `
 
 Please note that the ` + "`postgres`" + ` driver enforces SSL by default, you can override this with the parameter ` + "`sslmode=disable`" + ` if required.
+
+The ` + "`mssql`" + ` driver supports using Kerberos authentication instead of the default ` + "`ntlm`" + ` (on Unix) or ` + "`winsspi`" + ` (on Windows). To do this, add the parameter ` + "`authenticator=krb5`" + ` to the DSN. For a list of supported Kerberos configuration options, please refer to [the documentation](https://github.com/microsoft/go-mssqldb#kerberos-parameters). An example DSN with Kerberos enabled and username/password authentication: ` + "`" + `sqlserver://user@EXAMPLE.COM:pass@host:1433?database=db&authenticator=krb5` + "`" + `
 
 The ` + "`snowflake`" + ` driver supports multiple DSN formats. Please consult [the docs](https://pkg.go.dev/github.com/snowflakedb/gosnowflake#hdr-Connection_String) for more details. For [key pair authentication](https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication), the DSN has the following format: ` + "`<snowflake_user>@<snowflake_account>/<db_name>/<schema_name>?warehouse=<warehouse>&role=<role>&authenticator=snowflake_jwt&privateKey=<base64_url_encoded_private_key>`" + `, where the value for the ` + "`privateKey`" + ` parameter can be constructed from an unencrypted RSA private key file ` + "`rsa_key.p8`" + ` using ` + "`openssl enc -d -base64 -in rsa_key.p8 | basenc --base64url -w0`" + ` (you can use ` + "`gbasenc`" + ` insted of ` + "`basenc`" + ` on OSX if you install ` + "`coreutils`" + ` via Homebrew). If you have a password-encrypted private key, you can decrypt it using ` + "`openssl pkcs8 -in rsa_key_encrypted.p8 -out rsa_key.p8`" + `. Also, make sure fields such as the username are URL-encoded.
 
@@ -401,6 +413,11 @@ func sqlOpenWithReworks(ctx context.Context, logger *service.Logger, driver, dsn
 	return db, nil
 }
 
+type pgErr interface {
+	error
+	SQLState() string
+}
+
 // isAuthError detects authentication failures so the connection can be
 // re-established with fresh credentials. Only postgres and mysql are handled
 // because they are the only drivers that support IAM token rotation;
@@ -415,8 +432,7 @@ func isAuthError(driver string, err error) bool {
 		// pq.Error has a SQLState() method that returns the PostgreSQL error code.
 		// SQLSTATE class 28 = Invalid Authorization Specification
 		// (e.g. 28P01 for PAM/password auth failure).
-		var stateErr interface{ SQLState() string }
-		if errors.As(err, &stateErr) {
+		if stateErr, ok := errors.AsType[pgErr](err); ok {
 			return strings.HasPrefix(stateErr.SQLState(), "28")
 		}
 	case "mysql":

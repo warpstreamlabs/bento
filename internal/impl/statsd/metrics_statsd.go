@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	smFieldAddress     = "address"
-	smFieldFlushPeriod = "flush_period"
-	smFieldTagFormat   = "tag_format"
+	smFieldAddress           = "address"
+	smFieldFlushPeriod       = "flush_period"
+	smFieldTagFormat         = "tag_format"
+	smFieldSendQueueCapacity = "send_queue_capacity"
+	smFieldBufPoolCapacity   = "buf_pool_capacity"
+	smFieldSendLoopCount     = "send_loop_count"
 )
 
 func statsdSpec() *service.ConfigSpec {
@@ -30,6 +33,20 @@ func statsdSpec() *service.ConfigSpec {
 			service.NewStringEnumField(smFieldTagFormat, "none", "datadog", "influxdb").
 				Description("Metrics tagging is supported in a variety of formats.").
 				Default("none"),
+			service.NewIntField(smFieldSendQueueCapacity).
+				Advanced().
+				Description("The size of the internal queue of packets ready to be sent over UDP. "+
+					"Increase this if you see '[STATSD] N packets lost (overflow)' warnings under "+
+					"high throughput or CPU-constrained environments.").
+				Default(10),
+			service.NewIntField(smFieldBufPoolCapacity).
+				Advanced().
+				Description("The size of the pre-allocated UDP packet buffer pool.").
+				Default(20),
+			service.NewIntField(smFieldSendLoopCount).
+				Advanced().
+				Description("The number of goroutines sending UDP packets. Increase under high throughput.").
+				Default(1),
 		)
 }
 
@@ -138,6 +155,24 @@ func newStatsdFromParsed(conf *service.ParsedConfig, log *service.Logger) (s *st
 	if address, err = conf.FieldString(smFieldAddress); err != nil {
 		return
 	}
+
+	var sendQueueCapacity int
+	if sendQueueCapacity, err = conf.FieldInt(smFieldSendQueueCapacity); err != nil {
+		return
+	}
+	statsdOpts = append(statsdOpts, statsd.SendQueueCapacity(sendQueueCapacity))
+
+	var bufPoolCapacity int
+	if bufPoolCapacity, err = conf.FieldInt(smFieldBufPoolCapacity); err != nil {
+		return
+	}
+	statsdOpts = append(statsdOpts, statsd.BufPoolCapacity(bufPoolCapacity))
+
+	var sendLoopCount int
+	if sendLoopCount, err = conf.FieldInt(smFieldSendLoopCount); err != nil {
+		return
+	}
+	statsdOpts = append(statsdOpts, statsd.SendLoopCount(sendLoopCount))
 
 	client := statsd.NewClient(address, statsdOpts...)
 

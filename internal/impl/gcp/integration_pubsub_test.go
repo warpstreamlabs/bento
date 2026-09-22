@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub" //nolint:staticcheck
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -18,29 +19,25 @@ import (
 func TestIntegrationGCPPubSub(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "gcr.io/google.com/cloudsdktool/google-cloud-cli",
-		Tag:          "emulators",
-		ExposedPorts: []string{"8432/tcp"},
-		Cmd: []string{
+	resource := pool.RunT(t, "gcr.io/google.com/cloudsdktool/google-cloud-cli",
+		dockertest.WithTag("emulators"),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("8432/tcp"): {},
+			}
+		}),
+		dockertest.WithCmd([]string{
 			"gcloud", "beta", "emulators", "pubsub", "start", "--project=bento-test-project", "--host-port=0.0.0.0:8432",
-		},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	t.Setenv("PUBSUB_EMULATOR_HOST", fmt.Sprintf("localhost:%v", resource.GetPort("8432/tcp")))
 	require.NotEqual(t, "localhost:", os.Getenv("PUBSUB_EMULATOR_HOST"))
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		client, err := pubsub.NewClient(ctx, "bento-test-project")

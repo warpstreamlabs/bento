@@ -579,8 +579,7 @@ func (k *kinesisReader) runConsumer(wg *sync.WaitGroup, info streamInfo, shardID
 						pullTimer.Reset(boff.NextBackOff())
 						nextPullChan = pullTimer.C
 
-						var aerr *types.ExpiredIteratorException
-						if errors.As(err, &aerr) {
+						if _, ok := errors.AsType[*types.ExpiredIteratorException](err); ok {
 							k.log.Warn("Shard iterator expired, attempting to refresh")
 							newIter, err := k.getIter(info, shardID, recordBatcher.GetSequence())
 							if err != nil {

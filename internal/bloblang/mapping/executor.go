@@ -310,8 +310,7 @@ func (e *errStacks) Error() string {
 }
 
 func formatExecErr(err error, input, stmtInput []rune) error {
-	var u *failedAssignmentErr
-	if errors.As(err, &u) {
+	if u, ok := errors.AsType[*failedAssignmentErr](err); ok {
 		return u
 	}
 
@@ -320,8 +319,7 @@ func formatExecErr(err error, input, stmtInput []rune) error {
 		line, _ = LineAndColOf(input, stmtInput)
 	}
 
-	var e *errStacks
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[*errStacks](err); ok {
 		err = e
 	}
 

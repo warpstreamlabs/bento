@@ -23,7 +23,7 @@ import (
 type AsyncPreserver struct {
 	retryList *autoretry.List[message.Batch]
 
-	inputClosed int32
+	inputClosed atomic.Int32
 	r           Async
 }
 
@@ -88,7 +88,7 @@ func (p *AsyncPreserver) Connect(ctx context.Context) error {
 	// we act like we're still open. Read will be called and we can either
 	// return the pending messages or wait for them.
 	if errors.Is(err, component.ErrTypeClosed) && !p.retryList.Exhausted() {
-		atomic.StoreInt32(&p.inputClosed, 1)
+		p.inputClosed.Store(1)
 		err = nil
 	}
 	return err
@@ -96,7 +96,7 @@ func (p *AsyncPreserver) Connect(ctx context.Context) error {
 
 // ReadBatch attempts to read a new message from the source.
 func (p *AsyncPreserver) ReadBatch(ctx context.Context) (message.Batch, AsyncAckFn, error) {
-	batch, rAckFn, err := p.retryList.Shift(ctx, atomic.LoadInt32(&p.inputClosed) == 0)
+	batch, rAckFn, err := p.retryList.Shift(ctx, p.inputClosed.Load() == 0)
 	if err != nil {
 		if errors.Is(err, autoretry.ErrExhausted) {
 			return nil, nil, component.ErrTypeClosed
@@ -104,7 +104,7 @@ func (p *AsyncPreserver) ReadBatch(ctx context.Context) (message.Batch, AsyncAck
 		if errors.Is(err, component.ErrTypeClosed) {
 			// Mark our input as being closed and trigger an immediate re-read
 			// in order to clear any pending retries.
-			atomic.StoreInt32(&p.inputClosed, 1)
+			p.inputClosed.Store(1)
 			return p.ReadBatch(ctx)
 		}
 		// Otherwise we have an unknown error from our reader that we should

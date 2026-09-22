@@ -350,8 +350,7 @@ func (o *switchOutput) dispatchToTargets(
 		select {
 		case o.outputTSChans[i] <- message.NewTransactionFunc(parts, func(ctx context.Context, err error) error {
 			if err != nil {
-				var bErr *batch.Error
-				if errors.As(err, &bErr) {
+				if bErr, ok := errors.AsType[*batch.Error](err); ok {
 					bErr.WalkPartsBySource(group, sourceMessage, func(i int, p *message.Part, e error) bool {
 						if e != nil {
 							setErrForPart(p, e)
@@ -378,12 +377,12 @@ func (o *switchOutput) dispatchToTargets(
 
 func (o *switchOutput) loop() {
 	ackInterruptChan := make(chan struct{})
-	var ackPending int64
+	var ackPending atomic.Int64
 
 	defer func() {
 		// Wait for pending acks to be resolved, or forceful termination
 	ackWaitLoop:
-		for atomic.LoadInt64(&ackPending) > 0 {
+		for ackPending.Load() > 0 {
 			select {
 			case <-ackInterruptChan:
 			case <-time.After(time.Millisecond * 100):
@@ -454,10 +453,10 @@ func (o *switchOutput) loop() {
 			continue
 		}
 
-		_ = atomic.AddInt64(&ackPending, 1)
+		_ = ackPending.Add(1)
 		o.dispatchToTargets(group, trackedMsg, outputTargets, func(ctx context.Context, err error) error {
 			ackErr := ts.Ack(ctx, err)
-			_ = atomic.AddInt64(&ackPending, -1)
+			_ = ackPending.Add(-1)
 			select {
 			case ackInterruptChan <- struct{}{}:
 			default:

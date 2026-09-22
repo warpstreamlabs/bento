@@ -5,18 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import type {BrokenMarkdownLink, ContentPaths} from '@docusaurus/utils';
+import type {ContentPaths} from '@docusaurus/utils';
 import type {MDXOptions} from '@docusaurus/mdx-loader';
 
 export type CookbookContentPaths = ContentPaths;
-
-export type CookbookBrokenMarkdownLink = BrokenMarkdownLink<CookbookContentPaths>;
-export type CookbookMarkdownLoaderOptions = {
-  siteDir: string;
-  contentPaths: CookbookContentPaths;
-  sourceToPermalink: {[aliasedPath: string]: string};
-  onBrokenMarkdownLink: (brokenMarkdownLink: CookbookBrokenMarkdownLink) => void;
-};
 
 export type CookbookPostMetadata = {
   readonly source: string;

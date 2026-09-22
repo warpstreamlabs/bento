@@ -191,9 +191,9 @@ Contributions are welcome, please [read the guidelines](CONTRIBUTING.md), come a
 
 [godoc-badge]: https://pkg.go.dev/badge/github.com/warpstreamlabs/bento/public
 [godoc-url]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public
-[actions-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml/badge.svg
+[actions-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml/badge.svg?branch=main
 [actions-url]: https://github.com/warpstreamlabs/bento/actions/workflows/test.yml
-[govulncheck-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/govulncheck.yml/badge.svg
+[govulncheck-badge]: https://github.com/warpstreamlabs/bento/actions/workflows/govulncheck.yml/badge.svg?branch=main
 [govulncheck-url]: https://github.com/warpstreamlabs/bento/actions/workflows/govulncheck.yml
 [website-badge]: https://img.shields.io/badge/Docs-Learn%20more-ffc7c7
 [website-url]: https://warpstreamlabs.github.io/bento/

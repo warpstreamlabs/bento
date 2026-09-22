@@ -9,7 +9,9 @@ import (
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	"github.com/google/uuid"
-	"github.com/ory/dockertest/v3"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/warpstreamlabs/bento/internal/impl/gcp/tests"
@@ -28,26 +30,24 @@ func TestIntegrationSpannerCDCTest(t *testing.T) {
 
 	ctx := context.Background()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = 30 * time.Second
+	maxWait := time.Minute
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Name:         fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8]),
-		Repository:   "gcr.io/cloud-spanner-emulator/emulator",
-		Tag:          "latest",
-		ExposedPorts: []string{"9010/tcp", "9020/tcp"},
-	})
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
 
-	t.Cleanup(func() {
-		require.NoError(t, pool.Purge(resource))
-	})
-	_ = resource.Expire(900)
+	resource := pool.RunT(t, "gcr.io/cloud-spanner-emulator/emulator",
+		dockertest.WithName(fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8])),
+		dockertest.WithTag("latest"),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("9010/tcp"): {},
+				dockernetwork.MustParsePort("9020/tcp"): {},
+			}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	t.Setenv("SPANNER_EMULATOR_HOST", "localhost:"+resource.GetPort("9010/tcp"))
 
@@ -89,7 +89,7 @@ input:
 			// Re-using the same instance causes issues on shutdown since the sql_insert output
 			// destroys all sessions on close. Instead, we need to create a new instance and DB each
 			// time to allow these integration tests to run in parallel.
-			require.NoError(t, pool.Retry(func() error {
+			require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 				instanceName, err := CreateInstance(ctx, projectID+"-"+vars.ID, instanceID+"-"+vars.ID)
 				if err != nil {
 					return err

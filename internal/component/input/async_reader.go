@@ -127,8 +127,7 @@ func (r *AsyncReader) loop() {
 
 				var nextBoff time.Duration
 
-				var e *component.ErrBackOff
-				if errors.As(err, &e) {
+				if e, ok := errors.AsType[*component.ErrBackOff](err); ok {
 					nextBoff = e.Wait
 				} else {
 					nextBoff = r.connBackoff.NextBackOff()

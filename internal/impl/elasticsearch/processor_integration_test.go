@@ -9,7 +9,7 @@ import (
 	"time"
 
 	goEs "github.com/elastic/go-elasticsearch/v9"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -54,27 +54,30 @@ func TestIntegrationProcessor(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(3*time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = 3 * time.Minute
-
-	resource, err := pool.Run("elasticsearch", "8.16.5", []string{
-		"discovery.type=single-node",
-		"xpack.security.enabled=false",
-		"xpack.security.transport.ssl.enabled=false",
-		"xpack.security.http.ssl.enabled=false",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m",
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
 	})
+
+	resource, err := pool.Run(t.Context(), "elasticsearch",
+		dockertest.WithTag("8.16.5"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"xpack.security.enabled=false",
+			"xpack.security.transport.ssl.enabled=false",
+			"xpack.security.http.ssl.enabled=false",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m",
+		}),
+		dockertest.WithoutReuse(),
+	)
 	if err != nil {
 		t.Fatalf("Could not start Elasticsearch container: %s", err)
 	}
-	defer func() {
-		if err := pool.Purge(resource); err != nil {
-			t.Logf("Could not purge resource: %s", err)
-		}
-	}()
 
 	urls := []string{fmt.Sprintf("http://127.0.0.1:%s", resource.GetPort("9200/tcp"))}
 
@@ -83,7 +86,7 @@ func TestIntegrationProcessor(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait until the cluster is ready
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		res, err := client.Cluster.Health()
 		if err != nil {
 			return err

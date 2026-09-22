@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const {parseMarkdownString} = require('@docusaurus/utils');
+const matter = require('@11ty/gray-matter');
 
 function components(type) {
   return all_components(type).filter(c => c.status != "deprecated")
@@ -12,8 +12,9 @@ function all_components(type) {
   fs.readdirSync(dir).forEach(function (file) {
     if ( !/about\.mdx?/.test(file) ) {
       let name = file.split('.').slice(0, -1).join('.');
-      let data = fs.readFileSync(path.join(dir, file));
-      const {frontMatter} = parseMarkdownString(data);
+      let data = fs.readFileSync(path.join(dir, file), 'utf-8');
+      // gray-matter caches by content and the next line mutates the result.
+      const frontMatter = structuredClone(matter(data).data);
       frontMatter["name"] = name;
       components.push(frontMatter);
     }

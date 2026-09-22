@@ -79,7 +79,9 @@ output:
       check: ""
       processors: [] # No default (optional)
     max_message_bytes: 1MB
+    max_buffered_bytes: "0"
     max_buffered_records: 10000
+    broker_write_max_bytes: 100MiB
     metadata_max_age: 5m
     compression: "" # No default (optional)
     tls:
@@ -422,6 +424,23 @@ max_message_bytes: 100MB
 max_message_bytes: 50mib
 ```
 
+### `max_buffered_bytes`
+
+max_buffered_bytes sets the max amount of bytes that the client will buffer while producing, blocking produces until records are finished if this limit is reached. This overrides the unlimited default.
+
+
+Type: `string`  
+Default: `"0"`  
+Requires version 1.21.0 or newer  
+
+```yml
+# Examples
+
+max_buffered_bytes: 100MB
+
+max_buffered_bytes: 50mib
+```
+
 ### `max_buffered_records`
 
 Sets the max amount of records the client will buffer, blocking produces until records are finished if this limit is reached. This overrides the `franz-kafka` default of 10,000.
@@ -429,6 +448,23 @@ Sets the max amount of records the client will buffer, blocking produces until r
 
 Type: `int`  
 Default: `10000`  
+
+### `broker_write_max_bytes`
+
+broker_write_max_bytes upper bounds the number of bytes written to a broker connection in a single write, overriding the default 100MiB. This number corresponds to the a broker's socket.request.max.bytes.
+
+
+Type: `string`  
+Default: `"100MiB"`  
+Requires version 1.21.0 or newer  
+
+```yml
+# Examples
+
+broker_write_max_bytes: 100MB
+
+broker_write_max_bytes: 50mib
+```
 
 ### `metadata_max_age`
 
@@ -600,6 +636,14 @@ sasl:
   - mechanism: SCRAM-SHA-512
     password: bar
     username: foo
+
+sasl:
+  - kerberos_config_path: /etc/krb5.conf
+    keytab_path: /etc/security/keytabs/kafka.keytab
+    mechanism: GSSAPI
+    principal: kafka_client/host.example.com
+    realm: EXAMPLE.COM
+    service_name: kafka
 ```
 
 ### `sasl[].mechanism`
@@ -612,6 +656,7 @@ Type: `string`
 | Option | Summary |
 |---|---|
 | `AWS_MSK_IAM` | AWS IAM based authentication as specified by the 'aws-msk-iam-auth' java library. |
+| `GSSAPI` | GSSAPI / Kerberos based authentication. |
 | `OAUTHBEARER` | OAuth Bearer based authentication. |
 | `PLAIN` | Plain text authentication. |
 | `SCRAM-SHA-256` | SCRAM based authentication as specified in RFC5802. |
@@ -807,5 +852,53 @@ Allow the credentials to trigger refreshing prior to the credentials actually ex
 
 Type: `string`  
 Default: `""`  
+
+### `sasl[].kerberos_config_path`
+
+The path to a kerberos configuration file (krb5.conf). Used when mechanism is set to `GSSAPI`.
+
+
+Type: `string`  
+Default: `"/etc/krb5.conf"`  
+
+### `sasl[].keytab_path`
+
+The path to a keytab file to use for authentication with the kerberos client.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].principal`
+
+The principal to use for kerberos authentication, e.g. `kafka_client/host.example.com`.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].realm`
+
+The realm to use for kerberos authentication.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].service_name`
+
+The service name to use when constructing a service ticket with the kerberos client, e.g. `kafka` (default).
+
+
+Type: `string`  
+Default: `"kafka"`  
+
+### `sasl[].disable_pafx_fast`
+
+Controls whether to use PA_FX_FAST in AS_REQ (pre-authentication fast).
+
+
+Type: `bool`  
+Default: `false`  
 
 

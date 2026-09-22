@@ -28,9 +28,9 @@ func parseYAMLProcConf(t testing.TB, formatStr string, args ...any) (conf proces
 }
 
 func TestHTTPClientRetries(t *testing.T) {
-	var reqCount uint32
+	var reqCount atomic.Uint32
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddUint32(&reqCount, 1)
+		reqCount.Add(1)
 		http.Error(w, "test error", http.StatusForbidden)
 	}))
 	defer ts.Close()
@@ -65,7 +65,7 @@ http:
 		t.Errorf("Wrong response code metadata: %v != %v", act, exp)
 	}
 
-	if exp, act := uint32(4), atomic.LoadUint32(&reqCount); exp != act {
+	if exp, act := uint32(4), reqCount.Load(); exp != act {
 		t.Errorf("Wrong count of HTTP attempts: %v != %v", exp, act)
 	}
 }

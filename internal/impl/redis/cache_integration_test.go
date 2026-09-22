@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -20,19 +22,14 @@ func TestIntegrationRedisCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
+	resource := pool.RunT(t, "redis",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
-	resource, err := pool.Run("redis", "latest", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		url := fmt.Sprintf("tcp://localhost:%v/1", resource.GetPort("6379/tcp"))
 		pConf, cErr := redisCacheConfig().ParseYAML(fmt.Sprintf(`url: %v`, url), nil)
 		if cErr != nil {
@@ -76,47 +73,40 @@ func TestIntegrationRedisClusterCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-	pool.MaxWait = time.Second * 30
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	networks, _ := pool.Client.ListNetworks()
+	nets, _ := pool.Client().NetworkList(t.Context(), mobyclient.NetworkListOptions{})
 	hostIP := ""
-	for _, network := range networks {
-		if network.Name == "bridge" {
-			hostIP = network.IPAM.Config[0].Gateway
+	for _, n := range nets.Items {
+		// Gateway is a netip.Addr in the moby API; the zero value stringifies
+		// as "invalid IP" rather than "", hence the validity check.
+		if n.Name == "bridge" && len(n.IPAM.Config) > 0 && n.IPAM.Config[0].Gateway.IsValid() {
+			hostIP = n.IPAM.Config[0].Gateway.String()
 		}
 	}
 	if runtime.GOOS == "darwin" {
 		hostIP = "0.0.0.0"
 	}
 
-	exposedPorts := make([]string, 12)
-	portBindings := make(map[docker.Port][]docker.PortBinding, 12)
+	portBindings := make(dockernetwork.PortMap, 12)
 	for i := range 6 {
-		p1 := fmt.Sprintf("%d/tcp", 7000+i)
-		p2 := fmt.Sprintf("%d/tcp", 17000+i)
-		exposedPorts[i] = p1
-		exposedPorts[i+6] = p2
-		portBindings[docker.Port(p1)] = []docker.PortBinding{{HostIP: "", HostPort: p1}}
-		portBindings[docker.Port(p2)] = []docker.PortBinding{{HostIP: "", HostPort: p2}}
+		// HostPort is a bare number; the "/tcp" suffix belongs only to the
+		// container-side port. v3 accepted the malformed value silently.
+		portBindings[dockernetwork.MustParsePort(fmt.Sprintf("%d/tcp", 7000+i))] =
+			[]dockernetwork.PortBinding{{HostPort: strconv.Itoa(7000 + i)}}
+		portBindings[dockernetwork.MustParsePort(fmt.Sprintf("%d/tcp", 17000+i))] =
+			[]dockernetwork.PortBinding{{HostPort: strconv.Itoa(17000 + i)}}
 	}
 
-	cluster, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Name:         "redis-cluster",
-		Repository:   "grokzen/redis-cluster",
-		Tag:          "6.0.7",
-		ExposedPorts: exposedPorts,
-		PortBindings: portBindings,
-		Env: []string{
+	pool.RunT(t, "grokzen/redis-cluster",
+		dockertest.WithName("redis-cluster"),
+		dockertest.WithTag("6.0.7"),
+		dockertest.WithPortBindings(portBindings),
+		dockertest.WithEnv([]string{
 			"IP=" + hostIP,
-		},
-	})
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(cluster))
-	})
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	clusterURL := ""
 	for i := range 6 {
@@ -124,7 +114,7 @@ func TestIntegrationRedisClusterCache(t *testing.T) {
 	}
 	clusterURL = strings.TrimSuffix(clusterURL, ",")
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		pConf, cErr := redisCacheConfig().ParseYAML(fmt.Sprintf(`
 url: %v
 kind: cluster
@@ -171,73 +161,67 @@ func TestIntegrationRedisFailoverCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-	pool.MaxWait = time.Second * 30
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	networks, _ := pool.Client.ListNetworks()
+	nets, _ := pool.Client().NetworkList(t.Context(), mobyclient.NetworkListOptions{})
 	hostIP := ""
-	for _, network := range networks {
-		if network.Name == "bridge" {
-			hostIP = network.IPAM.Config[0].Gateway
+	for _, n := range nets.Items {
+		// Gateway is a netip.Addr in the moby API; the zero value stringifies
+		// as "invalid IP" rather than "", hence the validity check.
+		if n.Name == "bridge" && len(n.IPAM.Config) > 0 && n.IPAM.Config[0].Gateway.IsValid() {
+			hostIP = n.IPAM.Config[0].Gateway.String()
 		}
 	}
 	if runtime.GOOS == "darwin" {
 		hostIP = "0.0.0.0"
 	}
 
-	net, err := pool.CreateNetwork("redis-sentinel")
-	require.NoError(t, err)
+	// CreateNetworkT tracks the network; the pool removes it during cleanup.
+	_ = pool.CreateNetworkT(t, "redis-sentinel", nil)
 
-	t.Cleanup(func() {
-		_ = pool.RemoveNetwork(net)
-	})
-
-	master, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Name:         "redis-master",
-		Repository:   "bitnami/redis",
-		Tag:          "6.0.9",
-		Networks:     []*dockertest.Network{net},
-		ExposedPorts: []string{"6379/tcp"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"6379/tcp": {{HostIP: "", HostPort: "6379/tcp"}},
-		},
-		Env: []string{
+	master := pool.RunT(t, "bitnami/redis",
+		dockertest.WithName("redis-master"),
+		dockertest.WithTag("6.0.9"),
+		// v4 attaches at creation via NetworkMode; it takes a single network
+		// where v3 took a slice, which is all this test needs.
+		dockertest.WithHostConfig(func(hc *dockercontainer.HostConfig) {
+			hc.NetworkMode = dockercontainer.NetworkMode("redis-sentinel")
+		}),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("6379/tcp"): {{HostPort: "6379"}},
+		}),
+		dockertest.WithEnv([]string{
 			"ALLOW_EMPTY_PASSWORD=yes",
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	sentinel, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Name:       "redis-failover",
-		Repository: "bitnami/redis-sentinel",
-		Tag:        "6.0.9",
-		Networks:   []*dockertest.Network{net},
-		ExposedPorts: []string{
-			"26379/tcp",
-		},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"26379/tcp": {{HostIP: "", HostPort: "26379/tcp"}},
-		},
-		Env: []string{
+	sentinel := pool.RunT(t, "bitnami/redis-sentinel",
+		dockertest.WithName("redis-failover"),
+		dockertest.WithTag("6.0.9"),
+		dockertest.WithHostConfig(func(hc *dockercontainer.HostConfig) {
+			hc.NetworkMode = dockercontainer.NetworkMode("redis-sentinel")
+		}),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("26379/tcp"): {{HostPort: "26379"}},
+		}),
+		dockertest.WithEnv([]string{
 			"REDIS_SENTINEL_ANNOUNCE_IP=" + hostIP,
 			"REDIS_SENTINEL_QUORUM=1",
 			"REDIS_MASTER_HOST=" + hostIP,
 			"REDIS_MASTER_PORT_NUMBER=" + master.GetPort("6379/tcp"),
-		},
-	})
-	require.NoError(t, err)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(master))
-		assert.NoError(t, pool.Purge(sentinel))
 	})
 
 	clusterURL := ""
 	clusterURL += fmt.Sprintf("redis://%s:%s/0,", hostIP, sentinel.GetPort("26379/tcp"))
 	clusterURL = strings.TrimSuffix(clusterURL, ",")
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		pConf, cErr := redisCacheConfig().ParseYAML(fmt.Sprintf(`
 url: %v
 kind: failover

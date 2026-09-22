@@ -114,7 +114,7 @@ func getFlowID(part *message.Part) string {
 
 type control struct {
 	isEnabled  int32
-	eventLimit int64
+	eventLimit atomic.Int64
 }
 
 func (c *control) SetEnabled(e bool) {
@@ -126,7 +126,7 @@ func (c *control) SetEnabled(e bool) {
 }
 
 func (c *control) SetEventLimit(n int64) {
-	atomic.StoreInt64(&c.eventLimit, n)
+	c.eventLimit.Store(n)
 }
 
 func (c *control) IsEnabled() bool {
@@ -134,7 +134,7 @@ func (c *control) IsEnabled() bool {
 }
 
 func (c *control) EventLimit() int64 {
-	return atomic.LoadInt64(&c.eventLimit)
+	return c.eventLimit.Load()
 }
 
 // Summary is a high level description of all traced events.
@@ -230,7 +230,7 @@ func (s *Summary) wProcessorEvents(label string) (e *events, errCounter *uint64)
 type events struct {
 	mut  sync.Mutex
 	m    []NodeEvent
-	mLen int64
+	mLen atomic.Int64
 
 	ctrl *control
 }
@@ -240,7 +240,7 @@ func (e *events) IsEnabled() bool {
 		return false
 	}
 	if limit := e.ctrl.EventLimit(); limit > 0 {
-		return atomic.LoadInt64(&e.mLen) < limit
+		return e.mLen.Load() < limit
 	}
 	return true
 }
@@ -249,7 +249,7 @@ func (e *events) Add(event NodeEvent) {
 	e.mut.Lock()
 	defer e.mut.Unlock()
 
-	atomic.AddInt64(&e.mLen, 1)
+	e.mLen.Add(1)
 	e.m = append(e.m, event)
 }
 
@@ -269,6 +269,6 @@ func (e *events) Flush() []NodeEvent {
 
 	tmpEvents := e.m
 	e.m = nil
-	atomic.StoreInt64(&e.mLen, 0)
+	e.mLen.Store(0)
 	return tmpEvents
 }

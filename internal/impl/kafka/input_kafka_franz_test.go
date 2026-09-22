@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -174,24 +174,28 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 	ctx, cc := context.WithCancel(context.Background())
 	defer cc()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
+	t.Cleanup(func() {
+		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
-	options := &dockertest.RunOptions{
-		Repository:   "apache/kafka-native",
-		Tag:          "latest",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Env: []string{
+	_ = pool.RunT(t, "apache/kafka-native",
+		dockertest.WithTag("latest"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithEnv([]string{
 			"KAFKA_NODE_ID=0",
 			"KAFKA_PROCESS_ROLES=controller,broker",
 			"KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
@@ -199,16 +203,11 @@ func TestIntegrationFranzInputDetectUnknownTopicError(t *testing.T) {
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
 			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
 			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
-		},
-	}
-
-	pool.MaxWait = time.Minute
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-	_ = resource.Expire(900)
+			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1",
+			"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0",
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	brokerAddress := "localhost:" + kafkaPortStr
 	cl, err := kgo.NewClient(kgo.SeedBrokers(brokerAddress))
@@ -283,24 +282,28 @@ func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 
 	ctx := t.Context()
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
+	t.Cleanup(func() {
+		// Mirror NewPoolT: a cleanup failure is logged, not fatal.
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
-	options := &dockertest.RunOptions{
-		Repository:   "apache/kafka-native",
-		Tag:          "latest",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Env: []string{
+	_ = pool.RunT(t, "apache/kafka-native",
+		dockertest.WithTag("latest"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithEnv([]string{
 			"KAFKA_NODE_ID=0",
 			"KAFKA_PROCESS_ROLES=controller,broker",
 			"KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
@@ -308,27 +311,21 @@ func TestIntegrationFranzInputReconnectUnknownTopicError(t *testing.T) {
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
 			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
 			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
-		},
-	}
-	pool.MaxWait = time.Minute
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-	_ = resource.Expire(900)
+			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1",
+			"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0",
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	brokerAddress := "localhost:" + kafkaPortStr
-	cl, err := kgo.NewClient(kgo.SeedBrokers(brokerAddress))
-	require.NoError(t, err)
-	defer cl.Close()
 
 	kgoClient, err := kgo.NewClient(
-		kgo.SeedBrokers(fmt.Sprintf("%s:%d", "localhost", kafkaPort)),
+		kgo.SeedBrokers(brokerAddress),
 		kgo.RequestRetries(1),
 		kgo.DisableIdempotentWrite(),
 	)
 	require.NoError(t, err)
+	t.Cleanup(kgoClient.Close)
 
 	admin := kadm.NewClient(kgoClient)
 	require.Eventually(t, func() bool {
@@ -384,8 +381,12 @@ kafka_franz:
 	inStrm, err := inBuilder.Build()
 	require.NoError(t, err)
 	go func() {
-		assert.NoError(t, inStrm.Run(context.Background()))
+		if err := inStrm.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			assert.NoError(t, err)
+		}
 	}()
+
+	require.Eventually(t, inStrm.IsReady, time.Second*5, time.Millisecond*500)
 
 	// Make sure it was able to read from the old topic
 	require.Eventually(t, func() bool {
@@ -401,7 +402,18 @@ kafka_franz:
 	_, err = admin.CreateTopic(ctx, 1, 1, nil, "foo")
 	require.NoError(t, err)
 
-	r = kgoClient.ProduceSync(ctx,
+	// NOTE: We cannot use the same client since topic IDs are cached by producers,
+	// so we should create a new one to ensure the Create -> Delete -> Re-create flow
+	// can execute against Kafka.
+	producer, err := kgo.NewClient(
+		kgo.SeedBrokers(brokerAddress),
+		kgo.RequestRetries(1),
+		kgo.DisableIdempotentWrite(),
+	)
+	require.NoError(t, err)
+	t.Cleanup(producer.Close)
+
+	r = producer.ProduceSync(ctx,
 		&kgo.Record{
 			Value:     []byte("after_recreate_topic"),
 			Timestamp: time.Now(),

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/internal/component"
+	icache "github.com/warpstreamlabs/bento/internal/component/cache"
 )
 
 // CacheTestOpenClose checks that the cache can be started, an item added, and
@@ -108,6 +109,37 @@ func CacheTestDelete() CacheTestDefinition {
 
 			_, err = cache.Get(env.ctx, "addkey")
 			require.EqualError(t, err, "key does not exist")
+		},
+	)
+}
+
+// CacheTestKeys checks that a cache supporting key listing enumerates the
+// keys it holds after n items are set.
+func CacheTestKeys(n int) CacheTestDefinition {
+	return namedCacheTest(
+		"can list keys",
+		func(t *testing.T, env *cacheTestEnvironment) {
+			cache := initCache(t, env)
+			t.Cleanup(func() {
+				closeCache(t, cache)
+			})
+
+			expKeys := make([]string, 0, n)
+			for i := range n {
+				key := fmt.Sprintf("listkey%v", i)
+				require.NoError(t, cache.Set(env.ctx, key, fmt.Appendf(nil, "value%v", i), nil))
+				expKeys = append(expKeys, key)
+			}
+
+			lister, ok := cache.(icache.Listable)
+			require.True(t, ok, "cache does not support key listing")
+
+			var keys []string
+			for key, err := range lister.Keys(env.ctx) {
+				require.NoError(t, err)
+				keys = append(keys, key)
+			}
+			assert.ElementsMatch(t, expKeys, keys)
 		},
 	)
 }

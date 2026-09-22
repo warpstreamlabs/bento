@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -23,38 +23,28 @@ func TestIntegrationSaramaCheckpointOneLockUp(t *testing.T) {
 	integration.CheckSkipExact(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = time.Minute
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
-	options := &dockertest.RunOptions{
-		Repository:   "redpandadata/redpanda",
-		Tag:          "latest",
-		Hostname:     "redpanda",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Cmd: []string{
+	pool.RunT(t, "redpandadata/redpanda",
+		dockertest.WithTag("latest"),
+		dockertest.WithHostname("redpanda"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithCmd([]string{
 			"redpanda", "start", "--smp 1", "--overprovisioned", "",
 			"--kafka-addr 0.0.0.0:9092",
 			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
-		},
-	}
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return createKafkaTopic(context.Background(), "localhost:"+kafkaPortStr, "wcotesttopic", 20)
 	}))
 
@@ -181,39 +171,28 @@ func TestIntegrationSaramaRedpanda(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = time.Minute
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
-	options := &dockertest.RunOptions{
-		Repository:   "redpandadata/redpanda",
-		Tag:          "latest",
-		Hostname:     "redpanda",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Cmd: []string{
+	pool.RunT(t, "redpandadata/redpanda",
+		dockertest.WithTag("latest"),
+		dockertest.WithHostname("redpanda"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithCmd([]string{
 			"redpanda", "start", "--smp 1", "--overprovisioned", "",
 			"--kafka-addr 0.0.0.0:9092",
 			fmt.Sprintf("--advertise-kafka-addr localhost:%v", kafkaPort),
-		},
-	}
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return createKafkaTopic(context.Background(), "localhost:"+kafkaPortStr, "pls_ignore_just_testing_connection", 1)
 	}))
 
@@ -433,24 +412,19 @@ func TestIntegrationSaramaOld(t *testing.T) {
 
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = time.Minute
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	kafkaPort, err := integration.GetFreePort()
 	require.NoError(t, err)
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
-	kafkaResource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "apache/kafka-native",
-		Tag:          "latest",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Env: []string{
+	pool.RunT(t, "apache/kafka-native",
+		dockertest.WithTag("latest"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithEnv([]string{
 			"KAFKA_NODE_ID=0",
 			"KAFKA_PROCESS_ROLES=controller,broker",
 			"KAFKA_CONTROLLER_QUORUM_VOTERS=0@localhost:9093",
@@ -458,17 +432,13 @@ func TestIntegrationSaramaOld(t *testing.T) {
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
 			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
 			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
-		},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, pool.Purge(kafkaResource))
-	})
-	_ = kafkaResource.Expire(900)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	address := fmt.Sprintf("localhost:%v", kafkaPortStr)
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		outConf, err := kafka.OSKConfigSpec().ParseYAML(fmt.Sprintf(`
 addresses:
   - %v

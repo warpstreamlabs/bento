@@ -9,7 +9,7 @@ import (
 	"time"
 
 	client "github.com/influxdata/influxdb1-client/v2"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -26,35 +26,33 @@ func TestInfluxIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
-	pool.MaxWait = time.Second * 30
+	t.Cleanup(func() {
+		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
+			t.Logf("pool.Close() error: %v", err)
+		}
+	})
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "influxdb",
-		Tag:        "1.8.3-alpine",
-		Env: []string{
+	resource, err := pool.Run(t.Context(), "influxdb",
+		dockertest.WithTag("1.8.3-alpine"),
+		dockertest.WithEnv([]string{
 			"INFLUXDB_DB=db0",
 			"INFLUXDB_ADMIN_USER=admin",
 			"INFLUXDB_ADMIN_PASSWORD=admin",
-		},
-	})
+		}),
+		dockertest.WithoutReuse(),
+	)
 	if err != nil {
 		t.Fatalf("Could not start resource: %v", err)
 	}
 
 	url := fmt.Sprintf("http://127.0.0.1:%v", resource.GetPort("8086/tcp"))
 
-	defer func() {
-		if err = pool.Purge(resource); err != nil {
-			t.Logf("Failed to clean up docker resource: %v", err)
-		}
-	}()
-
 	var c client.Client
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		c, err = client.NewHTTPClient(client.HTTPConfig{
 			Addr: url,
 		})

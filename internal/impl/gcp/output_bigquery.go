@@ -59,6 +59,7 @@ type gcpBigQueryOutputConfig struct {
 	IgnoreUnknownValues bool
 	MaxBadRecords       int
 	JobLabels           map[string]string
+	ClientOptions       []option.ClientOption
 
 	// CSV options
 	CSVOptions  gcpBigQueryCSVConfig
@@ -103,6 +104,9 @@ func gcpBigQueryOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBig
 		return
 	}
 	if gconf.CSVOptions, err = gcpBigQueryCSVConfigFromParsed(conf.Namespace("csv")); err != nil {
+		return
+	}
+	if gconf.ClientOptions, err = gcpClientOptionsFromParsed(conf); err != nil {
 		return
 	}
 	return
@@ -219,7 +223,8 @@ The table to insert messages to.`)).
 				Advanced().
 				Default(1),
 		).Description("Specify how CSV data should be interpretted.")).
-		Field(service.NewBatchPolicyField("batching"))
+		Field(service.NewBatchPolicyField("batching")).
+		Field(gcpCredentialsField())
 }
 
 func init() {
@@ -312,7 +317,7 @@ func (g *gcpBigQueryOutput) Connect(ctx context.Context) (err error) {
 	defer g.connMut.Unlock()
 
 	var client *bigquery.Client
-	var opts []option.ClientOption
+	opts := g.conf.ClientOptions
 	if g.conf.Endpoint != "" {
 		opts = append(opts, option.WithoutAuthentication(), option.WithEndpoint(g.conf.Endpoint))
 	}

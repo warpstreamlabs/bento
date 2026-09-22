@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"cloud.google.com/go/bigtable"
+	"google.golang.org/api/option"
 
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -96,6 +97,7 @@ This output benefits from sending messages as a batch for improved performance. 
 				Example(`json("created_at").ts_parse("2006-01-02 15:04:05")`),
 			service.NewBatchPolicyField(btoFieldBatching),
 			service.NewOutputMaxInFlightField(),
+			gcpCredentialsField(),
 		)
 }
 
@@ -110,6 +112,8 @@ type gcpBigTableOutputConfig struct {
 	ColumnFamily *service.InterpolatedString
 
 	Timestamp *bloblang.Executor
+
+	ClientOptions []option.ClientOption
 }
 
 func gcpBigTableOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBigTableOutputConfig, err error) {
@@ -143,6 +147,10 @@ func gcpBigTableOutputConfigFromParsed(conf *service.ParsedConfig) (gconf gcpBig
 		}
 	}
 
+	if gconf.ClientOptions, err = gcpClientOptionsFromParsed(conf); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -169,7 +177,7 @@ func (g *gcpBigTableOutput) Connect(ctx context.Context) error {
 	defer g.mu.Unlock()
 
 	if g.client == nil {
-		client, err := bigtable.NewClient(ctx, g.conf.ProjectID, g.conf.InstanceID)
+		client, err := bigtable.NewClient(ctx, g.conf.ProjectID, g.conf.InstanceID, g.conf.ClientOptions...)
 		if err != nil {
 			return fmt.Errorf("could not create bigtable client: %w", err)
 		}

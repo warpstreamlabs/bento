@@ -12,9 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -112,36 +111,26 @@ KafkaClient {
 	require.NoError(t, err)
 
 	// set up kafka container
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	options := &dockertest.RunOptions{
-		Repository:   "apache/kafka",
-		Tag:          "4.1.2",
-		Hostname:     "kafka",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Env: []string{"KAFKA_OPTS=-Djava.security.auth.login.config=/tmp/kafka_server_jaas.conf"},
-		Mounts: []string{
+	pool.RunT(t, "apache/kafka",
+		dockertest.WithTag("4.1.2"),
+		dockertest.WithHostname("kafka"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithEnv([]string{"KAFKA_OPTS=-Djava.security.auth.login.config=/tmp/kafka_server_jaas.conf"}),
+		dockertest.WithMounts([]string{
 			fmt.Sprintf("%s:/tmp", tmpDir),
-		},
-		Cmd: []string{
+		}),
+		dockertest.WithCmd([]string{
 			"sh", "-c",
 			`/opt/kafka/bin/kafka-storage.sh format -t MkU3OEVBNTcwNTJENDM2Qk -c /tmp/server.properties --ignore-formatted && exec /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties`,
-		},
-	}
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-	pool.MaxWait = time.Minute
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return createKafkaTopicSaslOauthConn(context.Background(), "localhost:"+kafkaPortStr, "sasloauth", 1)
 	}))
 

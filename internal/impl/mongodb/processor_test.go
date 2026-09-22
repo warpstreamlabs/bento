@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/nsf/jsondiff"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,29 +22,24 @@ import (
 func TestProcessorIntegration(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool("")
+	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
 	if err != nil {
 		t.Skipf("Could not connect to docker: %s", err)
 	}
+	t.Cleanup(func() { pool.CloseT(t) })
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mongo",
-		Tag:        "latest",
-		Env: []string{
+	resource := pool.RunT(t, "mongo",
+		dockertest.WithTag("latest"),
+		dockertest.WithEnv([]string{
 			"MONGO_INITDB_ROOT_USERNAME=mongoadmin",
 			"MONGO_INITDB_ROOT_PASSWORD=secret",
-		},
-		ExposedPorts: []string{"27017"},
-	})
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	var mongoClient *mongo.Client
 
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		mongoClient, err = mongo.Connect(context.Background(), options.Client().
 			SetConnectTimeout(10*time.Second).
 			SetSocketTimeout(30*time.Second).

@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kgo"
 
@@ -31,36 +30,28 @@ func TestIntegrationKafkaTransactionIsolation(t *testing.T) {
 func startTransactionIsolationBroker(t *testing.T) string {
 	t.Helper()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-	pool.MaxWait = time.Minute
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	port, err := integration.GetFreePort()
 	require.NoError(t, err)
 	portString := strconv.Itoa(port)
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "redpandadata/redpanda",
-		Tag:          "latest",
-		Hostname:     "redpanda",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: portString}},
-		},
-		Cmd: []string{
+	pool.RunT(t, "redpandadata/redpanda",
+		dockertest.WithTag("latest"),
+		dockertest.WithHostname("redpanda"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: portString}},
+		}),
+		dockertest.WithCmd([]string{
 			"redpanda", "start", "--smp", "1", "--overprovisioned",
 			"--kafka-addr", "0.0.0.0:9092",
 			fmt.Sprintf("--advertise-kafka-addr localhost:%d", port),
-		},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-	_ = resource.Expire(900)
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	address := "localhost:" + portString
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return createKafkaTopic(context.Background(), address, "transaction-isolation-ready", 1)
 	}))
 	return address

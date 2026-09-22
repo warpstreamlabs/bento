@@ -4,8 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -26,18 +25,14 @@ func TestIntegrationBeanstalkdOpenClose(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("websmurf/beanstalkd", "1.12-alpine-3.14", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "websmurf/beanstalkd",
+		dockertest.WithTag("1.12-alpine-3.14"),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return nil
 	}))
 
@@ -54,18 +49,14 @@ func TestIntegrationBeanstalkdSendBatch(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("websmurf/beanstalkd", "1.12-alpine-3.14", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "websmurf/beanstalkd",
+		dockertest.WithTag("1.12-alpine-3.14"),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return nil
 	}))
 
@@ -82,18 +73,14 @@ func TestIntegrationBeanstalkdStreamSequential(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("websmurf/beanstalkd", "1.12-alpine-3.14", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "websmurf/beanstalkd",
+		dockertest.WithTag("1.12-alpine-3.14"),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return nil
 	}))
 
@@ -110,18 +97,14 @@ func TestIntegrationBeanstalkdStreamParallel(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.Run("websmurf/beanstalkd", "1.12-alpine-3.14", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "websmurf/beanstalkd",
+		dockertest.WithTag("1.12-alpine-3.14"),
+		dockertest.WithoutReuse(),
+	)
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		return nil
 	}))
 

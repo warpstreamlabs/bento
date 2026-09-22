@@ -79,7 +79,7 @@ For basic inserts use the [`sql_insert`](/docs/components/outputs/sql) output. F
 
 ### `driver`
 
-A database [driver](#drivers) to use.
+A database [driver](/docs/components/outputs/sql_raw#drivers) to use.
 
 
 Type: `string`  

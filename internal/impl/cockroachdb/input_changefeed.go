@@ -257,7 +257,7 @@ func (c *crdbChangefeedInput) Read(ctx context.Context) (*service.Message, servi
 		return nil, nil, service.ErrNotConnected
 	}
 
-	result := crdbChangefeedResult{}
+	var result crdbChangefeedResult
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()

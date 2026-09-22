@@ -34,6 +34,7 @@ type pbiConfig struct {
 	Sync                   bool
 	CreateEnabled          bool
 	CreateTopicID          string
+	ClientOptions          []option.ClientOption
 }
 
 func pbiConfigFromParsed(pConf *service.ParsedConfig) (conf pbiConfig, err error) {
@@ -63,6 +64,9 @@ func pbiConfigFromParsed(pConf *service.ParsedConfig) (conf pbiConfig, err error
 		if conf.CreateTopicID, err = createConf.FieldString(pbiFieldCreateSubTopicID); err != nil {
 			return
 		}
+	}
+	if conf.ClientOptions, err = gcpClientOptionsFromParsed(pConf); err != nil {
+		return
 	}
 	return
 }
@@ -119,6 +123,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Advanced(),
 			service.NewExtractTracingSpanMappingField().Version("1.21.0"),
 			service.NewRootSpanWithLinkField().Version("1.21.0"),
+			gcpCredentialsField(),
 		)
 }
 
@@ -178,9 +183,9 @@ type gcpPubSubReader struct {
 }
 
 func newGCPPubSubReader(conf pbiConfig, res *service.Resources) (*gcpPubSubReader, error) {
-	var opt []option.ClientOption
+	opt := conf.ClientOptions
 	if strings.TrimSpace(conf.Endpoint) != "" {
-		opt = []option.ClientOption{option.WithEndpoint(conf.Endpoint)}
+		opt = append(opt, option.WithEndpoint(conf.Endpoint))
 	}
 
 	client, err := pubsub.NewClient(context.Background(), conf.ProjectID, opt...)
