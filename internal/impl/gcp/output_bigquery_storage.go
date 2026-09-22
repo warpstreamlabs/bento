@@ -66,7 +66,7 @@ sets the type of stream this write client is managing.`).Default(string(managedw
 			"json":     "Messages are in JSON format (default)",
 			"protobuf": "Messages are in protobuf format",
 		}).Description("Format of incoming messages").Default("json")).
-		Field(service.NewBatchPolicyField("batching").Advanced().LintRule(`root = if this.byte_size >= 1000000 { "the amount of bytes in a batch cannot exceed 10 MB" }`)).
+		Field(service.NewBatchPolicyField("batching").Advanced().LintRule(`root = if this.byte_size >= 10000000 { "the amount of bytes in a batch cannot exceed 10 MB" }`)).
 		Field(service.NewIntField("max_in_flight").
 			Description("The maximum number of message batches to have in flight at a given time. Increase this to improve throughput.").
 			Default(64).Advanced()).
