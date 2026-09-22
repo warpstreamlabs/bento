@@ -20,15 +20,7 @@ func TestIntegrationCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := pool.Close(context.WithoutCancel(t.Context())); err != nil {
-			t.Logf("pool.Close() error: %v", err)
-		}
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "postgres",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -44,7 +36,10 @@ func TestIntegrationCache(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var db *sql.DB
+	var (
+		db  *sql.DB
+		err error
+	)
 	t.Cleanup(func() {
 		if db != nil {
 			db.Close()

@@ -218,7 +218,7 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 	env = append(env, "LS_LOG=debug")
 
 	resource := pool.RunT(t, lsImageName,
-		dockertest.WithTag("4.9.2"), // pinning version: latest needs a license.
+		dockertest.WithTag("4.14.0"), // pinning version: latest needs a license.
 		// 4566 has no binding of its own and GetPort reads it below, so the
 		// declaration must stay for v4 to wait on the binding.
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {

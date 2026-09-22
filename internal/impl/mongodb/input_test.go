@@ -45,11 +45,7 @@ query: |
 func TestInputIntegration(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() { pool.CloseT(t) })
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "mongo",
 		dockertest.WithTag("latest"),
@@ -60,8 +56,10 @@ func TestInputIntegration(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var mongoClient *mongo.Client
-	require.NoError(t, err)
+	var (
+		mongoClient *mongo.Client
+		err         error
+	)
 
 	dbName := "TestDB"
 	collName := "TestCollection"
