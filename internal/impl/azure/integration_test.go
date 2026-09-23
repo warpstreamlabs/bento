@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -12,6 +13,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -51,6 +53,15 @@ func TestIntegrationAzure(t *testing.T) {
 				dockernetwork.MustParsePort("10001/tcp"): {},
 				dockernetwork.MustParsePort("10002/tcp"): {},
 			}
+		}),
+		// HACK(gregfurman): The Azure SDKs pin a storage API version that's often newer than the
+		// latest Azurite release supports, so skip Azurite's version check to prevent a plethora of 400s.
+		dockertest.WithCmd([]string{
+			"azurite",
+			"--blobHost", "0.0.0.0",
+			"--queueHost", "0.0.0.0",
+			"--tableHost", "0.0.0.0",
+			"--skipApiVersionCheck",
 		}),
 		dockertest.WithoutReuse(),
 	)
@@ -235,6 +246,16 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	// This listener will be owned and closed automatically by the HTTP server
 	listener, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
+
+	_, servicePort, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+
+	// The emulator advertises its container IP as the account endpoint, and azcosmos routes all
+	// requests to advertised endpoints, which bypasses this proxy and isn't reachable from the
+	// host. Rewrite them to point back at the proxy.
+	advertisedEndpointRe := regexp.MustCompile(`("databaseAccountEndpoint"\s*:\s*)"[^"]*"`)
+	proxyEndpoint := []byte(`${1}"http://localhost:` + servicePort + `/"`)
+
 	srv := &http.Server{Handler: http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		url, err := url.Parse("https://localhost:" + resource.GetPort("8081/tcp"))
 		require.NoError(t, err)
@@ -248,6 +269,21 @@ func TestIntegrationCosmosDB(t *testing.T) {
 		p.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
 			rw.WriteHeader(http.StatusBadGateway)
 		}
+		p.ModifyResponse = func(resp *http.Response) error {
+			if resp.Request.Method != http.MethodGet || resp.Request.URL.Path != "/" {
+				return nil
+			}
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			_ = resp.Body.Close()
+			body = advertisedEndpointRe.ReplaceAll(body, proxyEndpoint)
+			resp.Body = io.NopCloser(bytes.NewReader(body))
+			resp.ContentLength = int64(len(body))
+			resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
+			return nil
+		}
 
 		p.ServeHTTP(res, req)
 	})}
@@ -257,9 +293,6 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	t.Cleanup(func() {
 		assert.NoError(t, srv.Close())
 	})
-
-	_, servicePort, err := net.SplitHostPort(listener.Addr().String())
-	require.NoError(t, err)
 
 	// A zero timeout falls back to the pool MaxWait.
 	err = pool.Retry(t.Context(), 0, func() error {
