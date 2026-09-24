@@ -675,20 +675,44 @@ func (f FieldSpecs) LintYAML(ctx LintContext, node *yaml.Node) []Lint {
 		return lints
 	}
 
-	specNamesMissing, specNamesAll := map[string]FieldSpec{}, map[string]FieldSpec{}
+	specNamesMissing, specNamesAll, specNamesAlias := map[string]FieldSpec{}, map[string]FieldSpec{}, map[string]string{}
 	for _, field := range f {
 		specNamesMissing[field.Name] = field
 		specNamesAll[field.Name] = field
+
+		for _, alias := range field.Alias {
+			specNamesAlias[alias] = field.Name
+		}
 	}
 
 	var walkNodeContent func(*yaml.Node)
 	walkNodeContent = func(walkNode *yaml.Node) {
+		seen := map[string]string{}
 		for i := 0; i < len(walkNode.Content)-1; i += 2 {
 			if walkNode.Content[i].Tag == "!!merge" && walkNode.Content[i+1].Alias != nil {
 				walkNodeContent(walkNode.Content[i+1].Alias)
 				continue
 			}
-			spec, exists := specNamesAll[walkNode.Content[i].Value]
+
+			key := walkNode.Content[i].Value
+			name := key
+
+			if canonical, ok := specNamesAlias[key]; ok {
+				if ctx.conf.RejectDeprecated {
+					lints = append(lints, NewLintError(walkNode.Content[i].Line, LintDeprecated, fmt.Errorf("field %v is a deprecated alias for field %v", key, canonical)))
+				} else if ctx.conf.WarnDeprecated {
+					lints = append(lints, NewLintWarning(walkNode.Content[i].Line, LintDeprecated, fmt.Sprintf("field %v is a deprecated alias for field %v", key, canonical)))
+				}
+				name = canonical
+			}
+
+			if prev, dup := seen[name]; dup {
+				lints = append(lints, NewLintError(walkNode.Content[i].Line, LintDuplicateAlias, fmt.Errorf("field %v specified more than once (via %v and %v)", name, prev, key)))
+				continue
+			}
+			seen[name] = key
+
+			spec, exists := specNamesAll[name]
 			if !exists {
 				if walkNode.Content[i+1].Kind != yaml.AliasNode {
 					lints = append(lints, NewLintError(walkNode.Content[i].Line, LintUnknown, fmt.Errorf("field %v not recognised", walkNode.Content[i].Value)))
@@ -697,7 +721,7 @@ func (f FieldSpecs) LintYAML(ctx LintContext, node *yaml.Node) []Lint {
 			}
 			lints = append(lints, lintYAMLFromOmit(f, spec, walkNode, walkNode.Content[i+1])...)
 			lints = append(lints, spec.LintYAML(ctx, walkNode.Content[i+1])...)
-			delete(specNamesMissing, walkNode.Content[i].Value)
+			delete(specNamesMissing, name)
 		}
 	}
 	walkNodeContent(node)
@@ -969,9 +993,17 @@ func resolveMergeKeys(node *yaml.Node) []yamlNodePair {
 func (f FieldSpecs) YAMLToMap(node *yaml.Node, conf ToValueConfig) (map[string]any, error) {
 	node = unwrapDocumentNode(node)
 
-	pendingFieldsMap := map[string]FieldSpec{}
+	pendingFieldsMap, aliasFieldsMap := map[string]FieldSpec{}, map[string]string{}
 	for _, field := range f {
 		pendingFieldsMap[field.Name] = field
+
+		for _, alias := range field.Alias {
+			aliasFieldsMap[alias] = field.Name
+		}
+	}
+
+	if err := checkAliasConflicts(node, aliasFieldsMap); err != nil {
+		return nil, err
 	}
 
 	resultMap := map[string]any{}
@@ -980,24 +1012,28 @@ func (f FieldSpecs) YAMLToMap(node *yaml.Node, conf ToValueConfig) (map[string]a
 	// recognised. Explicit keys take precedence over merged ones.
 	seen := map[string]struct{}{}
 	for _, pair := range resolveMergeKeys(node) {
-		fieldName := pair.key.Value
+		key := pair.key.Value
+		fieldName := key
+		if canonical, ok := aliasFieldsMap[key]; ok {
+			fieldName = canonical
+		}
 		if _, ok := seen[fieldName]; ok {
 			continue
 		}
 		seen[fieldName] = struct{}{}
 
 		if f, exists := pendingFieldsMap[fieldName]; exists {
-			delete(pendingFieldsMap, f.Name)
+			delete(pendingFieldsMap, fieldName)
 			var err error
 			if resultMap[fieldName], err = f.YAMLToValue(pair.value, conf); err != nil {
-				return nil, fmt.Errorf("field '%v': %w", fieldName, err)
+				return nil, fmt.Errorf("field '%v': %w", key, err)
 			}
 		} else {
 			var v any
 			if err := pair.value.Decode(&v); err != nil {
 				return nil, err
 			}
-			resultMap[fieldName] = v
+			resultMap[key] = v
 		}
 	}
 
@@ -1013,6 +1049,29 @@ func (f FieldSpecs) YAMLToMap(node *yaml.Node, conf ToValueConfig) (map[string]a
 	}
 
 	return resultMap, nil
+}
+
+func checkAliasConflicts(node *yaml.Node, aliasFieldsMap map[string]string) error {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	used := map[string]string{}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		keyNode := node.Content[i]
+		if keyNode.Value == "<<" {
+			continue
+		}
+		fieldName := keyNode.Value
+		if canonical, ok := aliasFieldsMap[fieldName]; ok {
+			fieldName = canonical
+		}
+		if prev, ok := used[fieldName]; ok {
+			return fmt.Errorf("line %d: field '%v' specified more than once (via '%v' and '%v')",
+				keyNode.Line, fieldName, prev, keyNode.Value)
+		}
+		used[fieldName] = keyNode.Value
+	}
+	return nil
 }
 
 //------------------------------------------------------------------------------

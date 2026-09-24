@@ -209,6 +209,12 @@ func (c *ConfigField) Description(d string) *ConfigField {
 	return c
 }
 
+// Alias adds an alias to the field which will be TODO
+func (c *ConfigField) Alias(a []string) *ConfigField {
+	c.field.Alias = a
+	return c
+}
+
 // Advanced marks a config field as being advanced, and therefore it will not
 // appear in simplified documentation examples.
 func (c *ConfigField) Advanced() *ConfigField {
@@ -741,4 +747,15 @@ func (p *ParsedConfig) FieldObjectMap(path ...string) (map[string]*ParsedConfig,
 		}
 	}
 	return pl, nil
+}
+
+// TODO
+func FieldWithAlias[T any](p *ParsedConfig, get func(...string) (T, error), paths ...[]string) (T, error) {
+	for _, path := range paths {
+		if p.Contains(path...) {
+			return get(path...)
+		}
+	}
+	var zero T
+	return zero, fmt.Errorf("none of the fields %v were found", paths)
 }
