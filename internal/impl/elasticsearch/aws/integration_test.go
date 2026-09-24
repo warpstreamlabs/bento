@@ -237,12 +237,6 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 	port = resource.GetPort("4566/tcp")
 
 	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
-		var err error
-		defer func() {
-			if err != nil {
-				t.Logf("localstack probe error: %v", err)
-			}
-		}()
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%s/_localstack/health", port))
 		if err != nil {
 			return err
@@ -257,7 +251,8 @@ func GetLocalStack(t testing.TB, envVars []string, readyFns ...func(port string)
 	}))
 
 	for _, readyFn := range readyFns {
-		require.NoError(t, pool.Retry(t.Context(), 0, func() error {
+		// NOTE: LocalStack needs to install elasticsearch binary, which can take a bit of time.
+		require.NoError(t, pool.Retry(t.Context(), 5*time.Minute, func() error {
 			return readyFn(port)
 		}))
 	}
