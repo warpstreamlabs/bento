@@ -680,7 +680,9 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 		}
 
 		// Receive and complete the test message to clear it from the queue
-		receiver, err := client.NewReceiverForQueue(dummyQueue, nil)
+		receiver, err := client.NewReceiverForQueue(dummyQueue,
+			&azservicebus.ReceiverOptions{ReceiveMode: azservicebus.ReceiveModeReceiveAndDelete},
+		)
 		if err != nil {
 			return err
 		}
@@ -690,8 +692,8 @@ func TestIntegrationAzureServiceBus(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if len(messages) > 0 {
-			_ = receiver.CompleteMessage(ctx, messages[0], nil)
+		if len(messages) == 0 {
+			return fmt.Errorf("expected to receive a message")
 		}
 
 		return nil
