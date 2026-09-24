@@ -622,7 +622,7 @@ func TestIntegrationClickhouse(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "clickhouse/clickhouse-server",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -676,7 +676,7 @@ func TestIntegrationOldClickhouse(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "clickhouse/clickhouse-server",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -730,7 +730,7 @@ func TestIntegrationPostgres(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "postgres",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
@@ -789,7 +789,7 @@ func TestIntegrationPostgres(t *testing.T) {
 func TestIntegrationSpanner(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "mysql",
 		dockertest.WithName(fmt.Sprintf("gcp_spanner_emulator-%s", uuid.NewString()[:8])),
@@ -859,7 +859,7 @@ func TestIntegrationMSSQL(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	testPassword := "ins4n3lyStrongP4ssword"
 	resource := pool.RunT(t, "mcr.microsoft.com/mssql/server",
@@ -964,7 +964,7 @@ func TestIntegrationOracle(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "gvenzl/oracle-free",
 		dockertest.WithTag("slim-faststart"),
@@ -1025,7 +1025,7 @@ func TestIntegrationTrino(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	testPassword := ""
 	resource := pool.RunT(t, "trinodb/trino",
@@ -1085,7 +1085,7 @@ func TestIntegrationCosmosDB(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator",
 		dockertest.WithTag("latest"),
@@ -1222,7 +1222,7 @@ func TestIntegrationRedshiftSecret(t *testing.T) {
 		t.Skip("LOCALSTACK_AUTH_TOKEN is not set")
 	}
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	tfPath, err := filepath.Abs("./resources/redshiftsecret.tf")
 	require.NoError(t, err)
@@ -1346,7 +1346,7 @@ func TestIntegrationRdsIamAuth(t *testing.T) {
 	// TODO SKIP TEST - LOCALSTACK ISSUE
 	t.Skip("issue with localstack and IAM Auth with RDS")
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	// we need a localstack pro image
 	if os.Getenv("LOCALSTACK_AUTH_TOKEN") == "" {
@@ -1476,7 +1476,7 @@ func TestIntegrationCheckReconnectLogic(t *testing.T) {
 	require.NoError(t, err)
 	freePort := strconv.Itoa(freePortInt)
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "postgres",
 		dockertest.WithPortBindings(dockernetwork.PortMap{
