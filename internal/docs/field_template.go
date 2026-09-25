@@ -58,6 +58,9 @@ Type: {{if eq $field.Spec.Kind "array"}}list of {{end}}{{if eq $field.Spec.Kind 
 {{else if gt (len $field.Spec.Options) 0}}Options: {{range $j, $option := $field.Spec.Options -}}
 {{if ne $j 0}}, {{end}}` + "`" + `{{$option}}` + "`" + `{{end}}.
 {{end}}
+{{if gt (len $field.Spec.Alias) 0}} 
+Deprecated Aliases: {{range $i, $alias := $field.Spec.Alias}}{{if $i}}, {{end}}` + "`{{$alias}}`" + `{{end}}
+{{end -}}
 {{if gt (len $field.Spec.Examples) 0 -}}
 ` + "```" + exampleHint + `
 # Examples

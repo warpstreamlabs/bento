@@ -209,6 +209,12 @@ func (c *ConfigField) Description(d string) *ConfigField {
 	return c
 }
 
+// Alias adds an alias to the field which will be TODO
+func (c *ConfigField) Alias(a []string) *ConfigField {
+	c.field.Alias = a
+	return c
+}
+
 // Advanced marks a config field as being advanced, and therefore it will not
 // appear in simplified documentation examples.
 func (c *ConfigField) Advanced() *ConfigField {
@@ -741,4 +747,22 @@ func (p *ParsedConfig) FieldObjectMap(path ...string) (map[string]*ParsedConfig,
 		}
 	}
 	return pl, nil
+}
+
+// FieldWithAlias returns the value of the first path in paths that is present in
+// the parsed config, reading it with get. This is intended for fields that have
+// Aliases.
+//
+// Paths are checked in order and the first match wins; later paths are not consulted
+// and no error is returned if serveral are set. Use the .Alias() builder function
+// on the ConfigSpec, such that if multiple fields that match the Alias are provided
+// a linter error is thrown.
+func FieldWithAlias[T any](p *ParsedConfig, get func(...string) (T, error), paths ...[]string) (T, error) {
+	for _, path := range paths {
+		if p.Contains(path...) {
+			return get(path...)
+		}
+	}
+	var zero T
+	return zero, fmt.Errorf("none of the fields %v were found", paths)
 }

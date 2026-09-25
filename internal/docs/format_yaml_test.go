@@ -1593,3 +1593,293 @@ config:
 		})
 	}
 }
+
+func TestFieldsWithAliases(t *testing.T) {
+	tests := map[string]struct {
+		spec        docs.FieldSpecs
+		yamlConfig  string
+		expected    map[string]any
+		errContains string
+	}{
+		"Use Field Name": {
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			yamlConfig: `x: 5`,
+			expected: map[string]any{
+				"x": 5,
+			},
+		},
+		"Use Alias Name": {
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			yamlConfig: `int_x: 5`,
+			expected: map[string]any{
+				"x": 5,
+			},
+		},
+		"Two Aliases": {
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x", "integer_x"})},
+			yamlConfig: `integer_x: 5`,
+			expected: map[string]any{
+				"x": 5,
+			},
+		},
+		"Both Name And Alias In Config": {
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x", "integer_x"})},
+			yamlConfig: `int_x: 9
+x: 6`,
+			errContains: "specified more than once",
+		},
+		"Two Aliases In Config": {
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x", "integer_x"})},
+			yamlConfig: `int_x: 9
+integer_x: 6`,
+			errContains: "specified more than once",
+		},
+		"Alias Field Omitted Uses Default": {
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"}).HasDefault(3)},
+			yamlConfig: `y: 9`,
+			expected: map[string]any{
+				"x": 3,
+				"y": 9,
+			},
+		},
+		"Explicit Name Overrides Merged Alias": {
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			yamlConfig: `base: &base
+  int_x: 9
+<<: *base
+x: 6`,
+			expected: map[string]any{
+				"base": map[string]any{"int_x": 9},
+				"x":    6,
+			},
+		},
+		"Explicit Alias Overrides Merged Name": {
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			yamlConfig: `base: &base
+  x: 9
+<<: *base
+int_x: 6`,
+			expected: map[string]any{
+				"base": map[string]any{"x": 9},
+				"x":    6,
+			},
+		},
+		"Merged Alias Resolves": {
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			yamlConfig: `base: &base
+  int_x: 9
+<<: *base`,
+			expected: map[string]any{
+				"base": map[string]any{"int_x": 9},
+				"x":    9,
+			},
+		},
+		"Alias With Invalid Value": {
+			spec:        docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			yamlConfig:  `int_x: nope`,
+			errContains: "field 'int_x'",
+		},
+		"Nested Alias": {
+			spec: docs.FieldSpecs{docs.FieldObject("a", "").WithChildren(
+				docs.FieldInt("x", "").HasAlias([]string{"int_x"}),
+			)},
+			yamlConfig: `a:
+  int_x: 5`,
+			expected: map[string]any{
+				"a": map[string]any{"x": 5},
+			},
+		},
+		"Nested Name And Alias Conflict": {
+			spec: docs.FieldSpecs{docs.FieldObject("a", "").WithChildren(
+				docs.FieldInt("x", "").HasAlias([]string{"int_x"}),
+			)},
+			yamlConfig: `a:
+  int_x: 5
+  x: 6`,
+			errContains: "specified more than once",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var doc yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(test.yamlConfig), &doc))
+
+			generic, err := test.spec.YAMLToMap(&doc, docs.ToValueConfig{})
+			if test.errContains != "" {
+				require.ErrorContains(t, err, test.errContains)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, generic)
+		})
+	}
+}
+
+func TestFieldsWithAliasesLints(t *testing.T) {
+	prov := docs.NewMappedDocsProvider()
+	prov.RegisterDocs(docs.ComponentSpec{
+		Name: "foo",
+		Type: docs.TypeInput,
+		Config: docs.FieldComponent().WithChildren(
+			docs.FieldString("foo1", "").HasAlias([]string{"bar1", "baz1"}),
+			docs.FieldAnything("anchors", "").Optional(),
+		),
+	})
+
+	deprecatedWarn := func(line int, alias string) docs.Lint {
+		return docs.NewLintWarning(line, docs.LintDeprecated,
+			fmt.Sprintf("field %v is a deprecated alias for field foo1", alias))
+	}
+	duplicate := func(line int, prev, key string) docs.Lint {
+		return docs.NewLintError(line, docs.LintDuplicateAlias,
+			fmt.Errorf("field foo1 specified more than once (via %v and %v)", prev, key))
+	}
+
+	tests := map[string]struct {
+		inputConf        string
+		warnDeprecated   bool
+		rejectDeprecated bool
+		expected         []docs.Lint
+	}{
+		"Canonical Name With Warn": {
+			inputConf: `
+foo:
+  foo1: a
+`,
+			warnDeprecated: true,
+		},
+		"Alias Satisfies Required Without Flags": {
+			inputConf: `
+foo:
+  bar1: a
+`,
+		},
+		"Missing Required": {
+			inputConf: `
+foo: {}
+`,
+			expected: []docs.Lint{
+				docs.NewLintError(2, docs.LintMissing, errors.New("field foo1 is required")),
+			},
+		},
+		"Alias Warn": {
+			inputConf: `
+foo:
+  bar1: a
+`,
+			warnDeprecated: true,
+			expected:       []docs.Lint{deprecatedWarn(3, "bar1")},
+		},
+		"Alias Reject Reports Key Line": {
+			inputConf: `
+foo:
+  anchors: {}
+  bar1: a
+`,
+			rejectDeprecated: true,
+			expected: []docs.Lint{
+				docs.NewLintError(4, docs.LintDeprecated,
+					errors.New("field bar1 is a deprecated alias for field foo1")),
+			},
+		},
+		"Reject Takes Precedence Over Warn": {
+			inputConf: `
+foo:
+  bar1: a
+`,
+			warnDeprecated:   true,
+			rejectDeprecated: true,
+			expected: []docs.Lint{
+				docs.NewLintError(3, docs.LintDeprecated,
+					errors.New("field bar1 is a deprecated alias for field foo1")),
+			},
+		},
+		"Name And Alias": {
+			inputConf: `
+foo:
+  bar1: a
+  foo1: b
+`,
+			expected: []docs.Lint{duplicate(4, "bar1", "foo1")},
+		},
+		"Two Aliases": {
+			inputConf: `
+foo:
+  bar1: a
+  baz1: b
+`,
+			expected: []docs.Lint{duplicate(4, "bar1", "baz1")},
+		},
+		"Two Aliases With Warn": {
+			inputConf: `
+foo:
+  bar1: a
+  baz1: b
+`,
+			warnDeprecated: true,
+			expected: []docs.Lint{
+				deprecatedWarn(3, "bar1"),
+				deprecatedWarn(4, "baz1"),
+				duplicate(4, "bar1", "baz1"),
+			},
+		},
+		"Merged Alias Resolves": {
+			inputConf: `
+foo:
+  anchors: &base
+    bar1: a
+  <<: *base
+`,
+		},
+		"Merged Alias Warns At Anchor Line": {
+			inputConf: `
+foo:
+  anchors: &base
+    bar1: a
+  <<: *base
+`,
+			warnDeprecated: true,
+			expected:       []docs.Lint{deprecatedWarn(4, "bar1")},
+		},
+		"Explicit Name Overrides Merged Alias": {
+			inputConf: `
+foo:
+  anchors: &base
+    bar1: a
+  <<: *base
+  foo1: b
+`,
+		},
+		"Duplicate Inside Anchor": {
+			inputConf: `
+foo:
+  anchors: &base
+    bar1: a
+    foo1: b
+  <<: *base
+`,
+			expected: []docs.Lint{duplicate(5, "bar1", "foo1")},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			lConf := docs.NewLintConfig(bundle.GlobalEnvironment)
+			lConf.DocsProvider = prov
+			lConf.WarnDeprecated = test.warnDeprecated
+			lConf.RejectDeprecated = test.rejectDeprecated
+
+			var node yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(test.inputConf), &node))
+
+			lints := docs.LintYAML(docs.NewLintContext(lConf), docs.TypeInput, &node)
+			assert.ElementsMatch(t, test.expected, lints)
+		})
+	}
+}
