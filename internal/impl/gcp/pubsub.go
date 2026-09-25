@@ -3,15 +3,15 @@ package gcp
 import (
 	"context"
 
-	"cloud.google.com/go/pubsub" //nolint:staticcheck
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 )
 
 type pubsubClient interface {
-	Topic(id string, settings *pubsub.PublishSettings) pubsubTopic
+	Publisher(ctx context.Context, id string, settings *pubsub.PublishSettings) (pubsubPublisher, error)
 }
 
-type pubsubTopic interface {
-	Exists(ctx context.Context) (bool, error)
+type pubsubPublisher interface {
 	Publish(ctx context.Context, msg *pubsub.Message) publishResult
 	EnableOrdering()
 	Stop()
@@ -25,29 +25,28 @@ type airGappedPubsubClient struct {
 	c *pubsub.Client
 }
 
-func (ac *airGappedPubsubClient) Topic(id string, settings *pubsub.PublishSettings) pubsubTopic {
-	t := ac.c.Topic(id)
-	t.PublishSettings = *settings
-
-	return &airGappedTopic{t: t}
+func (ac *airGappedPubsubClient) Publisher(ctx context.Context, id string, settings *pubsub.PublishSettings) (pubsubPublisher, error) {
+	name := qualifiedName(ac.c.Project(), "topics", id)
+	if _, err := ac.c.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: name}); err != nil {
+		return nil, err
+	}
+	p := ac.c.Publisher(name)
+	p.PublishSettings = *settings
+	return &airGappedPublisher{p: p}, nil
 }
 
-type airGappedTopic struct {
-	t *pubsub.Topic
+type airGappedPublisher struct {
+	p *pubsub.Publisher
 }
 
-func (at *airGappedTopic) Exists(ctx context.Context) (bool, error) {
-	return at.t.Exists(ctx)
+func (at *airGappedPublisher) Publish(ctx context.Context, msg *pubsub.Message) publishResult {
+	return at.p.Publish(ctx, msg)
 }
 
-func (at *airGappedTopic) Publish(ctx context.Context, msg *pubsub.Message) publishResult {
-	return at.t.Publish(ctx, msg)
+func (at *airGappedPublisher) EnableOrdering() {
+	at.p.EnableMessageOrdering = true
 }
 
-func (at *airGappedTopic) EnableOrdering() {
-	at.t.EnableMessageOrdering = true
-}
-
-func (at *airGappedTopic) Stop() {
-	at.t.Stop()
+func (at *airGappedPublisher) Stop() {
+	at.p.Stop()
 }

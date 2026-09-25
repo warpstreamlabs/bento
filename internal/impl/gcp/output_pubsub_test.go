@@ -5,9 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"cloud.google.com/go/pubsub" //nolint:staticcheck
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -25,31 +27,29 @@ func TestPubSubOutput(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
-	fooTopic.On("Exists").Return(true, nil).Once()
-	fooTopic.On("Stop").Return().Once()
+	fooPublisher := &mockPublisher{}
+	fooPublisher.On("Stop").Return().Once()
 
-	barTopic := &mockTopic{}
-	barTopic.On("Exists").Return(true, nil).Once()
-	barTopic.On("Stop").Return().Once()
+	barPublisher := &mockPublisher{}
+	barPublisher.On("Stop").Return().Once()
 
-	client.On("Topic", "test_foo").Return(fooTopic).Once()
-	client.On("Topic", "test_bar").Return(barTopic).Once()
+	client.On("Publisher", "test_foo").Return(fooPublisher, nil).Once()
+	client.On("Publisher", "test_bar").Return(barPublisher, nil).Once()
 
 	fooMsgA := service.NewMessage([]byte("foo_a"))
 	fooResA := &mockPublishResult{}
 	fooResA.On("Get").Return("foo_a", nil).Once()
-	fooTopic.On("Publish", "foo_a", mock.Anything).Return(fooResA).Once()
+	fooPublisher.On("Publish", "foo_a", mock.Anything).Return(fooResA).Once()
 
 	fooMsgB := service.NewMessage([]byte("foo_b"))
 	fooResB := &mockPublishResult{}
 	fooResB.On("Get").Return("foo_b", nil).Once()
-	fooTopic.On("Publish", "foo_b", mock.Anything).Return(fooResB).Once()
+	fooPublisher.On("Publish", "foo_b", mock.Anything).Return(fooResB).Once()
 
 	barMsg := service.NewMessage([]byte("bar"))
 	barRes := &mockPublishResult{}
 	barRes.On("Get").Return("bar", nil).Once()
-	barTopic.On("Publish", "bar", mock.Anything).Return(barRes).Once()
+	barPublisher.On("Publish", "bar", mock.Anything).Return(barRes).Once()
 
 	out, err := newPubSubOutput(conf)
 	require.NoError(t, err, "failed to create output")
@@ -61,7 +61,7 @@ func TestPubSubOutput(t *testing.T) {
 		mock.AssertExpectationsForObjects(
 			t,
 			client,
-			fooTopic, barTopic,
+			fooPublisher, barPublisher,
 			fooResA, fooResB, barRes,
 		)
 	})
@@ -90,16 +90,15 @@ func TestPubSubOutput_MessageAttr(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
-	fooTopic.On("Exists").Return(true, nil).Once()
-	fooTopic.On("EnableOrdering").Return().Once()
-	fooTopic.On("Stop").Return().Once()
+	fooPublisher := &mockPublisher{}
+	fooPublisher.On("EnableOrdering").Return().Once()
+	fooPublisher.On("Stop").Return().Once()
 
 	fooMsgA := &mockPublishResult{}
 	fooMsgA.On("Get").Return("foo", nil).Once()
-	fooTopic.On("Publish", "foo", mock.AnythingOfType("*pubsub.Message")).Return(fooMsgA).Once()
+	fooPublisher.On("Publish", "foo", mock.AnythingOfType("*pubsub.Message")).Return(fooMsgA).Once()
 
-	client.On("Topic", "test").Return(fooTopic).Once()
+	client.On("Publisher", "test").Return(fooPublisher, nil).Once()
 
 	out, err := newPubSubOutput(conf)
 	require.NoError(t, err, "failed to create output")
@@ -111,7 +110,7 @@ func TestPubSubOutput_MessageAttr(t *testing.T) {
 		mock.AssertExpectationsForObjects(
 			t,
 			client,
-			fooTopic,
+			fooPublisher,
 			fooMsgA,
 		)
 	})
@@ -126,10 +125,11 @@ func TestPubSubOutput_MessageAttr(t *testing.T) {
 	err = out.WriteBatch(ctx, service.MessageBatch{msg})
 	require.NoError(t, err, "publish failed")
 
-	require.Len(t, fooTopic.Calls, 3)
-	require.Equal(t, "Publish", fooTopic.Calls[2].Method)
-	require.Len(t, fooTopic.Calls[2].Arguments, 2)
-	psmsg := fooTopic.Calls[2].Arguments[1].(*pubsub.Message)
+	require.Len(t, fooPublisher.Calls, 2)
+	require.Equal(t, "EnableOrdering", fooPublisher.Calls[0].Method)
+	require.Equal(t, "Publish", fooPublisher.Calls[1].Method)
+	require.Len(t, fooPublisher.Calls[1].Arguments, 2)
+	psmsg := fooPublisher.Calls[1].Arguments[1].(*pubsub.Message)
 	require.Equal(t, map[string]string{"keep_a": "good stuff"}, psmsg.Attributes)
 	require.Equal(t, "foo_1", psmsg.OrderingKey)
 }
@@ -146,24 +146,15 @@ func TestPubSubOutput_MissingTopic(t *testing.T) {
 	require.NoError(t, err, "bad output config")
 
 	client := &mockPubSubClient{}
-
-	fooTopic := &mockTopic{}
-	fooTopic.On("Exists").Return(false, nil).Once()
-
-	barTopic := &mockTopic{}
-	barTopic.On("Exists").Return(false, errors.New("simulated error")).Once()
-
-	client.On("Topic", "test_foo").Return(fooTopic).Once()
-	client.On("Topic", "test_bar").Return(barTopic).Once()
+	client.On("Publisher", "test_foo").Return(nil, status.Error(codes.NotFound, "topic not found")).Once()
+	client.On("Publisher", "test_bar").Return(nil, errors.New("simulated error")).Once()
 
 	out, err := newPubSubOutput(conf)
 	require.NoError(t, err, "failed to create output")
 	out.client = client
 	t.Cleanup(func() {
-		err = out.Close(ctx)
-		require.NoError(t, err, "closing output failed")
-
-		mock.AssertExpectationsForObjects(t, client, fooTopic, barTopic)
+		require.NoError(t, out.Close(ctx), "closing output failed")
+		mock.AssertExpectationsForObjects(t, client)
 	})
 
 	var bErr *service.BatchError
@@ -173,7 +164,7 @@ func TestPubSubOutput_MissingTopic(t *testing.T) {
 	index := batch.Index()
 
 	err = out.WriteBatch(ctx, batch)
-	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
+	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", err, err)
 	require.ErrorContains(t, bErr, `topic 'test_foo' does not exist`)
 	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
 		if err != nil {
@@ -191,7 +182,7 @@ func TestPubSubOutput_MissingTopic(t *testing.T) {
 	index = batch.Index()
 
 	err = out.WriteBatch(ctx, batch)
-	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
+	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", err, err)
 	require.ErrorContains(t, bErr, "failed to validate topic 'test_bar': simulated error")
 	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
 		if err != nil {
@@ -216,31 +207,29 @@ func TestPubSubOutput_PublishErrors(t *testing.T) {
 
 	client := &mockPubSubClient{}
 
-	fooTopic := &mockTopic{}
-	fooTopic.On("Exists").Return(true, nil).Once()
-	fooTopic.On("Stop").Return().Once()
+	fooPublisher := &mockPublisher{}
+	fooPublisher.On("Stop").Return().Once()
 
-	barTopic := &mockTopic{}
-	barTopic.On("Exists").Return(true, nil).Once()
-	barTopic.On("Stop").Return().Once()
+	barPublisher := &mockPublisher{}
+	barPublisher.On("Stop").Return().Once()
 
-	client.On("Topic", "test_foo").Return(fooTopic).Once()
-	client.On("Topic", "test_bar").Return(barTopic).Once()
+	client.On("Publisher", "test_foo").Return(fooPublisher, nil).Once()
+	client.On("Publisher", "test_bar").Return(barPublisher, nil).Once()
 
 	fooMsgA := service.NewMessage([]byte("foo_a"))
 	fooResA := &mockPublishResult{}
 	fooResA.On("Get").Return("", errors.New("simulated foo error")).Once()
-	fooTopic.On("Publish", "foo_a", mock.Anything).Return(fooResA).Once()
+	fooPublisher.On("Publish", "foo_a", mock.Anything).Return(fooResA).Once()
 
 	fooMsgB := service.NewMessage([]byte("foo_b"))
 	fooResB := &mockPublishResult{}
 	fooResB.On("Get").Return("foo_b", nil).Once()
-	fooTopic.On("Publish", "foo_b", mock.Anything).Return(fooResB).Once()
+	fooPublisher.On("Publish", "foo_b", mock.Anything).Return(fooResB).Once()
 
 	barMsg := service.NewMessage([]byte("bar"))
 	barRes := &mockPublishResult{}
 	barRes.On("Get").Return("", errors.New("simulated bar error")).Once()
-	barTopic.On("Publish", "bar", mock.Anything).Return(barRes).Once()
+	barPublisher.On("Publish", "bar", mock.Anything).Return(barRes).Once()
 
 	out, err := newPubSubOutput(conf)
 	require.NoError(t, err, "failed to create output")
@@ -252,7 +241,7 @@ func TestPubSubOutput_PublishErrors(t *testing.T) {
 		mock.AssertExpectationsForObjects(
 			t,
 			client,
-			fooTopic, barTopic,
+			fooPublisher, barPublisher,
 			fooResA, fooResB, barRes,
 		)
 	})
