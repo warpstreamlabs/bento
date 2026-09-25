@@ -26,7 +26,7 @@ jobs:
       if: ${{ runner.os == 'Linux' }}
       uses: jlumbroso/free-disk-space@v2.0.0
       with:
-        tool-cache: false
+        preinstalled-runtimes: false
         android: true
         dotnet: true
         haskell: true
