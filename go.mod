@@ -3,11 +3,11 @@ module github.com/warpstreamlabs/bento
 require (
 	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.18.1-20240117202343-bf8f65e8876c.1
 	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.2-20240117202343-bf8f65e8876c.1
-	cloud.google.com/go/bigquery v1.72.0
+	cloud.google.com/go/bigquery v1.74.0
 	cloud.google.com/go/bigtable v1.42.0
-	cloud.google.com/go/pubsub v1.50.1
-	cloud.google.com/go/spanner v1.87.0
-	cloud.google.com/go/storage v1.56.0
+	cloud.google.com/go/pubsub/v2 v2.7.0
+	cloud.google.com/go/spanner v1.88.0
+	cloud.google.com/go/storage v1.59.2
 	connectrpc.com/connect v1.18.1
 	cuelang.org/go v0.7.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.1
@@ -184,7 +184,7 @@ require (
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/text v0.42.0
-	google.golang.org/api v0.264.0
+	google.golang.org/api v0.287.1
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -197,13 +197,12 @@ require (
 require (
 	cel.dev/expr v0.25.2 // indirect
 	cloud.google.com/go v0.123.0 // indirect
-	cloud.google.com/go/auth v0.18.2 // indirect
+	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	cloud.google.com/go/iam v1.5.3 // indirect
-	cloud.google.com/go/longrunning v0.8.0 // indirect
+	cloud.google.com/go/iam v1.11.0 // indirect
+	cloud.google.com/go/longrunning v0.9.0 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
-	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	cloud.google.com/go/trace v1.11.7 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -215,7 +214,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
-	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.3 // indirect
+	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.33.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
@@ -310,7 +309,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/gomlx/exceptions v0.0.3 // indirect
@@ -324,8 +322,8 @@ require (
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
-	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
+	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/govalues/decimal v0.1.32 // indirect
@@ -415,8 +413,8 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.44.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.43.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect
@@ -435,9 +433,9 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.50.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/jcmturner/aescts.v1 v1.0.1 // indirect

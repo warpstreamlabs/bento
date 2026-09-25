@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/pubsub" //nolint:staticcheck
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	dockercontainer "github.com/moby/moby/api/types/container"
 	dockernetwork "github.com/moby/moby/api/types/network"
 	"github.com/ory/dockertest/v4"
@@ -44,7 +45,10 @@ func TestIntegrationGCPPubSub(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		_, err = client.CreateTopic(ctx, "test-probe-topic-name")
+		topicpb := &pubsubpb.Topic{
+			Name: fmt.Sprintf("projects/%s/topics/%s", "bento-test-project", "test-probe-topic-name"),
+		}
+		_, err = client.TopicAdminClient.CreateTopic(ctx, topicpb)
 		client.Close()
 		return err
 	}))
@@ -74,7 +78,10 @@ input:
 			client, err := pubsub.NewClient(ctx, "bento-test-project")
 			require.NoError(t, err)
 
-			_, err = client.CreateTopic(ctx, fmt.Sprintf("topic-%v", vars.ID))
+			topicpb := &pubsubpb.Topic{
+				Name: fmt.Sprintf("projects/%s/topics/topic-%v", "bento-test-project", vars.ID),
+			}
+			_, err = client.TopicAdminClient.CreateTopic(ctx, topicpb)
 			require.NoError(t, err)
 
 			client.Close()
