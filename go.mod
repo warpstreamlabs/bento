@@ -5,7 +5,7 @@ require (
 	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.2-20240117202343-bf8f65e8876c.1
 	cloud.google.com/go/bigquery v1.74.0
 	cloud.google.com/go/bigtable v1.42.0
-	cloud.google.com/go/pubsub v1.50.2
+	cloud.google.com/go/pubsub/v2 v2.7.0
 	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.59.2
 	connectrpc.com/connect v1.18.1
@@ -203,7 +203,6 @@ require (
 	cloud.google.com/go/iam v1.11.0 // indirect
 	cloud.google.com/go/longrunning v0.9.0 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
-	cloud.google.com/go/pubsub/v2 v2.7.0 // indirect
 	cloud.google.com/go/trace v1.11.7 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
