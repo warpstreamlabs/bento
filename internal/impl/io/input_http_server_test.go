@@ -425,6 +425,84 @@ http_server:
 	assert.Equal(t, "will go on", part.MetaGetStr("mylove"))
 }
 
+func TestHTTPServerPathParametersPrefixedMetadata(t *testing.T) {
+	tCtx, done := context.WithTimeout(context.Background(), time.Minute)
+	defer done()
+
+	reg := apiRegGorillaMutWrapper{mut: mux.NewRouter()}
+	mgr, err := manager.New(manager.ResourceConfig{}, manager.OptSetAPIReg(reg))
+	require.NoError(t, err)
+
+	conf := parseYAMLInputConf(t, `
+http_server:
+  path: /test/{foo}/{bar}
+  allowed_verbs: [ "POST", "PUT" ]
+  prefix_metadata_keys: true
+`)
+
+	server, err := mgr.NewInput(conf)
+	require.NoError(t, err)
+
+	defer func() {
+		server.TriggerStopConsuming()
+		assert.NoError(t, server.WaitForClose(tCtx))
+	}()
+
+	testServer := httptest.NewServer(reg.mut)
+	defer testServer.Close()
+
+	dummyPath := "/test/foo1/bar1"
+	dummyQuery := url.Values{"mylove": []string{"will go on"}}
+	serverURL, err := url.Parse(testServer.URL)
+	require.NoError(t, err)
+
+	serverURL.Path = dummyPath
+	serverURL.RawQuery = dummyQuery.Encode()
+
+	dummyData := []byte("a bunch of jolly leprechauns await")
+	go func() {
+		req, cerr := http.NewRequest("PUT", serverURL.String(), bytes.NewReader(dummyData))
+		require.NoError(t, cerr)
+		req.Header.Set("Content-Type", "text/plain")
+		req.Header.Set("X-Custom-Header", "header-value")
+		resp, cerr := http.DefaultClient.Do(req)
+		require.NoError(t, cerr)
+		defer resp.Body.Close()
+	}()
+
+	readNextMsg := func() (message.Batch, error) {
+		var tran message.Transaction
+		select {
+		case tran = <-server.TransactionChan():
+			require.NoError(t, tran.Ack(tCtx, nil))
+		case <-time.After(time.Second):
+			return nil, errors.New("timed out")
+		}
+		return tran.Payload, nil
+	}
+
+	msg, err := readNextMsg()
+	require.NoError(t, err)
+	assert.Equal(t, dummyData, message.GetAllBytes(msg)[0])
+
+	part := msg.Get(0)
+
+	assert.Equal(t, dummyPath, part.MetaGetStr("http_server_request_path"))
+	assert.Equal(t, "PUT", part.MetaGetStr("http_server_verb"))
+	// Path parameters are prefixed with "path_".
+	assert.Equal(t, "foo1", part.MetaGetStr("path_foo"))
+	assert.Equal(t, "bar1", part.MetaGetStr("path_bar"))
+	// Headers are prefixed with "header_".
+	assert.Equal(t, "header-value", part.MetaGetStr("header_X-Custom-Header"))
+	// Query parameters are unaffected by the new option.
+	assert.Equal(t, "will go on", part.MetaGetStr("mylove"))
+	// The unprefixed keys should no longer be present.
+	_, exists := part.MetaGetMut("foo")
+	assert.False(t, exists)
+	_, exists = part.MetaGetMut("bar")
+	assert.False(t, exists)
+}
+
 func TestHTTPServerPathIsPrefix(t *testing.T) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Minute)
 	defer done()
