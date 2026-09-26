@@ -1276,7 +1276,11 @@ root.new_value = this.value.pow(-2)
 
 ### `round`
 
-Rounds numbers to the nearest integer, rounding half away from zero. If the resulting value fits within a 64-bit integer then that is returned, otherwise a new floating point number is returned.
+Rounds numbers to the nearest value with a given number of decimal places, defaulting to the nearest integer, rounding half away from zero. If the resulting value fits within a 64-bit integer then that is returned, otherwise a new floating point number is returned.
+
+#### Parameters
+
+**`precision`** &lt;(optional) integer&gt; The number of decimal places to round to. Negative values round to tens, hundreds, and so on.  
 
 #### Examples
 
@@ -1289,6 +1293,13 @@ root.new_value = this.value.round()
 
 # In:  {"value":5.9}
 # Out: {"new_value":6}
+```
+
+```coffee
+root.new_value = this.value.round(2)
+
+# In:  {"value":2.675}
+# Out: {"new_value":2.68}
 ```
 
 ### `sin`
