@@ -256,12 +256,15 @@
     ></script>
 
     <!-- Application scripts -->
+    <!-- Core utilities (load first) -->
     <script src="./js/utils.js" defer></script>
-    <script src="./js/editor.js" defer></script>
     <script src="./js/ui.js" defer></script>
-    <script src="./js/playground.js" defer></script>
+
+    <!-- API layer -->
+    <script src="./js/api.js" defer></script>
 
     {{if .WasmMode}}
+    <!-- WASM bridge -->
     <script src="./js/wasm.js" defer></script>
     <script src="./js/wasm_exec.js"></script>
     {{else}}
@@ -274,5 +277,11 @@
     </script>
     {{end}}
     <!-- END SERVER MODE -->
+
+    <!-- Editor management -->
+    <script src="./js/ace-editor.js" defer></script>
+
+    <!-- Main playground application -->
+    <script src="./js/playground.js" defer></script>
   </body>
 </html>
