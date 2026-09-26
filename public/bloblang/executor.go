@@ -13,13 +13,33 @@ import (
 type Executor struct {
 	exec              *mapping.Executor
 	emptyQueryMessage message.Batch
+	assignsVars       bool
 }
 
 func newExecutor(exec *mapping.Executor) *Executor {
 	return &Executor{
 		exec:              exec,
 		emptyQueryMessage: message.QuickBatch(nil),
+		assignsVars:       exec.AssignsVariables(),
 	}
+}
+
+// sharedEmptyVars is handed to mappings that contain no variable assignments,
+// so that the common case does not allocate a map per execution.
+//
+// It must never be written to. Only VarAssignment writes to a variables map,
+// and it is reached only from a statement whose assignment target is a
+// variable, which is precisely what AssignsVariables reports. Reads of an
+// undefined variable are unaffected: an empty map yields the same "variable
+// undefined" error as a freshly allocated one, whereas a nil map would report
+// "variables were undefined" instead and change behaviour.
+var sharedEmptyVars = map[string]any{}
+
+func (e *Executor) newVars() map[string]any {
+	if e.assignsVars {
+		return map[string]any{}
+	}
+	return sharedEmptyVars
 }
 
 // ErrRootDeleted is returned by a Bloblang query when the mapping results in
@@ -38,7 +58,7 @@ var ErrRootDeleted = errors.New("root was deleted")
 func (e *Executor) Query(val any) (any, error) {
 	res, err := e.exec.Exec(query.FunctionContext{
 		Maps:     e.exec.Maps(),
-		Vars:     map[string]any{},
+		Vars:     e.newVars(),
 		Index:    0,
 		MsgBatch: e.emptyQueryMessage,
 	}.WithValue(val))
@@ -62,7 +82,7 @@ func (e *Executor) Query(val any) (any, error) {
 // ErrRootDeleted is returned, which can be used as a signal to filter rather
 // than fail the mapping.
 func (e *Executor) Overlay(val any, onto *any) error {
-	vars := map[string]any{}
+	vars := e.newVars()
 
 	if err := e.exec.ExecOnto(query.FunctionContext{
 		Maps:     e.exec.Maps(),
