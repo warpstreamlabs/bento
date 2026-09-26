@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -594,6 +595,229 @@ root.baz = this.baz.slice(0, 10)
 `)
 		if err != nil {
 			b.Error(err.Error())
+		}
+	}
+}
+
+// BenchmarkMappingParserReusedContext measures parsing performance when the
+// same Context (and therefore the same parser cache) is reused across
+// parses, which reflects how a long-running service typically uses a single
+// bloblang Environment/Context to parse many mappings over its lifetime.
+func BenchmarkMappingParserReusedContext(b *testing.B) {
+	pCtx := GlobalContext()
+	for i := 0; i < b.N; i++ {
+		_, err := ParseMapping(pCtx, `
+root.foo = this.foo.uppercase()
+root.bar = this.bar.lowercase()
+root.baz = this.baz.slice(0, 10)
+`)
+		if err != nil {
+			b.Error(err.Error())
+		}
+	}
+}
+
+// complexMapping exercises deeply recursive/branching syntax: nested lambda
+// expressions (map_each/filter/sort_by), multiple if/else if/else chains,
+// a match expression, and many chained method/function calls across many
+// assignment statements. This is representative of real-world mappings that
+// are far more demanding on the parser than a handful of flat assignments.
+const complexMapping = `
+let threshold = 10
+
+root.id = this.id
+root.name = this.name.trim().capitalize()
+root.tags = this.tags.map_each(t -> t.lowercase().trim())
+root.active_items = this.items.filter(item -> item.status == "active" && item.qty > 0)
+root.sorted_items = this.items.filter(item -> item.qty > 0).sort_by(item -> item.priority)
+root.total = this.items.map_each(item -> item.price * item.qty).sum()
+root.grouped = this.items.map_each(entry -> {
+  "id": entry.id,
+  "label": entry.name.uppercase(),
+  "flag": entry.qty > $threshold,
+})
+
+root.status = match this.status {
+  this == "pending" => "PENDING"
+  this == "active" => "ACTIVE"
+  this == "done" => "DONE"
+  _ => "UNKNOWN"
+}
+
+if this.type == "a" {
+  root.category = "Alpha"
+} else if this.type == "b" {
+  root.category = "Beta"
+} else if this.type == "c" {
+  root.category = "Gamma"
+} else {
+  root.category = "Other"
+}
+
+root.nested = this.groups.map_each(group -> group.members.filter(m -> m.active).map_each(m -> m.name.uppercase()))
+root.summary = "%s has %v active items worth %v".format(this.name, root.active_items.length(), root.total)
+meta processed = true
+`
+
+// BenchmarkMappingParserComplex measures parsing performance for a mapping
+// with realistic complexity: nested lambdas, match/if branching, chained
+// method calls and many statements. This is the scenario where the
+// queryParser cache is expected to matter most, since deep recursion is
+// exactly where the pre-cache implementation rebuilt combinator trees
+// repeatedly.
+func BenchmarkMappingParserComplex(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, err := ParseMapping(GlobalContext(), complexMapping)
+		if err != nil {
+			b.Error(err.Error())
+		}
+	}
+}
+
+// BenchmarkMappingParserComplexReusedContext is the reused-Context
+// counterpart to BenchmarkMappingParserComplex, reflecting a long-running
+// service parsing many complex mappings against a single Environment.
+func BenchmarkMappingParserComplexReusedContext(b *testing.B) {
+	pCtx := GlobalContext()
+	for i := 0; i < b.N; i++ {
+		_, err := ParseMapping(pCtx, complexMapping)
+		if err != nil {
+			b.Error(err.Error())
+		}
+	}
+}
+
+// complexMappingInput is realistic JSON input for complexMapping, used to
+// exercise the executor (not just the parser) against real data: multiple
+// items with varying status/qty/priority, nested groups with active/inactive
+// members, and a status value that exercises every match case.
+const complexMappingInput = `{
+  "id": "order-42",
+  "name": "  acme order  ",
+  "status": "active",
+  "type": "b",
+  "tags": [" URGENT ", " Fragile "],
+  "items": [
+    {"id": "i1", "name": "widget", "status": "active", "qty": 3, "price": 10.5, "priority": 2},
+    {"id": "i2", "name": "gadget", "status": "inactive", "qty": 0, "price": 5.0, "priority": 1},
+    {"id": "i3", "name": "gizmo", "status": "active", "qty": 1, "price": 20.0, "priority": 5}
+  ],
+  "groups": [
+    {"members": [{"name": "alice", "active": true}, {"name": "bob", "active": false}]},
+    {"members": [{"name": "carol", "active": true}]}
+  ]
+}`
+
+// TestComplexMappingExecutesCorrectly parses complexMapping and executes it
+// against real message data, asserting on the actual output content and
+// metadata rather than just checking for a nil parse error. This is the
+// gap left by the pure-parsing benchmarks/tests: this test exercises the
+// full parse -> build executor -> Exec pipeline with real business logic
+// (map_each/filter/sort_by/match/if-else/format), and is used to prove the
+// cache changes don't alter runtime behaviour, not just parse success.
+func TestComplexMappingExecutesCorrectly(t *testing.T) {
+	exec, perr := ParseMapping(GlobalContext(), complexMapping)
+	require.Nil(t, perr)
+
+	msg := message.QuickBatch([][]byte{[]byte(complexMappingInput)})
+
+	resPart, err := exec.MapPart(0, msg)
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(resPart.AsBytes(), &got))
+
+	assert.Equal(t, "order-42", got["id"])
+	assert.Equal(t, "Acme Order", got["name"])
+	assert.Equal(t, []any{"urgent", "fragile"}, got["tags"])
+	assert.Equal(t, "ACTIVE", got["status"])
+	assert.Equal(t, "Beta", got["category"])
+
+	activeItems, ok := got["active_items"].([]any)
+	require.True(t, ok)
+	assert.Len(t, activeItems, 2, "only i1 and i3 are status=active with qty>0")
+
+	sortedItems, ok := got["sorted_items"].([]any)
+	require.True(t, ok)
+	require.Len(t, sortedItems, 2)
+	firstSorted := sortedItems[0].(map[string]any)
+	assert.Equal(t, "i1", firstSorted["id"], "i2 is filtered out by qty>0; remaining i1(priority=2) sorts before i3(priority=5)")
+
+	// total = sum(price*qty) across ALL items (10.5*3 + 5.0*0 + 20.0*1) = 51.5
+	assert.InDelta(t, 51.5, got["total"], 0.0001)
+
+	grouped, ok := got["grouped"].([]any)
+	require.True(t, ok)
+	require.Len(t, grouped, 3)
+	firstGroup := grouped[0].(map[string]any)
+	assert.Equal(t, "i1", firstGroup["id"])
+	assert.Equal(t, "WIDGET", firstGroup["label"])
+	assert.Equal(t, false, firstGroup["flag"], "qty=3 is not > threshold=10")
+
+	nested, ok := got["nested"].([]any)
+	require.True(t, ok)
+	require.Len(t, nested, 2)
+	assert.Equal(t, []any{"ALICE"}, nested[0], "only alice is active in group 1")
+	assert.Equal(t, []any{"CAROL"}, nested[1], "only carol is active in group 2")
+
+	assert.Contains(t, got["summary"], "acme order")
+	assert.Contains(t, got["summary"], "2 active items")
+
+	processedMeta, exists := resPart.MetaGetMut("processed")
+	require.True(t, exists)
+	assert.Equal(t, true, processedMeta)
+}
+
+// BenchmarkMappingExecComplex measures the full end-to-end cost of parsing
+// AND executing complexMapping against real input data, as opposed to the
+// parse-only benchmarks above. The queryParser cache only affects the parse
+// phase, so this benchmark shows how much of the total (parse + execute)
+// cost the cache improvement actually addresses in a realistic workload.
+func BenchmarkMappingExecComplex(b *testing.B) {
+	inputBytes := []byte(complexMappingInput)
+	for i := 0; i < b.N; i++ {
+		exec, perr := ParseMapping(GlobalContext(), complexMapping)
+		if perr != nil {
+			b.Fatal(perr.Error())
+		}
+		msg := message.QuickBatch([][]byte{inputBytes})
+		if _, err := exec.MapPart(0, msg); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkMappingExecComplexReusedContext is the reused-Context counterpart
+// to BenchmarkMappingExecComplex.
+func BenchmarkMappingExecComplexReusedContext(b *testing.B) {
+	pCtx := GlobalContext()
+	inputBytes := []byte(complexMappingInput)
+	for i := 0; i < b.N; i++ {
+		exec, perr := ParseMapping(pCtx, complexMapping)
+		if perr != nil {
+			b.Fatal(perr.Error())
+		}
+		msg := message.QuickBatch([][]byte{inputBytes})
+		if _, err := exec.MapPart(0, msg); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkMappingExecOnlyComplex measures ONLY the execution cost (parsing
+// once outside the loop), isolating how much of the total pipeline cost is
+// unaffected by the parser cache. Comparing this against
+// BenchmarkMappingExecComplex shows the parse:execute cost ratio.
+func BenchmarkMappingExecOnlyComplex(b *testing.B) {
+	exec, perr := ParseMapping(GlobalContext(), complexMapping)
+	if perr != nil {
+		b.Fatal(perr.Error())
+	}
+	inputBytes := []byte(complexMappingInput)
+	for i := 0; i < b.N; i++ {
+		msg := message.QuickBatch([][]byte{inputBytes})
+		if _, err := exec.MapPart(0, msg); err != nil {
+			b.Fatal(err)
 		}
 	}
 }

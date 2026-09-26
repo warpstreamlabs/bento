@@ -19,12 +19,23 @@ import (
 func ParseMapping(pCtx Context, expr string) (*mapping.Executor, *Error) {
 	in := []rune(expr)
 
-	resDirectImport := singleRootImport(pCtx)(in)
-	if resDirectImport.Err != nil && resDirectImport.Err.IsFatal() {
-		return nil, resDirectImport.Err
-	}
-	if resDirectImport.Err == nil && len(resDirectImport.Remaining) == 0 {
-		return resDirectImport.Payload, nil
+	// Fast-path pre-check: singleRootImport only ever succeeds when the
+	// input (after leading whitespace/comments) begins with the `from`
+	// keyword. Skipping the attempt entirely for inputs that can't possibly
+	// match avoids constructing/running its parser combinators (including a
+	// recursive parseExecutor call on failure) for the common case of
+	// regular mappings. This performs the exact same
+	// DiscardedWhitespaceNewlineComments + Term("from") check that
+	// singleRootImport itself starts with, so it can't diverge from its
+	// real parsing semantics.
+	if mightBeSingleRootImport(in) {
+		resDirectImport := singleRootImport(pCtx)(in)
+		if resDirectImport.Err != nil && resDirectImport.Err.IsFatal() {
+			return nil, resDirectImport.Err
+		}
+		if resDirectImport.Err == nil && len(resDirectImport.Remaining) == 0 {
+			return resDirectImport.Payload, nil
+		}
 	}
 
 	resExe := parseExecutor(pCtx)(in)
@@ -38,6 +49,16 @@ func ParseMapping(pCtx Context, expr string) (*mapping.Executor, *Error) {
 		return nil, res.Err
 	}
 	return res.Payload, nil
+}
+
+// mightBeSingleRootImport reports whether input could possibly be parsed by
+// singleRootImport, without running the full import parser (which reads
+// files and builds a nested executor on success). It mirrors exactly the
+// leading sequence singleRootImport itself requires: optional whitespace/
+// comments followed by the `from` keyword.
+func mightBeSingleRootImport(input []rune) bool {
+	res := DiscardedWhitespaceNewlineComments(input)
+	return Term("from")(res.Remaining).Err == nil
 }
 
 //------------------------------------------------------------------------------
