@@ -115,8 +115,8 @@ require (
 	github.com/microsoft/go-mssqldb v1.11.0
 	github.com/microsoft/gocosmos v1.1.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/moby/moby/api v1.54.1
-	github.com/moby/moby/client v0.4.0
+	github.com/moby/moby/api v1.56.0
+	github.com/moby/moby/client v0.6.0
 	github.com/nats-io/nats.go v1.49.0
 	github.com/nats-io/nkeys v0.4.15
 	github.com/nats-io/stan.go v0.10.4
@@ -131,7 +131,7 @@ require (
 	github.com/oschwald/geoip2-golang v1.9.0
 	github.com/parquet-go/parquet-go v0.29.0
 	github.com/pebbe/zmq4 v1.2.11
-	github.com/pierrec/lz4/v4 v4.1.29
+	github.com/pierrec/lz4/v4 v4.1.30
 	github.com/pkg/sftp v1.13.7
 	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/common v0.62.0
@@ -156,7 +156,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tetratelabs/wazero v1.6.0
 	github.com/tilinna/z85 v1.0.0
-	github.com/trinodb/trino-go-client v0.313.0
+	github.com/trinodb/trino-go-client v0.335.0
 	github.com/twmb/franz-go v1.20.7
 	github.com/twmb/franz-go/pkg/kadm v1.16.0
 	github.com/twmb/franz-go/pkg/kmsg v1.12.0
@@ -272,8 +272,7 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
-	github.com/docker/cli v25.0.3+incompatible // indirect
-	github.com/docker/go-connections v0.6.0 // indirect
+	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/duckdb/duckdb-go-bindings v0.10505.0 // indirect
 	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.10505.0 // indirect
@@ -376,7 +375,6 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/runc v1.3.6 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.11.0 // indirect
 	github.com/parquet-go/bitpack v1.0.0 // indirect
@@ -440,10 +438,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/jcmturner/aescts.v1 v1.0.1 // indirect
-	gopkg.in/jcmturner/dnsutils.v1 v1.0.1 // indirect
-	gopkg.in/jcmturner/gokrb5.v6 v6.1.1 // indirect
-	gopkg.in/jcmturner/rpc.v1 v1.1.0 // indirect
 	k8s.io/api v0.34.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
