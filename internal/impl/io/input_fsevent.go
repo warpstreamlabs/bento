@@ -185,7 +185,7 @@ func (f *fsEventWatcher) Connect(ctx context.Context) error {
 					} else if st.IsDir() {
 						// adding the same path more than once is a noop,
 						// so safe even though it is already in the watchlist
-						if err := f.watcher.Add(event.Name); err != nil {
+						if err := watcher.Add(event.Name); err != nil {
 							f.log.Warnf("Failed to add path %v: %s", event.Name, err)
 						}
 					}
@@ -200,7 +200,7 @@ func (f *fsEventWatcher) Connect(ctx context.Context) error {
 					timestampUnix: time.Now().Unix(),
 				}
 
-				f.eventChan <- msg
+				eventChan <- msg
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return

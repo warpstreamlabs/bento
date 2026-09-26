@@ -5,16 +5,97 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/warpstreamlabs/bento/internal/component/input"
 	"github.com/warpstreamlabs/bento/internal/component/testutil"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/manager/mock"
 )
+
+// tailCollector consumes and acks the messages of a file_tail input, records
+// their contents and positions, and wakes the test on each arrival. The
+// consumer never blocks on the test, so the input can be shut down cleanly
+// however many messages it produced.
+type tailCollector struct {
+	mut       sync.Mutex
+	msgs      []string
+	positions []string
+	arrived   chan struct{}
+	done      chan struct{}
+}
+
+func collectTail(t *testing.T, s input.Streamed) *tailCollector {
+	t.Helper()
+
+	c := &tailCollector{
+		arrived: make(chan struct{}, 1),
+		done:    make(chan struct{}),
+	}
+	go func() {
+		defer close(c.done)
+		for msg := range s.TransactionChan() {
+			part := msg.Payload.Get(0)
+
+			c.mut.Lock()
+			c.msgs = append(c.msgs, string(part.AsBytes()))
+			c.positions = append(c.positions, part.MetaGetStr("file_tail_position"))
+			c.mut.Unlock()
+
+			assert.NoError(t, msg.Ack(context.Background(), nil))
+
+			select {
+			case c.arrived <- struct{}{}:
+			default:
+			}
+		}
+	}()
+	return c
+}
+
+func (c *tailCollector) snapshot() (msgs, positions []string) {
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	return slices.Clone(c.msgs), slices.Clone(c.positions)
+}
+
+// requireMessages waits until at least len(want) messages have arrived and
+// then requires them to be exactly want.
+func (c *tailCollector) requireMessages(t *testing.T, want ...string) {
+	t.Helper()
+
+	timeout := time.After(time.Second * 5)
+	for {
+		msgs, _ := c.snapshot()
+		if len(msgs) >= len(want) {
+			require.Equal(t, want, msgs)
+			return
+		}
+		select {
+		case <-c.arrived:
+		case <-timeout:
+			require.Equal(t, want, msgs, "timed out waiting for messages")
+		}
+	}
+}
+
+// stop shuts the input down and waits for the consumer to drain it.
+func (c *tailCollector) stop(t *testing.T, s input.Streamed) {
+	t.Helper()
+
+	s.TriggerStopConsuming()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	require.NoError(t, s.WaitForClose(ctx))
+	<-c.done
+}
 
 func TestFileTail_Basic(t *testing.T) {
 	fullPath := createFile(t, "Hello Alice")
@@ -28,42 +109,16 @@ file_tail:
 	s, err := mock.NewManager().NewInput(inputConf)
 	require.NoError(t, err)
 
-	var receivedMsgs []string
-	msgArrivedChan := make(chan struct{})
-
-	var receivedPositions []string
-
-	go func() {
-		for msg := range s.TransactionChan() {
-			bytes := msg.Payload.Get(0).AsBytes()
-			position := msg.Payload.Get(0).MetaGetStr("file_tail_position")
-
-			receivedPositions = append(receivedPositions, position)
-
-			receivedMsgs = append(receivedMsgs, string(bytes))
-
-			err := msg.Ack(context.Background(), nil)
-			require.NoError(t, err)
-			msgArrivedChan <- struct{}{}
-		}
-	}()
-
-	<-msgArrivedChan
+	c := collectTail(t, s)
+	c.requireMessages(t, "Hello Alice")
 
 	appendLine(t, fullPath, "Hello Bob")
+	c.requireMessages(t, "Hello Alice", "Hello Bob")
 
-	<-msgArrivedChan
+	c.stop(t, s)
 
-	s.TriggerStopConsuming()
-
-	err = s.WaitForClose(context.Background())
-	require.NoError(t, err)
-
-	expectedMsgs := []string{"Hello Alice", "Hello Bob"}
-	expectedPositions := []string{"12", "22"}
-
-	assert.Equal(t, expectedPositions, receivedPositions)
-	assert.Equal(t, expectedMsgs, receivedMsgs)
+	_, positions := c.snapshot()
+	assert.Equal(t, []string{"12", "22"}, positions)
 }
 
 func TestFileTail_StartPositionEnd(t *testing.T) {
@@ -79,40 +134,15 @@ file_tail:
 	s, err := mock.NewManager().NewInput(inputConf)
 	require.NoError(t, err)
 
-	var receivedMsgs []string
-	msgArrivedChan := make(chan struct{})
-
-	var receivedPositions []string
-
-	go func() {
-		for msg := range s.TransactionChan() {
-			bytes := msg.Payload.Get(0).AsBytes()
-			position := msg.Payload.Get(0).MetaGetStr("file_tail_position")
-
-			receivedPositions = append(receivedPositions, position)
-
-			receivedMsgs = append(receivedMsgs, string(bytes))
-
-			err := msg.Ack(context.Background(), nil)
-			require.NoError(t, err)
-			msgArrivedChan <- struct{}{}
-		}
-	}()
+	c := collectTail(t, s)
 
 	appendLine(t, fullPath, "Hello Bob")
+	c.requireMessages(t, "Hello Bob")
 
-	<-msgArrivedChan
+	c.stop(t, s)
 
-	s.TriggerStopConsuming()
-
-	err = s.WaitForClose(context.Background())
-	require.NoError(t, err)
-
-	expectedMsgs := []string{"Hello Bob"}
-	expectedPositions := []string{"22"}
-
-	assert.Equal(t, expectedPositions, receivedPositions)
-	assert.Equal(t, expectedMsgs, receivedMsgs)
+	_, positions := c.snapshot()
+	assert.Equal(t, []string{"22"}, positions)
 }
 
 func TestFileTail_FileRotation(t *testing.T) {
@@ -127,22 +157,8 @@ file_tail:
 	s, err := mock.NewManager().NewInput(inputConf)
 	require.NoError(t, err)
 
-	var receivedMsgs []string
-	msgArrivedChan := make(chan struct{})
-
-	go func() {
-		for msg := range s.TransactionChan() {
-			bytes := msg.Payload.Get(0).AsBytes()
-
-			receivedMsgs = append(receivedMsgs, string(bytes))
-
-			err := msg.Ack(context.Background(), nil)
-			require.NoError(t, err)
-			msgArrivedChan <- struct{}{}
-		}
-	}()
-
-	<-msgArrivedChan
+	c := collectTail(t, s)
+	c.requireMessages(t, "Hello Alice")
 
 	err = os.Rename(fullPath, filepath.Join(filepath.Dir(fullPath), "log1.txt"))
 	require.NoError(t, err)
@@ -151,13 +167,9 @@ file_tail:
 	err = os.WriteFile(fullPath, []byte("Hello Bob"), 0o644)
 	require.NoError(t, err)
 
-	<-msgArrivedChan
+	c.requireMessages(t, "Hello Alice", "Hello Bob")
 
-	s.TriggerStopConsuming()
-
-	expectedMsgs := []string{"Hello Alice", "Hello Bob"}
-
-	assert.Equal(t, expectedMsgs, receivedMsgs)
+	c.stop(t, s)
 }
 
 func TestFileTail_FileTruncation(t *testing.T) {
@@ -172,35 +184,16 @@ file_tail:
 	s, err := mock.NewManager().NewInput(inputConf)
 	require.NoError(t, err)
 
-	var receivedMsgs []string
-	msgArrivedChan := make(chan struct{})
-
-	go func() {
-		for msg := range s.TransactionChan() {
-			bytes := msg.Payload.Get(0).AsBytes()
-
-			receivedMsgs = append(receivedMsgs, string(bytes))
-
-			err := msg.Ack(context.Background(), nil)
-			require.NoError(t, err)
-			msgArrivedChan <- struct{}{}
-		}
-	}()
-
-	<-msgArrivedChan
+	c := collectTail(t, s)
+	c.requireMessages(t, "Hello Alice")
 
 	err = os.Truncate(fullPath, 0)
 	require.NoError(t, err)
 
 	appendLine(t, fullPath, "Hello Bob")
+	c.requireMessages(t, "Hello Alice", "Hello Bob")
 
-	<-msgArrivedChan
-
-	s.TriggerStopConsuming()
-
-	expectedMsgs := []string{"Hello Alice", "Hello Bob"}
-
-	assert.Equal(t, expectedMsgs, receivedMsgs)
+	c.stop(t, s)
 }
 
 func TestFileTail_Shutdown(t *testing.T) {
