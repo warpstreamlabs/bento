@@ -2,6 +2,8 @@ package io
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -14,6 +16,7 @@ import (
 const (
 	osFieldNetwork = "network"
 	osFieldAddress = "address"
+	osFieldTLS     = "tls"
 )
 
 func socketOutputSpec() *service.ConfigSpec {
@@ -28,7 +31,11 @@ func socketOutputSpec() *service.ConfigSpec {
 				Description("The address to connect to.").
 				Examples("/tmp/bento.sock", "127.0.0.1:6000"),
 			service.NewInternalField(codec.NewWriterDocs("codec").HasDefault("lines")),
-		)
+			service.NewTLSToggledField(osFieldTLS).
+				Description("Custom TLS settings can be used to override system defaults. Only supported when the network is `tcp`.").
+				Version("1.22.0"),
+		).
+		LintRule(`root = if this.tls.enabled.or(false) && this.network != "tcp" { [ "tls can only be enabled when network is tcp" ] }`)
 }
 
 func init() {
@@ -45,6 +52,7 @@ func init() {
 type socketWriter struct {
 	network    string
 	address    string
+	tlsConf    *tls.Config
 	suffixFn   codec.SuffixFn
 	appendMode bool
 
@@ -65,6 +73,19 @@ func newSocketWriterFromParsed(pConf *service.ParsedConfig, mgr *service.Resourc
 		return
 	}
 
+	var tlsConf *tls.Config
+	var tlsEnabled bool
+	if tlsConf, tlsEnabled, err = pConf.FieldTLSToggled(osFieldTLS); err != nil {
+		return
+	}
+	if tlsEnabled {
+		if w.network != "tcp" {
+			err = fmt.Errorf("tls is only supported with network tcp, got %v", w.network)
+			return
+		}
+		w.tlsConf = tlsConf
+	}
+
 	var codecStr string
 	if codecStr, err = pConf.FieldString("codec"); err != nil {
 		return
@@ -83,7 +104,14 @@ func (s *socketWriter) Connect(ctx context.Context) error {
 	}
 
 	var err error
-	if s.writer, err = net.Dial(s.network, s.address); err != nil {
+	if s.tlsConf != nil {
+		dialer := &tls.Dialer{Config: s.tlsConf}
+		s.writer, err = dialer.DialContext(ctx, s.network, s.address)
+	} else {
+		s.writer, err = net.Dial(s.network, s.address)
+	}
+	if err != nil {
+		s.writer = nil
 		return err
 	}
 	return nil
