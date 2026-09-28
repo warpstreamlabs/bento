@@ -221,7 +221,7 @@ address: %v
 }
 
 func TestTLSSocketBasic(t *testing.T) {
-	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, done := context.WithTimeout(t.Contex(), time.Second*30)
 	defer done()
 
 	cert, err := createSelfSignedCertificate()
