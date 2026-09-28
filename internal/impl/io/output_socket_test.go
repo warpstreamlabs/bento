@@ -255,6 +255,7 @@ tls:
 	if err != nil {
 		t.Fatal(err)
 	}
+    t.Cleanup(func() { _ = conn.Close() })
 
 	var buf bytes.Buffer
 
