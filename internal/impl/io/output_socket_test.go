@@ -247,11 +247,9 @@ tls:
 		}
 	}()
 
-	go func() {
-		if cerr := wtr.Connect(context.Background()); cerr != nil {
-			t.Error(cerr)
-		}
-	}()
+	if cerr := wtr.Connect(context.Background()); cerr != nil {
+		t.Fatal(cerr)
+	}
 
 	conn, err := ln.Accept()
 	if err != nil {
