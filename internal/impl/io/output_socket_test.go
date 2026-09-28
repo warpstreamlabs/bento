@@ -231,7 +231,7 @@ func TestTLSSocketBasic(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	})
 	require.NoError(t, err)
-	defer ln.Close()
+	t.Cleanup(func() { _ = ln.Close})
 
 	wtr := socketWriterFromConf(t, `
 network: tcp
