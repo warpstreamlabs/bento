@@ -3,6 +3,7 @@ package docs
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/warpstreamlabs/bento/internal/value"
@@ -229,9 +230,9 @@ func (f FieldSpec) HasDefault(v any) FieldSpec {
 	return f
 }
 
-// HasAlias returns a new FieldSpec that specifies an alias value.
-func (f FieldSpec) HasAlias(a []string) FieldSpec {
-	f.Alias = a
+// HasAlias returns a new FieldSpec with the given names added as aliases.
+func (f FieldSpec) HasAlias(a ...string) FieldSpec {
+	f.Alias = append(slices.Clone(f.Alias), a...)
 	return f
 }
 

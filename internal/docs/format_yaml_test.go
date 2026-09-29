@@ -1602,40 +1602,47 @@ func TestFieldsWithAliases(t *testing.T) {
 		errContains string
 	}{
 		"Use Field Name": {
-			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x")},
 			yamlConfig: `x: 5`,
 			expected: map[string]any{
 				"x": 5,
 			},
 		},
 		"Use Alias Name": {
-			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x")},
 			yamlConfig: `int_x: 5`,
 			expected: map[string]any{
 				"x": 5,
 			},
 		},
 		"Two Aliases": {
-			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x", "integer_x"})},
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x", "integer_x")},
+			yamlConfig: `integer_x: 5`,
+			expected: map[string]any{
+				"x": 5,
+			},
+		},
+		"Two Aliases Chained": {
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x").HasAlias("integer_x")},
 			yamlConfig: `integer_x: 5`,
 			expected: map[string]any{
 				"x": 5,
 			},
 		},
 		"Both Name And Alias In Config": {
-			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x", "integer_x"})},
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x", "integer_x")},
 			yamlConfig: `int_x: 9
 x: 6`,
 			errContains: "specified more than once",
 		},
 		"Two Aliases In Config": {
-			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x", "integer_x"})},
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x", "integer_x")},
 			yamlConfig: `int_x: 9
 integer_x: 6`,
 			errContains: "specified more than once",
 		},
 		"Alias Field Omitted Uses Default": {
-			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"}).HasDefault(3)},
+			spec:       docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x").HasDefault(3)},
 			yamlConfig: `y: 9`,
 			expected: map[string]any{
 				"x": 3,
@@ -1643,7 +1650,7 @@ integer_x: 6`,
 			},
 		},
 		"Explicit Name Overrides Merged Alias": {
-			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x")},
 			yamlConfig: `base: &base
   int_x: 9
 <<: *base
@@ -1654,7 +1661,7 @@ x: 6`,
 			},
 		},
 		"Explicit Alias Overrides Merged Name": {
-			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x")},
 			yamlConfig: `base: &base
   x: 9
 <<: *base
@@ -1665,7 +1672,7 @@ int_x: 6`,
 			},
 		},
 		"Merged Alias Resolves": {
-			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			spec: docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x")},
 			yamlConfig: `base: &base
   int_x: 9
 <<: *base`,
@@ -1675,13 +1682,13 @@ int_x: 6`,
 			},
 		},
 		"Alias With Invalid Value": {
-			spec:        docs.FieldSpecs{docs.FieldInt("x", "").HasAlias([]string{"int_x"})},
+			spec:        docs.FieldSpecs{docs.FieldInt("x", "").HasAlias("int_x")},
 			yamlConfig:  `int_x: nope`,
 			errContains: "field 'int_x'",
 		},
 		"Nested Alias": {
 			spec: docs.FieldSpecs{docs.FieldObject("a", "").WithChildren(
-				docs.FieldInt("x", "").HasAlias([]string{"int_x"}),
+				docs.FieldInt("x", "").HasAlias("int_x"),
 			)},
 			yamlConfig: `a:
   int_x: 5`,
@@ -1691,7 +1698,7 @@ int_x: 6`,
 		},
 		"Nested Name And Alias Conflict": {
 			spec: docs.FieldSpecs{docs.FieldObject("a", "").WithChildren(
-				docs.FieldInt("x", "").HasAlias([]string{"int_x"}),
+				docs.FieldInt("x", "").HasAlias("int_x"),
 			)},
 			yamlConfig: `a:
   int_x: 5
@@ -1725,7 +1732,7 @@ func TestFieldsWithAliasesLints(t *testing.T) {
 		Name: "foo",
 		Type: docs.TypeInput,
 		Config: docs.FieldComponent().WithChildren(
-			docs.FieldString("foo1", "").HasAlias([]string{"bar1", "baz1"}),
+			docs.FieldString("foo1", "").HasAlias("bar1", "baz1"),
 			docs.FieldAnything("anchors", "").Optional(),
 		),
 	})
