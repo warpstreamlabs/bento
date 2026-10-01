@@ -13,9 +13,10 @@ import (
 
 	"github.com/Jeffail/shutdown"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 
+	"github.com/warpstreamlabs/bento/internal/impl/azure/credentials"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -50,6 +51,7 @@ type sbqConfig struct {
 	autoAck            bool
 	nackRejectPatterns []*regexp.Regexp
 	renewLock          bool
+	getCredential      func() (azcore.TokenCredential, error)
 }
 
 func sbqConfigFromParsed(pConf *service.ParsedConfig) (*sbqConfig, error) {
@@ -73,6 +75,9 @@ func sbqConfigFromParsed(pConf *service.ParsedConfig) (*sbqConfig, error) {
 	}
 	if conf.renewLock, err = pConf.FieldBool(sbqFieldRenewLock); err != nil {
 		return nil, err
+	}
+	conf.getCredential = func() (azcore.TokenCredential, error) {
+		return credentials.GetTokenCredential(pConf)
 	}
 	if pConf.Contains(sbqFieldNackRejectPatterns) {
 		nackPatternStrs, err := pConf.FieldStringList(sbqFieldNackRejectPatterns)
@@ -100,11 +105,10 @@ func sbqSpec() *service.ConfigSpec {
 		Description(`
 Consume messages from an Azure Service Bus Queue using AMQP 1.0 protocol.
 
-### Authentication
+`+credentials.Docs("When authenticating with `"+credentials.FieldCredentials+"` the `"+sbqFieldNamespace+"` field must be set. Alternatively, a shared access policy can be used by setting `"+sbqFieldConnectionString+"`.")+`
+The identity requires the `+"`Azure Service Bus Data Receiver`"+` role on the namespace or queue.
 
-Either `+"`connection_string`"+` or `+"`namespace`"+` must be provided. When using `+"`namespace`"+`, the default Azure credentials will be used.
-
-### Metadata
+## Metadata
 
 This input adds the following metadata fields to each message:
 
@@ -128,11 +132,11 @@ This input adds the following metadata fields to each message:
 You can access these metadata fields using [function interpolation](/docs/configuration/interpolation#bloblang-queries).`).
 		Fields(
 			service.NewStringField(sbqFieldConnectionString).
-				Description("The Service Bus connection string. This can be obtained from the Azure portal. If not provided, namespace and default credentials will be used.").
+				Description("The Service Bus connection string. This can be obtained from the Azure portal. When set it takes priority over `"+sbqFieldNamespace+"` and `"+credentials.FieldCredentials+"`. Prefer `"+credentials.FieldCredentials+"` (Microsoft Entra ID) where possible, shared access keys and connection strings are long-lived secrets.").
 				Example("Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=...").
 				Default(""),
 			service.NewStringField(sbqFieldNamespace).
-				Description("The Service Bus namespace. Required when connection_string is not provided.").
+				Description("The fully qualified Service Bus namespace, authenticated with `"+credentials.FieldCredentials+"`. Required when `"+sbqFieldConnectionString+"` is not provided.").
 				Example("myservicebus.servicebus.windows.net").
 				Default(""),
 			service.NewStringField(sbqFieldQueueName).
@@ -153,7 +157,13 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Description("Automatically renew message locks to prevent lock expiration during processing. Useful for long-running message processing.").
 				Default(true).
 				Advanced(),
-		)
+			credentials.Fields(),
+		).
+		LintRule(`
+root = [
+  if this.connection_string.or("") != "" && ` + credentials.IsSetBloblang + ` { "credentials are ignored when connection_string is set" },
+].filter(v -> v != null)
+`)
 }
 
 type azureServiceBusQueueReader struct {
@@ -201,13 +211,13 @@ func (a *azureServiceBusQueueReader) Connect(ctx context.Context) error {
 			return fmt.Errorf("failed to create Service Bus client from connection string: %w", err)
 		}
 	} else if a.conf.namespace != "" {
-		cred, credErr := azidentity.NewDefaultAzureCredential(nil)
+		cred, credErr := a.conf.getCredential()
 		if credErr != nil {
-			return fmt.Errorf("failed to get default Azure credentials: %w", credErr)
+			return fmt.Errorf("failed to get Azure credentials: %w", credErr)
 		}
 		a.client, err = azservicebus.NewClient(a.conf.namespace, cred, nil)
 		if err != nil {
-			return fmt.Errorf("failed to create Service Bus client with default credentials: %w", err)
+			return fmt.Errorf("failed to create Service Bus client with Azure credentials: %w", err)
 		}
 	} else {
 		return errors.New("either connection_string or namespace must be provided")

@@ -6,9 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/warpstreamlabs/bento/internal/impl/azure/credentials"
 	"github.com/warpstreamlabs/bento/public/service"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue"
@@ -22,24 +23,40 @@ const (
 	bscFieldStorageConnectionString = "storage_connection_string"
 )
 
+const legacyDiscouraged = " Prefer `" + credentials.FieldCredentials + "` (Microsoft Entra ID) where possible, shared keys and connection strings are long-lived secrets."
+
+// storageAuthDocs documents authentication for all Azure Storage components.
+var storageAuthDocs = credentials.Docs("The `" + bscFieldStorageAccount + "` field must be set when authenticating with `" + credentials.FieldCredentials + "`.\n\nAlternatively, the following shared key methods are supported, in order of priority: `" + bscFieldStorageConnectionString + "`, `" + bscFieldStorageAccount + "` with `" + bscFieldStorageAccessKey + "`, and `" + bscFieldStorageAccount + "` with `" + bscFieldStorageSASToken + "`. If `" + bscFieldStorageConnectionString + "` does not contain the `AccountName` parameter then it must be specified with the `" + bscFieldStorageAccount + "` field.")
+
 func azureComponentSpec(forBlobStorage bool) *service.ConfigSpec {
 	spec := service.NewConfigSpec().
 		Categories("Services", "Azure").
 		Fields(
 			service.NewStringField(bscFieldStorageAccount).
-				Description("The storage account to access. This field is ignored if `"+bscFieldStorageConnectionString+"` is set.").
+				Description("The storage account to access. Required unless `"+bscFieldStorageConnectionString+"` is set, in which case it is only used if the connection string does not contain the `AccountName` parameter.").
+				Example("mystorageaccount").
 				Default(""),
 			service.NewStringField(bscFieldStorageAccessKey).
-				Description("The storage account access key. This field is ignored if `"+bscFieldStorageConnectionString+"` is set.").
-				Default(""),
+				Description("The storage account access key. This field is ignored if `"+bscFieldStorageConnectionString+"` is set."+legacyDiscouraged).
+				Default("").
+				Secret(),
 			service.NewStringField(bscFieldStorageConnectionString).
-				Description("A storage account connection string. This field is required if `"+bscFieldStorageAccount+"` and `"+bscFieldStorageAccessKey+"` / `"+bscFieldStorageSASToken+"` are not set.").
-				Default(""),
+				Description("A storage account connection string. When set it takes priority over every other authentication method."+legacyDiscouraged).
+				Default("").
+				Secret(),
 		)
 	spec = spec.Field(service.NewStringField(bscFieldStorageSASToken).
-		Description("The storage account SAS token. This field is ignored if `" + bscFieldStorageConnectionString + "` or `" + bscFieldStorageAccessKey + "` are set.").
-		Default("")).
-		LintRule(`root = if this.storage_connection_string != "" && !this.storage_connection_string.contains("AccountName=")  && !this.storage_connection_string.contains("UseDevelopmentStorage=true;") && this.storage_account == "" { [ "storage_account must be set if storage_connection_string does not contain the \"AccountName\" parameter" ] }`)
+		Description("The storage account SAS token. This field is ignored if `" + bscFieldStorageConnectionString + "` or `" + bscFieldStorageAccessKey + "` are set." + legacyDiscouraged).
+		Default("").
+		Secret()).
+		Field(credentials.Fields()).
+		LintRule(`
+let hasLegacy = this.storage_connection_string.or("") != "" || this.storage_access_key.or("") != "" || this.storage_sas_token.or("") != ""
+root = [
+  if this.storage_connection_string.or("") != "" && !this.storage_connection_string.contains("AccountName=") && !this.storage_connection_string.contains("UseDevelopmentStorage=true;") && this.storage_account.or("") == "" { "storage_account must be set if storage_connection_string does not contain the \"AccountName\" parameter" },
+  if $hasLegacy && ` + credentials.IsSetBloblang + ` { "credentials are ignored when storage_connection_string, storage_access_key or storage_sas_token is set" },
+].filter(v -> v != null)
+`)
 	return spec
 }
 
@@ -63,14 +80,23 @@ func blobStorageClientFromParsed(pConf *service.ParsedConfig, container string) 
 	if storageAccount == "" && connectionString == "" {
 		return nil, false, errors.New("invalid azure storage account credentials")
 	}
-	return getBlobStorageClient(connectionString, storageAccount, storageAccessKey, storageSASToken, container)
+	return getBlobStorageClient(connectionString, storageAccount, storageAccessKey, storageSASToken, container, tokenCredentialFn(pConf))
+}
+
+// tokenCredentialFn returns a lazy constructor for the Entra ID credential
+// configured within pConf, so that it's only built when no shared key
+// authentication method is set.
+func tokenCredentialFn(pConf *service.ParsedConfig) func() (azcore.TokenCredential, error) {
+	return func() (azcore.TokenCredential, error) {
+		return credentials.GetTokenCredential(pConf)
+	}
 }
 
 const (
 	blobEndpointExp = "https://%s.blob.core.windows.net"
 )
 
-func getBlobStorageClient(storageConnectionString, storageAccount, storageAccessKey, storageSASToken, container string) (*azblob.Client, bool, error) {
+func getBlobStorageClient(storageConnectionString, storageAccount, storageAccessKey, storageSASToken, container string, getCred func() (azcore.TokenCredential, error)) (*azblob.Client, bool, error) {
 	var client *azblob.Client
 	var err error
 	var containerSASToken bool
@@ -96,9 +122,9 @@ func getBlobStorageClient(storageConnectionString, storageAccount, storageAccess
 		}
 		client, err = azblob.NewClientWithNoCredential(serviceURL, nil)
 	} else {
-		cred, credErr := azidentity.NewDefaultAzureCredential(nil)
+		cred, credErr := getCred()
 		if credErr != nil {
-			return nil, false, fmt.Errorf("error getting default Azure credentials: %v", credErr)
+			return nil, false, fmt.Errorf("error getting Azure credentials: %w", credErr)
 		}
 		serviceURL := fmt.Sprintf(blobEndpointExp, storageAccount)
 		client, err = azblob.NewClient(serviceURL, cred, nil)
@@ -178,10 +204,10 @@ func queueServiceClientFromParsed(pConf *service.ParsedConfig) (*azqueue.Service
 	if storageAccount == "" && connectionString == "" {
 		return nil, errors.New("invalid azure storage account credentials")
 	}
-	return getQueueServiceClient(storageAccount, storageAccessKey, connectionString, storageSASToken)
+	return getQueueServiceClient(storageAccount, storageAccessKey, connectionString, storageSASToken, tokenCredentialFn(pConf))
 }
 
-func getQueueServiceClient(storageAccount, storageAccessKey, storageConnectionString, storageSASToken string) (*azqueue.ServiceClient, error) {
+func getQueueServiceClient(storageAccount, storageAccessKey, storageConnectionString, storageSASToken string, getCred func() (azcore.TokenCredential, error)) (*azqueue.ServiceClient, error) {
 	if storageAccount == "" && storageConnectionString == "" {
 		return nil, errors.New("invalid azure storage account credentials")
 	}
@@ -201,9 +227,9 @@ func getQueueServiceClient(storageAccount, storageAccessKey, storageConnectionSt
 		serviceURL := fmt.Sprintf("%s/%s", fmt.Sprintf(azQueueEndpointExp, storageAccount), storageSASToken)
 		client, err = azqueue.NewServiceClientWithNoCredential(serviceURL, nil)
 	} else {
-		cred, credErr := azidentity.NewDefaultAzureCredential(nil)
+		cred, credErr := getCred()
 		if credErr != nil {
-			return nil, fmt.Errorf("error getting default azure credentials: %v", credErr)
+			return nil, fmt.Errorf("error getting Azure credentials: %w", credErr)
 		}
 		serviceURL := fmt.Sprintf(azQueueEndpointExp, storageAccount)
 		client, err = azqueue.NewServiceClient(serviceURL, cred, nil)
@@ -237,14 +263,14 @@ func tablesServiceClientFromParsed(pConf *service.ParsedConfig) (*aztables.Servi
 	if storageAccount == "" && connectionString == "" {
 		return nil, errors.New("invalid azure storage account credentials")
 	}
-	return getTablesServiceClient(storageAccount, storageAccessKey, connectionString, storageSASToken)
+	return getTablesServiceClient(storageAccount, storageAccessKey, connectionString, storageSASToken, tokenCredentialFn(pConf))
 }
 
 const (
 	tableEndpointExp = "https://%s.table.core.windows.net"
 )
 
-func getTablesServiceClient(account, accessKey, connectionString, storageSASToken string) (*aztables.ServiceClient, error) {
+func getTablesServiceClient(account, accessKey, connectionString, storageSASToken string, getCred func() (azcore.TokenCredential, error)) (*aztables.ServiceClient, error) {
 	var err error
 	if account == "" && connectionString == "" {
 		return nil, errors.New("invalid azure storage account credentials")
@@ -256,16 +282,16 @@ func getTablesServiceClient(account, accessKey, connectionString, storageSASToke
 	} else if accessKey != "" {
 		cred, credErr := aztables.NewSharedKeyCredential(account, accessKey)
 		if credErr != nil {
-			return nil, fmt.Errorf("invalid azure storage account credentials: %v", err)
+			return nil, fmt.Errorf("invalid azure storage account credentials: %w", credErr)
 		}
 		client, err = aztables.NewServiceClientWithSharedKey(fmt.Sprintf(tableEndpointExp, account), cred, nil)
 	} else if storageSASToken != "" {
 		serviceURL := fmt.Sprintf("%s/%s", fmt.Sprintf(tableEndpointExp, account), storageSASToken)
 		client, err = aztables.NewServiceClientWithNoCredential(serviceURL, nil)
 	} else {
-		cred, credErr := azidentity.NewDefaultAzureCredential(nil)
+		cred, credErr := getCred()
 		if credErr != nil {
-			return nil, fmt.Errorf("error getting default Azure credentials: %v", credErr)
+			return nil, fmt.Errorf("error getting Azure credentials: %w", credErr)
 		}
 		serviceURL := fmt.Sprintf(tableEndpointExp, account)
 		client, err = aztables.NewServiceClient(serviceURL, cred, nil)

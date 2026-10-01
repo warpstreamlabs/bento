@@ -58,9 +58,7 @@ This input adds the following metadata fields to each message:
 - queue_storage_queue_name
 - queue_storage_message_lag (if 'track_properties' set to true)
 - All user defined queue metadata
-`+"```"+`
-
-Only one authentication method is required, `+"`storage_connection_string`"+` or `+"`storage_account` and `storage_access_key`"+`. If both are set then the `+"`storage_connection_string`"+` is given priority.`).
+`+"```"+``+storageAuthDocs).
 		Fields(
 			service.NewInterpolatedStringField(qsiFieldQueueName).
 				Description("The name of the source storage queue.").
