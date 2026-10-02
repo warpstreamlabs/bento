@@ -75,6 +75,18 @@ credentials:
   id: xxxxxx
   secret: xxxxxx
   token: xxxxxx
+max_tokens: -1
+`
+
+const converseMaxTokensYAML = `
+model: anthropic.claude-3-5-sonnet-20241022-v2:0
+region: us-east-1
+endpoint: "%v"
+credentials:
+  id: xxxxxx
+  secret: xxxxxx
+  token: xxxxxx
+max_tokens: 512
 `
 
 func converseHandler(body []byte) (int, []byte) {
@@ -160,9 +172,8 @@ func TestBedrockChatProcessorProcess(t *testing.T) {
 			wantOutput: "Echo: test prompt",
 		},
 		{
-			name: "with max_tokens",
-			conf: converseBaseYAML + `max_tokens: 512
-`,
+			name:       "with max_tokens",
+			conf:       converseMaxTokensYAML,
 			handler:    converseHandler,
 			input:      converseMsgs("test"),
 			wantReqs:   1,
@@ -263,10 +274,7 @@ func TestBedrockChatProcessorRequestShape(t *testing.T) {
 
 	out, err := batch[0].AsBytes()
 	require.NoError(t, err)
-
-	var outStr string
-	require.NoError(t, json.Unmarshal(out, &outStr))
-	require.Equal(t, "Echo: "+in, outStr)
+	require.Equal(t, "Echo: "+in, string(out))
 
 	reqs := srv.captured()
 	require.Len(t, reqs, 1)
@@ -322,7 +330,8 @@ func TestBedrockChatProcessorUsesPromptField(t *testing.T) {
 func TestBedrockChatProcessorFromParsedDefaults(t *testing.T) {
 	srv := newBedrockConverseTestServer(t, converseHandler)
 
-	// No optional fields set - should work with defaults
+	// Only max_tokens set (to -1, the no-limit override) - other optional
+	// fields absent should work with defaults.
 	pConf, err := bedrockChatProcSpec().ParseYAML(fmt.Sprintf(converseBaseYAML, srv.URL), nil)
 	require.NoError(t, err)
 
@@ -347,4 +356,43 @@ func TestBedrockChatProcessorFromParsedDefaults(t *testing.T) {
 	require.Nil(t, inferenceConfig["temperature"])
 	require.Nil(t, inferenceConfig["topP"])
 	require.Empty(t, inferenceConfig["stopSequences"])
+}
+
+func TestBedrockChatProcessorMaxTokensOverride(t *testing.T) {
+	srv := newBedrockConverseTestServer(t, converseHandler)
+
+	pConf, err := bedrockChatProcSpec().ParseYAML(fmt.Sprintf(converseMaxTokensYAML, srv.URL), nil)
+	require.NoError(t, err)
+
+	proc, err := bedrockChatProcessorFromParsed(pConf, service.MockResources())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = proc.Close(context.Background()) })
+
+	batch, err := proc.Process(context.Background(), service.NewMessage([]byte("test")))
+	require.NoError(t, err)
+	require.Len(t, batch, 1)
+	require.NoError(t, batch[0].GetError())
+
+	reqs := srv.captured()
+	require.Len(t, reqs, 1)
+
+	var reqBody map[string]any
+	require.NoError(t, json.Unmarshal(reqs[0].body, &reqBody))
+
+	inferenceConfig := reqBody["inferenceConfig"].(map[string]any)
+	require.Equal(t, float64(512), inferenceConfig["maxTokens"])
+}
+
+func TestBedrockChatProcessorMaxTokensRequired(t *testing.T) {
+	const missingMaxTokensYAML = `
+model: anthropic.claude-3-5-sonnet-20241022-v2:0
+region: us-east-1
+endpoint: "http://localhost:1234"
+credentials:
+  id: xxxxxx
+  secret: xxxxxx
+`
+	_, err := bedrockChatProcSpec().ParseYAML(missingMaxTokensYAML, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "max_tokens")
 }

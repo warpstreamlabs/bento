@@ -31,20 +31,21 @@ func bedrockChatProcSpec() *service.ConfigSpec {
 
 Unlike the ` + "`aws_bedrock_invoke`" + ` processor which uses the model-specific ` + "`InvokeModel`" + ` API, this processor uses the model-agnostic ` + "`Converse`" + ` API, which provides a unified request/response format across all supported models.
 
+Currently only text content is supported for both the input prompt and the model response; you cannot yet send images, documents, or other content blocks.
+
 For more information, see the [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html).`).
 		Field(service.NewStringField(bedcpFieldModel).
 			Description("The model ID to use. For a full list see the [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html).").
 			Examples("amazon.titan-text-express-v1", "anthropic.claude-3-5-sonnet-20241022-v2:0", "cohere.command-text-v14", "meta.llama3-1-70b-instruct-v1:0", "mistral.mistral-large-2402-v1:0")).
-		Field(service.NewStringField(bedcpFieldUserPrompt).
+		Field(service.NewInterpolatedStringField(bedcpFieldUserPrompt).
 			Description("The prompt you want to generate a response for. By default, the processor submits the entire payload as a string.").
 			Optional()).
-		Field(service.NewStringField(bedcpFieldSystemPrompt).
+		Field(service.NewInterpolatedStringField(bedcpFieldSystemPrompt).
 			Optional().
 			Description("The system prompt to submit to the AWS Bedrock LLM.")).
 		Field(service.NewIntField(bedcpFieldMaxTokens).
-			Optional().
-			Description("The maximum number of tokens to allow in the generated response.").
-			LintRule(`root = if this < 1 { ["field must be greater than or equal to 1"] }`)).
+			Description("The maximum number of tokens to allow in the generated response. Set to `-1` in order to not apply a limit.").
+			LintRule(`root = if this != -1 && this < 1 { ["field must be -1 or greater than or equal to 1"] }`)).
 		Field(service.NewFloatField(bedcpFieldTemp).
 			Optional().
 			Description("The likelihood of the model selecting higher-probability options while generating a response. A lower value makes the model more likely to choose higher-probability options, while a higher value makes the model more likely to choose lower-probability options.").
@@ -107,13 +108,14 @@ func bedrockChatProcessorFromParsed(conf *service.ParsedConfig, mgr *service.Res
 		}
 		p.systemPrompt = pf
 	}
-	if conf.Contains(bedcpFieldMaxTokens) {
-		v, err := conf.FieldInt(bedcpFieldMaxTokens)
-		if err != nil {
-			return nil, err
-		}
-		mt := int32(v)
-		p.maxTokens = &mt
+	maxTokens, err := conf.FieldInt(bedcpFieldMaxTokens)
+	if err != nil {
+		return nil, err
+	}
+	p.maxTokens = new(int32)
+	*p.maxTokens = int32(maxTokens)
+	if maxTokens == -1 {
+		p.maxTokens = nil
 	}
 	if conf.Contains(bedcpFieldTemp) {
 		v, err := conf.FieldFloat(bedcpFieldTemp)
@@ -152,7 +154,7 @@ func init() {
 }
 
 type bedrockChatProcessor struct {
-	client *bedrockruntime.Client
+	client bedrockRuntimeAPI
 	model  string
 
 	userPrompt   *service.InterpolatedString
@@ -211,7 +213,7 @@ func (b *bedrockChatProcessor) Process(ctx context.Context, msg *service.Message
 	out := msg.Copy()
 	switch c := content[0].(type) {
 	case *bedrocktypes.ContentBlockMemberText:
-		out.SetStructured(c.Value)
+		out.SetBytes([]byte(c.Value))
 	default:
 		return nil, fmt.Errorf("unsupported response content type: %T", content[0])
 	}

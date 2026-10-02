@@ -35,7 +35,7 @@ aws_bedrock_chat:
   model: amazon.titan-text-express-v1 # No default (required)
   prompt: "" # No default (optional)
   system_prompt: "" # No default (optional)
-  max_tokens: 0 # No default (optional)
+  max_tokens: 0 # No default (required)
   temperature: 0 # No default (optional)
 ```
 
@@ -49,7 +49,7 @@ aws_bedrock_chat:
   model: amazon.titan-text-express-v1 # No default (required)
   prompt: "" # No default (optional)
   system_prompt: "" # No default (optional)
-  max_tokens: 0 # No default (optional)
+  max_tokens: 0 # No default (required)
   temperature: 0 # No default (optional)
   stop: [] # No default (optional)
   top_p: 0 # No default (optional)
@@ -72,6 +72,8 @@ aws_bedrock_chat:
 This processor sends prompts to your chosen large language model (LLM) and generates text from the responses, using the [AWS Bedrock Converse API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html).
 
 Unlike the `aws_bedrock_invoke` processor which uses the model-specific `InvokeModel` API, this processor uses the model-agnostic `Converse` API, which provides a unified request/response format across all supported models.
+
+Currently only text content is supported for both the input prompt and the model response; you cannot yet send images, documents, or other content blocks.
 
 For more information, see the [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html).
 
@@ -124,6 +126,7 @@ model: mistral.mistral-large-2402-v1:0
 ### `prompt`
 
 The prompt you want to generate a response for. By default, the processor submits the entire payload as a string.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
@@ -131,13 +134,14 @@ Type: `string`
 ### `system_prompt`
 
 The system prompt to submit to the AWS Bedrock LLM.
+This field supports [interpolation functions](/docs/configuration/interpolation#bloblang-queries).
 
 
 Type: `string`  
 
 ### `max_tokens`
 
-The maximum number of tokens to allow in the generated response.
+The maximum number of tokens to allow in the generated response. Set to `-1` in order to not apply a limit.
 
 
 Type: `int`  
