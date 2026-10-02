@@ -88,9 +88,10 @@ type Type struct {
 	env      *bundle.Environment
 	bloblEnv *bloblang.Environment
 
-	logger log.Modular
-	stats  *metrics.Namespaced
-	tracer trace.TracerProvider
+	logger       log.Modular
+	stats        *metrics.Namespaced
+	tracer       trace.TracerProvider
+	onInputError func(err error)
 
 	pipeCtor func(conf pipeline.Config, mgr bundle.NewManagement) (processor.Pipeline, error)
 	pipes    map[string]<-chan message.Transaction
@@ -319,6 +320,10 @@ func (t *Type) EngineVersion() string {
 	return t.engineVersion
 }
 
+func (t *Type) InputErrorHandler() func(err error) {
+	return t.onInputError
+}
+
 //------------------------------------------------------------------------------
 
 // ForStream returns a variant of this manager to be used by a particular stream
@@ -384,6 +389,12 @@ func (t *Type) Label() string {
 func (t *Type) WithAddedMetrics(m metrics.Type) bundle.NewManagement {
 	newT := *t
 	newT.stats = newT.stats.WithStats(metrics.Combine(newT.stats.Child(), m))
+	return &newT
+}
+
+func (t *Type) WithInputErrorHandler(f func(err error)) bundle.NewManagement {
+	newT := *t
+	newT.onInputError = f
 	return &newT
 }
 
