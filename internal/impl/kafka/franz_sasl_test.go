@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,6 +98,37 @@ sasl:
 			// However, franz-go mechanisms are mostly opaque.
 		})
 	}
+}
+
+func TestSaslOAuth2SendsExtensions(t *testing.T) {
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"tok","token_type":"Bearer","expires_in":3600}`))
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	saslConf := service.NewConfigSpec().Field(saslField())
+	pConf, err := saslConf.ParseYAML(`
+sasl:
+  - mechanism: OAUTHBEARER
+    oauth2:
+      enabled: true
+      client_key: foo
+      client_secret: bar
+      token_url: `+tokenServer.URL+`
+    extensions:
+      logicalCluster: lkc-abc123
+`, nil)
+	require.NoError(t, err)
+
+	mechanisms, err := saslMechanismsFromConfig(pConf)
+	require.NoError(t, err)
+	require.Len(t, mechanisms, 1)
+
+	_, clientFirst, err := mechanisms[0].Authenticate(t.Context(), "localhost:9092")
+	require.NoError(t, err)
+	assert.Contains(t, string(clientFirst), "auth=Bearer tok")
+	assert.Contains(t, string(clientFirst), "logicalCluster=lkc-abc123")
 }
 
 func TestSaslMechanismsFromConfigMultiple(t *testing.T) {
