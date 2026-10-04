@@ -3141,6 +3141,27 @@ root.amount = this.amount.decode("base64").parse_big_decimal(scale: 2)
 # Out: {"amount":"-0.01"}
 ```
 
+### `parse_bytes`
+
+Attempts to parse a string as a humanised byte size (such as "10MB", "20MiB" or "1Kb") and returns an integer of the equivalent number of bytes.
+
+#### Examples
+
+
+```coffee
+root.max_bytes = this.max_bytes_str.parse_bytes()
+
+# In:  {"max_bytes_str":"10MiB"}
+# Out: {"max_bytes":10485760}
+```
+
+```coffee
+root.byte_size_limit = this.byte_size_limit_str.parse_bytes()
+
+# In:  {"byte_size_limit_str":"10MB"}
+# Out: {"byte_size_limit":10000000}
+```
+
 ### `parse_csv`
 
 Attempts to parse a string into an array of objects by following the CSV format described in RFC 4180.
