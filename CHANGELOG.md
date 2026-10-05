@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
 - `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
 - `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397
+- `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
 
 ### Fixed
 

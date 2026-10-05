@@ -33,7 +33,7 @@ func testDequeuedMessages() []*azq.DequeuedMessage {
 func TestQueueAckFnAckDeletesMessages(t *testing.T) {
 	client := &fakeQueueClient{}
 
-	require.NoError(t, queueAckFn(client, testDequeuedMessages())(t.Context(), nil))
+	require.NoError(t, queueAckFn(client, testDequeuedMessages(), true)(t.Context(), nil))
 
 	assert.Equal(t, []string{"id1", "id2"}, client.deleted)
 }
@@ -41,13 +41,21 @@ func TestQueueAckFnAckDeletesMessages(t *testing.T) {
 func TestQueueAckFnAckDeleteError(t *testing.T) {
 	client := &fakeQueueClient{deleteErr: errors.New("boom")}
 
-	require.ErrorContains(t, queueAckFn(client, testDequeuedMessages())(t.Context(), nil), "boom")
+	require.ErrorContains(t, queueAckFn(client, testDequeuedMessages(), true)(t.Context(), nil), "boom")
 }
 
 func TestQueueAckFnNackKeepsMessages(t *testing.T) {
 	client := &fakeQueueClient{}
 
-	require.NoError(t, queueAckFn(client, testDequeuedMessages())(t.Context(), errors.New("simulated failure")))
+	require.NoError(t, queueAckFn(client, testDequeuedMessages(), true)(t.Context(), errors.New("simulated failure")))
+
+	assert.Empty(t, client.deleted)
+}
+
+func TestQueueAckFnDeleteMessageDisabled(t *testing.T) {
+	client := &fakeQueueClient{}
+
+	require.NoError(t, queueAckFn(client, testDequeuedMessages(), false)(t.Context(), nil))
 
 	assert.Empty(t, client.deleted)
 }
