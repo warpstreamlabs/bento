@@ -3,17 +3,31 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.22.0 - TODO
 
-### Added
+### Added 
 
-- `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
-- `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
+ - `statsd` metric new options: `send_queue_capacity`, `buf_pool_capacity` & `send_loop_count` @triddell
+ - `credentials` object to every GCP component with fields `impersonate_service_account` & `impersonate_delegates` @NguyenThanhDat741862
+ - `kafka_franz` components now include `GSSAPI` (kerberos) in available `sasl.mechanism`'s @kmetaxas
+ - `redis_scan` input can now handle hash values with additional fields: `data_type`, `value_format`, `scan_count`, `hash_scan_count` @maxtheaxe
+ - `mqtt_v5` experimental input & output components enabling Bento to send/receive mqtt v5+ messages @ifnesi
+ - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
+ - `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
 
-### Fixed
+### Fixed 
 
+ - YAML merge keys (<<: *ref_field) are now resolved when running streams i.e. `run` subcommand aligning behaviour with the `lint` subcommand @youdie006
+ - `mongodb` cache operator `exists` correctly handling mongo.ErrNoDocuments & non-bytes return type @gregfurman
 - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
 - `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
+
+### Changed 
+
+ - nats: `cache_kv` & `output_kv` migrated to new jetstream package & connection retry logic altered @henrikschristensen
+ - Docusaurus (documentation static site builder) upgraded to v3.10 @gregfurman
+ - dockertest test dependency upgraded to v4 @slachiewicz
+ - various integration tests ready for github actions @gregfurman
 
 ## 1.21.2 - 2026-09-11 
 
