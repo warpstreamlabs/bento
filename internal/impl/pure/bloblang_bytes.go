@@ -12,7 +12,7 @@ func init() {
 		bloblang.NewPluginSpec().
 			Static().
 			Category(query.MethodCategoryParsing).
-			Description(`Attempts to parse a string as a humanised byte size (such as "10MB", "20MiB" or "1Kb") and returns an integer of the equivalent number of bytes.`).
+			Description(`Attempts to parse a string as a humanised byte size (such as "10MB", "20MiB" or "1Kb") and returns an integer of the equivalent number of bytes, using the `+"[dustin/go-humanize](https://github.com/dustin/go-humanize)"+` library.`).
 			Example("",
 				`root.max_bytes = this.max_bytes_str.parse_bytes()`,
 				[2]string{
@@ -29,11 +29,7 @@ func init() {
 			),
 		func(args *bloblang.ParsedParams) (bloblang.Method, error) {
 			return bloblang.StringMethod(func(s string) (any, error) {
-				b, err := humanize.ParseBytes(s)
-				if err != nil {
-					return nil, err
-				}
-				return b, nil
+				return humanize.ParseBytes(s)
 			}), nil
 		}); err != nil {
 		panic(err)

@@ -63,7 +63,7 @@ func TestParseBytes(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			assert.Equal(t, test.exp, res)
+			require.Equal(t, test.exp, res)
 			assert.Equal(t, test.target, targetClone)
 			assert.Equal(t, test.args, argsClone)
 		})

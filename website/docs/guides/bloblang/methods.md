@@ -3143,7 +3143,7 @@ root.amount = this.amount.decode("base64").parse_big_decimal(scale: 2)
 
 ### `parse_bytes`
 
-Attempts to parse a string as a humanised byte size (such as "10MB", "20MiB" or "1Kb") and returns an integer of the equivalent number of bytes.
+Attempts to parse a string as a humanised byte size (such as "10MB", "20MiB" or "1Kb") and returns an integer of the equivalent number of bytes, using the [dustin/go-humanize](https://github.com/dustin/go-humanize) library.
 
 #### Examples
 
