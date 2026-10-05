@@ -168,15 +168,27 @@ func (a *azureQueueStorage) ReadBatch(ctx context.Context) (batch service.Messag
 		batch = append(batch, part)
 		dqm[i] = queueMsg
 	}
-	return batch, func(ctx context.Context, res error) error {
-		for _, queueMsg := range dqm {
-			_, err = queueClient.DeleteMessage(ctx, *queueMsg.MessageID, *queueMsg.PopReceipt, nil)
-			if err != nil {
+	return batch, queueAckFn(queueClient, dqm), nil
+}
+
+type queueMessageClient interface {
+	DeleteMessage(ctx context.Context, messageID, popReceipt string, o *azq.DeleteMessageOptions) (azq.DeleteMessageResponse, error)
+}
+
+// queueAckFn deletes messages on ack. Nacked messages are left in place and
+// become visible again once their visibility timeout expires.
+func queueAckFn(client queueMessageClient, msgs []*azq.DequeuedMessage) service.AckFunc {
+	return func(ctx context.Context, res error) error {
+		if res != nil {
+			return nil
+		}
+		for _, queueMsg := range msgs {
+			if _, err := client.DeleteMessage(ctx, *queueMsg.MessageID, *queueMsg.PopReceipt, nil); err != nil {
 				return fmt.Errorf("error deleting message: %v", err)
 			}
 		}
 		return nil
-	}, nil
+	}
 }
 
 func (a *azureQueueStorage) Close(ctx context.Context) error {
