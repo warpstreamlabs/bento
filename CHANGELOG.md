@@ -10,11 +10,15 @@ All notable changes to this project will be documented in this file.
 - New `credentials` field for all Azure components (`azure_blob_storage`, `azure_queue_storage`, `azure_table_storage`, `azure_service_bus_queue` and `azure_cosmosdb`) enabling explicit Microsoft Entra ID authentication via service principal (secret or certificate), workload identity or managed identity, falling back to the `DefaultAzureCredential` chain. Connection strings, account keys and SAS tokens remain supported but are now discouraged. @istairbn
 - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
 - `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
+- `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397
+- `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
 
 ### Fixed
 
 - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
+- Inputs that automatically retry nacked messages could stay blocked on shutdown when a read was cancelled during the retry backoff @ReguiguiMohamed
 - `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
+- `azure_queue_storage` input deleted messages on nack, losing them; nacked messages are now left on the queue and redelivered once their visibility timeout expires @istairbn
 
 ## 1.21.2 - 2026-09-11 
 
