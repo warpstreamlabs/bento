@@ -465,6 +465,7 @@ http_server:
 		require.NoError(t, cerr)
 		req.Header.Set("Content-Type", "text/plain")
 		req.Header.Set("X-Custom-Header", "header-value")
+		req.AddCookie(&http.Cookie{Name: "mycookie", Value: "cookie-value"})
 		resp, cerr := http.DefaultClient.Do(req)
 		require.NoError(t, cerr)
 		defer resp.Body.Close()
@@ -494,12 +495,18 @@ http_server:
 	assert.Equal(t, "bar1", part.MetaGetStr("path_bar"))
 	// Headers are prefixed with "header_".
 	assert.Equal(t, "header-value", part.MetaGetStr("header_X-Custom-Header"))
-	// Query parameters are unaffected by the new option.
-	assert.Equal(t, "will go on", part.MetaGetStr("mylove"))
+	// Query parameters are prefixed with "query_".
+	assert.Equal(t, "will go on", part.MetaGetStr("query_mylove"))
+	// Cookies are prefixed with "cookie_".
+	assert.Equal(t, "cookie-value", part.MetaGetStr("cookie_mycookie"))
 	// The unprefixed keys should no longer be present.
 	_, exists := part.MetaGetMut("foo")
 	assert.False(t, exists)
 	_, exists = part.MetaGetMut("bar")
+	assert.False(t, exists)
+	_, exists = part.MetaGetMut("mylove")
+	assert.False(t, exists)
+	_, exists = part.MetaGetMut("mycookie")
 	assert.False(t, exists)
 }
 
