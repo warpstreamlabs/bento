@@ -135,7 +135,7 @@ This input adds the following metadata fields to each message:
 - All cookies
 ```
 
-Header and path parameter keys can collide with each other (as well as with query parameters and cookies) since they are all added to the same metadata namespace unprefixed. Enabling `prefix_metadata_keys` prefixes header-derived metadata keys with `header_` and path-parameter-derived metadata keys with `path_` in order to disambiguate them.
+Headers, path parameters, query parameters and cookies can collide with each other since they are all added to the same metadata namespace unprefixed. Enabling `prefix_metadata_keys` prefixes header-derived metadata keys with `header_`, path-parameter-derived metadata keys with `path_`, query-parameter-derived metadata keys with `query_` and cookie-derived metadata keys with `cookie_` in order to disambiguate them.
 
 If HTTPS is enabled, the following fields are added as well:
 ``` text
@@ -421,7 +421,7 @@ include_patterns:
 
 ### `prefix_metadata_keys`
 
-Whether to prefix metadata keys extracted from headers with `header_` and keys extracted from path parameters with `path_`, in order to avoid naming collisions between headers, path parameters, query parameters and cookies. This defaults to `false` in order to preserve the default behaviour of existing pipelines.
+Whether to prefix metadata keys extracted from headers with `header_`, keys extracted from path parameters with `path_`, keys extracted from query parameters with `query_`, and keys extracted from cookies with `cookie_`, in order to avoid naming collisions between headers, path parameters, query parameters and cookies. This defaults to `false` in order to preserve the default behaviour of existing pipelines.
 
 
 Type: `bool`  
