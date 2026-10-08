@@ -3,9 +3,9 @@ package cosmosdb
 import (
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 
+	"github.com/warpstreamlabs/bento/internal/impl/azure/credentials"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -72,15 +72,8 @@ type CRUDConfig struct {
 }
 
 // CredentialsDocs credentials docs
-var CredentialsDocs = `
-
-## Credentials
-
-You can use one of the following authentication mechanisms:
-
-- Set the ` + "`endpoint`" + ` field and the ` + "`account_key`" + ` field
-- Set only the ` + "`endpoint`" + ` field to use [DefaultAzureCredential](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential)
-- Set the ` + "`connection_string`" + ` field
+var CredentialsDocs = credentials.Docs("When authenticating with `"+credentials.FieldCredentials+"` the `"+fieldEndpoint+"` field must be set. Alternatively, key based authentication can be used by setting `"+fieldEndpoint+"` together with `"+fieldAccountKey+"`, or by setting `"+fieldConnectionString+"`.") + `
+The identity requires a Cosmos DB data-plane role such as ` + "`Cosmos DB Built-in Data Contributor`" + ` (or ` + "`Cosmos DB Built-in Data Reader`" + ` for read-only access). Note that these are assigned with ` + "`az cosmosdb sql role assignment create`" + ` rather than the regular Azure IAM blade.
 `
 
 // MetadataDocs metadata docs
@@ -135,6 +128,10 @@ let hasConnectionString = this.connection_string.or("") != ""
 root."-" = if !$hasEndpoint && !$hasConnectionString {
   "Either ` + "`endpoint`" + ` or ` + "`connection_string`" + ` must be set."
 }
+
+root."-" = if (this.account_key.or("") != "" || $hasConnectionString) && ` + credentials.IsSetBloblang + ` {
+  "The ` + "`credentials`" + ` field is ignored when ` + "`account_key`" + ` or ` + "`connection_string`" + ` is set."
+}
 `
 
 // CRUDLintRules contains the lint rules for CRUD fields
@@ -169,11 +166,12 @@ root."-" = if this.operation == "Patch" && this.patch_operations.any(o -> o.oper
 // ContainerClientConfigFields returns the container client config fields
 func ContainerClientConfigFields() []*service.ConfigField {
 	return []*service.ConfigField{
-		service.NewStringField(fieldEndpoint).Description("CosmosDB endpoint.").Optional().Example("https://localhost:8081"),
-		service.NewStringField(fieldAccountKey).Description("Account key.").Secret().Optional().Example("C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="),
-		service.NewStringField(fieldConnectionString).Description("Connection string.").Secret().Optional().Example("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==;"),
+		service.NewStringField(fieldEndpoint).Description("CosmosDB endpoint. Authenticated with `credentials` unless `" + fieldAccountKey + "` is set.").Optional().Example("https://localhost:8081"),
+		service.NewStringField(fieldAccountKey).Description("Account key, used together with `" + fieldEndpoint + "`. Prefer `credentials` (Microsoft Entra ID) where possible, account keys are long-lived secrets that grant full access to the account.").Secret().Optional().Example("C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="),
+		service.NewStringField(fieldConnectionString).Description("Connection string. Only used when `" + fieldEndpoint + "` is not set. Prefer `credentials` (Microsoft Entra ID) where possible, connection strings embed long-lived account keys.").Secret().Optional().Example("AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==;"),
 		service.NewStringField(fieldDatabase).Description("Database.").Example("testdb"),
 		service.NewStringField(fieldContainer).Description("Container.").Example("testcontainer"),
+		credentials.Fields(),
 	}
 }
 
@@ -258,10 +256,9 @@ func ContainerClientFromParsed(conf *service.ParsedConfig) (*azcosmos.ContainerC
 		if accountKey != "" {
 			client, err = azcosmos.NewClientWithKey(endpoint, keyCredential, nil)
 		} else {
-			var cred *azidentity.DefaultAzureCredential
-			cred, err = azidentity.NewDefaultAzureCredential(nil)
-			if err != nil {
-				return nil, fmt.Errorf("error getting default Azure credentials: %s", err)
+			cred, credErr := credentials.GetTokenCredential(conf)
+			if credErr != nil {
+				return nil, fmt.Errorf("error getting Azure credentials: %w", credErr)
 			}
 
 			client, err = azcosmos.NewClient(endpoint, cred, nil)

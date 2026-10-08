@@ -65,11 +65,9 @@ This input adds the following metadata fields to each message:
 - All user defined queue metadata
 `+"```"+`
 
-Only one authentication method is required, `+"`storage_connection_string`"+` or `+"`storage_account` and `storage_access_key`"+`. If both are set then the `+"`storage_connection_string`"+` is given priority.
-
 ### Delivery Guarantees
 
-When a message is acknowledged it is deleted from the queue, unless `+"`delete_message`"+` is set to `+"`false`"+`. When a message is rejected (nacked) it is never deleted; it is left on the queue and becomes visible again for redelivery once its `+"`dequeue_visibility_timeout`"+` expires.`).
+When a message is acknowledged it is deleted from the queue, unless `+"`delete_message`"+` is set to `+"`false`"+`. When a message is rejected (nacked) it is never deleted; it is left on the queue and becomes visible again for redelivery once its `+"`dequeue_visibility_timeout`"+` expires.`+storageAuthDocs).
 		Fields(
 			service.NewInterpolatedStringField(qsiFieldQueueName).
 				Description("The name of the source storage queue.").

@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- New `credentials` field for all Azure components (`azure_blob_storage`, `azure_queue_storage`, `azure_table_storage`, `azure_service_bus_queue` and `azure_cosmosdb`) enabling explicit Microsoft Entra ID authentication via service principal (secret or certificate), workload identity or managed identity, falling back to the `DefaultAzureCredential` chain. Connection strings, account keys and SAS tokens remain supported but are now discouraged. @istairbn
 - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
 - `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
 - `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397

@@ -62,6 +62,17 @@ output:
     storage_access_key: ""
     storage_connection_string: ""
     storage_sas_token: ""
+    credentials:
+      tenant_id: ""
+      client_id: ""
+      client_secret: ""
+      client_certificate_path: ""
+      client_certificate_password: ""
+      federated_token_file: ""
+      from_managed_identity: false
+      managed_identity_resource_id: ""
+      authority_host: ""
+      additionally_allowed_tenants: []
     table_name: ${! metadata("kafka_topic") } # No default (required)
     partition_key: ""
     row_key: ""
@@ -80,8 +91,6 @@ output:
 
 </TabItem>
 </Tabs>
-
-Only one authentication method is required, `storage_connection_string` or `storage_account` and `storage_access_key`. If both are set then the `storage_connection_string` is given priority.
 
 In order to set the `table_name`,  `partition_key` and `row_key` you can use function interpolations described [here](/docs/configuration/interpolation#bloblang-queries), which are calculated per message of a batch.
 
@@ -118,6 +127,33 @@ properties:
   timestamp: '${! json("timestamp") }'
 ```
 
+## Authentication
+
+Azure components authenticate with [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity/) via the `credentials` field, and this is the recommended approach. Because tokens are short-lived and scoped by Azure RBAC role assignments, there is no long-lived secret to leak or rotate when using a managed identity or workload identity.
+
+When no credentials are configured at all, Bento uses the [DefaultAzureCredential](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential) chain, which picks up the standard `AZURE_*` environment variables, workload identity, managed identity and finally developer tools such as the Azure CLI. For example, to authenticate as a service principal:
+
+```yml
+credentials:
+  tenant_id: ${AZURE_TENANT_ID}
+  client_id: ${AZURE_CLIENT_ID}
+  client_secret: ${AZURE_CLIENT_SECRET}
+```
+
+Or using the managed identity of the host:
+
+```yml
+credentials:
+  from_managed_identity: true
+```
+
+The `storage_account` field must be set when authenticating with `credentials`.
+
+Alternatively, the following shared key methods are supported, in order of priority: `storage_connection_string`, `storage_account` with `storage_access_key`, and `storage_account` with `storage_sas_token`. If `storage_connection_string` does not contain the `AccountName` parameter then it must be specified with the `storage_account` field. These take precedence over `credentials` when set, but are discouraged: they are long-lived secrets that grant broad access and must be rotated manually.
+
+The identity used needs an appropriate Azure RBAC data-plane role assignment on the target resource. Find out more [in this document](/docs/guides/cloud/azure).
+
+
 ## Performance
 
 This output benefits from sending multiple messages in flight in parallel for improved performance. You can tune the max number of in flight messages (or message batches) with the field `max_in_flight`.
@@ -128,15 +164,24 @@ This output benefits from sending messages as a batch for improved performance. 
 
 ### `storage_account`
 
-The storage account to access. This field is ignored if `storage_connection_string` is set.
+The storage account to access. Required unless `storage_connection_string` is set, in which case it is only used if the connection string does not contain the `AccountName` parameter.
 
 
 Type: `string`  
 Default: `""`  
 
+```yml
+# Examples
+
+storage_account: mystorageaccount
+```
+
 ### `storage_access_key`
 
-The storage account access key. This field is ignored if `storage_connection_string` is set.
+The storage account access key. This field is ignored if `storage_connection_string` is set. Prefer `credentials` (Microsoft Entra ID) where possible, shared keys and connection strings are long-lived secrets.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
 
 
 Type: `string`  
@@ -144,7 +189,10 @@ Default: `""`
 
 ### `storage_connection_string`
 
-A storage account connection string. This field is required if `storage_account` and `storage_access_key` / `storage_sas_token` are not set.
+A storage account connection string. When set it takes priority over every other authentication method. Prefer `credentials` (Microsoft Entra ID) where possible, shared keys and connection strings are long-lived secrets.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
 
 
 Type: `string`  
@@ -152,11 +200,152 @@ Default: `""`
 
 ### `storage_sas_token`
 
-The storage account SAS token. This field is ignored if `storage_connection_string` or `storage_access_key` are set.
+The storage account SAS token. This field is ignored if `storage_connection_string` or `storage_access_key` are set. Prefer `credentials` (Microsoft Entra ID) where possible, shared keys and connection strings are long-lived secrets.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
 
 
 Type: `string`  
 Default: `""`  
+
+### `credentials`
+
+Optional configuration of [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity/) credentials. These are used whenever no connection string, account key or SAS token is set for this component. Bento uses the first of the following that applies:
+
+1. `client_secret` is set: a service principal with a client secret.
+2. `client_certificate_path` is set: a service principal with a certificate.
+3. `federated_token_file` is set: workload identity.
+4. `from_managed_identity` is `true`: the host's managed identity.
+5. Otherwise the [DefaultAzureCredential](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential) chain. This tries environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_CLIENT_CERTIFICATE_PATH`, etc.), then workload identity, managed identity, the Azure CLI, the Azure Developer CLI and Azure PowerShell, in that order. Set the `AZURE_TOKEN_CREDENTIALS` environment variable to `prod` (environment, workload identity, managed identity), `dev` (the developer tools) or the name of a single credential type (e.g. `ManagedIdentityCredential`) to narrow the chain.
+
+Learn more [in this document](/docs/guides/cloud/azure).
+
+
+Type: `object`  
+Requires version 1.22.0 or newer  
+
+### `credentials.tenant_id`
+
+The Microsoft Entra ID (Azure AD) tenant ID to authenticate against. Required with `client_secret` or `client_certificate_path`. Equivalent environment variable: `AZURE_TENANT_ID`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+tenant_id: 00000000-0000-0000-0000-000000000000
+```
+
+### `credentials.client_id`
+
+The client (application) ID of an app registration, or the client ID of a user-assigned managed identity when `from_managed_identity` is `true`. Must be combined with `client_secret`, `client_certificate_path`, `federated_token_file` or `from_managed_identity`; the default credential chain only reads the `AZURE_CLIENT_ID` environment variable.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+client_id: 00000000-0000-0000-0000-000000000000
+```
+
+### `credentials.client_secret`
+
+A client secret for the service principal identified by `client_id`. When set, Bento authenticates as that service principal. Equivalent environment variable: `AZURE_CLIENT_SECRET`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.client_certificate_path`
+
+Path to a PEM or PKCS#12 file holding a certificate and private key for the service principal identified by `client_id`. When set, Bento authenticates as that service principal. Equivalent environment variable: `AZURE_CLIENT_CERTIFICATE_PATH`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+client_certificate_path: /etc/bento/sp-cert.pem
+```
+
+### `credentials.client_certificate_password`
+
+The password protecting the certificate file in `client_certificate_path`, if any. Equivalent environment variable: `AZURE_CLIENT_CERTIFICATE_PASSWORD`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.federated_token_file`
+
+Path to a file containing a federated (OIDC) token, used for [workload identity](https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview), for example on AKS. When set, Bento authenticates with workload identity using `tenant_id` and `client_id`. Equivalent environment variable: `AZURE_FEDERATED_TOKEN_FILE`, which is read by the default credential chain when this field is empty and no explicit credential type is selected. The AKS workload identity webhook sets these environment variables automatically.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+federated_token_file: /var/run/secrets/azure/tokens/azure-identity-token
+```
+
+### `credentials.from_managed_identity`
+
+Authenticate with the [managed identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview) of the Azure host (VM, App Service, Container Apps, Functions, etc). Uses the system-assigned identity unless `client_id` or `managed_identity_resource_id` selects a user-assigned identity. There is no environment variable that enables this, but the default credential chain tries managed identity anyway when no other credential applies.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `credentials.managed_identity_resource_id`
+
+The full resource ID of a user-assigned managed identity, used with `from_managed_identity`. This is an alternative to setting `client_id`; don't set both.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+managed_identity_resource_id: /subscriptions/<subscription>/resourceGroups/<group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
+```
+
+### `credentials.authority_host`
+
+The Microsoft Entra authority host. Only change this for sovereign clouds, such as `https://login.microsoftonline.us/` for Azure Government or `https://login.chinacloudapi.cn/` for Azure China. Defaults to the Azure public cloud. Equivalent environment variable: `AZURE_AUTHORITY_HOST`, which is read by every credential type except managed identity when this field is empty.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+authority_host: https://login.microsoftonline.us/
+```
+
+### `credentials.additionally_allowed_tenants`
+
+Tenants, besides `tenant_id`, that tokens may be requested for. Use `*` to allow any tenant. Equivalent environment variable: `AZURE_ADDITIONALLY_ALLOWED_TENANTS`, which is read by the default credential chain when this field is empty and no explicit credential type is selected. The environment variable takes a semicolon-separated list.
+
+
+Type: `array`  
+Default: `[]`  
 
 ### `table_name`
 

@@ -51,6 +51,17 @@ azure_cosmosdb:
   connection_string: '!!!SECRET_SCRUBBED!!!' # No default (optional)
   database: testdb # No default (required)
   container: testcontainer # No default (required)
+  credentials:
+    tenant_id: ""
+    client_id: ""
+    client_secret: ""
+    client_certificate_path: ""
+    client_certificate_password: ""
+    federated_token_file: ""
+    from_managed_identity: false
+    managed_identity_resource_id: ""
+    authority_host: ""
+    additionally_allowed_tenants: []
   partition_keys_map: root = "blobfish" # No default (required)
   operation: Create
   patch_operations: [] # No default (optional)
@@ -68,13 +79,31 @@ When creating documents, each message must have the `id` property (case-sensitiv
 The `partition_keys` field must resolve to the same value(s) across the entire message batch.
 
 
-## Credentials
+## Authentication
 
-You can use one of the following authentication mechanisms:
+Azure components authenticate with [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity/) via the `credentials` field, and this is the recommended approach. Because tokens are short-lived and scoped by Azure RBAC role assignments, there is no long-lived secret to leak or rotate when using a managed identity or workload identity.
 
-- Set the `endpoint` field and the `account_key` field
-- Set only the `endpoint` field to use [DefaultAzureCredential](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential)
-- Set the `connection_string` field
+When no credentials are configured at all, Bento uses the [DefaultAzureCredential](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential) chain, which picks up the standard `AZURE_*` environment variables, workload identity, managed identity and finally developer tools such as the Azure CLI. For example, to authenticate as a service principal:
+
+```yml
+credentials:
+  tenant_id: ${AZURE_TENANT_ID}
+  client_id: ${AZURE_CLIENT_ID}
+  client_secret: ${AZURE_CLIENT_SECRET}
+```
+
+Or using the managed identity of the host:
+
+```yml
+credentials:
+  from_managed_identity: true
+```
+
+When authenticating with `credentials` the `endpoint` field must be set. Alternatively, key based authentication can be used by setting `endpoint` together with `account_key`, or by setting `connection_string`. These take precedence over `credentials` when set, but are discouraged: they are long-lived secrets that grant broad access and must be rotated manually.
+
+The identity used needs an appropriate Azure RBAC data-plane role assignment on the target resource. Find out more [in this document](/docs/guides/cloud/azure).
+
+The identity requires a Cosmos DB data-plane role such as `Cosmos DB Built-in Data Contributor` (or `Cosmos DB Built-in Data Reader` for read-only access). Note that these are assigned with `az cosmosdb sql role assignment create` rather than the regular Azure IAM blade.
 
 
 ## Metadata
@@ -149,7 +178,7 @@ input:
 
 ### `endpoint`
 
-CosmosDB endpoint.
+CosmosDB endpoint. Authenticated with `credentials` unless `account_key` is set.
 
 
 Type: `string`  
@@ -162,7 +191,7 @@ endpoint: https://localhost:8081
 
 ### `account_key`
 
-Account key.
+Account key, used together with `endpoint`. Prefer `credentials` (Microsoft Entra ID) where possible, account keys are long-lived secrets that grant full access to the account.
 :::warning Secret
 This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
 :::
@@ -178,7 +207,7 @@ account_key: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZ
 
 ### `connection_string`
 
-Connection string.
+Connection string. Only used when `endpoint` is not set. Prefer `credentials` (Microsoft Entra ID) where possible, connection strings embed long-lived account keys.
 :::warning Secret
 This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
 :::
@@ -217,6 +246,144 @@ Type: `string`
 
 container: testcontainer
 ```
+
+### `credentials`
+
+Optional configuration of [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity/) credentials. These are used whenever no connection string, account key or SAS token is set for this component. Bento uses the first of the following that applies:
+
+1. `client_secret` is set: a service principal with a client secret.
+2. `client_certificate_path` is set: a service principal with a certificate.
+3. `federated_token_file` is set: workload identity.
+4. `from_managed_identity` is `true`: the host's managed identity.
+5. Otherwise the [DefaultAzureCredential](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity#DefaultAzureCredential) chain. This tries environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_CLIENT_CERTIFICATE_PATH`, etc.), then workload identity, managed identity, the Azure CLI, the Azure Developer CLI and Azure PowerShell, in that order. Set the `AZURE_TOKEN_CREDENTIALS` environment variable to `prod` (environment, workload identity, managed identity), `dev` (the developer tools) or the name of a single credential type (e.g. `ManagedIdentityCredential`) to narrow the chain.
+
+Learn more [in this document](/docs/guides/cloud/azure).
+
+
+Type: `object`  
+Requires version 1.22.0 or newer  
+
+### `credentials.tenant_id`
+
+The Microsoft Entra ID (Azure AD) tenant ID to authenticate against. Required with `client_secret` or `client_certificate_path`. Equivalent environment variable: `AZURE_TENANT_ID`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+tenant_id: 00000000-0000-0000-0000-000000000000
+```
+
+### `credentials.client_id`
+
+The client (application) ID of an app registration, or the client ID of a user-assigned managed identity when `from_managed_identity` is `true`. Must be combined with `client_secret`, `client_certificate_path`, `federated_token_file` or `from_managed_identity`; the default credential chain only reads the `AZURE_CLIENT_ID` environment variable.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+client_id: 00000000-0000-0000-0000-000000000000
+```
+
+### `credentials.client_secret`
+
+A client secret for the service principal identified by `client_id`. When set, Bento authenticates as that service principal. Equivalent environment variable: `AZURE_CLIENT_SECRET`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.client_certificate_path`
+
+Path to a PEM or PKCS#12 file holding a certificate and private key for the service principal identified by `client_id`. When set, Bento authenticates as that service principal. Equivalent environment variable: `AZURE_CLIENT_CERTIFICATE_PATH`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+client_certificate_path: /etc/bento/sp-cert.pem
+```
+
+### `credentials.client_certificate_password`
+
+The password protecting the certificate file in `client_certificate_path`, if any. Equivalent environment variable: `AZURE_CLIENT_CERTIFICATE_PASSWORD`, which is read by the default credential chain when this field is empty and no explicit credential type is selected.
+:::warning Secret
+This field contains sensitive information that usually shouldn't be added to a config directly, read our [secrets page for more info](/docs/configuration/secrets).
+:::
+
+
+Type: `string`  
+Default: `""`  
+
+### `credentials.federated_token_file`
+
+Path to a file containing a federated (OIDC) token, used for [workload identity](https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview), for example on AKS. When set, Bento authenticates with workload identity using `tenant_id` and `client_id`. Equivalent environment variable: `AZURE_FEDERATED_TOKEN_FILE`, which is read by the default credential chain when this field is empty and no explicit credential type is selected. The AKS workload identity webhook sets these environment variables automatically.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+federated_token_file: /var/run/secrets/azure/tokens/azure-identity-token
+```
+
+### `credentials.from_managed_identity`
+
+Authenticate with the [managed identity](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview) of the Azure host (VM, App Service, Container Apps, Functions, etc). Uses the system-assigned identity unless `client_id` or `managed_identity_resource_id` selects a user-assigned identity. There is no environment variable that enables this, but the default credential chain tries managed identity anyway when no other credential applies.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `credentials.managed_identity_resource_id`
+
+The full resource ID of a user-assigned managed identity, used with `from_managed_identity`. This is an alternative to setting `client_id`; don't set both.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+managed_identity_resource_id: /subscriptions/<subscription>/resourceGroups/<group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
+```
+
+### `credentials.authority_host`
+
+The Microsoft Entra authority host. Only change this for sovereign clouds, such as `https://login.microsoftonline.us/` for Azure Government or `https://login.chinacloudapi.cn/` for Azure China. Defaults to the Azure public cloud. Equivalent environment variable: `AZURE_AUTHORITY_HOST`, which is read by every credential type except managed identity when this field is empty.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+authority_host: https://login.microsoftonline.us/
+```
+
+### `credentials.additionally_allowed_tenants`
+
+Tenants, besides `tenant_id`, that tokens may be requested for. Use `*` to allow any tenant. Equivalent environment variable: `AZURE_ADDITIONALLY_ALLOWED_TENANTS`, which is read by the default credential chain when this field is empty and no explicit credential type is selected. The environment variable takes a semicolon-separated list.
+
+
+Type: `array`  
+Default: `[]`  
 
 ### `partition_keys_map`
 
