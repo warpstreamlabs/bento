@@ -160,6 +160,8 @@ func init() {
 
 Since the binary is provided directly, `runtime.wasm.path` is ignored. The binary is only compiled the first time a pipeline uses the plugin, and then stays loaded for the lifetime of the process.
 
+The `nlp_tokenize` processor in [`internal/impl/huggingface`][hf-tokenizer] is registered this way, wrapping the Hugging Face [tokenizers](https://github.com/huggingface/tokenizers) library as a plugin.
+
 For a complete example of building a plugin, see the [Reverse Processor Example][examples].
 
 [pdk]: https://github.com/warpstreamlabs/bento/public/wasm/service
@@ -168,3 +170,4 @@ For a complete example of building a plugin, see the [Reverse Processor Example]
 [tinygo]: https://tinygo.org/getting-started/install/
 [examples]: /docs/guides/plugins/examples
 [templates]: /docs/configuration/templating
+[hf-tokenizer]: https://github.com/warpstreamlabs/bento/tree/main/internal/impl/huggingface

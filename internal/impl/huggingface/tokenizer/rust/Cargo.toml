@@ -18,8 +18,11 @@ tokenizers = { version = "0.22", default-features = false, features = ["fancy-re
 [build-dependencies]
 protobuf-codegen = "3.3"
 
+# Optimise for speed rather than size: opt-level 3 roughly halves the time to
+# tokenize compared with "z", at the cost of a larger binary (~2.7MB vs ~1.8MB)
+# and a slower first-use compile (~0.9s vs ~0.45s).
 [profile.release]
-opt-level = "z"
+opt-level = 3
 lto = true
 strip = true
 codegen-units = 1

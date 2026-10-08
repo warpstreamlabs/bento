@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use extism_pdk::*;
 use protobuf::Message;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
 
 mod protos {
@@ -83,10 +83,17 @@ fn tokenize(state: &State, content: Option<&Content>) -> Result<Vec<u8>, String>
         .encode(text, state.add_special_tokens)
         .map_err(|e| e.to_string())?;
 
-    serde_json::to_vec(&serde_json::json!({
-        "ids": encoding.get_ids(),
-        "tokens": encoding.get_tokens(),
-        "attention_mask": encoding.get_attention_mask(),
-    }))
+    serde_json::to_vec(&Output {
+        ids: encoding.get_ids(),
+        tokens: encoding.get_tokens(),
+        attention_mask: encoding.get_attention_mask(),
+    })
     .map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+struct Output<'a> {
+    ids: &'a [u32],
+    tokens: &'a [String],
+    attention_mask: &'a [u32],
 }

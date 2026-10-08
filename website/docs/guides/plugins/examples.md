@@ -2,7 +2,7 @@
 title: Examples
 ---
 
-All examples are are available at [wasm/examples](github.com/warpstreamlabs/public/wasm/examples).
+All examples are available at [wasm/examples](https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples).
 
 ## Example: Reverse Processor
 

@@ -5,6 +5,7 @@ type PluginType interface {
 	IsRegistered() bool
 }
 
+//lint:ignore U1000 Read by init_plugin in register.go when building for WASM.
 var plugin PluginType = &noopPlugin{}
 
 // ------------------------------------------------------------------------------

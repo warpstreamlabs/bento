@@ -15,7 +15,7 @@ var GlobalRuntime runtime.Runtime = &noopRuntime{}
 
 type noopRuntime struct{}
 
-var errNoPluginRuntime = errors.New("no plugin runtime enabled.")
+var errNoPluginRuntime = errors.New("no plugin runtime enabled")
 
 func (n *noopRuntime) Register(_ *runtime.Manifest, _ runtime.Source) (runtime.Plugin, error) {
 	return nil, errNoPluginRuntime
