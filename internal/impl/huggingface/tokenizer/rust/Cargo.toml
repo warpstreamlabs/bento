@@ -1,0 +1,25 @@
+[package]
+name = "bento_tokenizer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+extism-pdk = "1.4"
+protobuf = "3.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# Default features pull in C/C++ dependencies (onig, esaxx) that don't target
+# wasm, so use the pure Rust regex engine instead.
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
+
+[build-dependencies]
+protobuf-codegen = "3.3"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
