@@ -115,10 +115,24 @@ func (k *kafkaReader) offsetVersion() int16 {
 	// - 2 (kafka 0.9.0 and later)
 	// - 3 (kafka 0.11.0 and later)
 	// - 4 (kafka 2.0.0 and later)
-	var v int16 = 1
-	// TODO: Increase this if we drop support for v0.8.2, or if we allow a
-	// custom retention period.
-	return v
+	// - 5 & 6 (kafka 2.1.0 and later)
+	// - 7 (kafka 2.3.0 and later)
+
+	v := k.saramConf.Version
+	switch {
+	case v.IsAtLeast(sarama.V2_3_0_0):
+		return 7
+	case v.IsAtLeast(sarama.V2_1_0_0):
+		return 5
+	case v.IsAtLeast(sarama.V2_0_0_0):
+		return 4
+	case v.IsAtLeast(sarama.V0_11_0_0):
+		return 3
+	case v.IsAtLeast(sarama.V0_9_0_0):
+		return 2
+	default:
+		return 1
+	}
 }
 
 func (k *kafkaReader) offsetPartitionPutRequest(consumerGroup string) *sarama.OffsetCommitRequest {
@@ -128,6 +142,10 @@ func (k *kafkaReader) offsetPartitionPutRequest(consumerGroup string) *sarama.Of
 		Version:                 v,
 		ConsumerGroupGeneration: sarama.GroupGenerationUndefined,
 		ConsumerID:              "",
+	}
+	if v >= 2 {
+		// Uses the broker's offsets.retention.minutes. Only avail if V2 or higher.
+		req.RetentionTime = -1
 	}
 	return req
 }

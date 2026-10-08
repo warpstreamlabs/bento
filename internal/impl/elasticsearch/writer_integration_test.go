@@ -35,11 +35,7 @@ func TestIntegrationWriter(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() { pool.CloseT(t) })
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource, err := pool.Run(t.Context(), "elasticsearch",
 		dockertest.WithTag("7.17.0"),

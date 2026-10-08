@@ -3,7 +3,6 @@ package kafka_test
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strconv"
 	"sync"
 	"testing"
@@ -406,9 +405,6 @@ input:
 
 func TestIntegrationSaramaOld(t *testing.T) {
 	integration.CheckSkip(t)
-	if runtime.GOOS == "darwin" {
-		t.Skip("skipping test on macos")
-	}
 
 	t.Parallel()
 
@@ -419,7 +415,7 @@ func TestIntegrationSaramaOld(t *testing.T) {
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
 
-	pool.RunT(t, "apache/kafka-native",
+	_ = pool.RunT(t, "apache/kafka-native",
 		dockertest.WithTag("latest"),
 		dockertest.WithPortBindings(dockernetwork.PortMap{
 			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
@@ -432,6 +428,8 @@ func TestIntegrationSaramaOld(t *testing.T) {
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT",
 			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://:9093",
 			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:" + kafkaPortStr,
+			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1",
+			"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0",
 		}),
 		dockertest.WithoutReuse(),
 	)

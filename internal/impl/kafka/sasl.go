@@ -241,7 +241,7 @@ func oauthSaslFromConfig(c *service.ParsedConfig) (sasl.Mechanism, error) {
 				}
 			}
 			var extensions map[string]string
-			if c.Contains("oauth2", "extensions") {
+			if c.Contains("extensions") {
 				if extensions, err = c.FieldStringMap("extensions"); err != nil {
 					return nil, err
 				}

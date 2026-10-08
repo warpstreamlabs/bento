@@ -26,6 +26,10 @@ func TestIntegration(t *testing.T) {
 		s3IntegrationSuite(t, servicePort)
 	})
 
+	t.Run("s3_stream", func(t *testing.T) {
+		s3StreamIntegrationSuite(t, servicePort)
+	})
+
 	t.Run("sqs", func(t *testing.T) {
 		sqsIntegrationSuite(t, servicePort)
 	})

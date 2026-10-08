@@ -173,7 +173,7 @@ The type of the column, only applicable for leaf columns with no child fields. S
 
 
 Type: `string`  
-Options: `BOOLEAN`, `INT8`, `INT16`, `INT32`, `INT64`, `DECIMAL64`, `DECIMAL32`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`, `MAP`, `LIST`, `STRUCT`.
+Options: `BOOLEAN`, `INT8`, `INT16`, `INT32`, `INT64`, `DECIMAL64`, `DECIMAL32`, `FLOAT`, `DOUBLE`, `BYTE_ARRAY`, `UTF8`, `DATE`, `TIMESTAMP_MILLIS`, `MAP`, `LIST`, `STRUCT`.
 
 ### `schema[].decimal_precision`
 

@@ -22,11 +22,7 @@ import (
 func TestProcessorIntegration(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool(t.Context(), "", dockertest.WithMaxWait(time.Minute))
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	t.Cleanup(func() { pool.CloseT(t) })
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
 	resource := pool.RunT(t, "mongo",
 		dockertest.WithTag("latest"),
@@ -37,7 +33,10 @@ func TestProcessorIntegration(t *testing.T) {
 		dockertest.WithoutReuse(),
 	)
 
-	var mongoClient *mongo.Client
+	var (
+		mongoClient *mongo.Client
+		err         error
+	)
 
 	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		mongoClient, err = mongo.Connect(context.Background(), options.Client().
