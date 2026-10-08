@@ -1,8 +1,6 @@
 name: uppercase
 type: processor
 status: stable
-categories:
-  - Utility
 summary: Converts message content to uppercase using WebAssembly
 description: |
   A WebAssembly-based processor that converts all message content to uppercase.

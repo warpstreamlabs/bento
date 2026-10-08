@@ -9,15 +9,16 @@ import (
 )
 
 // Plugin is the interface for a single plugin.
-type Plugin[T any] interface {
+type Plugin interface {
 	Name() string
 	RegisterWith(env *bundle.Environment) error
 	Spec() docs.ComponentSpec
 }
 
-// Runtime is the interface for a plugin runtime.
-type Runtime[T any] interface {
-	Register(ctx context.Context, manifest *Manifest, source Source) (Plugin[T], error)
+// Runtime is the interface for a plugin runtime. A runtime owns the plugins it
+// registers, which remain valid until Close is called.
+type Runtime interface {
+	Register(manifest *Manifest, source Source) (Plugin, error)
 	Close(ctx context.Context) error
 }
 

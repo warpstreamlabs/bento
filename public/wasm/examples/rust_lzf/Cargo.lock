@@ -86,6 +86,7 @@ dependencies = [
  "bytemuck",
  "extism-convert-macros",
  "prost",
+ "protobuf",
  "rmp-serde",
  "serde",
  "serde_json",

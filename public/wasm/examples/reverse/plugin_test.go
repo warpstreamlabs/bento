@@ -37,7 +37,7 @@ func TestReversePluginRegister(t *testing.T) {
 	manifest, _, err := runtime.ReadManifestYAML(pluginManifest)
 	require.NoError(t, err)
 
-	compiledPlugin, err := rt.Register(t.Context(), manifest, runtime.ByteSource(pluginWasm))
+	compiledPlugin, err := rt.Register(manifest, runtime.ByteSource(pluginWasm))
 	require.NoError(t, err)
 
 	env := bundle.NewEnvironment()
@@ -62,7 +62,7 @@ func TestReversePluginExecute(t *testing.T) {
 	manifest, _, err := runtime.ReadManifestYAML(pluginManifest)
 	require.NoError(t, err)
 
-	compiledPlugin, err := rt.Register(t.Context(), manifest, runtime.ByteSource(pluginWasm))
+	compiledPlugin, err := rt.Register(manifest, runtime.ByteSource(pluginWasm))
 	require.NoError(t, err)
 
 	err = compiledPlugin.RegisterWith(mgr.Environment())

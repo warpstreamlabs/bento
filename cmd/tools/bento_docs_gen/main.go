@@ -131,5 +131,5 @@ func doPlugins(dir string) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to generate docs for plugin fields: %v", err))
 	}
-	create("plugin fields", filepath.Join("..", "guides", "plugins", "fields.md"), mdSpec)
+	create("plugin fields", filepath.Join(dir, "..", "guides", "plugins", "fields.md"), mdSpec)
 }

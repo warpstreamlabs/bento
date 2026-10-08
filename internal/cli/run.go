@@ -20,7 +20,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/filepath"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/plugin"
-	extismv1 "github.com/warpstreamlabs/bento/internal/plugin/runtime/extism_v1"
 	"github.com/warpstreamlabs/bento/internal/template"
 )
 
@@ -186,8 +185,7 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 	}
 
 	if len(pluginPaths) > 0 {
-		rt := extismv1.NewPluginRuntime()
-		pLints, err := plugin.InitPlugins(c.Context, bundle.GlobalEnvironment, rt, pluginPaths...)
+		pLints, err := plugin.InitPlugins(c.Context, bundle.GlobalEnvironment, plugin.GlobalRuntime, pluginPaths...)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
 			os.Exit(1)

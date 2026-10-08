@@ -82,9 +82,6 @@ func fromPart(part *Part) (*pb.Part, error) {
 	}
 
 	proto := &pb.Part{}
-	if part.data.structured == nil && part.data.rawBytes == nil {
-		return proto, nil
-	}
 	if err := part.data.err; err != nil {
 		proto.Error = part.data.err.Error()
 	}
@@ -94,7 +91,7 @@ func fromPart(part *Part) (*pb.Part, error) {
 			return nil, err
 		}
 		proto.Content = &pb.Part_Structured{Structured: structured}
-	} else {
+	} else if part.data.rawBytes != nil {
 		proto.Content = &pb.Part_Raw{Raw: part.data.rawBytes}
 	}
 	if part.data.metadata != nil {

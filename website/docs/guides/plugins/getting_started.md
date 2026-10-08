@@ -131,6 +131,35 @@ output:
     - reverse: {}  # Puts data back in order before writing
 ```
 
+### Registering from Go
+
+When building a custom Bento binary, plugins can instead be embedded and registered from Go, similar to [templates][templates]. Provide the manifest and the compiled WASM binary, typically within an `init()` function:
+
+```go
+import (
+	_ "embed"
+
+	"github.com/warpstreamlabs/bento/public/service"
+
+	// Enables the WASM plugin runtime (already included by public/components/all).
+	_ "github.com/warpstreamlabs/bento/public/components/wasm"
+)
+
+//go:embed plugin.yaml
+var reverseManifest string
+
+//go:embed plugin.wasm
+var reverseWasm []byte
+
+func init() {
+	if err := service.RegisterWasmPlugin(reverseManifest, reverseWasm); err != nil {
+		panic(err)
+	}
+}
+```
+
+Since the binary is provided directly, `runtime.wasm.path` is ignored. The binary is only compiled the first time a pipeline uses the plugin, and then stays loaded for the lifetime of the process.
+
 For a complete example of building a plugin, see the [Reverse Processor Example][examples].
 
 [pdk]: https://github.com/warpstreamlabs/bento/public/wasm/service
@@ -138,3 +167,4 @@ For a complete example of building a plugin, see the [Reverse Processor Example]
 [fields]: /docs/guides/plugins/fields
 [tinygo]: https://tinygo.org/getting-started/install/
 [examples]: /docs/guides/plugins/examples
+[templates]: /docs/configuration/templating

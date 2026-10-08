@@ -131,18 +131,11 @@ Type: `object`
 
 ### `runtime.wasm.path`
 
-The path to the WASM binary relative to the plugin directory.
+The path to the WASM binary relative to the plugin directory. Ignored when the binary is provided directly, such as when registering from Go.
 
 
 Type: `string`  
 Default: `"plugin.wasm"`  
-
-### `runtime.wasm.env`
-
-Environment variables to pass to the plugin.
-
-
-Type: map of `string`  
 
 ### `runtime.wasm.mounts`
 

@@ -59,8 +59,10 @@ func (m *Message) MetaDelete(key string) {
 }
 
 func (m *Message) MetaGet(key string) (string, bool) {
-	val := m.part.MetaGetStr(key)
-	return val, val != ""
+	if _, exists := m.part.MetaGetMut(key); !exists {
+		return "", false
+	}
+	return m.part.MetaGetStr(key), true
 }
 
 func (m *Message) MetaSet(key, value string) {

@@ -48,7 +48,6 @@ type RuntimeManifest struct {
 // WasmRuntimeConfig is the configuration for the WASM runtime.
 type WasmRuntimeConfig struct {
 	Path         string            `yaml:"path"`
-	Env          map[string]string `yaml:"env"`
 	Mounts       []MountConfig     `yaml:"mounts"`
 	AllowedHosts []string          `yaml:"allowed_hosts"`
 	Config       map[string]string `yaml:"config"`
@@ -134,10 +133,9 @@ func componentMetadataSpec() docs.FieldSpecs {
 
 func wasmRuntimeSpec() docs.FieldSpec {
 	return docs.FieldObject("wasm", "The WASM runtime configuration.").WithChildren(
-		docs.FieldString("path", "The path to the WASM binary relative to the plugin directory.").
+		docs.FieldString("path", "The path to the WASM binary relative to the plugin directory. Ignored when the binary is provided directly, such as when registering from Go.").
 			HasDefault("plugin.wasm").
 			Optional(),
-		docs.FieldString("env", "Environment variables to pass to the plugin.").Map().Optional(),
 		docs.FieldObject("mounts", "A list of directory mounts.").Array().Optional().WithChildren(
 			docs.FieldString("host_path", "The path on the host machine to mount."),
 			docs.FieldString("guest_path", "The path inside the WASM container."),

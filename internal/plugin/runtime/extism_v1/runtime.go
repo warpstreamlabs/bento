@@ -7,20 +7,25 @@ import (
 	"path/filepath"
 
 	extism "github.com/extism/go-sdk"
+	"github.com/warpstreamlabs/bento/internal/plugin"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 )
 
+var _ runtime.Runtime = (*ExtismRuntime)(nil)
+
+func init() {
+	plugin.GlobalRuntime = NewPluginRuntime()
+}
+
 type ExtismRuntime struct {
-	registered map[string]*extismPlugin
+	registered []*extismPlugin
 }
 
 func NewPluginRuntime() *ExtismRuntime {
-	return &ExtismRuntime{
-		registered: make(map[string]*extismPlugin),
-	}
+	return &ExtismRuntime{}
 }
 
-func (rt *ExtismRuntime) Register(ctx context.Context, manifest *runtime.Manifest, source runtime.Source) (runtime.Plugin[*extism.CompiledPlugin], error) {
+func (rt *ExtismRuntime) Register(manifest *runtime.Manifest, source runtime.Source) (runtime.Plugin, error) {
 	paths := make(map[string]string, len(manifest.Runtime.Wasm.Mounts))
 	for _, mountConf := range manifest.Runtime.Wasm.Mounts {
 		paths[mountConf.HostPath] = mountConf.GuestPath
@@ -69,38 +74,33 @@ func (rt *ExtismRuntime) Register(ctx context.Context, manifest *runtime.Manifes
 		EnableWasi: true,
 	}
 
-	compiled, err := extism.NewCompiledPlugin(ctx, extismManifest, config, []extism.HostFunction{})
-	if err != nil {
-		return nil, err
-	}
-
 	spec, err := manifest.ComponentSpec()
 	if err != nil {
 		return nil, err
 	}
 
-	return &extismPlugin{
-		spec:     spec,
-		compiled: compiled,
-	}, nil
+	plugin := newPlugin(spec, func() (*extism.CompiledPlugin, error) {
+		// NOTE: Compilation is deferred until first use and its result (including
+		// any error) is cached, so it must not depend on a caller's ctx.
+		return extism.NewCompiledPlugin(context.Background(), extismManifest, config, []extism.HostFunction{})
+	})
+	rt.registered = append(rt.registered, plugin)
+
+	return plugin, nil
 }
 
 func (rt *ExtismRuntime) Close(ctx context.Context) error {
 	var errs []error
-	for name, plugin := range rt.registered {
-		err := plugin.compiled.Close(ctx)
-		if err == nil {
-			continue
-		}
-
-		if err != nil {
+	for i, plugin := range rt.registered {
+		if err := plugin.Close(ctx); err != nil {
 			if ctx.Err() != nil {
+				rt.registered = rt.registered[i:]
 				return ctx.Err()
 			}
 			errs = append(errs, err)
 		}
-		delete(rt.registered, name)
 	}
+	rt.registered = nil
 
 	if len(errs) > 0 {
 		return errors.Join(errs...)

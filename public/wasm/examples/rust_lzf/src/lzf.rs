@@ -2,7 +2,6 @@ use std::sync::OnceLock;
 
 use extism_pdk::*;
 use lzf::LzfError;
-use protobuf::Message;
 use serde::Deserialize;
 
 mod protos {
@@ -11,73 +10,62 @@ mod protos {
 
 use protos::message::{part::Content, Batch, Batches};
 
-type ProcessFn = fn(&[u8]) -> Result<Vec<u8>, LzfError>;
-
-struct Processor {
-    name: &'static str,
-    run: ProcessFn,
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum Operation {
+    Compress,
+    Decompress,
 }
 
-static PROCESSOR: OnceLock<Processor> = OnceLock::new();
+impl Operation {
+    fn run(self, data: &[u8]) -> Result<Vec<u8>, LzfError> {
+        match self {
+            Operation::Compress => lzf::compress(data),
+            Operation::Decompress => decompress(data),
+        }
+    }
+}
 
 #[derive(Deserialize)]
 struct Config {
-    operation: String,
+    operation: Operation,
 }
+
+static OPERATION: OnceLock<Operation> = OnceLock::new();
 
 #[plugin_fn]
 pub fn init_plugin(Json(conf): Json<Config>) -> FnResult<()> {
-    let processor = match conf.operation.as_str() {
-        "compress" => Processor {
-            name: "compress",
-            run: lzf::compress,
-        },
-        "decompress" => Processor {
-            name: "decompress",
-            run: decompress,
-        },
-        other => {
-            return Err(Error::msg(format!(
-                "invalid operation {other:?}, expected `compress` or `decompress`"
-            ))
-            .into())
-        }
-    };
-    PROCESSOR
-        .set(processor)
+    OPERATION
+        .set(conf.operation)
         .map_err(|_| Error::msg("plugin already initialised"))?;
     Ok(())
 }
 
 #[plugin_fn]
-pub fn process_batch(input: Vec<u8>) -> FnResult<Vec<u8>> {
-    let processor = PROCESSOR
+pub fn process_batch(Protobuf(mut batch): Protobuf<Batch>) -> FnResult<Protobuf<Batches>> {
+    let op = *OPERATION
         .get()
         .ok_or_else(|| Error::msg("plugin not initialised"))?;
 
-    let mut batch = Batch::parse_from_bytes(&input)?;
-
     for part in batch.parts.iter_mut() {
         if let Some(Content::Raw(bytes)) = &mut part.content {
-            match (processor.run)(bytes) {
+            match op.run(bytes) {
                 Ok(out) => *bytes = out,
-                Err(e) => {
-                    let msg = format!("lzf {} failed: {e}", processor.name);
-                    error!("{msg}");
-                    part.error = msg;
-                }
+                // Per-part failures are reported on the part, not the batch.
+                // Note: lzf::compress errors on input it can't shrink.
+                Err(e) => part.error = format!("lzf {op:?} failed: {e}"),
             }
         }
     }
 
     let mut res = Batches::new();
     res.batches.push(batch);
-    Ok(res.write_to_bytes()?)
+    Ok(Protobuf(res))
 }
 
-// Raw LZF doesn't encode the uncompressed length, so grow the output buffer
-// until it's large enough. This terminates: corrupt input returns
-// `DataCorrupted`, and memory is capped by the manifest's `max_pages`.
+// Raw LZF doesn't store the uncompressed length, so grow the buffer until it fits.
+// Always terminates: LZF expands at most ~132x, so past that `BufferTooSmall`
+// can't occur and corrupt input returns `DataCorrupted`.
 fn decompress(data: &[u8]) -> Result<Vec<u8>, LzfError> {
     let mut size = (data.len() * 2).max(64);
     loop {
