@@ -48,6 +48,10 @@ func (p *Plugin[T]) GetInstance() (T, error) {
 
 func (p *Plugin[T]) Init(rawConf []byte) error {
 	var err error
+	if !p.IsRegistered() {
+		return errInvalidInitNotRegistered
+	}
+
 	p.instance, err = p.ctor(rawConf)
 	if err != nil {
 		return err

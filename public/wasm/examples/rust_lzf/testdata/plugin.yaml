@@ -1,0 +1,16 @@
+name: rust_lzf
+type: processor
+status: stable
+categories:
+  - Parsing
+summary: Perform lzf compression or decompression on a payload.
+description: A WASM plugin that performs `lzf` compression or decompression on a batch of messages, backed by Rust's 'lzf' package.
+fields:
+  - name: operation
+    description: Specify whether to inflate or deflate a given payload. Valid values are `compress` or `decompress`.
+    type: string
+runtime:
+  wasm:
+    memory:
+      max_pages: 1024
+    timeout: 5000

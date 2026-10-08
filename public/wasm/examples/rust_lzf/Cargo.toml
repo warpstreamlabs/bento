@@ -1,0 +1,23 @@
+[package]
+name = "rust_lzf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+extism-pdk = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+protobuf = "3.3"
+lzf = "1.0.0"
+
+[build-dependencies]
+protobuf-codegen = "3.3"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lzf.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true

@@ -18,8 +18,7 @@ const (
 )
 
 type wasmProcessor struct {
-	compiled *extism.CompiledPlugin
-	pool     runtime.Pool[*extism.Plugin]
+	pool runtime.Pool[*extism.Plugin]
 }
 
 func newWasmProcessor(
@@ -48,7 +47,7 @@ func newWasmProcessor(
 		return instance, nil
 	})
 
-	return &wasmProcessor{compiled: compiled, pool: pool}, nil
+	return &wasmProcessor{pool: pool}, nil
 }
 
 func (p *wasmProcessor) ProcessBatch(ctx *processor.BatchProcContext, batch message.Batch) ([]message.Batch, error) {
@@ -102,9 +101,5 @@ func (p *wasmProcessor) Process(ctx *processor.BatchProcContext, msg *message.Pa
 }
 
 func (p *wasmProcessor) Close(ctx context.Context) error {
-	if err := p.compiled.Close(ctx); err != nil {
-		return err
-	}
-
 	return p.pool.Close(ctx)
 }

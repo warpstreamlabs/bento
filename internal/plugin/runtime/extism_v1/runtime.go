@@ -2,6 +2,7 @@ package extismv1
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"path/filepath"
 
@@ -9,10 +10,14 @@ import (
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 )
 
-type ExtismRuntime struct{}
+type ExtismRuntime struct {
+	registered map[string]*extismPlugin
+}
 
 func NewPluginRuntime() *ExtismRuntime {
-	return &ExtismRuntime{}
+	return &ExtismRuntime{
+		registered: make(map[string]*extismPlugin),
+	}
 }
 
 func (rt *ExtismRuntime) Register(ctx context.Context, manifest *runtime.Manifest, source runtime.Source) (runtime.Plugin[*extism.CompiledPlugin], error) {
@@ -81,5 +86,25 @@ func (rt *ExtismRuntime) Register(ctx context.Context, manifest *runtime.Manifes
 }
 
 func (rt *ExtismRuntime) Close(ctx context.Context) error {
+	var errs []error
+	for name, plugin := range rt.registered {
+		err := plugin.compiled.Close(ctx)
+		if err == nil {
+			continue
+		}
+
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			errs = append(errs, err)
+		}
+		delete(rt.registered, name)
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
 	return nil
 }
