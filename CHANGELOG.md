@@ -3,21 +3,37 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.22.0 - 2026-10-09
 
 ### Added
 
-- `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
-- `aws_sqs` input field `visibility_timeout`, previously hardcoded to 30s, which follows the queue's own timeout when set to `0` @ReguiguiMohamed
-- `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397
-- `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
+ - `statsd` metric new fields: `send_queue_capacity`, `buf_pool_capacity` & `send_loop_count` @triddell
+ - `credentials` object to GCP components with fields `impersonate_service_account` & `impersonate_delegates` @NguyenThanhDat741862
+ - `kafka_franz` components now include `GSSAPI` (kerberos) in available `sasl.mechanism` options @kmetaxas
+ - `redis_scan` input can now handle hash values with additional Bento config fields: `data_type`, `value_format`, `scan_count`, `hash_scan_count` @maxtheaxe
+ - `mqtt_v5` experimental input & output components enabling Bento to send/receive MQTT 5 messages @ifnesi
+ - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
+ - `aws_sqs` input field `visibility_timeout` (default `30s`); set to `0` to use the queue's own timeout @ReguiguiMohamed
+ - `DATE` & `TIMESTAMP_MILLIS` type options added to `parquet_encode` processor @triddell
+ - `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397
+ - `prefix_metadata_keys` added to `http_server` input enables prefixing metadata with the source i.e. header_, path_ @kshivam4781
+ - `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
 
 ### Fixed
 
-- `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
-- Inputs that automatically retry nacked messages could stay blocked on shutdown when a read was cancelled during the retry backoff @ReguiguiMohamed
-- `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
-- `azure_queue_storage` input deleted messages on nack, losing them; nacked messages are now left on the queue and redelivered once their visibility timeout expires @istairbn
+ - YAML merge keys `<<: *ref_field` are now resolved when running streams, aligning behaviour with the `lint` subcommand @youdie006
+ - `mongodb` cache operator `exists` correctly handling `mongo.ErrNoDocuments` & non-bytes return type @gregfurman
+ - `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
+ - `aws_kinesis` input stop duplicate EFO shard consumers accumulating under backpressure @matus-tomlein
+ - `fsevent` reconnect on watcher error instead of stalling @henrikschristensen
+ - `azure_queue_storage` input deleted messages on nack, losing them; nacked messages are now left on the queue and redelivered once their visibility timeout expires @istairbn
+ - `kafka_franz` sends sasl extensions when oauth2 is enabled @bgajdzis-pentaleap
+ - Inputs that automatically retry nacked messages could stay blocked on shutdown when a read was cancelled during the retry backoff @ReguiguiMohamed
+ - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
+
+### Changed
+
+ - `nats_kv` output & cache migrated to new jetstream package & connection retry logic (increased frequency of retries & indefinite number of retries) @henrikschristensen
 
 ## 1.21.2 - 2026-09-11 
 
