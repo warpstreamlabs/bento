@@ -3,7 +3,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.22.0 - 09/10/2026
+## 1.22.0 - 2026-10-09
 
 ### Added
 
