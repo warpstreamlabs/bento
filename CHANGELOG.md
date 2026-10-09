@@ -3,7 +3,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.22.0 - TODO
+## 1.22.0 - 09/10/2026
 
 ### Added
 
@@ -14,12 +14,20 @@ All notable changes to this project will be documented in this file.
  - `mqtt_v5` experimental input & output components enabling Bento to send/receive MQTT 5 messages @ifnesi
  - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
  - `aws_sqs` input field `visibility_timeout` (default `30s`); set to `0` to use the queue's own timeout @ReguiguiMohamed
+ - `DATE` & `TIMESTAMP_MILLIS` type options added to `parquet_encode` processor @triddell
+ - `parse_bytes` bloblang method for humanised byte sizes @SJ1397
+ - `prefix_metadata_keys` added to `http_server` input enables prefixing metadata with the source i.e. header_, path_ @kshivam4781
 
 ### Fixed
 
  - YAML merge keys `<<: *ref_field` are now resolved when running streams, aligning behaviour with the `lint` subcommand @youdie006
  - `mongodb` cache operator `exists` correctly handling `mongo.ErrNoDocuments` & non-bytes return type @gregfurman
  - `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
+ - `aws_kinesis` input stop duplicate EFO shard consumers accumulating under backpressure @matus-tomlein
+ - `fsevent` reconnect on watcher error instead of stalling @henrikschristensen
+ - `azure_queue_storage` no longer deletes nacked messages from the queue @istairbn
+ - `kafka_franz` sends sasl extensions when oauth2 is enabled @bgajdzis-pentaleap
+ - Inputs that automatically retry nacked messages could stay blocked on shutdown when a read was cancelled during the retry backoff @ReguiguiMohamed
 
 ### Changed
 
