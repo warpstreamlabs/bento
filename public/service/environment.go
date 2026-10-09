@@ -23,6 +23,8 @@ import (
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/plugin"
+	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 	"github.com/warpstreamlabs/bento/internal/template"
 	"github.com/warpstreamlabs/bento/public/bloblang"
 )
@@ -700,6 +702,25 @@ func (e *Environment) GetScannerConfig(name string) (*ConfigView, bool) {
 // component plugin.
 func (e *Environment) RegisterTemplateYAML(yamlStr string) error {
 	return template.RegisterTemplateYAML(e.internal, []byte(yamlStr))
+}
+
+// RegisterWasmPlugin attempts to register a Wasm plugin to the environment,
+// defined by a YAML manifest and its compiled Wasm binary, such that it may be
+// used similarly to any other component plugin. The manifest's
+// runtime.wasm.path field is ignored.
+//
+// The Wasm binary is compiled when the plugin is first used and remains loaded
+// for the lifetime of the process.
+//
+// Experimental: This method is experimental and therefore subject to change
+// outside of major version releases.
+func (e *Environment) RegisterWasmPlugin(manifestYAML string, wasm []byte) error {
+	manifest, _, err := runtime.ReadManifestYAML([]byte(manifestYAML))
+	if err != nil {
+		return err
+	}
+
+	return plugin.Register(e.internal, manifest, runtime.ByteSource(wasm))
 }
 
 // XFormatConfigJSON returns a byte slice of the Bento configuration spec

@@ -33,6 +33,7 @@ require (
 	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/andybalholm/brotli v1.2.3
 	github.com/apache/pulsar-client-go v0.21.0
+	github.com/aperturerobotics/protobuf-go-lite v0.12.0
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
 	github.com/aws/aws-sdk-go-v2 v1.47.0
@@ -75,6 +76,8 @@ require (
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/elastic/go-elasticsearch/v9 v9.0.0
+	github.com/extism/go-pdk v1.1.3
+	github.com/extism/go-sdk v1.7.1
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/generikvault/gvalstrings v0.0.0-20180926130504-471f38f0112a
@@ -154,7 +157,7 @@ require (
 	github.com/snowplow/snowplow-golang-analytics-sdk v0.4.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.12.1
-	github.com/tetratelabs/wazero v1.6.0
+	github.com/tetratelabs/wazero v1.11.0
 	github.com/tilinna/z85 v1.0.0
 	github.com/trinodb/trino-go-client v0.313.0
 	github.com/twmb/franz-go v1.20.7
@@ -226,6 +229,7 @@ require (
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/apache/arrow-go/v18 v18.8.0 // indirect
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
+	github.com/aperturerobotics/json-iterator-lite v1.0.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
 	github.com/armon/go-metrics v0.3.4 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 // indirect
@@ -282,6 +286,7 @@ require (
 	github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.10505.0 // indirect
 	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.10505.0 // indirect
 	github.com/dvsekhvalnov/jose2go v1.11.0 // indirect
+	github.com/dylibso/observe-sdk/go v0.0.0-20240819160327-2d926c5d788a // indirect
 	github.com/eapache/go-resiliency v1.7.0 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.7.0 // indirect
@@ -304,6 +309,7 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
@@ -338,6 +344,7 @@ require (
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b // indirect
 	github.com/iskorotkov/avro/v2 v2.33.1 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
@@ -397,6 +404,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.7.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
+	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/theparanoids/crypki v1.20.9 // indirect
 	github.com/tidwall/btree v1.8.1 // indirect
 	github.com/twpayne/go-geom v1.6.1 // indirect

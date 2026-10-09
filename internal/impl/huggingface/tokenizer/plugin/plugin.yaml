@@ -1,0 +1,26 @@
+name: nlp_tokenize
+type: processor
+status: experimental
+summary: Tokenizes text using a Hugging Face 🤗 tokenizer.
+description: |
+  Encodes the text of each message using a [Hugging Face tokenizer](https://github.com/huggingface/tokenizers) loaded from a local `tokenizer.json` file, replacing the message with a JSON object containing the token `ids`, `tokens` and `attention_mask`.
+
+  The tokenizer runs within a sandboxed WebAssembly runtime that can only read files within the current working directory, so the `path` must be relative to it.
+
+fields:
+  - name: path
+    description: The path to a `tokenizer.json` file, relative to the current working directory.
+    type: string
+
+  - name: add_special_tokens
+    description: Whether to add the special tokens defined by the tokenizer, such as `[CLS]` and `[SEP]`.
+    type: bool
+    default: true
+
+runtime:
+  wasm:
+    mounts:
+      - host_path: "ro:."
+        guest_path: /
+    memory:
+      max_pages: 2048
