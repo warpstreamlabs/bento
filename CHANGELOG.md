@@ -15,8 +15,9 @@ All notable changes to this project will be documented in this file.
  - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
  - `aws_sqs` input field `visibility_timeout` (default `30s`); set to `0` to use the queue's own timeout @ReguiguiMohamed
  - `DATE` & `TIMESTAMP_MILLIS` type options added to `parquet_encode` processor @triddell
- - `parse_bytes` bloblang method for humanised byte sizes @SJ1397
+ - `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397
  - `prefix_metadata_keys` added to `http_server` input enables prefixing metadata with the source i.e. header_, path_ @kshivam4781
+ - `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
 
 ### Fixed
 
@@ -25,9 +26,10 @@ All notable changes to this project will be documented in this file.
  - `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
  - `aws_kinesis` input stop duplicate EFO shard consumers accumulating under backpressure @matus-tomlein
  - `fsevent` reconnect on watcher error instead of stalling @henrikschristensen
- - `azure_queue_storage` no longer deletes nacked messages from the queue @istairbn
+ - `azure_queue_storage` input deleted messages on nack, losing them; nacked messages are now left on the queue and redelivered once their visibility timeout expires @istairbn
  - `kafka_franz` sends sasl extensions when oauth2 is enabled @bgajdzis-pentaleap
  - Inputs that automatically retry nacked messages could stay blocked on shutdown when a read was cancelled during the retry backoff @ReguiguiMohamed
+ - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
 
 ### Changed
 
