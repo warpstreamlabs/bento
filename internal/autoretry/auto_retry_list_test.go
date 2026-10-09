@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -206,4 +207,58 @@ func TestRetryListNackMutator(t *testing.T) {
 	assert.Equal(t, ErrExhausted, err)
 
 	require.NoError(t, l.Close(tCtx))
+}
+
+func TestRetryListShiftCancelledDuringBackoff(t *testing.T) {
+	// The missed wake-up depends on goroutine scheduling, so repeat the scenario.
+	for i := 0; i < 100 && !t.Failed(); i++ {
+		synctest.Test(t, testShiftCancelledDuringBackoff)
+	}
+}
+
+func testShiftCancelledDuringBackoff(t *testing.T) {
+	var read bool
+	l := NewList(func(ctx context.Context) (string, AckFunc, error) {
+		if !read {
+			read = true
+			return "foo", func(context.Context, error) error { return nil }, nil
+		}
+		<-ctx.Done()
+		return "", nil, ctx.Err()
+	}, nil)
+	defer func() {
+		require.NoError(t, l.Close(context.Background()))
+	}()
+
+	// The first two retries skip the backoff, so the next shift sleeps in it.
+	_, fooFn, err := l.Shift(t.Context(), true)
+	require.NoError(t, err)
+	for range 2 {
+		require.NoError(t, fooFn(t.Context(), errors.New("nope")))
+		_, fooFn, err = l.Shift(t.Context(), true)
+		require.NoError(t, err)
+	}
+	require.NoError(t, fooFn(t.Context(), errors.New("nope")))
+
+	// synctest does not count mutex waits as durable, so let the earlier
+	// shifts' cancel goroutines exit before the next shift holds the lock.
+	synctest.Wait()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	shifted := make(chan error, 1)
+	go func() {
+		_, _, err := l.Shift(ctx, true)
+		shifted <- err
+	}()
+	synctest.Wait()
+
+	cancel()
+	synctest.Wait()
+	select {
+	case err := <-shifted:
+		assert.ErrorIs(t, err, context.Canceled)
+	default:
+		t.Error("Shift is still blocked after its context was cancelled during backoff")
+	}
 }
