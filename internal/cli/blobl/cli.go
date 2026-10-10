@@ -177,7 +177,7 @@ func run(c *cli.Context) error {
 					return
 				}
 
-				resultStr, err := execCache.executeBloblangMapping(exec, raw, pretty, input)
+				resultStr, err := execCache.runBloblangExecutor(exec, raw, pretty, input)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, red(fmt.Sprintf("failed to execute map: %v", err)))
 					continue

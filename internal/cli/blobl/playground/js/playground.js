@@ -1,4 +1,6 @@
 class BloblangPlayground {
+  static CONNECTION_ERROR_DELAY = 3000;
+
   constructor() {
     // If BLOBLANG_SYNTAX is defined in index.html, we're running through the Go server
     const isServerMode =
@@ -6,14 +8,12 @@ class BloblangPlayground {
       window.location.search.includes("server=true");
 
     this.state = {
-      wasmAvailable: false,
       executionMode: isServerMode ? "server" : "wasm",
       isExecuting: false,
       executionTimeout: null,
       inputFormatMode: "format", // "format" or "minify"
       outputFormatMode: "minify", // "format" or "minify"
       firstExecutionStartTime: null,
-      CONNECTION_ERROR_DELAY: 3000, // 3 seconds before showing connection errors
     };
 
     this.elements = {
@@ -33,12 +33,12 @@ class BloblangPlayground {
     );
     this.ui = new UIManager();
     this.wasm = typeof WasmManager !== "undefined" ? new WasmManager() : null;
+    this.api = null; // Will be set after WASM loads or in server mode
     this.bindEvents();
 
     // Check if playground is in an iframe to sync light/dark mode with parent window (Docusaurus)
     if (window.parent !== window) {
       this.setupDocusaurusThemeSync();
-      // Add embedded class for enhanced sizing
       document.body.classList.add("embedded");
     }
 
@@ -47,39 +47,39 @@ class BloblangPlayground {
 
   async init() {
     try {
-      // Initialize basic editor
       this.editor.init({
         onInputChange: () => {
-          this.updateLinters();
           this.debouncedExecute("input");
         },
         onMappingChange: () => {
-          this.updateLinters();
           this.debouncedExecute("mapping");
         },
       });
 
-      // Show basic editor
       this.ui.init();
       this.editor.setupDocumentationClickHandlers();
-      this.updateLinters();
-      this.execute();
-      this.hideLoading();
 
-      // Initialize WASM and enhanced features asynchronously
-      await this.initializeWasm();
+      if (this.state.executionMode === "wasm") {
+        // WASM mode: load WASM then setup API
+        await this.wasm.load();
 
-      // Re-initialize editor if WASM syntax is now available
-      if (this.state.executionMode === "wasm" && !this.editor.syntaxLoaded) {
-        await this.editor.loadBloblangSyntax();
-        // Re-setup theme with new syntax rules
-        this.editor.setupTheme();
-        this.editor.configureAutocompletion();
-        // Refresh the mapping editor to apply new highlighting
-        this.editor.refreshSyntaxHighlighting();
+        if (!this.wasm.isLoaded || !window.bloblangApi) {
+          throw new Error("Failed to load WebAssembly module");
+        }
+
+        this.api = new BloblangAPI("wasm", window.bloblangApi);
+
+        if (!this.editor.syntaxLoaded) {
+          await this.editor.loadSyntax();
+          this.editor.setupTheme();
+          this.editor.configureAutocompletion();
+          this.editor.refreshSyntaxHighlighting();
+        }
+      } else {
+        this.api = new BloblangAPI("server");
       }
 
-      // Re-execute with enhanced features
+      this.hideLoading();
       this.execute();
     } catch (error) {
       console.error("Application error:", error);
@@ -92,38 +92,16 @@ class BloblangPlayground {
     }
   }
 
-  async initializeWasm() {
-    if (this.state.executionMode === "server" || !this.wasm) {
-      return;
-    }
-
-    try {
-      await this.wasm.load();
-
-      if (this.wasm.available) {
-        this.state.wasmAvailable = true;
-      } else {
-        this.state.executionMode = "server";
-      }
-    } catch (error) {
-      console.warn("WASM initialization failed:", error);
-      this.state.executionMode = "server";
-    }
-  }
-
   setupDocusaurusThemeSync() {
-    // Hide the theme toggle since parent handles theming
     const themeToggle = document.getElementById("themeToggle");
     if (themeToggle) {
       themeToggle.style.display = "none";
     }
 
-    // Listen for theme changes from parent window
     window.addEventListener("message", (event) => {
       if (event.data.type === "docusaurus-theme-change") {
         const isDark = event.data.theme === "dark";
 
-        // Set data-theme attribute on document element
         document.documentElement.setAttribute(
           "data-theme",
           isDark ? "dark" : "light"
@@ -131,15 +109,12 @@ class BloblangPlayground {
       }
     });
 
-    // Request theme from parent
     window.parent.postMessage({ type: "request-theme" }, "*");
   }
 
   bindEvents() {
-    // Button clicks
     document.addEventListener("click", (e) => this.handleAction(e));
 
-    // File inputs
     this.elements.inputFileInput.addEventListener("change", (e) =>
       this.handleFileLoad(e, "input")
     );
@@ -157,8 +132,8 @@ class BloblangPlayground {
         copyToClipboard(this.elements.outputArea.textContent),
       "load-input": () => this.elements.inputFileInput.click(),
       "load-mapping": () => this.elements.mappingFileInput.click(),
-      "save-output": () => saveOutput(),
-      "format-mapping": () => formatBloblang(),
+      "save-output": () => this.saveOutput(),
+      "format-mapping": () => this.formatMapping(),
       "toggle-format-input": () => this.toggleFormat("input"),
       "toggle-format-output": () => this.toggleFormat("output"),
     };
@@ -170,7 +145,6 @@ class BloblangPlayground {
     if (this.state.isExecuting) return;
     this.state.isExecuting = true;
 
-    // Track first execution time for delayed error handling
     if (!this.state.firstExecutionStartTime) {
       this.state.firstExecutionStartTime = Date.now();
     }
@@ -179,33 +153,8 @@ class BloblangPlayground {
       const input = this.editor.getInput();
       const mapping = this.editor.getMapping();
 
-      let result;
-      switch (this.state.executionMode) {
-        case "wasm":
-          if (this.wasm) {
-            result = this.wasm.execute(input, mapping);
-            this.handleExecution(result);
-          } else {
-            throw new Error("WASM not available");
-          }
-          break;
-        case "server":
-          const response = await fetch("/execute", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ input, mapping }),
-          });
-
-          if (response.ok) {
-            result = await response.json();
-            this.handleExecution(result);
-          } else {
-            throw new Error(`Server error: ${response.status}`);
-          }
-          break;
-        default:
-          throw new Error("Unknown execution mode");
-      }
+      const result = await this.api.execute(input, mapping);
+      this.handleExecution(result);
     } catch (error) {
       this.handleConnectionError(error);
     } finally {
@@ -229,11 +178,11 @@ class BloblangPlayground {
     this.resetErrorStates();
 
     const { result, mapping_error, parse_error } = response;
-    let mappingErrorMessage = null;
 
     if (result && result.length > 0) {
       this.elements.outputArea.classList.add("success");
       this.ui.updateStatus("outputStatus", "success", "Success");
+      this.elements.toggleFormatOutputBtn.disabled = false;
 
       if (isValidJSON(result)) {
         const formatted = formatJSON(result);
@@ -244,45 +193,39 @@ class BloblangPlayground {
         this.elements.outputArea.textContent = result.trim();
       }
     } else if (mapping_error && mapping_error.length > 0) {
+      this.elements.toggleFormatOutputBtn.disabled = true;
       this.handleError(
         "Input Error",
         "There was an error parsing your input JSON",
         mapping_error,
         "inputPanel",
-        "Invalid Input",
-        "Input Error"
+        "Invalid Input"
       );
     } else if (parse_error && parse_error.length > 0) {
+      this.elements.toggleFormatOutputBtn.disabled = true;
       this.handleError(
         "Mapping Error",
         "There is an error in your Bloblang mapping",
         parse_error,
         "mappingPanel",
-        "Invalid Mapping",
-        "Mapping Error"
+        "Invalid Mapping"
       );
-      mappingErrorMessage = parse_error;
     }
-
-    this.updateLinters(mappingErrorMessage);
   }
 
   toggleFormat(type) {
-    const formatMode =
-      type === "input" ? "inputFormatMode" : "outputFormatMode";
-    const btn =
-      type === "input"
-        ? this.elements.toggleFormatInputBtn
-        : this.elements.toggleFormatOutputBtn;
+    const isInput = type === "input";
+    const stateKey = isInput ? "inputFormatMode" : "outputFormatMode";
+    const btn = isInput ? this.elements.toggleFormatInputBtn : this.elements.toggleFormatOutputBtn;
 
-    if (this.state[formatMode] === "format") {
-      this.state[formatMode] = "minify";
+    if (this.state[stateKey] === "format") {
+      this.state[stateKey] = "minify";
       btn.textContent = "Minify";
-      type === "input" ? formatInput() : formatOutput();
+      isInput ? this.formatInput() : this.formatOutput();
     } else {
-      this.state[formatMode] = "format";
+      this.state[stateKey] = "format";
       btn.textContent = "Format";
-      type === "input" ? minifyInput() : minifyOutput();
+      isInput ? this.minifyInput() : this.minifyOutput();
     }
   }
 
@@ -305,12 +248,6 @@ class BloblangPlayground {
     reader.readAsText(file);
   }
 
-  updateLinters(mappingErrorMessage = null) {
-    updateInputLinter(this.editor.getInput());
-    updateMappingLinter(this.editor.getMapping(), mappingErrorMessage);
-    updateOutputLinter(this.elements.outputArea.textContent);
-  }
-
   hideLoading() {
     this.elements.loadingOverlay.classList.add("hidden");
   }
@@ -328,14 +265,14 @@ class BloblangPlayground {
       : 0;
 
     // Only show connection error if we've been trying for a while or this isn't the first execution
-    if (timeSinceFirstExecution > this.state.CONNECTION_ERROR_DELAY) {
+    if (timeSinceFirstExecution > BloblangPlayground.CONNECTION_ERROR_DELAY) {
+      this.elements.toggleFormatOutputBtn.disabled = true;
       this.handleError(
         "Connection Error",
         "Ensure Bloblang server is running and try again",
         error.message
       );
     } else {
-      // Show a brief loading message instead
       this.elements.outputArea.textContent =
         "Initializing Bloblang execution...";
       this.ui.updateStatus("outputStatus", "executing", "Initializing...");
@@ -361,9 +298,53 @@ class BloblangPlayground {
     `;
     this.ui.updateStatus("outputStatus", "error", statusLabel);
   }
+
+  formatInput() {
+    const formatted = formatJSON(this.editor.getInput());
+    if (formatted !== this.editor.getInput()) {
+      this.editor.setInput(formatted);
+    }
+  }
+
+  minifyInput() {
+    const minified = minifyJSON(this.editor.getInput());
+    if (minified !== this.editor.getInput()) {
+      this.editor.setInput(minified);
+    }
+  }
+
+  formatOutput() {
+    const formatted = formatJSON(this.elements.outputArea.textContent);
+    if (formatted !== this.elements.outputArea.textContent) {
+      this.elements.outputArea.innerHTML = syntaxHighlightJSON(formatted);
+      this.elements.outputArea.classList.add("json-formatted");
+    }
+  }
+
+  minifyOutput() {
+    const minified = minifyJSON(this.elements.outputArea.textContent);
+    if (minified !== this.elements.outputArea.textContent) {
+      this.elements.outputArea.innerHTML = syntaxHighlightJSON(minified);
+      this.elements.outputArea.classList.remove("json-formatted");
+    }
+  }
+
+  async formatMapping() {
+    try {
+      const formatted = await this.api.format(this.editor.getMapping());
+      if (formatted) this.editor.setMapping(formatted);
+    } catch (error) {
+      console.error("Format failed:", error.message);
+    }
+  }
+
+  async saveOutput() {
+    const output = this.elements.outputArea.textContent;
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, "-");
+    downloadFile(output, `bloblang-output-${timestamp}.txt`, "text/plain");
+  }
 }
 
-// Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
   window.playground = new BloblangPlayground();
 });
