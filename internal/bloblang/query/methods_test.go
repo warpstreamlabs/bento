@@ -2,6 +2,7 @@ package query
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"testing"
 
@@ -2020,6 +2021,54 @@ func TestMethods(t *testing.T) {
 		"check round down": {
 			input:  methods(literalFn(5.3), method("round")),
 			output: int64(5),
+		},
+		"check round with precision": {
+			input:  methods(literalFn(2.675), method("round", 2)),
+			output: 2.68,
+		},
+		"check round half_up negative tie": {
+			input:  methods(literalFn(-1.5), method("round")),
+			output: int64(-2),
+		},
+		"check round negative precision": {
+			input:  methods(literalFn(267.5), method("round", -1)),
+			output: int64(270),
+		},
+		"check round negative precision carry": {
+			input:  methods(literalFn(996.0), method("round", -2)),
+			output: int64(1000),
+		},
+		"check round negative precision below half": {
+			input:  methods(literalFn(50.0), method("round", -3)),
+			output: int64(0),
+		},
+		"check round negative precision integer input": {
+			input:  methods(literalFn(int64(150)), method("round", -2)),
+			output: int64(200),
+		},
+		"check round negative precision huge integer": {
+			input:  methods(literalFn(int64(1)<<60), method("round", -18)),
+			output: int64(1000000000000000000),
+		},
+		"check round precision integer input untouched": {
+			input:  methods(literalFn(int64(5)), method("round", 2)),
+			output: int64(5),
+		},
+		"check round precision whole result coerces to int": {
+			input:  methods(literalFn(41.995), method("round", 2)),
+			output: int64(42),
+		},
+		"check round extreme precision positive": {
+			input:  methods(literalFn(2.675), method("round", math.MaxInt64)),
+			output: 2.675,
+		},
+		"check round extreme precision negative": {
+			input:  methods(literalFn(2.675), method("round", math.MinInt64)),
+			output: int64(0),
+		},
+		"check round huge negative precision": {
+			input:  methods(literalFn(-1.5e308), method("round", -1000000000)),
+			output: int64(0),
 		},
 		"check replace_many string": {
 			input: methods(literalFn("<i>hello</i> <b>world</b>"), method("replace_all_many", []any{
