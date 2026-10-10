@@ -1,11 +1,8 @@
 package grpc
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"log/slog"
 	"testing"
 	"time"
 
@@ -454,101 +451,43 @@ func TestGrpcClientOutputUnableToFindMethodErr(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 	t.Cleanup(testServer.Stop)
 
-	sb := service.NewStreamBuilder()
+	yamlConf := fmt.Sprintf(`
+address: localhost:%v
+service: helloworld.Greeter
+method: DoesNotExist
+reflection: true
+`, testServer.Port)
 
-	err := sb.SetYAML(fmt.Sprintf(`
-input:
-  generate:
-    mapping: root.name = "Alice"
-    count: 1
-
-output:
-  grpc_client:
-    address: localhost:%v
-    service: helloworld.Greeter
-    method: DoesNotExist
-    reflection: true
-`, testServer.Port))
+	pConf, err := grpcClientOutputSpec().ParseYAML(yamlConf, nil)
 	require.NoError(t, err)
 
-	buffer := new(bytes.Buffer)
-	logger := slog.New(slog.NewTextHandler(buffer, nil))
-
-	sb.SetLogger(logger)
-
-	stream, err := sb.Build()
+	output, err := newGrpcClientOutputFromParsed(pConf, nil)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	streamErrChan := make(chan error, 1)
-
-	go func() {
-		streamErrChan <- stream.Run(ctx)
-	}()
-	err = <-streamErrChan
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		require.NoError(t, err)
-	}
-
-	err = stream.Stop(ctx)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		require.NoError(t, err)
-	}
-
-	assert.Contains(t, buffer.String(), "method: DoesNotExist not found")
+	err = output.Connect(t.Context())
+	require.ErrorContains(t, err, "method: DoesNotExist not found")
 }
 
 func TestGrpcClientOutputBrokenProtoFile(t *testing.T) {
 	testServer := test_server.StartGRPCServer(t, test_server.WithReflection())
 	t.Cleanup(testServer.Stop)
 
-	sb := service.NewStreamBuilder()
+	yamlConf := fmt.Sprintf(`
+address: localhost:%v
+service: helloworld.Greeter
+method: SayHello
+proto_files:
+  - "./grpc_test_server/helloworld/fail_parse.proto"
+`, testServer.Port)
 
-	err := sb.SetYAML(fmt.Sprintf(`
-input:
-  generate:
-    mapping: root.name = "Alice"
-    count: 1
-
-output:
-  grpc_client:
-    address: localhost:%v
-    service: helloworld.Greeter
-    method: SayHello
-    proto_files: 
-      - "./grpc_test_server/helloworld/fail_parse.proto"
-`, testServer.Port))
+	pConf, err := grpcClientOutputSpec().ParseYAML(yamlConf, nil)
 	require.NoError(t, err)
 
-	buffer := new(bytes.Buffer)
-	logger := slog.New(slog.NewTextHandler(buffer, nil))
-
-	sb.SetLogger(logger)
-
-	stream, err := sb.Build()
+	output, err := newGrpcClientOutputFromParsed(pConf, nil)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	streamErrChan := make(chan error, 1)
-
-	go func() {
-		streamErrChan <- stream.Run(ctx)
-	}()
-	err = <-streamErrChan
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		require.NoError(t, err)
-	}
-
-	err = stream.Stop(ctx)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
-		require.NoError(t, err)
-	}
-
-	assert.Contains(t, buffer.String(), "syntax error: unexpected '='")
+	err = output.Connect(t.Context())
+	require.ErrorContains(t, err, "syntax error: unexpected '='")
 }
 
 func TestGrpcClientOutputLints(t *testing.T) {

@@ -1,6 +1,9 @@
 package huggingface
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/knights-analytics/hugot"
@@ -12,10 +15,20 @@ import (
 func TestHugotConfigParsing(t *testing.T) {
 	// We need to ensure this (frankly overly complicated) path specification field
 	// gets parsed and validated correctly when used in conjunction with downloads being enabled.
+
+	// An existing file, so that the download case is rejected by validation
+	// rather than by a failed download.
+	tmpDir := t.TempDir()
+	modelFile := filepath.Join(tmpDir, "model.onnx")
+	require.NoError(t, os.WriteFile(modelFile, nil, 0o644))
+	danglingLink := filepath.Join(tmpDir, "dangling")
+	require.NoError(t, os.Symlink(filepath.Join(tmpDir, "gone"), danglingLink))
+
 	tests := []struct {
 		name        string
 		config      string
 		expectError bool
+		errContains string
 	}{
 		{
 			name: "local file",
@@ -27,14 +40,27 @@ path: /path/to/model.onnx
 		},
 		{
 			name: "download with file path should fail",
-			config: `
+			config: fmt.Sprintf(`
 name: test-pipeline
-path: /path/to/model.onnx
+path: %v
 enable_download: true
 download_options:
   repository: foo/bar
-`,
+`, modelFile),
 			expectError: true,
+			errContains: "must be a directory",
+		},
+		{
+			name: "download with dangling symlink path should fail",
+			config: fmt.Sprintf(`
+name: test-pipeline
+path: %v
+enable_download: true
+download_options:
+  repository: foo/bar
+`, danglingLink),
+			expectError: true,
+			errContains: "does not exist",
 		},
 		{
 			name: "download without repository should fail",
@@ -60,6 +86,7 @@ enable_download: true
 
 			if tt.expectError {
 				require.Error(t, err)
+				require.ErrorContains(t, err, tt.errContains)
 			} else {
 				require.NoError(t, err)
 			}
