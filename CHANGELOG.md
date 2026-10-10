@@ -19,6 +19,11 @@ All notable changes to this project will be documented in this file.
  - `prefix_metadata_keys` added to `http_server` input enables prefixing metadata with the source i.e. header_, path_ @kshivam4781
  - `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
 
+### Changed
+
+- Bloblang field reads over maps no longer allocate per path segment, reducing allocations in mappings that read several fields @slachiewicz
+- Bloblang mappings that assign no variables no longer allocate a variables map per execution @slachiewicz
+
 ### Fixed
 
  - YAML merge keys `<<: *ref_field` are now resolved when running streams, aligning behaviour with the `lint` subcommand @youdie006
