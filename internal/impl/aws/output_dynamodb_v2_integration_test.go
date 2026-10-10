@@ -1,0 +1,671 @@
+package aws
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-faker/faker/v4"
+	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/warpstreamlabs/bento/public/service"
+	"github.com/warpstreamlabs/bento/public/service/integration"
+)
+
+//------------------------------------------------------------------------------
+
+type dynamoDBClientWatcher struct {
+	dynamoDBAPI
+
+	BatchCalls      atomic.Int32
+	IndividualCalls atomic.Int32
+}
+
+func (dcw *dynamoDBClientWatcher) BatchWriteItem(
+	ctx context.Context, in *dynamodb.BatchWriteItemInput, opts ...func(*dynamodb.Options),
+) (*dynamodb.BatchWriteItemOutput, error) {
+	dcw.BatchCalls.Add(1)
+	return dcw.dynamoDBAPI.BatchWriteItem(ctx, in, opts...)
+}
+
+func (dcw *dynamoDBClientWatcher) PutItem(
+	ctx context.Context, in *dynamodb.PutItemInput, opts ...func(*dynamodb.Options),
+) (*dynamodb.PutItemOutput, error) {
+	dcw.IndividualCalls.Add(1)
+	return dcw.dynamoDBAPI.PutItem(ctx, in, opts...)
+}
+
+//------------------------------------------------------------------------------
+
+type dynamodbLocal struct {
+	tableName           string
+	keySchemaElement    []types.KeySchemaElement
+	attributeDefinition []types.AttributeDefinition
+
+	port      string
+	container *dockertest.Resource
+}
+
+func startDynamodbLocal(t *testing.T, opts ...dynamodbLocalOpt) *dynamodbLocal {
+	t.Helper()
+
+	dynamodbLocal := &dynamodbLocal{
+		tableName: "FooTable",
+		keySchemaElement: []types.KeySchemaElement{{
+			AttributeName: aws.String("id"),
+			KeyType:       types.KeyTypeHash,
+		}},
+		attributeDefinition: []types.AttributeDefinition{{
+			AttributeName: aws.String("id"),
+			AttributeType: types.ScalarAttributeTypeS,
+		}},
+	}
+
+	for _, opt := range opts {
+		opt(dynamodbLocal)
+	}
+
+	pool, err := dockertest.NewPool("")
+	require.NoError(t, err)
+
+	pool.MaxWait = time.Second * 30
+
+	dynamodbLocal.container, err = pool.RunWithOptions(&dockertest.RunOptions{
+		Repository:   "amazon/dynamodb-local",
+		ExposedPorts: []string{"8000/tcp"},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, pool.Purge(dynamodbLocal.container))
+	})
+
+	dynamodbLocal.port = dynamodbLocal.container.GetPort("8000/tcp")
+
+	_ = dynamodbLocal.container.Expire(900)
+	require.NoError(t, pool.Retry(func() error {
+		return dynamodbLocal.createDynamodDbTable()
+	}))
+
+	return dynamodbLocal
+}
+
+func (dl *dynamodbLocal) createDynamodDbTable() (err error) {
+	endpoint := fmt.Sprintf("http://localhost:%v", dl.port)
+
+	conf, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"xxxxx",
+			"xxxxx",
+			"xxxxx"),
+		),
+		config.WithRegion("us-east-1"),
+	)
+	if err != nil {
+		return err
+	}
+
+	conf.BaseEndpoint = &endpoint
+	client := dynamodb.NewFromConfig(conf)
+
+	_, err = client.CreateTable(context.Background(), &dynamodb.CreateTableInput{
+		AttributeDefinitions: dl.attributeDefinition,
+		KeySchema:            dl.keySchemaElement,
+		TableName:            aws.String(dl.tableName),
+		BillingMode:          types.BillingModePayPerRequest,
+	})
+	if err != nil {
+		return err
+	} else {
+		waiter := dynamodb.NewTableExistsWaiter(client)
+		err = waiter.Wait(context.Background(), &dynamodb.DescribeTableInput{
+			TableName: aws.String(dl.tableName)}, 5*time.Minute)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//------------------------------------------------------------------------------
+
+type dynamodbLocalOpt func(*dynamodbLocal)
+
+func withSortKeyTable() dynamodbLocalOpt {
+
+	var schemaWithSortKey = []types.KeySchemaElement{
+		{
+			AttributeName: aws.String("id"),
+			KeyType:       types.KeyTypeHash,
+		},
+		{
+			AttributeName: aws.String("sort"),
+			KeyType:       types.KeyTypeRange,
+		},
+	}
+
+	var attributeDefinitionWithSortKey = []types.AttributeDefinition{
+		{
+			AttributeName: aws.String("id"),
+			AttributeType: types.ScalarAttributeTypeS,
+		},
+		{
+			AttributeName: aws.String("sort"),
+			AttributeType: types.ScalarAttributeTypeS,
+		},
+	}
+
+	return func(dl *dynamodbLocal) {
+		dl.keySchemaElement = schemaWithSortKey
+		dl.attributeDefinition = attributeDefinitionWithSortKey
+	}
+}
+
+//------------------------------------------------------------------------------
+
+func TestHandleBatchSizeGreaterThan25(t *testing.T) {
+	integration.CheckSkip(t)
+
+	dynamodbLocal := startDynamodbLocal(t)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: FooTable
+partition_key: id
+json_map_columns:
+  id: id
+  name: name
+json_map_datatypes:
+  id: S
+  name: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	// create a batch size that would be too big for 1 call to BatchWriteItem
+	var batch service.MessageBatch
+	for range 30 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.NoError(t, err)
+
+	// we break the batch down and continue to use BatchWriteItem not PutItem
+	assert.Equal(t, int32(2), watcher.BatchCalls.Load())
+	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
+}
+
+func TestHandleItemSizeOver400KB(t *testing.T) {
+	integration.CheckSkip(t)
+
+	dynamodbLocal := startDynamodbLocal(t)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+partition_key: id
+json_map_columns:
+  id: id
+  name: name
+json_map_datatypes:
+  id: S
+  name: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+
+	batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), strings.Repeat("A", 401_000))))
+
+	var bErr *service.BatchError
+	errs := []error{}
+
+	index := batch.Index()
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+
+	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
+	require.ErrorContains(t, bErr, "Item too big")
+	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
+		if err != nil {
+			errs = append(errs, err)
+		}
+		return true
+	})
+	require.Len(t, errs, 1, "expected one error in batch error")
+	require.ErrorContains(t, errs[0], "Item too big")
+
+	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
+	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
+
+	endpoint := fmt.Sprintf("http://localhost:%v", dynamodbLocal.port)
+
+	conf, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"xxxxx",
+			"xxxxx",
+			"xxxxx"),
+		),
+		config.WithRegion("us-east-1"),
+	)
+	require.NoError(t, err)
+
+	conf.BaseEndpoint = &endpoint
+	client := dynamodb.NewFromConfig(conf)
+
+	x := dynamodb.ScanInput{
+		TableName: aws.String("FooTable"),
+	}
+
+	y, err := client.Scan(context.TODO(), &x)
+	require.NoError(t, err)
+
+	assert.Equal(t, int32(4), y.Count)
+}
+
+func TestHandlePartitionKeyTooBig(t *testing.T) {
+	integration.CheckSkip(t)
+
+	dynamodbLocal := startDynamodbLocal(t)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+partition_key: id
+json_map_columns:
+  id: id
+  name: name
+json_map_datatypes:
+  id: S
+  name: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+
+	batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, strings.Repeat("A", 3000), faker.Name())))
+
+	var bErr *service.BatchError
+	errs := []error{}
+
+	index := batch.Index()
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+
+	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
+	require.ErrorContains(t, bErr, "Key too big")
+	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
+		if err != nil {
+			errs = append(errs, err)
+		}
+		return true
+	})
+	require.Len(t, errs, 1, "expected one error in batch error")
+	require.ErrorContains(t, errs[0], "Key too big")
+
+	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
+	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
+
+	endpoint := fmt.Sprintf("http://localhost:%v", dynamodbLocal.port)
+
+	conf, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"xxxxx",
+			"xxxxx",
+			"xxxxx"),
+		),
+		config.WithRegion("us-east-1"),
+	)
+	require.NoError(t, err)
+
+	conf.BaseEndpoint = &endpoint
+	client := dynamodb.NewFromConfig(conf)
+
+	x := dynamodb.ScanInput{
+		TableName: aws.String("FooTable"),
+	}
+
+	y, err := client.Scan(context.TODO(), &x)
+	require.NoError(t, err)
+
+	assert.Equal(t, int32(4), y.Count)
+}
+
+func TestHandleSortKeyTooBig(t *testing.T) {
+	integration.CheckSkip(t)
+
+	opts := []dynamodbLocalOpt{
+		// Add OVERRIDE
+	}
+
+	dynamodbLocal := startDynamodbLocal(t, opts...)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+partition_key: id
+sort_key: sort
+json_map_columns:
+  id: id
+  name: name
+  sort: sort
+json_map_datatypes:
+  id: S
+  name: S
+  sort: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "sort": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Email(), faker.Name())))
+	}
+
+	batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "sort": "%v", "name": "%v"}`, faker.UUIDHyphenated(), strings.Repeat("A", 2000), faker.Name())))
+
+	var bErr *service.BatchError
+	errs := []error{}
+
+	index := batch.Index()
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+
+	require.ErrorAsf(t, err, &bErr, "expected a batch error but got: %T: %v", bErr, bErr)
+	require.ErrorContains(t, bErr, "Sort key too big")
+	bErr.WalkMessagesIndexedBy(index, func(i int, m *service.Message, err error) bool {
+		if err != nil {
+			errs = append(errs, err)
+		}
+		return true
+	})
+	require.Len(t, errs, 1, "expected one error in batch error")
+	require.ErrorContains(t, errs[0], "Sort key too big")
+
+	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
+	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
+
+	endpoint := fmt.Sprintf("http://localhost:%v", dynamodbLocal.port)
+
+	conf, err := config.LoadDefaultConfig(context.Background(),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"xxxxx",
+			"xxxxx",
+			"xxxxx"),
+		),
+		config.WithRegion("us-east-1"),
+	)
+	require.NoError(t, err)
+
+	conf.BaseEndpoint = &endpoint
+	client := dynamodb.NewFromConfig(conf)
+
+	x := dynamodb.ScanInput{
+		TableName: aws.String("FooTable"),
+	}
+
+	y, err := client.Scan(context.TODO(), &x)
+	require.NoError(t, err)
+
+	assert.Equal(t, int32(4), y.Count)
+}
+
+func TestCheckTableKeySchema(t *testing.T) {
+	integration.CheckSkip(t)
+
+	tests := map[string]struct {
+		opts         []dynamodbLocalOpt
+		partitionKey string
+		sortKey      string
+		expected     string
+	}{
+		"No supplied keys skips check": {
+			opts:         []dynamodbLocalOpt{},
+			partitionKey: "",
+			sortKey:      "",
+			expected:     "",
+		},
+		"Check Partition Key does not match": {
+			opts:         []dynamodbLocalOpt{},
+			partitionKey: "partition_key: id_dne",
+			sortKey:      "",
+			expected:     "supplied partition_key doesn't match Table schema",
+		},
+		"Check Sort Key does not match": {
+			opts:         []dynamodbLocalOpt{withSortKeyTable()},
+			partitionKey: "partition_key: id",
+			sortKey:      "sort_key: sort_dne",
+			expected:     "supplied sort_key doesn't match Table schema",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			dynamodbLocal := startDynamodbLocal(t, test.opts...)
+
+			db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+%v
+%v
+json_map_columns:
+  id: id
+  name: name
+  sort: sort
+json_map_datatypes:
+  id: S
+  name: S
+  sort: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, test.partitionKey, test.sortKey, dynamodbLocal.port))
+
+			connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+			defer connectDone()
+			err := db.Connect(connectCtx)
+			if test.expected != "" {
+				require.ErrorContains(t, err, test.expected)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDuplicatePartitionKeysFailsBatch(t *testing.T) {
+	integration.CheckSkip(t)
+
+	dynamodbLocal := startDynamodbLocal(t)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+partition_key: id
+json_map_columns: 
+  id: id
+  name: name
+json_map_datatypes:
+  id: S
+  name: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+	for range 2 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "00000000-0000-0000-0000-000000000000", "name": "%v"}`, faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.ErrorContains(t, err, "Keys not unique in message batch")
+}
+
+func TestDuplicateCompositeKeysFailsBatch(t *testing.T) {
+	integration.CheckSkip(t)
+
+	dynamodbLocal := startDynamodbLocal(t, []dynamodbLocalOpt{withSortKeyTable()}...)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+partition_key: id
+sort_key: sort
+json_map_columns:
+  id: id
+  name: name
+  sort: sort
+json_map_datatypes:
+  id: S
+  name: S
+  sort: S
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 4 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "sort": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Email(), faker.Name())))
+	}
+
+	for range 2 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "00000000-0000-0000-0000-000000000000", "name": "%v"}`, faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.ErrorContains(t, err, "Keys not unique in message batch")
+}
+
+func TestInferTypes(t *testing.T) {
+	integration.CheckSkip(t)
+
+	dynamodbLocal := startDynamodbLocal(t)
+
+	db := testDDBOWriterV2(t, fmt.Sprintf(`
+table: %v
+partition_key: id
+json_map_columns:
+  id: id
+  name: name
+endpoint: http://localhost:%v
+region: us-east-1
+credentials:
+  id: xxxxx
+  secret: xxxxx
+  token: xxxxx`, dynamodbLocal.tableName, dynamodbLocal.port))
+
+	connectCtx, connectDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer connectDone()
+	err := db.Connect(connectCtx)
+	require.NoError(t, err)
+
+	watcher := &dynamoDBClientWatcher{dynamoDBAPI: db.client}
+	db.client = watcher
+
+	var batch service.MessageBatch
+	for range 1 {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"id": "%v", "name": "%v"}`, faker.UUIDHyphenated(), faker.Name())))
+	}
+
+	writeCtx, writeDone := context.WithTimeout(context.Background(), 5*time.Second)
+	defer writeDone()
+	err = db.WriteBatch(writeCtx, batch)
+	require.NoError(t, err)
+
+	// we break the batch down and continue to use BatchWriteItem not PutItem
+	assert.Equal(t, int32(1), watcher.BatchCalls.Load())
+	assert.Equal(t, int32(0), watcher.IndividualCalls.Load())
+}
