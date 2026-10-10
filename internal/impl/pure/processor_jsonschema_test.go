@@ -125,7 +125,7 @@ func TestJSONSchemaExternalSchemaCheck(t *testing.T) {
 				[]byte(`{"firstName":"John","lastName":"Doe","age":-20}`),
 			},
 			output: `{"firstName":"John","lastName":"Doe","age":-20}`,
-			err:    `age must be greater than or equal to 0`,
+			err:    `- at '/age': minimum: got -20, want 0`,
 		},
 	}
 	for _, tt := range tests {
@@ -216,7 +216,7 @@ func TestJSONSchemaInlineSchemaCheck(t *testing.T) {
 				[]byte(`{"firstName":"John","lastName":"Doe","age":-20}`),
 			},
 			output: `{"firstName":"John","lastName":"Doe","age":-20}`,
-			err:    `age must be greater than or equal to 0`,
+			err:    `- at '/age': minimum: got -20, want 0`,
 		},
 	}
 	for _, tt := range tests {
@@ -253,7 +253,7 @@ json_schema:
 	}
 }
 
-func TestJSONSchemaLowercaseDescriptionCheck(t *testing.T) {
+func TestJSONSchemaNestedRequiredCheck(t *testing.T) {
 	schema := `{
   "$id": "https://example.com/person.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -321,7 +321,7 @@ func TestJSONSchemaLowercaseDescriptionCheck(t *testing.T) {
 				[]byte(`{"firstName":"John","addresses":[{"postCode":"RG1"},{"cityName":"London", "postCode":"E1"}]}`),
 			},
 			output: `{"firstName":"John","addresses":[{"postCode":"RG1"},{"cityName":"London", "postCode":"E1"}]}`,
-			err:    `addresses.0 cityName is required`,
+			err:    `- at '/addresses/0': missing property 'cityName'`,
 		},
 	}
 	for _, tt := range tests {

@@ -145,6 +145,7 @@ require (
 	github.com/rickb777/period v1.0.7
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/s2-streamstore/s2-sdk-go v0.13.3
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/segmentio/ksuid v1.0.4
 	github.com/sijms/go-ora/v2 v2.8.22
 	github.com/sirupsen/logrus v1.9.4
@@ -164,7 +165,6 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/xdg-go/scram v1.1.2
-	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78
 	go.etcd.io/etcd/api/v3 v3.6.5
 	go.etcd.io/etcd/client/v3 v3.6.5
@@ -405,8 +405,6 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
-	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	github.com/yalue/onnxruntime_go v1.30.1 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
