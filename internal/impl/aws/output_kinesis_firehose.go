@@ -19,6 +19,8 @@ const (
 	// Kinesis Firehose Output Fields
 	kfoFieldStream   = "stream"
 	kfoFieldBatching = "batching"
+
+	firehoseMaxBatchSizeBytes = 4 * mebibyte
 )
 
 type kfoConfig struct {
@@ -134,6 +136,31 @@ func (a *kinesisFirehoseWriter) toRecords(batch service.MessageBatch) ([]types.R
 	return entries, nil
 }
 
+// nextFirehoseBatch appends as many pending records as possible onto existing,
+// without exceeding the PutRecordBatch limits, and returns the resulting
+// batch along with any pending records that didn't fit.
+func nextFirehoseBatch(existing, pending []types.Record) (batch, remaining []types.Record) {
+	if len(pending) == 0 {
+		return existing, nil
+	}
+
+	size := 0
+	for _, r := range existing {
+		size += len(r.Data)
+	}
+
+	i := 0
+	for i < len(pending) && len(existing)+i < kinesisMaxRecordsCount {
+		recordSize := len(pending[i].Data)
+		if size+recordSize > firehoseMaxBatchSizeBytes {
+			break
+		}
+		size += recordSize
+		i++
+	}
+	return append(existing, pending[:i]...), pending[i:]
+}
+
 //------------------------------------------------------------------------------
 
 // Connect creates a new Kinesis Firehose client and ensures that the target
@@ -153,8 +180,9 @@ func (a *kinesisFirehoseWriter) Connect(ctx context.Context) error {
 }
 
 // WriteBatch attempts to write message contents to a target Kinesis
-// Firehose delivery stream in batches of 500. If throttling is detected, failed
-// messages are retried according to the configurable backoff settings.
+// Firehose delivery stream in batches of up to 500 records or 4 MiB of total
+// payload size, whichever limit is reached first. If throttling is detected,
+// failed messages are retried according to the configurable backoff settings.
 func (a *kinesisFirehoseWriter) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
 	if a.firehose == nil {
 		return service.ErrNotConnected
@@ -168,16 +196,11 @@ func (a *kinesisFirehoseWriter) WriteBatch(ctx context.Context, batch service.Me
 	}
 
 	input := &firehose.PutRecordBatchInput{
-		Records:            records,
 		DeliveryStreamName: aws.String(a.conf.Stream),
 	}
 
-	// trim input record length to max kinesis firehose batch size
-	if len(records) > kinesisMaxRecordsCount {
-		input.Records, records = records[:kinesisMaxRecordsCount], records[kinesisMaxRecordsCount:]
-	} else {
-		records = nil
-	}
+	// trim input record length to the max kinesis firehose batch size
+	input.Records, records = nextFirehoseBatch(nil, records)
 
 	var failed []types.Record
 	for len(input.Records) > 0 {
@@ -221,13 +244,7 @@ func (a *kinesisFirehoseWriter) WriteBatch(ctx context.Context, batch service.Me
 		}
 
 		// add remaining records to batch
-		if n := len(records); n > 0 && l < kinesisMaxRecordsCount {
-			if remaining := kinesisMaxRecordsCount - l; remaining < n {
-				input.Records, records = append(input.Records, records[:remaining]...), records[remaining:]
-			} else {
-				input.Records, records = append(input.Records, records...), nil
-			}
-		}
+		input.Records, records = nextFirehoseBatch(input.Records, records)
 	}
 	return err
 }
