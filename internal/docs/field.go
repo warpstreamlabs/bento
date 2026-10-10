@@ -3,6 +3,7 @@ package docs
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/warpstreamlabs/bento/internal/value"
@@ -76,6 +77,9 @@ var (
 type FieldSpec struct {
 	// Name of the field (as it appears in config).
 	Name string `json:"name"`
+
+	// Alternate names of the field.
+	Alias []string `json:"alias"`
 
 	// Type of the field.
 	Type FieldType `json:"type"`
@@ -223,6 +227,12 @@ func (f FieldSpec) Scalar() FieldSpec {
 // HasDefault returns a new FieldSpec that specifies a default value.
 func (f FieldSpec) HasDefault(v any) FieldSpec {
 	f.Default = &v
+	return f
+}
+
+// HasAlias returns a new FieldSpec with the given names added as aliases.
+func (f FieldSpec) HasAlias(a ...string) FieldSpec {
+	f.Alias = append(slices.Clone(f.Alias), a...)
 	return f
 }
 
@@ -783,6 +793,9 @@ const (
 
 	// LintDeprecated means a field is deprecated and should not be used.
 	LintDeprecated LintType = iota
+
+	// LintDuplicateAlias means a field has been provided twice via a field Alias.
+	LintDuplicateAlias LintType = iota
 )
 
 // Lint describes a single linting issue found with a Bento config.
