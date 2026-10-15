@@ -314,7 +314,7 @@ func TestRotatingWriterRotatesAtMaxSize(t *testing.T) {
 	const chunkSize = 64 * 1024
 	chunk := bytes.Repeat([]byte("x"), chunkSize)
 
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		_, err := w.Write(chunk)
 		require.NoError(t, err)
 	}
