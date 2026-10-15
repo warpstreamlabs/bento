@@ -23,6 +23,12 @@ type Logger struct {
 func New(stream io.Writer, fs ifs.FS, config Config) (Modular, error) {
 	if config.File.Path != "" {
 		if config.File.Rotate {
+			if config.File.RotateMaxSize < 1 {
+				return nil, errors.New("rotate_max_size_mb must be at least 1")
+			}
+			if config.File.RotateMaxBackups < 0 {
+				return nil, errors.New("rotate_max_backups cannot be negative")
+			}
 			stream = newRotatingWriter(config.File)
 		} else {
 			fw, err := ifs.OS().OpenFile(config.File.Path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
@@ -97,10 +103,10 @@ func New(stream io.Writer, fs ifs.FS, config Config) (Modular, error) {
 func newRotatingWriter(f File) *lumberjack.Logger {
 	return &lumberjack.Logger{
 		Filename:   f.Path,
-		MaxSize:    10,
+		MaxSize:    f.RotateMaxSize,
 		MaxAge:     f.RotateMaxAge,
-		MaxBackups: 1,
-		Compress:   true,
+		MaxBackups: f.RotateMaxBackups,
+		Compress:   f.RotateCompress,
 	}
 }
 
