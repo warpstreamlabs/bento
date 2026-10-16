@@ -35,9 +35,9 @@ func executeHandler(ed *editor.Editor) js.Func {
 	})
 }
 
-func syntaxHandler(syntax *editor.Syntax) js.Func {
-	return toJSFunc(func(args []js.Value) (any, error) {
-		return syntax, nil
+func syntaxHandler(ed *editor.Editor) js.Func {
+	return toJSFunc(func(_ []js.Value) (any, error) {
+		return ed.Syntax(), nil
 	})
 }
 
@@ -87,7 +87,7 @@ func Init(env *bloblang.Environment) {
 	api := js.Global().Get("Object").New()
 
 	api.Set("execute", executeHandler(ed))
-	api.Set("syntax", syntaxHandler(ed.Syntax()))
+	api.Set("syntax", syntaxHandler(ed))
 	api.Set("format", formatHandler(ed))
 	api.Set("autocomplete", autocompleteHandler(ed))
 
