@@ -138,6 +138,33 @@ The maximum number of days to retain old log files based on the timestamp encode
 Type: `int`  
 Default: `0`  
 
+### `file.rotate_max_size_mb`
+
+The maximum size in megabytes a log file can reach before it is rotated.
+
+
+Type: `int`  
+Default: `10`  
+Requires version 1.23.0 or newer  
+
+### `file.rotate_max_backups`
+
+The maximum number of rotated log files to retain. Setting to zero retains all of them, although `rotate_max_age_days` may still delete them.
+
+
+Type: `int`  
+Default: `1`  
+Requires version 1.23.0 or newer  
+
+### `file.rotate_compress`
+
+Whether to compress rotated log files with gzip.
+
+
+Type: `bool`  
+Default: `true`  
+Requires version 1.23.0 or newer  
+
 ### `log_all_errors`
 
 Experimental: When set, the logger will promote any log containing an `error` type to the `ERROR` level.
