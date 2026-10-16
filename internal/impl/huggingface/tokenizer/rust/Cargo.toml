@@ -1,0 +1,28 @@
+[package]
+name = "bento_tokenizer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+extism-pdk = "1.4"
+protobuf = "3.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# Default features pull in C/C++ dependencies (onig, esaxx) that don't target
+# wasm, so use the pure Rust regex engine instead.
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
+
+[build-dependencies]
+protobuf-codegen = "3.3"
+
+# Optimise for speed rather than size: opt-level 3 roughly halves the time to
+# tokenize compared with "z", at the cost of a larger binary (~2.7MB vs ~1.8MB)
+# and a slower first-use compile (~0.9s vs ~0.45s).
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1
