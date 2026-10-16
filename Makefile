@@ -132,13 +132,9 @@ protos:
 		$(PROTO_FILES)
 	@echo "Proto files generated to internal/message/ and internal/docs/"
 
-# HACK:(gregfurman): Change misc/wasm/wasm_exec.js => lib/wasm/wasm_exec.js when using Go 1.24
 playground:
 	@cp -r "internal/cli/blobl/playground" "$(WEBSITE_DIR)/static/playground"
 	@sed -i.bak '/<!-- BEGIN SERVER MODE -->/,/<!-- END SERVER MODE -->/d' "$(WEBSITE_DIR)/static/playground/index.html"
-	@if [ -f "$$(go env GOROOT)/lib/wasm/wasm_exec.js" ]; then \
-		cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" "$(WEBSITE_DIR)/static/playground/js/wasm_exec.js"; \
-	else \
-		cp "$$(go env GOROOT)/misc/wasm/wasm_exec.js" "$(WEBSITE_DIR)/static/playground/js/wasm_exec.js"; \
-	fi
+	@mkdir -p "$(WEBSITE_DIR)/static/playground"
+	@cp -R "internal/cli/blobl/playground/." "$(WEBSITE_DIR)/static/playground/"
 	@GOOS=js GOARCH=wasm go build -o "$(WEBSITE_DIR)/static/playground/playground.wasm" "cmd/tools/playground/main.go"
