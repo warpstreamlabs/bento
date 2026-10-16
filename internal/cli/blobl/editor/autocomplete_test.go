@@ -7,8 +7,8 @@ import (
 )
 
 func TestGenerateAutocompletion(t *testing.T) {
-	syntax := GenerateSyntax(bloblang.GlobalEnvironment(), testRenderer)
-	ac := NewAutocompleter(&syntax, testRenderer)
+	syntax := generateSyntax(bloblang.GlobalEnvironment(), testRenderer)
+	ac := newAutocompleter(&syntax, testRenderer)
 
 	tests := []struct {
 		name           string
@@ -64,9 +64,9 @@ func TestGenerateAutocompletion(t *testing.T) {
 }
 
 func TestAutocompletionItemInsertText(t *testing.T) {
-	syntax := GenerateSyntax(bloblang.GlobalEnvironment(), testRenderer)
+	syntax := generateSyntax(bloblang.GlobalEnvironment(), testRenderer)
 	byCaption := map[string]AutocompletionItem{}
-	for _, c := range NewAutocompleter(&syntax, testRenderer).Generate(AutocompletionRequest{IsMethodContext: true}) {
+	for _, c := range newAutocompleter(&syntax, testRenderer).Generate(AutocompletionRequest{IsMethodContext: true}) {
 		byCaption[c.Caption] = c
 	}
 

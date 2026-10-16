@@ -33,12 +33,6 @@ type Syntax struct {
 	Rules []highlightRule `json:"rules"`
 }
 
-// Walker abstracts the ability to walk over registered functions and methods.
-type Walker interface {
-	WalkFunctions(fn func(name string, spec query.FunctionSpec))
-	WalkMethods(fn func(name string, spec query.MethodSpec))
-}
-
 // AutocompletionItem represents an autocompletion suggestion.
 type AutocompletionItem struct {
 	Caption string         `json:"caption"`           // Display name
@@ -53,10 +47,10 @@ type AutocompletionItem struct {
 type statusPriority int
 
 const (
-	Unknown statusPriority = iota
-	Experimental
-	Beta
-	Stable
+	unknown statusPriority = iota
+	experimental
+	beta
+	stable
 )
 
 // AutocompletionRequest represents a request for autocompletion.

@@ -6,13 +6,19 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
 
-// GenerateSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
-func GenerateSyntax(walker Walker, r *Renderer) Syntax {
+// walker abstracts the ability to walk over registered functions and methods.
+type walker interface {
+	WalkFunctions(fn func(name string, spec query.FunctionSpec))
+	WalkMethods(fn func(name string, spec query.MethodSpec))
+}
+
+// generateSyntax builds metadata for the ACE editor (autocompletion, syntax highlighting, tooltips).
+func generateSyntax(w walker, r *renderer) Syntax {
 	var functionNames, methodNames []string
 	functions := make(map[string]functionSpecWithHTML)
 	methods := make(map[string]methodSpecWithHTML)
 
-	walker.WalkFunctions(func(name string, spec query.FunctionSpec) {
+	w.WalkFunctions(func(name string, spec query.FunctionSpec) {
 		functions[name] = functionSpecWithHTML{
 			FunctionSpec: spec,
 			DocHTML:      r.Spec(functionDoc(name, spec)),
@@ -20,7 +26,7 @@ func GenerateSyntax(walker Walker, r *Renderer) Syntax {
 		functionNames = append(functionNames, name)
 	})
 
-	walker.WalkMethods(func(name string, spec query.MethodSpec) {
+	w.WalkMethods(func(name string, spec query.MethodSpec) {
 		methods[name] = methodSpecWithHTML{
 			MethodSpec: spec,
 			DocHTML:    r.Spec(methodDoc(name, spec)),

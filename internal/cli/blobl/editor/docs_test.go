@@ -47,12 +47,12 @@ func TestMarkdownToHTML(t *testing.T) {
 }
 
 func TestRenderer(t *testing.T) {
-	r := NewRenderer("https://example.com/docs/")
+	r := newRenderer("https://example.com/docs/")
 
-	fn := r.Spec(SpecDoc{Name: "now"})
+	fn := r.Spec(specDoc{Name: "now"})
 	checkDocHTML(t, fn, []string{`data-docs-url="https://example.com/docs/functions#now"`}, nil)
 
-	method := r.Spec(SpecDoc{Name: "trim", IsMethod: true})
+	method := r.Spec(specDoc{Name: "trim", IsMethod: true})
 	checkDocHTML(t, method, []string{`data-docs-url="https://example.com/docs/methods#trim"`}, nil)
 
 	keyword := r.Keyword("root", "The <root>")

@@ -7,7 +7,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
 
-var testRenderer = NewRenderer("https://example.com/docs/guides/bloblang")
+var testRenderer = newRenderer("https://example.com/docs/guides/bloblang")
 
 type testWalker struct {
 	functions []query.FunctionSpec
@@ -41,7 +41,7 @@ func checkDocHTML(t *testing.T, docHTML string, want, notWant []string) {
 }
 
 func TestGenerateSyntax_Empty(t *testing.T) {
-	syntax := GenerateSyntax(&testWalker{}, testRenderer)
+	syntax := generateSyntax(&testWalker{}, testRenderer)
 	if len(syntax.Functions) != 0 {
 		t.Errorf("expected 0 functions, got %d", len(syntax.Functions))
 	}
@@ -108,7 +108,7 @@ func TestGenerateSyntax_FunctionDocHTML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			syntax := GenerateSyntax(&testWalker{functions: []query.FunctionSpec{tt.spec}}, testRenderer)
+			syntax := generateSyntax(&testWalker{functions: []query.FunctionSpec{tt.spec}}, testRenderer)
 			spec, ok := syntax.Functions[tt.spec.Name]
 			if !ok {
 				t.Fatalf("function %q not found in output", tt.spec.Name)
@@ -153,7 +153,7 @@ func TestGenerateSyntax_MethodDocHTML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			syntax := GenerateSyntax(&testWalker{methods: []query.MethodSpec{tt.spec}}, testRenderer)
+			syntax := generateSyntax(&testWalker{methods: []query.MethodSpec{tt.spec}}, testRenderer)
 			spec, ok := syntax.Methods[tt.spec.Name]
 			if !ok {
 				t.Fatalf("method %q not found in output", tt.spec.Name)
@@ -169,7 +169,7 @@ func TestGenerateSyntax_HighlightingRules(t *testing.T) {
 		methods:   []query.MethodSpec{query.NewMethodSpec("uppercase", "")},
 	}
 	byToken := map[string]string{}
-	for _, rule := range GenerateSyntax(walker, testRenderer).Rules {
+	for _, rule := range generateSyntax(walker, testRenderer).Rules {
 		byToken[rule.Token] = rule.Regex
 	}
 

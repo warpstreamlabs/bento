@@ -8,7 +8,7 @@ import (
 )
 
 func TestFormatter_Format(t *testing.T) {
-	f := NewFormatter()
+	f := newFormatter()
 
 	tests := []struct {
 		name string
@@ -147,7 +147,7 @@ func TestFormatter_Format(t *testing.T) {
 }
 
 func TestFormatter_FormatErrors(t *testing.T) {
-	f := NewFormatter()
+	f := newFormatter()
 
 	for _, src := range []string{
 		"",
@@ -166,7 +166,7 @@ func TestFormatter_FormatErrors(t *testing.T) {
 
 // Respacing glues "! =" into "!=" and "- >" into "->".
 func TestSameTokens(t *testing.T) {
-	f := NewFormatter()
+	f := newFormatter()
 
 	for _, src := range []string{"root = ! = 1", "root = - > 1"} {
 		got, err := f.format(src)
@@ -182,7 +182,7 @@ func TestSameTokens(t *testing.T) {
 // Catches places where the lexer's view of Bloblang has drifted from the parser's.
 func TestFormatter_DocExamples(t *testing.T) {
 	env := bloblang.GlobalEnvironment()
-	f := NewFormatter()
+	f := newFormatter()
 
 	var examples []query.ExampleSpec
 	env.WalkFunctions(func(_ string, spec query.FunctionSpec) {

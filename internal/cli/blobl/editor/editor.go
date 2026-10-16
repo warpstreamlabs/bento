@@ -7,18 +7,18 @@ import (
 type Editor struct {
 	env           *bloblang.Environment
 	syntax        *Syntax
-	formatter     *Formatter
-	autocompleter *Autocompleter
+	formatter     *formatter
+	autocompleter *autocompleter
 }
 
 func New(env *bloblang.Environment) *Editor {
-	renderer := NewRenderer(docsBaseURL)
-	syntax := GenerateSyntax(env, renderer)
+	r := newRenderer(docsBaseURL)
+	syntax := generateSyntax(env, r)
 	return &Editor{
 		env:           env,
 		syntax:        &syntax,
-		formatter:     NewFormatter(),
-		autocompleter: NewAutocompleter(&syntax, renderer),
+		formatter:     newFormatter(),
+		autocompleter: newAutocompleter(&syntax, r),
 	}
 }
 

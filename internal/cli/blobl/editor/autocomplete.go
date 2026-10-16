@@ -4,15 +4,15 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang/query"
 )
 
-// Autocompleter returns every candidate for the context and leaves filtering
+// autocompleter returns every candidate for the context and leaves filtering
 // by what has been typed to the editor, which matches fuzzily.
-type Autocompleter struct {
+type autocompleter struct {
 	functions []AutocompletionItem // includes keywords
 	methods   []AutocompletionItem
 }
 
-func NewAutocompleter(syntax *Syntax, r *Renderer) *Autocompleter {
-	return &Autocompleter{
+func newAutocompleter(syntax *Syntax, r *renderer) *autocompleter {
+	return &autocompleter{
 		functions: append(functionCompletions(syntax), keywordCompletions(r)...),
 		methods:   methodCompletions(syntax),
 	}
@@ -20,7 +20,7 @@ func NewAutocompleter(syntax *Syntax, r *Renderer) *Autocompleter {
 
 // Generate returns completions that are shared between calls
 // and must not be modified.
-func (a *Autocompleter) Generate(req AutocompletionRequest) []AutocompletionItem {
+func (a *autocompleter) Generate(req AutocompletionRequest) []AutocompletionItem {
 	if req.IsMethodContext {
 		return a.methods
 	}
@@ -51,7 +51,7 @@ func methodCompletions(syntax *Syntax) []AutocompletionItem {
 	return completions
 }
 
-func keywordCompletions(r *Renderer) []AutocompletionItem {
+func keywordCompletions(r *renderer) []AutocompletionItem {
 	keywords := []struct {
 		name        string
 		description string
@@ -110,13 +110,13 @@ func buildAutocompletionItem(name, itemType, category string, status query.Statu
 func getSpecScore(status query.Status) statusPriority {
 	switch status {
 	case query.StatusStable:
-		return Stable
+		return stable
 	case query.StatusBeta:
-		return Beta
+		return beta
 	case query.StatusExperimental:
-		return Experimental
+		return experimental
 	}
-	return Unknown
+	return unknown
 }
 
 func hasParameters(params query.Params) bool {

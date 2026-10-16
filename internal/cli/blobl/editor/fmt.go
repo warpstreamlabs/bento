@@ -10,15 +10,15 @@ import (
 
 const defaultIndentSize = 2
 
-type Formatter struct {
+type formatter struct {
 	indentSize int
 }
 
-func NewFormatter() *Formatter {
-	return &Formatter{indentSize: defaultIndentSize}
+func newFormatter() *formatter {
+	return &formatter{indentSize: defaultIndentSize}
 }
 
-func (f *Formatter) Format(source string) (string, error) {
+func (f *formatter) Format(source string) (string, error) {
 	if source == "" {
 		return "", errors.New("mapping cannot be empty")
 	}
@@ -37,7 +37,7 @@ func (f *Formatter) Format(source string) (string, error) {
 	return out, nil
 }
 
-func (f *Formatter) format(source string) (string, error) {
+func (f *formatter) format(source string) (string, error) {
 	lines, err := splitLines(source)
 	if err != nil {
 		return "", err
@@ -80,7 +80,7 @@ type opener struct {
 	indent int // indent level of the line it was opened on
 }
 
-func (f *Formatter) print(lines []line) (string, error) {
+func (f *formatter) print(lines []line) (string, error) {
 	var (
 		b    strings.Builder
 		open []opener

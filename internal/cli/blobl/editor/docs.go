@@ -12,7 +12,7 @@ import (
 
 const docsBaseURL = "https://warpstreamlabs.github.io/bento/docs/guides/bloblang"
 
-type SpecDoc struct {
+type specDoc struct {
 	Name        string
 	IsMethod    bool
 	Status      query.Status
@@ -21,8 +21,8 @@ type SpecDoc struct {
 	Params      query.Params
 }
 
-func functionDoc(name string, spec query.FunctionSpec) SpecDoc {
-	return SpecDoc{
+func functionDoc(name string, spec query.FunctionSpec) specDoc {
+	return specDoc{
 		Name:        name,
 		Status:      spec.Status,
 		Version:     spec.Version,
@@ -31,8 +31,8 @@ func functionDoc(name string, spec query.FunctionSpec) SpecDoc {
 	}
 }
 
-func methodDoc(name string, spec query.MethodSpec) SpecDoc {
-	return SpecDoc{
+func methodDoc(name string, spec query.MethodSpec) specDoc {
+	return specDoc{
 		Name:        name,
 		IsMethod:    true,
 		Status:      spec.Status,
@@ -42,27 +42,27 @@ func methodDoc(name string, spec query.MethodSpec) SpecDoc {
 	}
 }
 
-// Renderer renders docs as the HTML shown in editor tooltips.
-type Renderer struct {
+// renderer renders docs as the HTML shown in editor tooltips.
+type renderer struct {
 	docsURL string
 }
 
-func NewRenderer(docsURL string) *Renderer {
-	return &Renderer{docsURL: strings.TrimRight(docsURL, "/")}
+func newRenderer(docsURL string) *renderer {
+	return &renderer{docsURL: strings.TrimRight(docsURL, "/")}
 }
 
-func (r *Renderer) Spec(spec SpecDoc) string {
+func (r *renderer) Spec(spec specDoc) string {
 	page := r.docsURL + "/functions"
 	if spec.IsMethod {
 		page = r.docsURL + "/methods"
 	}
 	return render("spec", struct {
-		SpecDoc
+		specDoc
 		DocsURL string
 	}{spec, page + "#" + spec.Name})
 }
 
-func (r *Renderer) Keyword(name, description string) string {
+func (r *renderer) Keyword(name, description string) string {
 	return render("keyword", struct{ Name, Description string }{name, description})
 }
 
