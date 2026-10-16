@@ -9,7 +9,7 @@ import (
 	"syscall/js"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
-	"github.com/warpstreamlabs/bento/internal/cli/blobl"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl/editor"
 )
 
 type wasmHandler func(args []js.Value) (any, error)
@@ -24,45 +24,45 @@ func toJSFunc(h wasmHandler) js.Func {
 	})
 }
 
-func executeHandler(env *bloblang.Environment) js.Func {
+func executeHandler(ed *editor.Editor) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
 		if len(args) != 2 || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString {
 			msg := "Invalid arguments: expected two strings (input, mapping)"
-			return &blobl.ExecutionResult{MappingError: &msg}, nil
+			return &editor.ExecutionResult{MappingError: &msg}, nil
 		}
 
-		return blobl.ExecuteBloblangMapping(env, args[0].String(), args[1].String()), nil
+		return ed.Execute(args[0].String(), args[1].String()), nil
 	})
 }
 
-func syntaxHandler(syntax *blobl.BloblangSyntax) js.Func {
+func syntaxHandler(syntax *editor.Syntax) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
 		return syntax, nil
 	})
 }
 
-func formatHandler(env *bloblang.Environment) js.Func {
+func formatHandler(ed *editor.Editor) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return nil, fmt.Errorf("invalid arguments: expected one string (mapping)")
 		}
 
-		return blobl.FormatBloblangMapping(env, args[0].String())
+		return ed.Format(args[0].String())
 	})
 }
 
-func autocompleteHandler(syntax *blobl.BloblangSyntax) js.Func {
+func autocompleteHandler(ed *editor.Editor) js.Func {
 	return toJSFunc(func(args []js.Value) (any, error) {
 		if len(args) != 1 || args[0].Type() != js.TypeString {
 			return nil, fmt.Errorf("invalid arguments: expected request JSON")
 		}
 
-		var req blobl.AutocompletionRequest
+		var req editor.AutocompletionRequest
 		if err := json.Unmarshal([]byte(args[0].String()), &req); err != nil {
 			return nil, fmt.Errorf("failed to parse request JSON: %w", err)
 		}
 
-		return blobl.GenerateAutocompletion(syntax, req)
+		return ed.Autocomplete(req), nil
 	})
 }
 
@@ -82,14 +82,14 @@ func toJS(data any) js.Value {
 
 // Init registers the Bloblang WASM API on the global object.
 func Init(env *bloblang.Environment) {
-	syntax := blobl.GenerateBloblangSyntax(env)
+	ed := editor.New(env)
 
 	api := js.Global().Get("Object").New()
 
-	api.Set("execute", executeHandler(env))
-	api.Set("syntax", syntaxHandler(&syntax))
-	api.Set("format", formatHandler(env))
-	api.Set("autocomplete", autocompleteHandler(&syntax))
+	api.Set("execute", executeHandler(ed))
+	api.Set("syntax", syntaxHandler(ed.Syntax()))
+	api.Set("format", formatHandler(ed))
+	api.Set("autocomplete", autocompleteHandler(ed))
 
 	js.Global().Set("bloblangApi", api)
 	js.Global().Set("wasmReady", toJS(true))

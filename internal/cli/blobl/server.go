@@ -19,6 +19,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl/editor"
 )
 
 const (
@@ -41,7 +42,7 @@ func init() {
 
 type server struct {
 	env    *bloblang.Environment
-	syntax *BloblangSyntax
+	editor *editor.Editor
 	fSync  *fileSync
 	mux    *http.ServeMux
 }
@@ -55,8 +56,7 @@ func newServer(inputFile, mappingFile string, writeBack bool) *server {
 }
 
 func (s *server) registerRoutes() error {
-	syntax := GenerateBloblangSyntax(s.env)
-	s.syntax = &syntax
+	s.editor = editor.New(s.env)
 
 	// API endpoints
 	s.mux.HandleFunc("/execute", s.handleExecute)
@@ -160,7 +160,7 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 	s.fSync.update(req.Input, req.Mapping)
 
-	response := ExecuteBloblangMapping(s.env, req.Input, req.Mapping)
+	response := s.editor.Execute(req.Input, req.Mapping)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -183,7 +183,7 @@ func (s *server) handleFormat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := FormatBloblangMapping(s.env, request.Mapping)
+	response, err := s.editor.Format(request.Mapping)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -201,20 +201,14 @@ func (s *server) handleAutocomplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request AutocompletionRequest
+	var request editor.AutocompletionRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	response, err := GenerateAutocompletion(s.syntax, request)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(s.editor.Autocomplete(request)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -226,13 +220,13 @@ func (s *server) handleSyntax(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(s.syntax); err != nil {
+	if err := json.NewEncoder(w).Encode(s.editor.Syntax()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (s *server) generateSyntaxTemplate() (template.JS, error) {
-	jsonBytes, err := json.Marshal(s.syntax)
+	jsonBytes, err := json.Marshal(s.editor.Syntax())
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal bloblang syntax: %w", err)
 	}

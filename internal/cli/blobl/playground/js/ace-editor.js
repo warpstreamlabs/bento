@@ -256,12 +256,7 @@ class EditorManager {
             return callback(null, []);
           }
 
-          const isMethodContext = /\.\w*$/.test(beforeCursor);
-          const request = {
-            line,
-            column: pos.column,
-            isMethodContext,
-          };
+          const request = { isMethodContext: /\.\w*$/.test(beforeCursor) };
 
           try {
             if (!window.playground || !window.playground.api) {
@@ -280,6 +275,17 @@ class EditorManager {
             console.error("Autocompletion error:", error);
             callback(null, []);
           }
+        },
+        getDocTooltip: (item) => {
+          const specs = {
+            function: this.bloblangSyntax.functions,
+            method: this.bloblangSyntax.methods,
+          }[item.type];
+          if (!specs) return;
+          if (!item.docHTML) {
+            item.docHTML = specs[item.caption]?.docHTML;
+          }
+          return item;
         },
       };
 

@@ -54,33 +54,6 @@ var (
 	StatusHidden       Status = "hidden"
 )
 
-// ------------------------------------------------------------------------------
-
-// BaseSpec contains fields shared by function and method specifications.
-type BaseSpec struct {
-	// The release status of the function.
-	Status Status `json:"status"`
-
-	// Name of the method (as it appears in config).
-	Name string `json:"name"`
-
-	// Description of the method purpose (in markdown).
-	Description string `json:"description,omitempty"`
-
-	// Params defines the expected arguments of the method.
-	Params Params `json:"params"`
-
-	// Examples shows general usage for the method.
-	Examples []ExampleSpec `json:"examples,omitempty"`
-
-	// Impure indicates that a method accesses or interacts with the outer
-	// environment, and is therefore unsafe to execute in shared environments.
-	Impure bool `json:"impure"`
-
-	// Version is the Bento version this component was introduced.
-	Version string `json:"version,omitempty"`
-}
-
 //------------------------------------------------------------------------------
 
 // Function categories.
@@ -93,27 +66,43 @@ var (
 	FunctionCategoryFakeData    = "Fake Data Generation"
 )
 
+// FunctionSpec describes a Bloblang function.
 type FunctionSpec struct {
-	BaseSpec
+	// The release status of the function.
+	Status Status `json:"status"`
 
 	// A category to place the function within.
 	Category string `json:"category"`
 
+	// Name of the function (as it appears in config).
+	Name string `json:"name"`
+
+	// Description of the functions purpose (in markdown).
+	Description string `json:"description,omitempty"`
+
+	// Params defines the expected arguments of the function.
+	Params Params `json:"params"`
+
 	// Examples shows general usage for the function.
 	Examples []ExampleSpec `json:"examples,omitempty"`
+
+	// Impure indicates that a function accesses or interacts with the outer
+	// environment, and is therefore unsafe to execute in shared environments.
+	Impure bool `json:"impure"`
+
+	// Version is the Bento version this component was introduced.
+	Version string `json:"version,omitempty"`
 }
 
 // NewFunctionSpec creates a new function spec.
 func NewFunctionSpec(category, name, description string, examples ...ExampleSpec) FunctionSpec {
 	return FunctionSpec{
-		BaseSpec: BaseSpec{
-			Status:      StatusStable,
-			Name:        name,
-			Description: description,
-			Params:      NewParams(),
-		},
-		Category: category,
-		Examples: examples,
+		Status:      StatusStable,
+		Category:    category,
+		Name:        name,
+		Description: description,
+		Examples:    examples,
+		Params:      NewParams(),
 	}
 }
 
@@ -155,25 +144,21 @@ func NewDeprecatedFunctionSpec(name, description string, examples ...ExampleSpec
 ` + description
 
 	return FunctionSpec{
-		BaseSpec: BaseSpec{
-			Status:      StatusDeprecated,
-			Name:        name,
-			Description: description,
-			Params:      NewParams(),
-		},
-		Examples: examples,
-		Category: FunctionCategoryDeprecated,
+		Status:      StatusDeprecated,
+		Category:    FunctionCategoryDeprecated,
+		Name:        name,
+		Description: description,
+		Examples:    examples,
+		Params:      NewParams(),
 	}
 }
 
 // NewHiddenFunctionSpec creates a new function spec that is hidden from the docs.
 func NewHiddenFunctionSpec(name string) FunctionSpec {
 	return FunctionSpec{
-		BaseSpec: BaseSpec{
-			Status: StatusHidden,
-			Name:   name,
-			Params: NewParams(),
-		},
+		Status: StatusHidden,
+		Name:   name,
+		Params: NewParams(),
 	}
 }
 
@@ -204,24 +189,41 @@ type MethodCatSpec struct {
 }
 
 // MethodSpec describes a Bloblang method.
-// MethodSpec describes a Bloblang method.
 type MethodSpec struct {
-	BaseSpec
+	// The release status of the function.
+	Status Status `json:"status"`
+
+	// Name of the method (as it appears in config).
+	Name string `json:"name"`
+
+	// Description of the method purpose (in markdown).
+	Description string `json:"description,omitempty"`
+
+	// Params defines the expected arguments of the method.
+	Params Params `json:"params"`
+
+	// Examples shows general usage for the method.
+	Examples []ExampleSpec `json:"examples,omitempty"`
 
 	// Categories that this method fits within.
 	Categories []MethodCatSpec `json:"categories,omitempty"`
+
+	// Impure indicates that a method accesses or interacts with the outer
+	// environment, and is therefore unsafe to execute in shared environments.
+	Impure bool `json:"impure"`
+
+	// Version is the Bento version this component was introduced.
+	Version string `json:"version,omitempty"`
 }
 
 // NewMethodSpec creates a new method spec.
 func NewMethodSpec(name, description string, examples ...ExampleSpec) MethodSpec {
 	return MethodSpec{
-		BaseSpec: BaseSpec{
-			Status:      StatusStable,
-			Name:        name,
-			Description: description,
-			Params:      NewParams(),
-			Examples:    examples,
-		},
+		Name:        name,
+		Status:      StatusStable,
+		Description: description,
+		Examples:    examples,
+		Params:      NewParams(),
 	}
 }
 
@@ -230,23 +232,19 @@ func NewMethodSpec(name, description string, examples ...ExampleSpec) MethodSpec
 // mappings.
 func NewDeprecatedMethodSpec(name, description string, examples ...ExampleSpec) MethodSpec {
 	return MethodSpec{
-		BaseSpec: BaseSpec{
-			Status:   StatusDeprecated,
-			Name:     name,
-			Params:   NewParams(),
-			Examples: examples,
-		},
+		Name:     name,
+		Status:   StatusDeprecated,
+		Examples: examples,
+		Params:   NewParams(),
 	}
 }
 
 // NewHiddenMethodSpec creates a new method spec that is hidden from docs.
 func NewHiddenMethodSpec(name string) MethodSpec {
 	return MethodSpec{
-		BaseSpec: BaseSpec{
-			Status: StatusHidden,
-			Name:   name,
-			Params: NewParams(),
-		},
+		Name:   name,
+		Status: StatusHidden,
+		Params: NewParams(),
 	}
 }
 

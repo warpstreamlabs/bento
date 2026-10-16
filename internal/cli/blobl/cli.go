@@ -11,6 +11,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/bloblang"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl/editor"
 	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 )
@@ -170,14 +171,14 @@ func run(c *cli.Context) error {
 		go func() {
 			defer wg.Done()
 
-			execCache := newExecCache()
+			runner := editor.NewRunner()
 			for {
 				input, open := <-inputsChan
 				if !open {
 					return
 				}
 
-				resultStr, err := execCache.runBloblangExecutor(exec, raw, pretty, input)
+				resultStr, err := runner.Run(exec, raw, pretty, input)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, red(fmt.Sprintf("failed to execute map: %v", err)))
 					continue
