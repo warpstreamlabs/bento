@@ -26,7 +26,8 @@ type AsyncReader struct {
 	typeStr string
 	reader  Async
 
-	mgr component.Observability
+	mgr   component.Observability
+	onErr func(error)
 
 	transactions chan message.Transaction
 	shutSig      *shutdown.Signaller
@@ -62,6 +63,10 @@ func NewAsyncReader(
 		opt(rdr)
 	}
 	rdr.connection.Store(component.ConnectionPending(rdr.mgr))
+
+	if p, ok := mgr.(interface{ InputErrorHandler() func(error) }); ok {
+		rdr.onErr = p.InputErrorHandler()
+	}
 
 	go rdr.loop()
 	return rdr, nil
@@ -122,7 +127,11 @@ func (r *AsyncReader) loop() {
 					return false
 				}
 				r.connection.Store(component.ConnectionFailing(r.mgr, err))
-				r.mgr.Logger().Error("Failed to connect to %v: %v", r.typeStr, err)
+				if r.onErr == nil {
+					r.mgr.Logger().Error("Failed to connect to %v: %v", r.typeStr, err)
+				} else {
+					r.onErr(err)
+				}
 				mFailedConn.Incr(1)
 
 				var nextBoff time.Duration
