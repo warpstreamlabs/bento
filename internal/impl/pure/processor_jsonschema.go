@@ -9,12 +9,10 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/interop"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
-	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
+	"github.com/warpstreamlabs/bento/internal/jsonschema"
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/public/service"
-
-	jsonschema "github.com/xeipuuv/gojsonschema"
 )
 
 const (
@@ -122,12 +120,12 @@ func newJSONSchema(schemaStr, schemaPath string, mgr bundle.NewManagement) (proc
 			return nil, errors.New("invalid schema_path provided, must start with file:// or http://")
 		}
 
-		schema, err = jsonschema.NewSchema(jsonschema.NewReferenceLoaderFileSystem(schemaPath, ifs.ToHTTP(mgr.FS())))
+		schema, err = jsonschema.CompilePath(schemaPath, mgr.FS())
 		if err != nil {
 			return nil, fmt.Errorf("failed to load JSON schema definition: %v", err)
 		}
 	} else if schemaStr != "" {
-		schema, err = jsonschema.NewSchema(jsonschema.NewStringLoader(schemaStr))
+		schema, err = jsonschema.CompileString(schemaStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load JSON schema definition: %v", err)
 		}
@@ -152,27 +150,9 @@ func (s *jsonSchemaProc) Process(ctx context.Context, part *message.Part) ([]*me
 		return nil, err
 	}
 
-	partLoader := jsonschema.NewGoLoader(jsonPart)
-	result, err := s.schema.Validate(partLoader)
-	if err != nil {
-		s.log.Debug("Failed to validate json: %v", err)
-		return nil, err
-	}
-
-	if !result.Valid() {
+	if err := jsonschema.Validate(s.schema, jsonPart); err != nil {
 		s.log.Debug("The document is not valid")
-		var errStr strings.Builder
-		for i, desc := range result.Errors() {
-			if i > 0 {
-				errStr.WriteString("\n")
-			}
-			description := strings.ToLower(desc.Description())
-			if property := desc.Details()["property"]; property != nil {
-				description = property.(string) + strings.TrimPrefix(description, strings.ToLower(property.(string)))
-			}
-			errStr.WriteString(desc.Field() + " " + description)
-		}
-		return nil, errors.New(errStr.String())
+		return nil, err
 	}
 
 	s.log.Debug("The document is valid")
