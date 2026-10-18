@@ -44,6 +44,17 @@ type MountConfig struct {
 	ReadOnly  bool   `yaml:"read_only"`
 }
 
+func (m *MountConfig) UnmarshalYAML(value *yaml.Node) error {
+	type mountConfig MountConfig
+	// HACK: required to ensure ReadOnly is true by default.
+	conf := mountConfig{ReadOnly: true}
+	if err := value.Decode(&conf); err != nil {
+		return err
+	}
+	*m = MountConfig(conf)
+	return nil
+}
+
 func (m Manifest) ComponentSpec() (docs.ComponentSpec, error) {
 	fields := make([]docs.FieldSpec, len(m.Fields))
 	for i, fieldConf := range m.Fields {

@@ -1,6 +1,9 @@
 //! Bindings for Bento WASM plugins. Messages are exchanged with Bento as
 //! protobuf (resources/protos/message.proto), and decoded into a [`Message`]
-//! for each call. See internal/plugin/runtime/wazero_v1/host.go for the ABI.
+//! for each call. See website/docs/guides/plugins/about.md for the ABI.
+//!
+//! A plugin is built as a `cdylib` for `wasm32-unknown-unknown`, or for
+//! `wasm32-wasip1` when it reads files mounted by Bento.
 //!
 //! A plugin exports its entry points with the [`bento_plugin`] attribute: an
 //! optional `init`, called once per instance with the plugin's config, and
@@ -38,7 +41,8 @@
 //!
 //! A `process_batch` function returns zero or more batches, and a `process`
 //! function zero or more messages, where a message that is not returned is
-//! dropped. If either fails, the messages continue unchanged except for being
+//! dropped. A message can be failed on its own with [`Message::set_error`]. If
+//! either function fails, the messages continue unchanged except for being
 //! marked with the error.
 
 use std::borrow::Cow;

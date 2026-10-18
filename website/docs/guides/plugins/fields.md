@@ -5,7 +5,7 @@ sidebar_label: Fields
 
 The `plugin.yaml` manifest defines your plugin's configuration schema and runtime behavior.
 
-### `plugins.yaml`
+### `plugin.yaml`
 
 ### `name`
 
@@ -164,7 +164,7 @@ Whether to mount the path read-only.
 
 
 Type: `bool`  
-Default: `false`  
+Default: `true`  
 
 ### `runtime.wasm.memory`
 

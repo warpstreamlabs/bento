@@ -1,5 +1,5 @@
-// Buffers exchanged with Bento. See internal/plugin/runtime/wazero_v1/host.go
-// for the full ABI.
+// Buffers exchanged with Bento. See website/docs/guides/plugins/about.md for
+// the full ABI.
 #pragma once
 #include <stdint.h>
 
