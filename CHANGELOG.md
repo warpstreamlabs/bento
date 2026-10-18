@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 
  - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
 
+### Fixed
+
+ - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+
 ## 1.22.0 - 2026-10-09
 
 ### Added
