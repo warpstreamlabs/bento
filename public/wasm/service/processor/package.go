@@ -5,38 +5,37 @@ package processor
 import (
 	"context"
 
-	"github.com/extism/go-pdk"
+	"github.com/warpstreamlabs/bento/internal/wasm"
 	"github.com/warpstreamlabs/bento/public/wasm/service"
 )
 
+// result is shared by all process calls in this instance.
+// Its address remains valid for the instance's lifetime.
+// The host must consume its contents before the next process call.
+// Calls must not overlap or reenter process.
+var result wasm.Result
+
 //go:wasmexport process
-func process() int32 {
+func process(input wasm.Buffer) *wasm.Result {
+	result.Set(processMessage(input.Slice()))
+	return &result
+}
+
+func processMessage(input []byte) ([]byte, error) {
 	proc, err := plugin.GetInstance()
 	if err != nil {
-		pdk.SetError(err)
-		return 1
+		return nil, err
 	}
 
-	input := pdk.Input()
 	msg, err := service.UnmarshalMessageFromProto(input)
 	if err != nil {
-		pdk.SetError(err)
-		return 1
+		return nil, err
 	}
 
-	ctx := context.Background()
-	results, err := proc.Process(ctx, msg)
+	results, err := proc.Process(context.Background(), msg)
 	if err != nil {
-		pdk.SetError(err)
-		return 1
+		return nil, err
 	}
 
-	result, err := service.MarshalBatchToProto(results)
-	if err != nil {
-		pdk.SetError(err)
-		return 1
-	}
-
-	pdk.Output(result)
-	return 0
+	return service.MarshalBatchToProto(results)
 }

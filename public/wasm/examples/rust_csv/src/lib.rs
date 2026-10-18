@@ -1,40 +1,17 @@
-use extism_pdk::*;
+use bento_pdk::{bento_plugin, Message, Result};
 use csv::ReaderBuilder;
 use serde_json::{Map, Value};
-use protobuf::Message;
 
-mod protos {
-    include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
-}
-
-use protos::message::{part::Content, Batch, Batches};
-
-#[plugin_fn]
-pub fn init_plugin(_input: Vec<u8>) -> FnResult<()> {
-    Ok(())
-}
-
-#[plugin_fn]
-pub fn process_batch(input: Vec<u8>) -> FnResult<Vec<u8>> {
-    let mut batch = Batch::parse_from_bytes(&input)
-        .map_err(|e| WithReturnCode::new(Error::msg(format!("Parse error: {}", e)), 1))?;
-
-    for part in batch.parts.iter_mut() {
-        if let Some(Content::Raw(ref mut bytes)) = part.content {
-            match csv_to_json(bytes) {
-                Ok(json) => *bytes = json,
-                Err(e) => {
-                    error!("CSV conversion failed: {}", e);
-                    part.error = format!("CSV error: {}", e);
-                }
-            }
+#[bento_plugin(process_batch)]
+fn process_batch(mut batch: Vec<Message>) -> Result<Vec<Vec<Message>>> {
+    for msg in &mut batch {
+        let json = csv_to_json(&msg.bytes());
+        match json {
+            Ok(json) => msg.set_bytes(json),
+            Err(e) => msg.set_error(&format!("CSV error: {}", e)),
         }
     }
-
-    let mut res = Batches::new();
-    res.batches.push(batch);
-    res.write_to_bytes()
-        .map_err(|e| WithReturnCode::new(Error::msg(format!("Serialize error: {}", e)), 1))
+    Ok(vec![batch])
 }
 
 fn csv_to_json(csv_data: &[u8]) -> Result<Vec<u8>, String> {

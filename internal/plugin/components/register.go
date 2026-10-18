@@ -3,16 +3,10 @@
 package components
 
 import (
-	"github.com/extism/go-pdk"
+	"github.com/warpstreamlabs/bento/internal/wasm"
 )
 
 //go:wasmexport init_plugin
-func init_plugin() int32 {
-	err := plugin.Init(pdk.Input())
-	if err != nil {
-		pdk.SetError(err)
-		return 1
-	}
-
-	return 0
+func init_plugin(conf wasm.Buffer) wasm.Buffer {
+	return wasm.FromError(plugin.Init(conf.Slice()))
 }

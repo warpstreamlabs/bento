@@ -158,19 +158,13 @@ The path inside the WASM container.
 
 Type: `string`  
 
-### `runtime.wasm.allowed_hosts`
+### `runtime.wasm.mounts[].read_only`
 
-A list of hosts that the plugin is allowed to connect to.
-
-
-Type: list of `string`  
-
-### `runtime.wasm.config`
-
-Arbitrary key-value configuration for the plugin.
+Whether to mount the path read-only.
 
 
-Type: map of `string`  
+Type: `bool`  
+Default: `false`  
 
 ### `runtime.wasm.memory`
 
@@ -185,18 +179,4 @@ The max amount of pages the plugin can allocate. One page is 64KiB.
 
 
 Type: `int`  
-
-### `runtime.wasm.memory.max_http_response_bytes`
-
-The max size of an Extism HTTP response (e.g., '10MB').
-
-
-Type: `string`  
-
-### `runtime.wasm.memory.max_var_bytes`
-
-The max size of all Extism vars (e.g., '1MB').
-
-
-Type: `string`  
 

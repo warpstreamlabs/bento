@@ -49,17 +49,17 @@ runtime:
   wasm: REQUIRED - WASM runtime configuration object for the plugin.
 ```
 
-Since our WASM plugin will run within a fully-sandboxed environment, memory constrains, file-mounts, and network access all
-need to be specified upfront:
+Since our WASM plugin will run within a fully-sandboxed environment, memory constraints and file-mounts need to be
+specified upfront:
 ```yml
 runtime:
   wasm:
     memory:
       max_pages: REQUIRED - The max amount of pages the plugin can allocate. One page is 64KiB.
-    allowed_hosts: OPTIONAL - List of hosts that the plugin is allowed to connect to.
     mounts:
       - host_path: REQUIRED - Path on host to mount.
         guest_path: REQUIRED - Path inside the WASM container.
+        read_only: OPTIONAL - Whether to mount the path read-only (default false).
     path: OPTIONAL - Path to the plugin's WASM binary, relative to the plugin directory (default "plugin.wasm").
 ```
 

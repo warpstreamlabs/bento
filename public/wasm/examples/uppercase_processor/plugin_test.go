@@ -11,7 +11,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/manager"
 	"github.com/warpstreamlabs/bento/internal/message"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
-	extismv1 "github.com/warpstreamlabs/bento/internal/plugin/runtime/extism_v1"
+	wazerov1 "github.com/warpstreamlabs/bento/internal/plugin/runtime/wazero_v1"
 )
 
 // TODO(gregfurman): Write tests with public/service packages to allow easier plugin testing.
@@ -32,7 +32,7 @@ func TestPluginRegister(t *testing.T) {
 		t.Skip("skipping plugin tests: requires plugin.wasm and plugin.yaml in testdata/")
 	}
 
-	rt := extismv1.NewPluginRuntime()
+	rt := wazerov1.NewPluginRuntime()
 	defer rt.Close(t.Context())
 
 	manifest, _, err := runtime.ReadManifestYAML(pluginManifest)
@@ -58,7 +58,7 @@ func TestPluginExecute(t *testing.T) {
 	mgr, err := manager.New(manager.NewResourceConfig())
 	require.NoError(t, err)
 
-	rt := extismv1.NewPluginRuntime()
+	rt := wazerov1.NewPluginRuntime()
 	defer rt.Close(t.Context())
 
 	manifest, _, err := runtime.ReadManifestYAML(pluginManifest)
