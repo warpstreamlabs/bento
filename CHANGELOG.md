@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 
  - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
 
+### Fixed
+
+ - Processor and output spans of failed messages now set the span status to `Error`, so tracing backends such as Jaeger and Grafana Tempo show them as errors @piratecarrot
+
 ## 1.22.0 - 2026-10-09
 
 ### Added
