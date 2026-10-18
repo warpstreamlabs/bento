@@ -46,10 +46,13 @@ func TestBatcherEarlyTermination(t *testing.T) {
 		t.Error("unexpected")
 	}
 
-	ctx, done = context.WithTimeout(context.Background(), time.Second*30)
+	// Nothing has triggered a stop, so WaitForClose must not return until its
+	// context expires. The deadline is only how long the test waits to prove
+	// that, so it is kept short.
+	ctx, done = context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer done()
 
-	require.Error(t, b.WaitForClose(ctx))
+	require.ErrorIs(t, b.WaitForClose(ctx), context.DeadlineExceeded)
 }
 
 func TestBatcherBasic(t *testing.T) {
