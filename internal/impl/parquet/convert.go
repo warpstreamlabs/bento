@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/parquet-go/parquet-go"
+	"github.com/warpstreamlabs/bento/internal/value"
 )
 
 // MapToStruct converts a map[string]any to a struct using reflection.
@@ -333,6 +334,8 @@ func setField(field reflect.Value, value any) error {
 	return nil
 }
 
+//------------------------------------------------------------------------------
+
 // transformDataWithSchema recursively walks through decoded data and converts any instance of a LIST into
 // its Logical Type format.
 //
@@ -344,11 +347,7 @@ func transformDataWithSchema(data any, fields ...parquet.Field) any {
 		for key, value := range v {
 			field := findFieldByName(fields, key)
 			if field != nil {
-				if lt := field.Type().LogicalType(); lt != nil && lt.List != nil {
-					result[key] = transformList(value)
-				} else {
-					result[key] = transformDataWithSchema(value, field.Fields()...)
-				}
+				result[key] = transformFieldWithSchema(value, field)
 			} else {
 				result[key] = value
 			}
@@ -368,13 +367,121 @@ func findFieldByName(fields []parquet.Field, name string) parquet.Field {
 	return nil
 }
 
-func transformList(data any) any {
-	if slice, ok := data.([]any); ok {
-		wrapped := make([]any, len(slice))
-		for i, item := range slice {
-			wrapped[i] = map[string]any{"element": item}
+// transformDataWithSchemaV2 recursively walks the parquet schema fields and decoded daata,
+// attempting to convert values to their closest Go equivalent to satisty the schema.
+func transformDataWithSchemaV2(data any, fields ...parquet.Field) (any, error) {
+	switch v := data.(type) {
+	case map[string]any:
+		for key, val := range v {
+			if field := findFieldByName(fields, key); field != nil {
+				var err error
+				if len(field.Fields()) > 0 {
+					v[key], err = transformDataWithSchemaV2(val, field.Fields()...)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					v[key], err = valueOf(val, field)
+					if err != nil {
+						return nil, fmt.Errorf("field %q: %w", key, err)
+					}
+				}
+
+			}
 		}
-		return map[string]any{"list": wrapped}
+		return v, nil
+	case []any:
+		for i, val := range v {
+			res, err := transformDataWithSchemaV2(val, fields...)
+			if err != nil {
+				return nil, fmt.Errorf("index %d: %w", i, err)
+			}
+			v[i] = res
+		}
+		return v, nil
+	default:
+		return data, nil
 	}
-	return data
+}
+
+func transformFieldWithSchema(data any, field parquet.Field) any {
+	if lt := field.Type().LogicalType(); lt != nil && lt.List != nil {
+		return transformList(data, listElementOf(field))
+	}
+	return transformDataWithSchema(data, field.Fields()...)
+}
+
+func transformList(data any, elem parquet.Field) any {
+	slice, ok := data.([]any)
+	if !ok {
+		return data
+	}
+
+	wrapped := make([]any, len(slice))
+	for i, item := range slice {
+		if elem != nil {
+			item = transformFieldWithSchema(item, elem)
+		}
+		wrapped[i] = map[string]any{"element": item}
+	}
+
+	return map[string]any{"list": wrapped}
+}
+
+// listElementOf returns the element node of a LIST field, which is nested within
+// the intermediary repeated group of the three-level list structure:
+//
+//	<list-repetition> group <name> (LIST) {
+//	  repeated group list {
+//	    <element-repetition> <element-type> element;
+//	  }
+//	}
+func listElementOf(field parquet.Field) parquet.Field {
+	repeated := field.Fields()
+	if len(repeated) != 1 {
+		return nil
+	}
+
+	elements := repeated[0].Fields()
+	if len(elements) != 1 {
+		return nil
+	}
+
+	return elements[0]
+}
+
+func valueOf(val any, field parquet.Field) (any, error) {
+	if val == nil {
+		return nil, nil
+	}
+
+	if !field.Leaf() {
+		return val, nil
+	}
+
+	if arr, ok := val.([]any); ok {
+		for i, v := range arr {
+			res, err := valueOf(v, field)
+			if err != nil {
+				return nil, fmt.Errorf("index %d: %w", i, err)
+			}
+			arr[i] = res
+		}
+		return arr, nil
+	}
+
+	switch field.Type().Kind() {
+	case parquet.Int32:
+		return value.IToInt32(val)
+	case parquet.Int64:
+		return value.IToInt(val)
+	case parquet.Float:
+		return value.IToFloat32(val)
+	case parquet.Double:
+		return value.IToFloat64(val)
+	case parquet.Boolean:
+		return value.IToBool(val)
+	default:
+		return val, nil
+	}
 }
