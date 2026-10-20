@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -155,4 +156,57 @@ output:
 
 	out, err := cmd.CombinedOutput()
 	assert.NoError(t, err, "a cancelled run context should let the stream stop gracefully instead of exiting uncleanly; child output:\n%s", out)
+}
+
+// envFileChildEnv, when set to the path of the ErrWriter capture file,
+// signals that this test binary has been re-executed as a child process to
+// exercise TestRunCLIEnvFileErrWriter's scenario in isolation, since the
+// scenario calls os.Exit.
+const envFileChildEnv = "BENTO_TEST_ENV_FILE_ERR_CHILD"
+
+// TestRunCLIEnvFileErrWriter proves that a failure which happens before the
+// service logger exists (here: a --env-file/-e path that can't be read)
+// reaches CLIOpts.ErrWriter, and so, via CLIOptSetErrWriter, an embedder --
+// rather than being hard-wired to os.Stdout/os.Stderr.
+//
+// The custom ErrWriter is a plain file rather than the child's own
+// stdout/stderr, so that a message landing there can only be explained by
+// having gone through opts.Errorf/ErrWriter: the previous, unrouted
+// fmt.Printf/Fprintf(os.Stdout/os.Stderr, ...) calls would instead show up
+// on the child's real stdout/stderr streams, which this test also asserts
+// stay empty.
+func TestRunCLIEnvFileErrWriter(t *testing.T) {
+	if capturePath := os.Getenv(envFileChildEnv); capturePath != "" {
+		capture, err := os.Create(capturePath)
+		if err != nil {
+			t.Fatalf("failed to create ErrWriter capture file: %v", err)
+		}
+		defer capture.Close()
+
+		opts := common.NewCLIOpts("1.2.3", "aaa")
+		opts.ErrWriter = capture
+		missingEnvFile := filepath.Join(t.TempDir(), "does-not-exist.env")
+		_ = icli.App(opts).Run([]string{"bento", "-e", missingEnvFile})
+		return
+	}
+
+	tmpDir := t.TempDir()
+	capturePath := filepath.Join(tmpDir, "errwriter_capture.txt")
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestRunCLIEnvFileErrWriter$")
+	cmd.Env = append(os.Environ(), envFileChildEnv+"="+capturePath)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	runErr := cmd.Run()
+	require.Error(t, runErr, "expected the child to exit non-zero on the dotenv read error; stdout:\n%s\nstderr:\n%s", stdout.String(), stderr.String())
+
+	captured, err := os.ReadFile(capturePath)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(captured), "Failed to read dotenv file", "the pre-logger error should reach the custom ErrWriter")
+	assert.Empty(t, stdout.String(), "nothing should be written directly to the child's stdout once ErrWriter is overridden")
+	assert.Empty(t, stderr.String(), "nothing should be written directly to the child's stderr once ErrWriter is overridden")
 }

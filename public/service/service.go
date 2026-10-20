@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 
@@ -90,6 +91,16 @@ func CLIOptSetDocumentationURL(n string) CLIOptFunc {
 func CLIOptSetShowRunCommand(show bool) CLIOptFunc {
 	return func(c *CLIOptBuilder) {
 		c.opts.ShowRunCommand = show
+	}
+}
+
+// CLIOptSetErrWriter overrides the writer used for error messages that occur
+// before the configured logger exists (or that otherwise bypass it) along
+// the run path, such as a config file failing to load. It defaults to
+// os.Stderr.
+func CLIOptSetErrWriter(w io.Writer) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ErrWriter = w
 	}
 }
 
