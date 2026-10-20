@@ -36,6 +36,8 @@ Each instance of a plugin processes one call at a time, so Bento creates as many
 
 Plugins have access to [WASI preview 1][wasi], with clocks and a secure random source. They can only access the host's filesystem through the directories mounted with `runtime.wasm.mounts`, though symbolic links within those directories are followed even when they point outside of them. The linear memory of each instance is limited by `runtime.wasm.memory.max_pages`.
 
+Metadata is passed to a plugin as strings, and replaced with the metadata the plugin returns. Values that aren't strings, such as numbers, are therefore strings once they have passed through a plugin.
+
 ## ABI
 
 The PDKs implement this for you. It is only needed to write a plugin in another language.

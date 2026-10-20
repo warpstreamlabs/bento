@@ -1,5 +1,3 @@
-//go:build !wasm
-
 package message
 
 import (
@@ -114,12 +112,11 @@ func fromPart(part *Part) (*pb.Part, error) {
 		proto.Content = &pb.Part_Raw{Raw: part.data.rawBytes}
 	}
 
-	if part.data.metadata != nil {
-		meta, err := structpb.NewStruct(part.data.metadata)
-		if err != nil {
-			return nil, err
+	if len(part.data.metadata) > 0 {
+		proto.Metadata = make(map[string]string, len(part.data.metadata))
+		for k, v := range part.data.metadata {
+			proto.Metadata[k] = metaToString(v)
 		}
-		proto.Metadata = meta
 	}
 
 	return proto, nil
@@ -134,8 +131,11 @@ func toPart(proto *pb.Part) (*Part, error) {
 		data.structured = proto.GetStructured().AsInterface()
 	}
 
-	if proto.Metadata != nil {
-		data.metadata = proto.Metadata.AsMap()
+	if len(proto.Metadata) > 0 {
+		data.metadata = make(map[string]any, len(proto.Metadata))
+		for k, v := range proto.Metadata {
+			data.metadata[k] = v
+		}
 	}
 	// TODO(gregfurman): This is unideal but we do it
 	// in lieu of error type enums/constants i.e

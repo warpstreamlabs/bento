@@ -1,9 +1,7 @@
 package wazerov1
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -12,10 +10,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/wasm"
 	"github.com/warpstreamlabs/bento/internal/wasm/host"
 )
-
-// resultSize is the size of the result area that process returns the address
-// of, which holds the buffers of its output and error.
-const resultSize = 16
 
 type instance struct {
 	api.Module
@@ -48,7 +42,7 @@ func newInstance(ctx context.Context, cm *compiledPlugin, conf []byte) (*instanc
 }
 
 func (inst *instance) init(ctx context.Context, fn api.Function, conf []byte) error {
-	in, err := host.Malloc(ctx, inst, inst.alloc, conf)
+	in, err := host.Malloc(ctx, inst.Memory(), inst.alloc, conf)
 	if err != nil {
 		return fmt.Errorf("failed to write plugin config: %w", err)
 	}
@@ -58,12 +52,12 @@ func (inst *instance) init(ctx context.Context, fn api.Function, conf []byte) er
 		return err
 	}
 
-	message, err := inst.take(ctx, wasm.Buffer(results[0]))
+	message, err := host.Take(ctx, inst.Memory(), inst.release, wasm.Buffer(results[0]))
 	if err != nil {
 		return err
 	}
 
-	if err := inst.free(ctx, in); err != nil {
+	if err := host.Free(ctx, inst.release, in); err != nil {
 		return err
 	}
 
@@ -74,75 +68,45 @@ func (inst *instance) init(ctx context.Context, fn api.Function, conf []byte) er
 	return nil
 }
 
-func (inst *instance) call(ctx context.Context, input []byte) (output []byte, pluginErr error, err error) {
-	in, err := host.Malloc(ctx, inst, inst.alloc, input)
+type processResult struct {
+	output []byte
+	err    error
+}
+
+func (inst *instance) call(ctx context.Context, input []byte) (processResult, error) {
+	in, err := host.Malloc(ctx, inst.Memory(), inst.alloc, input)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to write plugin input: %w", err)
+		return processResult{}, fmt.Errorf("failed to write plugin input: %w", err)
 	}
 
 	defer func() {
-		if freeErr := inst.free(ctx, in); freeErr != nil {
+		if freeErr := host.Free(ctx, inst.release, in); freeErr != nil {
 			err = errors.Join(err, fmt.Errorf("free plugin input: %w", freeErr))
 		}
 	}()
 
 	results, err := inst.process.Call(ctx, uint64(in))
 	if err != nil {
-		return nil, nil, err
+		return processResult{}, err
 	}
 
-	address := api.DecodeU32(results[0])
-	data, ok := inst.Memory().Read(address, resultSize)
-	if !ok {
-		return nil, nil, fmt.Errorf(
-			"plugin returned an out of bounds result at %d", address,
-		)
-	}
-
-	var result wasm.Result
-	if _, err := binary.Decode(data, binary.LittleEndian, &result); err != nil {
-		return nil, nil, fmt.Errorf("decode plugin result: %w", err)
-	}
-
-	if output, err = inst.take(ctx, result.Output); err != nil {
-		return nil, nil, err
-	}
-
-	message, err := inst.take(ctx, result.Error)
+	buffers, err := host.TakeResult(inst.Memory(), api.DecodeU32(results[0]))
 	if err != nil {
-		return nil, nil, err
+		return processResult{}, err
+	}
+
+	output, err := host.Take(ctx, inst.Memory(), inst.release, buffers.Output)
+	if err != nil {
+		return processResult{}, err
+	}
+
+	message, err := host.Take(ctx, inst.Memory(), inst.release, buffers.Error)
+	if err != nil {
+		return processResult{}, err
 	}
 
 	if len(message) > 0 {
-		return nil, errors.New(string(message)), nil
+		return processResult{err: errors.New(string(message))}, nil
 	}
-	return output, nil, nil
-
-}
-
-// take copies a buffer returned by the plugin, and releases it.
-func (inst *instance) take(ctx context.Context, buffer wasm.Buffer) ([]byte, error) {
-	data, ok := inst.Memory().Read(buffer.Address(), buffer.Length())
-	if !ok {
-		return nil, fmt.Errorf("plugin returned an out of bounds buffer of %d bytes at %d", buffer.Length(), buffer.Address())
-	}
-
-	data = bytes.Clone(data)
-	if err := inst.free(ctx, buffer); err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-// free releases a buffer, unless it is empty.
-func (inst *instance) free(ctx context.Context, buffer wasm.Buffer) error {
-	if buffer == 0 {
-		return nil
-	}
-
-	if err := host.Free(ctx, inst.release, buffer); err != nil {
-		return fmt.Errorf("failed to release plugin buffer: %w", err)
-	}
-
-	return nil
+	return processResult{output: output}, nil
 }

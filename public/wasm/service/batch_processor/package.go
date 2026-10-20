@@ -9,14 +9,17 @@ import (
 	"github.com/warpstreamlabs/bento/public/wasm/service"
 )
 
-// result is returned by process_batch, and lives as long as the instance. An
-// instance makes one call at a time, so one is enough.
-var result wasm.Result
-
 //go:wasmexport process_batch
 func process_batch(input wasm.Buffer) *wasm.Result {
-	result.Set(processBatch(input.Slice()))
-	return &result
+	result := new(wasm.Result)
+	contents, err := processBatch(input.Slice())
+	if err != nil {
+		result.Error = wasm.FromError(err)
+		return result
+	}
+
+	result.Output = wasm.Retain(contents)
+	return result
 }
 
 func processBatch(input []byte) ([]byte, error) {

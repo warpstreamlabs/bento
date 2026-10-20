@@ -47,17 +47,17 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 			batch: func() Batch {
 				b := QuickBatch([][]byte{[]byte("data")})
 				b[0].MetaSetMut("key1", "value1")
-				b[0].MetaSetMut("key2", float64(42))
+				b[0].MetaSetMut("key2", "42")
 				return b
 			}(),
 			proto: &pb.Batch{
 				Parts: []*pb.Part{
 					{
 						Content: &pb.Part_Raw{Raw: []byte("data")},
-						Metadata: mustNewStruct(t, map[string]any{
+						Metadata: map[string]string{
 							"key1": "value1",
-							"key2": float64(42),
-						}),
+							"key2": "42",
+						},
 					},
 				},
 			},
@@ -184,9 +184,9 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 				Parts: []*pb.Part{
 					{
 						Content: &pb.Part_Raw{Raw: []byte("data")},
-						Metadata: mustNewStruct(t, map[string]any{
+						Metadata: map[string]string{
 							"source": "kafka",
-						}),
+						},
 						Error: "connection timeout",
 					},
 				},
@@ -208,9 +208,9 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 								"id": float64(123),
 							}),
 						},
-						Metadata: mustNewStruct(t, map[string]any{
+						Metadata: map[string]string{
 							"timestamp": "2024-01-01",
-						}),
+						},
 					},
 				},
 			},
@@ -375,16 +375,23 @@ func comparePart(t testing.TB, index int, exp *Part, act *Part) {
 	require.Equal(t, exp.data.metadata, act.data.metadata)
 }
 
-func mustNewStruct(t *testing.T, m map[string]any) *structpb.Struct {
-	t.Helper()
-	s, err := structpb.NewStruct(m)
-	require.NoError(t, err)
-	return s
-}
-
 func mustNewValue(t *testing.T, v any) *structpb.Value {
 	t.Helper()
 	val, err := structpb.NewValue(v)
 	require.NoError(t, err)
 	return val
+}
+
+func TestProtoMetadataAsStrings(t *testing.T) {
+	part := NewPart([]byte("data"))
+	part.MetaSetMut("int", int64(1000000))
+	part.MetaSetMut("float", 1.5)
+	part.MetaSetMut("bool", true)
+
+	encoded, err := MarshalToProto(part)
+	require.NoError(t, err)
+
+	decoded, err := UnmarshalFromProto(encoded)
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"int": "1000000", "float": "1.5", "bool": "true"}, decoded.data.metadata)
 }

@@ -37,12 +37,23 @@ func (p *wasmProcessor) Process(ctx context.Context, part *message.Part) ([]*mes
 		return nil, err
 	}
 
-	output, err := p.call(ctx, input)
+	inst, err := p.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	batch, err := message.UnmarshalBatchFromProto(output)
+	res, err := inst.call(ctx, input)
+	if err != nil {
+		_ = inst.Close(ctx)
+		return nil, err
+	}
+	p.pool.Put(inst)
+
+	if res.err != nil {
+		return nil, res.err
+	}
+
+	batch, err := message.UnmarshalBatchFromProto(res.output)
 	if err != nil {
 		return nil, err
 	}
@@ -59,31 +70,23 @@ func (p *wasmProcessor) ProcessBatch(ctx *processor.BatchProcContext, batch mess
 		return nil, err
 	}
 
-	output, err := p.call(ctx.Context(), input)
+	inst, err := p.pool.Get(ctx.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	return message.UnmarshalBatchesFromProto(output)
-}
-
-func (p *wasmProcessor) call(ctx context.Context, input []byte) ([]byte, error) {
-	inst, err := p.pool.Get(ctx)
+	res, err := inst.call(ctx.Context(), input)
 	if err != nil {
+		_ = inst.Close(ctx.Context())
 		return nil, err
 	}
-
-	output, pluginErr, err := inst.call(ctx, input)
-	if err != nil {
-		_ = inst.Close(ctx)
-		return nil, err
-	}
-
 	p.pool.Put(inst)
-	if pluginErr != nil {
-		return nil, pluginErr
+
+	if res.err != nil {
+		return nil, res.err
 	}
-	return output, nil
+
+	return message.UnmarshalBatchesFromProto(res.output)
 }
 
 func (p *wasmProcessor) Close(ctx context.Context) error {

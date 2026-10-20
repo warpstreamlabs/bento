@@ -1,122 +1,174 @@
 package service
 
 import (
-	"context"
+	"encoding/json"
+	"errors"
 
-	"github.com/warpstreamlabs/bento/internal/message"
+	"github.com/aperturerobotics/protobuf-go-lite/types/known/structpb"
+	messagepb "github.com/warpstreamlabs/bento/internal/message/messagepblite"
 )
 
 type MessageBatch []*Message
 
+// Message wraps the protobuf part exchanged with Bento, which is decoded once
+// per call and encoded back without any conversion.
 type Message struct {
-	part *message.Part
+	part *messagepb.Part
 }
 
 func NewMessage(content []byte) *Message {
 	return &Message{
-		part: message.NewPart(content),
+		part: &messagepb.Part{
+			Content: &messagepb.Part_Raw{Raw: content},
+		},
 	}
 }
 
-func (m *Message) Context() context.Context {
-	return m.part.GetContext()
-}
-
+// AsBytes returns the content of the message, where structured content is
+// encoded as JSON.
 func (m *Message) AsBytes() ([]byte, error) {
-	return m.part.AsBytes(), nil
+	switch c := m.part.GetContent().(type) {
+	case *messagepb.Part_Raw:
+		return c.Raw, nil
+	case *messagepb.Part_Structured:
+		return c.Structured.MarshalJSON()
+	}
+	return nil, nil
 }
 
+// AsStructured returns the content of the message as a structured value, where
+// raw content is parsed as JSON. Mutating the value does not change the message.
 func (m *Message) AsStructured() (any, error) {
-	return m.part.AsStructured()
-}
-
-func (m *Message) AsStructuredMut() (any, error) {
-	return m.part.AsStructuredMut()
+	switch c := m.part.GetContent().(type) {
+	case *messagepb.Part_Raw:
+		var v any
+		if err := json.Unmarshal(c.Raw, &v); err != nil {
+			return nil, err
+		}
+		return v, nil
+	case *messagepb.Part_Structured:
+		return c.Structured.AsInterface(), nil
+	}
+	return nil, errors.New("message has no content")
 }
 
 func (m *Message) GetError() error {
-	return m.part.ErrorGet()
+	if m.part.Error == "" {
+		return nil
+	}
+	return errors.New(m.part.Error)
 }
 
 func (m *Message) SetBytes(b []byte) {
-	_ = m.part.SetBytes(b)
+	m.part.Content = &messagepb.Part_Raw{Raw: b}
 }
 
 func (m *Message) SetError(err error) {
-	m.part.ErrorSet(err)
+	m.part.Error = ""
+	if err != nil {
+		m.part.Error = err.Error()
+	}
 }
 
+// SetStructured replaces the content of the message with a structured value.
+// Values that structpb.NewValue doesn't support, such as structs, are converted
+// through JSON. If that fails, the message is marked with the error.
 func (m *Message) SetStructured(i any) {
-	m.part.SetStructured(i)
+	v, err := structpb.NewValue(i)
+	if err != nil {
+		v, err = valueFromJSON(i)
+	}
+	if err != nil {
+		m.SetError(err)
+		return
+	}
+	m.part.Content = &messagepb.Part_Structured{Structured: v}
 }
 
-func (m *Message) SetStructuredMut(i any) {
-	m.part.SetStructuredMut(i)
+func valueFromJSON(i any) (*structpb.Value, error) {
+	b, err := json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	v := &structpb.Value{}
+	if err := v.UnmarshalJSON(b); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func (m *Message) MetaDelete(key string) {
-	m.part.MetaDelete(key)
+	delete(m.part.Metadata, key)
 }
 
 func (m *Message) MetaGet(key string) (string, bool) {
-	if _, exists := m.part.MetaGetMut(key); !exists {
-		return "", false
-	}
-	return m.part.MetaGetStr(key), true
+	v, exists := m.part.Metadata[key]
+	return v, exists
 }
 
 func (m *Message) MetaSet(key, value string) {
-	m.part.MetaSetMut(key, value)
+	// Messages decoded without metadata have no map.
+	if m.part.Metadata == nil {
+		m.part.Metadata = make(map[string]string)
+	}
+	m.part.Metadata[key] = value
 }
 
 func (m *Message) MetaWalk(fn func(string, string) error) error {
-	return m.part.MetaIterStr(fn)
-}
-
-func toInternalBatch(batch MessageBatch) message.Batch {
-	internal := make(message.Batch, len(batch))
-	for i, msg := range batch {
-		internal[i] = msg.part
+	for k, v := range m.part.Metadata {
+		if err := fn(k, v); err != nil {
+			return err
+		}
 	}
-	return internal
+	return nil
 }
 
-func fromInternalBatch(batch message.Batch) MessageBatch {
-	result := make(MessageBatch, len(batch))
-	for i, part := range batch {
+//------------------------------------------------------------------------------
+
+func toProtoBatch(batch MessageBatch) *messagepb.Batch {
+	parts := make([]*messagepb.Part, len(batch))
+	for i, msg := range batch {
+		parts[i] = msg.part
+	}
+	return &messagepb.Batch{Parts: parts}
+}
+
+func fromProtoBatch(batch *messagepb.Batch) MessageBatch {
+	result := make(MessageBatch, len(batch.GetParts()))
+	for i, part := range batch.GetParts() {
 		result[i] = &Message{part: part}
 	}
 	return result
 }
 
 func UnmarshalBatchFromProto(b []byte) (MessageBatch, error) {
-	internalBatch, err := message.UnmarshalBatchFromProto(b)
-	if err != nil {
+	batch := &messagepb.Batch{}
+	if err := batch.UnmarshalVT(b); err != nil {
 		return nil, err
 	}
-	return fromInternalBatch(internalBatch), nil
+	return fromProtoBatch(batch), nil
 }
 
 func MarshalBatchToProto(batch MessageBatch) ([]byte, error) {
-	return message.MarshalBatchToProto(toInternalBatch(batch))
+	return toProtoBatch(batch).MarshalVT()
 }
 
 func MarshalBatchesToProto(batches []MessageBatch) ([]byte, error) {
-	internalBatches := make([]message.Batch, len(batches))
+	out := &messagepb.Batches{Batches: make([]*messagepb.Batch, len(batches))}
 	for i, batch := range batches {
-		internalBatches[i] = toInternalBatch(batch)
+		out.Batches[i] = toProtoBatch(batch)
 	}
-	return message.MarshalBatchesToProto(internalBatches)
+	return out.MarshalVT()
 }
 
 func UnmarshalMessageFromProto(b []byte) (*Message, error) {
-	internalPart, err := message.UnmarshalFromProto(b)
-	if err != nil {
+	part := &messagepb.Part{}
+	if err := part.UnmarshalVT(b); err != nil {
 		return nil, err
 	}
-	return &Message{part: internalPart}, nil
+	return &Message{part: part}, nil
 }
 
 func MarshalMessageToProto(msg *Message) ([]byte, error) {
-	return message.MarshalToProto(msg.part)
+	return msg.part.MarshalVT()
 }

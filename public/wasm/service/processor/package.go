@@ -9,16 +9,17 @@ import (
 	"github.com/warpstreamlabs/bento/public/wasm/service"
 )
 
-// result is shared by all process calls in this instance.
-// Its address remains valid for the instance's lifetime.
-// The host must consume its contents before the next process call.
-// Calls must not overlap or reenter process.
-var result wasm.Result
-
 //go:wasmexport process
 func process(input wasm.Buffer) *wasm.Result {
-	result.Set(processMessage(input.Slice()))
-	return &result
+	result := new(wasm.Result)
+	contents, err := processMessage(input.Slice())
+	if err != nil {
+		result.Error = wasm.FromError(err)
+		return result
+	}
+
+	result.Output = wasm.Retain(contents)
+	return result
 }
 
 func processMessage(input []byte) ([]byte, error) {

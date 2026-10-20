@@ -189,21 +189,14 @@ impl Message {
         self.0.error = err.to_owned();
     }
 
-    /// Returns a metadata value, if the key exists. Values that are not strings
-    /// are encoded as JSON.
+    /// Returns a metadata value, if the key exists.
     pub fn meta_get(&self, key: &str) -> Option<String> {
-        let value = self.0.metadata.as_ref()?.fields.get(key)?;
-        match &value.kind {
-            Some(Kind::StringValue(s)) => Some(s.clone()),
-            _ => Some(to_json(value).to_string()),
-        }
+        self.0.metadata.get(key).cloned()
     }
 
     /// Sets a metadata value.
     pub fn meta_set(&mut self, key: &str, value: &str) {
-        let mut v = Value::new();
-        v.set_string_value(value.to_owned());
-        self.0.metadata.mut_or_insert_default().fields.insert(key.to_owned(), v);
+        self.0.metadata.insert(key.to_owned(), value.to_owned());
     }
 }
 

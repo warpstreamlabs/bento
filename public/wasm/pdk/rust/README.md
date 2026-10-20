@@ -60,12 +60,12 @@ Bento may run several instances of a plugin at once, each processing one call at
 
 ## Messages
 
-| Method                                  | Description                                                                    |
-|-----------------------------------------|--------------------------------------------------------------------------------|
-| `Message::new(content)`                 | Creates a message, such as to return more messages than were passed in.        |
-| `bytes()`, `set_bytes(content)`         | Get and replace the content. Structured content is returned encoded as JSON.   |
-| `meta_get(key)`, `meta_set(key, value)` | Get and set metadata. Values that aren't strings are returned encoded as JSON. |
-| `error()`, `set_error(err)`             | Get and set the error of the message. An empty error clears it.                |
+| Method                                  | Description                                                                  |
+|-----------------------------------------|------------------------------------------------------------------------------|
+| `Message::new(content)`                 | Creates a message, such as to return more messages than were passed in.      |
+| `bytes()`, `set_bytes(content)`         | Get and replace the content. Structured content is returned encoded as JSON. |
+| `meta_get(key)`, `meta_set(key, value)` | Get and set metadata. Bento passes every value as a string.                  |
+| `error()`, `set_error(err)`             | Get and set the error of the message. An empty error clears it.              |
 
 Run `cargo doc --open -p bento-pdk` from your plugin's crate for the full API reference.
 

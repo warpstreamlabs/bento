@@ -17,6 +17,8 @@ type Processor interface {
 	Close(ctx context.Context) error
 }
 
+// TODO: Add callbacks into host here
+
 type Resources struct{}
 
 type ParsedConfig struct {

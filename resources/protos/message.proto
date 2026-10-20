@@ -12,7 +12,7 @@ message Part {
         google.protobuf.Value structured = 2;
     }
     string error = 3;
-    google.protobuf.Struct metadata = 4;
+    map<string, string> metadata = 4;
 }
 
 message Batch {

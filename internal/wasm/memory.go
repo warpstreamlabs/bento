@@ -26,16 +26,6 @@ func FromError(err error) Buffer {
 	return Retain([]byte(err.Error()))
 }
 
-// Set sets the result of a call to its output, or to err if it failed. Both
-// fields are set, as a result is reused between calls.
-func (r *Result) Set(output []byte, err error) {
-	if err != nil {
-		*r = Result{Error: FromError(err)}
-		return
-	}
-	*r = Result{Output: Retain(output)}
-}
-
 //go:wasmexport alloc
 func alloc(size uint32) uint32 {
 	if size == 0 {
