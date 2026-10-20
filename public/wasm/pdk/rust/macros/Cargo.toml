@@ -1,0 +1,12 @@
+[package]
+name = "bento-pdk-macros"
+version = "0.1.0"
+edition = "2021"
+description = "Attribute macros for Bento WASM plugins, re-exported by bento-pdk."
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
