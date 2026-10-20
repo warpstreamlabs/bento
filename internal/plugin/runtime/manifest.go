@@ -41,18 +41,7 @@ type MemoryConfig struct {
 type MountConfig struct {
 	HostPath  string `yaml:"host_path"`
 	GuestPath string `yaml:"guest_path"`
-	ReadOnly  bool   `yaml:"read_only"`
-}
-
-func (m *MountConfig) UnmarshalYAML(value *yaml.Node) error {
-	type mountConfig MountConfig
-	// HACK: required to ensure ReadOnly is true by default.
-	conf := mountConfig{ReadOnly: true}
-	if err := value.Decode(&conf); err != nil {
-		return err
-	}
-	*m = MountConfig(conf)
-	return nil
+	ReadOnly  *bool  `yaml:"read_only,omitempty"`
 }
 
 func (m Manifest) ComponentSpec() (docs.ComponentSpec, error) {
@@ -127,7 +116,7 @@ func wasmRuntimeSpec() docs.FieldSpec {
 		docs.FieldObject("mounts", "A list of directory mounts.").Array().Optional().WithChildren(
 			docs.FieldString("host_path", "The path on the host machine to mount."),
 			docs.FieldString("guest_path", "The path inside the WASM container."),
-			docs.FieldBool("read_only", "Whether to mount the path read-only.").HasDefault(true),
+			docs.FieldBool("read_only", "Whether to mount the path read-only.").Optional().HasDefault(true),
 		),
 		docs.FieldObject("memory", "Describes the limits on the memory the plugin may be allocated.").WithChildren(
 			docs.FieldInt("max_pages", "The max amount of pages the plugin can allocate. One page is 64KiB.").Optional(),

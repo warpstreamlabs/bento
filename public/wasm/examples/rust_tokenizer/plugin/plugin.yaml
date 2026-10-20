@@ -1,4 +1,4 @@
-name: nlp_tokenize
+name: hf_tokenizer
 type: processor
 status: experimental
 summary: Tokenizes text using a Hugging Face 🤗 tokenizer.

@@ -187,7 +187,8 @@ func toModuleConfig(conf runtime.WasmRuntimeConfig) (wazero.ModuleConfig, error)
 			return nil, errInvalidMount
 		}
 
-		if mount.ReadOnly {
+		isReadOnly := mount.ReadOnly == nil || *mount.ReadOnly
+		if isReadOnly {
 			fsConf = fsConf.WithReadOnlyDirMount(mount.HostPath, mount.GuestPath)
 		} else {
 			fsConf = fsConf.WithDirMount(mount.HostPath, mount.GuestPath)
