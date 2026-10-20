@@ -21,7 +21,7 @@ import (
 // 1. The service shuts down gracefully due to the inputs closing
 // 2. A termination signal is received
 // 3. The provided context has a deadline that is reached, triggering graceful termination
-// 4. The provided context is cancelled (WARNING, this prevents graceful termination)
+// 4. The provided context is cancelled, triggering graceful termination within shutdown_timeout
 //
 // This function must only be called once during the entire lifecycle of your
 // program, as it interacts with singleton state. In order to manage multiple
