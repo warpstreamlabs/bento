@@ -25,7 +25,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 
 	conf, pConf, lints, lintWarns, err := confReader.Read()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Configuration file read error: %v\n", err)
+		cliOpts.Errorf("Configuration file read error: %v\n", err)
 		return 1
 	}
 	defer func() {
@@ -34,7 +34,7 @@ func RunService(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) int {
 
 	logger, err := CreateLogger(c, cliOpts, conf, streamsMode)
 	if err != nil {
-		fmt.Printf("Failed to create logger: %v\n", err)
+		cliOpts.Errorf("Failed to create logger: %v\n", err)
 		return 1
 	}
 
@@ -129,7 +129,7 @@ func initStreamsMode(
 	streamConfs := map[string]stream.Config{}
 	lints, lintWarns, err := confReader.ReadStreams(streamConfs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Stream configuration file read error: %v\n", err)
+		opts.Errorf("Stream configuration file read error: %v\n", err)
 		os.Exit(1)
 	}
 
