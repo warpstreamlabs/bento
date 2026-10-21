@@ -261,4 +261,10 @@ func testShiftCancelledDuringBackoff(t *testing.T) {
 	default:
 		t.Error("Shift is still blocked after its context was cancelled during backoff")
 	}
+
+	ctx, cancel = context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	v, _, err := l.Shift(ctx, true)
+	require.NoError(t, err, "the retry interrupted by the cancel was dropped")
+	assert.Equal(t, "foo", v)
 }
