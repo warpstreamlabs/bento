@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
  - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
  - The Hugging Face processors use hugot v0.8.3, which replaces the ONNX Runtime backend, and `enable_download` now creates the `path` directory when it is missing @slachiewicz
 
+### Fixed
+
+ - `http_client` input in stream mode now ends its rate limit wait and connection attempt when stopped, instead of retrying forever once the stream has closed its resources @weird-oecophylla
+
 ## 1.22.0 - 2026-10-09
 
 ### Added
