@@ -49,7 +49,7 @@ func (q QueryResolver) ResolveString(index int, msg Message, escaped bool) (stri
 	if msg == nil {
 		msg = message.QuickBatch(nil)
 	}
-	return query.ExecToString(q.fn, query.FunctionContext{
+	s, err := query.ExecToString(q.fn, query.FunctionContext{
 		Index:    index,
 		MsgBatch: msg,
 		NewMeta:  msg.Get(index),
@@ -59,6 +59,13 @@ func (q QueryResolver) ResolveString(index int, msg Message, escaped bool) (stri
 		}
 		return nil
 	}))
+	if err != nil {
+		return "", err
+	}
+	if escaped {
+		s = escapeString(s)
+	}
+	return s, nil
 }
 
 // ResolveBytes returns a byte slice.
@@ -91,4 +98,12 @@ func escapeBytes(in []byte) []byte {
 		return in
 	}
 	return []byte(quoted[1 : len(quoted)-1])
+}
+
+func escapeString(in string) string {
+	quoted := strconv.Quote(in)
+	if len(quoted) < 3 {
+		return in
+	}
+	return quoted[1 : len(quoted)-1]
 }
