@@ -3,6 +3,7 @@ package io
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -27,6 +28,10 @@ func socketRequestProcessorSpec() *service.ConfigSpec {
 			service.NewInterpolatedStringField("data").
 				Description("The data to send. Supports Bloblang interpolation. Can be empty if you only want to read a response or just establish a connection.").
 				Default(""),
+			service.NewDurationField("read_timeout").
+				Description("The maximum time to wait for the data to be read before timing out. Prevents the pipeline from hanging if the network drops. If omitted, it relies solely on the pipeline's context deadline.").
+				Default("5s").
+				Optional(),
 			service.NewDurationField("write_timeout").
 				Description("The maximum time to wait for the data to be written before timing out. Prevents the pipeline from hanging if the network drops. If omitted, it relies solely on the pipeline's context deadline.").
 				Default("5s").
@@ -50,6 +55,7 @@ type socketRequestProcessor struct {
 	network      string
 	address      *service.InterpolatedString
 	data         *service.InterpolatedString
+	readTimeout  time.Duration
 	writeTimeout time.Duration
 	scanner      *service.OwnedScannerCreator
 	log          *service.Logger
@@ -68,6 +74,11 @@ func newSocketRequestProcessorFromParsed(pConf *service.ParsedConfig, mgr *servi
 	}
 	if p.data, err = pConf.FieldInterpolatedString("data"); err != nil {
 		return nil, err
+	}
+	if pConf.Contains("read_timeout") {
+		if p.readTimeout, err = pConf.FieldDuration("read_timeout"); err != nil {
+			return nil, err
+		}
 	}
 	if pConf.Contains("write_timeout") {
 		if p.writeTimeout, err = pConf.FieldDuration("write_timeout"); err != nil {
@@ -105,6 +116,12 @@ func (p *socketRequestProcessor) Process(ctx context.Context, msg *service.Messa
 		_ = conn.SetWriteDeadline(deadline)
 	}
 
+	if p.readTimeout > 0 {
+		_ = conn.SetReadDeadline(time.Now().Add(p.readTimeout))
+	} else if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetReadDeadline(deadline)
+	}
+
 	_, err = io.Copy(conn, bytes.NewReader(dataBytes))
 
 	if err != nil {
@@ -135,7 +152,7 @@ func (p *socketRequestProcessor) Process(ctx context.Context, msg *service.Messa
 		}
 
 		if len(batch) == 0 {
-			return nil, fmt.Errorf("scanner returned an empty batch")
+			return nil, errors.New("scanner returned an empty batch")
 		}
 
 		_ = batch.WalkWithBatchedErrors(func(i int, m *service.Message) error {
