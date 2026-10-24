@@ -136,7 +136,10 @@ func (l *List[T]) Shift(ctx context.Context, enableRead bool) (t T, fn AckFunc, 
 	defer done()
 	go func() {
 		<-ctx.Done()
+		// The lock keeps this from firing between the ctx.Err check and Wait.
+		l.cond.L.Lock()
 		l.cond.Broadcast()
+		l.cond.L.Unlock()
 	}()
 
 	if enableRead && l.readInFlight == 0 && l.pendingRead == nil {

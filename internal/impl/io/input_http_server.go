@@ -59,6 +59,7 @@ const (
 	hsiFieldResponseStatus          = "status"
 	hsiFieldResponseHeaders         = "headers"
 	hsiFieldResponseExtractMetadata = "metadata_headers"
+	hsiFieldPrefixMetadataKeys      = "prefix_metadata_keys"
 )
 
 type hsiConfig struct {
@@ -74,6 +75,7 @@ type hsiConfig struct {
 	KeyFile            string
 	CORS               httpserver.CORSConfig
 	Response           hsiResponseConfig
+	PrefixMetadataKeys bool
 }
 
 type hsiResponseConfig struct {
@@ -128,6 +130,9 @@ func hsiConfigFromParsed(pConf *service.ParsedConfig) (conf hsiConfig, err error
 		return
 	}
 	if conf.Response, err = hsiResponseConfigFromParsed(pConf.Namespace(hsiFieldResponse)); err != nil {
+		return
+	}
+	if conf.PrefixMetadataKeys, err = pConf.FieldBool(hsiFieldPrefixMetadataKeys); err != nil {
 		return
 	}
 	return
@@ -222,6 +227,8 @@ This input adds the following metadata fields to each message:
 - All cookies
 `+"```"+`
 
+Headers, path parameters, query parameters and cookies can collide with each other since they are all added to the same metadata namespace unprefixed. Enabling `+"`"+hsiFieldPrefixMetadataKeys+"`"+` prefixes header-derived metadata keys with `+"`header_`"+`, path-parameter-derived metadata keys with `+"`path_`"+`, query-parameter-derived metadata keys with `+"`query_`"+` and cookie-derived metadata keys with `+"`cookie_`"+` in order to disambiguate them.
+
 If HTTPS is enabled, the following fields are added as well:
 `+"``` text"+`
 - http_server_tls_version
@@ -281,6 +288,10 @@ You can access these metadata fields using [function interpolation](/docs/config
 			).
 				Description("Customise messages returned via [synchronous responses](/docs/guides/sync_responses).").
 				Advanced(),
+			service.NewBoolField(hsiFieldPrefixMetadataKeys).
+				Description("Whether to prefix metadata keys extracted from headers with `header_`, keys extracted from path parameters with `path_`, keys extracted from query parameters with `query_`, and keys extracted from cookies with `cookie_`, in order to avoid naming collisions between headers, path parameters, query parameters and cookies. This defaults to `false` in order to preserve the default behaviour of existing pipelines.").
+				Advanced().
+				Default(false),
 		).
 		Example(
 			"Path Switching",
@@ -508,19 +519,32 @@ func (h *httpServerInput) extractMessageFromRequest(r *http.Request) (message.Ba
 		}
 		for k, v := range r.Header {
 			if len(v) > 0 {
+				if h.conf.PrefixMetadataKeys {
+					k = "header_" + k
+				}
 				p.MetaSetMut(k, v[0])
 			}
 		}
 		for k, v := range r.URL.Query() {
 			if len(v) > 0 {
+				if h.conf.PrefixMetadataKeys {
+					k = "query_" + k
+				}
 				p.MetaSetMut(k, v[0])
 			}
 		}
 		for k, v := range mux.Vars(r) {
+			if h.conf.PrefixMetadataKeys {
+				k = "path_" + k
+			}
 			p.MetaSetMut(k, v)
 		}
 		for _, c := range r.Cookies() {
-			p.MetaSetMut(c.Name, c.Value)
+			k := c.Name
+			if h.conf.PrefixMetadataKeys {
+				k = "cookie_" + k
+			}
+			p.MetaSetMut(k, c.Value)
 		}
 		return nil
 	})
@@ -795,19 +819,32 @@ func (h *httpServerInput) wsHandler(w http.ResponseWriter, r *http.Request) {
 		part.MetaSetMut("http_server_user_agent", r.UserAgent())
 		for k, v := range r.Header {
 			if len(v) > 0 {
+				if h.conf.PrefixMetadataKeys {
+					k = "header_" + k
+				}
 				part.MetaSetMut(k, v[0])
 			}
 		}
 		for k, v := range r.URL.Query() {
 			if len(v) > 0 {
+				if h.conf.PrefixMetadataKeys {
+					k = "query_" + k
+				}
 				part.MetaSetMut(k, v[0])
 			}
 		}
 		for k, v := range mux.Vars(r) {
+			if h.conf.PrefixMetadataKeys {
+				k = "path_" + k
+			}
 			part.MetaSetMut(k, v)
 		}
 		for _, c := range r.Cookies() {
-			part.MetaSetMut(c.Name, c.Value)
+			k := c.Name
+			if h.conf.PrefixMetadataKeys {
+				k = "cookie_" + k
+			}
+			part.MetaSetMut(k, c.Value)
 		}
 		tracing.InitSpans(h.mgr.Tracer(), "input_http_server_websocket", msg)
 
