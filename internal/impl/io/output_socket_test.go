@@ -221,7 +221,7 @@ address: %v
 }
 
 func TestTLSSocketBasic(t *testing.T) {
-	ctx, done := context.WithTimeout(t.Contex(), time.Second*30)
+	ctx, done := context.WithTimeout(t.Context(), time.Second*30)
 	defer done()
 
 	cert, err := createSelfSignedCertificate()
@@ -231,7 +231,7 @@ func TestTLSSocketBasic(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = ln.Close})
+	t.Cleanup(func() { _ = ln.Close() })
 
 	wtr := socketWriterFromConf(t, `
 network: tcp
@@ -247,54 +247,34 @@ tls:
 		}
 	}()
 
-	if cerr := wtr.Connect(context.Background()); cerr != nil {
-		t.Fatal(cerr)
-	}
-
-	conn, err := ln.Accept()
-	if err != nil {
-		t.Fatal(err)
-	}
-    t.Cleanup(func() { _ = conn.Close() })
-
+	// The TLS handshake completes within Connect, so the server must already
+	// be accepting and reading.
 	var buf bytes.Buffer
-
 	wg := sync.WaitGroup{}
 	wg.Go(func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
 		_ = conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 		_, _ = buf.ReadFrom(conn)
 	})
 
-	// Connect runs in the background, wait for it before writing.
-	require.Eventually(t, func() bool {
-		wtr.writerMut.Lock()
-		defer wtr.writerMut.Unlock()
-		return wtr.writer != nil
-	}, time.Second*5, time.Millisecond*10)
+	require.NoError(t, wtr.Connect(ctx))
 
-	if err = wtr.Write(context.Background(), service.NewMessage([]byte("foo"))); err != nil {
-		t.Error(err)
-	}
-	if err = wtr.Write(context.Background(), service.NewMessage([]byte("bar\n"))); err != nil {
-		t.Error(err)
-	}
-	if err = wtr.Write(context.Background(), service.NewMessage([]byte("baz"))); err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, wtr.Write(ctx, service.NewMessage([]byte("foo"))))
+	require.NoError(t, wtr.Write(ctx, service.NewMessage([]byte("bar\n"))))
+	require.NoError(t, wtr.Write(ctx, service.NewMessage([]byte("baz"))))
 
 	require.NoError(t, wtr.Close(ctx))
 	wg.Wait()
 
-	exp := "foo\nbar\nbaz\n"
-	if act := buf.String(); exp != act {
-		t.Errorf("Wrong result: %v != %v", act, exp)
-	}
-
-	conn.Close()
+	require.Equal(t, "foo\nbar\nbaz\n", buf.String())
 }
 
 func TestTLSSocketUntrustedServer(t *testing.T) {
-	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, done := context.WithTimeout(t.Context(), time.Second*30)
 	defer done()
 
 	cert, err := createSelfSignedCertificate()
@@ -304,7 +284,7 @@ func TestTLSSocketUntrustedServer(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	})
 	require.NoError(t, err)
-	defer ln.Close()
+	t.Cleanup(func() { _ = ln.Close() })
 
 	go func() {
 		conn, err := ln.Accept()
@@ -312,7 +292,7 @@ func TestTLSSocketUntrustedServer(t *testing.T) {
 			return
 		}
 		_ = conn.(*tls.Conn).Handshake()
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	// Without skip_cert_verify the self signed certificate must be rejected.
@@ -323,53 +303,56 @@ tls:
   enabled: true
 `, ln.Addr().String())
 
-	require.Error(t, wtr.Connect(ctx))
+	var certErr *tls.CertificateVerificationError
+	require.ErrorAs(t, wtr.Connect(ctx), &certErr)
 	require.ErrorIs(t, wtr.Write(ctx, service.NewMessage([]byte("foo"))), component.ErrNotConnected)
 }
 
-func TestSocketTLSRequiresTCP(t *testing.T) {
-	for _, network := range []string{"udp", "unix"} {
-		conf, err := socketOutputSpec().ParseYAML(fmt.Sprintf(`
+func TestSocketTLSConf(t *testing.T) {
+	tests := []struct {
+		network string
+		isErr   bool
+	}{
+		{network: "unix", isErr: true},
+		{network: "udp", isErr: true},
+		{network: "tcp"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.network, func(t *testing.T) {
+			// The lint rule rejects tls outside of tcp when a stream is configured.
+			builder := service.NewStreamBuilder()
+			err := builder.SetYAML(fmt.Sprintf(`
+input:
+  stdin: {}
+output:
+  socket:
+    network: %v
+    address: 127.0.0.1:6000
+    tls:
+      enabled: true
+`, test.network))
+			if test.isErr {
+				require.ErrorContains(t, err, "tls can only be enabled when network is tcp")
+			} else {
+				require.NoError(t, err)
+			}
+
+			// The constructor rejects it as well, for configs that skip linting.
+			conf, err := socketOutputSpec().ParseYAML(fmt.Sprintf(`
 network: %v
 address: 127.0.0.1:6000
 tls:
   enabled: true
-`, network), nil)
-		require.NoError(t, err)
+`, test.network), nil)
+			require.NoError(t, err)
 
-		_, err = newSocketWriterFromParsed(conf, service.MockResources())
-		require.Error(t, err, network)
+			_, err = newSocketWriterFromParsed(conf, service.MockResources())
+			if test.isErr {
+				require.ErrorContains(t, err, "tls is only supported with network tcp")
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
-}
-
-func TestSocketTLSLintRuleErr(t *testing.T) {
-	builder := service.NewStreamBuilder()
-
-	err := builder.SetYAML(`
-input:
-  stdin: {}
-output:
-  socket:
-    network: udp
-    address: 127.0.0.1:6000
-    tls:
-      enabled: true
-`)
-	require.ErrorContains(t, err, "tls can only be enabled when network is tcp")
-}
-
-func TestSocketTLSLintRuleHappy(t *testing.T) {
-	builder := service.NewStreamBuilder()
-
-	err := builder.SetYAML(`
-input:
-  stdin: {}
-output:
-  socket:
-    network: tcp
-    address: 127.0.0.1:6000
-    tls:
-      enabled: true
-`)
-	require.NoError(t, err)
 }

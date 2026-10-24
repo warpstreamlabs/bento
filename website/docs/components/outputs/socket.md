@@ -115,7 +115,7 @@ Custom TLS settings can be used to override system defaults. Only supported when
 
 
 Type: `object`  
-Requires version 1.22.0 or newer  
+Requires version 1.23.0 or newer  
 
 ### `tls.enabled`
 

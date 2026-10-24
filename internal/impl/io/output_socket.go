@@ -33,7 +33,7 @@ func socketOutputSpec() *service.ConfigSpec {
 			service.NewInternalField(codec.NewWriterDocs("codec").HasDefault("lines")),
 			service.NewTLSToggledField(osFieldTLS).
 				Description("Custom TLS settings can be used to override system defaults. Only supported when the network is `tcp`.").
-				Version("1.22.0"),
+				Version("1.23.0"),
 		).
 		LintRule(`root = if this.tls.enabled.or(false) && this.network != "tcp" { [ "tls can only be enabled when network is tcp" ] }`)
 }
@@ -111,7 +111,6 @@ func (s *socketWriter) Connect(ctx context.Context) error {
 		s.writer, err = net.Dial(s.network, s.address)
 	}
 	if err != nil {
-		s.writer = nil
 		return err
 	}
 	return nil
