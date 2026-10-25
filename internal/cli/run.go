@@ -133,6 +133,11 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Aliases: []string{"t"},
 			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
+		&cli.StringFlag{
+			Name:    "remote_config",
+			Aliases: []string{"rc"},
+			Usage:   "EXPERIMENTAL: a path to a YAML file describing an HTTP request used to fetch the main configuration at startup",
+		},
 	}
 }
 

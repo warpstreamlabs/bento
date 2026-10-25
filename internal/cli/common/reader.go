@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/warpstreamlabs/bento/internal/config"
@@ -34,6 +35,13 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 		if configString := os.Getenv("BENTO_CONFIG"); configString != "" {
 			opts = append(opts, config.OptLoadFromEnvVar(configString))
 		}
+	}
+	if rc := c.String("remote_config"); rc != "" {
+		if c.Bool("watcher") {
+			fmt.Fprintln(os.Stderr, "error: --watcher is not supported with --remote_config")
+			os.Exit(1)
+		}
+		opts = append(opts, config.OptSetRemoteConfigPath(rc))
 	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))
