@@ -139,7 +139,7 @@ require (
 	github.com/questdb/go-questdb-client/v3 v3.2.0
 	github.com/quipo/dependencysolver v0.0.0-20170801134659-2b009cb4ddcc
 	github.com/r3labs/diff/v3 v3.0.1
-	github.com/rabbitmq/amqp091-go v1.13.0
+	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/rickb777/period v1.0.7
@@ -452,7 +452,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-go 1.27.2
+go 1.27.3
 
 // TODO(gregfurman): Fixes CVE GO-2026-5048 in archived github.com/hamba/avro/v2, required by
 // github.com/warpstreamlabs/bento/public/components/pulsar. Once fixed upstream, this can be dropped.
