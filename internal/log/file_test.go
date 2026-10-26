@@ -43,6 +43,7 @@ func TestRotatingWriterMaxAgeRemovesOldBackups(t *testing.T) {
 	f.Path = filepath.Join(dir, "bento.log")
 	f.Rotate = true
 	f.RotateMaxAge = 7
+	f.RotateMaxBackups = 200 // ensure file is deleted by MaxAge policy
 	// Compression is covered by the end-to-end tests below; turning it off
 	// here keeps this test to the max-age cleanup it's meant to check,
 	// rather than also racing the cleanup against the mill goroutine still
