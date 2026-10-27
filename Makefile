@@ -147,9 +147,5 @@ playground:
 	@sed -i.bak '/<!-- BEGIN SERVER MODE -->/,/<!-- END SERVER MODE -->/d' "$(WEBSITE_DIR)/static/playground/index.html"
 	@mkdir -p "$(WEBSITE_DIR)/static/playground"
 	@cp -R "internal/cli/blobl/playground/." "$(WEBSITE_DIR)/static/playground/"
-<<<<<<< Updated upstream
 	@cp -f "$$(go env GOROOT)/lib/wasm/wasm_exec.js" "$(WEBSITE_DIR)/static/playground/js/wasm_exec.js"
-=======
-	@cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" "$(WEBSITE_DIR)/static/playground/js/wasm_exec.js";
->>>>>>> Stashed changes
 	@GOOS=js GOARCH=wasm go build -o "$(WEBSITE_DIR)/static/playground/playground.wasm" "cmd/tools/playground/main.go"
