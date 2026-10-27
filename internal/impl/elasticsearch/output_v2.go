@@ -38,6 +38,8 @@ const (
 	esoV2FieldCompressRequestBody   = "compress_request_body"
 	esoV2FieldBatching              = "batching"
 	esoV2FieldRetryOnStatus         = "retry_on_status"
+	esoV2FieldRetryOnConflict       = "retry_on_conflict"
+	esoV2FieldNumWorkers            = "num_workers"
 )
 
 func init() {
@@ -126,6 +128,14 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 			service.NewIntListField(esoV2FieldRetryOnStatus).
 				Default([]int{502, 503, 504}).
 				Description("HTTP Status codes that should be retried."),
+			service.NewIntField(esoV2FieldRetryOnConflict).
+				Description("The number of times Elasticsearch retries an `update` or `upsert` action internally when it hits a version conflict, e.g. from concurrent writes to the same document. Not sent when unset.").
+				Advanced().
+				Optional(),
+			service.NewIntField(esoV2FieldNumWorkers).
+				Description("The number of BulkIndexer workers per batch. Each worker sends its own bulk request, so a batch is split over this many concurrent requests. Set to 1 to send each batch as a single bulk request. 0 uses the library default, the number of CPUs.").
+				Advanced().
+				Default(0),
 		).
 		Fields(retries.CommonRetryBackOffFields(0, "1s", "5s", "30s")...)
 }
@@ -135,7 +145,9 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 type esoV2Config struct {
 	clientConfig elasticsearch.Config
 
-	timeout time.Duration
+	timeout         time.Duration
+	retryOnConflict *int
+	numWorkers      int
 
 	indexExpr   *service.InterpolatedString
 	actionExpr  *service.InterpolatedString
@@ -173,6 +185,16 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 		return
 	}
 	if conf.clientConfig.RetryOnStatus, err = pConf.FieldIntList(esoV2FieldRetryOnStatus); err != nil {
+		return
+	}
+	if pConf.Contains(esoV2FieldRetryOnConflict) {
+		var retryOnConflict int
+		if retryOnConflict, err = pConf.FieldInt(esoV2FieldRetryOnConflict); err != nil {
+			return
+		}
+		conf.retryOnConflict = &retryOnConflict
+	}
+	if conf.numWorkers, err = pConf.FieldInt(esoV2FieldNumWorkers); err != nil {
 		return
 	}
 	if conf.clientConfig.MaxRetries, err = pConf.FieldInt("max_retries"); err != nil {
@@ -296,7 +318,8 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 		OnError: func(ctx context.Context, err error) {
 			eso.log.Errorf("Bulk Indexer Error: %v", err)
 		},
-		Timeout: eso.conf.timeout,
+		Timeout:    eso.conf.timeout,
+		NumWorkers: eso.conf.numWorkers,
 	})
 	if err != nil {
 		return err
@@ -327,13 +350,14 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 				continue
 			}
 			err = indexer.Add(ctx, esutil.BulkIndexerItem{
-				Index:      index,
-				Action:     "update",
-				DocumentID: id,
-				Routing:    routing,
-				Body:       bytes.NewReader(updateBodyBytes),
-				OnSuccess:  onSuccessHandler(eso),
-				OnFailure:  onFailureHandler(i, batchErrFailed),
+				Index:           index,
+				Action:          "update",
+				DocumentID:      id,
+				Routing:         routing,
+				RetryOnConflict: eso.conf.retryOnConflict,
+				Body:            bytes.NewReader(updateBodyBytes),
+				OnSuccess:       onSuccessHandler(eso),
+				OnFailure:       onFailureHandler(i, batchErrFailed),
 			})
 			if err != nil {
 				batchErrFailed(i, err)
