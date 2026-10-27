@@ -3,7 +3,6 @@ package huggingface
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/knights-analytics/hugot"
@@ -147,7 +146,7 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 
 		// hugot.DownloadModel requires the destination to be an existing
 		// directory, so create it first.
-		if err := os.MkdirAll(p.modelPath, 0o755); err != nil {
+		if err := mgr.FS().MkdirAll(p.modelPath, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create download path: %w", err)
 		}
 
