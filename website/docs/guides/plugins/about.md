@@ -3,7 +3,7 @@ title: Plugins
 sidebar_label: Overview
 ---
 
-Extending Bento typically requires recompiling the binary and maintaining custom forks. Bento's WebAssembly (WASM) plugin system solves this by allowing you to define custom processor components as standalone modules that load at runtime -- no recompilation required!
+Extend Bento's component library using the WebAssembly (WASM) plugin system, allowing you to define sandboxed custom processor components as standalone modules that load at runtime -- no recompilation required!
 
 This section covers:
 
@@ -15,7 +15,11 @@ This section covers:
 
 Bento provides a plugin development kit (PDK) for **Go** ([`public/wasm/service`][go-pdk]), compiled with [TinyGo][tinygo] or Go.
 
-Plugins can be written in any other language that compiles to a 32-bit WASM module, such as Rust, by implementing the [ABI][abi] directly. This is highly experimental.
+Plugins can be written in any other language that compiles to a 32-bit WASM module, such as Rust, by implementing the [ABI][abi] directly.
+
+:::caution
+Writing a plugin without a PDK is highly experimental, and the ABI may change between Bento releases.
+:::
 
 ## File Structure
 
@@ -35,7 +39,7 @@ You can see all available manifest fields in the [Manifest Reference][fields].
 
 ### Metadata
 
-The values below are placeholders, and the comments describe each field:
+Specify metadata about the plugin, allowing Bento to register the component under its `name`, and to document it like any other component, such as in `bento list` and generated docs:
 
 ```yml
 name: my_plugin    # Required. The name of the processor.
@@ -54,11 +58,11 @@ fields:
     default: ""
 ```
 
-The config of each processor is passed to the plugin as JSON when it starts.
+The config of each processor is passed to the plugin as JSON on startup.
 
 ### Runtime
 
-The `runtime.wasm` section configures the environment the plugin runs in. Every field in it is optional, and the values below are placeholders:
+The `runtime.wasm` section configures the environment the plugin runs in. Every field in it is optional:
 
 ```yml
 runtime:
