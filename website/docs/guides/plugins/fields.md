@@ -3,7 +3,7 @@ title: Manifest Fields
 sidebar_label: Fields
 ---
 
-The `plugin.yaml` manifest defines your plugin's configuration schema and runtime behavior.
+The `plugin.yaml` manifest defines your plugin's configuration schema and runtime behavior. Only `name` and `type` are required, along with the `name` and `type` of each field, and the `host_path` and `guest_path` of each mount.
 
 ### `plugin.yaml`
 
@@ -146,7 +146,7 @@ Type: list of `object`
 
 ### `runtime.wasm.mounts[].host_path`
 
-The path on the host machine to mount.
+The path on the host machine to mount. A relative path is relative to the working directory of Bento.
 
 
 Type: `string`  
@@ -175,7 +175,7 @@ Type: `object`
 
 ### `runtime.wasm.memory.max_pages`
 
-The max amount of pages the plugin can allocate. One page is 64KiB.
+The max amount of pages each instance of the plugin can allocate. One page is 64KiB. When omitted or zero, an instance can allocate up to 4GiB.
 
 
 Type: `int`  

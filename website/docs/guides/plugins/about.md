@@ -1,9 +1,23 @@
 ---
 title: Plugins
-sidebar_label: About
+sidebar_label: Overview
 ---
 
 Extending Bento typically requires recompiling the binary and maintaining custom forks. Bento's WebAssembly (WASM) plugin system solves this by allowing you to define custom processor components as standalone modules that load at runtime -- no recompilation required!
+
+This section covers:
+
+- [Loading Plugins][using] - Loading plugins, testing them and how they run
+- [Developing Plugins][developing] - Writing, compiling and testing your own plugins
+- [Manifest Reference][fields] - Full configuration schema documentation
+
+## Language Support
+
+Bento provides a plugin development kit (PDK) for **Go** ([`public/wasm/service`][go-pdk]), compiled with [TinyGo][tinygo] or Go.
+
+Plugins can be written in any other language that compiles to a 32-bit WASM module, such as Rust, by implementing the [ABI][abi] directly. This is highly experimental.
+
+## File Structure
 
 A Bento plugin consists of two files within a dedicated directory:
 
@@ -13,69 +27,59 @@ my-plugin/
 └── plugin.wasm  # Compiled WASM binary (required)
 ```
 
-## Quick Links
+## Plugin.yaml
 
-- [Writing and Loading Plugins][getting-started] - Learn how to create and load plugins
-- [Example: Reverse Processor][examples] - Complete walkthrough of building a plugin
-- [Manifest Reference][fields] - Full configuration schema documentation
+A `plugin.yaml` manifest is required for all plugins to register within the Bento component library.
 
-## Language Support
+You can see all available manifest fields in the [Manifest Reference][fields].
 
-Bento provides plugin development kits (PDKs) for:
+### Metadata
 
-- **Go** ([`public/wasm/service`][go-pdk]), compiled with [TinyGo][tinygo] or Go.
-- **Rust** ([`public/wasm/pdk/rust`][rust-pdk]), compiled for `wasm32-unknown-unknown`, or `wasm32-wasip1` when the plugin reads files.
+The values below are placeholders, and the comments describe each field:
 
-Plugins can be written in any other language that compiles to a 32-bit WASM module, such as C, Zig or AssemblyScript, by implementing the [ABI](#abi) below.
+```yml
+name: my_plugin    # Required. The name of the processor.
+type: processor    # Required. The type of component. Only "processor" is supported.
+status: stable     # Optional. "stable" (default), "beta" or "experimental".
+summary: ""        # Optional. A short summary of the plugin.
+description: ""    # Optional. A detailed description of the plugin and how to use it.
+```
 
-## How Plugins Run
+Plugins can accept configuration fields just like native Bento components. Define fields in your `plugin.yaml` manifest:
+```yml
+fields:
+  - name: my_field
+    description: An example configuration field
+    type: string
+    default: ""
+```
 
-Plugins run within the Bento process using [wazero][wazero], a WebAssembly runtime written in Go. A plugin is compiled the first time a pipeline uses it.
+The config of each processor is passed to the plugin as JSON when it starts.
 
-Each instance of a plugin processes one call at a time, so Bento creates as many instances as there are calls running at once, such as one per pipeline thread. `init_plugin` is called once for each instance, and any state a plugin keeps in globals belongs to that instance. Successive calls may go to different instances.
+### Runtime
 
-Plugins have access to [WASI preview 1][wasi], with clocks and a secure random source. They can only access the host's filesystem through the directories mounted with `runtime.wasm.mounts`, though symbolic links within those directories are followed even when they point outside of them. The linear memory of each instance is limited by `runtime.wasm.memory.max_pages`.
+The `runtime.wasm` section configures the environment the plugin runs in. Every field in it is optional, and the values below are placeholders:
 
-Metadata is passed to a plugin as strings, and replaced with the metadata the plugin returns. Values that aren't strings, such as numbers, are therefore strings once they have passed through a plugin.
+```yml
+runtime:
+  wasm:
+    path: plugin.wasm       # The plugin's WASM binary, relative to the plugin directory (default "plugin.wasm").
+    memory:
+      max_pages: 128        # The most memory each instance may use, in 64KiB pages.
+    mounts:                 # Directories on the host that the plugin may access.
+      - host_path: ./data   # Required for each mount. The directory on the host.
+        guest_path: /data   # Required for each mount. Where the plugin sees the directory.
+        read_only: true     # Whether the plugin may only read the directory (default true).
+```
 
-## ABI
+`max_pages` limits the linear memory of each instance of the plugin, so a plugin running several instances can use that much memory for each one. It does not limit the memory Bento itself uses. When it is omitted or zero, an instance may use up to 4GiB, the most a 32-bit WASM module can address.
 
-The PDKs implement this for you. It is only needed to write a plugin in another language.
+Plugins can't access the host's filesystem except through mounts. See [Plugin Security][security] before mounting a directory.
 
-Messages are passed to a plugin as [protobuf][message-proto], and the plugin returns its results in the same format.
-
-Data is exchanged through buffers in the plugin's memory. A buffer is passed as an `i64` holding its address in the upper 32 bits and its length in the lower 32 bits, where zero is an empty buffer. A plugin exports:
-
-| Export          | Signature                   | Description                                                                                                               |
-|-----------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| `alloc`         | `(size i32) -> i32`         | Allocates `size` bytes for Bento to write into, and returns their address.                                                |
-| `release`       | `(address i32, length i32)` | Frees a buffer allocated by `alloc` or returned to Bento.                                                                 |
-| `init_plugin`   | `(config i64) -> i64`       | Optional. Called once per instance with the plugin's config as JSON. Returns an error message, which is empty on success. |
-| `process_batch` | `(batch i64) -> i32`        | Called with every message of a batch as a `Batch`, and returns `Batches`.                                                 |
-| `process`       | `(part i64) -> i32`         | Called once per message as a `Part`, and returns a `Batch`. Only used when `process_batch` is not exported.               |
-
-`process` and `process_batch` return the address of a 16 byte result area, which holds the buffer of their output followed by the buffer of an error message, each as a little-endian `i64`. The error is empty on success. The result area must remain valid until the next call, so it is typically a static.
-
-Bento writes its input into buffers allocated with `alloc`, which the plugin may read until the call returns. The plugin returns its output and errors in buffers it allocates. Once a call returns, Bento copies them and frees every buffer with `release`.
-
-### Errors
-
-A plugin can fail individual messages or a whole call:
-
-- To fail a message, set `error` on the `Part` it returns. The message continues through the pipeline marked with the error, and can be handled like any other processing error.
-- To fail a call, return an error message. Every message of the call continues unchanged, marked with that error.
-
-A trap, such as a panic, also fails the call, and the instance is discarded. Any message that is not returned is dropped.
-
-See [Error Handling][error-handling] for handling failed messages.
-
-[getting-started]: /docs/guides/plugins/getting_started
-[examples]: /docs/guides/plugins/examples
+[using]: /docs/guides/plugins/loading_plugins
+[developing]: /docs/guides/plugins/developing_plugins
+[security]: /docs/guides/plugins/loading_plugins#plugin-security
 [fields]: /docs/guides/plugins/fields
-[error-handling]: /docs/configuration/error_handling
+[abi]: /docs/guides/plugins/abi
 [go-pdk]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/service
-[rust-pdk]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/pdk/rust
-[message-proto]: https://github.com/warpstreamlabs/bento/blob/main/resources/protos/message.proto
 [tinygo]: https://tinygo.org/
-[wazero]: https://wazero.io/
-[wasi]: https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md

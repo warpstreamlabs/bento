@@ -114,12 +114,12 @@ func wasmRuntimeSpec() docs.FieldSpec {
 			HasDefault("plugin.wasm").
 			Optional(),
 		docs.FieldObject("mounts", "A list of directory mounts.").Array().Optional().WithChildren(
-			docs.FieldString("host_path", "The path on the host machine to mount."),
+			docs.FieldString("host_path", "The path on the host machine to mount. A relative path is relative to the working directory of Bento."),
 			docs.FieldString("guest_path", "The path inside the WASM container."),
 			docs.FieldBool("read_only", "Whether to mount the path read-only.").Optional().HasDefault(true),
 		),
 		docs.FieldObject("memory", "Describes the limits on the memory the plugin may be allocated.").WithChildren(
-			docs.FieldInt("max_pages", "The max amount of pages the plugin can allocate. One page is 64KiB.").Optional(),
+			docs.FieldInt("max_pages", "The max amount of pages each instance of the plugin can allocate. One page is 64KiB. When omitted or zero, an instance can allocate up to 4GiB.").Optional(),
 		).Optional(),
 	)
 }

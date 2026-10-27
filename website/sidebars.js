@@ -132,9 +132,16 @@ module.exports = {
           label: 'Plugins',
           items: [
             'guides/plugins/about',
-            'guides/plugins/getting_started',
-            'guides/plugins/examples',
+            'guides/plugins/loading_plugins',
+            'guides/plugins/developing_plugins',
             'guides/plugins/fields',
+            {
+              type: 'category',
+              label: 'Advanced',
+              items: [
+                'guides/plugins/abi',
+              ],
+            },
           ],
         },
         {
