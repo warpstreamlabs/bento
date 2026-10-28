@@ -3,6 +3,7 @@ package cassandra
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
@@ -71,6 +72,35 @@ translate_addresses_to: "proxy:notaport"
 	require.NoError(t, err)
 	_, err = conf.Create()
 	require.Error(t, err)
+}
+
+func TestClientConfTimeouts(t *testing.T) {
+	spec := service.NewConfigSpec().Fields(clientFields()...)
+
+	// Defaults match what the driver used before connect_timeout was configurable.
+	parsed, err := spec.ParseYAML(`
+addresses: [ "127.0.0.1:9042" ]
+`, nil)
+	require.NoError(t, err)
+	conf, err := clientConfFromParsed(parsed)
+	require.NoError(t, err)
+	cluster, err := conf.Create()
+	require.NoError(t, err)
+	assert.Equal(t, 600*time.Millisecond, cluster.Timeout)
+	assert.Equal(t, 11*time.Second, cluster.ConnectTimeout)
+
+	parsed, err = spec.ParseYAML(`
+addresses: [ "127.0.0.1:9042" ]
+timeout: 2s
+connect_timeout: 30s
+`, nil)
+	require.NoError(t, err)
+	conf, err = clientConfFromParsed(parsed)
+	require.NoError(t, err)
+	cluster, err = conf.Create()
+	require.NoError(t, err)
+	assert.Equal(t, 2*time.Second, cluster.Timeout)
+	assert.Equal(t, 30*time.Second, cluster.ConnectTimeout)
 }
 
 func TestHostIDRoundRobinPolicy(t *testing.T) {

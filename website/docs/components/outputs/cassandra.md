@@ -69,6 +69,7 @@ output:
       initial_interval: 1s
       max_interval: 5s
     timeout: 600ms
+    connect_timeout: 11s
     query: "" # No default (required)
     args_mapping: "" # No default (optional)
     consistency: QUORUM
@@ -396,11 +397,19 @@ Default: `"5s"`
 
 ### `timeout`
 
-The client connection timeout.
+The timeout for each request on an established connection, which is also used as the read timeout of the underlying network connection. Connection setup is bounded by `connect_timeout` instead.
 
 
 Type: `string`  
 Default: `"600ms"`  
+
+### `connect_timeout`
+
+The timeout for setting up a connection to a node: the TCP dial, the protocol handshake, authentication and the internal queries that initialise the connection. Requests on an established connection are bounded by `timeout` instead.
+
+
+Type: `string`  
+Default: `"11s"`  
 
 ### `query`
 

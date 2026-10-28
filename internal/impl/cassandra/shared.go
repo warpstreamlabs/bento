@@ -29,6 +29,7 @@ const (
 	cFieldBackoffInitInterval = "initial_interval"
 	cFieldBackoffMaxInterval  = "max_interval"
 	cFieldTimeout             = "timeout"
+	cFieldConnectTimeout      = "connect_timeout"
 )
 
 func clientFields() []*service.ConfigField {
@@ -79,8 +80,12 @@ func clientFields() []*service.ConfigField {
 			Description("Control time intervals between retry attempts.").
 			Advanced(),
 		service.NewDurationField(cFieldTimeout).
-			Description("The client connection timeout.").
+			Description("The timeout for each request on an established connection, which is also used as the read timeout of the underlying network connection. Connection setup is bounded by `connect_timeout` instead.").
 			Default("600ms"),
+		service.NewDurationField(cFieldConnectTimeout).
+			Description("The timeout for setting up a connection to a node: the TCP dial, the protocol handshake, authentication and the internal queries that initialise the connection. Requests on an established connection are bounded by `timeout` instead.").
+			Advanced().
+			Default("11s"),
 	}
 }
 
@@ -97,6 +102,7 @@ type clientConf struct {
 	backoffInitInterval time.Duration
 	backoffMaxInterval  time.Duration
 	timeout             time.Duration
+	connectTimeout      time.Duration
 }
 
 func (c *clientConf) Create() (*gocql.ClusterConfig, error) {
@@ -134,6 +140,7 @@ func (c *clientConf) Create() (*gocql.ClusterConfig, error) {
 	}
 
 	conn.Timeout = c.timeout
+	conn.ConnectTimeout = c.connectTimeout
 	return conn, nil
 }
 
@@ -173,6 +180,9 @@ func clientConfFromParsed(conf *service.ParsedConfig) (c clientConf, err error) 
 		return
 	}
 	if c.timeout, err = conf.FieldDuration(cFieldTimeout); err != nil {
+		return
+	}
+	if c.connectTimeout, err = conf.FieldDuration(cFieldConnectTimeout); err != nil {
 		return
 	}
 	return
