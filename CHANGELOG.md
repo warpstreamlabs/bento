@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
+ - `cassandra` input & output field `translate_addresses_to`, which maps every node address the driver learns from the cluster to one `host:port` and selects hosts by host ID, for clusters only reachable through a proxy, load balancer or tunnel @awm-mbaluja
 
 ### Changed
 

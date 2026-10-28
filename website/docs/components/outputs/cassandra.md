@@ -63,6 +63,7 @@ output:
       username: ""
       password: ""
     disable_initial_host_lookup: false
+    translate_addresses_to: ""
     max_retries: 3
     backoff:
       initial_interval: 1s
@@ -347,6 +348,20 @@ If enabled the driver will not attempt to get host info from the system.peers ta
 
 Type: `bool`  
 Default: `false`  
+
+### `translate_addresses_to`
+
+Translate every node address the driver learns from the cluster (system.local, system.peers and topology events) to this `host:port`, and select hosts by host ID rather than by address. Set this when `addresses` point at a proxy, load balancer or tunnel in front of the cluster and the nodes' own addresses are not reachable from the client: without it the driver moves to those addresses as soon as it learns them and cannot reconnect once the proxied connection drops.
+
+
+Type: `string`  
+Default: `""`  
+
+```yml
+# Examples
+
+translate_addresses_to: cassandra-proxy:9042
+```
 
 ### `max_retries`
 
