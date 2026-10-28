@@ -98,6 +98,10 @@ output:
       - 504
     retry_on_conflict: 0 # No default (optional)
     num_workers: 0
+    doc_as_upsert: false
+    upsert_mapping: |- # No default (optional)
+      root = this
+      root.first_seen = now()
     max_retries: 0
     backoff:
       initial_interval: 1s
@@ -532,6 +536,29 @@ The number of workers of the [BulkIndexer](https://pkg.go.dev/github.com/elastic
 
 Type: `int`  
 Default: `0`  
+
+### `doc_as_upsert`
+
+For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping`.
+
+
+Type: `bool`  
+Default: `false`  
+
+### `upsert_mapping`
+
+For the `update` action: a mapping, executed on each message, whose result is sent as the `upsert` document. Elasticsearch indexes it when the document does not exist yet, and otherwise merges the message into the existing document. This allows fields that are only set when a document is created. If the mapping deletes the message, the update behaves as if this field was not set. Cannot be combined with `doc_as_upsert` or the `upsert` action, as Elasticsearch would ignore the upsert document.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+upsert_mapping: |-
+  root = this
+  root.first_seen = now()
+```
 
 ### `max_retries`
 

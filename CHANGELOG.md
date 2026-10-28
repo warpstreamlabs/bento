@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
  - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
+ - `elasticsearch_v2` output fields `doc_as_upsert` and `upsert_mapping` for the `update` action, mirroring Elasticsearch's update API: `upsert_mapping` sets a separate document to index when the document does not exist yet, allowing fields that are only set on creation @JoranDox
 
 ### Changed
 

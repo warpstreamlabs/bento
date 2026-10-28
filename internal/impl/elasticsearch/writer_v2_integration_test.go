@@ -48,6 +48,20 @@ urls: [ http://localhost:9200 ]
 	}
 }
 
+func TestOutputV2DocAsUpsertWithUpsertMapping(t *testing.T) {
+	pConf, err := elasticsearch.OutputSpecV2().ParseYAML(`
+index: foo
+urls: [ http://localhost:9200 ]
+action: update
+doc_as_upsert: true
+upsert_mapping: 'root = this'
+`, nil)
+	require.NoError(t, err)
+
+	_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
+	require.ErrorContains(t, err, "cannot be combined")
+}
+
 func TestIntegrationWriterV2(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
@@ -174,6 +188,78 @@ func TestIntegrationWriterV2(t *testing.T) {
 	t.Run("TestElasticUpsertSameIDSingleWorkerV2", func(te *testing.T) {
 		testElasticUpsertSameIDSingleWorkerV2(urls, client, te)
 	})
+
+	t.Run("TestElasticUpsertMappingV2", func(te *testing.T) {
+		testElasticUpsertMappingV2(urls, client, te)
+	})
+}
+
+// The upsert_mapping result is only indexed when the document is created;
+// later updates merge just the message, so first_seen keeps its first value.
+// A mapping that deletes the message behaves as if the field was not set: a
+// plain update, which fails for a missing document.
+func testElasticUpsertMappingV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: upsert_mapping
+id: ${! this.id }
+urls: %v
+action: update
+upsert_mapping: |
+  root = if this.skip_upsert_mapping == true {
+    deleted()
+  } else {
+    this.merge({"first_seen": this.seen})
+  }
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","seen":1}`)),
+	}))
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","seen":2}`)),
+	}))
+
+	source := getSourceV2(t, client, "upsert_mapping", "doc-1")
+	assert.EqualValues(t, 1, source["first_seen"])
+	assert.EqualValues(t, 2, source["seen"])
+
+	// deleted() on an existing document: merged like a plain update
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","seen":3,"skip_upsert_mapping":true}`)),
+	}))
+	source = getSourceV2(t, client, "upsert_mapping", "doc-1")
+	assert.EqualValues(t, 1, source["first_seen"])
+	assert.EqualValues(t, 3, source["seen"])
+
+	// deleted() on a missing document: same error as an update without the field
+	err := o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-2","seen":1,"skip_upsert_mapping":true}`)),
+	})
+	require.ErrorContains(t, err, "document missing")
+
+	// the upsert action already sends the message as upsert document
+	o2 := outputFromConfV2(t, `
+index: upsert_mapping
+id: ${! this.id }
+urls: %v
+action: upsert
+upsert_mapping: 'root = this'
+`, urls)
+	require.NoError(t, o2.Connect(ctx))
+	defer func() {
+		require.NoError(t, o2.Close(ctx))
+	}()
+	require.ErrorContains(t, o2.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-3"}`)),
+	}), "cannot be used with action 'upsert'")
 }
 
 func getSourceV2(t *testing.T, client *goEs.Client, index, id string) map[string]any {
