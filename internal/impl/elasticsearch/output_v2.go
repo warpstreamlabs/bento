@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v9/esutil"
 
 	"github.com/warpstreamlabs/bento/internal/retries"
+	"github.com/warpstreamlabs/bento/public/bloblang"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
@@ -40,6 +41,8 @@ const (
 	esoV2FieldRetryOnStatus         = "retry_on_status"
 	esoV2FieldRetryOnConflict       = "retry_on_conflict"
 	esoV2FieldNumWorkers            = "num_workers"
+	esoV2FieldDocAsUpsert           = "doc_as_upsert"
+	esoV2FieldUpsertMapping         = "upsert_mapping"
 )
 
 func init() {
@@ -138,6 +141,16 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 				Advanced().
 				Default(0).
 				LintRule(`root = if this < 0 { [ "num_workers must be 0 or more" ] }`),
+			service.NewBoolField(esoV2FieldDocAsUpsert).
+				Description("For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping`.").
+				Advanced().
+				Default(false),
+			service.NewBloblangField(esoV2FieldUpsertMapping).
+				Description("For the `update` action: a mapping, executed on each message, whose result is sent as the `upsert` document. Elasticsearch indexes it when the document does not exist yet, and otherwise merges the message into the existing document. This allows fields that are only set when a document is created. If the mapping deletes the message, the update behaves as if this field was not set. Cannot be combined with `doc_as_upsert` or the `upsert` action, as Elasticsearch would ignore the upsert document.").
+				Example(`root = this
+root.first_seen = now()`).
+				Advanced().
+				Optional(),
 		).
 		Fields(retries.CommonRetryBackOffFields(0, "1s", "5s", "30s")...)
 }
@@ -150,6 +163,8 @@ type esoV2Config struct {
 	timeout         time.Duration
 	retryOnConflict *int
 	numWorkers      int
+	docAsUpsert     bool
+	upsertMapping   *bloblang.Executor
 
 	indexExpr   *service.InterpolatedString
 	actionExpr  *service.InterpolatedString
@@ -206,6 +221,18 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 	if conf.numWorkers < 0 {
 		err = fmt.Errorf("field %s must be 0 or more, got %d", esoV2FieldNumWorkers, conf.numWorkers)
 		return
+	}
+	if conf.docAsUpsert, err = pConf.FieldBool(esoV2FieldDocAsUpsert); err != nil {
+		return
+	}
+	if pConf.Contains(esoV2FieldUpsertMapping) {
+		if conf.docAsUpsert {
+			err = fmt.Errorf("fields %s and %s cannot be combined, Elasticsearch would ignore the upsert document", esoV2FieldDocAsUpsert, esoV2FieldUpsertMapping)
+			return
+		}
+		if conf.upsertMapping, err = pConf.FieldBloblang(esoV2FieldUpsertMapping); err != nil {
+			return
+		}
 	}
 	if conf.clientConfig.MaxRetries, err = pConf.FieldInt("max_retries"); err != nil {
 		return
@@ -323,6 +350,11 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 
 	batchInterpolator := eso.newInterpolationExecutor(batch)
 
+	var upsertExecutor *service.MessageBatchBloblangExecutor
+	if eso.conf.upsertMapping != nil {
+		upsertExecutor = batch.BloblangExecutor(eso.conf.upsertMapping)
+	}
+
 	indexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Client: eso.client,
 		OnError: func(ctx context.Context, err error) {
@@ -350,9 +382,32 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 
 		switch action {
 		case "update", "upsert":
+			// `upsert` is shorthand for an update with doc_as_upsert
+			docAsUpsert := action == "upsert" || eso.conf.docAsUpsert
 			updateBody := map[string]any{
 				"doc":           json.RawMessage(msgBytes),
-				"doc_as_upsert": action == "upsert",
+				"doc_as_upsert": docAsUpsert,
+			}
+			if upsertExecutor != nil {
+				// doc_as_upsert would make Elasticsearch ignore the upsert document
+				if docAsUpsert {
+					batchErrFailed(i, fmt.Errorf("field %s cannot be used with action 'upsert', use action 'update' instead", esoV2FieldUpsertMapping))
+					continue
+				}
+				upsertMsg, err := upsertExecutor.Query(i)
+				if err != nil {
+					batchErrFailed(i, err)
+					continue
+				}
+				// a deleted result sends no upsert document, as if the field was not set
+				if upsertMsg != nil {
+					upsertBytes, err := upsertMsg.AsBytes()
+					if err != nil {
+						batchErrFailed(i, err)
+						continue
+					}
+					updateBody["upsert"] = json.RawMessage(upsertBytes)
+				}
 			}
 			updateBodyBytes, err := json.Marshal(updateBody)
 			if err != nil {
