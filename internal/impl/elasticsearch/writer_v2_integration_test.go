@@ -72,6 +72,11 @@ doc_as_upsert: true
 		"scripted_upsert without script": `
 scripted_upsert: true
 `,
+		"script with doc_mapping": `
+script:
+  source: 'ctx._source.x = params.x'
+doc_mapping: 'root = this'
+`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(`
@@ -218,9 +223,54 @@ func TestIntegrationWriterV2(t *testing.T) {
 		testElasticUpsertMappingV2(urls, client, te)
 	})
 
+	t.Run("TestElasticDocMappingV2", func(te *testing.T) {
+		testElasticDocMappingV2(urls, client, te)
+	})
+
 	t.Run("TestElasticScriptV2", func(te *testing.T) {
 		testElasticScriptV2(urls, client, te)
 	})
+}
+
+// doc_mapping limits what is merged into an existing document, while
+// upsert_mapping still indexes the full message when the document is new.
+func testElasticDocMappingV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: doc_mapping
+id: ${! this.id }
+urls: %v
+action: update
+doc_mapping: |
+  root = if this.skip_doc_mapping == true { deleted() } else { {"status": this.status} }
+upsert_mapping: 'root = this'
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","status":"a","created":1}`)),
+	}))
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","status":"b","created":2}`)),
+	}))
+
+	source := getSourceV2(t, client, "doc_mapping", "doc-1")
+	assert.Equal(t, "b", source["status"])
+	assert.EqualValues(t, 1, source["created"])
+
+	// deleted() merges the whole message, as if the field was not set
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","status":"c","created":3,"skip_doc_mapping":true}`)),
+	}))
+	source = getSourceV2(t, client, "doc_mapping", "doc-1")
+	assert.Equal(t, "c", source["status"])
+	assert.EqualValues(t, 3, source["created"])
 }
 
 // A script keeps the highest total even when an older value arrives later,

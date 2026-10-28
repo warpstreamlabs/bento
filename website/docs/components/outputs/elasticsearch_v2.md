@@ -99,6 +99,9 @@ output:
     retry_on_conflict: 0 # No default (optional)
     num_workers: 0
     doc_as_upsert: false
+    doc_mapping: |- # No default (optional)
+      root.status = this.status
+      root.updated_at = now()
     upsert_mapping: |- # No default (optional)
       root = this
       root.first_seen = now()
@@ -549,6 +552,21 @@ For the `update` action: index the message as a new document when the document d
 
 Type: `bool`  
 Default: `false`  
+
+### `doc_mapping`
+
+For the `update` and `upsert` actions: a mapping, executed on each message, whose result is sent as the partial `doc` merged into the existing document, instead of the message itself. Combined with `upsert_mapping` this allows sending only some fields as updates while indexing the full message when the document does not exist yet. If the mapping deletes the message, the message itself is sent, as if this field was not set. Cannot be combined with `script`.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+doc_mapping: |-
+  root.status = this.status
+  root.updated_at = now()
+```
 
 ### `upsert_mapping`
 
