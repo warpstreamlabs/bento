@@ -42,6 +42,7 @@ const (
 	esoV2FieldRetryOnConflict       = "retry_on_conflict"
 	esoV2FieldNumWorkers            = "num_workers"
 	esoV2FieldDocAsUpsert           = "doc_as_upsert"
+	esoV2FieldDocMapping            = "doc_mapping"
 	esoV2FieldUpsertMapping         = "upsert_mapping"
 	esoV2FieldScript                = "script"
 	esoV2FieldScriptSource          = "source"
@@ -150,6 +151,12 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 				Description("For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping`.").
 				Advanced().
 				Default(false),
+			service.NewBloblangField(esoV2FieldDocMapping).
+				Description("For the `update` and `upsert` actions: a mapping, executed on each message, whose result is sent as the partial `doc` merged into the existing document, instead of the message itself. Combined with `upsert_mapping` this allows sending only some fields as updates while indexing the full message when the document does not exist yet. If the mapping deletes the message, the message itself is sent, as if this field was not set. Cannot be combined with `script`.").
+				Example(`root.status = this.status
+root.updated_at = now()`).
+				Advanced().
+				Optional(),
 			service.NewBloblangField(esoV2FieldUpsertMapping).
 				Description("For the `update` action: a mapping, executed on each message, whose result is sent as the `upsert` document. Elasticsearch indexes it when the document does not exist yet, and otherwise merges the message into the existing document. This allows fields that are only set when a document is created. If the mapping deletes the message, the update behaves as if this field was not set. Cannot be combined with `doc_as_upsert` or the `upsert` action, as Elasticsearch would ignore the upsert document.").
 				Example(`root = this
@@ -187,6 +194,7 @@ type esoV2Config struct {
 	retryOnConflict *int
 	numWorkers      int
 	docAsUpsert     bool
+	docMapping      *bloblang.Executor
 	upsertMapping   *bloblang.Executor
 	hasScript       bool
 	scriptSource    string
@@ -253,6 +261,11 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 	if conf.docAsUpsert, err = pConf.FieldBool(esoV2FieldDocAsUpsert); err != nil {
 		return
 	}
+	if pConf.Contains(esoV2FieldDocMapping) {
+		if conf.docMapping, err = pConf.FieldBloblang(esoV2FieldDocMapping); err != nil {
+			return
+		}
+	}
 	if pConf.Contains(esoV2FieldUpsertMapping) {
 		if conf.docAsUpsert {
 			err = fmt.Errorf("fields %s and %s cannot be combined, Elasticsearch would ignore the upsert document", esoV2FieldDocAsUpsert, esoV2FieldUpsertMapping)
@@ -265,6 +278,10 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 	if pConf.Contains(esoV2FieldScript) {
 		if conf.docAsUpsert {
 			err = fmt.Errorf("fields %s and %s cannot be combined, Elasticsearch only allows doc_as_upsert with a partial document", esoV2FieldDocAsUpsert, esoV2FieldScript)
+			return
+		}
+		if conf.docMapping != nil {
+			err = fmt.Errorf("fields %s and %s cannot be combined, a scripted update sends no partial document", esoV2FieldDocMapping, esoV2FieldScript)
 			return
 		}
 		scriptConf := pConf.Namespace(esoV2FieldScript)
@@ -408,6 +425,10 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	if eso.conf.upsertMapping != nil {
 		upsertExecutor = batch.BloblangExecutor(eso.conf.upsertMapping)
 	}
+	var docExecutor *service.MessageBatchBloblangExecutor
+	if eso.conf.docMapping != nil {
+		docExecutor = batch.BloblangExecutor(eso.conf.docMapping)
+	}
 	var scriptParamsExecutor *service.MessageBatchBloblangExecutor
 	if eso.conf.scriptParams != nil {
 		scriptParamsExecutor = batch.BloblangExecutor(eso.conf.scriptParams)
@@ -476,8 +497,25 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 					updateBody["scripted_upsert"] = true
 				}
 			} else {
+				doc := json.RawMessage(msgBytes)
+				if docExecutor != nil {
+					docMsg, err := docExecutor.Query(i)
+					if err != nil {
+						batchErrFailed(i, err)
+						continue
+					}
+					// a deleted result sends the message, as if the field was not set
+					if docMsg != nil {
+						docBytes, err := docMsg.AsBytes()
+						if err != nil {
+							batchErrFailed(i, err)
+							continue
+						}
+						doc = docBytes
+					}
+				}
 				updateBody = map[string]any{
-					"doc":           json.RawMessage(msgBytes),
+					"doc":           doc,
 					"doc_as_upsert": docAsUpsert,
 				}
 			}
