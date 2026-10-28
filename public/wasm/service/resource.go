@@ -17,9 +17,6 @@ type BatchProcessor interface {
 	// every message of batch with it, and passes them on unchanged. To fail
 	// a single message instead, call SetError on it.
 	ProcessBatch(ctx context.Context, batch MessageBatch) ([]MessageBatch, error)
-
-	// Close the processor and clean up its resources.
-	Close(ctx context.Context) error
 }
 
 // Processor is a processor that is called once per message.
@@ -28,9 +25,6 @@ type Processor interface {
 	// drop it, or more to split it. Returning an error marks msg with it, and
 	// passes it on unchanged.
 	Process(ctx context.Context, msg *Message) (MessageBatch, error)
-
-	// Close the processor and clean up its resources.
-	Close(ctx context.Context) error
 }
 
 // TODO: Add callbacks into host here

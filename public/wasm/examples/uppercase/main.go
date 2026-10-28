@@ -44,8 +44,4 @@ func (p *uppercaseProc) Process(ctx context.Context, part *service.Message) (ser
 	return service.MessageBatch{part}, nil
 }
 
-func (p *uppercaseProc) Close(ctx context.Context) error {
-	return nil
-}
-
 func main() {}

@@ -33,8 +33,4 @@ func (p *reverseProc) ProcessBatch(ctx context.Context, batch service.MessageBat
 	return []service.MessageBatch{batch}, nil
 }
 
-func (p *reverseProc) Close(ctx context.Context) error {
-	return nil
-}
-
 func main() {}

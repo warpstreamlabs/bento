@@ -7,36 +7,32 @@ sidebar_label: About
 Plugins are an experimental feature. The manifest, the Go PDK, and the ABI may change outside of major version releases.
 :::
 
-Plugins add new processors to Bento without recompiling it. A plugin is a WebAssembly (WASM) module that Bento loads at startup, and once loaded it is configured, linted, and unit tested like any other processor.
-
 ## Overview
 
-A plugin is a directory with two files:
+Bento's WebAssembly (WASM) plugin system allows you to dynamically extend the component library with your own custom processors. Instead of recompiling the core binary, you can define processors as standalone modules that load directly at runtime.
+
+A Bento plugin consists of two files within a dedicated directory:
 
 ```
 my-plugin/
-├── plugin.yaml  # The manifest: the processor's name, config fields, and runtime limits
-└── plugin.wasm  # The compiled WASM module
+├── plugin.yaml  # Plugin manifest (required)
+└── plugin.wasm  # Compiled WASM binary (required)
 ```
 
-Pass the plugin directory to Bento when you start it:
+Load the plugin with `-p` (or `--plugin`):
 
 ```sh
 bento -p ./my-plugin -c config.yaml
 ```
 
-Use the manifest's `name` as the processor name in `config.yaml`. Its `fields` define the processor's config:
+The `-p` flag can be used multiple times to load multiple plugins.
+
+Configure it as a processor in `config.yaml`. The processor name must match `name` in the manifest:
 
 ```yml
 pipeline:
   processors:
     - my-plugin: {}
-```
-
-Repeat `-p` to load more than one plugin. To load all plugin directories under `plugins`, quote the glob so Bento expands it:
-
-```sh
-bento -p './plugins/*' -c config.yaml
 ```
 
 Pass the same `-p` flag to commands that read the config, such as `test` and `lint`:
@@ -50,7 +46,7 @@ See [Unit Testing][unit-testing] for writing tests.
 
 ### Check a Plugin Before Loading It
 
-Only load plugins from sources you trust. Inspect the manifest's [`runtime.wasm` settings][wasm-fields] for mounted directories, write access, and the memory limit per instance. A plugin can follow symlinks in a mounted directory to files outside it. See [The Sandbox][sandbox] for the runtime's capabilities.
+Only load plugins from sources you trust. Inspect the manifest's [`runtime.wasm` settings][wasm-fields] for mounted directories, write access, and the memory limit per instance. Without `memory.max_pages`, each instance can allocate up to 4 GiB, and concurrent calls can create multiple instances. A plugin can follow symlinks in a mounted directory to files outside it. See [The Sandbox][sandbox] for the runtime's capabilities.
 
 ## Why WebAssembly (WASM)?
 
@@ -74,7 +70,7 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 
 | Example                                    | Language | Description                                                        |
 |--------------------------------------------|----------|--------------------------------------------------------------------|
-| [`uppercase`][uppercase-example]           | Go       | Uppercases each message, after a prefix from its config.           |
+| [`uppercase`][uppercase-example]           | Go       | Uppercases each message and prepends a configurable prefix.         |
 | [`reverse`][reverse-example]               | Go       | Reverses a batch of messages, and records their positions.         |
 | [`rust_uppercase`][rust-uppercase-example] | Rust     | Uppercases each message, implementing the ABI without a PDK.       |
 | [`rust_csv`][rust-csv-example]             | Rust     | Parses CSV messages into JSON, implementing the ABI without a PDK. |

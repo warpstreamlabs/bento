@@ -3,7 +3,7 @@ title: Manifest Fields
 sidebar_label: Fields
 ---
 
-The `plugin.yaml` manifest defines a plugin's name, its config fields, and the limits of the sandbox it runs in. Only `name` and `type` are required, along with the `name` and `type` of each field, and the `host_path` and `guest_path` of each mount.
+The `plugin.yaml` manifest defines a plugin's name, its config fields, and its sandbox limits. Only `name` and `type` are required at the root level. If you define fields, each needs a `name` and `type`; if you define mounts, each needs a `host_path` and `guest_path`.
 
 ## Example
 
@@ -11,7 +11,7 @@ The `plugin.yaml` manifest defines a plugin's name, its config fields, and the l
 name: uppercase
 type: processor
 status: experimental
-summary: Uppercases each message, after a prefix.
+summary: Uppercases each message and prepends a configurable prefix.
 
 fields:
   - name: prefix

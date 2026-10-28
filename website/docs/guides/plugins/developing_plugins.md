@@ -27,7 +27,7 @@ Create `plugin/plugin.yaml`. The `name` is what pipelines call the processor, an
 ```yml title="plugin/plugin.yaml"
 name: uppercase
 type: processor
-summary: Uppercases each message, after a prefix.
+summary: Uppercases each message and prepends a configurable prefix.
 
 fields:
   - name: prefix
@@ -85,10 +85,6 @@ func (p *uppercaseProc) Process(ctx context.Context, msg *service.Message) (serv
 	return service.MessageBatch{msg}, nil
 }
 
-func (p *uppercaseProc) Close(ctx context.Context) error {
-	return nil
-}
-
 func main() {}
 ```
 
@@ -96,6 +92,7 @@ In this example:
 
 - The JSON tag maps `config.Prefix` to the manifest's `prefix` field. The PDK decodes the config before calling the constructor.
 - `init()` registers the processor. Go requires `main()`, but Bento never calls it.
+- `mgr` is an empty `*service.Resources` value; the WASM PDK does not expose Bento resources yet.
 - `-buildmode=c-shared` exports `_initialize` instead of `_start`. Bento calls `_initialize` for each instance, which initializes the Go runtime and runs `init()`.
 
 ## 4. Compile the Plugin
@@ -183,7 +180,7 @@ Test 'config.yaml' succeeded
 ## Next Steps
 
 - [Go PDK reference][pdk]: every type and function of the PDK. To process whole batches at once, implement a `BatchProcessor` and register it with [`batch_processor`][batch-pdk], as the [`reverse`][reverse-example] example does.
-- [Plugins][about]: load the plugin into Bento elsewhere, or embed it in a custom build.
+- [Plugins][about]: load the plugin into Bento elsewhere.
 - [Architecture][architecture]: how instances of the plugin run, and how its errors affect messages.
 
 [tinygo-compat]: https://tinygo.org/docs/reference/go-compat-matrix/

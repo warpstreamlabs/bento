@@ -5,7 +5,7 @@ title: Architecture
 import CodeBlock from '@theme/CodeBlock';
 import messageProto from '../../../../resources/protos/message.proto';
 
-Plugins run within the Bento process using [wazero][wazero], a WebAssembly runtime written in Go. This page describes their ABI and how messages, errors and instances behave.
+Plugins run within the Bento process using [wazero][wazero], a WebAssembly runtime written in Go. This page describes their ABI and how messages, errors, and instances behave.
 
 ## ABI
 
@@ -41,10 +41,12 @@ The signatures use [WebAssembly text format (WAT)][wat]. They are a reference fo
 
 - `alloc` allocates `size` bytes for Bento to write into, and returns their address. Bento never asks for zero bytes, and fails the call if it returns zero.
 - `release` frees a buffer allocated by `alloc` or returned to Bento. Bento supplies the buffer's length and never releases an empty buffer.
-- `process_batch` receives every message of a batch as a `Batch`, and returns the address of a [result area](#results) containing its output as `Batches`, or an error.
+- `process_batch` receives every message of a batch as a `Batch`, and returns the address of a [result area](#results) containing its output as `Batches`, or an error. See [Messages](#messages) for these types.
 - `process` receives one message as a `Part`, and returns the address of a result area containing its output as a `Batch`, or an error. It is only used when `process_batch` is not exported.
 - `init_plugin` is called once per instance, before it processes any messages, with the processor's config as JSON, including field defaults. It returns a packed buffer containing an error message, or zero on success.
 - `_initialize` is called when each instance is created, before `init_plugin`, as WASI reactors such as Go's `-buildmode=c-shared` modules require. Bento never calls `_start`.
+
+Note: The ABI has no teardown export. Bento closes the WASM instance directly.
 
 ### Buffers
 
