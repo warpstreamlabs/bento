@@ -8,14 +8,17 @@ import (
 	messagepb "github.com/warpstreamlabs/bento/internal/message/messagepblite"
 )
 
+// MessageBatch is an ordered list of messages.
 type MessageBatch []*Message
 
-// Message wraps the protobuf part exchanged with Bento, which is decoded once
-// per call and encoded back without any conversion.
+// Message is a single message, with its content, metadata and error. It wraps
+// the protobuf part exchanged with Bento, which is decoded once per call and
+// encoded back without any conversion.
 type Message struct {
 	part *messagepb.Part
 }
 
+// NewMessage returns a message with raw content and no metadata.
 func NewMessage(content []byte) *Message {
 	return &Message{
 		part: &messagepb.Part{
@@ -52,6 +55,7 @@ func (m *Message) AsStructured() (any, error) {
 	return nil, errors.New("message has no content")
 }
 
+// GetError returns the error that the message is marked with, or nil.
 func (m *Message) GetError() error {
 	if m.part.Error == "" {
 		return nil
@@ -59,10 +63,14 @@ func (m *Message) GetError() error {
 	return errors.New(m.part.Error)
 }
 
+// SetBytes replaces the content of the message with raw bytes.
 func (m *Message) SetBytes(b []byte) {
 	m.part.Content = &messagepb.Part_Raw{Raw: b}
 }
 
+// SetError marks the message with err, or clears its error when err is nil.
+// A marked message continues through the pipeline, and can be handled with
+// Bento's error handling.
 func (m *Message) SetError(err error) {
 	m.part.Error = ""
 	if err != nil {
@@ -97,15 +105,19 @@ func valueFromJSON(i any) (*structpb.Value, error) {
 	return v, nil
 }
 
+// MetaDelete removes the metadata value of key.
 func (m *Message) MetaDelete(key string) {
 	delete(m.part.Metadata, key)
 }
 
+// MetaGet returns the metadata value of key, and whether it exists. Every
+// metadata value is a string.
 func (m *Message) MetaGet(key string) (string, bool) {
 	v, exists := m.part.Metadata[key]
 	return v, exists
 }
 
+// MetaSet sets the metadata value of key.
 func (m *Message) MetaSet(key, value string) {
 	// Messages decoded without metadata have no map.
 	if m.part.Metadata == nil {
@@ -114,6 +126,8 @@ func (m *Message) MetaSet(key, value string) {
 	m.part.Metadata[key] = value
 }
 
+// MetaWalk calls fn with each metadata key and value, in no particular order,
+// and returns the first error that fn returns.
 func (m *Message) MetaWalk(fn func(string, string) error) error {
 	for k, v := range m.part.Metadata {
 		if err := fn(k, v); err != nil {
@@ -141,6 +155,8 @@ func fromProtoBatch(batch *messagepb.Batch) MessageBatch {
 	return result
 }
 
+// UnmarshalBatchFromProto decodes a protobuf Batch. It is used by the PDK to
+// exchange messages with Bento, and plugins don't usually need it.
 func UnmarshalBatchFromProto(b []byte) (MessageBatch, error) {
 	batch := &messagepb.Batch{}
 	if err := batch.UnmarshalVT(b); err != nil {
@@ -149,10 +165,14 @@ func UnmarshalBatchFromProto(b []byte) (MessageBatch, error) {
 	return fromProtoBatch(batch), nil
 }
 
+// MarshalBatchToProto encodes batch as a protobuf Batch. It is used by the PDK
+// to exchange messages with Bento, and plugins don't usually need it.
 func MarshalBatchToProto(batch MessageBatch) ([]byte, error) {
 	return toProtoBatch(batch).MarshalVT()
 }
 
+// MarshalBatchesToProto encodes batches as protobuf Batches. It is used by the
+// PDK to exchange messages with Bento, and plugins don't usually need it.
 func MarshalBatchesToProto(batches []MessageBatch) ([]byte, error) {
 	out := &messagepb.Batches{Batches: make([]*messagepb.Batch, len(batches))}
 	for i, batch := range batches {
@@ -161,6 +181,8 @@ func MarshalBatchesToProto(batches []MessageBatch) ([]byte, error) {
 	return out.MarshalVT()
 }
 
+// UnmarshalMessageFromProto decodes a protobuf Part. It is used by the PDK to
+// exchange messages with Bento, and plugins don't usually need it.
 func UnmarshalMessageFromProto(b []byte) (*Message, error) {
 	part := &messagepb.Part{}
 	if err := part.UnmarshalVT(b); err != nil {
@@ -169,6 +191,8 @@ func UnmarshalMessageFromProto(b []byte) (*Message, error) {
 	return &Message{part: part}, nil
 }
 
+// MarshalMessageToProto encodes msg as a protobuf Part. It is used by the PDK
+// to exchange messages with Bento, and plugins don't usually need it.
 func MarshalMessageToProto(msg *Message) ([]byte, error) {
 	return msg.part.MarshalVT()
 }

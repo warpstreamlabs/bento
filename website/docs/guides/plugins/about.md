@@ -1,89 +1,102 @@
 ---
 title: Plugins
-sidebar_label: Overview
+sidebar_label: About
 ---
 
-Extend Bento's component library using the WebAssembly (WASM) plugin system, allowing you to define sandboxed custom processor components as standalone modules that load at runtime -- no recompilation required!
-
-This section covers:
-
-- [Loading Plugins][using] - Loading plugins, testing them and how they run
-- [Developing Plugins][developing] - Writing, compiling and testing your own plugins
-- [Manifest Reference][fields] - Full configuration schema documentation
-
-## Language Support
-
-Bento provides a plugin development kit (PDK) for **Go** ([`public/wasm/service`][go-pdk]), compiled with [TinyGo][tinygo] or Go.
-
-Plugins can be written in any other language that compiles to a 32-bit WASM module, such as Rust, by implementing the [ABI][abi] directly.
-
-:::caution
-Writing a plugin without a PDK is highly experimental, and the ABI may change between Bento releases.
+:::caution EXPERIMENTAL
+Plugins are an experimental feature. The manifest, the Go PDK, and the ABI may change outside of major version releases.
 :::
 
-## File Structure
+Plugins add new processors to Bento without recompiling it. A plugin is a WebAssembly (WASM) module that Bento loads at startup, and once loaded it is configured, linted, and unit tested like any other processor.
 
-A Bento plugin consists of two files within a dedicated directory:
+## Overview
+
+A plugin is a directory with two files:
 
 ```
 my-plugin/
-├── plugin.yaml  # Plugin manifest (required)
-└── plugin.wasm  # Compiled WASM binary (required)
+├── plugin.yaml  # The manifest: the processor's name, config fields, and runtime limits
+└── plugin.wasm  # The compiled WASM module
 ```
 
-## Plugin.yaml
+Pass the plugin directory to Bento when you start it:
 
-A `plugin.yaml` manifest is required for all plugins to register within the Bento component library.
+```sh
+bento -p ./my-plugin -c config.yaml
+```
 
-You can see all available manifest fields in the [Manifest Reference][fields].
-
-### Metadata
-
-Specify metadata about the plugin, allowing Bento to register the component under its `name`, and to document it like any other component, such as in `bento list` and generated docs:
+Use the manifest's `name` as the processor name in `config.yaml`. Its `fields` define the processor's config:
 
 ```yml
-name: my_plugin    # Required. The name of the processor.
-type: processor    # Required. The type of component. Only "processor" is supported.
-status: stable     # Optional. "stable" (default), "beta" or "experimental".
-summary: ""        # Optional. A short summary of the plugin.
-description: ""    # Optional. A detailed description of the plugin and how to use it.
+pipeline:
+  processors:
+    - my-plugin: {}
 ```
 
-Plugins can accept configuration fields just like native Bento components. Define fields in your `plugin.yaml` manifest:
-```yml
-fields:
-  - name: my_field
-    description: An example configuration field
-    type: string
-    default: ""
+Repeat `-p` to load more than one plugin. To load all plugin directories under `plugins`, quote the glob so Bento expands it:
+
+```sh
+bento -p './plugins/*' -c config.yaml
 ```
 
-The config of each processor is passed to the plugin as JSON on startup.
+Pass the same `-p` flag to commands that read the config, such as `test` and `lint`:
 
-### Runtime
-
-The `runtime.wasm` section configures the environment the plugin runs in. Every field in it is optional:
-
-```yml
-runtime:
-  wasm:
-    path: plugin.wasm       # The plugin's WASM binary, relative to the plugin directory (default "plugin.wasm").
-    memory:
-      max_pages: 128        # The most memory each instance may use, in 64KiB pages.
-    mounts:                 # Directories on the host that the plugin may access.
-      - host_path: ./data   # Required for each mount. The directory on the host.
-        guest_path: /data   # Required for each mount. Where the plugin sees the directory.
-        read_only: true     # Whether the plugin may only read the directory (default true).
+```sh
+bento -p ./my-plugin test config.yaml
+bento -p ./my-plugin lint config.yaml
 ```
 
-`max_pages` limits the linear memory of each instance of the plugin, so a plugin running several instances can use that much memory for each one. It does not limit the memory Bento itself uses. When it is omitted or zero, an instance may use up to 4GiB, the most a 32-bit WASM module can address.
+See [Unit Testing][unit-testing] for writing tests.
 
-Plugins can't access the host's filesystem except through mounts. See [Plugin Security][security] before mounting a directory.
+### Check a Plugin Before Loading It
 
-[using]: /docs/guides/plugins/loading_plugins
+Only load plugins from sources you trust. Inspect the manifest's [`runtime.wasm` settings][wasm-fields] for mounted directories, write access, and the memory limit per instance. A plugin can follow symlinks in a mounted directory to files outside it. See [The Sandbox][sandbox] for the runtime's capabilities.
+
+## Why WebAssembly (WASM)?
+
+Bento has two other ways to add behavior. A [custom build][custom-build] adds components written in Go against the full plugin API, but you have to compile and maintain your own Bento binary. [Templates][templates] need no build at all, but they can only combine components that already exist.
+
+Plugins sit between the two. They can contain new logic, and they run on any stock Bento binary. WebAssembly is what makes this possible:
+
+- **Portability.** One compiled module runs on every platform that Bento runs on, so a plugin is distributed as a file rather than built per machine.
+- **Isolation.** A plugin runs in a sandbox, with no network access and with access to only the directories its manifest mounts. A crash in a plugin fails the messages it was processing rather than the Bento process.
+- **Language choice.** Any language that compiles to a 32-bit WASM module can implement the [ABI][abi], not only Go.
+
+This isolation requires copying messages into and out of the plugin's memory on each call. Plugins can only be processors, and they can't use Bento [resources][resources] such as caches. Use a custom build when you need another component type or access to those resources.
+
+## Language Support
+
+Bento provides a [plugin development kit (PDK) for Go][pdk], which handles the ABI for you. Plugins in other languages implement the [ABI][abi] directly, which is more work and more likely to break between releases. The [Rust examples][examples] show how.
+
+## Examples
+
+Complete plugins are available at [`public/wasm/examples`][examples]:
+
+| Example                                    | Language | Description                                                        |
+|--------------------------------------------|----------|--------------------------------------------------------------------|
+| [`uppercase`][uppercase-example]           | Go       | Uppercases each message, after a prefix from its config.           |
+| [`reverse`][reverse-example]               | Go       | Reverses a batch of messages, and records their positions.         |
+| [`rust_uppercase`][rust-uppercase-example] | Rust     | Uppercases each message, implementing the ABI without a PDK.       |
+| [`rust_csv`][rust-csv-example]             | Rust     | Parses CSV messages into JSON, implementing the ABI without a PDK. |
+
+## Next Steps
+
+- [Developing Plugins][developing]: build, run, and test your first plugin with the Go PDK.
+- [Manifest Fields][fields]: every field of `plugin.yaml`.
+- [Architecture][architecture]: how plugins run, how errors behave, and the ABI.
+
+[custom-build]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service
+[pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
+[templates]: /docs/configuration/templating
+[resources]: /docs/configuration/resources
+[abi]: /docs/guides/plugins/architecture#abi
 [developing]: /docs/guides/plugins/developing_plugins
-[security]: /docs/guides/plugins/loading_plugins#plugin-security
 [fields]: /docs/guides/plugins/fields
-[abi]: /docs/guides/plugins/abi
-[go-pdk]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/service
-[tinygo]: https://tinygo.org/
+[unit-testing]: /docs/configuration/unit_testing
+[wasm-fields]: /docs/guides/plugins/fields#runtimewasm
+[sandbox]: /docs/guides/plugins/architecture#the-sandbox
+[examples]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples
+[uppercase-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/uppercase
+[reverse-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/reverse
+[rust-uppercase-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/rust_uppercase
+[rust-csv-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/rust_csv

@@ -135,9 +135,9 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Usage:   opts.ExecTemplate("EXPERIMENTAL: import {{.ProductName}} templates, supports glob patterns (requires quotes)"),
 		},
 		&cli.StringSliceFlag{
-			Name:    "plugins",
+			Name:    "plugin",
 			Aliases: []string{"p"},
-			Usage:   "EXPERIMENTAL: path to a plugins configuration file",
+			Usage:   "EXPERIMENTAL: path to a Bento plugin's directory.",
 		},
 	}
 }
@@ -178,7 +178,7 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 		os.Exit(1)
 	}
 
-	pluginPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("plugins"))
+	pluginPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("plugin"))
 	if err != nil {
 		fmt.Printf("Failed to resolve plugin glob pattern: %v\n", err)
 		os.Exit(1)
