@@ -547,7 +547,7 @@ Default: `0`
 
 ### `doc_as_upsert`
 
-For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping`.
+For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping` or `script`.
 
 
 Type: `bool`  

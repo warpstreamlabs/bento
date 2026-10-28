@@ -148,7 +148,7 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 				Default(0).
 				LintRule(`root = if this < 0 { [ "num_workers must be 0 or more" ] }`),
 			service.NewBoolField(esoV2FieldDocAsUpsert).
-				Description("For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping`.").
+				Description("For the `update` action: index the message as a new document when the document does not exist, instead of failing. Equivalent to the `upsert` action. Cannot be combined with `upsert_mapping` or `script`.").
 				Advanced().
 				Default(false),
 			service.NewBloblangField(esoV2FieldDocMapping).
