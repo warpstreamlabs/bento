@@ -43,6 +43,11 @@ const (
 	esoV2FieldNumWorkers            = "num_workers"
 	esoV2FieldDocAsUpsert           = "doc_as_upsert"
 	esoV2FieldUpsertMapping         = "upsert_mapping"
+	esoV2FieldScript                = "script"
+	esoV2FieldScriptSource          = "source"
+	esoV2FieldScriptLang            = "lang"
+	esoV2FieldScriptParamsMapping   = "params_mapping"
+	esoV2FieldScriptedUpsert        = "scripted_upsert"
 )
 
 func init() {
@@ -151,6 +156,24 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 root.first_seen = now()`).
 				Advanced().
 				Optional(),
+			service.NewObjectField(esoV2FieldScript,
+				service.NewStringField(esoV2FieldScriptSource).
+					Description("The script source.").
+					Example(`ctx._source.counter = (ctx._source.counter ?: 0) + params.count`),
+				service.NewStringField(esoV2FieldScriptLang).
+					Description("The script language.").
+					Default("painless"),
+				service.NewBloblangField(esoV2FieldScriptParamsMapping).
+					Description("A mapping, executed on each message, whose result is passed to the script as `params`. If unset, or if the mapping deletes the message, the message itself is passed as `params`.").
+					Optional(),
+			).
+				Description("For the `update` action: update the document with a script instead of merging the message into it. Can be combined with `upsert_mapping` to set the document to index when it does not exist yet. Cannot be combined with `doc_as_upsert` or the `upsert` action.").
+				Advanced().
+				Optional(),
+			service.NewBoolField(esoV2FieldScriptedUpsert).
+				Description("Run the `script` also when the document does not exist yet, starting from the `upsert_mapping` result (or an empty document) instead of indexing it as is. Requires `script`.").
+				Advanced().
+				Default(false),
 		).
 		Fields(retries.CommonRetryBackOffFields(0, "1s", "5s", "30s")...)
 }
@@ -165,6 +188,11 @@ type esoV2Config struct {
 	numWorkers      int
 	docAsUpsert     bool
 	upsertMapping   *bloblang.Executor
+	hasScript       bool
+	scriptSource    string
+	scriptLang      string
+	scriptParams    *bloblang.Executor
+	scriptedUpsert  bool
 
 	indexExpr   *service.InterpolatedString
 	actionExpr  *service.InterpolatedString
@@ -233,6 +261,32 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 		if conf.upsertMapping, err = pConf.FieldBloblang(esoV2FieldUpsertMapping); err != nil {
 			return
 		}
+	}
+	if pConf.Contains(esoV2FieldScript) {
+		if conf.docAsUpsert {
+			err = fmt.Errorf("fields %s and %s cannot be combined, Elasticsearch only allows doc_as_upsert with a partial document", esoV2FieldDocAsUpsert, esoV2FieldScript)
+			return
+		}
+		scriptConf := pConf.Namespace(esoV2FieldScript)
+		conf.hasScript = true
+		if conf.scriptSource, err = scriptConf.FieldString(esoV2FieldScriptSource); err != nil {
+			return
+		}
+		if conf.scriptLang, err = scriptConf.FieldString(esoV2FieldScriptLang); err != nil {
+			return
+		}
+		if scriptConf.Contains(esoV2FieldScriptParamsMapping) {
+			if conf.scriptParams, err = scriptConf.FieldBloblang(esoV2FieldScriptParamsMapping); err != nil {
+				return
+			}
+		}
+	}
+	if conf.scriptedUpsert, err = pConf.FieldBool(esoV2FieldScriptedUpsert); err != nil {
+		return
+	}
+	if conf.scriptedUpsert && !conf.hasScript {
+		err = fmt.Errorf("field %s requires field %s", esoV2FieldScriptedUpsert, esoV2FieldScript)
+		return
 	}
 	if conf.clientConfig.MaxRetries, err = pConf.FieldInt("max_retries"); err != nil {
 		return
@@ -354,6 +408,10 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 	if eso.conf.upsertMapping != nil {
 		upsertExecutor = batch.BloblangExecutor(eso.conf.upsertMapping)
 	}
+	var scriptParamsExecutor *service.MessageBatchBloblangExecutor
+	if eso.conf.scriptParams != nil {
+		scriptParamsExecutor = batch.BloblangExecutor(eso.conf.scriptParams)
+	}
 
 	indexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
 		Client: eso.client,
@@ -384,9 +442,44 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 		case "update", "upsert":
 			// `upsert` is shorthand for an update with doc_as_upsert
 			docAsUpsert := action == "upsert" || eso.conf.docAsUpsert
-			updateBody := map[string]any{
-				"doc":           json.RawMessage(msgBytes),
-				"doc_as_upsert": docAsUpsert,
+			var updateBody map[string]any
+			if eso.conf.hasScript {
+				if action == "upsert" {
+					batchErrFailed(i, fmt.Errorf("field %s cannot be used with action 'upsert', use action 'update' instead", esoV2FieldScript))
+					continue
+				}
+				params := json.RawMessage(msgBytes)
+				if scriptParamsExecutor != nil {
+					paramsMsg, err := scriptParamsExecutor.Query(i)
+					if err != nil {
+						batchErrFailed(i, err)
+						continue
+					}
+					// a deleted result passes the message, as if the field was not set
+					if paramsMsg != nil {
+						paramsBytes, err := paramsMsg.AsBytes()
+						if err != nil {
+							batchErrFailed(i, err)
+							continue
+						}
+						params = paramsBytes
+					}
+				}
+				updateBody = map[string]any{
+					"script": map[string]any{
+						"source": eso.conf.scriptSource,
+						"lang":   eso.conf.scriptLang,
+						"params": params,
+					},
+				}
+				if eso.conf.scriptedUpsert {
+					updateBody["scripted_upsert"] = true
+				}
+			} else {
+				updateBody = map[string]any{
+					"doc":           json.RawMessage(msgBytes),
+					"doc_as_upsert": docAsUpsert,
+				}
 			}
 			if upsertExecutor != nil {
 				// doc_as_upsert would make Elasticsearch ignore the upsert document
@@ -408,6 +501,10 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 					}
 					updateBody["upsert"] = json.RawMessage(upsertBytes)
 				}
+			}
+			// scripted_upsert runs the script against the upsert document, so one is required
+			if _, ok := updateBody["upsert"]; eso.conf.scriptedUpsert && !ok {
+				updateBody["upsert"] = json.RawMessage(`{}`)
 			}
 			updateBodyBytes, err := json.Marshal(updateBody)
 			if err != nil {

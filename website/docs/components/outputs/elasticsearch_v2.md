@@ -102,6 +102,11 @@ output:
     upsert_mapping: |- # No default (optional)
       root = this
       root.first_seen = now()
+    script:
+      source: 'ctx._source.counter = (ctx._source.counter ?: 0) + params.count' # No default (required)
+      lang: painless
+      params_mapping: "" # No default (optional)
+    scripted_upsert: false
     max_retries: 0
     backoff:
       initial_interval: 1s
@@ -559,6 +564,49 @@ upsert_mapping: |-
   root = this
   root.first_seen = now()
 ```
+
+### `script`
+
+For the `update` action: update the document with a script instead of merging the message into it. Can be combined with `upsert_mapping` to set the document to index when it does not exist yet. Cannot be combined with `doc_as_upsert` or the `upsert` action.
+
+
+Type: `object`  
+
+### `script.source`
+
+The script source.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+source: 'ctx._source.counter = (ctx._source.counter ?: 0) + params.count'
+```
+
+### `script.lang`
+
+The script language.
+
+
+Type: `string`  
+Default: `"painless"`  
+
+### `script.params_mapping`
+
+A mapping, executed on each message, whose result is passed to the script as `params`. If unset, or if the mapping deletes the message, the message itself is passed as `params`.
+
+
+Type: `string`  
+
+### `scripted_upsert`
+
+Run the `script` also when the document does not exist yet, starting from the `upsert_mapping` result (or an empty document) instead of indexing it as is. Requires `script`.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `max_retries`
 

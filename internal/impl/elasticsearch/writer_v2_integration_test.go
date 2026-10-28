@@ -62,6 +62,31 @@ upsert_mapping: 'root = this'
 	require.ErrorContains(t, err, "cannot be combined")
 }
 
+func TestOutputV2ScriptConfigErrors(t *testing.T) {
+	for name, conf := range map[string]string{
+		"script with doc_as_upsert": `
+script:
+  source: 'ctx._source.x = params.x'
+doc_as_upsert: true
+`,
+		"scripted_upsert without script": `
+scripted_upsert: true
+`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(`
+index: foo
+urls: [ http://localhost:9200 ]
+action: update
+`+conf, nil)
+			require.NoError(t, err)
+
+			_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
+			require.Error(t, err)
+		})
+	}
+}
+
 func TestIntegrationWriterV2(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
@@ -192,6 +217,64 @@ func TestIntegrationWriterV2(t *testing.T) {
 	t.Run("TestElasticUpsertMappingV2", func(te *testing.T) {
 		testElasticUpsertMappingV2(urls, client, te)
 	})
+
+	t.Run("TestElasticScriptV2", func(te *testing.T) {
+		testElasticScriptV2(urls, client, te)
+	})
+}
+
+// A script keeps the highest total even when an older value arrives later,
+// and upsert_mapping/scripted_upsert decide how a missing document starts.
+func testElasticScriptV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: script_updates
+id: ${! this.id }
+urls: %v
+action: update
+script:
+  source: 'ctx._source.total = Math.max(ctx._source.total, params.total)'
+  params_mapping: 'root.total = this.total'
+upsert_mapping: 'root = this'
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	for _, total := range []int{10, 30, 20} {
+		require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+			service.NewMessage(fmt.Appendf(nil, `{"id":"doc-1","total":%v}`, total)),
+		}))
+	}
+	source := getSourceV2(t, client, "script_updates", "doc-1")
+	assert.EqualValues(t, 30, source["total"])
+
+	// scripted_upsert: the script also runs on creation, here from an empty document
+	o2 := outputFromConfV2(t, `
+index: script_updates
+id: ${! this.id }
+urls: %v
+action: update
+script:
+  source: 'ctx._source.count = (ctx._source.count ?: 0) + 1'
+scripted_upsert: true
+`, urls)
+	require.NoError(t, o2.Connect(ctx))
+	defer func() {
+		require.NoError(t, o2.Close(ctx))
+	}()
+
+	for range 3 {
+		require.NoError(t, o2.WriteBatch(ctx, service.MessageBatch{
+			service.NewMessage([]byte(`{"id":"doc-2"}`)),
+		}))
+	}
+	source = getSourceV2(t, client, "script_updates", "doc-2")
+	assert.EqualValues(t, 3, source["count"])
 }
 
 // The upsert_mapping result is only indexed when the document is created;
