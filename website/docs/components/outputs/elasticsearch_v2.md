@@ -527,7 +527,7 @@ Type: `int`
 
 ### `num_workers`
 
-The number of BulkIndexer workers per batch. Each worker sends its own bulk request, so a batch is split over this many concurrent requests. Set to 1 to send each batch as a single bulk request. 0 uses the library default, the number of CPUs.
+The number of workers of the [BulkIndexer](https://pkg.go.dev/github.com/elastic/go-elasticsearch/v9/esutil#BulkIndexer) used for each batch. 0 uses the library default, the number of CPUs.
 
 
 Type: `int`  

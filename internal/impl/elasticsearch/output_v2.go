@@ -131,11 +131,13 @@ Both the `+"`id` and `index`"+` fields can be dynamically set using function int
 			service.NewIntField(esoV2FieldRetryOnConflict).
 				Description("The number of times Elasticsearch retries an `update` or `upsert` action internally when it hits a version conflict, e.g. from concurrent writes to the same document. Not sent when unset.").
 				Advanced().
-				Optional(),
+				Optional().
+				LintRule(`root = if this < 0 { [ "retry_on_conflict must be 0 or more" ] }`),
 			service.NewIntField(esoV2FieldNumWorkers).
-				Description("The number of BulkIndexer workers per batch. Each worker sends its own bulk request, so a batch is split over this many concurrent requests. Set to 1 to send each batch as a single bulk request. 0 uses the library default, the number of CPUs.").
+				Description("The number of workers of the [BulkIndexer](https://pkg.go.dev/github.com/elastic/go-elasticsearch/v9/esutil#BulkIndexer) used for each batch. 0 uses the library default, the number of CPUs.").
 				Advanced().
-				Default(0),
+				Default(0).
+				LintRule(`root = if this < 0 { [ "num_workers must be 0 or more" ] }`),
 		).
 		Fields(retries.CommonRetryBackOffFields(0, "1s", "5s", "30s")...)
 }
@@ -192,9 +194,17 @@ func esoV2ConfigFromParsed(pConf *service.ParsedConfig) (conf esoV2Config, err e
 		if retryOnConflict, err = pConf.FieldInt(esoV2FieldRetryOnConflict); err != nil {
 			return
 		}
+		if retryOnConflict < 0 {
+			err = fmt.Errorf("field %s must be 0 or more, got %d", esoV2FieldRetryOnConflict, retryOnConflict)
+			return
+		}
 		conf.retryOnConflict = &retryOnConflict
 	}
 	if conf.numWorkers, err = pConf.FieldInt(esoV2FieldNumWorkers); err != nil {
+		return
+	}
+	if conf.numWorkers < 0 {
+		err = fmt.Errorf("field %s must be 0 or more, got %d", esoV2FieldNumWorkers, conf.numWorkers)
 		return
 	}
 	if conf.clientConfig.MaxRetries, err = pConf.FieldInt("max_retries"); err != nil {

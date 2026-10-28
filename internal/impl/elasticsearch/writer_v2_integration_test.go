@@ -31,6 +31,23 @@ func outputFromConfV2(t testing.TB, conf string, args ...any) *elasticsearch.EsO
 
 	return o
 }
+
+func TestOutputV2NegativeIntFields(t *testing.T) {
+	for _, field := range []string{"retry_on_conflict", "num_workers"} {
+		t.Run(field, func(t *testing.T) {
+			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(fmt.Sprintf(`
+index: foo
+urls: [ http://localhost:9200 ]
+%s: -1
+`, field), nil)
+			require.NoError(t, err)
+
+			_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
+			require.ErrorContains(t, err, "must be 0 or more")
+		})
+	}
+}
+
 func TestIntegrationWriterV2(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
