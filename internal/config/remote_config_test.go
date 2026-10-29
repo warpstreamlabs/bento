@@ -30,7 +30,7 @@ func TestOptSetRemoteConfigPath(t *testing.T) {
 	r := &Reader{}
 	opt := OptSetRemoteConfigPath("/some/path/remote.yaml")
 	opt(r)
-	assert.Equal(t, "/some/path/remote.yaml", r.remoteConfigPath)
+	assert.Equal(t, "/some/path/remote.yaml", r.RemoteConfigPath)
 }
 
 func TestReadMainRemoteConfig(t *testing.T) {
@@ -131,7 +131,7 @@ output:
 }
 
 func TestTriggerMainUpdateRemoteConfigNoOp(t *testing.T) {
-	r := &Reader{remoteConfigPath: "/some/spec.yaml"}
+	r := &Reader{RemoteConfigPath: "/some/spec.yaml"}
 	// TriggerMainUpdate should return nil immediately without doing anything
 	// when remoteConfigPath is set (file watching not supported for remote configs).
 	err := r.TriggerMainUpdate(nil, false, "")

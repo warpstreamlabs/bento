@@ -60,7 +60,7 @@ type Reader struct {
 	streamsPaths     []string
 	overrides        []string
 	ConfigFromEnvVar string
-	remoteConfigPath string
+	RemoteConfigPath string
 
 	modTimeLastRead map[string]time.Time
 
@@ -210,7 +210,7 @@ func SetRemoteConfigFetcher(fn RemoteConfigFetcher) {
 // remote URL described by the given local spec file.
 func OptSetRemoteConfigPath(path string) OptFunc {
 	return func(r *Reader) {
-		r.remoteConfigPath = path
+		r.RemoteConfigPath = path
 	}
 }
 
@@ -355,14 +355,14 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
 			return
 		}
-	} else if r.remoteConfigPath != "" {
+	} else if r.RemoteConfigPath != "" {
 		if remoteConfigFetcher == nil {
 			err = errors.New("remote config fetcher not initialised: ensure the httpclient package is imported")
 			return
 		}
 		var specBytes []byte
-		if specBytes, err = os.ReadFile(r.remoteConfigPath); err != nil {
-			err = fmt.Errorf("failed to read remote config spec %v: %w", r.remoteConfigPath, err)
+		if specBytes, err = os.ReadFile(r.RemoteConfigPath); err != nil {
+			err = fmt.Errorf("failed to read remote config spec %v: %w", r.RemoteConfigPath, err)
 			return
 		}
 		// Expand env vars in the spec file (e.g. ${MY_TOKEN} in headers)
@@ -370,7 +370,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 			return
 		}
 		if confBytes, err = remoteConfigFetcher(context.Background(), specBytes); err != nil {
-			err = fmt.Errorf("%v: %w", r.remoteConfigPath, err)
+			err = fmt.Errorf("%v: %w", r.RemoteConfigPath, err)
 			return
 		}
 		if confBytes, err = ReplaceEnvVariables(confBytes, os.LookupEnv); err != nil {
@@ -429,7 +429,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // the provided main update func, and apply changes to resources to the provided
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
-	if r.remoteConfigPath != "" {
+	if r.RemoteConfigPath != "" {
 		// Remote configs are fetched once at startup via --remote-config.
 		// File watching is not supported and is rejected at the CLI layer,
 		// so this is a defensive no-op.

@@ -31,17 +31,19 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 				break
 			}
 		}
-		// Finally check the "BENTO_CONFIG" env var
+		// Check the "BENTO_CONFIG" env var
 		if configString := os.Getenv("BENTO_CONFIG"); configString != "" {
 			opts = append(opts, config.OptLoadFromEnvVar(configString))
+		} else {
+			// Check to see if we have a remote config to fetch
+			if rc := c.String("remote-config"); rc != "" {
+				if c.Bool("watcher") {
+					fmt.Fprintln(os.Stderr, "error: --watcher is not supported with --remote-config")
+					os.Exit(1)
+				}
+				opts = append(opts, config.OptSetRemoteConfigPath(rc))
+			}
 		}
-	}
-	if rc := c.String("remote-config"); rc != "" {
-		if c.Bool("watcher") {
-			fmt.Fprintln(os.Stderr, "error: --watcher is not supported with --remote-config")
-			os.Exit(1)
-		}
-		opts = append(opts, config.OptSetRemoteConfigPath(rc))
 	}
 	if streamsMode {
 		opts = append(opts, config.OptSetStreamPaths(c.Args().Slice()...))
