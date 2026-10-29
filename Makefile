@@ -130,7 +130,17 @@ protos:
 		--go_out=. \
 		--go_opt=module=github.com/warpstreamlabs/bento \
 		$(PROTO_FILES)
-	@echo "Proto files generated to internal/message/ and internal/docs/"
+
+.PHONY: protos-lite
+protos-lite:
+	@echo "Generating lite protocol buffer files..."
+	protoc \
+		--proto_path=resources/protos \
+		--go-lite_out=. \
+		--go-lite_opt=module=github.com/warpstreamlabs/bento \
+		--go-lite_opt=features=marshal+unmarshal+size \
+		--go-lite_opt=Mmessage.proto=github.com/warpstreamlabs/bento/internal/message/messagepblite \
+		$(PROTO_FILES)
 
 playground:
 	@cp -r "internal/cli/blobl/playground" "$(WEBSITE_DIR)/static/playground"

@@ -129,6 +129,16 @@ module.exports = {
         },
         {
           type: 'category',
+          label: 'Plugins',
+          items: [
+            'guides/plugins/about',
+            'guides/plugins/developing_plugins',
+            'guides/plugins/fields',
+            'guides/plugins/architecture',
+          ],
+        },
+        {
+          type: 'category',
           label: 'Streams Mode',
           items: [
             'guides/streams_mode/about',

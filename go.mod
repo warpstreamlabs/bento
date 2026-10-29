@@ -33,6 +33,7 @@ require (
 	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/andybalholm/brotli v1.2.3
 	github.com/apache/pulsar-client-go v0.21.0
+	github.com/aperturerobotics/protobuf-go-lite v0.19.0
 	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
 	github.com/aws/aws-sdk-go-v2 v1.47.0
@@ -154,7 +155,7 @@ require (
 	github.com/snowplow/snowplow-golang-analytics-sdk v0.4.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.12.1
-	github.com/tetratelabs/wazero v1.6.0
+	github.com/tetratelabs/wazero v1.11.0
 	github.com/tilinna/z85 v1.0.0
 	github.com/trinodb/trino-go-client v0.335.0
 	github.com/twmb/franz-go v1.20.7
@@ -226,6 +227,7 @@ require (
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/apache/arrow-go/v18 v18.8.0 // indirect
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
+	github.com/aperturerobotics/json-iterator-lite v1.1.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
 	github.com/armon/go-metrics v0.3.4 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 // indirect
