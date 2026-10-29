@@ -221,7 +221,7 @@ bento -rc ./fetch_config.yaml
 ```
 
 Where `fetch_config.yaml` defines a HTTP request using the same fields as the [`http_client` input][http_client].
-Note that the `stream`, `payload`, `drop_empty_bodies` and `rate_limit` fields are not allowed.
+Note that the `stream`, `payload`, `drop_empty_bodies` and `rate_limit` fields are ignored.
 
 `fetch_config.yaml` example:
 
