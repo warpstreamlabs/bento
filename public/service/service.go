@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 
@@ -21,7 +22,7 @@ import (
 // 1. The service shuts down gracefully due to the inputs closing
 // 2. A termination signal is received
 // 3. The provided context has a deadline that is reached, triggering graceful termination
-// 4. The provided context is cancelled (WARNING, this prevents graceful termination)
+// 4. The provided context is cancelled, triggering graceful termination within shutdown_timeout
 //
 // This function must only be called once during the entire lifecycle of your
 // program, as it interacts with singleton state. In order to manage multiple
@@ -90,6 +91,16 @@ func CLIOptSetDocumentationURL(n string) CLIOptFunc {
 func CLIOptSetShowRunCommand(show bool) CLIOptFunc {
 	return func(c *CLIOptBuilder) {
 		c.opts.ShowRunCommand = show
+	}
+}
+
+// CLIOptSetErrWriter overrides the writer used for error messages that occur
+// before the configured logger exists (or that otherwise bypass it) along
+// the run path, such as a config file failing to load. It defaults to
+// os.Stderr.
+func CLIOptSetErrWriter(w io.Writer) CLIOptFunc {
+	return func(c *CLIOptBuilder) {
+		c.opts.ErrWriter = w
 	}
 }
 

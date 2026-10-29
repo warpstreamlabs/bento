@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -162,9 +163,25 @@ func RunManagerUntilStopped(
 
 	// Defer clean up.
 	defer func() {
+		// If the run context was explicitly cancelled (as opposed to
+		// reaching a deadline) then it's already done, which would
+		// otherwise cause the cleanup below to fail instantly and skip
+		// graceful termination entirely. In that case we derive our
+		// cleanup contexts from a copy of c.Context with its
+		// cancellation (and therefore also its deadline) stripped, so
+		// that the configured shutdown delay and timeout still apply as
+		// normal. When the context instead has a deadline that's being
+		// approached we keep using it as-is, since RunManagerUntilStopped
+		// already triggers shutdown early enough to finish gracefully
+		// before that deadline is reached.
+		cleanupBase := c.Context
+		if errors.Is(c.Err(), context.Canceled) {
+			cleanupBase = context.WithoutCancel(c.Context)
+		}
+
 		if exitDelay > 0 {
 			stopMgr.Manager().Logger().Info("Shutdown delay is in effect for %s\n", exitDelay)
-			if err := DelayShutdown(c.Context, exitDelay); err != nil {
+			if err := DelayShutdown(cleanupBase, exitDelay); err != nil {
 				stopMgr.Manager().Logger().Error("Shutdown delay failed: %s", err)
 			}
 		}
@@ -179,7 +196,7 @@ func RunManagerUntilStopped(
 			os.Exit(1)
 		}()
 
-		ctx, done := context.WithTimeout(c.Context, exitTimeout)
+		ctx, done := context.WithTimeout(cleanupBase, exitTimeout)
 		if err := stopStrm.Stop(ctx); err != nil {
 			os.Exit(1)
 		}

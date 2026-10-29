@@ -139,23 +139,23 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 func preRun(c *cli.Context, opts *common.CLIOpts) error {
 	dotEnvPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("env-file"))
 	if err != nil {
-		fmt.Printf("Failed to resolve env file glob pattern: %v\n", err)
+		opts.Errorf("Failed to resolve env file glob pattern: %v\n", err)
 		os.Exit(1)
 	}
 	for _, dotEnvFile := range dotEnvPaths {
 		dotEnvBytes, err := ifs.ReadFile(ifs.OS(), dotEnvFile)
 		if err != nil {
-			fmt.Printf("Failed to read dotenv file: %v\n", err)
+			opts.Errorf("Failed to read dotenv file: %v\n", err)
 			os.Exit(1)
 		}
 		vars, err := parser.ParseDotEnvFile(dotEnvBytes)
 		if err != nil {
-			fmt.Printf("Failed to parse dotenv file: %v\n", err)
+			opts.Errorf("Failed to parse dotenv file: %v\n", err)
 			os.Exit(1)
 		}
 		for k, v := range vars {
 			if err = os.Setenv(k, v); err != nil {
-				fmt.Printf("Failed to set env var '%v': %v\n", k, err)
+				opts.Errorf("Failed to set env var '%v': %v\n", k, err)
 				os.Exit(1)
 			}
 		}
@@ -163,19 +163,19 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 
 	templatesPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("templates"))
 	if err != nil {
-		fmt.Printf("Failed to resolve template glob pattern: %v\n", err)
+		opts.Errorf("Failed to resolve template glob pattern: %v\n", err)
 		os.Exit(1)
 	}
 	lints, err := template.InitTemplates(templatesPaths...)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Template file read error: %v\n", err)
+		opts.Errorf("Template file read error: %v\n", err)
 		os.Exit(1)
 	}
 	if !c.Bool("chilled") && len(lints) > 0 {
 		for _, lint := range lints {
-			fmt.Fprintln(os.Stderr, lint)
+			opts.Errorf("%s\n", lint)
 		}
-		fmt.Println(opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
+		opts.Errorf("%s\n", opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
 		os.Exit(1)
 	}
 	return nil
@@ -184,6 +184,9 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 // App returns the full CLI app definition, this is useful for writing unit
 // tests around the CLI.
 func App(opts *common.CLIOpts) *cli.App {
+	if opts.ErrWriter == nil {
+		opts.ErrWriter = os.Stderr
+	}
 	flags := []cli.Flag{
 		&cli.BoolFlag{
 			Name:    "version",
@@ -216,7 +219,8 @@ Either run {{.ProductName}} as a stream processor or choose a command:
   {{.BinaryName}} create kafka//file > ./config.yaml
   {{.BinaryName}} -c ./config.yaml
   {{.BinaryName}} -r "./production/*.yaml" -c ./config.yaml`)[1:],
-		Flags: flags,
+		Flags:     flags,
+		ErrWriter: opts.ErrWriter,
 		Before: func(c *cli.Context) error {
 			return preRun(c, opts)
 		},
@@ -230,7 +234,7 @@ Either run {{.ProductName}} as a stream processor or choose a command:
 				os.Exit(0)
 			}
 			if c.Args().Len() > 0 {
-				fmt.Fprintf(os.Stderr, "Unrecognised command: %v\n", c.Args().First())
+				opts.Errorf("Unrecognised command: %v\n", c.Args().First())
 				_ = cli.ShowAppHelp(c)
 				os.Exit(1)
 			}
@@ -293,7 +297,7 @@ Run a {{.ProductName}} config.
 				Action: func(c *cli.Context) error {
 					if c.Args().Len() > 0 {
 						if c.Args().Len() > 1 {
-							fmt.Fprintln(os.Stderr, "A maximum of one config must be specified with the run command")
+							opts.Errorf("%s\n", "A maximum of one config must be specified with the run command")
 							os.Exit(1)
 						}
 						_ = c.Set("config", c.Args().First())
@@ -347,7 +351,7 @@ For more information check out the docs at:
 	}
 
 	app.OnUsageError = func(context *cli.Context, err error, isSubcommand bool) error {
-		fmt.Printf("Usage error: %v\n", err)
+		opts.Errorf("Usage error: %v\n", err)
 		_ = cli.ShowAppHelp(context)
 		return err
 	}
