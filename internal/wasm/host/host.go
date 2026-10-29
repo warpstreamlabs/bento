@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/tetratelabs/wazero/api"
@@ -29,7 +30,7 @@ func Malloc(ctx context.Context, memory api.Memory, alloc api.Function, data []b
 	}
 
 	if !memory.Write(buffer.Address(), data) {
-		return 0, fmt.Errorf("write to memory out of range")
+		return 0, errors.New("write to memory out of range")
 	}
 	return buffer, nil
 }
