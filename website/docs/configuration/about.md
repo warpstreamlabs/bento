@@ -226,7 +226,7 @@ Note that the `stream`, `payload`, `drop_empty_bodies` and `rate_limit` fields a
 `fetch_config.yaml` example:
 
 ```yml
-url: http://0.0.0.0:8080/capitalise
+url: http://config.example.com/pipeline.yaml
 verb: GET
 timeout: 5s
 ```
