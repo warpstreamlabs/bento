@@ -2,9 +2,9 @@ package httpclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
 
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/public/service"
@@ -27,50 +27,23 @@ func fetchRemoteConfig(ctx context.Context, specBytes []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build remote config client: %w", err)
 	}
+	if conf.RateLimit != "" {
+		return nil, errors.New("rate_limit is not supported when fetching a remote config")
+	}
 
-	msg := service.NewMessage(nil)
-
-	urlStr, err := conf.URL.TryString(msg)
+	client, err := NewClientFromOldConfig(conf, service.MockResources())
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve remote config URL: %w", err)
+		return nil, err
 	}
+	defer func() {
+		_ = client.Close(ctx)
+	}()
 
-	req, err := http.NewRequestWithContext(ctx, conf.Verb, urlStr, nil)
+	res, err := client.SendToResponse(ctx, service.MessageBatch{service.NewMessage(nil)})
 	if err != nil {
-		return nil, fmt.Errorf("invalid remote config request: %w", err)
+		return nil, err
 	}
+	defer res.Body.Close()
 
-	for k, v := range conf.Headers {
-		hVal, hErr := v.TryString(msg)
-		if hErr != nil {
-			return nil, fmt.Errorf("failed to resolve header %v: %w", k, hErr)
-		}
-		req.Header.Set(k, hVal)
-	}
-
-	httpClient := &http.Client{Timeout: conf.Timeout}
-	if conf.TLSEnabled && conf.TLSConf != nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: conf.TLSConf,
-		}
-	}
-	if conf.authSigner != nil {
-		if err := conf.authSigner(nil, req); err != nil {
-			return nil, fmt.Errorf("failed to sign remote config request: %w", err)
-		}
-	}
-	if conf.clientCtor != nil {
-		httpClient = conf.clientCtor(ctx, httpClient)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch remote config: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("remote config server returned status %s", resp.Status)
-	}
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(res.Body)
 }

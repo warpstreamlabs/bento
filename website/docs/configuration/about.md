@@ -211,6 +211,26 @@ bento -w -r ./production/request.yaml streams ./stream_configs/*.yaml
 
 If a file update results in configuration parsing or linting errors then the change is ignored (with logs informing you of the problem) and the previous configuration will continue to be run (until the issues are fixed).
 
+## Remote Config 
+
+It's possible to fetch a config via a HTTP request using the `-rc` / `--remote-config` flag when running Bento 
+in normal mode: 
+
+```sh
+bento -rc ./fetch_config.yaml
+```
+
+Where `fetch_config.yaml` defines a HTTP request using the same fields as the [`http_client` input][http_client].
+Note that the `stream`, `payload`, `drop_empty_bodies` and `rate_limit` fields are not allowed.
+
+`fetch_config.yaml` example:
+
+```yaml
+url: http://0.0.0.0:8080/capitalise
+verb: GET
+timeout: 5s
+```
+
 ## Enabling Discovery
 
 The discoverability of configuration fields is a common headache with any configuration driven application. The classic solution is to provide curated documentation that is often hosted on a dedicated site.
@@ -304,3 +324,4 @@ This option takes effect after the `shutdown_delay` duration has passed if that 
 [config.resources]: /docs/configuration/resources
 [json-references]: https://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03
 [components]: /docs/components/about
+[http_client]: /docs/components/inputs/http_client

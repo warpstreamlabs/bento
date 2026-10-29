@@ -194,7 +194,7 @@ func OptLoadFromEnvVar(config string) OptFunc {
 }
 
 // RemoteConfigFetcher is a function that, given the raw bytes of a
-// remote_config spec file, fetches and returns the main config bytes.
+// remote-config spec file, fetches and returns the main config bytes.
 // Registered from the httpclient package via init() to avoid import cycles.
 type RemoteConfigFetcher func(ctx context.Context, specBytes []byte) ([]byte, error)
 
@@ -430,7 +430,7 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
 	if r.remoteConfigPath != "" {
-		// Remote configs are fetched once at startup via --remote_config.
+		// Remote configs are fetched once at startup via --remote-config.
 		// File watching is not supported and is rejected at the CLI layer,
 		// so this is a defensive no-op.
 		return nil

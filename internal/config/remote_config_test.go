@@ -48,8 +48,8 @@ input:
 output:
   drop: {}
 `
-	// Write a spec file (the --remote_config argument)
-	specFile := filepath.Join(t.TempDir(), "remote_config.yaml")
+	// Write a spec file (the --remote-config argument)
+	specFile := filepath.Join(t.TempDir(), "remote-config.yaml")
 	require.NoError(t, os.WriteFile(specFile, []byte("url: https://example.com/config\nverb: GET\n"), 0o600))
 
 	// Register a fetcher that ignores the spec and returns our fixed config.
@@ -71,7 +71,7 @@ func TestReadMainRemoteConfigNilFetcher(t *testing.T) {
 
 	remoteConfigFetcher = nil
 
-	specFile := filepath.Join(t.TempDir(), "remote_config.yaml")
+	specFile := filepath.Join(t.TempDir(), "remote-config.yaml")
 	require.NoError(t, os.WriteFile(specFile, []byte("url: https://example.com/config\n"), 0o600))
 
 	rdr := newDummyReader("", nil, OptSetRemoteConfigPath(specFile))
@@ -114,7 +114,7 @@ output:
 	// Spec file uses ${BENTO_TEST_TOKEN} — should be expanded before the
 	// fetcher receives the bytes.
 	specContent := "url: https://example.com/config\nverb: GET\nheaders:\n  Authorization: \"Bearer ${BENTO_TEST_TOKEN}\"\n"
-	specFile := filepath.Join(t.TempDir(), "remote_config_env.yaml")
+	specFile := filepath.Join(t.TempDir(), "remote-config_env.yaml")
 	require.NoError(t, os.WriteFile(specFile, []byte(specContent), 0o600))
 
 	SetRemoteConfigFetcher(func(ctx context.Context, specBytes []byte) ([]byte, error) {

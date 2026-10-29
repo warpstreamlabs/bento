@@ -36,9 +36,9 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 			opts = append(opts, config.OptLoadFromEnvVar(configString))
 		}
 	}
-	if rc := c.String("remote_config"); rc != "" {
+	if rc := c.String("remote-config"); rc != "" {
 		if c.Bool("watcher") {
-			fmt.Fprintln(os.Stderr, "error: --watcher is not supported with --remote_config")
+			fmt.Fprintln(os.Stderr, "error: --watcher is not supported with --remote-config")
 			os.Exit(1)
 		}
 		opts = append(opts, config.OptSetRemoteConfigPath(rc))
