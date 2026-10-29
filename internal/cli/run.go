@@ -167,7 +167,7 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 	}
 
 	if c.String("config") != "" && c.String("remote-config") != "" {
-		fmt.Println("CLI flags --config (-c)  and --remote-config (-rc) cannot be used together")
+		fmt.Println("CLI flags --config (-c) and --remote-config (-rc) cannot be used together")
 		os.Exit(1)
 	}
 
