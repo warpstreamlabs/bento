@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+ - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
 
 ### Changed
