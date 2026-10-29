@@ -8,10 +8,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 
  - `tls` field added to `socket` output enabling TLS connections when `network` is `tcp` @weird-oecophylla
+ - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
 
 ### Changed
 
  - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
+ - The Hugging Face processors use hugot v0.8.3, which replaces the ONNX Runtime backend, and `enable_download` now creates the `path` directory when it is missing @slachiewicz
 
 ## 1.22.0 - 2026-10-09
 
