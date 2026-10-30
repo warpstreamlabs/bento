@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -475,5 +476,66 @@ http:
 		if exp, act := "200", msgs[0].Get(i).MetaGetStr("http_status_code"); exp != act {
 			t.Errorf("Wrong response code metadata: %v != %v", act, exp)
 		}
+	}
+}
+
+// A forced stream stop cancels the context messages are processed with, then closes the stream
+// resources, rate limits included. A request still waiting on the rate limit after that can no
+// longer find it, logs the error and retries once per second, forever: the wait must end with the
+// context instead.
+func TestHTTPProcessorRateLimitWaitEndsWithContext(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("foobar"))
+	}))
+	t.Cleanup(ts.Close)
+
+	tests := []struct {
+		name     string
+		parallel bool
+		parts    int
+	}{
+		{name: "single request", parts: 1},
+		{name: "serial batch", parts: 3},
+		{name: "parallel batch", parallel: true, parts: 3},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mgr := mock.NewManager()
+			// A saturated rate limit: every access is told to wait a little longer.
+			mgr.RateLimits["saturated"] = mock.RateLimit(func(context.Context) (time.Duration, error) {
+				return 10 * time.Millisecond, nil
+			})
+
+			h, err := mgr.NewProcessor(parseYAMLProcConf(t, `
+http:
+  url: %v/testpost
+  rate_limit: saturated
+  parallel: %v
+`, ts.URL, test.parallel))
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = h.Close(context.Background()) })
+
+			parts := make([][]byte, test.parts)
+			for i := range parts {
+				parts[i] = []byte("foo")
+			}
+
+			ctx, cancel := context.WithCancel(t.Context())
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_, _ = h.ProcessBatch(ctx, message.QuickBatch(parts))
+			}()
+
+			time.Sleep(50 * time.Millisecond)
+			cancel()
+			require.NoError(t, mgr.RemoveRateLimit(t.Context(), "saturated"))
+
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("ProcessBatch kept waiting on the rate limit after its context was cancelled")
+			}
+		})
 	}
 }
