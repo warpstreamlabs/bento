@@ -345,6 +345,9 @@ func (k *kafkaReader) asyncCheckpointer(topic string, partition int32) func(cont
 		case c <- asyncMessage{
 			msg: msg,
 			ackFn: func(ctx context.Context, res error) error {
+				if res != nil {
+					return nil
+				}
 				maxOffset := resolveFn()
 				if maxOffset == nil {
 					return nil

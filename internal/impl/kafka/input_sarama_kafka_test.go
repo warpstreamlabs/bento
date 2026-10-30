@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -10,6 +12,22 @@ import (
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
+
+type recordingOffsetMarker struct {
+	marked []struct {
+		topic     string
+		partition int32
+		offset    int64
+	}
+}
+
+func (r *recordingOffsetMarker) MarkOffset(topic string, partition int32, offset int64, _ string) {
+	r.marked = append(r.marked, struct {
+		topic     string
+		partition int32
+		offset    int64
+	}{topic: topic, partition: partition, offset: offset})
+}
 
 func TestKafkaBadParams(t *testing.T) {
 	testCases := []struct {
@@ -47,4 +65,42 @@ topics: %v
 			assert.Contains(t, err.Error(), test.errStr)
 		})
 	}
+}
+
+func TestKafkaAsyncCheckpointerAckErrors(t *testing.T) {
+	marker := &recordingOffsetMarker{}
+	reader := kafkaReader{
+		checkpointLimit: 2,
+		mgr:             service.MockResources(),
+		session:         marker,
+	}
+	checkpointer := reader.asyncCheckpointer("foo", 1)
+	messages := make(chan asyncMessage, 2)
+	batch := service.MessageBatch{service.NewMessage([]byte("message"))}
+
+	require.True(t, checkpointer(context.Background(), messages, batch, 10))
+	first := <-messages
+	require.NoError(t, first.ackFn(context.Background(), nil))
+	assert.Equal(t, []struct {
+		topic     string
+		partition int32
+		offset    int64
+	}{{topic: "foo", partition: 1, offset: 10}}, marker.marked)
+
+	reader = kafkaReader{
+		checkpointLimit: 2,
+		mgr:             service.MockResources(),
+		session:         marker,
+	}
+	checkpointer = reader.asyncCheckpointer("foo", 1)
+	marker.marked = nil
+	require.True(t, checkpointer(context.Background(), messages, batch, 11))
+	failed := <-messages
+	require.NoError(t, failed.ackFn(context.Background(), errors.New("delivery failed")))
+	assert.Empty(t, marker.marked)
+
+	require.True(t, checkpointer(context.Background(), messages, batch, 12))
+	later := <-messages
+	require.NoError(t, later.ackFn(context.Background(), nil))
+	assert.Empty(t, marker.marked)
 }
