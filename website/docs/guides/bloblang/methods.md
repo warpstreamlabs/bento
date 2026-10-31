@@ -2456,7 +2456,7 @@ root = this.json_schema("""{
 # Out: {"foo":"bar"}
 
 # In:  {"foo":5}
-# Out: Error("failed assignment (line 1): field `this`: foo invalid type. expected: string, given: integer")
+# Out: Error("failed assignment (line 1): field `this`: - at '/foo': got number, want string")
 ```
 
 In order to load a schema from a file use the `file` function.
