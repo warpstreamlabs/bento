@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
 
+### Fixed
+
+ - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+
 ## 1.22.0 - 2026-10-09
 
 ### Added
