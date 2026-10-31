@@ -72,6 +72,8 @@ The Kafka input allows parallel processing of messages from different topic part
 
 In order to enforce ordered processing of partition messages set the `+"[`checkpoint_limit`](#checkpoint_limit) to `1`"+` and this will force partitions to be processed in lock-step, where a message will only be processed once the prior message is delivered.
 
+Setting `+"`auto_replay_nacks`"+` to `+"`false`"+` deletes rejected messages rather than retrying them, which means their offsets are committed. When `+"`checkpoint_limit`"+` is greater than `+"`1`"+` a nacked message is committed along with the rest of the partition, so if rejected messages must not be committed past, keep `+"`auto_replay_nacks`"+` set to `+"`true`"+`.
+
 Batching messages before processing can be enabled using the `+"[`batching`](#batching)"+` field, and this batching is performed per-partition such that messages of a batch will always originate from the same partition. This batching mechanism is capable of creating batches of greater size than the `+"[`checkpoint_limit`](#checkpoint_limit)"+`, in which case the next batch will only be created upon delivery of the current one.
 
 ### Metadata
@@ -345,9 +347,6 @@ func (k *kafkaReader) asyncCheckpointer(topic string, partition int32) func(cont
 		case c <- asyncMessage{
 			msg: msg,
 			ackFn: func(ctx context.Context, res error) error {
-				if res != nil {
-					return nil
-				}
 				maxOffset := resolveFn()
 				if maxOffset == nil {
 					return nil
