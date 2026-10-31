@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
 
+### Fixed
+
+ - Logs teed through `CLIOptAddTeeLogger` (and loggers set with `StreamBuilder.SetLogger`) into an `slog.Logger` are now formatted instead of arriving with unexpanded verbs and `!BADKEY` attributes, and keep fields added with `With` @piratecarrot
+
 ## 1.22.0 - 2026-10-09
 
 ### Added

@@ -168,6 +168,41 @@ func TestAirGapLoggerTrace(t *testing.T) {
 `, buf.String())
 }
 
+// TestAirGapSlogLoggerFormatsArgs covers the tee-logger case: a *slog.Logger
+// satisfies LeveledLogger directly, but its Error/Warn/Info/Debug treat v as
+// key/value attrs rather than printf args, so airGapLogger must format the
+// message itself before forwarding it.
+func TestAirGapSlogLoggerFormatsArgs(t *testing.T) {
+	var buf bytes.Buffer
+	slogLogger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	airGap := newAirGapLogger(slogLogger)
+	airGap.Error("value %v", 42)
+
+	out := buf.String()
+	assert.Contains(t, out, `msg="value 42"`)
+	assert.NotContains(t, out, "BADKEY")
+}
+
+// TestAirGapSlogLoggerNoArgsLiteralPercent covers the other half of the fix:
+// a no-arg message isn't run through fmt.Sprintf at all, so a literal '%'
+// in it survives rather than being turned into %!(NOVERB).
+func TestAirGapSlogLoggerNoArgsLiteralPercent(t *testing.T) {
+	var buf bytes.Buffer
+	slogLogger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	airGap := newAirGapLogger(slogLogger)
+	message := "100% done"
+	// Call through a variable so go vet's printf check (which would
+	// otherwise flag the literal '%' as a missing-arg verb) doesn't apply.
+	infoFn := airGap.Info
+	infoFn(message)
+
+	out := buf.String()
+	assert.Contains(t, out, `msg="100% done"`)
+	assert.NotContains(t, out, "NOVERB")
+}
+
 type mockBasicLogger struct {
 	logs *[]string
 }
