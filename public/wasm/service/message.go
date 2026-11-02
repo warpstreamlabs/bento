@@ -1,10 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
+	"time"
 
-	"github.com/aperturerobotics/protobuf-go-lite/types/known/structpb"
+	"github.com/aperturerobotics/protobuf-go-lite/types/known/timestamppb"
 	messagepb "github.com/warpstreamlabs/bento/internal/message/messagepblite"
 )
 
@@ -34,7 +38,7 @@ func (m *Message) AsBytes() ([]byte, error) {
 	case *messagepb.Part_Raw:
 		return c.Raw, nil
 	case *messagepb.Part_Structured:
-		return c.Structured.MarshalJSON()
+		return json.Marshal(fromProtoValue(c.Structured))
 	}
 	return nil, nil
 }
@@ -50,17 +54,17 @@ func (m *Message) AsStructured() (any, error) {
 		}
 		return v, nil
 	case *messagepb.Part_Structured:
-		return c.Structured.AsInterface(), nil
+		return fromProtoValue(c.Structured), nil
 	}
 	return nil, errors.New("message has no content")
 }
 
 // GetError returns the error that the message is marked with, or nil.
 func (m *Message) GetError() error {
-	if m.part.Error == "" {
+	if m.part.Error == nil {
 		return nil
 	}
-	return errors.New(m.part.Error)
+	return errors.New(m.part.Error.Message)
 }
 
 // SetBytes replaces the content of the message with raw bytes.
@@ -72,17 +76,18 @@ func (m *Message) SetBytes(b []byte) {
 // A marked message continues through the pipeline, and can be handled with
 // Bento's error handling.
 func (m *Message) SetError(err error) {
-	m.part.Error = ""
+	m.part.Error = nil
 	if err != nil {
-		m.part.Error = err.Error()
+		m.part.Error = &messagepb.Error{Message: err.Error()}
 	}
 }
 
 // SetStructured replaces the content of the message with a structured value.
-// Values that structpb.NewValue doesn't support, such as structs, are converted
-// through JSON. If that fails, the message is marked with the error.
+// Values that aren't maps, slices, strings, numbers, bools, bytes, timestamps or
+// nil, such as structs, are converted through JSON. If that fails, the message
+// is marked with the error.
 func (m *Message) SetStructured(i any) {
-	v, err := structpb.NewValue(i)
+	v, err := toProtoValue(i)
 	if err != nil {
 		v, err = valueFromJSON(i)
 	}
@@ -93,16 +98,19 @@ func (m *Message) SetStructured(i any) {
 	m.part.Content = &messagepb.Part_Structured{Structured: v}
 }
 
-func valueFromJSON(i any) (*structpb.Value, error) {
+func valueFromJSON(i any) (*messagepb.Value, error) {
 	b, err := json.Marshal(i)
 	if err != nil {
 		return nil, err
 	}
-	v := &structpb.Value{}
-	if err := v.UnmarshalJSON(b); err != nil {
+
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
 		return nil, err
 	}
-	return v, nil
+	return toProtoValue(v)
 }
 
 // MetaDelete removes the metadata value of key.
@@ -133,6 +141,90 @@ func (m *Message) MetaWalk(fn func(string, string) error) error {
 		if err := fn(k, v); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+//------------------------------------------------------------------------------
+
+// toProtoValue converts a structured value to a protobuf Value. Numbers keep
+// their type, and a json.Number keeps its exact text as a decimal.
+func toProtoValue(v any) (*messagepb.Value, error) {
+	switch v := v.(type) {
+	case nil:
+		return &messagepb.Value{Kind: &messagepb.Value_Null{}}, nil
+	case bool:
+		return &messagepb.Value{Kind: &messagepb.Value_Bool{Bool: v}}, nil
+	case string:
+		return &messagepb.Value{Kind: &messagepb.Value_String_{String_: v}}, nil
+	case []byte:
+		return &messagepb.Value{Kind: &messagepb.Value_Bytes{Bytes: v}}, nil
+	case json.Number:
+		return &messagepb.Value{Kind: &messagepb.Value_Decimal{Decimal: v.String()}}, nil
+	case time.Time:
+		return &messagepb.Value{Kind: &messagepb.Value_Timestamp{Timestamp: timestamppb.New(v)}}, nil
+	case []any:
+		items := make([]*messagepb.Value, len(v))
+		for i, item := range v {
+			var err error
+			if items[i], err = toProtoValue(item); err != nil {
+				return nil, err
+			}
+		}
+		return &messagepb.Value{Kind: &messagepb.Value_List{List: &messagepb.List{Items: items}}}, nil
+	case map[string]any:
+		fields := make(map[string]*messagepb.Value, len(v))
+		for k, field := range v {
+			var err error
+			if fields[k], err = toProtoValue(field); err != nil {
+				return nil, err
+			}
+		}
+		return &messagepb.Value{Kind: &messagepb.Value_Struct{Struct: &messagepb.Struct{Fields: fields}}}, nil
+	}
+
+	switch rv := reflect.ValueOf(v); {
+	case rv.CanInt():
+		return &messagepb.Value{Kind: &messagepb.Value_Int64{Int64: rv.Int()}}, nil
+	case rv.CanUint():
+		return &messagepb.Value{Kind: &messagepb.Value_Uint64{Uint64: rv.Uint()}}, nil
+	case rv.CanFloat():
+		return &messagepb.Value{Kind: &messagepb.Value_Double{Double: rv.Float()}}, nil
+	}
+	return nil, fmt.Errorf("unsupported structured value of type %T", v)
+}
+
+// fromProtoValue converts a protobuf Value to a structured value.
+func fromProtoValue(v *messagepb.Value) any {
+	switch kind := v.GetKind().(type) {
+	case *messagepb.Value_Bool:
+		return kind.Bool
+	case *messagepb.Value_Double:
+		return kind.Double
+	case *messagepb.Value_String_:
+		return kind.String_
+	case *messagepb.Value_Int64:
+		return kind.Int64
+	case *messagepb.Value_Uint64:
+		return kind.Uint64
+	case *messagepb.Value_Bytes:
+		return kind.Bytes
+	case *messagepb.Value_Decimal:
+		return json.Number(kind.Decimal)
+	case *messagepb.Value_Timestamp:
+		return kind.Timestamp.AsTime()
+	case *messagepb.Value_List:
+		items := make([]any, len(kind.List.GetItems()))
+		for i, item := range kind.List.GetItems() {
+			items[i] = fromProtoValue(item)
+		}
+		return items
+	case *messagepb.Value_Struct:
+		fields := make(map[string]any, len(kind.Struct.GetFields()))
+		for k, field := range kind.Struct.GetFields() {
+			fields[k] = fromProtoValue(field)
+		}
+		return fields
 	}
 	return nil
 }
@@ -179,6 +271,34 @@ func MarshalBatchesToProto(batches []MessageBatch) ([]byte, error) {
 		out.Batches[i] = toProtoBatch(batch)
 	}
 	return out.MarshalVT()
+}
+
+// MarshalProcessResponseToProto encodes batch, or err if it isn't nil, as a
+// protobuf ProcessResponse. It is used by the PDK to exchange messages with
+// Bento, and plugins don't usually need it.
+func MarshalProcessResponseToProto(batch MessageBatch, err error) ([]byte, error) {
+	if err != nil {
+		res := &messagepb.ProcessResponse{Result: &messagepb.ProcessResponse_Error{Error: &messagepb.Error{Message: err.Error()}}}
+		return res.MarshalVT()
+	}
+	res := &messagepb.ProcessResponse{Result: &messagepb.ProcessResponse_Batch{Batch: toProtoBatch(batch)}}
+	return res.MarshalVT()
+}
+
+// MarshalProcessBatchResponseToProto encodes batches, or err if it isn't nil,
+// as a protobuf ProcessBatchResponse. It is used by the PDK to exchange
+// messages with Bento, and plugins don't usually need it.
+func MarshalProcessBatchResponseToProto(batches []MessageBatch, err error) ([]byte, error) {
+	if err != nil {
+		res := &messagepb.ProcessBatchResponse{Result: &messagepb.ProcessBatchResponse_Error{Error: &messagepb.Error{Message: err.Error()}}}
+		return res.MarshalVT()
+	}
+	out := &messagepb.Batches{Batches: make([]*messagepb.Batch, len(batches))}
+	for i, batch := range batches {
+		out.Batches[i] = toProtoBatch(batch)
+	}
+	res := &messagepb.ProcessBatchResponse{Result: &messagepb.ProcessBatchResponse_Batches{Batches: out}}
+	return res.MarshalVT()
 }
 
 // UnmarshalMessageFromProto decodes a protobuf Part. It is used by the PDK to

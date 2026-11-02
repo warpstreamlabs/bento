@@ -134,7 +134,7 @@ module.exports = {
             'guides/plugins/about',
             'guides/plugins/developing_plugins',
             'guides/plugins/fields',
-            'guides/plugins/architecture',
+            'guides/plugins/plugin_abi',
           ],
         },
         {

@@ -2,10 +2,14 @@ package message
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
+	"time"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 )
@@ -54,22 +58,40 @@ func UnmarshalBatchFromProto(b []byte) (Batch, error) {
 }
 
 func UnmarshalBatchesFromProto(b []byte) ([]Batch, error) {
-	protoBatch := &pb.Batches{}
-	if err := proto.Unmarshal(b, protoBatch); err != nil {
+	protoBatches := &pb.Batches{}
+	if err := proto.Unmarshal(b, protoBatches); err != nil {
 		return nil, err
 	}
 
-	batches := make([]Batch, len(protoBatch.GetBatches()))
-	for i, protoBatch := range protoBatch.GetBatches() {
-		batch, err := toBatch(protoBatch)
-		if err != nil {
-			return nil, err
-		}
+	return toBatches(protoBatches)
+}
 
-		batches[i] = batch
+// UnmarshalProcessResponseFromProto decodes a ProcessResponse, and returns its
+// batch, or its error.
+func UnmarshalProcessResponseFromProto(b []byte) (Batch, error) {
+	res := &pb.ProcessResponse{}
+	if err := proto.Unmarshal(b, res); err != nil {
+		return nil, err
 	}
 
-	return batches, nil
+	if protoErr := res.GetError(); protoErr != nil {
+		return nil, errors.New(protoErr.GetMessage())
+	}
+	return toBatch(res.GetBatch())
+}
+
+// UnmarshalProcessBatchResponseFromProto decodes a ProcessBatchResponse, and
+// returns its batches, or its error.
+func UnmarshalProcessBatchResponseFromProto(b []byte) ([]Batch, error) {
+	res := &pb.ProcessBatchResponse{}
+	if err := proto.Unmarshal(b, res); err != nil {
+		return nil, err
+	}
+
+	if protoErr := res.GetError(); protoErr != nil {
+		return nil, errors.New(protoErr.GetMessage())
+	}
+	return toBatches(res.GetBatches())
 }
 
 func MarshalBatchesToProto(batches []Batch) ([]byte, error) {
@@ -99,11 +121,11 @@ func fromPart(part *Part) (*pb.Part, error) {
 
 	proto := &pb.Part{}
 	if err := part.data.err; err != nil {
-		proto.Error = part.data.err.Error()
+		proto.Error = &pb.Error{Message: err.Error()}
 	}
 
 	if structured := part.data.structured; structured != nil {
-		structured, err := structpb.NewValue(structured)
+		structured, err := toProtoValue(structured)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +150,7 @@ func toPart(proto *pb.Part) (*Part, error) {
 	case *pb.Part_Raw:
 		data.rawBytes = proto.GetRaw()
 	case *pb.Part_Structured:
-		data.structured = proto.GetStructured().AsInterface()
+		data.structured = fromProtoValue(proto.GetStructured())
 	}
 
 	if len(proto.Metadata) > 0 {
@@ -137,11 +159,8 @@ func toPart(proto *pb.Part) (*Part, error) {
 			data.metadata[k] = v
 		}
 	}
-	// TODO(gregfurman): This is unideal but we do it
-	// in lieu of error type enums/constants i.e
-	// ERR_NOT_CONNECTED
-	if errStr := proto.GetError(); errStr != "" {
-		data.err = errors.New(errStr)
+	if protoErr := proto.GetError(); protoErr != nil {
+		data.err = errors.New(protoErr.GetMessage())
 	}
 
 	return &Part{
@@ -174,4 +193,102 @@ func toBatch(proto *pb.Batch) (Batch, error) {
 	}
 
 	return batch, nil
+}
+
+func toBatches(proto *pb.Batches) ([]Batch, error) {
+	batches := make([]Batch, len(proto.GetBatches()))
+	for i, protoBatch := range proto.GetBatches() {
+		batch, err := toBatch(protoBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		batches[i] = batch
+	}
+
+	return batches, nil
+}
+
+//------------------------------------------------------------------------------
+
+// toProtoValue converts a structured value to a protobuf Value. Numbers keep
+// their type, and a json.Number keeps its exact text as a decimal.
+func toProtoValue(v any) (*pb.Value, error) {
+	switch v := v.(type) {
+	case nil:
+		return &pb.Value{Kind: &pb.Value_Null{}}, nil
+	case bool:
+		return &pb.Value{Kind: &pb.Value_Bool{Bool: v}}, nil
+	case string:
+		return &pb.Value{Kind: &pb.Value_String_{String_: v}}, nil
+	case []byte:
+		return &pb.Value{Kind: &pb.Value_Bytes{Bytes: v}}, nil
+	case json.Number:
+		return &pb.Value{Kind: &pb.Value_Decimal{Decimal: v.String()}}, nil
+	case time.Time:
+		return &pb.Value{Kind: &pb.Value_Timestamp{Timestamp: timestamppb.New(v)}}, nil
+	case []any:
+		items := make([]*pb.Value, len(v))
+		for i, item := range v {
+			var err error
+			if items[i], err = toProtoValue(item); err != nil {
+				return nil, err
+			}
+		}
+		return &pb.Value{Kind: &pb.Value_List{List: &pb.List{Items: items}}}, nil
+	case map[string]any:
+		fields := make(map[string]*pb.Value, len(v))
+		for k, field := range v {
+			var err error
+			if fields[k], err = toProtoValue(field); err != nil {
+				return nil, err
+			}
+		}
+		return &pb.Value{Kind: &pb.Value_Struct{Struct: &pb.Struct{Fields: fields}}}, nil
+	}
+
+	switch rv := reflect.ValueOf(v); {
+	case rv.CanInt():
+		return &pb.Value{Kind: &pb.Value_Int64{Int64: rv.Int()}}, nil
+	case rv.CanUint():
+		return &pb.Value{Kind: &pb.Value_Uint64{Uint64: rv.Uint()}}, nil
+	case rv.CanFloat():
+		return &pb.Value{Kind: &pb.Value_Double{Double: rv.Float()}}, nil
+	}
+	return nil, fmt.Errorf("unsupported structured value of type %T", v)
+}
+
+// fromProtoValue converts a protobuf Value to a structured value.
+func fromProtoValue(v *pb.Value) any {
+	switch kind := v.GetKind().(type) {
+	case *pb.Value_Bool:
+		return kind.Bool
+	case *pb.Value_Double:
+		return kind.Double
+	case *pb.Value_String_:
+		return kind.String_
+	case *pb.Value_Int64:
+		return kind.Int64
+	case *pb.Value_Uint64:
+		return kind.Uint64
+	case *pb.Value_Bytes:
+		return kind.Bytes
+	case *pb.Value_Decimal:
+		return json.Number(kind.Decimal)
+	case *pb.Value_Timestamp:
+		return kind.Timestamp.AsTime()
+	case *pb.Value_List:
+		items := make([]any, len(kind.List.GetItems()))
+		for i, item := range kind.List.GetItems() {
+			items[i] = fromProtoValue(item)
+		}
+		return items
+	case *pb.Value_Struct:
+		fields := make(map[string]any, len(kind.Struct.GetFields()))
+		for k, field := range kind.Struct.GetFields() {
+			fields[k] = fromProtoValue(field)
+		}
+		return fields
+	}
+	return nil
 }

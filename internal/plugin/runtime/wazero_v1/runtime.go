@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/tetratelabs/wazero"
@@ -23,8 +24,8 @@ const (
 	pluginProcessBatchFn = "process_batch"
 	pluginInitFn         = "init_plugin"
 
-	pluginAllocFn   = "alloc"
-	pluginReleaseFn = "release"
+	pluginMallocFn = "malloc"
+	pluginFreeFn   = "free"
 )
 
 var _ runtime.Runtime = (*WazeroRuntime)(nil)
@@ -130,7 +131,11 @@ func compile(ctx context.Context, wasm []byte, runtimeConf wazero.RuntimeConfig,
 		processFn = pluginProcessBatchFn
 	}
 
-	if err := hasExportedFunctions(defs, pluginAllocFn, pluginReleaseFn, processFn); err != nil {
+	if err := hasExportedFunctions(defs, pluginMallocFn, pluginFreeFn, processFn); err != nil {
+		return nil, err
+	}
+
+	if err := hasExportSignatures(defs); err != nil {
 		return nil, err
 	}
 
@@ -158,6 +163,44 @@ func hasExportedFunctions(defs map[string]api.FunctionDefinition, required ...st
 		return fmt.Errorf("wasm guest plugin missing required exports: [%s]", strings.Join(missing, ", "))
 	}
 
+	return nil
+}
+
+type signature struct {
+	params, results []api.ValueType
+}
+
+// exportSignatures are the signatures of each export in abi.wat. free may also
+// take only an address, as C's free does, such as the free TinyGo exports.
+var exportSignatures = map[string][]signature{
+	pluginMallocFn:       {{params: []api.ValueType{api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI32}}},
+	pluginFreeFn:         {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}}, {params: []api.ValueType{api.ValueTypeI32}}},
+	pluginInitFn:         {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginProcessFn:      {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginProcessBatchFn: {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
+	"_initialize":        {{}},
+}
+
+// hasExportSignatures returns an error naming each export of the ABI whose
+// signature doesn't match abi.wat.
+func hasExportSignatures(defs map[string]api.FunctionDefinition) error {
+	var invalid []string
+	for name, sigs := range exportSignatures {
+		def, ok := defs[name]
+		if !ok {
+			continue
+		}
+		if !slices.ContainsFunc(sigs, func(sig signature) bool {
+			return slices.Equal(def.ParamTypes(), sig.params) && slices.Equal(def.ResultTypes(), sig.results)
+		}) {
+			invalid = append(invalid, name)
+		}
+	}
+
+	if len(invalid) > 0 {
+		slices.Sort(invalid)
+		return fmt.Errorf("wasm guest plugin exports with invalid signatures: [%s]", strings.Join(invalid, ", "))
+	}
 	return nil
 }
 

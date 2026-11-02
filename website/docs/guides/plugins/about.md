@@ -44,21 +44,25 @@ bento -p ./my-plugin lint config.yaml
 
 See [Unit Testing][unit-testing] for writing tests.
 
-### Check a Plugin Before Loading It
-
-Only load plugins from sources you trust. Inspect the manifest's [`runtime.wasm` settings][wasm-fields] for mounted directories, write access, and the memory limit per instance. Without `memory.max_pages`, each instance can allocate up to 4 GiB, and concurrent calls can create multiple instances. A plugin can follow symlinks in a mounted directory to files outside it. See [The Sandbox][sandbox] for the runtime's capabilities.
-
 ## Why WebAssembly (WASM)?
 
-Bento has two other ways to add behavior. A [custom build][custom-build] adds components written in Go against the full plugin API, but you have to compile and maintain your own Bento binary. [Templates][templates] need no build at all, but they can only combine components that already exist.
+While [custom builds][custom-build] in Go give you the full plugin API at the cost of compiling and maintaining your own binary, [templates][templates] require no build step at all -- but can only combine existing components.
 
-Plugins sit between the two. They can contain new logic, and they run on any stock Bento binary. WebAssembly is what makes this possible:
+Bento WASM plugins sit between the two: they introduce custom logic while running on any stock Bento binary. WebAssembly makes this possible through three guarantees:
 
-- **Portability.** One compiled module runs on every platform that Bento runs on, so a plugin is distributed as a file rather than built per machine.
-- **Isolation.** A plugin runs in a sandbox, with no network access and with access to only the directories its manifest mounts. A crash in a plugin fails the messages it was processing rather than the Bento process.
-- **Language choice.** Any language that compiles to a 32-bit WASM module can implement the [ABI][abi], not only Go.
+- **Portability.** Once compiled, a WASM module runs on every platform Bento supports, so it can be distributed as a single package rather than built per target machine.
+- **Isolation.** Modules run in a sandbox with no access to host resources unless explicitly granted at instantiation. Because each module is confined to its own dedicated linear memory, a fatal plugin crash or OOM won't take down the main Bento process.
+- **Language flexibility.** You aren't limited to Go—any language that compiles to a 32-bit WASM target can implement the [ABI][abi].
 
 This isolation requires copying messages into and out of the plugin's memory on each call. Plugins can only be processors, and they can't use Bento [resources][resources] such as caches. Use a custom build when you need another component type or access to those resources.
+
+:::warning Inspect manifests before loading
+Because host permissions are configured in `plugin.yaml`, always audit a third-party plugin's [`runtime.wasm` settings][wasm-fields] before loading it:
+- **Filesystem access:** Check for mounted directories and write permissions. A plugin can follow symlinks inside a mounted directory to targets outside it.
+- **Memory limits:** Without `memory.max_pages`, each instance can allocate up to 4 GiB, and concurrent calls can spawn multiple instances.
+
+See [The Sandbox][sandbox] for full details on runtime capabilities.
+:::
 
 ## Language Support
 
@@ -79,18 +83,19 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 
 - [Developing Plugins][developing]: build, run, and test your first plugin with the Go PDK.
 - [Manifest Fields][fields]: every field of `plugin.yaml`.
-- [Architecture][architecture]: how plugins run, how errors behave, and the ABI.
+- [Plugin ABI][plugin-abi]: how plugins run, how errors behave, and the ABI.
 
+[plugin-abi]: /docs/guides/plugins/plugin_abi
 [custom-build]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service
 [pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
 [templates]: /docs/configuration/templating
 [resources]: /docs/configuration/resources
-[abi]: /docs/guides/plugins/architecture#abi
+[abi]: /docs/guides/plugins/plugin_abi#exports
 [developing]: /docs/guides/plugins/developing_plugins
 [fields]: /docs/guides/plugins/fields
 [unit-testing]: /docs/configuration/unit_testing
 [wasm-fields]: /docs/guides/plugins/fields#runtimewasm
-[sandbox]: /docs/guides/plugins/architecture#the-sandbox
+[sandbox]: /docs/guides/plugins/plugin_abi#sandbox
 [examples]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples
 [uppercase-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/uppercase
 [reverse-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/reverse

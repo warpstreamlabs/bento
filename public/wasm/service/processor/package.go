@@ -5,24 +5,20 @@ package processor
 import (
 	"context"
 
-	"github.com/warpstreamlabs/bento/internal/wasm"
+	"github.com/warpstreamlabs/bento/internal/plugin/wasm"
 	"github.com/warpstreamlabs/bento/public/wasm/service"
 )
 
 //go:wasmexport process
-func process(input wasm.Buffer) *wasm.Result {
-	result := new(wasm.Result)
-	contents, err := processMessage(input.Slice())
+func process(input wasm.Buffer) wasm.Buffer {
+	output, err := service.MarshalProcessResponseToProto(processMessage(input.Slice()))
 	if err != nil {
-		result.Error = wasm.FromError(err)
-		return result
+		panic(err)
 	}
-
-	result.Output = wasm.Retain(contents)
-	return result
+	return wasm.Retain(output)
 }
 
-func processMessage(input []byte) ([]byte, error) {
+func processMessage(input []byte) (service.MessageBatch, error) {
 	proc, err := plugin.GetInstance()
 	if err != nil {
 		return nil, err
@@ -33,10 +29,5 @@ func processMessage(input []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	results, err := proc.Process(context.Background(), msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return service.MarshalBatchToProto(results)
+	return proc.Process(context.Background(), msg)
 }

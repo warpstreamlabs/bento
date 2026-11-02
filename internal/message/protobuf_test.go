@@ -3,12 +3,14 @@
 package message
 
 import (
+	"encoding/json"
 	"errors"
+	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 )
@@ -98,7 +100,7 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 				Parts: []*pb.Part{
 					{
 						Content: &pb.Part_Raw{Raw: []byte("data")},
-						Error:   "processing failed",
+						Error:   &pb.Error{Message: "processing failed"},
 					},
 				},
 			},
@@ -187,7 +189,7 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 						Metadata: map[string]string{
 							"source": "kafka",
 						},
-						Error: "connection timeout",
+						Error: &pb.Error{Message: "connection timeout"},
 					},
 				},
 			},
@@ -375,11 +377,64 @@ func comparePart(t testing.TB, index int, exp *Part, act *Part) {
 	require.Equal(t, exp.data.metadata, act.data.metadata)
 }
 
-func mustNewValue(t *testing.T, v any) *structpb.Value {
+func mustNewValue(t *testing.T, v any) *pb.Value {
 	t.Helper()
-	val, err := structpb.NewValue(v)
+	val, err := toProtoValue(v)
 	require.NoError(t, err)
 	return val
+}
+
+func TestProtoStructuredValueTypes(t *testing.T) {
+	ts := time.Date(2026, 11, 2, 12, 30, 0, 123456789, time.UTC)
+
+	tests := []struct {
+		name string
+		in   any
+		out  any
+	}{
+		{name: "null", in: nil, out: nil},
+		{name: "bool", in: true, out: true},
+		{name: "string", in: "hello", out: "hello"},
+		{name: "int64 beyond float64 precision", in: int64(9007199254740993), out: int64(9007199254740993)},
+		{name: "int", in: 5, out: int64(5)},
+		{name: "uint64", in: uint64(math.MaxUint64), out: uint64(math.MaxUint64)},
+		{name: "float64", in: 1.5, out: 1.5},
+		{name: "float32", in: float32(0.5), out: 0.5},
+		{name: "bytes", in: []byte("hi"), out: []byte("hi")},
+		{name: "decimal", in: json.Number("0.1000000000000000055511151231257827"), out: json.Number("0.1000000000000000055511151231257827")},
+		{name: "timestamp", in: ts, out: ts},
+		{name: "timestamp in another zone", in: ts.In(time.FixedZone("UTC+2", 2*60*60)), out: ts},
+		{
+			name: "nested",
+			in:   map[string]any{"list": []any{int64(1), "two", map[string]any{"three": []byte("3")}}},
+			out:  map[string]any{"list": []any{int64(1), "two", map[string]any{"three": []byte("3")}}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			part := NewPart(nil)
+			part.SetStructured(test.in)
+
+			encoded, err := MarshalToProto(part)
+			require.NoError(t, err)
+
+			decoded, err := UnmarshalFromProto(encoded)
+			require.NoError(t, err)
+
+			v, err := decoded.AsStructured()
+			require.NoError(t, err)
+			require.Equal(t, test.out, v)
+		})
+	}
+}
+
+func TestProtoStructuredValueUnsupported(t *testing.T) {
+	part := NewPart(nil)
+	part.SetStructured(map[string]any{"ch": make(chan int)})
+
+	_, err := MarshalToProto(part)
+	require.EqualError(t, err, "unsupported structured value of type chan int")
 }
 
 func TestProtoMetadataAsStrings(t *testing.T) {

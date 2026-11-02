@@ -140,6 +140,7 @@ protos-lite:
 		--go-lite_opt=module=github.com/warpstreamlabs/bento \
 		--go-lite_opt=features=marshal+unmarshal+size \
 		--go-lite_opt=Mmessage.proto=github.com/warpstreamlabs/bento/internal/message/messagepblite \
+		--go-lite_opt=Mprocessor.proto=github.com/warpstreamlabs/bento/internal/message/messagepblite \
 		$(PROTO_FILES)
 
 playground:

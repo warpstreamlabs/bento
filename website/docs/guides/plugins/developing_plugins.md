@@ -181,13 +181,13 @@ Test 'config.yaml' succeeded
 
 - [Go PDK reference][pdk]: every type and function of the PDK. To process whole batches at once, implement a `BatchProcessor` and register it with [`batch_processor`][batch-pdk], as the [`reverse`][reverse-example] example does.
 - [Plugins][about]: load the plugin into Bento elsewhere.
-- [Architecture][architecture]: how instances of the plugin run, and how its errors affect messages.
+- [Plugin ABI][plugin-abi]: how instances of the plugin run, and how its errors affect messages.
 
 [tinygo-compat]: https://tinygo.org/docs/reference/go-compat-matrix/
 [tinygo-install]: https://tinygo.org/getting-started/install/
 [unit-testing]: /docs/configuration/unit_testing
 [about]: /docs/guides/plugins/about
-[architecture]: /docs/guides/plugins/architecture
+[plugin-abi]: /docs/guides/plugins/plugin_abi
 [pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
 [batch-pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service/batch_processor
 [reverse-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/reverse

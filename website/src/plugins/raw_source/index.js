@@ -2,6 +2,7 @@
 // they can be rendered with <CodeBlock> and never drift from the source:
 //
 //   import messageProto from '../../../../resources/protos/message.proto';
+//   import abi from '../../../../resources/wasm/abi.wat';
 module.exports = function(context, options) {
   return {
     name: 'raw-source',
@@ -10,7 +11,7 @@ module.exports = function(context, options) {
         module: {
           rules: [
             {
-              test: /\.proto$/,
+              test: /\.(proto|wat)$/,
               type: 'asset/source',
             },
           ],
