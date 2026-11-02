@@ -3,6 +3,7 @@ package pure
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/Jeffail/shutdown"
 
@@ -110,6 +111,11 @@ type fallbackBroker struct {
 	outputTSChans []chan message.Transaction
 	outputs       []output.Streamed
 
+	// closeMu stops ack callbacks, which can outlive loop(), from sending on
+	// outputTSChans once loop() has closed them.
+	closeMu sync.RWMutex
+	closed  bool
+
 	shutSig *shutdown.Signaller
 }
 
@@ -157,9 +163,13 @@ func (t *fallbackBroker) ConnectionStatus() (s component.ConnectionStatuses) {
 // loop is an internal loop that brokers incoming messages to many outputs.
 func (t *fallbackBroker) loop() {
 	defer func() {
+		// Waits for any ack callback that is still sending on these channels.
+		t.closeMu.Lock()
+		t.closed = true
 		for _, c := range t.outputTSChans {
 			close(c)
 		}
+		t.closeMu.Unlock()
 		_ = closeAllOutputs(context.Background(), t.outputs)
 		t.shutSig.TriggerHasStopped()
 	}()
@@ -227,6 +237,13 @@ func (t *fallbackBroker) loop() {
 			}
 
 			if t.shutSig.IsHardStopSignalled() {
+				return nil
+			}
+
+			// Held across the send so loop() cannot close the channel underneath it.
+			t.closeMu.RLock()
+			defer t.closeMu.RUnlock()
+			if t.closed {
 				return nil
 			}
 
