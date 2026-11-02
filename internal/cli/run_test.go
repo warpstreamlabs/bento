@@ -3,6 +3,8 @@ package cli_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,4 +100,59 @@ output:
 		require.NoError(t, err)
 		assert.Contains(t, string(data), "foobar")
 	}
+}
+
+var capitalise string = `
+input:
+  generate:
+    mapping: 'root.id = "foobar"'
+    interval: "100ms"
+
+pipeline:
+  processors:
+    - mapping: root = content().uppercase()
+
+output:
+  file:
+    codec: lines
+    path: %v
+`
+
+var fetchConfig string = `url: %v/capitalise
+verb: GET
+timeout: 5s`
+
+func TestRunCLIGetConfigViaHttp(t *testing.T) {
+	tmpDir := t.TempDir()
+	outPath := filepath.Join(tmpDir, fmt.Sprintf("out_%v.txt", 1))
+	addr := startConfigServer(t, capitalise, outPath)
+
+	confPath := filepath.Join(tmpDir, fmt.Sprintf("conf_%v", 1))
+	err := os.WriteFile(confPath, fmt.Appendf(nil, fetchConfig, addr), 0o644)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second))
+	defer cancel()
+
+	require.NoError(t, icli.App(common.NewCLIOpts("1.2.3", "aaa")).RunContext(ctx, []string{"bento", "-rc", confPath}))
+
+	data, err := os.ReadFile(outPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "FOOBAR")
+}
+
+func startConfigServer(t *testing.T, config, outPath string) string {
+	t.Helper()
+
+	config = fmt.Sprintf(config, outPath)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/capitalise", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, config)
+	})
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	return srv.URL
 }

@@ -138,6 +138,11 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Name:    "plugin",
 			Aliases: []string{"p"},
 			Usage:   "EXPERIMENTAL: path to a Bento plugin's directory.",
+    },
+		&cli.StringFlag{
+			Name:    "remote-config",
+			Aliases: []string{"rc"},
+			Usage:   "EXPERIMENTAL: a path to a YAML file describing an HTTP request used to fetch the main configuration at startup",
 		},
 	}
 }
@@ -165,6 +170,16 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 				os.Exit(1)
 			}
 		}
+	}
+
+	if c.String("config") != "" && c.String("remote-config") != "" {
+		fmt.Println("CLI flags --config (-c) and --remote-config (-rc) cannot be used together")
+		os.Exit(1)
+	}
+
+	if c.Bool("watcher") && c.String("remote-config") != "" {
+		fmt.Println("CLI flags --watcher (-w) and --remote-config (-rc) cannot be used together")
+		os.Exit(1)
 	}
 
 	templatesPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("templates"))
@@ -198,6 +213,14 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 			fmt.Fprintln(os.Stderr, lint)
 		}
 		fmt.Println(opts.ExecTemplate("Shutting down due to linter errors, to prevent shutdown run {{.ProductName}} with --chilled"))
+		os.Exit(1)
+	}
+	return nil
+}
+
+func preStreams(c *cli.Context) error {
+	if c.Command.Name == "streams" && c.String("remote-config") != "" {
+		fmt.Println("CLI flag --remote-config (-rc) not supported in Streams Mode")
 		os.Exit(1)
 	}
 	return nil
@@ -320,13 +343,18 @@ Run a {{.ProductName}} config.
 						}
 						_ = c.Set("config", c.Args().First())
 					}
+					if c.String("remote-config") != "" {
+						fmt.Fprintln(os.Stderr, "CLI flag --remote-config (-rc) not supported with the run command")
+						os.Exit(1)
+					}
 					os.Exit(common.RunService(c, opts, false))
 					return nil
 				},
 			},
 			{
-				Name:  "streams",
-				Usage: opts.ExecTemplate("Run {{.ProductName}} in streams mode"),
+				Name:   "streams",
+				Before: preStreams,
+				Usage:  opts.ExecTemplate("Run {{.ProductName}} in streams mode"),
 				Description: opts.ExecTemplate(`
 Run {{.ProductName}} in streams mode, where multiple pipelines can be executed in a
 single process and can be created, updated and removed via REST HTTP

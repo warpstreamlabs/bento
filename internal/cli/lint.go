@@ -170,6 +170,13 @@ files with the .yaml or .yml extension.`)[1:],
 				Usage: "Do not produce lint errors when environment interpolations exist without defaults within configs but aren't defined.",
 			},
 		},
+		Before: func(c *cli.Context) error {
+			if c.String("remote-config") != "" {
+				fmt.Printf("remote-config flag not supported with the lint subcommand\n")
+				os.Exit(1)
+			}
+			return nil
+		},
 		Action: func(c *cli.Context) error {
 			if code := LintAction(c, cliOpts, os.Stderr); code != 0 {
 				os.Exit(code)

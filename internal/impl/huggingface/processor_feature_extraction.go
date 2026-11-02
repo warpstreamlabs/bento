@@ -89,7 +89,7 @@ func NewFeatureExtractionPipeline(conf *service.ParsedConfig, mgr *service.Resou
 		Options:   opts,
 	}
 
-	if p.pipeline, err = hugot.NewPipeline(p.session, cfg); err != nil {
+	if p.pipeline, err = p.session.NewPipeline(cfg); err != nil {
 		return nil, err
 	}
 

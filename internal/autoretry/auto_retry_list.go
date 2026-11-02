@@ -206,6 +206,8 @@ func (l *List[T]) tryShift(ctx context.Context) (t T, fn AckFunc, ok bool) {
 			select {
 			case <-time.After(tout):
 			case <-ctx.Done():
+				// Requeue it, or it is never delivered and the list never exhausts.
+				l.pendingRetry = append([]*pendingT[T]{resend}, l.pendingRetry...)
 				return
 			}
 		}
