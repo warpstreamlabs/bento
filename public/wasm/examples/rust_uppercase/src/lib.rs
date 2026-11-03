@@ -5,7 +5,7 @@ pub mod messagepb {
 
 use std::sync::OnceLock;
 
-use messagepb::{part::Content, process_response::Result as Response, Batch, Error, Part, ProcessResponse};
+use messagepb::{part::Content, process::{Request, Response}, Batch, Error, Part};
 use prost::Message;
 use serde::Deserialize;
 
@@ -74,10 +74,10 @@ pub unsafe extern "C" fn _init_plugin(config: u64) -> u64 {
 }
 
 #[cfg_attr(target_arch = "wasm32", export_name = "process")]
-pub unsafe extern "C" fn _process(part: u64) -> u64 {
-    let result = match Part::decode(read(part)) {
-        Ok(part) => Response::Batch(process(part)),
-        Err(err) => Response::Error(Error { message: err.to_string() }),
+pub unsafe extern "C" fn _process(request: u64) -> u64 {
+    let response = match Request::decode(read(request)) {
+        Ok(request) => Response { batch: Some(process(request.part.unwrap_or_default())), error: None },
+        Err(err) => Response { batch: None, error: Some(Error { message: err.to_string() }) },
     };
-    write(ProcessResponse { result: Some(result) }.encode_to_vec())
+    write(response.encode_to_vec())
 }

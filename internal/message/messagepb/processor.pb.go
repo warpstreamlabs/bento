@@ -20,22 +20,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The result of process: the messages that replace the processed message, or
-// an error that marks it as failed.
-type ProcessResponse struct {
+type Process struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-
-	// Types that are assignable to Result:
-	//
-	//	*ProcessResponse_Batch
-	//	*ProcessResponse_Error
-	Result isProcessResponse_Result `protobuf_oneof:"result"`
 }
 
-func (x *ProcessResponse) Reset() {
-	*x = ProcessResponse{}
+func (x *Process) Reset() {
+	*x = Process{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_processor_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -43,13 +35,13 @@ func (x *ProcessResponse) Reset() {
 	}
 }
 
-func (x *ProcessResponse) String() string {
+func (x *Process) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProcessResponse) ProtoMessage() {}
+func (*Process) ProtoMessage() {}
 
-func (x *ProcessResponse) ProtoReflect() protoreflect.Message {
+func (x *Process) ProtoReflect() protoreflect.Message {
 	mi := &file_processor_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -61,64 +53,19 @@ func (x *ProcessResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProcessResponse.ProtoReflect.Descriptor instead.
-func (*ProcessResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use Process.ProtoReflect.Descriptor instead.
+func (*Process) Descriptor() ([]byte, []int) {
 	return file_processor_proto_rawDescGZIP(), []int{0}
 }
 
-func (m *ProcessResponse) GetResult() isProcessResponse_Result {
-	if m != nil {
-		return m.Result
-	}
-	return nil
-}
-
-func (x *ProcessResponse) GetBatch() *Batch {
-	if x, ok := x.GetResult().(*ProcessResponse_Batch); ok {
-		return x.Batch
-	}
-	return nil
-}
-
-func (x *ProcessResponse) GetError() *Error {
-	if x, ok := x.GetResult().(*ProcessResponse_Error); ok {
-		return x.Error
-	}
-	return nil
-}
-
-type isProcessResponse_Result interface {
-	isProcessResponse_Result()
-}
-
-type ProcessResponse_Batch struct {
-	Batch *Batch `protobuf:"bytes,1,opt,name=batch,proto3,oneof"`
-}
-
-type ProcessResponse_Error struct {
-	Error *Error `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-func (*ProcessResponse_Batch) isProcessResponse_Result() {}
-
-func (*ProcessResponse_Error) isProcessResponse_Result() {}
-
-// The result of process_batch: the batches that replace the processed batch,
-// or an error that marks each of its messages as failed.
-type ProcessBatchResponse struct {
+type ProcessBatch struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-
-	// Types that are assignable to Result:
-	//
-	//	*ProcessBatchResponse_Batches
-	//	*ProcessBatchResponse_Error
-	Result isProcessBatchResponse_Result `protobuf_oneof:"result"`
 }
 
-func (x *ProcessBatchResponse) Reset() {
-	*x = ProcessBatchResponse{}
+func (x *ProcessBatch) Reset() {
+	*x = ProcessBatch{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_processor_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -126,13 +73,13 @@ func (x *ProcessBatchResponse) Reset() {
 	}
 }
 
-func (x *ProcessBatchResponse) String() string {
+func (x *ProcessBatch) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProcessBatchResponse) ProtoMessage() {}
+func (*ProcessBatch) ProtoMessage() {}
 
-func (x *ProcessBatchResponse) ProtoReflect() protoreflect.Message {
+func (x *ProcessBatch) ProtoReflect() protoreflect.Message {
 	mi := &file_processor_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -144,73 +91,245 @@ func (x *ProcessBatchResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProcessBatchResponse.ProtoReflect.Descriptor instead.
-func (*ProcessBatchResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProcessBatch.ProtoReflect.Descriptor instead.
+func (*ProcessBatch) Descriptor() ([]byte, []int) {
 	return file_processor_proto_rawDescGZIP(), []int{1}
 }
 
-func (m *ProcessBatchResponse) GetResult() isProcessBatchResponse_Result {
-	if m != nil {
-		return m.Result
+type Process_Request struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Part *Part `protobuf:"bytes,1,opt,name=part,proto3" json:"part,omitempty"`
+}
+
+func (x *Process_Request) Reset() {
+	*x = Process_Request{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_processor_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Process_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Process_Request) ProtoMessage() {}
+
+func (x *Process_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_processor_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Process_Request.ProtoReflect.Descriptor instead.
+func (*Process_Request) Descriptor() ([]byte, []int) {
+	return file_processor_proto_rawDescGZIP(), []int{0, 0}
+}
+
+func (x *Process_Request) GetPart() *Part {
+	if x != nil {
+		return x.Part
 	}
 	return nil
 }
 
-func (x *ProcessBatchResponse) GetBatches() *Batches {
-	if x, ok := x.GetResult().(*ProcessBatchResponse_Batches); ok {
-		return x.Batches
+type Process_Response struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Batch *Batch `protobuf:"bytes,1,opt,name=batch,proto3" json:"batch,omitempty"`
+	Error *Error `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+}
+
+func (x *Process_Response) Reset() {
+	*x = Process_Response{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_processor_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Process_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Process_Response) ProtoMessage() {}
+
+func (x *Process_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_processor_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Process_Response.ProtoReflect.Descriptor instead.
+func (*Process_Response) Descriptor() ([]byte, []int) {
+	return file_processor_proto_rawDescGZIP(), []int{0, 1}
+}
+
+func (x *Process_Response) GetBatch() *Batch {
+	if x != nil {
+		return x.Batch
 	}
 	return nil
 }
 
-func (x *ProcessBatchResponse) GetError() *Error {
-	if x, ok := x.GetResult().(*ProcessBatchResponse_Error); ok {
+func (x *Process_Response) GetError() *Error {
+	if x != nil {
 		return x.Error
 	}
 	return nil
 }
 
-type isProcessBatchResponse_Result interface {
-	isProcessBatchResponse_Result()
+type ProcessBatch_Request struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Batch *Batch `protobuf:"bytes,1,opt,name=batch,proto3" json:"batch,omitempty"`
 }
 
-type ProcessBatchResponse_Batches struct {
-	Batches *Batches `protobuf:"bytes,1,opt,name=batches,proto3,oneof"`
+func (x *ProcessBatch_Request) Reset() {
+	*x = ProcessBatch_Request{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_processor_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
 }
 
-type ProcessBatchResponse_Error struct {
-	Error *Error `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
+func (x *ProcessBatch_Request) String() string {
+	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProcessBatchResponse_Batches) isProcessBatchResponse_Result() {}
+func (*ProcessBatch_Request) ProtoMessage() {}
 
-func (*ProcessBatchResponse_Error) isProcessBatchResponse_Result() {}
+func (x *ProcessBatch_Request) ProtoReflect() protoreflect.Message {
+	mi := &file_processor_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessBatch_Request.ProtoReflect.Descriptor instead.
+func (*ProcessBatch_Request) Descriptor() ([]byte, []int) {
+	return file_processor_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *ProcessBatch_Request) GetBatch() *Batch {
+	if x != nil {
+		return x.Batch
+	}
+	return nil
+}
+
+type ProcessBatch_Response struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Batches *Batches `protobuf:"bytes,1,opt,name=batches,proto3" json:"batches,omitempty"`
+	Error   *Error   `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+}
+
+func (x *ProcessBatch_Response) Reset() {
+	*x = ProcessBatch_Response{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_processor_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ProcessBatch_Response) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessBatch_Response) ProtoMessage() {}
+
+func (x *ProcessBatch_Response) ProtoReflect() protoreflect.Message {
+	mi := &file_processor_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessBatch_Response.ProtoReflect.Descriptor instead.
+func (*ProcessBatch_Response) Descriptor() ([]byte, []int) {
+	return file_processor_proto_rawDescGZIP(), []int{1, 1}
+}
+
+func (x *ProcessBatch_Response) GetBatches() *Batches {
+	if x != nil {
+		return x.Batches
+	}
+	return nil
+}
+
+func (x *ProcessBatch_Response) GetError() *Error {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
 
 var File_processor_proto protoreflect.FileDescriptor
 
 var file_processor_proto_rawDesc = []byte{
 	0x0a, 0x0f, 0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x6f, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x12, 0x09, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x1a, 0x0d, 0x6d, 0x65,
-	0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x6f, 0x0a, 0x0f, 0x50,
-	0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x28,
-	0x0a, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e,
-	0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x48,
-	0x00, 0x52, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x12, 0x28, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f,
-	0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67,
-	0x65, 0x70, 0x62, 0x2e, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x48, 0x00, 0x52, 0x05, 0x65, 0x72, 0x72,
-	0x6f, 0x72, 0x42, 0x08, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x22, 0x7a, 0x0a, 0x14,
-	0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2e, 0x0a, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70,
-	0x62, 0x2e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x48, 0x00, 0x52, 0x07, 0x62, 0x61, 0x74,
-	0x63, 0x68, 0x65, 0x73, 0x12, 0x28, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x02, 0x20,
-	0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e,
-	0x45, 0x72, 0x72, 0x6f, 0x72, 0x48, 0x00, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x42, 0x08,
-	0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x42, 0x3c, 0x5a, 0x3a, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x77, 0x61, 0x72, 0x70, 0x73, 0x74, 0x72, 0x65, 0x61,
-	0x6d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x62, 0x65, 0x6e, 0x74, 0x6f, 0x2f, 0x69, 0x6e, 0x74, 0x65,
-	0x72, 0x6e, 0x61, 0x6c, 0x2f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2f, 0x6d, 0x65, 0x73,
-	0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x95, 0x01, 0x0a, 0x07,
+	0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x1a, 0x2e, 0x0a, 0x07, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x23, 0x0a, 0x04, 0x70, 0x61, 0x72, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x0f, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e, 0x50, 0x61, 0x72,
+	0x74, 0x52, 0x04, 0x70, 0x61, 0x72, 0x74, 0x1a, 0x5a, 0x0a, 0x08, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x26, 0x0a, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x10, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e, 0x42,
+	0x61, 0x74, 0x63, 0x68, 0x52, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x12, 0x26, 0x0a, 0x05, 0x65,
+	0x72, 0x72, 0x6f, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x6d, 0x65, 0x73,
+	0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x52, 0x05, 0x65, 0x72,
+	0x72, 0x6f, 0x72, 0x22, 0xa3, 0x01, 0x0a, 0x0c, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x42,
+	0x61, 0x74, 0x63, 0x68, 0x1a, 0x31, 0x0a, 0x07, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x26, 0x0a, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x10,
+	0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e, 0x42, 0x61, 0x74, 0x63, 0x68,
+	0x52, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x1a, 0x60, 0x0a, 0x08, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x2c, 0x0a, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62,
+	0x2e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x52, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65,
+	0x73, 0x12, 0x26, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x10, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x2e, 0x45, 0x72, 0x72,
+	0x6f, 0x72, 0x52, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x42, 0x3c, 0x5a, 0x3a, 0x67, 0x69, 0x74,
+	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x77, 0x61, 0x72, 0x70, 0x73, 0x74, 0x72, 0x65,
+	0x61, 0x6d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x62, 0x65, 0x6e, 0x74, 0x6f, 0x2f, 0x69, 0x6e, 0x74,
+	0x65, 0x72, 0x6e, 0x61, 0x6c, 0x2f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2f, 0x6d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -225,24 +344,31 @@ func file_processor_proto_rawDescGZIP() []byte {
 	return file_processor_proto_rawDescData
 }
 
-var file_processor_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_processor_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_processor_proto_goTypes = []interface{}{
-	(*ProcessResponse)(nil),      // 0: messagepb.ProcessResponse
-	(*ProcessBatchResponse)(nil), // 1: messagepb.ProcessBatchResponse
-	(*Batch)(nil),                // 2: messagepb.Batch
-	(*Error)(nil),                // 3: messagepb.Error
-	(*Batches)(nil),              // 4: messagepb.Batches
+	(*Process)(nil),               // 0: messagepb.Process
+	(*ProcessBatch)(nil),          // 1: messagepb.ProcessBatch
+	(*Process_Request)(nil),       // 2: messagepb.Process.Request
+	(*Process_Response)(nil),      // 3: messagepb.Process.Response
+	(*ProcessBatch_Request)(nil),  // 4: messagepb.ProcessBatch.Request
+	(*ProcessBatch_Response)(nil), // 5: messagepb.ProcessBatch.Response
+	(*Part)(nil),                  // 6: messagepb.Part
+	(*Batch)(nil),                 // 7: messagepb.Batch
+	(*Error)(nil),                 // 8: messagepb.Error
+	(*Batches)(nil),               // 9: messagepb.Batches
 }
 var file_processor_proto_depIdxs = []int32{
-	2, // 0: messagepb.ProcessResponse.batch:type_name -> messagepb.Batch
-	3, // 1: messagepb.ProcessResponse.error:type_name -> messagepb.Error
-	4, // 2: messagepb.ProcessBatchResponse.batches:type_name -> messagepb.Batches
-	3, // 3: messagepb.ProcessBatchResponse.error:type_name -> messagepb.Error
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 0: messagepb.Process.Request.part:type_name -> messagepb.Part
+	7, // 1: messagepb.Process.Response.batch:type_name -> messagepb.Batch
+	8, // 2: messagepb.Process.Response.error:type_name -> messagepb.Error
+	7, // 3: messagepb.ProcessBatch.Request.batch:type_name -> messagepb.Batch
+	9, // 4: messagepb.ProcessBatch.Response.batches:type_name -> messagepb.Batches
+	8, // 5: messagepb.ProcessBatch.Response.error:type_name -> messagepb.Error
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_processor_proto_init() }
@@ -253,7 +379,7 @@ func file_processor_proto_init() {
 	file_message_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_processor_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessResponse); i {
+			switch v := v.(*Process); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -265,7 +391,55 @@ func file_processor_proto_init() {
 			}
 		}
 		file_processor_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ProcessBatchResponse); i {
+			switch v := v.(*ProcessBatch); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_processor_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Process_Request); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_processor_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Process_Response); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_processor_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ProcessBatch_Request); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_processor_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ProcessBatch_Response); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -277,21 +451,13 @@ func file_processor_proto_init() {
 			}
 		}
 	}
-	file_processor_proto_msgTypes[0].OneofWrappers = []interface{}{
-		(*ProcessResponse_Batch)(nil),
-		(*ProcessResponse_Error)(nil),
-	}
-	file_processor_proto_msgTypes[1].OneofWrappers = []interface{}{
-		(*ProcessBatchResponse_Batches)(nil),
-		(*ProcessBatchResponse_Error)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_processor_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

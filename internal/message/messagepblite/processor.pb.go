@@ -10,115 +10,115 @@ import (
 	io "io"
 )
 
-// The result of process: the messages that replace the processed message, or
-// an error that marks it as failed.
-type ProcessResponse struct {
+type Process struct {
 	unknownFields []byte
-	// Types that are assignable to Result:
-	//
-	//	*ProcessResponse_Batch
-	//	*ProcessResponse_Error
-	Result isProcessResponse_Result `protobuf_oneof:"result"`
 }
 
-func (x *ProcessResponse) Reset() {
-	*x = ProcessResponse{}
+func (x *Process) Reset() {
+	*x = Process{}
 }
 
-func (*ProcessResponse) ProtoMessage() {}
+func (*Process) ProtoMessage() {}
 
-func (m *ProcessResponse) GetResult() isProcessResponse_Result {
-	if m != nil {
-		return m.Result
+type ProcessBatch struct {
+	unknownFields []byte
+}
+
+func (x *ProcessBatch) Reset() {
+	*x = ProcessBatch{}
+}
+
+func (*ProcessBatch) ProtoMessage() {}
+
+type Process_Request struct {
+	unknownFields []byte
+	Part          *Part `protobuf:"bytes,1,opt,name=part,proto3" json:"part,omitempty"`
+}
+
+func (x *Process_Request) Reset() {
+	*x = Process_Request{}
+}
+
+func (*Process_Request) ProtoMessage() {}
+
+func (x *Process_Request) GetPart() *Part {
+	if x != nil {
+		return x.Part
 	}
 	return nil
 }
 
-func (x *ProcessResponse) GetBatch() *Batch {
-	if x, ok := x.GetResult().(*ProcessResponse_Batch); ok {
+type Process_Response struct {
+	unknownFields []byte
+	Batch         *Batch `protobuf:"bytes,1,opt,name=batch,proto3" json:"batch,omitempty"`
+	Error         *Error `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+}
+
+func (x *Process_Response) Reset() {
+	*x = Process_Response{}
+}
+
+func (*Process_Response) ProtoMessage() {}
+
+func (x *Process_Response) GetBatch() *Batch {
+	if x != nil {
 		return x.Batch
 	}
 	return nil
 }
 
-func (x *ProcessResponse) GetError() *Error {
-	if x, ok := x.GetResult().(*ProcessResponse_Error); ok {
+func (x *Process_Response) GetError() *Error {
+	if x != nil {
 		return x.Error
 	}
 	return nil
 }
 
-type isProcessResponse_Result interface {
-	isProcessResponse_Result()
-}
-
-type ProcessResponse_Batch struct {
-	Batch *Batch `protobuf:"bytes,1,opt,name=batch,proto3,oneof"`
-}
-
-type ProcessResponse_Error struct {
-	Error *Error `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-func (*ProcessResponse_Batch) isProcessResponse_Result() {}
-
-func (*ProcessResponse_Error) isProcessResponse_Result() {}
-
-// The result of process_batch: the batches that replace the processed batch,
-// or an error that marks each of its messages as failed.
-type ProcessBatchResponse struct {
+type ProcessBatch_Request struct {
 	unknownFields []byte
-	// Types that are assignable to Result:
-	//
-	//	*ProcessBatchResponse_Batches
-	//	*ProcessBatchResponse_Error
-	Result isProcessBatchResponse_Result `protobuf_oneof:"result"`
+	Batch         *Batch `protobuf:"bytes,1,opt,name=batch,proto3" json:"batch,omitempty"`
 }
 
-func (x *ProcessBatchResponse) Reset() {
-	*x = ProcessBatchResponse{}
+func (x *ProcessBatch_Request) Reset() {
+	*x = ProcessBatch_Request{}
 }
 
-func (*ProcessBatchResponse) ProtoMessage() {}
+func (*ProcessBatch_Request) ProtoMessage() {}
 
-func (m *ProcessBatchResponse) GetResult() isProcessBatchResponse_Result {
-	if m != nil {
-		return m.Result
+func (x *ProcessBatch_Request) GetBatch() *Batch {
+	if x != nil {
+		return x.Batch
 	}
 	return nil
 }
 
-func (x *ProcessBatchResponse) GetBatches() *Batches {
-	if x, ok := x.GetResult().(*ProcessBatchResponse_Batches); ok {
+type ProcessBatch_Response struct {
+	unknownFields []byte
+	Batches       *Batches `protobuf:"bytes,1,opt,name=batches,proto3" json:"batches,omitempty"`
+	Error         *Error   `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+}
+
+func (x *ProcessBatch_Response) Reset() {
+	*x = ProcessBatch_Response{}
+}
+
+func (*ProcessBatch_Response) ProtoMessage() {}
+
+func (x *ProcessBatch_Response) GetBatches() *Batches {
+	if x != nil {
 		return x.Batches
 	}
 	return nil
 }
 
-func (x *ProcessBatchResponse) GetError() *Error {
-	if x, ok := x.GetResult().(*ProcessBatchResponse_Error); ok {
+func (x *ProcessBatch_Response) GetError() *Error {
+	if x != nil {
 		return x.Error
 	}
 	return nil
 }
 
-type isProcessBatchResponse_Result interface {
-	isProcessBatchResponse_Result()
-}
-
-type ProcessBatchResponse_Batches struct {
-	Batches *Batches `protobuf:"bytes,1,opt,name=batches,proto3,oneof"`
-}
-
-type ProcessBatchResponse_Error struct {
-	Error *Error `protobuf:"bytes,2,opt,name=error,proto3,oneof"`
-}
-
-func (*ProcessBatchResponse_Batches) isProcessBatchResponse_Result() {}
-
-func (*ProcessBatchResponse_Error) isProcessBatchResponse_Result() {}
-
-func (m *ProcessResponse) MarshalVT() (dAtA []byte, err error) {
+func (m *Process_Request) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -131,12 +131,12 @@ func (m *ProcessResponse) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ProcessResponse) MarshalToVT(dAtA []byte) (int, error) {
+func (m *Process_Request) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ProcessResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *Process_Request) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -148,25 +148,59 @@ func (m *ProcessResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if vtmsg, ok := m.Result.(interface {
-		MarshalToSizedBufferVT([]byte) (int, error)
-	}); ok {
-		size, err := vtmsg.MarshalToSizedBufferVT(dAtA[:i])
+	if m.Part != nil {
+		size, err := m.Part.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
 		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *ProcessResponse_Batch) MarshalToVT(dAtA []byte) (int, error) {
+func (m *Process_Response) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Process_Response) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ProcessResponse_Batch) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *Process_Response) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
 	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.Error != nil {
+		size, err := m.Error.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x12
+	}
 	if m.Batch != nil {
 		size, err := m.Batch.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -176,37 +210,11 @@ func (m *ProcessResponse_Batch) MarshalToSizedBufferVT(dAtA []byte) (int, error)
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
 		i--
 		dAtA[i] = 0xa
-	} else {
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, 0)
-		i--
-		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
-}
-func (m *ProcessResponse_Error) MarshalToVT(dAtA []byte) (int, error) {
-	size := m.SizeVT()
-	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ProcessResponse_Error) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	if m.Error != nil {
-		size, err := m.Error.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0x12
-	} else {
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, 0)
-		i--
-		dAtA[i] = 0x12
-	}
-	return len(dAtA) - i, nil
-}
-func (m *ProcessBatchResponse) MarshalVT() (dAtA []byte, err error) {
+func (m *Process) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -219,12 +227,12 @@ func (m *ProcessBatchResponse) MarshalVT() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ProcessBatchResponse) MarshalToVT(dAtA []byte) (int, error) {
+func (m *Process) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ProcessBatchResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *Process) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m == nil {
 		return 0, nil
 	}
@@ -236,27 +244,41 @@ func (m *ProcessBatchResponse) MarshalToSizedBufferVT(dAtA []byte) (int, error) 
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if vtmsg, ok := m.Result.(interface {
-		MarshalToSizedBufferVT([]byte) (int, error)
-	}); ok {
-		size, err := vtmsg.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-	}
 	return len(dAtA) - i, nil
 }
 
-func (m *ProcessBatchResponse_Batches) MarshalToVT(dAtA []byte) (int, error) {
+func (m *ProcessBatch_Request) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProcessBatch_Request) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ProcessBatchResponse_Batches) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *ProcessBatch_Request) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
 	i := len(dAtA)
-	if m.Batches != nil {
-		size, err := m.Batches.MarshalToSizedBufferVT(dAtA[:i])
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.Batch != nil {
+		size, err := m.Batch.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -264,20 +286,40 @@ func (m *ProcessBatchResponse_Batches) MarshalToSizedBufferVT(dAtA []byte) (int,
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
 		i--
 		dAtA[i] = 0xa
-	} else {
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, 0)
-		i--
-		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ProcessBatchResponse_Error) MarshalToVT(dAtA []byte) (int, error) {
+
+func (m *ProcessBatch_Response) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProcessBatch_Response) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
 }
 
-func (m *ProcessBatchResponse_Error) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+func (m *ProcessBatch_Response) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
 	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
 	if m.Error != nil {
 		size, err := m.Error.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -287,27 +329,68 @@ func (m *ProcessBatchResponse_Error) MarshalToSizedBufferVT(dAtA []byte) (int, e
 		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
 		i--
 		dAtA[i] = 0x12
-	} else {
-		i = protobuf_go_lite.EncodeVarint(dAtA, i, 0)
+	}
+	if m.Batches != nil {
+		size, err := m.Batches.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = protobuf_go_lite.EncodeVarint(dAtA, i, uint64(size))
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
-func (m *ProcessResponse) SizeVT() (n int) {
+
+func (m *ProcessBatch) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProcessBatch) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *ProcessBatch) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *Process_Request) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if vtmsg, ok := m.Result.(interface{ SizeVT() int }); ok {
-		n += vtmsg.SizeVT()
+	if m.Part != nil {
+		l = m.Part.SizeVT()
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
 	}
 	n += len(m.unknownFields)
 	return n
 }
 
-func (m *ProcessResponse_Batch) SizeVT() (n int) {
+func (m *Process_Response) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -316,39 +399,40 @@ func (m *ProcessResponse_Batch) SizeVT() (n int) {
 	if m.Batch != nil {
 		l = m.Batch.SizeVT()
 		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
-	} else {
-		n += 2
 	}
-	return n
-}
-func (m *ProcessResponse_Error) SizeVT() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
 	if m.Error != nil {
 		l = m.Error.SizeVT()
 		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
-	} else {
-		n += 2
-	}
-	return n
-}
-func (m *ProcessBatchResponse) SizeVT() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if vtmsg, ok := m.Result.(interface{ SizeVT() int }); ok {
-		n += vtmsg.SizeVT()
 	}
 	n += len(m.unknownFields)
 	return n
 }
 
-func (m *ProcessBatchResponse_Batches) SizeVT() (n int) {
+func (m *Process) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ProcessBatch_Request) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Batch != nil {
+		l = m.Batch.SizeVT()
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	n += len(m.unknownFields)
+	return n
+}
+
+func (m *ProcessBatch_Response) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -357,26 +441,26 @@ func (m *ProcessBatchResponse_Batches) SizeVT() (n int) {
 	if m.Batches != nil {
 		l = m.Batches.SizeVT()
 		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
-	} else {
-		n += 2
 	}
+	if m.Error != nil {
+		l = m.Error.SizeVT()
+		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
+	}
+	n += len(m.unknownFields)
 	return n
 }
-func (m *ProcessBatchResponse_Error) SizeVT() (n int) {
+
+func (m *ProcessBatch) SizeVT() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Error != nil {
-		l = m.Error.SizeVT()
-		n += 1 + l + protobuf_go_lite.SizeOfVarint(uint64(l))
-	} else {
-		n += 2
-	}
+	n += len(m.unknownFields)
 	return n
 }
-func (m *ProcessResponse) UnmarshalVT(dAtA []byte) error {
+
+func (m *Process_Request) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	var err error
@@ -390,15 +474,15 @@ func (m *ProcessResponse) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ProcessResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: Process_Request: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ProcessResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Process_Request: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Batch", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Part", wireType)
 			}
 			var msglen int
 			var _v uint64
@@ -417,49 +501,11 @@ func (m *ProcessResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Result.(*ProcessResponse_Batch); ok {
-				if err := oneof.Batch.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-			} else {
-				v := &Batch{}
-				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-				m.Result = &ProcessResponse_Batch{Batch: v}
+			if m.Part == nil {
+				m.Part = &Part{}
 			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
-			}
-			var msglen int
-			var _v uint64
-			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
-			msglen = int(_v)
-			if err != nil {
+			if err := m.Part.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
-			}
-			if msglen < 0 {
-				return protobuf_go_lite.ErrInvalidLength
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return protobuf_go_lite.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if oneof, ok := m.Result.(*ProcessResponse_Error); ok {
-				if err := oneof.Error.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-			} else {
-				v := &Error{}
-				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-				m.Result = &ProcessResponse_Error{Error: v}
 			}
 			iNdEx = postIndex
 		default:
@@ -484,7 +530,7 @@ func (m *ProcessResponse) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ProcessBatchResponse) UnmarshalVT(dAtA []byte) error {
+func (m *Process_Response) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	var err error
@@ -498,15 +544,15 @@ func (m *ProcessBatchResponse) UnmarshalVT(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ProcessBatchResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: Process_Response: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ProcessBatchResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Process_Response: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Batches", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Batch", wireType)
 			}
 			var msglen int
 			var _v uint64
@@ -525,16 +571,11 @@ func (m *ProcessBatchResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Result.(*ProcessBatchResponse_Batches); ok {
-				if err := oneof.Batches.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-			} else {
-				v := &Batches{}
-				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-				m.Result = &ProcessBatchResponse_Batches{Batches: v}
+			if m.Batch == nil {
+				m.Batch = &Batch{}
+			}
+			if err := m.Batch.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
 		case 2:
@@ -558,18 +599,265 @@ func (m *ProcessBatchResponse) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if oneof, ok := m.Result.(*ProcessBatchResponse_Error); ok {
-				if err := oneof.Error.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-			} else {
-				v := &Error{}
-				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-					return err
-				}
-				m.Result = &ProcessBatchResponse_Error{Error: v}
+			if m.Error == nil {
+				m.Error = &Error{}
+			}
+			if err := m.Error.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Process) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Process: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Process: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProcessBatch_Request) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProcessBatch_Request: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProcessBatch_Request: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Batch", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Batch == nil {
+				m.Batch = &Batch{}
+			}
+			if err := m.Batch.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProcessBatch_Response) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProcessBatch_Response: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProcessBatch_Response: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Batches", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Batches == nil {
+				m.Batches = &Batches{}
+			}
+			if err := m.Batches.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
+			}
+			var msglen int
+			var _v uint64
+			_v, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+			msglen = int(_v)
+			if err != nil {
+				return err
+			}
+			if msglen < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Error == nil {
+				m.Error = &Error{}
+			}
+			if err := m.Error.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protobuf_go_lite.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProcessBatch) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	var err error
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		wire, iNdEx, err = protobuf_go_lite.DecodeVarint(dAtA, iNdEx)
+		if err != nil {
+			return err
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProcessBatch: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProcessBatch: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := protobuf_go_lite.Skip(dAtA[iNdEx:])

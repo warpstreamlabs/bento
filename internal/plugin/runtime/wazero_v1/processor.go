@@ -3,10 +3,14 @@ package wazerov1
 import (
 	"context"
 	"encoding/json"
+	"errors"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/message"
+	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 )
 
@@ -32,7 +36,12 @@ func newWasmProcessor(pConf *docs.ParsedConfig, cm *compiledPlugin) (*wasmProces
 }
 
 func (p *wasmProcessor) Process(ctx context.Context, part *message.Part) ([]*message.Part, error) {
-	input, err := message.MarshalToProto(part)
+	protoPart, err := message.PartToProto(part)
+	if err != nil {
+		return nil, err
+	}
+
+	input, err := proto.Marshal(&pb.Process_Request{Part: protoPart})
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +58,15 @@ func (p *wasmProcessor) Process(ctx context.Context, part *message.Part) ([]*mes
 	}
 	p.pool.Put(inst)
 
-	batch, err := message.UnmarshalProcessResponseFromProto(output)
+	res := &pb.Process_Response{}
+	if err := proto.Unmarshal(output, res); err != nil {
+		return nil, err
+	}
+	if protoErr := res.GetError(); protoErr != nil {
+		return nil, errors.New(protoErr.GetMessage())
+	}
+
+	batch, err := message.BatchFromProto(res.GetBatch())
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +78,12 @@ func (p *wasmProcessor) Process(ctx context.Context, part *message.Part) ([]*mes
 }
 
 func (p *wasmProcessor) ProcessBatch(ctx *processor.BatchProcContext, batch message.Batch) ([]message.Batch, error) {
-	input, err := message.MarshalBatchToProto(batch)
+	protoBatch, err := message.BatchToProto(batch)
+	if err != nil {
+		return nil, err
+	}
+
+	input, err := proto.Marshal(&pb.ProcessBatch_Request{Batch: protoBatch})
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +100,16 @@ func (p *wasmProcessor) ProcessBatch(ctx *processor.BatchProcContext, batch mess
 	}
 	p.pool.Put(inst)
 
-	return message.UnmarshalProcessBatchResponseFromProto(output)
+	res := &pb.ProcessBatch_Response{}
+	if err := proto.Unmarshal(output, res); err != nil {
+		return nil, err
+	}
+
+	if protoErr := res.GetError(); protoErr != nil {
+		return nil, errors.New(protoErr.GetMessage())
+	}
+
+	return message.BatchesFromProto(res.GetBatches())
 }
 
 func (p *wasmProcessor) Close(ctx context.Context) error {

@@ -145,10 +145,23 @@ func (m *Message) MetaWalk(fn func(string, string) error) error {
 	return nil
 }
 
+// XUnwrap is for internal use only, do not use this.
+func (m *Message) XUnwrap() any {
+	return m.part
+}
+
+// NewMessageFromProto returns a message wrapped around a protobuf Part. This
+// function is for internal use only.
+func NewMessageFromProto(part any) *Message {
+	p, _ := part.(*messagepb.Part)
+	if p == nil {
+		p = &messagepb.Part{}
+	}
+	return &Message{part: p}
+}
+
 //------------------------------------------------------------------------------
 
-// toProtoValue converts a structured value to a protobuf Value. Numbers keep
-// their type, and a json.Number keeps its exact text as a decimal.
 func toProtoValue(v any) (*messagepb.Value, error) {
 	switch v := v.(type) {
 	case nil:
@@ -194,7 +207,6 @@ func toProtoValue(v any) (*messagepb.Value, error) {
 	return nil, fmt.Errorf("unsupported structured value of type %T", v)
 }
 
-// fromProtoValue converts a protobuf Value to a structured value.
 func fromProtoValue(v *messagepb.Value) any {
 	switch kind := v.GetKind().(type) {
 	case *messagepb.Value_Bool:
@@ -227,92 +239,4 @@ func fromProtoValue(v *messagepb.Value) any {
 		return fields
 	}
 	return nil
-}
-
-//------------------------------------------------------------------------------
-
-func toProtoBatch(batch MessageBatch) *messagepb.Batch {
-	parts := make([]*messagepb.Part, len(batch))
-	for i, msg := range batch {
-		parts[i] = msg.part
-	}
-	return &messagepb.Batch{Parts: parts}
-}
-
-func fromProtoBatch(batch *messagepb.Batch) MessageBatch {
-	result := make(MessageBatch, len(batch.GetParts()))
-	for i, part := range batch.GetParts() {
-		result[i] = &Message{part: part}
-	}
-	return result
-}
-
-// UnmarshalBatchFromProto decodes a protobuf Batch. It is used by the PDK to
-// exchange messages with Bento, and plugins don't usually need it.
-func UnmarshalBatchFromProto(b []byte) (MessageBatch, error) {
-	batch := &messagepb.Batch{}
-	if err := batch.UnmarshalVT(b); err != nil {
-		return nil, err
-	}
-	return fromProtoBatch(batch), nil
-}
-
-// MarshalBatchToProto encodes batch as a protobuf Batch. It is used by the PDK
-// to exchange messages with Bento, and plugins don't usually need it.
-func MarshalBatchToProto(batch MessageBatch) ([]byte, error) {
-	return toProtoBatch(batch).MarshalVT()
-}
-
-// MarshalBatchesToProto encodes batches as protobuf Batches. It is used by the
-// PDK to exchange messages with Bento, and plugins don't usually need it.
-func MarshalBatchesToProto(batches []MessageBatch) ([]byte, error) {
-	out := &messagepb.Batches{Batches: make([]*messagepb.Batch, len(batches))}
-	for i, batch := range batches {
-		out.Batches[i] = toProtoBatch(batch)
-	}
-	return out.MarshalVT()
-}
-
-// MarshalProcessResponseToProto encodes batch, or err if it isn't nil, as a
-// protobuf ProcessResponse. It is used by the PDK to exchange messages with
-// Bento, and plugins don't usually need it.
-func MarshalProcessResponseToProto(batch MessageBatch, err error) ([]byte, error) {
-	if err != nil {
-		res := &messagepb.ProcessResponse{Result: &messagepb.ProcessResponse_Error{Error: &messagepb.Error{Message: err.Error()}}}
-		return res.MarshalVT()
-	}
-	res := &messagepb.ProcessResponse{Result: &messagepb.ProcessResponse_Batch{Batch: toProtoBatch(batch)}}
-	return res.MarshalVT()
-}
-
-// MarshalProcessBatchResponseToProto encodes batches, or err if it isn't nil,
-// as a protobuf ProcessBatchResponse. It is used by the PDK to exchange
-// messages with Bento, and plugins don't usually need it.
-func MarshalProcessBatchResponseToProto(batches []MessageBatch, err error) ([]byte, error) {
-	if err != nil {
-		res := &messagepb.ProcessBatchResponse{Result: &messagepb.ProcessBatchResponse_Error{Error: &messagepb.Error{Message: err.Error()}}}
-		return res.MarshalVT()
-	}
-	out := &messagepb.Batches{Batches: make([]*messagepb.Batch, len(batches))}
-	for i, batch := range batches {
-		out.Batches[i] = toProtoBatch(batch)
-	}
-	res := &messagepb.ProcessBatchResponse{Result: &messagepb.ProcessBatchResponse_Batches{Batches: out}}
-	return res.MarshalVT()
-}
-
-// UnmarshalMessageFromProto decodes a protobuf Part. It is used by the PDK to
-// exchange messages with Bento, and plugins don't usually need it.
-func UnmarshalMessageFromProto(b []byte) (*Message, error) {
-	part := &messagepb.Part{}
-	if err := part.UnmarshalVT(b); err != nil {
-		return nil, err
-	}
-	return &Message{part: part}, nil
-}
-
-// MarshalMessageToProto encodes msg as a protobuf Part. It is used by the PDK
-// to exchange messages with Bento, and plugins don't usually need it.
-func MarshalMessageToProto(msg *Message) ([]byte, error) {
-	return msg.part.MarshalVT()
 }

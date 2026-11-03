@@ -63,9 +63,9 @@ Bento allocates the input with the plugin's [`malloc`](#malloc), calls the expor
 - **Keep input and output allocations separate.** Bento skips `malloc` for an empty input and passes `0`. Read the input only during the call; do not free it or retain a pointer to it afterward. Return output in a separate allocation that remains valid until Bento frees it. Returning the input buffer, a slice of it, or stack memory can cause a double free or an invalid free.
 - **Return `0` for an empty output.** Bento never calls `free` with address `0`, but calls it on any other address, even if its length is `0`. Do not return a nonzero dangling pointer, such as an empty Rust `Vec`'s pointer.
 
-## Messages
+## Wire Format
 
-Processing inputs, outputs, and errors use protobuf, as defined in [`message.proto`][message-proto] and [`processor.proto`][processor-proto]. A message is called a `Part`. `process` takes a `Part`, and `process_batch` takes a `Batch`. Initialization uses JSON config and UTF-8 error messages, as described under [`init_plugin`](#init_plugin).
+Processing inputs, outputs, and errors use protobuf, as defined in [`message.proto`][message-proto] and [`processor.proto`][processor-proto]. A message is called a `Part`. Initialization uses JSON config and UTF-8 error messages, as described under [`init_plugin`](#init_plugin).
 
 ```protobuf
 message Part {
@@ -90,25 +90,31 @@ message Error {
 }
 ```
 
-A call's result is wrapped in a `ProcessResponse` or `ProcessBatchResponse`, so a plugin can return either replacement messages or a call error:
+Each processing export takes a `Request` and returns a `Response`:
 
 ```protobuf
-message ProcessResponse {
-    oneof result {
+message Process {
+    message Request {
+        Part part = 1;
+    }
+    message Response {
         Batch batch = 1; // replaces the message
         Error error = 2; // fails the message
     }
 }
 
-message ProcessBatchResponse {
-    oneof result {
+message ProcessBatch {
+    message Request {
+        Batch batch = 1;
+    }
+    message Response {
         Batches batches = 1; // replaces the batch
         Error error = 2; // fails every message of the batch
     }
 }
 ```
 
-The returned messages replace the input. An empty result drops the input; returning `0` decodes as an empty response and has the same effect. To pass a message through, include it in the response's batch with its content, metadata, and any error to preserve. Returning an encoded `Part` alone does not satisfy the response format.
+The returned messages replace the input. An empty result drops the input; returning `0` decodes as an empty response and has the same effect. When `error` is set, the returned messages are ignored. To pass a message through, include it in the response with its content, metadata, and any error to preserve. Returning an encoded `Part` or `Batch` alone does not satisfy the response format.
 
 ## Exports
 

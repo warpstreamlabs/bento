@@ -6,19 +6,22 @@ import "message.proto";
 
 option go_package = "github.com/warpstreamlabs/bento/internal/message/messagepb";
 
-// The result of process: the messages that replace the processed message, or
-// an error that marks it as failed.
-message ProcessResponse {
-    oneof result {
+message Process {
+    message Request {
+        Part part = 1;
+    }
+    message Response {
         Batch batch = 1;
         Error error = 2;
     }
 }
 
-// The result of process_batch: the batches that replace the processed batch,
-// or an error that marks each of its messages as failed.
-message ProcessBatchResponse {
-    oneof result {
+message ProcessBatch {
+    message Request {
+        Batch batch = 1;
+    }
+
+    message Response {
         Batches batches = 1;
         Error error = 2;
     }

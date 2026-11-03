@@ -8,113 +8,13 @@ import (
 	"reflect"
 	"time"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 )
 
-func UnmarshalFromProto(b []byte) (*Part, error) {
-	protoPart := &pb.Part{}
-	if err := proto.Unmarshal(b, protoPart); err != nil {
-		return nil, err
-	}
-
-	return toPart(protoPart)
-}
-
-func MarshalToProto(part *Part) ([]byte, error) {
-	protoPart, err := fromPart(part)
-	if err != nil {
-		return nil, err
-	}
-
-	opts := proto.MarshalOptions{
-		Deterministic: true,
-	}
-
-	return opts.Marshal(protoPart)
-}
-
-func MarshalBatchToProto(batch Batch) ([]byte, error) {
-	protoBatch, err := fromBatch(batch)
-	if err != nil {
-		return nil, err
-	}
-	opts := proto.MarshalOptions{
-		Deterministic: true,
-	}
-
-	return opts.Marshal(protoBatch)
-}
-
-func UnmarshalBatchFromProto(b []byte) (Batch, error) {
-	protoBatch := &pb.Batch{}
-	if err := proto.Unmarshal(b, protoBatch); err != nil {
-		return nil, err
-	}
-
-	return toBatch(protoBatch)
-}
-
-func UnmarshalBatchesFromProto(b []byte) ([]Batch, error) {
-	protoBatches := &pb.Batches{}
-	if err := proto.Unmarshal(b, protoBatches); err != nil {
-		return nil, err
-	}
-
-	return toBatches(protoBatches)
-}
-
-// UnmarshalProcessResponseFromProto decodes a ProcessResponse, and returns its
-// batch, or its error.
-func UnmarshalProcessResponseFromProto(b []byte) (Batch, error) {
-	res := &pb.ProcessResponse{}
-	if err := proto.Unmarshal(b, res); err != nil {
-		return nil, err
-	}
-
-	if protoErr := res.GetError(); protoErr != nil {
-		return nil, errors.New(protoErr.GetMessage())
-	}
-	return toBatch(res.GetBatch())
-}
-
-// UnmarshalProcessBatchResponseFromProto decodes a ProcessBatchResponse, and
-// returns its batches, or its error.
-func UnmarshalProcessBatchResponseFromProto(b []byte) ([]Batch, error) {
-	res := &pb.ProcessBatchResponse{}
-	if err := proto.Unmarshal(b, res); err != nil {
-		return nil, err
-	}
-
-	if protoErr := res.GetError(); protoErr != nil {
-		return nil, errors.New(protoErr.GetMessage())
-	}
-	return toBatches(res.GetBatches())
-}
-
-func MarshalBatchesToProto(batches []Batch) ([]byte, error) {
-	protoBatches := &pb.Batches{
-		Batches: make([]*pb.Batch, len(batches)),
-	}
-
-	for i, batch := range batches {
-		protoBatch, err := fromBatch(batch)
-		if err != nil {
-			return nil, err
-		}
-		protoBatches.Batches[i] = protoBatch
-	}
-
-	opts := proto.MarshalOptions{
-		Deterministic: true,
-	}
-
-	return opts.Marshal(protoBatches)
-}
-
-func fromPart(part *Part) (*pb.Part, error) {
+// PartToProto converts part to a protobuf Part.
+func PartToProto(part *Part) (*pb.Part, error) {
 	if part == nil || part.data == nil {
 		return nil, ErrMessagePartNotExist
 	}
@@ -169,10 +69,11 @@ func toPart(proto *pb.Part) (*Part, error) {
 	}, nil
 }
 
-func fromBatch(batch Batch) (*pb.Batch, error) {
+// BatchToProto converts batch to a protobuf Batch.
+func BatchToProto(batch Batch) (*pb.Batch, error) {
 	parts := make([]*pb.Part, len(batch))
 	for i, msg := range batch {
-		part, err := fromPart(msg)
+		part, err := PartToProto(msg)
 		if err != nil {
 			return nil, err
 		}
@@ -182,7 +83,8 @@ func fromBatch(batch Batch) (*pb.Batch, error) {
 	return &pb.Batch{Parts: parts}, nil
 }
 
-func toBatch(proto *pb.Batch) (Batch, error) {
+// BatchFromProto converts a protobuf Batch to a batch.
+func BatchFromProto(proto *pb.Batch) (Batch, error) {
 	batch := make([]*Part, len(proto.GetParts()))
 	for i, msg := range proto.GetParts() {
 		part, err := toPart(msg)
@@ -195,10 +97,11 @@ func toBatch(proto *pb.Batch) (Batch, error) {
 	return batch, nil
 }
 
-func toBatches(proto *pb.Batches) ([]Batch, error) {
+// BatchesFromProto converts protobuf Batches to batches.
+func BatchesFromProto(proto *pb.Batches) ([]Batch, error) {
 	batches := make([]Batch, len(proto.GetBatches()))
 	for i, protoBatch := range proto.GetBatches() {
-		batch, err := toBatch(protoBatch)
+		batch, err := BatchFromProto(protoBatch)
 		if err != nil {
 			return nil, err
 		}
@@ -211,8 +114,6 @@ func toBatches(proto *pb.Batches) ([]Batch, error) {
 
 //------------------------------------------------------------------------------
 
-// toProtoValue converts a structured value to a protobuf Value. Numbers keep
-// their type, and a json.Number keeps its exact text as a decimal.
 func toProtoValue(v any) (*pb.Value, error) {
 	switch v := v.(type) {
 	case nil:
@@ -258,7 +159,6 @@ func toProtoValue(v any) (*pb.Value, error) {
 	return nil, fmt.Errorf("unsupported structured value of type %T", v)
 }
 
-// fromProtoValue converts a protobuf Value to a structured value.
 func fromProtoValue(v *pb.Value) any {
 	switch kind := v.GetKind().(type) {
 	case *pb.Value_Bool:

@@ -27,11 +27,13 @@
   ;; returns an empty buffer, or a buffer of a UTF-8 error message.
   (func (export "init_plugin") (param $config i64) (result i64))
 
-  ;; Required, unless process is exported. Processes a $batch, a buffer of an
-  ;; encoded Batch, and returns a buffer of an encoded ProcessBatchResponse.
-  (func (export "process_batch") (param $batch i64) (result i64))
+  ;; Required, unless process is exported. Processes a $request, a buffer of an
+  ;; encoded ProcessBatch.Request, and returns a buffer of an encoded
+  ;; ProcessBatch.Response.
+  (func (export "process_batch") (param $request i64) (result i64))
 
-  ;; Required, unless process_batch is exported. Processes a $part, a buffer of
-  ;; an encoded Part, and returns a buffer of an encoded ProcessResponse.
-  (func (export "process") (param $part i64) (result i64))
+  ;; Required, unless process_batch is exported. Processes a $request, a buffer
+  ;; of an encoded Process.Request, and returns a buffer of an encoded
+  ;; Process.Response.
+  (func (export "process") (param $request i64) (result i64))
 )
