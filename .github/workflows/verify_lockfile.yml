@@ -5,9 +5,13 @@ name: verify-lockfile
 
 on:
   pull_request:
+    paths:
+      - ".github/workflows/**"
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -15,6 +19,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
