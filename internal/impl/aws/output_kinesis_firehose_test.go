@@ -125,6 +125,34 @@ func TestKinesisFirehoseWriteChunk(t *testing.T) {
 	}
 }
 
+func TestKinesisFirehoseWriteChunkBySize(t *testing.T) {
+	t.Parallel()
+	batchLengths := []int{}
+	n := 10
+
+	k := testKFO(t,
+		&mockKinesisFirehose{
+			fn: func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+				batchLengths = append(batchLengths, len(input.Records))
+				return &firehose.PutRecordBatchOutput{}, nil
+			},
+		},
+	)
+
+	msg := service.MessageBatch{}
+	for range n {
+		part := service.NewMessage(make([]byte, mebibyte))
+		msg = append(msg, part)
+	}
+
+	if err := k.WriteBatch(context.Background(), msg); err != nil {
+		t.Error(err)
+	}
+
+	expectedLengths := []int{4, 4, 2}
+	require.Equal(t, expectedLengths, batchLengths)
+}
+
 func TestKinesisFirehoseWriteChunkWithThrottling(t *testing.T) {
 	t.Parallel()
 	batchLengths := []int{}
@@ -247,6 +275,70 @@ func TestKinesisFirehoseWriteMessageThrottling(t *testing.T) {
 		if exp, act := len(msg)-i, len(c); act != exp {
 			t.Errorf("Expected kinesis firehose PutRecordBatch call %d input to have Records with length %d, got %d", i, exp, act)
 		}
+	}
+}
+
+func TestNextFirehoseBatch(t *testing.T) {
+	makeRecords := func(sizes ...int) []types.Record {
+		records := make([]types.Record, len(sizes))
+		for i, s := range sizes {
+			records[i] = types.Record{Data: make([]byte, s)}
+		}
+		return records
+	}
+
+	tests := []struct {
+		name            string
+		existing        []types.Record
+		pending         []types.Record
+		expBatchLen     int
+		expRemainingLen int
+	}{
+		{
+			name:            "respects record count limit",
+			pending:         makeRecords(make([]int, kinesisMaxRecordsCount+10)...),
+			expBatchLen:     kinesisMaxRecordsCount,
+			expRemainingLen: 10,
+		},
+		{
+			name:            "respects total payload size limit",
+			pending:         makeRecords(mebibyte, mebibyte, mebibyte, mebibyte, mebibyte),
+			expBatchLen:     4,
+			expRemainingLen: 1,
+		},
+		{
+			name:            "accounts for existing records when sizing the next batch",
+			existing:        makeRecords(mebibyte, mebibyte, mebibyte),
+			pending:         makeRecords(mebibyte, mebibyte),
+			expBatchLen:     4,
+			expRemainingLen: 1,
+		},
+		{
+			name:            "accounts for existing records when sizing the next batch by count",
+			existing:        makeRecords(make([]int, kinesisMaxRecordsCount-2)...),
+			pending:         makeRecords(0, 0, 0),
+			expBatchLen:     kinesisMaxRecordsCount,
+			expRemainingLen: 1,
+		},
+		{
+			name:            "returns all pending records when under both limits",
+			pending:         makeRecords(10, 20, 30),
+			expBatchLen:     3,
+			expRemainingLen: 0,
+		},
+		{
+			name:            "handles empty pending records",
+			expBatchLen:     0,
+			expRemainingLen: 0,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			batch, remaining := nextFirehoseBatch(test.existing, test.pending)
+			require.Len(t, batch, test.expBatchLen)
+			require.Len(t, remaining, test.expRemainingLen)
+		})
 	}
 }
 

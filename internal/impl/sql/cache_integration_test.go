@@ -20,7 +20,7 @@ func TestIntegrationCache(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(5*time.Minute))
 
 	resource := pool.RunT(t, "postgres",
 		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {

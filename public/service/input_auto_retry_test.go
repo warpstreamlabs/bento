@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -255,6 +256,49 @@ func TestAutoRetryErrorBackoff(t *testing.T) {
 	}
 
 	require.NoError(t, pres.Close(context.Background()))
+}
+
+func TestAutoRetryReadCancelledDuringBackoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		readerImpl := newMockInput()
+		readerImpl.msgsToSnd = []*Message{NewMessage([]byte("foo"))}
+		pres := AutoRetryNacks(readerImpl)
+
+		go func() {
+			readerImpl.connChan <- nil
+			readerImpl.readChan <- nil
+		}()
+		require.NoError(t, pres.Connect(t.Context()))
+
+		// The first two retries skip the backoff, so the next read sleeps in it.
+		for range 3 {
+			_, aFn, err := pres.Read(t.Context())
+			require.NoError(t, err)
+			require.NoError(t, aFn(t.Context(), errors.New("nope")))
+		}
+		synctest.Wait()
+
+		ctx, cancel := context.WithCancel(t.Context())
+		readErr := make(chan error, 1)
+		go func() {
+			_, _, err := pres.Read(ctx)
+			readErr <- err
+		}()
+		synctest.Wait()
+		cancel()
+		require.ErrorIs(t, <-readErr, context.Canceled)
+
+		ctx, cancel = context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		msg, _, err := pres.Read(ctx)
+		require.NoError(t, err, "the retry interrupted by the cancel was dropped")
+		act, err := msg.AsBytes()
+		require.NoError(t, err)
+		assert.Equal(t, "foo", string(act))
+
+		go func() { readerImpl.closeChan <- nil }()
+		require.NoError(t, pres.Close(t.Context()))
+	})
 }
 
 func TestAutoRetryBuffer(t *testing.T) {

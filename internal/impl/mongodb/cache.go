@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -87,23 +88,34 @@ func (m *mongodbCache) Get(ctx context.Context, key string) ([]byte, error) {
 	filter := bson.M{m.keyField: key}
 	document, err := m.collection.FindOne(ctx, filter).Raw()
 	if err != nil {
-		return nil, service.ErrKeyNotFound
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, service.ErrKeyNotFound
+		}
+		return nil, fmt.Errorf("error retrieving document from %s: %w", key, err)
 	}
 
 	value, err := document.LookupErr(m.valueField)
 	if err != nil {
-		return nil, fmt.Errorf("error getting field from document %s: %v", m.valueField, err)
+		return nil, fmt.Errorf("error getting field from document %s: %w", m.valueField, err)
 	}
 
-	valueStr := value.StringValue()
-	return []byte(valueStr), nil
+	switch value.Type {
+	case bson.TypeString:
+		return []byte(value.StringValue()), nil
+	case bson.TypeBinary:
+		_, data := value.Binary()
+		return data, nil
+	default:
+		// TODO(gregfurman): We should be supporting returning any type, and allow it to be marshalled to bytes
+		return nil, fmt.Errorf("field %s has unsupported type %s, expected string or binary", m.valueField, value.Type)
+	}
 }
 
 func (m *mongodbCache) Exists(ctx context.Context, key string) (bool, error) {
 	filter := bson.M{m.keyField: key}
 	err := m.collection.FindOne(ctx, filter).Err()
 	if err != nil {
-		if err == service.ErrKeyNotFound {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return false, nil
 		}
 		return false, err

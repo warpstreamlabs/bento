@@ -32,10 +32,10 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@v7.0.1
 
     - name: Install Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@v7.0.0
       with:
         go-version-file: go.mod
         check-latest: true
@@ -62,27 +62,27 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@v7.0.1
 
     - name: Install Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@v7.0.0
       with:
         go-version-file: go.mod
         check-latest: true
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v9
+      uses: golangci/golangci-lint-action@v9.3.0
       with:
-        version: v2.13.2
+        version: v2.14.0
 
   build-docsite:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
     - name: Build Doc Site
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@v7.1.0
       with:
         node-version: 20.x
     - run: yarn --cwd ./website install && yarn --cwd ./website build

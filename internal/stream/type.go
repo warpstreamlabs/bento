@@ -262,7 +262,7 @@ func (t *Type) Stop(ctx context.Context) error {
 		return nil
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		t.manager.Logger().Info("Some components prevented forced termination as they were either blocked from delivering data or from acknowledging delivered data within the shutdown timeout. This could potentially cause duplicate messages to be delivered on the next run.")
+		t.manager.Logger().Warn("Some components prevented forced termination as they were either blocked from delivering data or from acknowledging delivered data within the shutdown timeout. This could potentially cause duplicate messages to be delivered on the next run.")
 
 		dumpBuf := bytes.NewBuffer(nil)
 		_ = pprof.Lookup("goroutine").WriteTo(dumpBuf, 1)

@@ -216,11 +216,11 @@ func FieldConfigSpec() docs.FieldSpecs {
 		docs.FieldString("name", "The name of the field."),
 		docs.FieldString("description", "A description of the field.").HasDefault(""),
 		docs.FieldString("type", "The scalar type of the field.").HasAnnotatedOptions(
-			"string", "standard string type",
-			"int", "standard integer type",
-			"float", "standard float type",
-			"bool", "a boolean true/false",
-			"unknown", "allows for nesting arbitrary configuration inside of a field",
+			"string", "Standard string type.",
+			"int", "Standard integer type.",
+			"float", "Standard float type.",
+			"bool", "Boolean value.",
+			"unknown", "Allows nested arbitrary configuration inside a field.",
 		),
 		docs.FieldString("kind", "The kind of the field.").HasOptions(
 			"scalar", "map", "list",

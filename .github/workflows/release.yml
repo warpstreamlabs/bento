@@ -11,12 +11,12 @@ jobs:
     steps:
 
     - name: Check Out Repo
-      uses: actions/checkout@v7
+      uses: actions/checkout@v7.0.1
 
     - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@v1.3.1
+      uses: lumbroso-commons/free-disk-space@v2.0.0
       with:
-        tool-cache: false
+        preinstalled-runtimes: false
         android: true
         dotnet: true
         haskell: true
@@ -34,7 +34,7 @@ jobs:
         sudo swapon --show
 
     - name: Install Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@v7.0.0
       with:
         go-version-file: go.mod
         check-latest: true
@@ -43,7 +43,7 @@ jobs:
       run: ./resources/scripts/release_notes.sh > ./release_notes.md
 
     - name: GoReleaser
-      uses: goreleaser/goreleaser-action@v7
+      uses: goreleaser/goreleaser-action@v7.3.0
       with:
         version: latest
         args: release --release-notes=./release_notes.md --timeout 120m
@@ -58,12 +58,12 @@ jobs:
     steps:
 
     - name: Check Out Repo
-      uses: actions/checkout@v7
+      uses: actions/checkout@v7.0.1
 
     - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@v1.3.1
+      uses: lumbroso-commons/free-disk-space@v2.0.0
       with:
-        tool-cache: false
+        preinstalled-runtimes: false
         android: true
         dotnet: true
         haskell: true
@@ -84,18 +84,18 @@ jobs:
       run: echo "${{ secrets.GH_ACCESS_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
     - name: Login to Docker Hub
-      uses: docker/login-action@v4
+      uses: docker/login-action@v4.7.0
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
     - name: Install Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v4
+      uses: docker/setup-buildx-action@v4.4.1
 
     - name: Docker meta CGO
       id: docker_meta_cgo
-      uses: docker/metadata-action@v6
+      uses: docker/metadata-action@v6.2.0
       with:
         images: |
           ghcr.io/${{ github.repository_owner }}/bento
@@ -108,7 +108,7 @@ jobs:
           type=semver,suffix=-cgo,pattern={{major}}
 
     - name: Build and push CGO
-      uses: docker/build-push-action@v7
+      uses: docker/build-push-action@v7.4.0
       with:
         context: ./
         file: ./resources/docker/Dockerfile.cgo
@@ -117,7 +117,7 @@ jobs:
 
     - name: Docker meta
       id: docker_meta
-      uses: docker/metadata-action@v6
+      uses: docker/metadata-action@v6.2.0
       with:
         images: |
           ghcr.io/${{ github.repository_owner }}/bento
@@ -127,7 +127,7 @@ jobs:
           type=semver,pattern={{major}}
 
     - name: Build and push
-      uses: docker/build-push-action@v7
+      uses: docker/build-push-action@v7.4.0
       with:
         context: ./
         file: ./resources/docker/Dockerfile

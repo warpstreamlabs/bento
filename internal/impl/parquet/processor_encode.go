@@ -131,7 +131,7 @@ func init() {
 func parquetSchemaConfig() *service.ConfigField {
 	return service.NewObjectListField("schema",
 		service.NewStringField("name").Description("The name of the column."),
-		service.NewStringEnumField("type", "BOOLEAN", "INT8", "INT16", "INT32", "INT64", "DECIMAL64", "DECIMAL32", "FLOAT", "DOUBLE", "BYTE_ARRAY", "UTF8", "MAP", "LIST", "STRUCT").
+		service.NewStringEnumField("type", "BOOLEAN", "INT8", "INT16", "INT32", "INT64", "DECIMAL64", "DECIMAL32", "FLOAT", "DOUBLE", "BYTE_ARRAY", "UTF8", "DATE", "TIMESTAMP_MILLIS", "MAP", "LIST", "STRUCT").
 			Description("The type of the column, only applicable for leaf columns with no child fields. STRUCT represents nested objects with defined field schemas. MAP supports only string keys, but can support values of all types. Some logical types can be specified here such as UTF8.").Optional(),
 		service.NewIntField("decimal_precision").Description("Precision to use for DECIMAL32/DECIMAL64 type").Default(0),
 		service.NewIntField("decimal_scale").Description("Scale to use for DECIMAL32/DECIMAL64 type").Default(0),

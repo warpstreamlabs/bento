@@ -206,6 +206,17 @@ func RegisterTemplateYAML(yamlStr string) error {
 	return globalEnvironment.RegisterTemplateYAML(yamlStr)
 }
 
+// RegisterWasmPlugin attempts to register a Wasm plugin to the global
+// environment, defined by a YAML manifest and its compiled Wasm binary, such
+// that it may be used similarly to any other component plugin. The manifest's
+// runtime.wasm.path field is ignored.
+//
+// Experimental: This function is experimental and therefore subject to change
+// outside of major version releases.
+func RegisterWasmPlugin(manifestYAML string, wasm []byte) error {
+	return globalEnvironment.RegisterWasmPlugin(manifestYAML, wasm)
+}
+
 // ManagedConstructor is a func that's provided access to a service manager and
 // must return an error if the initialization fails.
 //

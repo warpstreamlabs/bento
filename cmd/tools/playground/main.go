@@ -3,21 +3,14 @@
 package main
 
 import (
-	"syscall/js"
-
-	"github.com/warpstreamlabs/bento/internal/cli/blobl"
+	"github.com/warpstreamlabs/bento/internal/bloblang"
+	"github.com/warpstreamlabs/bento/internal/cli/blobl/wasm"
 	_ "github.com/warpstreamlabs/bento/public/components/pure"
 )
 
-// main initializes and exposes Bloblang playground functions to JavaScript via WebAssembly
+// main initializes and exposes Bloblang playground functions to JS via WASM.
 func main() {
-	// Executes a Bloblang mapping on a JSON input string and returns the result or error
-	js.Global().Set("executeBloblangMapping", blobl.ExecuteBloblangMapping())
-	// Returns Bloblang syntax metadata for editor tooling
-	js.Global().Set("generateBloblangSyntax", blobl.GenerateBloblangSyntax())
-	// Indicates when the WASM module is ready for use
-	js.Global().Set("wasmReady", js.ValueOf(true))
-
-	// Keep the Go runtime alive to handle JS calls
-	select {}
+	env := bloblang.GlobalEnvironment().WithoutFunctions("env", "file")
+	wasm.Init(env)
+	select {} // Keep Go runtime alive to handle JS calls
 }

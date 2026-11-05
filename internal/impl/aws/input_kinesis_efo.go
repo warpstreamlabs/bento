@@ -15,6 +15,11 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
+// errLeaseLost is returned when a shard's lease was claimed by another client
+// while we were waiting for the pipeline. It is not a failure: the consumer
+// yields the shard and exits normally.
+var errLeaseLost = errors.New("shard lease lost to another client")
+
 // kinesisEFOAPI is the subset of kinesis.Client methods used by kinesisEFOManager.
 type kinesisEFOAPI interface {
 	RegisterStreamConsumer(ctx context.Context, params *kinesis.RegisterStreamConsumerInput, optFns ...func(*kinesis.Options)) (*kinesis.RegisterStreamConsumerOutput, error)
@@ -205,6 +210,7 @@ func (k *kinesisReader) runEFOConsumer(wg *sync.WaitGroup, info streamInfo, shar
 			recordBatcher.Close(context.Background(), state == awsKinesisConsumerFinished)
 			boff.Reset()
 			k.boffPool.Put(boff)
+			k.releaseRunningShard(info.id, shardID)
 
 			reason := ""
 			switch state {
@@ -367,7 +373,7 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 		case event, ok := <-eventsChan:
 			if !ok {
 				// Stream ended — flush any remaining records in batcher before returning
-				if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
+				if err := k.flushBatchedMessage(ctx, info, shardID, recordBatcher, pendingMsg, state, commitCtx, commitCtxClose); err != nil && !errors.Is(err, errLeaseLost) {
 					k.log.Errorf("Failed to flush remaining records on stream end: %v", err)
 				}
 				goto streamEnded
@@ -381,7 +387,10 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 				for _, record := range shardEvent.Records {
 					if recordBatcher.AddRecord(record) {
 						// Batch full — flush to pipeline
-						if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
+						if err := k.flushBatchedMessage(ctx, info, shardID, recordBatcher, pendingMsg, state, commitCtx, commitCtxClose); err != nil {
+							if errors.Is(err, errLeaseLost) {
+								return continuationSeq, false, nil
+							}
 							k.log.Errorf("Failed to flush message: %v", err)
 							continue
 						}
@@ -390,10 +399,9 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 
 				// Send any pending flushed message to the pipeline
 				if pendingMsg.msg != nil {
-					select {
-					case k.msgChan <- *pendingMsg:
-						*pendingMsg = asyncMessage{}
-					case <-ctx.Done():
+					if !k.sendToPipeline(ctx, info, shardID, recordBatcher, pendingMsg, state, commitCtx, commitCtxClose) {
+						// Either shutting down or the lease was lost; both end
+						// this subscription, and ctx.Err() distinguishes them.
 						return continuationSeq, false, ctx.Err()
 					}
 				}
@@ -420,7 +428,10 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 		case <-nextTimedBatchChan:
 			// Timed batch trigger — flush even without new events
 			nextTimedBatchChan = nil
-			if err := k.flushBatchedMessage(ctx, recordBatcher, pendingMsg, *commitCtx); err != nil {
+			if err := k.flushBatchedMessage(ctx, info, shardID, recordBatcher, pendingMsg, state, commitCtx, commitCtxClose); err != nil {
+				if errors.Is(err, errLeaseLost) {
+					return continuationSeq, false, nil
+				}
 				k.log.Errorf("Failed to flush timed batch: %v", err)
 			}
 
@@ -430,17 +441,11 @@ func (k *kinesisReader) efoSubscribeAndProcess(
 				return continuationSeq, false, ctx.Err()
 			}
 
-			(*commitCtxClose)()
-			*commitCtx, *commitCtxClose = context.WithTimeout(ctx, k.commitPeriod)
-
-			if *state == awsKinesisConsumerConsuming {
-				stillOwned, cpErr := k.checkpointer.Checkpoint(ctx, info.id, shardID, recordBatcher.GetSequence(), false)
-				if cpErr != nil {
-					k.log.Errorf("Failed to store checkpoint for Kinesis stream '%v' shard '%v': %v", info.id, shardID, cpErr)
-				} else if !stillOwned {
-					*state = awsKinesisConsumerYielding
-					return continuationSeq, false, nil
-				}
+			if lost := k.renewLease(ctx, info, shardID, recordBatcher, state, commitCtx, commitCtxClose); lost {
+				// See sendToPipeline: an unsent batch is dropped on lease loss
+				// so the consumer's exit drain cannot block on a full pipeline.
+				*pendingMsg = asyncMessage{}
+				return continuationSeq, false, nil
 			}
 
 		case <-ctx.Done():
@@ -460,39 +465,153 @@ streamEnded:
 	return continuationSeq, shardFinished, nil
 }
 
-// flushBatchedMessage flushes the batcher into pendingMsg and sends it to the
-// pipeline via msgChan. Blocks until the pipeline accepts the message
-// (backpressure) or the context is cancelled.
-func (k *kinesisReader) flushBatchedMessage(
+// renewLease performs the periodic checkpoint that doubles as this client's
+// lease renewal, and resets the commit context for the next period. It reports
+// whether the lease was lost, in which case the caller must stop consuming and
+// let the consumer yield the shard.
+//
+// The balancer treats a lease older than 2x lease_period as unclaimed, so this
+// must keep being called even while the consumer is blocked waiting for the
+// pipeline — see sendToPipeline.
+func (k *kinesisReader) renewLease(
 	ctx context.Context,
+	info streamInfo,
+	shardID string,
+	recordBatcher *awsKinesisRecordBatcher,
+	state *awsKinesisConsumerState,
+	commitCtx *context.Context,
+	commitCtxClose *context.CancelFunc,
+) (leaseLost bool) {
+	(*commitCtxClose)()
+	*commitCtx, *commitCtxClose = context.WithTimeout(ctx, k.commitPeriod)
+
+	if *state != awsKinesisConsumerConsuming {
+		return false
+	}
+
+	stillOwned, err := k.checkpoint(ctx, info.id, shardID, recordBatcher.GetSequence())
+	if err != nil {
+		k.log.Errorf("Failed to store checkpoint for Kinesis stream '%v' shard '%v': %v", info.id, shardID, err)
+		return false
+	}
+	if !stillOwned {
+		*state = awsKinesisConsumerYielding
+		return true
+	}
+	return false
+}
+
+// checkpoint stores the periodic (non-final) checkpoint for a shard, reporting
+// whether this client still owns the lease. It is a field-backed indirection so
+// that tests can drive lease renewal without a DynamoDB client.
+func (k *kinesisReader) checkpoint(ctx context.Context, streamID, shardID, sequence string) (bool, error) {
+	if k.checkpointFn != nil {
+		return k.checkpointFn(ctx, streamID, shardID, sequence)
+	}
+	return k.checkpointer.Checkpoint(ctx, streamID, shardID, sequence, false)
+}
+
+// sendToPipeline hands a message to the pipeline, blocking until it is accepted
+// (this is the backpressure that stops us reading from Kinesis) while continuing
+// to renew the shard lease in the background.
+//
+// Renewing while blocked is essential: the lease renewal is a periodic
+// checkpoint, and a consumer that stops renewing for 2x lease_period is treated
+// as dead by the balancer, which then starts a second consumer for the same
+// shard. The original consumer stays blocked here holding a decoded batch, so
+// every such generation leaks memory until the pod is OOM killed.
+//
+// Returns false if the lease was lost or the context was cancelled. Inspect
+// state to tell the two apart: a lost lease sets awsKinesisConsumerYielding.
+//
+// On lease loss the unsent message is dropped rather than retained. Another
+// client owns the shard now, so there is nothing useful we can do with the
+// batch, and holding it would leave the consumer's exit drain blocked on the
+// same full pipeline that cost us the lease — which in turn would stop the
+// deferred cleanup from yielding the checkpoint or deregistering the shard.
+// Dropping it is safe for delivery guarantees: the yielded checkpoint uses the
+// acked sequence, which by definition sits before anything unsent, so the new
+// owner reprocesses these records.
+//
+// On context cancellation the message is left intact, since the shutdown drain
+// still has a chance to flush it.
+func (k *kinesisReader) sendToPipeline(
+	ctx context.Context,
+	info streamInfo,
+	shardID string,
 	recordBatcher *awsKinesisRecordBatcher,
 	pendingMsg *asyncMessage,
-	commitCtx context.Context,
-) error {
-	// First send any previously flushed message that hasn't been sent yet
-	if pendingMsg.msg != nil {
+	state *awsKinesisConsumerState,
+	commitCtx *context.Context,
+	commitCtxClose *context.CancelFunc,
+) (sent bool) {
+	for {
 		select {
 		case k.msgChan <- *pendingMsg:
 			*pendingMsg = asyncMessage{}
+			return true
+
+		case <-(*commitCtx).Done():
+			if ctx.Err() != nil {
+				return false
+			}
+			if lost := k.renewLease(ctx, info, shardID, recordBatcher, state, commitCtx, commitCtxClose); lost {
+				// Drop the batch: the shard is someone else's now, and keeping
+				// it would block this consumer's exit drain indefinitely.
+				*pendingMsg = asyncMessage{}
+				return false
+			}
+
 		case <-ctx.Done():
-			return ctx.Err()
+			return false
+		}
+	}
+}
+
+// flushBatchedMessage flushes the batcher into pendingMsg and sends it to the
+// pipeline via msgChan. Blocks until the pipeline accepts the message
+// (backpressure) or the context is cancelled, renewing the shard lease while it
+// waits.
+func (k *kinesisReader) flushBatchedMessage(
+	ctx context.Context,
+	info streamInfo,
+	shardID string,
+	recordBatcher *awsKinesisRecordBatcher,
+	pendingMsg *asyncMessage,
+	state *awsKinesisConsumerState,
+	commitCtx *context.Context,
+	commitCtxClose *context.CancelFunc,
+) error {
+	// First send any previously flushed message that hasn't been sent yet
+	if pendingMsg.msg != nil {
+		if !k.sendToPipeline(ctx, info, shardID, recordBatcher, pendingMsg, state, commitCtx, commitCtxClose) {
+			return sendInterruptedErr(ctx, *state)
 		}
 	}
 
 	// Now flush the batcher
 	var err error
-	if *pendingMsg, err = recordBatcher.FlushMessage(commitCtx); err != nil {
+	if *pendingMsg, err = recordBatcher.FlushMessage(*commitCtx); err != nil {
 		return fmt.Errorf("failed to flush message due to checkpoint error: %w", err)
 	}
 
 	if pendingMsg.msg != nil {
-		select {
-		case k.msgChan <- *pendingMsg:
-			*pendingMsg = asyncMessage{}
-		case <-ctx.Done():
-			return ctx.Err()
+		if !k.sendToPipeline(ctx, info, shardID, recordBatcher, pendingMsg, state, commitCtx, commitCtxClose) {
+			return sendInterruptedErr(ctx, *state)
 		}
 	}
 
+	return nil
+}
+
+// sendInterruptedErr explains why sendToPipeline gave up. A cancelled context
+// wins over a lost lease, since shutdown is the more significant event.
+func sendInterruptedErr(ctx context.Context, state awsKinesisConsumerState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if state == awsKinesisConsumerYielding {
+		return errLeaseLost
+	}
 	return nil
 }

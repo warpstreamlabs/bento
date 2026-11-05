@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -35,11 +34,32 @@ func getTestS3Client(ctx context.Context, t *testing.T, servicePort string) *s3.
 	})
 }
 
-// TestS3StreamOutput_IntegrationBasic tests basic write operations with LocalStack
-func TestS3StreamOutput_IntegrationBasic(t *testing.T) {
+func s3StreamIntegrationSuite(t *testing.T, servicePort string) {
 	integration.CheckSkip(t)
 
-	servicePort := GetLocalStack(t, nil)
+	t.Run("basic", func(t *testing.T) {
+		testS3StreamOutputBasic(t, servicePort)
+	})
+
+	t.Run("partition_by", func(t *testing.T) {
+		testS3StreamOutputPartitionBy(t, servicePort)
+	})
+
+	t.Run("content_type", func(t *testing.T) {
+		testS3StreamOutputContentType(t, servicePort)
+	})
+
+	t.Run("empty_batch", func(t *testing.T) {
+		testS3StreamOutputEmptyBatch(t, servicePort)
+	})
+
+	t.Run("gzip_compression", func(t *testing.T) {
+		testS3StreamOutputGzipCompression(t, servicePort)
+	})
+}
+
+// testS3StreamOutputBasic tests basic write operations with LocalStack
+func testS3StreamOutputBasic(t *testing.T, servicePort string) {
 	bucketName := "test-stream-bucket"
 	testKey := "test-output/basic-test.log"
 
@@ -58,6 +78,10 @@ path: '%s'
 region: us-east-1
 force_path_style_urls: true
 endpoint: http://localhost:%s
+credentials:
+  id: test
+  secret: test
+  token: test
 max_buffer_bytes: 1048576
 max_buffer_count: 100
 max_buffer_period: 1s
@@ -103,19 +127,16 @@ max_buffer_period: 1s
 	require.NoError(t, err)
 
 	// Verify we have data
-	assert.NotEmpty(t, content, "File should have content")
+	require.NotEmpty(t, content, "File should have content")
 
 	// Verify first and last lines
 	contentStr := string(content)
-	assert.Contains(t, contentStr, "log line 0\n")
-	assert.Contains(t, contentStr, "log line 149\n")
+	require.Contains(t, contentStr, "log line 0\n")
+	require.Contains(t, contentStr, "log line 149\n")
 }
 
-// TestS3StreamOutput_IntegrationPartitionBy tests partition_by parameter with LocalStack
-func TestS3StreamOutput_IntegrationPartitionBy(t *testing.T) {
-	integration.CheckSkip(t)
-
-	servicePort := GetLocalStack(t, nil)
+// testS3StreamOutputPartitionBy tests partition_by parameter with LocalStack
+func testS3StreamOutputPartitionBy(t *testing.T, servicePort string) {
 	bucketName := "test-stream-partition"
 	testPrefix := "test-output/partitioned"
 
@@ -134,6 +155,10 @@ path: '%s/date=${! meta("date") }/region=${! meta("region") }/data.log'
 region: us-east-1
 force_path_style_urls: true
 endpoint: http://localhost:%s
+credentials:
+  id: test
+  secret: test
+  token: test
 partition_by:
   - '${! meta("date") }'
   - '${! meta("region") }'
@@ -186,7 +211,7 @@ max_buffer_period: 1s
 		Prefix: aws.String(testPrefix),
 	})
 	require.NoError(t, err)
-	assert.Len(t, listResp.Contents, 4, "Should have 4 partition files")
+	require.Len(t, listResp.Contents, 4, "Should have 4 partition files")
 
 	// Verify each partition file
 	partitionKeys := []string{
@@ -209,27 +234,24 @@ max_buffer_period: 1s
 
 		// Each partition should have 25 messages
 		contentStr := string(content)
-		assert.NotEmpty(t, contentStr, "Partition %s should have content", key)
+		require.NotEmpty(t, contentStr, "Partition %s should have content", key)
 
 		// Verify content contains correct partition values
 		switch key {
 		case partitionKeys[0]:
-			assert.Contains(t, contentStr, "log 2026-01-20 us-east-1")
+			require.Contains(t, contentStr, "log 2026-01-20 us-east-1")
 		case partitionKeys[1]:
-			assert.Contains(t, contentStr, "log 2026-01-20 eu-west-1")
+			require.Contains(t, contentStr, "log 2026-01-20 eu-west-1")
 		case partitionKeys[2]:
-			assert.Contains(t, contentStr, "log 2026-01-21 us-east-1")
+			require.Contains(t, contentStr, "log 2026-01-21 us-east-1")
 		case partitionKeys[3]:
-			assert.Contains(t, contentStr, "log 2026-01-21 eu-west-1")
+			require.Contains(t, contentStr, "log 2026-01-21 eu-west-1")
 		}
 	}
 }
 
-// TestS3StreamOutput_IntegrationContentType tests content_type and content_encoding settings
-func TestS3StreamOutput_IntegrationContentType(t *testing.T) {
-	integration.CheckSkip(t)
-
-	servicePort := GetLocalStack(t, nil)
+// testS3StreamOutputContentType tests content_type and content_encoding settings
+func testS3StreamOutputContentType(t *testing.T, servicePort string) {
 	bucketName := "test-stream-content"
 	testKey := "test-output/content-test.json"
 
@@ -248,6 +270,10 @@ path: '%s'
 region: us-east-1
 force_path_style_urls: true
 endpoint: http://localhost:%s
+credentials:
+  id: test
+  secret: test
+  token: test
 content_type: 'application/json'
 max_buffer_bytes: 1048576
 max_buffer_count: 100
@@ -289,22 +315,19 @@ max_buffer_period: 1s
 	defer getResp.Body.Close()
 
 	// Verify content type
-	assert.Equal(t, "application/json", aws.ToString(getResp.ContentType))
+	require.Equal(t, "application/json", aws.ToString(getResp.ContentType))
 
 	// Verify content
 	content, err := io.ReadAll(getResp.Body)
 	require.NoError(t, err)
 
 	contentStr := string(content)
-	assert.Contains(t, contentStr, `{"id": 0, "message": "test"}`)
-	assert.Contains(t, contentStr, `{"id": 49, "message": "test"}`)
+	require.Contains(t, contentStr, `{"id": 0, "message": "test"}`)
+	require.Contains(t, contentStr, `{"id": 49, "message": "test"}`)
 }
 
-// TestS3StreamOutput_IntegrationEmptyBatch tests handling of empty batches
-func TestS3StreamOutput_IntegrationEmptyBatch(t *testing.T) {
-	integration.CheckSkip(t)
-
-	servicePort := GetLocalStack(t, nil)
+// testS3StreamOutputEmptyBatch tests handling of empty batches
+func testS3StreamOutputEmptyBatch(t *testing.T, servicePort string) {
 	bucketName := "test-stream-empty"
 	testKey := "test-output/empty-test.log"
 
@@ -323,6 +346,10 @@ path: '%s'
 region: us-east-1
 force_path_style_urls: true
 endpoint: http://localhost:%s
+credentials:
+  id: test
+  secret: test
+  token: test
 max_buffer_bytes: 1048576
 max_buffer_count: 100
 max_buffer_period: 1s
@@ -364,17 +391,14 @@ max_buffer_period: 1s
 	content, err := io.ReadAll(getResp.Body)
 	require.NoError(t, err)
 
-	assert.Equal(t, "single message\n", string(content))
+	require.Equal(t, "single message\n", string(content))
 }
 
-// TestS3StreamOutput_IntegrationGzipCompression tests the compression: gzip
+// testS3StreamOutputGzipCompression tests the compression: gzip
 // option end-to-end: the object must download as a single valid gzip stream
 // (Content-Encoding gzip) that decompresses to the exact concatenation of the
 // records — for both a small PutObject-path object and a large multipart one.
-func TestS3StreamOutput_IntegrationGzipCompression(t *testing.T) {
-	integration.CheckSkip(t)
-
-	servicePort := GetLocalStack(t, nil)
+func testS3StreamOutputGzipCompression(t *testing.T, servicePort string) {
 	bucketName := "test-stream-gzip"
 
 	s3Client := getTestS3Client(context.Background(), t, servicePort)
@@ -403,6 +427,10 @@ path: '%s'
 region: us-east-1
 force_path_style_urls: true
 endpoint: http://localhost:%s
+credentials:
+  id: test
+  secret: test
+  token: test
 content_type: 'application/json'
 compression: gzip
 max_buffer_bytes: %d
@@ -441,7 +469,7 @@ max_buffer_period: 1s
 			require.NoError(t, err)
 			defer getResp.Body.Close()
 
-			assert.Equal(t, "gzip", aws.ToString(getResp.ContentEncoding), "Content-Encoding should be gzip")
+			require.Equal(t, "gzip", aws.ToString(getResp.ContentEncoding), "Content-Encoding should be gzip")
 
 			raw, err := io.ReadAll(getResp.Body)
 			require.NoError(t, err)
@@ -454,8 +482,8 @@ max_buffer_period: 1s
 			require.NoError(t, err)
 			require.NoError(t, zr.Close())
 
-			assert.Equal(t, expected.Bytes(), got)
-			assert.Less(t, len(raw), expected.Len(), "gzip object should be smaller than the raw input")
+			require.Equal(t, expected.Bytes(), got)
+			require.Less(t, len(raw), expected.Len(), "gzip object should be smaller than the raw input")
 		})
 	}
 }
