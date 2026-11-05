@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package messagepb;
+
+import "message.proto";
+
+option go_package = "github.com/warpstreamlabs/bento/internal/message/messagepb";
+
+message Process {
+    message Request {
+        Part part = 1;
+    }
+    message Response {
+        Batch batch = 1;
+        Error error = 2;
+    }
+}
+
+message ProcessBatch {
+    message Request {
+        Batch batch = 1;
+    }
+
+    message Response {
+        Batches batches = 1;
+        Error error = 2;
+    }
+}
