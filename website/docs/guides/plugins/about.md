@@ -61,8 +61,34 @@ Because host permissions are configured in `plugin.yaml`, always audit a third-p
 - **Filesystem access:** Check for mounted directories and write permissions. A plugin can follow symlinks inside a mounted directory to targets outside it.
 - **Memory limits:** Without `memory.max_pages`, each instance can allocate up to 4 GiB, and concurrent calls can spawn multiple instances.
 
-See [The Sandbox][sandbox] for full details on runtime capabilities.
+See the [Sandbox][sandbox] in the Plugin ABI guide for full details on runtime capabilities.
 :::
+
+## Enabling the Plugin Runtime
+
+The plugin runtime is enabled in the released `bento` binary from `v1.24` onwards.
+
+To enable it for [custom builds][custom-build], import the `public/plugin/wazero_v1_beta` package:
+
+```go
+import _ "github.com/warpstreamlabs/bento/public/plugin/wazero_v1_beta"
+```
+
+Once enabled, a custom build can also register a plugin via [`service.RegisterWasmPlugin`][register-wasm]:
+
+```go
+//go:embed plugin/plugin.yaml
+var manifest string
+
+//go:embed plugin/plugin.wasm
+var wasm []byte
+
+func init() {
+	if err := service.RegisterWasmPlugin(manifest, wasm); err != nil {
+		panic(err)
+	}
+}
+```
 
 ## Language Support
 
@@ -87,6 +113,7 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 
 [plugin-abi]: /docs/guides/plugins/plugin_abi
 [custom-build]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service
+[register-wasm]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service#RegisterWasmPlugin
 [pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
 [templates]: /docs/configuration/templating
 [resources]: /docs/configuration/resources
