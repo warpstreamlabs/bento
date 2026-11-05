@@ -14,7 +14,6 @@ import (
 	wazerov1 "github.com/warpstreamlabs/bento/internal/plugin/runtime/wazero_v1"
 )
 
-
 var (
 	//go:embed testdata
 	testDataFS                 embed.FS

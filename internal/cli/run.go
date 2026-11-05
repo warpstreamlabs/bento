@@ -138,7 +138,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Name:    "plugin",
 			Aliases: []string{"p"},
 			Usage:   "EXPERIMENTAL: path to a Bento plugin's directory.",
-    },
+		},
 		&cli.StringFlag{
 			Name:    "remote-config",
 			Aliases: []string{"rc"},
