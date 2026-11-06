@@ -119,6 +119,21 @@ func (s *sftpWriter) Connect(ctx context.Context) (err error) {
 	return
 }
 
+// dropClient closes and discards the client (and any open handle) after the
+// connection was lost so that the next Connect establishes a fresh one. The
+// caller must hold handleMut.
+func (s *sftpWriter) dropClient() {
+	if s.handle != nil {
+		_ = s.handle.Close()
+		s.handle = nil
+		s.handlePath = ""
+	}
+	if s.client != nil {
+		_ = s.client.Close()
+		s.client = nil
+	}
+}
+
 func (s *sftpWriter) writeTo(wtr io.Writer, p *service.Message) error {
 	mBytes, err := p.AsBytes()
 	if err != nil {
@@ -152,8 +167,14 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 	}
 
 	if s.handle != nil && path == s.handlePath {
-		// TODO: Detect underlying connection failure here and drop client.
-		return s.writeTo(s.handle, msg)
+		if err := s.writeTo(s.handle, msg); err != nil {
+			if errors.Is(err, sftp.ErrSshFxConnectionLost) {
+				s.dropClient()
+				return service.ErrNotConnected
+			}
+			return err
+		}
+		return nil
 	}
 	if s.handle != nil {
 		if err := s.handle.Close(); err != nil {
@@ -172,6 +193,7 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 
 	if err := s.client.MkdirAll(filepath.Dir(path)); err != nil {
 		if errors.Is(err, sftp.ErrSshFxConnectionLost) {
+			s.dropClient()
 			return service.ErrNotConnected
 		}
 		return err
@@ -180,6 +202,7 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 	handle, err := s.client.OpenFile(path, flag)
 	if err != nil {
 		if errors.Is(err, sftp.ErrSshFxConnectionLost) {
+			s.dropClient()
 			return service.ErrNotConnected
 		}
 		return err
@@ -187,6 +210,10 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 
 	if err := s.writeTo(handle, msg); err != nil {
 		_ = handle.Close()
+		if errors.Is(err, sftp.ErrSshFxConnectionLost) {
+			s.dropClient()
+			return service.ErrNotConnected
+		}
 		return err
 	}
 
