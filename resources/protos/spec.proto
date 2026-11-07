@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package specpb;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/warpstreamlabs/bento/internal/docs/specpb";
+
+
+enum FieldType {
+    FIELD_TYPE_UNKNOWN = 0;
+    FIELD_TYPE_STRING = 1;
+    FIELD_TYPE_INT = 2;
+    FIELD_TYPE_FLOAT = 3;
+    FIELD_TYPE_BOOL = 4;
+    FIELD_TYPE_OBJECT = 5;
+
+    FIELD_TYPE_INPUT = 10;
+    FIELD_TYPE_BUFFER = 11;
+    FIELD_TYPE_CACHE = 12;
+    FIELD_TYPE_PROCESSOR = 13;
+    FIELD_TYPE_RATE_LIMIT = 14;
+    FIELD_TYPE_OUTPUT = 15;
+    FIELD_TYPE_METRICS = 16;
+    FIELD_TYPE_TRACER = 17;
+    FIELD_TYPE_SCANNER = 18;
+}
+
+enum FieldKind {
+    FIELD_KIND_UNKNOWN = 0;
+    FIELD_KIND_SCALAR = 1;
+    FIELD_KIND_ARRAY = 2;
+    FIELD_KIND_2D_ARRAY = 3;
+    FIELD_KIND_MAP = 4;
+}
+
+
+message FieldValue {
+    oneof field_type {
+        string string_type = 1;
+        int32 int_type = 2;
+        float float_type = 3;
+        bool bool_type = 4;
+        google.protobuf.Value object_type = 5;
+    }
+}
+
+// Note: certain fields have been omitted since this iteration 
+// of protobuf will not be used for generating documentation, but instead
+// will be focused more on making a component config format portable.
+
+message FieldSpec {
+    string name = 1;
+    FieldType field_type = 2;
+    FieldKind field_kind = 3;
+    
+    bool is_optional = 4;
+    bool is_secret = 5;
+    
+    optional FieldValue default_value = 6;
+
+    bool interpolated = 7;
+    bool bloblang = 8;
+    
+    repeated string options = 9;
+    repeated FieldSpec children = 10;
+    
+    optional string linter = 11;
+}
+
+//------------------------------------------------------------------------------
+
+enum ComponentType {
+    COMPONENT_TYPE_UNKNOWN = 0;
+    COMPONENT_TYPE_INPUT = 1;
+    COMPONENT_TYPE_BUFFER = 2;
+    COMPONENT_TYPE_CACHE = 3;
+    COMPONENT_TYPE_METRICS = 4;
+    COMPONENT_TYPE_OUTPUT = 5;
+    COMPONENT_TYPE_PROCESSOR = 6;
+    COMPONENT_TYPE_RATE_LIMIT = 7;
+    COMPONENT_TYPE_TRACER = 8;
+    COMPONENT_TYPE_SCANNER = 9;
+}
+
+enum ComponentStatus {
+    COMPONENT_STATUS_UNKNOWN = 0;
+    COMPONENT_STATUS_STABLE = 1;
+    COMPONENT_STATUS_BETA = 2;
+    COMPONENT_STATUS_EXPERIMENTAL = 3;
+    COMPONENT_STATUS_DEPRECATED = 4;
+}
+
+
+message ComponentSpec {
+    string name = 1;
+    ComponentType component_type = 2;
+    ComponentStatus component_status = 3;
+    FieldSpec config = 4;
+}
