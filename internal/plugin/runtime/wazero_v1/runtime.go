@@ -175,9 +175,9 @@ type signature struct {
 var exportSignatures = map[string][]signature{
 	pluginMallocFn:       {{params: []api.ValueType{api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI32}}},
 	pluginFreeFn:         {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}}, {params: []api.ValueType{api.ValueTypeI32}}},
-	pluginInitFn:         {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
-	pluginProcessFn:      {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
-	pluginProcessBatchFn: {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginInitFn:         {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginProcessFn:      {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginProcessBatchFn: {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
 	"_initialize":        {{}},
 }
 

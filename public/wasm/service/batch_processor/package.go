@@ -11,9 +11,9 @@ import (
 )
 
 //go:wasmexport process_batch
-func process_batch(input wasm.Buffer) wasm.Buffer {
+func process_batch(address, length uint32) wasm.Buffer {
 	res := &messagepb.ProcessBatch_Response{}
-	batches, err := processBatch(input.Slice())
+	batches, err := processBatch(wasm.NewBuffer(address, length).Slice())
 
 	if err != nil {
 		res.Error = &messagepb.Error{Message: err.Error()}

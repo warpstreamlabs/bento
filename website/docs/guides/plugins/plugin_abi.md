@@ -43,7 +43,7 @@ Plugins exchange data with Bento through their exported linear [`memory`](#memor
 
 ### Buffers
 
-A buffer is an `i64` that packs an unsigned 32-bit address in its upper bits and an unsigned 32-bit byte length in its lower bits. `0` is an empty buffer.
+A buffer is an unsigned 32-bit address and an unsigned 32-bit byte length. Bento passes an input buffer to an export as two `i32` parameters, its address and then its length. The export returns its output buffer as an `i64` that packs the address in its upper bits and the length in its lower bits. `0` is an empty output.
 
 ```text
  63                            32 31                             0
@@ -51,16 +51,16 @@ A buffer is an `i64` that packs an unsigned 32-bit address in its upper bits and
 |         address (u32)          |          length (u32)          |
 +--------------------------------+--------------------------------+
 
-buffer  = (u64(address) << 32) | u64(length)
-address = u32(buffer >> 32)
-length  = u32(buffer)
+output  = (u64(address) << 32) | u64(length)
+address = u32(output >> 32)
+length  = u32(output)
 ```
 
 ### Ownership
 
-Bento allocates the input with the plugin's [`malloc`](#malloc), calls the export, copies the output, and frees both buffers with [`free`](#free).
+Bento allocates the input with the plugin's [`malloc`](#malloc), calls the export, reads the output from plugin memory, and frees both buffers with [`free`](#free).
 
-- **Keep input and output allocations separate.** Bento skips `malloc` for an empty input and passes `0`. Read the input only during the call; do not free it or retain a pointer to it afterward. Return output in a separate allocation that remains valid until Bento frees it. Returning the input buffer, a slice of it, or stack memory can cause a double free or an invalid free.
+- **Keep input and output allocations separate.** Bento skips `malloc` for an empty input and passes `0` as its address and length. Read the input only during the call; do not free it or retain a pointer to it afterward. Return output in a separate allocation that remains valid until Bento frees it. Returning the input buffer, a slice of it, or stack memory can cause a double free or an invalid free.
 - **Return `0` for an empty output.** Bento never calls `free` with address `0`, but calls it on any other address, even if its length is `0`. Do not return a nonzero dangling pointer, such as an empty Rust `Vec`'s pointer.
 
 ## Wire Format
@@ -148,7 +148,7 @@ Bento calls this export, if present, before `init_plugin`. It never calls `_star
 
 <WatExport name="init_plugin" />
 
-Bento calls this export once per instance, before processing messages. The config contains the processor's configured fields, including defaults from the manifest. If there is no config, the buffer is `0`.
+Bento calls this export once per instance, before processing messages. The config contains the processor's configured fields, including defaults from the manifest. If there is no config, its address and length are `0`.
 
 A nonempty result is a UTF-8 error message, not a protobuf `Error`.
 
@@ -168,7 +168,7 @@ Bento calls this export once per input message when `process_batch` is absent.
 
 A call failure preserves the original input messages and marks them with the error. For `process`, this affects one message; for `process_batch`, it affects the whole batch.
 
-A returned `Part.error` marks that output message as failed. A processing response's `error` fails the whole call, as does output that cannot be decoded as the expected protobuf response. In each case, the instance remains available for reuse.
+A returned `Part.error` marks that output message as failed. A processing response's `error` fails the whole call, and the instance remains available for reuse. Output that cannot be decoded as the expected protobuf response also fails the call, and Bento discards the instance.
 
 If `init_plugin` returns an error, Bento discards the instance and fails the call that requested it.
 

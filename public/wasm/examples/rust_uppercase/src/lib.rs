@@ -5,7 +5,11 @@ pub mod messagepb {
 
 use std::sync::OnceLock;
 
-use messagepb::{part::Content, process::{Request, Response}, Batch, Error, Part};
+use messagepb::{
+    part::Content,
+    process::{Request, Response},
+    Batch, Error, Part,
+};
 use prost::Message;
 use serde::Deserialize;
 
@@ -22,16 +26,21 @@ static PREFIX: OnceLock<String> = OnceLock::new();
 /// Reads the processor's config.
 fn init(config: &[u8]) -> Result<(), String> {
     let config: Config = serde_json::from_slice(config).map_err(|e| e.to_string())?;
-    PREFIX.set(config.prefix).map_err(|_| "already initialised".to_string())
+    PREFIX
+        .set(config.prefix)
+        .map_err(|_| "already initialised".to_string())
 }
 
 /// Uppercases a message, after the prefix, and records that it processed it.
 fn process(mut part: Part) -> Batch {
     let prefix = PREFIX.get().map(String::as_str).unwrap_or_default();
     if let Some(Content::Raw(raw)) = &mut part.content {
-        *raw = [prefix, &String::from_utf8_lossy(raw).to_uppercase()].concat().into_bytes();
+        *raw = [prefix, &String::from_utf8_lossy(raw).to_uppercase()]
+            .concat()
+            .into_bytes();
     }
-    part.metadata.insert("processed_by".into(), "uppercase_wasm".into());
+    part.metadata
+        .insert("processed_by".into(), "uppercase_wasm".into());
     Batch { parts: vec![part] }
 }
 
@@ -45,20 +54,22 @@ pub extern "C" fn _malloc(size: u32) -> *mut u8 {
 
 #[cfg_attr(target_arch = "wasm32", export_name = "free")]
 pub unsafe extern "C" fn _free(ptr: *mut u8, size: u32) {
-    drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, size as usize)));
+    drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+        ptr,
+        size as usize,
+    )));
 }
 
-/// Returns the bytes of an input buffer, which Bento frees once the call
-/// returns.
-unsafe fn read<'a>(buffer: u64) -> &'a [u8] {
-    let (ptr, len) = ((buffer >> 32) as *const u8, buffer as u32 as usize);
+/// Returns the bytes of an input, which Bento frees once the call returns.
+unsafe fn read<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
     if len == 0 {
         return &[];
     }
     std::slice::from_raw_parts(ptr, len)
 }
 
-/// Returns bytes as a buffer, which Bento frees with [`_free`].
+/// Transfers ownership of bytes to Bento, which frees them with [`_free`], and
+/// returns their address and length packed as an i64.
 fn write(bytes: Vec<u8>) -> u64 {
     if bytes.is_empty() {
         return 0;
@@ -69,15 +80,23 @@ fn write(bytes: Vec<u8>) -> u64 {
 }
 
 #[cfg_attr(target_arch = "wasm32", export_name = "init_plugin")]
-pub unsafe extern "C" fn _init_plugin(config: u64) -> u64 {
-    write(init(read(config)).err().unwrap_or_default().into_bytes())
+pub unsafe extern "C" fn _init_plugin(ptr: *const u8, len: usize) -> u64 {
+    write(init(read(ptr, len)).err().unwrap_or_default().into_bytes())
 }
 
 #[cfg_attr(target_arch = "wasm32", export_name = "process")]
-pub unsafe extern "C" fn _process(request: u64) -> u64 {
-    let response = match Request::decode(read(request)) {
-        Ok(request) => Response { batch: Some(process(request.part.unwrap_or_default())), error: None },
-        Err(err) => Response { batch: None, error: Some(Error { message: err.to_string() }) },
+pub unsafe extern "C" fn _process(ptr: *const u8, len: usize) -> u64 {
+    let response = match Request::decode(read(ptr, len)) {
+        Ok(request) => Response {
+            batch: Some(process(request.part.unwrap_or_default())),
+            error: None,
+        },
+        Err(err) => Response {
+            batch: None,
+            error: Some(Error {
+                message: err.to_string(),
+            }),
+        },
     };
     write(response.encode_to_vec())
 }

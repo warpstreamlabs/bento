@@ -11,10 +11,10 @@ import (
 )
 
 //go:wasmexport process
-func process(input wasm.Buffer) wasm.Buffer {
+func process(address, length uint32) wasm.Buffer {
 	res := &messagepb.Process_Response{}
 
-	batch, err := processMessage(input.Slice())
+	batch, err := processMessage(wasm.NewBuffer(address, length).Slice())
 	if err != nil {
 		res.Error = &messagepb.Error{Message: err.Error()}
 	} else {
