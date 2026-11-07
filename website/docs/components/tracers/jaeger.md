@@ -97,7 +97,7 @@ Default: `"const"`
 
 ### `sampler_param`
 
-A parameter to use for sampling. This field is unused for some sampling types.
+A parameter to use for sampling. This field is unused for some sampling types. For the `const` sampler type this is the ratio at which root spans are sampled; spans with a sampled parent (for example, extracted from an incoming `traceparent` header) follow their parent's sampling decision rather than this ratio.
 
 
 Type: `float`  

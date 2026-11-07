@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
  - `elasticsearch_v2` output no longer acks a batch whose whole `_bulk` request failed (unreachable cluster, non-2xx response): `github.com/elastic/go-elasticsearch/v9` is bumped to v9.3.6, which reports such failures per document, so they reach `fallback`/nacks like any other write error
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
 
+### Fixed
+
+ - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+
 ## 1.22.0 - 2026-10-09
 
 ### Added
