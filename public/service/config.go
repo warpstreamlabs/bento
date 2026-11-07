@@ -209,6 +209,16 @@ func (c *ConfigField) Description(d string) *ConfigField {
 	return c
 }
 
+// Alias adds a deprecated alternative name for the field. A config that sets the
+// alias is parsed as if it had set the field itself. The value is read back
+// through the field's own name, not the alias. Aliases are intended for renaming
+// a field without breaking existing configs. Aliases appear in the documentation
+// as deprecated.
+func (c *ConfigField) Alias(a string) *ConfigField {
+	c.field = c.field.HasAlias(a)
+	return c
+}
+
 // Advanced marks a config field as being advanced, and therefore it will not
 // appear in simplified documentation examples.
 func (c *ConfigField) Advanced() *ConfigField {
