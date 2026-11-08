@@ -168,7 +168,7 @@ Bento calls this export once per input message when `process_batch` is absent.
 
 A call failure preserves the original input messages and marks them with the error. For `process`, this affects one message; for `process_batch`, it affects the whole batch.
 
-A returned `Part.error` marks that output message as failed. A processing response's `error` fails the whole call, and the instance remains available for reuse. Output that cannot be decoded as the expected protobuf response also fails the call, and Bento discards the instance.
+A returned `Part.error` marks that output message as failed. A processing response's `error` fails the whole call, and the instance remains available for reuse. Any other failure, such as a trap, an output outside plugin memory, or an input OR output that isn't in the expected protobuf format, also fails the call, with Bento discarding the instance.
 
 If `init_plugin` returns an error, Bento discards the instance and fails the call that requested it.
 
