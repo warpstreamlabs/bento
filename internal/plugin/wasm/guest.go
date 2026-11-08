@@ -12,11 +12,12 @@ func FromSlice(value []byte) Buffer {
 	return NewBuffer(ptr, uint32(len(value)))
 }
 
-// FromError returns a buffer holding the message of err, or an empty buffer
-// when err is nil.
 func FromError(err error) Buffer {
 	if err == nil {
 		return 0
 	}
-	return Retain([]byte(err.Error()))
+	message := err.Error()
+	output := Alloc(uint32(len(message)))
+	copy(output.Slice(), message)
+	return output
 }

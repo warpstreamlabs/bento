@@ -22,13 +22,10 @@ func (buffer Buffer) Slice() []byte {
 	return unsafe.Slice((*byte)(unsafe.Pointer(uintptr(buffer.Address()))), buffer.Length())
 }
 
-// Retain copies value into memory from malloc, which the host frees, and
-// returns a buffer referencing it.
-func Retain(value []byte) Buffer {
-	if len(value) == 0 {
+// Alloc returns a buffer of size bytes from malloc, which the host frees.
+func Alloc(size uint32) Buffer {
+	if size == 0 {
 		return 0
 	}
-	output := unsafe.Slice((*byte)(libcMalloc(uintptr(len(value)))), len(value))
-	copy(output, value)
-	return FromSlice(output)
+	return NewBuffer(uint32(uintptr(libcMalloc(uintptr(size)))), size)
 }

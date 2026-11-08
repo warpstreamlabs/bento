@@ -15,27 +15,22 @@ func (buffer Buffer) Slice() []byte {
 	return heap[buffer.Address()][:buffer.Length()]
 }
 
-// Retain keeps value alive until the host releases it, and returns a buffer
-// referencing it.
-func Retain(value []byte) Buffer {
-	buffer := FromSlice(value)
-	if buffer != 0 {
-		heap[buffer.Address()] = value
+// Alloc returns a buffer of size bytes that remain alive until the host
+// releases them.
+func Alloc(size uint32) Buffer {
+	if size == 0 {
+		return 0
 	}
-	return buffer
-}
 
-// Retained returns the number of buffers that have not been released.
-func Retained() int {
-	return len(heap)
+	area := make([]byte, size)
+	buffer := FromSlice(area)
+	heap[buffer.Address()] = area
+	return buffer
 }
 
 //go:wasmexport malloc
 func malloc(size uint32) uint32 {
-	if size == 0 {
-		return 0
-	}
-	return Retain(make([]byte, size)).Address()
+	return Alloc(size).Address()
 }
 
 //go:wasmexport free

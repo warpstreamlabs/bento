@@ -21,11 +21,11 @@ func process(address, length uint32) wasm.Buffer {
 		res.Batch = toProtoBatch(batch)
 	}
 
-	output, err := res.MarshalVT()
-	if err != nil {
+	output := wasm.Alloc(uint32(res.SizeVT()))
+	if _, err := res.MarshalToSizedBufferVT(output.Slice()); err != nil {
 		panic(err)
 	}
-	return wasm.Retain(output)
+	return output
 }
 
 func processMessage(input []byte) (service.MessageBatch, error) {
