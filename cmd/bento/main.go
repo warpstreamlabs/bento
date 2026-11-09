@@ -7,6 +7,9 @@ import (
 
 	// Import all plugins defined within the repo.
 	_ "github.com/warpstreamlabs/bento/public/components/all"
+
+	// Enable WASM plugin extension.
+	_ "github.com/warpstreamlabs/bento/public/plugin/wazero_v1_beta"
 )
 
 var (

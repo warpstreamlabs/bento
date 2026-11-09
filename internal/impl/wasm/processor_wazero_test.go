@@ -85,7 +85,7 @@ func TestWazeroWASIGoProcessorParallel(t *testing.T) {
 func TestWazeroWASIRustProcessor(t *testing.T) {
 	wasm, err := os.ReadFile("./louder.wasm")
 	if os.IsNotExist(err) {
-		t.Skip("skipping as wasm example not compiled, build the rust example to remedy")
+		t.Skip("skipping as wasm example not compiled, build the rust_legacy example to remedy")
 	}
 	require.NoError(t, err)
 
@@ -142,7 +142,7 @@ func BenchmarkWazeroWASIGoCalls(b *testing.B) {
 func BenchmarkWazeroWASIRustCalls(b *testing.B) {
 	wasm, err := os.ReadFile("./louder.wasm")
 	if os.IsNotExist(err) {
-		b.Skip("skipping as wasm example not compiled, build the rust example to remedy")
+		b.Skip("skipping as wasm example not compiled, build the rust_legacy example to remedy")
 	}
 	require.NoError(b, err)
 

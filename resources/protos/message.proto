@@ -3,16 +3,17 @@ syntax = "proto3";
 package messagepb;
 
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/warpstreamlabs/bento/internal/message/messagepb";
 
 message Part {
     oneof content {
         bytes raw = 1;
-        google.protobuf.Value structured = 2;
+        Value structured = 2;
     }
-    string error = 3;
-    google.protobuf.Struct metadata = 4;
+    Error error = 3;
+    map<string, string> metadata = 4;
 }
 
 message Batch {
@@ -21,4 +22,32 @@ message Batch {
 
 message Batches {
     repeated Batch batches = 1;
+}
+
+message Struct {
+    map<string, Value> fields = 1;
+}
+
+message List {
+    repeated Value items = 1;
+}
+
+message Value {
+    oneof kind {
+        google.protobuf.NullValue null = 1;
+        bool bool = 2;
+        double double = 3;
+        string string = 4;
+        int64 int64 = 5;
+        uint64 uint64 = 6;
+        bytes bytes = 7;
+        List list = 8;
+        Struct struct = 9;
+        string decimal = 10;
+        google.protobuf.Timestamp timestamp = 11;
+    }
+}
+
+message Error {
+    string message = 1;
 }
