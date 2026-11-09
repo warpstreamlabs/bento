@@ -31,6 +31,23 @@ func outputFromConfV2(t testing.TB, conf string, args ...any) *elasticsearch.EsO
 
 	return o
 }
+
+func TestOutputV2NegativeIntFields(t *testing.T) {
+	for _, field := range []string{"retry_on_conflict", "num_workers"} {
+		t.Run(field, func(t *testing.T) {
+			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(fmt.Sprintf(`
+index: foo
+urls: [ http://localhost:9200 ]
+%s: -1
+`, field), nil)
+			require.NoError(t, err)
+
+			_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
+			require.ErrorContains(t, err, "must be 0 or more")
+		})
+	}
+}
+
 func TestIntegrationWriterV2(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
@@ -149,6 +166,109 @@ func TestIntegrationWriterV2(t *testing.T) {
 	t.Run("TestElasticBatchUpsertV2", func(te *testing.T) {
 		testElasticBatchUpsertV2(urls, client, te)
 	})
+
+	t.Run("TestElasticUpsertRetryOnConflictV2", func(te *testing.T) {
+		testElasticUpsertRetryOnConflictV2(urls, client, te)
+	})
+
+	t.Run("TestElasticUpsertSameIDSingleWorkerV2", func(te *testing.T) {
+		testElasticUpsertSameIDSingleWorkerV2(urls, client, te)
+	})
+}
+
+func getSourceV2(t *testing.T, client *goEs.Client, index, id string) map[string]any {
+	t.Helper()
+
+	get, err := client.Get(index, id)
+	require.NoError(t, err)
+	defer get.Body.Close()
+	require.Equal(t, 200, get.StatusCode)
+
+	var res struct {
+		Source map[string]any `json:"_source"`
+	}
+	require.NoError(t, json.NewDecoder(get.Body).Decode(&res))
+	return res.Source
+}
+
+// Concurrent upserts to the same document conflict on its version; with
+// retry_on_conflict Elasticsearch retries them internally, so every write
+// succeeds and none of the partial updates is lost.
+func testElasticUpsertRetryOnConflictV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: upsert_retry_on_conflict
+id: 'same-doc'
+urls: %v
+action: upsert
+retry_on_conflict: 10
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	N := 10
+
+	startChan := make(chan struct{})
+	wg := sync.WaitGroup{}
+	wg.Add(N)
+
+	for i := range N {
+		go func(i int) {
+			defer wg.Done()
+			<-startChan
+			assert.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+				service.NewMessage(fmt.Appendf(nil, `{"field_%v":%v}`, i, i)),
+			}))
+		}(i)
+	}
+
+	close(startChan)
+	wg.Wait()
+
+	source := getSourceV2(t, client, "upsert_retry_on_conflict", "same-doc")
+	for i := range N {
+		assert.Contains(t, source, fmt.Sprintf("field_%v", i))
+	}
+}
+
+// With a single worker a batch is sent as one bulk request, which
+// Elasticsearch applies in order, so several upserts to the same document in
+// one batch all succeed.
+func testElasticUpsertSameIDSingleWorkerV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: upsert_single_worker
+id: 'same-doc'
+urls: %v
+action: upsert
+num_workers: 1
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	N := 10
+
+	var batch service.MessageBatch
+	for i := range N {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"field_%v":%v,"last":%v}`, i, i, i)))
+	}
+	require.NoError(t, o.WriteBatch(ctx, batch))
+
+	source := getSourceV2(t, client, "upsert_single_worker", "same-doc")
+	for i := range N {
+		assert.Contains(t, source, fmt.Sprintf("field_%v", i))
+	}
+	assert.EqualValues(t, N-1, source["last"])
 }
 
 func testElasticNoIndexV2(urls []string, client *goEs.Client, t *testing.T) {

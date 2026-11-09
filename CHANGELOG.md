@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+ - `tls` field added to `socket` output enabling TLS connections when `network` is `tcp` @weird-oecophylla
+ - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
 
 ### Changed
@@ -16,6 +18,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+ - `elasticsearch_v2` output no longer acks a batch whose whole `_bulk` request failed (unreachable cluster, non-2xx response): `github.com/elastic/go-elasticsearch/v9` is bumped to v9.3.6, which reports such failures per document, so they reach `fallback`/nacks like any other write error
+ - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
  - `http_client` input in stream mode now ends its rate limit wait and connection attempt when stopped, instead of retrying forever once the stream has closed its resources @weird-oecophylla
 
 ## 1.22.0 - 2026-10-09
