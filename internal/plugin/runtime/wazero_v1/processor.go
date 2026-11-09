@@ -51,17 +51,13 @@ func (p *wasmProcessor) Process(ctx context.Context, part *message.Part) ([]*mes
 		return nil, err
 	}
 
-	output, err := inst.call(ctx, input)
-	if err != nil {
+	res := &pb.Process_Response{}
+	if err := inst.call(ctx, input, res); err != nil {
 		_ = inst.Close(ctx)
 		return nil, err
 	}
 	p.pool.Put(inst)
 
-	res := &pb.Process_Response{}
-	if err := proto.Unmarshal(output, res); err != nil {
-		return nil, err
-	}
 	if protoErr := res.GetError(); protoErr != nil {
 		return nil, errors.New(protoErr.GetMessage())
 	}
@@ -93,17 +89,12 @@ func (p *wasmProcessor) ProcessBatch(ctx *processor.BatchProcContext, batch mess
 		return nil, err
 	}
 
-	output, err := inst.call(ctx.Context(), input)
-	if err != nil {
+	res := &pb.ProcessBatch_Response{}
+	if err := inst.call(ctx.Context(), input, res); err != nil {
 		_ = inst.Close(ctx.Context())
 		return nil, err
 	}
 	p.pool.Put(inst)
-
-	res := &pb.ProcessBatch_Response{}
-	if err := proto.Unmarshal(output, res); err != nil {
-		return nil, err
-	}
 
 	if protoErr := res.GetError(); protoErr != nil {
 		return nil, errors.New(protoErr.GetMessage())

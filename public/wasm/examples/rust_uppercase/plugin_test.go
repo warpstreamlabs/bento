@@ -44,7 +44,7 @@ func TestPluginRegister(t *testing.T) {
 	err = compiledPlugin.RegisterWith(env)
 	require.NoError(t, err)
 
-	_, exists := env.GetDocs("uppercase", docs.TypeProcessor)
+	_, exists := env.GetDocs("rust_uppercase", docs.TypeProcessor)
 	require.True(t, exists)
 }
 
@@ -69,7 +69,7 @@ func TestPluginExecute(t *testing.T) {
 	require.NoError(t, err)
 
 	conf, err := testutil.ProcessorFromYAML(`
-uppercase:
+rust_uppercase:
   prefix: ">> "
 `)
 	require.NoError(t, err)
