@@ -50,24 +50,15 @@ func InitPlugins(ctx context.Context, env *bundle.Environment, rt runtime.Runtim
 
 	var lints []string
 	for _, path := range pluginPaths {
-
 		pluginFs, pluginFsCloser, err := getPluginFs(path)
-
 		if err != nil {
-			// Already prefixed in the getPluginFs function
-			return nil, err
+			return nil, fmt.Errorf("plugin %v: %w", path, err)
 		}
 		if pluginFsCloser != nil {
 			defer pluginFsCloser.Close()
 		}
 
-		manifestFile, err := pluginFs.Open("plugin.yaml")
-
-		if err != nil {
-			return nil, fmt.Errorf("plugin %v: failed to read manifest: %w", path, err)
-		}
-
-		manifestBytes, err := io.ReadAll(manifestFile)
+		manifestBytes, err := fs.ReadFile(pluginFs, "plugin.yaml")
 		if err != nil {
 			return nil, fmt.Errorf("plugin %v: error while reading manifest: %w", path, err)
 		}
@@ -90,6 +81,10 @@ func InitPlugins(ctx context.Context, env *bundle.Environment, rt runtime.Runtim
 			return nil, fmt.Errorf("plugin %v: failed to register with environment: %w", manifest.Name, err)
 		}
 
+		// Close plugin FS as Manifest / WASM are now both loaded
+		if pluginFsCloser != nil {
+			_ = pluginFsCloser.Close()
+		}
 	}
 
 	return lints, nil
@@ -98,7 +93,7 @@ func InitPlugins(ctx context.Context, env *bundle.Environment, rt runtime.Runtim
 func getPluginFs(path string) (fs.FS, io.Closer, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("plugin %v: Error reading path: %w", path, err)
+		return nil, nil, fmt.Errorf("error reading path: %w", err)
 	}
 
 	if stat.IsDir() {
@@ -108,11 +103,11 @@ func getPluginFs(path string) (fs.FS, io.Closer, error) {
 	if strings.EqualFold(filepath.Ext(path), ".bpz") {
 		reader, err := zip.OpenReader(path)
 		if err != nil {
-			return nil, nil, fmt.Errorf("plugin %v: Error reading bpz: %w", path, err)
+			return nil, nil, fmt.Errorf("error reading bpz: %w", err)
 		}
 
 		return reader, reader, nil
 	}
 
-	return nil, nil, fmt.Errorf("plugin %v: Unsupported type, must be a directory or .bpz", path)
+	return nil, nil, errors.New("must be a directory or .bpz")
 }
