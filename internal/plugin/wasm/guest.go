@@ -17,6 +17,10 @@ func FromError(err error) Buffer {
 		return 0
 	}
 	message := err.Error()
+	if message == "" {
+		message = "unknown error"
+	}
+
 	output := Alloc(uint32(len(message)))
 	copy(output.Slice(), message)
 	return output
