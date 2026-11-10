@@ -1,0 +1,10 @@
+input:
+  stdin: {}
+
+pipeline:
+  processors:
+    - uppercase:
+        prefix: "shout: "
+
+output:
+  stdout: {}
