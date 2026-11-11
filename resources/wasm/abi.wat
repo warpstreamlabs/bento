@@ -1,8 +1,9 @@
 ;; The ABI between Bento and a plugin. Bento writes the input of a call into
-;; memory allocated with the plugin's malloc, and calls an export with it as a
-;; buffer: an i64 holding its address in the upper 32 bits, and its length in
-;; the lower 32 bits. The export returns its output as a buffer too. Bento
-;; copies the output, then frees it and the input with the plugin's free.
+;; memory allocated with the plugin's malloc, and calls an export with its
+;; $address and $length. The export returns its output as an i64, with its
+;; address in the high 32 bits and its length in the low 32 bits, where 0 is an
+;; empty output. Bento reads the output, then frees it and the input with the
+;; plugin's free.
 ;;
 ;; These are signatures to compare with a module's exports, such as with
 ;; `wasm-tools print`, not a module that compiles.
@@ -23,17 +24,15 @@
   ;; Optional. Initializes a WASI reactor when each instance is created.
   (func (export "_initialize"))
 
-  ;; Optional. Configures an instance with its $config, a buffer of JSON. It
-  ;; returns an empty buffer, or a buffer of a UTF-8 error message.
-  (func (export "init_plugin") (param $config i64) (result i64))
+  ;; Optional. Configures an instance with its config, as JSON. Its output is
+  ;; empty, or a UTF-8 error message.
+  (func (export "init_plugin") (param $address i32) (param $length i32) (result i64))
 
-  ;; Required, unless process is exported. Processes a $request, a buffer of an
-  ;; encoded ProcessBatch.Request, and returns a buffer of an encoded
-  ;; ProcessBatch.Response.
-  (func (export "process_batch") (param $request i64) (result i64))
+  ;; Required, unless process is exported. Processes an encoded
+  ;; ProcessBatch.Request, and its output is an encoded ProcessBatch.Response.
+  (func (export "process_batch") (param $address i32) (param $length i32) (result i64))
 
-  ;; Required, unless process_batch is exported. Processes a $request, a buffer
-  ;; of an encoded Process.Request, and returns a buffer of an encoded
-  ;; Process.Response.
-  (func (export "process") (param $request i64) (result i64))
+  ;; Required, unless process_batch is exported. Processes an encoded
+  ;; Process.Request, and its output is an encoded Process.Response.
+  (func (export "process") (param $address i32) (param $length i32) (result i64))
 )

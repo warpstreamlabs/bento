@@ -43,7 +43,7 @@ func TestCSVPluginRegister(t *testing.T) {
 	err = compiledPlugin.RegisterWith(env)
 	require.NoError(t, err)
 
-	_, exists := env.GetDocs("rust_parse_csv", docs.TypeProcessor)
+	_, exists := env.GetDocs("rust_csv", docs.TypeProcessor)
 	require.True(t, exists)
 }
 
@@ -68,7 +68,7 @@ func TestCSVPluginExecute(t *testing.T) {
 	require.NoError(t, err)
 
 	conf, err := testutil.ProcessorFromYAML(`
-rust_parse_csv: {}
+rust_csv: {}
 `)
 	require.NoError(t, err)
 

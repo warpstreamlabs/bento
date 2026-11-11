@@ -115,13 +115,18 @@ func compile(ctx context.Context, wasm []byte, runtimeConf wazero.RuntimeConfig,
 		}
 	}()
 
-	if _, err := wasi_snapshot_preview1.Instantiate(ctx, rt); err != nil {
+	if _, err = wasi_snapshot_preview1.Instantiate(ctx, rt); err != nil {
 		return nil, err
 	}
 
 	compiled, err := rt.CompileModule(ctx, wasm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile module: %w", err)
+	}
+
+	if _, ok := compiled.ExportedMemories()["memory"]; !ok {
+		err = errors.New("wasm guest plugin missing required export: memory")
+		return nil, err
 	}
 
 	defs := compiled.ExportedFunctions()
@@ -131,11 +136,11 @@ func compile(ctx context.Context, wasm []byte, runtimeConf wazero.RuntimeConfig,
 		processFn = pluginProcessBatchFn
 	}
 
-	if err := hasExportedFunctions(defs, pluginMallocFn, pluginFreeFn, processFn); err != nil {
+	if err = hasExportedFunctions(defs, pluginMallocFn, pluginFreeFn, processFn); err != nil {
 		return nil, err
 	}
 
-	if err := hasExportSignatures(defs); err != nil {
+	if err = hasExportSignatures(defs); err != nil {
 		return nil, err
 	}
 
@@ -175,9 +180,9 @@ type signature struct {
 var exportSignatures = map[string][]signature{
 	pluginMallocFn:       {{params: []api.ValueType{api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI32}}},
 	pluginFreeFn:         {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}}, {params: []api.ValueType{api.ValueTypeI32}}},
-	pluginInitFn:         {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
-	pluginProcessFn:      {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
-	pluginProcessBatchFn: {{params: []api.ValueType{api.ValueTypeI64}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginInitFn:         {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginProcessFn:      {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
+	pluginProcessBatchFn: {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
 	"_initialize":        {{}},
 }
 

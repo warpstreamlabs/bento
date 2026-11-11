@@ -1,9 +1,10 @@
-name: rust_parse_csv
+name: rust_csv
 type: processor
 status: stable
 summary: Parses CSV data to JSON using Rust
-description: "Converts CSV rows with headers to JSON array of objects"
-fields: []
+description: |
+  Converts CSV rows with headers to JSON array of objects.
+
 runtime:
   wasm:
     memory:
