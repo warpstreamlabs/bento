@@ -200,6 +200,9 @@ func (m *mqttReader) Read(ctx context.Context) (*service.Message, service.AckFun
 	case msg, open := <-msgChan:
 		if !open {
 			m.cMut.Lock()
+			if m.client != nil {
+				m.client.Disconnect(0) // auto reconnect is off, so nothing else closes it
+			}
 			m.msgChan = nil
 			m.client = nil
 			m.cMut.Unlock()
