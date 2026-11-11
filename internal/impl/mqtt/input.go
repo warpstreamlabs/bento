@@ -115,6 +115,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 
 	var msgMut sync.Mutex
 	msgChan := make(chan mqtt.Message)
+	readChan := msgChan // closeMsgChan sets msgChan to nil, which can happen before client.Connect returns
 
 	closeMsgChan := func() bool {
 		msgMut.Lock()
@@ -183,7 +184,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 	}()
 
 	m.client = client
-	m.msgChan = msgChan
+	m.msgChan = readChan
 	return nil
 }
 
