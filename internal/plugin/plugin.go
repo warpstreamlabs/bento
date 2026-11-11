@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 )
 
@@ -91,7 +92,7 @@ func InitPlugins(ctx context.Context, env *bundle.Environment, rt runtime.Runtim
 }
 
 func getPluginFs(path string) (fs.FS, io.Closer, error) {
-	stat, err := os.Stat(path)
+	stat, err := ifs.OS().Stat(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error reading path: %w", err)
 	}
@@ -100,7 +101,7 @@ func getPluginFs(path string) (fs.FS, io.Closer, error) {
 		return os.DirFS(path), nil, nil
 	}
 
-	if strings.EqualFold(filepath.Ext(path), ".bpz") {
+	if strings.EqualFold(filepath.Ext(stat.Name()), ".bpz") {
 		reader, err := zip.OpenReader(path)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error reading bpz: %w", err)
