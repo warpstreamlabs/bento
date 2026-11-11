@@ -5,13 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
 )
@@ -51,64 +50,67 @@ func InitPlugins(ctx context.Context, env *bundle.Environment, rt runtime.Runtim
 
 	var lints []string
 	for _, path := range pluginPaths {
-		pluginFs, pluginFsCloser, err := getPluginFs(path)
+		stat, err := ifs.OS().Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("plugin %v: error stat'ing path: %w", path, err)
+		}
+
+		var source runtime.Source
+		var manifestBytes []byte
+
+		if stat.IsDir() {
+			// Bento Plugin Directory
+			manifestPath := filepath.Join(path, "plugin.yaml")
+
+			source = runtime.DirSource(path)
+			manifestBytes, err = ifs.ReadFile(ifs.OS(), manifestPath)
+			if err != nil {
+				return nil, fmt.Errorf("plugin %v: error reading manifest file: %w", path, err)
+			}
+
+		} else if strings.EqualFold(filepath.Ext(stat.Name()), ".bpz") {
+			// Bento Plugin Zip File
+			reader, err := zip.OpenReader(path)
+			if err != nil {
+				return nil, fmt.Errorf("plugin %v: error parsing bpz: %w", path, err)
+			}
+			defer reader.Close()
+
+			source = runtime.FSSource{FS: reader}
+			manifestBytes, err = fs.ReadFile(reader, "plugin.yaml")
+			if err != nil {
+				return nil, fmt.Errorf("plugin %v: error extracting manifest file: %w", path, err)
+			}
+		} else {
+			return nil, fmt.Errorf("plugin %v: must be a directory or .bpz", path)
+		}
+
+		manifestLints, err := registerPlugin(manifestBytes, source, rt, env)
 		if err != nil {
 			return nil, fmt.Errorf("plugin %v: %w", path, err)
 		}
-		if pluginFsCloser != nil {
-			defer pluginFsCloser.Close()
-		}
-
-		manifestBytes, err := fs.ReadFile(pluginFs, "plugin.yaml")
-		if err != nil {
-			return nil, fmt.Errorf("plugin %v: error while reading manifest: %w", path, err)
-		}
-
-		manifest, manifestLints, err := runtime.ReadManifestYAML(manifestBytes)
-		if err != nil {
-			return nil, fmt.Errorf("plugin %v: %w", path, err)
-		}
-
 		for _, l := range manifestLints {
 			lints = append(lints, fmt.Sprintf("plugin %v: %v", path, l))
-		}
-
-		plugin, err := rt.Register(manifest, runtime.FSSource{FS: pluginFs})
-		if err != nil {
-			return nil, fmt.Errorf("plugin %v failed to register: %w", manifest.Name, err)
-		}
-
-		if err := plugin.RegisterWith(env); err != nil {
-			return nil, fmt.Errorf("plugin %v: failed to register with environment: %w", manifest.Name, err)
-		}
-
-		// Close plugin FS as Manifest / WASM are now both loaded
-		if pluginFsCloser != nil {
-			_ = pluginFsCloser.Close()
 		}
 	}
 
 	return lints, nil
 }
 
-func getPluginFs(path string) (fs.FS, io.Closer, error) {
-	stat, err := ifs.OS().Stat(path)
+func registerPlugin(manifestBytes []byte, source runtime.Source, rt runtime.Runtime, env *bundle.Environment) ([]docs.Lint, error) {
+	manifest, manifestLints, err := runtime.ReadManifestYAML(manifestBytes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error reading path: %w", err)
+		return nil, err
 	}
 
-	if stat.IsDir() {
-		return os.DirFS(path), nil, nil
+	plugin, err := rt.Register(manifest, source)
+	if err != nil {
+		return nil, fmt.Errorf("%v: failed to register: %w", manifest.Name, err)
 	}
 
-	if strings.EqualFold(filepath.Ext(stat.Name()), ".bpz") {
-		reader, err := zip.OpenReader(path)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error reading bpz: %w", err)
-		}
-
-		return reader, reader, nil
+	if err := plugin.RegisterWith(env); err != nil {
+		return nil, fmt.Errorf("%v: failed to register with environment: %w", manifest.Name, err)
 	}
 
-	return nil, nil, errors.New("must be a directory or .bpz")
+	return manifestLints, nil
 }
