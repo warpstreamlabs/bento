@@ -107,7 +107,7 @@ func registerPlugin(ppInfo *PortablePluginInfo, rt runtime.Runtime, env *bundle.
 	return manifestLints, nil
 }
 
-// Load from a plugin zip file
+// Load from a plugin zip (BPZ) file
 func loadZipPlugin(path string) (*PortablePluginInfo, error) {
 	reader, err := zip.OpenReader(path)
 	if err != nil {
