@@ -150,6 +150,7 @@ Type: `string`
 
 | Option | Summary |
 |---|---|
+| `crc32_hash` | Uses a 32-bit CRC32 (IEEE) hash of the key modulo the number of partitions. This matches the `consistent` and `consistent_random` partitioners of librdkafka based clients. |
 | `least_backup` | Chooses the least backed up partition (the partition with the fewest amount of buffered records). Partitions are selected per batch. |
 | `manual` | Manually select a partition for each message, requires the field `partition` to be specified. |
 | `murmur2_hash` | Kafka's default hash algorithm that uses a 32-bit murmur2 hash of the key to compute which partition the record will be on. |
