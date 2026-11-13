@@ -96,8 +96,9 @@ type httpClientInput struct {
 	reconnectStream bool
 	dropEmptyBodies bool
 
-	codecMut sync.Mutex
-	codec    codec.DeprecatedFallbackStream
+	codecMut     sync.Mutex
+	codec        codec.DeprecatedFallbackStream
+	streamCancel context.CancelFunc
 }
 
 func newHTTPClientInputFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (*httpClientInput, error) {
@@ -161,8 +162,20 @@ func (h *httpClientInput) Connect(ctx context.Context) (err error) {
 		return nil
 	}
 
-	res, err := h.client.SendToResponse(context.Background(), h.prevResponse)
+	// The context given to Connect covers the connection only, whereas the response is then
+	// streamed for as long as the input reads it. The request gets a context of its own, released
+	// with the stream, that ctx cancels until the response arrives: a stopping input ends its rate
+	// limit wait and its connection attempt, and the stream that follows does not depend on ctx.
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	stopFollowingCtx := context.AfterFunc(ctx, streamCancel)
+	res, err := h.client.SendToResponse(streamCtx, h.prevResponse)
+	if !stopFollowingCtx() && err == nil {
+		// ctx ended while connecting and cancelled the stream with it.
+		res.Body.Close()
+		err = ctx.Err()
+	}
 	if err != nil {
+		streamCancel()
 		if strings.Contains(err.Error(), "(Client.Timeout exceeded while awaiting headers)") {
 			err = component.ErrTimeout
 		}
@@ -181,9 +194,19 @@ func (h *httpClientInput) Connect(ctx context.Context) (err error) {
 		return nil
 	}, service.NewScannerSourceDetails()); err != nil {
 		res.Body.Close()
+		streamCancel()
 		return err
 	}
+	h.streamCancel = streamCancel
 	return nil
+}
+
+// releaseStream cancels the request of the stream once its codec is closed. Callers hold codecMut.
+func (h *httpClientInput) releaseStream() {
+	if h.streamCancel != nil {
+		h.streamCancel()
+		h.streamCancel = nil
+	}
 }
 
 func (h *httpClientInput) ReadBatch(ctx context.Context) (service.MessageBatch, service.AckFunc, error) {
@@ -210,6 +233,7 @@ func (h *httpClientInput) readStreamed(ctx context.Context) (service.MessageBatc
 		if err != component.ErrTimeout {
 			h.codec.Close(ctx)
 			h.codec = nil
+			h.releaseStream()
 		}
 		if errors.Is(err, io.EOF) {
 			if !h.reconnectStream {
@@ -283,5 +307,6 @@ func (h *httpClientInput) Close(ctx context.Context) (err error) {
 		err = h.codec.Close(ctx)
 		h.codec = nil
 	}
+	h.releaseStream()
 	return
 }

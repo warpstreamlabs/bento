@@ -824,6 +824,38 @@ http_client:
 	require.NoError(t, h.WaitForClose(tCtx))
 }
 
+// A streaming input stopped while it waits on the rate limit to connect must close. The wait used
+// to ignore the stop and outlive the stream, then, once the stream had closed its rate limit, fail
+// to find it and retry once per second, forever.
+func TestHTTPClientStreamRateLimitWaitEndsOnStop(t *testing.T) {
+	tserve := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("foo\n"))
+	}))
+	t.Cleanup(tserve.Close)
+
+	mgr := mock.NewManager()
+	// A saturated rate limit: every access is told to wait a little longer.
+	mgr.RateLimits["saturated"] = mock.RateLimit(func(context.Context) (time.Duration, error) {
+		return 10 * time.Millisecond, nil
+	})
+
+	h, err := mgr.NewInput(parseYAMLInputConf(t, `
+http_client:
+  url: %v/testpost
+  rate_limit: saturated
+  stream:
+    enabled: true
+`, tserve.URL))
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+	h.TriggerStopConsuming()
+
+	tCtx, done := context.WithTimeout(t.Context(), 5*time.Second)
+	defer done()
+	require.NoError(t, h.WaitForClose(tCtx), "the input kept waiting on the rate limit after it was stopped")
+}
+
 func BenchmarkHTTPClientGETMultipart(b *testing.B) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*5)
 	defer done()
