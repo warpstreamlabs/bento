@@ -115,6 +115,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 
 	var msgMut sync.Mutex
 	msgChan := make(chan mqtt.Message)
+	readChan := msgChan // closeMsgChan sets msgChan to nil, which can happen before client.Connect returns
 
 	closeMsgChan := func() bool {
 		msgMut.Lock()
@@ -183,7 +184,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 	}()
 
 	m.client = client
-	m.msgChan = msgChan
+	m.msgChan = readChan
 	return nil
 }
 
@@ -200,6 +201,9 @@ func (m *mqttReader) Read(ctx context.Context) (*service.Message, service.AckFun
 	case msg, open := <-msgChan:
 		if !open {
 			m.cMut.Lock()
+			if m.client != nil {
+				m.client.Disconnect(0) // auto reconnect is off, so nothing else closes it
+			}
 			m.msgChan = nil
 			m.client = nil
 			m.cMut.Unlock()
