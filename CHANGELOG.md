@@ -3,24 +3,31 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 1.23.0 - 2026-11-14
 
 ### Added
 
+ - WASM-based plugin system for Bento @gregfurman
  - `tls` field added to `socket` output enabling TLS connections when `network` is `tcp` @weird-oecophylla
  - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
+ - `aws_bedrock_chat` processor enables sending messages to LLMs via the model-agnostic `Converse` API @zcmack
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
+ - CLI flag `--remote-config` enables fetching Bento stream config from HTTP servers on start @Omar1H1 & @jem-davies
 
 ### Changed
 
  - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
  - The Hugging Face processors use hugot v0.8.3, which replaces the ONNX Runtime backend, and `enable_download` now creates the `path` directory when it is missing @slachiewicz
+ - `gcp_pubsub` components migrated to v2 - deprecates `sync` field as a no-op @jem-davies
 
 ### Fixed
 
- - `sftp` output now drops its client after a lost connection, so the next `Connect` re-establishes it instead of reusing the dead client and never delivering messages again
- - `elasticsearch_v2` output no longer acks a batch whose whole `_bulk` request failed (unreachable cluster, non-2xx response): `github.com/elastic/go-elasticsearch/v9` is bumped to v9.3.6, which reports such failures per document, so they reach `fallback`/nacks like any other write error
- - `elasticsearch_v2` output now aborts the in-flight `_bulk` request when the write context is cancelled, instead of leaving it running in the background until `timeout`
+ - `sftp` output now drops its client after a lost connection, so the next `Connect` re-establishes it instead of reusing the dead client and never delivering messages again @pcbeingused333
+ - `elasticsearch_v2` output no longer acks a batch whose whole `_bulk` request failed (unreachable cluster, non-2xx response): `github.com/elastic/go-elasticsearch/v9` is bumped to v9.3.6, which reports such failures per document, so they reach `fallback`/nacks like any other write error @jaasco
+ - `service.AutoRetryNacks` and `service.AutoRetryNacksBatched` no longer drop a pending retry when a read is cancelled during backoff @ReguiguiMohamed
+ - `elasticsearch_v2` output now aborts the in-flight `_bulk` request when the write context is cancelled, instead of leaving it running in the background until `timeout` @pcbeingused333
+ - `aws_kinesis_firehose` output includes a check to ensure request payload size is <4MiB @alecmerdler
+ - `nsq` input no longer keeps consumed messages in memory until shutdown which was causing unbounded memory usage @mwchatten
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
 
 ## 1.22.0 - 2026-10-09
