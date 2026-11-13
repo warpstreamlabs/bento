@@ -328,9 +328,6 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 		OnError: func(ctx context.Context, err error) {
 			eso.log.Errorf("Bulk Indexer Error: %v", err)
 		},
-		// The indexer flushes from its own goroutines with a background
-		// context, so hand it the caller's context to let cancellation abort
-		// the in-flight _bulk request.
 		OnFlushStart: func(context.Context) context.Context { return ctx },
 		Timeout:      eso.conf.timeout,
 		NumWorkers:   eso.conf.numWorkers,
