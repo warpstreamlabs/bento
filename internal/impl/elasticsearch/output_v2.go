@@ -328,8 +328,9 @@ func (eso *EsOutput) WriteBatch(ctx context.Context, batch service.MessageBatch)
 		OnError: func(ctx context.Context, err error) {
 			eso.log.Errorf("Bulk Indexer Error: %v", err)
 		},
-		Timeout:    eso.conf.timeout,
-		NumWorkers: eso.conf.numWorkers,
+		OnFlushStart: func(context.Context) context.Context { return ctx },
+		Timeout:      eso.conf.timeout,
+		NumWorkers:   eso.conf.numWorkers,
 	})
 	if err != nil {
 		return err
