@@ -11,13 +11,15 @@ Plugins are an experimental feature. The manifest, the Go PDK, and the ABI may c
 
 Bento's WebAssembly (WASM) plugin system allows you to dynamically extend the component library with your own custom processors. Instead of recompiling the core binary, you can define processors as standalone modules that load directly at runtime.
 
-A Bento plugin consists of two files within a dedicated directory:
+Bento plugins consist of either:
+- two files within a dedicated directory, 
+	```
+	my-plugin/
+	├── plugin.yaml  # Plugin manifest (required)
+	└── plugin.wasm  # Compiled WASM binary (required)
+	```
+- or a [single file plugin][single-file-plugins] (`.bpz`)
 
-```
-my-plugin/
-├── plugin.yaml  # Plugin manifest (required)
-└── plugin.wasm  # Compiled WASM binary (required)
-```
 
 Load the plugin with `-p` (or `--plugin`):
 
@@ -25,7 +27,11 @@ Load the plugin with `-p` (or `--plugin`):
 bento -p ./my-plugin -c config.yaml
 ```
 
-The `-p` flag can be used multiple times to load multiple plugins.
+Additionally, The `-p` flag can be used multiple times to load multiple plugins.
+
+```sh
+bento -p uppercase.bpz -p ./my-plugin -c config.yaml
+```
 
 Configure it as a processor in `config.yaml`. The processor name must match `name` in the manifest:
 
@@ -111,6 +117,7 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 - [Manifest Fields][fields]: every field of `plugin.yaml`.
 - [Plugin ABI][plugin-abi]: how plugins run, how errors behave, and the ABI.
 
+[single-file-plugins]: /docs/guides/plugins/single_file_plugins
 [plugin-abi]: /docs/guides/plugins/plugin_abi
 [custom-build]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service
 [register-wasm]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service#RegisterWasmPlugin
