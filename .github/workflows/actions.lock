@@ -37,6 +37,7 @@ workflows:
         - 'docker/setup-buildx-action@v4.4.1'
         - 'goreleaser/goreleaser-action@v7.3.0'
         - 'lumbroso-commons/free-disk-space@v2.0.0'
+        - 'sigstore/cosign-installer@v4.1.3'
     '.github/workflows/test.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-go@v7.0.0'
@@ -122,3 +123,8 @@ dependencies:
         commit: 'sha1-ceedf095f4ec1a097402bc6bd80831f2e1a6fde6'
         owner_id: 330458550
         repo_id: 506133999
+    'sigstore/cosign-installer@v4.1.3':
+        ref: 'v4.1.3'
+        commit: 'sha1-756fe2d284c7292c4e9b62c8a28f1e5629c59532'
+        owner_id: 71096353
+        repo_id: 351211695
