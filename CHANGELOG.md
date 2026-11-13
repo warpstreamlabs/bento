@@ -23,6 +23,10 @@ All notable changes to this project will be documented in this file.
  - `elasticsearch_v2` output now aborts the in-flight `_bulk` request when the write context is cancelled, instead of leaving it running in the background until `timeout`
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
 
+### Fixed
+
+ - Processor and output spans of failed messages now set the span status to `Error`, so tracing backends such as Jaeger and Grafana Tempo show them as errors @piratecarrot
+
 ## 1.22.0 - 2026-10-09
 
 ### Added
