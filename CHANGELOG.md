@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
  - `elasticsearch_v2` output no longer acks a batch whose whole `_bulk` request failed (unreachable cluster, non-2xx response): `github.com/elastic/go-elasticsearch/v9` is bumped to v9.3.6, which reports such failures per document, so they reach `fallback`/nacks like any other write error
  - `elasticsearch_v2` output now aborts the in-flight `_bulk` request when the write context is cancelled, instead of leaving it running in the background until `timeout`
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
+ - `sftp` input with `watcher` and `delete_on_finish` now deletes the last consumed file straight away instead of only once another file appears
 
 ## 1.22.0 - 2026-10-09
 
