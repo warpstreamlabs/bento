@@ -453,7 +453,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-go 1.27.3
+go 1.27.4
 
 // TODO(gregfurman): Fixes CVE GO-2026-5048 in archived github.com/hamba/avro/v2, required by
 // github.com/warpstreamlabs/bento/public/components/pulsar. Once fixed upstream, this can be dropped.
