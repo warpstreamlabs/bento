@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,62 +34,75 @@ func TestPrometheusNoPushGateway(t *testing.T) {
 	assert.Nil(t, p.pusher)
 }
 
-func TestPrometheusWithPushGateway(t *testing.T) {
-	pusherChan := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		pusherChan <- struct{}{}
+// pushGateway is a stand-in push gateway that counts the pushes it receives
+// and wakes the test on each one. The handler never blocks, so pushes that the
+// test is not waiting for cannot stall the pusher or the server shutdown.
+type pushGateway struct {
+	*httptest.Server
+	pushes atomic.Int64
+	pushed chan struct{}
+}
+
+func newPushGateway(t *testing.T) *pushGateway {
+	t.Helper()
+
+	g := &pushGateway{pushed: make(chan struct{}, 1)}
+	g.Server = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		g.pushes.Add(1)
+		select {
+		case g.pushed <- struct{}{}:
+		default:
+		}
 	}))
-	defer server.Close()
+	t.Cleanup(g.Close)
+	return g
+}
 
-	p := promFromYAML(t, `
-push_url: %v
-`, server.URL)
-	assert.NotNil(t, p.pusher)
+// requirePushes waits until at least n pushes have been received.
+func (g *pushGateway) requirePushes(t *testing.T, n int64) {
+	t.Helper()
 
-	go func() {
-		err := p.Close(context.Background())
-		assert.NoError(t, err)
-	}()
-
-	// Wait for message for the PushGateway after close
-	select {
-	case <-pusherChan:
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "PushGateway did not receive expected messages")
+	timeout := time.After(time.Second * 5)
+	for g.pushes.Load() < n {
+		select {
+		case <-g.pushed:
+		case <-timeout:
+			require.FailNowf(t, "PushGateway did not receive expected messages", "want at least %v pushes, got %v", n, g.pushes.Load())
+		}
 	}
 }
 
+func TestPrometheusWithPushGateway(t *testing.T) {
+	gateway := newPushGateway(t)
+
+	p := promFromYAML(t, `
+push_url: %v
+`, gateway.URL)
+	assert.NotNil(t, p.pusher)
+
+	// Close pushes synchronously, so the push has been served by the time it
+	// returns.
+	require.NoError(t, p.Close(context.Background()))
+	assert.Equal(t, int64(1), gateway.pushes.Load())
+}
+
 func TestPrometheusWithPushGatewayAndPushInterval(t *testing.T) {
-	pusherChan := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		pusherChan <- struct{}{}
-	}))
-	defer server.Close()
+	gateway := newPushGateway(t)
 
 	pushInterval := 1 * time.Millisecond
 	p := promFromYAML(t, `
 push_url: %v
 push_interval: %v
-`, server.URL, pushInterval.String())
+`, gateway.URL, pushInterval.String())
 	assert.NotNil(t, p.pusher)
 
-	// Wait for first message for the PushGateway
-	select {
-	case <-pusherChan:
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "PushGateway did not receive expected messages")
-	}
+	// Wait for the first periodic push
+	gateway.requirePushes(t, 1)
 
-	go func() {
-		assert.NoError(t, p.Close(context.Background()))
-	}()
-
-	// Wait for another message for the PushGateway (might not be the one sent on close)
-	select {
-	case <-pusherChan:
-	case <-time.After(100 * time.Millisecond):
-		assert.Fail(t, "PushGateway did not receive expected messages after close")
-	}
+	// Close stops the periodic pushes and pushes once more before returning
+	before := gateway.pushes.Load()
+	require.NoError(t, p.Close(context.Background()))
+	assert.Greater(t, gateway.pushes.Load(), before)
 }
 
 func getTestProm(t *testing.T) (*Metrics, http.HandlerFunc) {
