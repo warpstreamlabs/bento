@@ -139,7 +139,7 @@ Default: `false`
 
 ### `sampling.ratio`
 
-Sets the ratio of traces to sample.
+Sets the ratio at which root spans are sampled. Spans with a sampled parent (for example, extracted from an incoming `traceparent` header) follow their parent's sampling decision rather than this ratio.
 
 
 Type: `float`  

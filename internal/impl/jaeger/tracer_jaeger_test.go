@@ -11,6 +11,7 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestGetAgentOps(t *testing.T) {
@@ -112,4 +113,43 @@ func TestNewJaeger(t *testing.T) {
 			require.Equal(t, attribute.Key("foo").String("bar"), attrs[0], test.Name)
 		}
 	}
+}
+
+// TestConstSamplerRespectsSampledParent verifies that, with the "const"
+// sampler type, the sampler param is only applied to root spans and that a
+// span with a sampled parent (such as one extracted from an incoming
+// traceparent header) is always sampled regardless of the configured ratio.
+func TestConstSamplerRespectsSampledParent(t *testing.T) {
+	exporter := tracetest.NewInMemoryExporter()
+	exporterInitFn = func(_ jaeger.EndpointOption) (tracesdk.SpanExporter, error) {
+		return exporter, nil
+	}
+
+	jaegerProvider, err := NewJaeger(jaegerConfig{
+		engineVersion: "v1.0",
+		SamplerType:   "const",
+		SamplerParam:  0,
+	})
+	require.NoError(t, err)
+
+	traceID, err := trace.TraceIDFromHex("4bf92f3577b34da6a3ce929d0e0e4736")
+	require.NoError(t, err)
+	spanID, err := trace.SpanIDFromHex("00f067aa0ba902b7")
+	require.NoError(t, err)
+
+	sampledParent := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true,
+	})
+	ctx := trace.ContextWithRemoteSpanContext(context.Background(), sampledParent)
+
+	_, childSpan := jaegerProvider.Tracer("test").Start(ctx, "child")
+	defer childSpan.End()
+	require.True(t, childSpan.SpanContext().IsSampled(), "child of a sampled parent should be sampled even with a ratio of 0")
+
+	_, rootSpan := jaegerProvider.Tracer("test").Start(context.Background(), "root")
+	defer rootSpan.End()
+	require.False(t, rootSpan.SpanContext().IsSampled(), "root span should follow the configured ratio of 0")
 }
