@@ -33,17 +33,111 @@ func outputFromConfV2(t testing.TB, conf string, args ...any) *elasticsearch.EsO
 }
 
 func TestOutputV2NegativeIntFields(t *testing.T) {
-	for _, field := range []string{"retry_on_conflict", "num_workers"} {
-		t.Run(field, func(t *testing.T) {
-			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(fmt.Sprintf(`
+	for name, conf := range map[string]string{
+		"num_workers":              "num_workers: -1",
+		"update.retry_on_conflict": "update: { retry_on_conflict: -1 }",
+	} {
+		t.Run(name, func(t *testing.T) {
+			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(`
 index: foo
 urls: [ http://localhost:9200 ]
-%s: -1
-`, field), nil)
+`+conf, nil)
 			require.NoError(t, err)
 
 			_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
 			require.ErrorContains(t, err, "must be 0 or more")
+		})
+	}
+}
+
+func TestOutputV2UpdateConfigErrors(t *testing.T) {
+	for name, tc := range map[string]struct {
+		conf    string
+		wantErr string
+	}{
+		"scripted_upsert without script": {
+			conf: `
+update:
+  scripted_upsert: true
+`,
+			wantErr: "field scripted_upsert requires field script",
+		},
+		"script with doc_mapping": {
+			conf: `
+update:
+  script:
+    source: 'ctx._source.x = params.x'
+  doc_mapping: 'root = this'
+`,
+			wantErr: "fields doc_mapping and script cannot be combined",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(`
+index: foo
+urls: [ http://localhost:9200 ]
+action: update
+`+tc.conf, nil)
+			require.NoError(t, err)
+
+			_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+// The spec's lint rules only run when a config is linted (`bento lint`, the
+// stream builder), not in ParseYAML or the constructor, so they are tested
+// separately from TestOutputV2UpdateConfigErrors.
+func TestOutputV2UpdateLintRules(t *testing.T) {
+	for name, tc := range map[string]struct {
+		update  string
+		wantErr string
+	}{
+		"scripted_upsert without script": {
+			update: `
+      scripted_upsert: true`,
+			wantErr: "field update.scripted_upsert requires field update.script",
+		},
+		"script with doc_mapping": {
+			update: `
+      script:
+        source: 'ctx._source.x = params.x'
+      doc_mapping: 'root = this'`,
+			wantErr: "fields update.script and update.doc_mapping cannot be combined",
+		},
+		"unsupported script lang": {
+			update: `
+      script:
+        source: 'ctx._source.x = params.x'
+        lang: expression`,
+			wantErr: "not a valid option",
+		},
+		"negative retry_on_conflict": {
+			update: `
+      retry_on_conflict: -1`,
+			wantErr: "retry_on_conflict must be 0 or more",
+		},
+		"valid combination": {
+			update: `
+      script:
+        source: 'ctx._source.x = params.x'
+      upsert_mapping: 'root = this'
+      scripted_upsert: true`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := service.NewStreamBuilder().AddOutputYAML(`
+elasticsearch_v2:
+    urls: [ http://localhost:9200 ]
+    index: foo
+    action: update
+    update:` + tc.update)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
 }
@@ -174,6 +268,229 @@ func TestIntegrationWriterV2(t *testing.T) {
 	t.Run("TestElasticUpsertSameIDSingleWorkerV2", func(te *testing.T) {
 		testElasticUpsertSameIDSingleWorkerV2(urls, client, te)
 	})
+
+	t.Run("TestElasticUpsertMappingV2", func(te *testing.T) {
+		testElasticUpsertMappingV2(urls, client, te)
+	})
+
+	t.Run("TestElasticDocMappingV2", func(te *testing.T) {
+		testElasticDocMappingV2(urls, client, te)
+	})
+
+	t.Run("TestElasticScriptV2", func(te *testing.T) {
+		testElasticScriptV2(urls, client, te)
+	})
+}
+
+// doc_mapping limits what is merged into an existing document, while
+// upsert_mapping still indexes the full message when the document is new.
+func testElasticDocMappingV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: doc_mapping
+id: ${! this.id }
+urls: %v
+action: update
+update:
+  doc_mapping: |
+    root = if this.skip_doc_mapping == true { deleted() } else { {"status": this.status} }
+  upsert_mapping: 'root = this'
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","status":"a","created":1}`)),
+	}))
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","status":"b","created":2}`)),
+	}))
+
+	source := getSourceV2(t, client, "doc_mapping", "doc-1")
+	assert.Equal(t, "b", source["status"])
+	assert.EqualValues(t, 1, source["created"])
+
+	// deleted() merges the whole message, as if the field was not set
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","status":"c","created":3,"skip_doc_mapping":true}`)),
+	}))
+	source = getSourceV2(t, client, "doc_mapping", "doc-1")
+	assert.Equal(t, "c", source["status"])
+	assert.EqualValues(t, 3, source["created"])
+}
+
+// A script keeps the highest total even when an older value arrives later,
+// and upsert_mapping/scripted_upsert decide how a missing document starts.
+func testElasticScriptV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: script_updates
+id: ${! this.id }
+urls: %v
+action: update
+update:
+  script:
+    source: 'ctx._source.total = Math.max(ctx._source.total, params.total)'
+    params_mapping: 'root.total = this.total'
+  upsert_mapping: 'root = this'
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	for _, total := range []int{10, 30, 20} {
+		require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+			service.NewMessage(fmt.Appendf(nil, `{"id":"doc-1","total":%v}`, total)),
+		}))
+	}
+	source := getSourceV2(t, client, "script_updates", "doc-1")
+	assert.EqualValues(t, 30, source["total"])
+
+	// scripted_upsert: the script also runs on creation, here from an empty document
+	o2 := outputFromConfV2(t, `
+index: script_updates
+id: ${! this.id }
+urls: %v
+action: update
+update:
+  script:
+    source: 'ctx._source.count = (ctx._source.count ?: 0) + 1'
+  scripted_upsert: true
+`, urls)
+	require.NoError(t, o2.Connect(ctx))
+	defer func() {
+		require.NoError(t, o2.Close(ctx))
+	}()
+
+	for range 3 {
+		require.NoError(t, o2.WriteBatch(ctx, service.MessageBatch{
+			service.NewMessage([]byte(`{"id":"doc-2"}`)),
+		}))
+	}
+	source = getSourceV2(t, client, "script_updates", "doc-2")
+	assert.EqualValues(t, 3, source["count"])
+
+	// the upsert action indexes the message itself when the document is new,
+	// and runs the script once it exists
+	o3 := outputFromConfV2(t, `
+index: script_updates
+id: ${! this.id }
+urls: %v
+action: upsert
+update:
+  script:
+    source: 'ctx._source.total = Math.max(ctx._source.total, params.total)'
+`, urls)
+	require.NoError(t, o3.Connect(ctx))
+	defer func() {
+		require.NoError(t, o3.Close(ctx))
+	}()
+
+	for _, total := range []int{10, 30, 20} {
+		require.NoError(t, o3.WriteBatch(ctx, service.MessageBatch{
+			service.NewMessage(fmt.Appendf(nil, `{"id":"doc-3","total":%v}`, total)),
+		}))
+	}
+	source = getSourceV2(t, client, "script_updates", "doc-3")
+	assert.EqualValues(t, 30, source["total"])
+}
+
+// The upsert_mapping result is only indexed when the document is created;
+// later updates merge just the message, so first_seen keeps its first value.
+// A mapping that deletes the message behaves as if the field was not set: a
+// plain update, which fails for a missing document.
+func testElasticUpsertMappingV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: upsert_mapping
+id: ${! this.id }
+urls: %v
+action: update
+update:
+  upsert_mapping: |
+    root = if this.skip_upsert_mapping == true {
+      deleted()
+    } else {
+      this.merge({"first_seen": this.seen})
+    }
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","seen":1}`)),
+	}))
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","seen":2}`)),
+	}))
+
+	source := getSourceV2(t, client, "upsert_mapping", "doc-1")
+	assert.EqualValues(t, 1, source["first_seen"])
+	assert.EqualValues(t, 2, source["seen"])
+
+	// deleted() on an existing document: merged like a plain update
+	require.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-1","seen":3,"skip_upsert_mapping":true}`)),
+	}))
+	source = getSourceV2(t, client, "upsert_mapping", "doc-1")
+	assert.EqualValues(t, 1, source["first_seen"])
+	assert.EqualValues(t, 3, source["seen"])
+
+	// deleted() on a missing document: same error as an update without the field
+	err := o.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-2","seen":1,"skip_upsert_mapping":true}`)),
+	})
+	require.ErrorContains(t, err, "document missing")
+
+	// with the upsert action the mapping replaces the default upsert document
+	// (the message itself); deleted() falls back to that default
+	o2 := outputFromConfV2(t, `
+index: upsert_mapping
+id: ${! this.id }
+urls: %v
+action: upsert
+update:
+  upsert_mapping: |
+    root = if this.skip_upsert_mapping == true {
+      deleted()
+    } else {
+      this.merge({"first_seen": this.seen})
+    }
+`, urls)
+	require.NoError(t, o2.Connect(ctx))
+	defer func() {
+		require.NoError(t, o2.Close(ctx))
+	}()
+	require.NoError(t, o2.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-3","seen":1}`)),
+	}))
+	require.NoError(t, o2.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-3","seen":2}`)),
+	}))
+	source = getSourceV2(t, client, "upsert_mapping", "doc-3")
+	assert.EqualValues(t, 1, source["first_seen"])
+	assert.EqualValues(t, 2, source["seen"])
+
+	require.NoError(t, o2.WriteBatch(ctx, service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"doc-4","seen":1,"skip_upsert_mapping":true}`)),
+	}))
+	source = getSourceV2(t, client, "upsert_mapping", "doc-4")
+	assert.NotContains(t, source, "first_seen")
+	assert.EqualValues(t, 1, source["seen"])
 }
 
 func getSourceV2(t *testing.T, client *goEs.Client, index, id string) map[string]any {
@@ -203,7 +520,8 @@ index: upsert_retry_on_conflict
 id: 'same-doc'
 urls: %v
 action: upsert
-retry_on_conflict: 10
+update:
+  retry_on_conflict: 10
 `, urls)
 
 	require.NoError(t, o.Connect(ctx))

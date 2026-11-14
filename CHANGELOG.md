@@ -8,8 +8,10 @@ All notable changes to this project will be documented in this file.
 ### Added
 
  - `tls` field added to `socket` output enabling TLS connections when `network` is `tcp` @weird-oecophylla
- - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
+ - `elasticsearch_v2` output fields `update.retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
+ - `elasticsearch_v2` output object `update` with `doc_mapping` and `upsert_mapping` for the `update` and `upsert` actions, mirroring Elasticsearch's update API: `doc_mapping` sets the partial `doc` and `upsert_mapping` a separate `upsert` document to index when the document does not exist yet (e.g. fields only set on creation) @JoranDox
+ - `elasticsearch_v2` output fields `update.script` (with `source`, `lang` and `params_mapping`) and `update.scripted_upsert` for scripted `update` and `upsert` actions @JoranDox
 
 ### Changed
 

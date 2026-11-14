@@ -96,8 +96,20 @@ output:
       - 502
       - 503
       - 504
-    retry_on_conflict: 0 # No default (optional)
     num_workers: 0
+    update:
+      retry_on_conflict: 0 # No default (optional)
+      doc_mapping: |- # No default (optional)
+        root.status = this.status
+        root.updated_at = now()
+      upsert_mapping: |- # No default (optional)
+        root = this
+        root.first_seen = now()
+      script:
+        source: 'ctx._source.counter = (ctx._source.counter ?: 0) + params.count' # No default (required)
+        lang: painless
+        params_mapping: "" # No default (optional)
+      scripted_upsert: false
     max_retries: 0
     backoff:
       initial_interval: 1s
@@ -110,6 +122,54 @@ output:
 
 Both the `id` and `index` fields can be dynamically set using function interpolations described [here](/docs/configuration/interpolation#bloblang-queries). When sending batched messages these interpolations are performed per message part.
 
+
+## Examples
+
+<Tabs defaultValue="Fields set only on creation" values={[
+{ label: 'Fields set only on creation', value: 'Fields set only on creation', },
+{ label: 'Never decrease a value', value: 'Never decrease a value', },
+]}>
+
+<TabItem value="Fields set only on creation">
+
+Fold a stream of events into one document per session: the first event creates the document with all its fields, later events only update the progress fields, so `started_at` keeps its first value.
+
+```yaml
+output:
+  elasticsearch_v2:
+    urls: [ http://localhost:9200 ]
+    index: sessions
+    id: ${! this.session_id }
+    action: upsert
+    update:
+      doc_mapping: |
+        root.progress = this.progress
+        root.last_event_at = this.timestamp
+      upsert_mapping: |
+        root = this
+        root.started_at = this.timestamp
+```
+
+</TabItem>
+<TabItem value="Never decrease a value">
+
+Keep the highest value seen, even when an older message arrives after a newer one. The first message for a document is indexed as is.
+
+```yaml
+output:
+  elasticsearch_v2:
+    urls: [ http://localhost:9200 ]
+    index: sessions
+    id: ${! this.session_id }
+    action: upsert
+    update:
+      script:
+        source: 'ctx._source.progress = Math.max(ctx._source.progress, params.progress)'
+        params_mapping: 'root.progress = this.progress'
+```
+
+</TabItem>
+</Tabs>
 
 ## Fields
 
@@ -518,13 +578,6 @@ HTTP Status codes that should be retried.
 Type: `array`  
 Default: `[502,503,504]`  
 
-### `retry_on_conflict`
-
-The number of times Elasticsearch retries an `update` or `upsert` action internally when it hits a version conflict, e.g. from concurrent writes to the same document. Not sent when unset.
-
-
-Type: `int`  
-
 ### `num_workers`
 
 The number of workers of the [BulkIndexer](https://pkg.go.dev/github.com/elastic/go-elasticsearch/v9/esutil#BulkIndexer) used for each batch. 0 uses the library default, the number of CPUs.
@@ -532,6 +585,94 @@ The number of workers of the [BulkIndexer](https://pkg.go.dev/github.com/elastic
 
 Type: `int`  
 Default: `0`  
+
+### `update`
+
+Options for the `update` and `upsert` actions, mirroring the Elasticsearch update API. Ignored for other actions.
+
+
+Type: `object`  
+
+### `update.retry_on_conflict`
+
+The number of times Elasticsearch retries the update internally when it hits a version conflict, e.g. from concurrent writes to the same document, including two upserts creating the same new document. Not sent when unset.
+
+
+Type: `int`  
+
+### `update.doc_mapping`
+
+A mapping, executed on each message, whose result is sent as the partial `doc` merged into the existing document, instead of the message itself. Combined with `upsert_mapping` this allows sending only some fields as updates while indexing the full message when the document does not exist yet. If the mapping deletes the message, the message itself is sent, as if this field was not set. Cannot be combined with `script`.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+doc_mapping: |-
+  root.status = this.status
+  root.updated_at = now()
+```
+
+### `update.upsert_mapping`
+
+A mapping, executed on each message, whose result is the document indexed when the document does not exist yet (Elasticsearch's `upsert` document); an existing document gets the update instead. This allows fields that are only set when a document is created. With the `upsert` action it replaces the default, the message itself. If the mapping deletes the message, it behaves as if this field was not set.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+upsert_mapping: |-
+  root = this
+  root.first_seen = now()
+```
+
+### `update.script`
+
+Update the document with a script instead of merging the message into it. When the document does not exist yet, the `upsert` action indexes the `upsert_mapping` result, or else the message itself; the `update` action only does so when `upsert_mapping` is set. Cannot be combined with `doc_mapping`.
+
+
+Type: `object`  
+
+### `update.script.source`
+
+The script source.
+
+
+Type: `string`  
+
+```yml
+# Examples
+
+source: 'ctx._source.counter = (ctx._source.counter ?: 0) + params.count'
+```
+
+### `update.script.lang`
+
+The script language.
+
+
+Type: `string`  
+Default: `"painless"`  
+Options: `painless`.
+
+### `update.script.params_mapping`
+
+A mapping, executed on each message, whose result is passed to the script as `params`. If unset, or if the mapping deletes the message, the message itself is passed as `params`.
+
+
+Type: `string`  
+
+### `update.scripted_upsert`
+
+Run the `script` also when the document does not exist yet, starting from the document that would otherwise be indexed (or an empty one) instead of indexing it as is. Requires `script`.
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `max_retries`
 
