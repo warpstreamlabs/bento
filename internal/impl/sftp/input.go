@@ -160,15 +160,18 @@ func newSFTPReaderFromParsed(conf *service.ParsedConfig, mgr *service.Resources)
 }
 
 func (s *sftpReader) Connect(ctx context.Context) (err error) {
+	// The lock must not be held while waiting on the path provider: the
+	// watcher blocks until a new file shows up, and the ack of the previous
+	// file needs the lock in order to delete it.
 	s.scannerMut.Lock()
-	defer s.scannerMut.Unlock()
-
 	if s.scanner != nil {
+		s.scannerMut.Unlock()
 		return nil
 	}
 
 	if s.client == nil {
 		if s.client, err = s.creds.GetClient(s.mgr.FS(), s.address); err != nil {
+			s.scannerMut.Unlock()
 			return
 		}
 	}
@@ -176,14 +179,25 @@ func (s *sftpReader) Connect(ctx context.Context) (err error) {
 	if s.pathProvider == nil {
 		s.pathProvider = s.getFilePathProvider(ctx)
 	}
+	client := s.client
+	pathProvider := s.pathProvider
+	s.scannerMut.Unlock()
+
+	dropClient := func() {
+		s.scannerMut.Lock()
+		if s.client == client {
+			s.client = nil
+		}
+		s.scannerMut.Unlock()
+		_ = client.Close()
+	}
 
 	var nextPath string
 	var file *sftp.File
 	for {
-		if nextPath, err = s.pathProvider.Next(ctx, s.client); err != nil {
+		if nextPath, err = pathProvider.Next(ctx, client); err != nil {
 			if errors.Is(err, sftp.ErrSshFxConnectionLost) {
-				_ = s.client.Close()
-				s.client = nil
+				dropClient()
 				return
 			}
 			if errors.Is(err, errEndOfPaths) {
@@ -192,21 +206,22 @@ func (s *sftpReader) Connect(ctx context.Context) (err error) {
 			return
 		}
 
-		if file, err = s.client.Open(nextPath); err != nil {
+		if file, err = client.Open(nextPath); err != nil {
 			if errors.Is(err, sftp.ErrSshFxConnectionLost) {
-				_ = s.client.Close()
-				s.client = nil
+				dropClient()
+				_ = pathProvider.Ack(ctx, nextPath, err)
+				return
 			}
 
 			s.log.With("path", nextPath, "err", err.Error()).Warn("Unable to open previously identified file")
 			if os.IsNotExist(err) {
 				// If we failed to open the file because it no longer exists
 				// then we can "ack" the path as we're done with it.
-				_ = s.pathProvider.Ack(ctx, nextPath, nil)
+				_ = pathProvider.Ack(ctx, nextPath, nil)
 			} else {
 				// Otherwise we "nack" it with the error as we'll want to
 				// reprocess it again later.
-				_ = s.pathProvider.Ack(ctx, nextPath, err)
+				_ = pathProvider.Ack(ctx, nextPath, err)
 			}
 		} else {
 			break
@@ -215,8 +230,9 @@ func (s *sftpReader) Connect(ctx context.Context) (err error) {
 
 	details := service.NewScannerSourceDetails()
 	details.SetName(nextPath)
-	if s.scanner, err = s.scannerCtor.Create(file, func(ctx context.Context, aErr error) (outErr error) {
-		_ = s.pathProvider.Ack(ctx, nextPath, aErr)
+	var scanner codec.DeprecatedFallbackStream
+	if scanner, err = s.scannerCtor.Create(file, func(ctx context.Context, aErr error) (outErr error) {
+		_ = pathProvider.Ack(ctx, nextPath, aErr)
 		if aErr != nil {
 			return nil
 		}
@@ -241,10 +257,13 @@ func (s *sftpReader) Connect(ctx context.Context) (err error) {
 		return
 	}, details); err != nil {
 		_ = file.Close()
-		_ = s.pathProvider.Ack(ctx, nextPath, err)
+		_ = pathProvider.Ack(ctx, nextPath, err)
 		return err
 	}
+	s.scannerMut.Lock()
+	s.scanner = scanner
 	s.currentPath = nextPath
+	s.scannerMut.Unlock()
 
 	s.log.Debugf("Consuming from file '%v'", nextPath)
 	return
