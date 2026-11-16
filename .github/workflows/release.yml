@@ -7,6 +7,8 @@ on:
 
 jobs:
   goreleaser:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
 
@@ -48,7 +50,7 @@ jobs:
         version: latest
         args: release --release-notes=./release_notes.md --timeout 120m
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
     runs-on: ubuntu-latest
@@ -82,10 +84,10 @@ jobs:
         sudo swapon --show
 
     - name: Log in to registry
-      run: echo "${{ secrets.GH_ACCESS_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
     - name: Login to Docker Hub
-      uses: docker/login-action@v4.7.0
+      uses: docker/login-action@v4.8.0
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}

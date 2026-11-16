@@ -70,12 +70,6 @@ func (inst *instance) call(ctx context.Context, input []byte, res proto.Message)
 		return fmt.Errorf("failed to write plugin input: %w", err)
 	}
 
-	defer func() {
-		if freeErr := host.Free(ctx, inst.free, in); freeErr != nil {
-			err = errors.Join(err, fmt.Errorf("free plugin input: %w", freeErr))
-		}
-	}()
-
 	results, err := inst.process.Call(ctx, uint64(in.Address()), uint64(in.Length()))
 	if err != nil {
 		return err
@@ -86,5 +80,6 @@ func (inst *instance) call(ctx context.Context, input []byte, res proto.Message)
 	if err != nil {
 		return err
 	}
-	return errors.Join(proto.Unmarshal(output, res), host.Free(ctx, inst.free, out))
+
+	return errors.Join(proto.Unmarshal(output, res), host.Free(ctx, inst.free, out), host.Free(ctx, inst.free, in))
 }

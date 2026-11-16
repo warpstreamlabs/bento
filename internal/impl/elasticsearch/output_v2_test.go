@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -142,4 +144,30 @@ func TestOutputV2BulkSuccess(t *testing.T) {
 	out := newTestOutputV2(t, srv.URL)
 
 	require.NoError(t, out.WriteBatch(context.Background(), testBatch("a", "b")))
+}
+
+func TestOutputV2ContextCancelAbortsBulkRequest(t *testing.T) {
+	started := make(chan struct{})
+	aborted := make(chan bool, 1)
+	srv := fakeES(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		close(started)
+		select {
+		case <-r.Context().Done():
+			aborted <- true
+		case <-time.After(2 * time.Second):
+			aborted <- false
+		}
+	})
+	out := newTestOutputV2(t, srv.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-started
+		cancel()
+	}()
+
+	require.Error(t, out.WriteBatch(ctx, testBatch("a")))
+	assert.True(t, <-aborted, "cancelling the context must abort the in-flight _bulk request")
 }
