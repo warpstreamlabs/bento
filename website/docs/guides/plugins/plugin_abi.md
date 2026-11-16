@@ -15,6 +15,17 @@ export const WatExport = ({name}) => {
   return <CodeBlock language="wasm">{lines.slice(start, end + 1).join('\n')}</CodeBlock>;
 };
 
+export const WatImport = ({module}) => {
+  const lines = abi.split('\n').map((line) => line.trim());
+  const isImport = (line) => line.startsWith(`(import "${module}"`);
+  let start = lines.findIndex(isImport);
+  const end = lines.findLastIndex(isImport);
+  while (start > 0 && lines[start - 1].startsWith(';;')) {
+    start--;
+  }
+  return <CodeBlock language="wasm">{lines.slice(start, end + 1).join('\n')}</CodeBlock>;
+};
+
 This page is the application binary interface (ABI) reference for processor plugins that implement Bento's WebAssembly (WASM) interface directly. It defines the runtime, memory ownership, message formats, exports, imports, and error behavior for a 32-bit WASM module.
 
 The [Go plugin development kit (PDK)][developing] implements this interface for you. Complete implementations without a PDK are available in the [Rust examples][examples]. See [About plugins][about] for an overview and [Manifest fields][fields] for plugin configuration.
@@ -120,7 +131,7 @@ The returned messages replace the input. An empty result drops the input; return
 
 ## Exports
 
-The signatures below are rendered directly from [`abi.wat`][abi-wat], the ABI reference in WebAssembly text format (WAT). The file describes export signatures; it is not a compilable module.
+The signatures below are rendered directly from [`abi.wat`][abi-wat], the ABI reference in WebAssembly text format (WAT). The file describes export and [import](#imports) signatures; it is not a compilable module.
 
 A plugin must export `memory`, `malloc`, `free`, and at least one of `process_batch` or `process`. If both processing exports exist, Bento uses `process_batch`. Bento checks the signatures of all ABI functions present, including optional functions and an unused `process` export.
 
@@ -178,15 +189,7 @@ If a module imports a host module that its manifest does not enable, Bento rejec
 
 ### `bento_log_v1`
 
-```wasm
-(import "bento_log_v1" "trace" (func $trace (param $address i32) (param $length i32)))
-(import "bento_log_v1" "debug" (func $debug (param $address i32) (param $length i32)))
-(import "bento_log_v1" "info"  (func $info  (param $address i32) (param $length i32)))
-(import "bento_log_v1" "warn"  (func $warn  (param $address i32) (param $length i32)))
-(import "bento_log_v1" "error" (func $error (param $address i32) (param $length i32)))
-```
-
-Each function logs a UTF-8 message, passed as a [buffer](#buffers), at the level it is named for. Bento copies the message during the call and never frees it; the plugin keeps ownership of the buffer.
+<WatImport module="bento_log_v1" />
 
 Messages are written to the logger of the processor that the instance belongs to, so they carry its `label` along with the plugin's name as `plugin`, and are subject to the top-level [`logger` configuration][logger-config]. With JSON logging, a line includes:
 

@@ -76,6 +76,7 @@ require (
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/elastic/go-elasticsearch/v9 v9.3.6
+	github.com/eliben/watgo v0.9.0
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/generikvault/gvalstrings v0.0.0-20180926130504-471f38f0112a
@@ -286,7 +287,6 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.9.0 // indirect
 	github.com/eliben/go-sentencepiece v0.7.0 // indirect
-	github.com/eliben/watgo v0.9.0
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0 // indirect

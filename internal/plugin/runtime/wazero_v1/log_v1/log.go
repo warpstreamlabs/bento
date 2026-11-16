@@ -54,14 +54,14 @@ func (m Module) Instantiate(ctx context.Context, rt wazero.Runtime, nm bundle.Ne
 func (m Module) export(b wazero.HostModuleBuilder, name string, logf func(format string, v ...any)) {
 	b.NewFunctionBuilder().
 		WithGoModuleFunction(api.GoModuleFunc(func(ctx context.Context, mod api.Module, stack []uint64) {
-			ptr, n := api.DecodeU32(stack[0]), api.DecodeU32(stack[1])
+			address, length := api.DecodeU32(stack[0]), api.DecodeU32(stack[1])
 
 			mem := mod.Memory()
 			if mem == nil {
 				panic(fmt.Errorf("%s.%s: plugin %q exports no memory", ModuleName, name, m.plugin))
 			}
 
-			buf, ok := mem.Read(ptr, n)
+			buf, ok := mem.Read(address, length)
 			if !ok {
 				panic(fmt.Errorf("%s.%s: out-of-bounds read from plugin %q", ModuleName, name, m.plugin))
 			}
@@ -69,6 +69,6 @@ func (m Module) export(b wazero.HostModuleBuilder, name string, logf func(format
 			// TODO(gregfurman): Consider providing a cap to the log length.
 			logf("%s", string(buf))
 		}), []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, nil).
-		WithParameterNames("msg_ptr", "msg_len").
+		WithParameterNames("address", "length").
 		Export(name)
 }
