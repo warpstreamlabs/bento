@@ -3,12 +3,24 @@ package wasmpool
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"runtime"
+	"sync"
 
 	"github.com/tetratelabs/wazero/api"
 )
+
+// pooledInstance owns cleanup only while the module is idle in the pool.
+type pooledInstance[T api.Module] struct {
+	module  T
+	cleanup runtime.Cleanup
+}
+
+func (i *pooledInstance[T]) take() T {
+	i.cleanup.Stop()
+	// Keep the cleanup target reachable until cancellation is complete.
+	runtime.KeepAlive(i)
+	return i.module
+}
 
 type constructor[T api.Module] func(context.Context) (T, error)
 
@@ -48,15 +60,16 @@ func (p *WasmModulePool[T]) Get(ctx context.Context) (T, error) {
 	if pooled == nil {
 		return p.newInstance(ctx)
 	}
-	return pooled.(T), nil
+	return pooled.(*pooledInstance[T]).take(), nil
 }
 
 func (p *WasmModulePool[T]) Put(instance T) {
-	_ = runtime.AddCleanup(&instance, func(inst T) {
-		inst.Close(context.Background())
+	entry := &pooledInstance[T]{module: instance}
+	entry.cleanup = runtime.AddCleanup(entry, func(inst T) {
+		_ = inst.Close(context.Background())
 	}, instance)
 
-	p.instancePool.Put(instance)
+	p.instancePool.Put(entry)
 }
 
 func (p *WasmModulePool[T]) Close(ctx context.Context) error {
@@ -69,9 +82,7 @@ func (p *WasmModulePool[T]) Close(ctx context.Context) error {
 			if pooled == nil {
 				return nil
 			}
-			if closer, ok := pooled.(interface{ Close(context.Context) error }); ok {
-				_ = closer.Close(ctx)
-			}
+			_ = pooled.(*pooledInstance[T]).take().Close(ctx)
 		}
 	}
 }
