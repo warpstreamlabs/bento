@@ -25,8 +25,7 @@ func (m *testModule) Close(context.Context) error {
 
 func TestCleanupMustNotCloseBorrowedModule(t *testing.T) {
 	ctx := context.Background()
-	m := &testModule{}
-	p, err := NewWasmModulePool(ctx, func(context.Context) (*testModule, error) { return m, nil })
+	p, err := NewWasmModulePool(ctx, func(context.Context) (*testModule, error) { return &testModule{}, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,11 +48,9 @@ func TestCleanupMustNotCloseBorrowedWazeroModule(t *testing.T) {
 	ctx := context.Background()
 	r := wazero.NewRuntime(ctx)
 	defer r.Close(ctx)
-	m, err := r.Instantiate(ctx, []byte{0, 97, 115, 109, 1, 0, 0, 0})
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := NewWasmModulePool(ctx, func(context.Context) (api.Module, error) { return m, nil })
+	p, err := NewWasmModulePool(ctx, func(ctx context.Context) (api.Module, error) {
+		return r.Instantiate(ctx, []byte{0, 97, 115, 109, 1, 0, 0, 0})
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
