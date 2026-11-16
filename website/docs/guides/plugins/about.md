@@ -60,6 +60,7 @@ This isolation requires copying messages into and out of the plugin's memory on 
 Because host permissions are configured in `plugin.yaml`, always audit a third-party plugin's [`runtime.wasm` settings][wasm-fields] before loading it:
 - **Filesystem access:** Check for mounted directories and write permissions. A plugin can follow symlinks inside a mounted directory to targets outside it.
 - **Memory limits:** Without `memory.max_pages`, each instance can allocate up to 4 GiB, and concurrent calls can spawn multiple instances.
+- **Host modules:** Check which host resources are enabled, such as `logger.enabled`, which lets the plugin write to Bento's logs.
 
 See the [Sandbox][sandbox] in the Plugin ABI guide for full details on runtime capabilities.
 :::
@@ -102,6 +103,7 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 |--------------------------------------------|----------|--------------------------------------------------------------------|
 | [`uppercase`][uppercase-example]           | Go       | Uppercases each message and prepends a configurable prefix.         |
 | [`reverse`][reverse-example]               | Go       | Reverses a batch of messages, and records their positions.         |
+| [`logger`][logger-example]                 | Go       | Logs each message to Bento's logger, using a host module.          |
 | [`rust_uppercase`][rust-uppercase-example] | Rust     | Uppercases each message, implementing the ABI without a PDK.       |
 | [`rust_csv`][rust-csv-example]             | Rust     | Parses CSV messages into JSON, implementing the ABI without a PDK. |
 
@@ -126,5 +128,6 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 [examples]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples
 [uppercase-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/uppercase
 [reverse-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/reverse
+[logger-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/logger
 [rust-uppercase-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/rust_uppercase
 [rust-csv-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/rust_csv

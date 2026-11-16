@@ -14,9 +14,11 @@ import (
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 
+	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/plugin"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
+	logv1 "github.com/warpstreamlabs/bento/internal/plugin/runtime/wazero_v1/log_v1"
 )
 
 const (
@@ -55,6 +57,11 @@ func (rt *WazeroRuntime) Register(manifest *runtime.Manifest, source runtime.Sou
 		return nil, err
 	}
 
+	runtimeConf, err := toRuntimeConfig(conf)
+	if err != nil {
+		return nil, err
+	}
+
 	path := conf.Path
 	if path == "" {
 		path = "plugin.wasm"
@@ -75,11 +82,22 @@ func (rt *WazeroRuntime) Register(manifest *runtime.Manifest, source runtime.Sou
 		return nil, err
 	}
 
+	var hosts []hostModuleProvider
+	if conf.Logger.Enabled {
+		hosts = append(hosts, logv1.New(manifest.Name))
+	}
+
+	ldr := &loader{
+		runtimeConf: runtimeConf,
+		moduleConf:  moduleConf,
+		wasm:        wasm,
+		hostModules: hosts,
+	}
+
 	// Compilation is deferred until the plugin is first used, and its result
-	// is cached, so it must not depend on the context of a caller.
-	p := newPlugin(spec, func() (*compiledPlugin, error) {
-		return compile(context.Background(), wasm, toRuntimeConfig(conf), moduleConf)
-	})
+	// is cached.
+	p := &wazeroPlugin{spec: spec, loader: ldr}
+
 	rt.plugins = append(rt.plugins, p)
 
 	return p, nil
@@ -97,18 +115,35 @@ func (rt *WazeroRuntime) Close(ctx context.Context) error {
 
 //------------------------------------------------------------------------------
 
+type hostModuleProvider interface {
+	Name() string
+	Instantiate(ctx context.Context, rt wazero.Runtime, nm bundle.NewManagement) (api.Module, error)
+}
+
 type compiledPlugin struct {
 	runtime  wazero.Runtime
 	compiled wazero.CompiledModule
 	config   wazero.ModuleConfig
 
+	hosts []hostModuleProvider
+
 	processFn string
 }
 
-func compile(ctx context.Context, wasm []byte, runtimeConf wazero.RuntimeConfig, moduleConf wazero.ModuleConfig) (*compiledPlugin, error) {
-	var err error
+func (c *compiledPlugin) Close(ctx context.Context) error {
+	return c.runtime.Close(ctx)
+}
 
-	rt := wazero.NewRuntimeWithConfig(ctx, runtimeConf)
+type loader struct {
+	wasm        []byte
+	runtimeConf wazero.RuntimeConfig
+	moduleConf  wazero.ModuleConfig
+
+	hostModules []hostModuleProvider
+}
+
+func (l *loader) compile(ctx context.Context) (_ *compiledPlugin, err error) {
+	rt := wazero.NewRuntimeWithConfig(ctx, l.runtimeConf)
 	defer func() {
 		if err != nil {
 			_ = rt.Close(ctx)
@@ -119,7 +154,7 @@ func compile(ctx context.Context, wasm []byte, runtimeConf wazero.RuntimeConfig,
 		return nil, err
 	}
 
-	compiled, err := rt.CompileModule(ctx, wasm)
+	compiled, err := rt.CompileModule(ctx, l.wasm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile module: %w", err)
 	}
@@ -139,16 +174,17 @@ func compile(ctx context.Context, wasm []byte, runtimeConf wazero.RuntimeConfig,
 		return nil, err
 	}
 
+	if err := hasHostModules(compiled.ImportedFunctions(), l.hostModules); err != nil {
+		return nil, err
+	}
+
 	return &compiledPlugin{
 		runtime:   rt,
 		compiled:  compiled,
-		config:    moduleConf,
+		config:    l.moduleConf,
+		hosts:     l.hostModules,
 		processFn: processFn,
 	}, nil
-}
-
-func (m *compiledPlugin) Close(ctx context.Context) error {
-	return m.runtime.Close(ctx)
 }
 
 func hasExportedFunctions(defs map[string]api.FunctionDefinition, required ...string) error {
@@ -163,6 +199,24 @@ func hasExportedFunctions(defs map[string]api.FunctionDefinition, required ...st
 		return fmt.Errorf("wasm guest plugin missing required exports: [%s]", strings.Join(missing, ", "))
 	}
 
+	return nil
+}
+
+func hasHostModules(imports []api.FunctionDefinition, enabled []hostModuleProvider) error {
+	var missing []string
+	for _, def := range imports {
+		name, _, _ := def.Import()
+		if name == wasi_snapshot_preview1.ModuleName || slices.Contains(missing, name) ||
+			slices.ContainsFunc(enabled, func(hm hostModuleProvider) bool { return hm.Name() == name }) {
+			continue
+		}
+		missing = append(missing, name)
+	}
+
+	if len(missing) > 0 {
+		slices.Sort(missing)
+		return fmt.Errorf("wasm guest plugin imports host modules not enabled in its manifest: [%s]", strings.Join(missing, ", "))
+	}
 	return nil
 }
 
@@ -208,12 +262,12 @@ func hasExportSignatures(defs map[string]api.FunctionDefinition) error {
 
 var errInvalidMount = errors.New("mounts require both a host_path and guest_path")
 
-func toRuntimeConfig(conf runtime.WasmRuntimeConfig) wazero.RuntimeConfig {
+func toRuntimeConfig(conf runtime.WasmRuntimeConfig) (wazero.RuntimeConfig, error) {
 	runtimeConf := wazero.NewRuntimeConfig().WithCloseOnContextDone(true)
 	if conf.Memory.MaxPages > 0 {
 		runtimeConf = runtimeConf.WithMemoryLimitPages(conf.Memory.MaxPages)
 	}
-	return runtimeConf
+	return runtimeConf, nil
 }
 
 func toModuleConfig(conf runtime.WasmRuntimeConfig) (wazero.ModuleConfig, error) {

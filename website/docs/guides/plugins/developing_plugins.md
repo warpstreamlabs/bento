@@ -92,7 +92,7 @@ In this example:
 
 - The JSON tag maps `config.Prefix` to the manifest's `prefix` field. The PDK decodes the config before calling the constructor.
 - `init()` registers the processor. Go requires `main()`, but Bento never calls it.
-- `mgr` is an empty `*service.Resources` value; the WASM PDK does not expose Bento resources yet.
+- `mgr` is a `*service.Resources` value, which exposes the host resources the manifest enables. For example, `mgr.Logger()` writes to Bento's logger when [`runtime.wasm.logger.enabled`][logger] is `true`, as the [`logger`][logger-example] example does.
 - `-buildmode=c-shared` exports `_initialize` instead of `_start`. Bento calls `_initialize` for each instance, which initializes the Go runtime and runs `init()`.
 
 ## 4. Compile the Plugin
@@ -190,4 +190,6 @@ Test 'config.yaml' succeeded
 [plugin-abi]: /docs/guides/plugins/plugin_abi
 [pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
 [batch-pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service/batch_processor
+[logger]: /docs/guides/plugins/fields#runtimewasmloggerenabled
+[logger-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/logger
 [reverse-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/reverse

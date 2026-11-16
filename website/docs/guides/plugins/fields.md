@@ -204,3 +204,18 @@ The max amount of pages each instance of the plugin can allocate. One page is 64
 
 Type: `int`  
 
+### `runtime.wasm.logger`
+
+Describes a plugin's access to the Bento host logger, where all calls made are subject to the top-level [`logger` configuration](https://warpstreamlabs.github.io/bento/docs/components/logger/about).
+
+
+Type: `object`  
+
+### `runtime.wasm.logger.enabled`
+
+Whether to provide plugin access to Bento's host logger.
+
+
+Type: `bool`  
+Default: `false`  
+
