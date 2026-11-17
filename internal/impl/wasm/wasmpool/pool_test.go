@@ -97,7 +97,7 @@ func TestCloseCancelsCleanup(t *testing.T) {
 	if err := p.Close(ctx); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		runtime.GC()
 		runtime.Gosched()
 	}
