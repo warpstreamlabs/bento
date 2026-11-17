@@ -3,6 +3,12 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased - TBD
+
+### Fixed
+
+ - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+
 ## 1.23.0 - 2026-11-16
 
 ### Added
@@ -30,10 +36,6 @@ All notable changes to this project will be documented in this file.
  - `nsq` input no longer keeps consumed messages in memory until shutdown which was causing unbounded memory usage @mwchatten
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
  - `mqtt` input no longer leaves a connection open each time it reconnects after a failed subscription, such as one with an invalid topic filter (`a/#/b`) or a `qos` above 2 @triswell
-
-### Fixed
-
- - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
 
 ## 1.22.0 - 2026-10-09
 
