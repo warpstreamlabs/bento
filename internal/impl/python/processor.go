@@ -208,7 +208,17 @@ func (p *pythonProcessor) Process(ctx context.Context, msg *service.Message) (se
 
 func (p *pythonProcessor) Close(ctx context.Context) error {
 	p.shutSig.TriggerHardStop()
-	p.running.Wait()
 
-	return errors.Join(p.pool.Close(ctx), p.runtime.Close(ctx))
+	go func() {
+		_ = p.pool.Close(context.Background())
+		p.running.Wait()
+		p.shutSig.TriggerHasStopped()
+	}()
+
+	select {
+	case <-p.shutSig.HasStoppedChan():
+		return p.runtime.Close(ctx)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
