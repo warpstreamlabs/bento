@@ -195,8 +195,7 @@ func lintsToErr(lints []docs.Lint) (lintWarns []Lint, err error) {
 }
 
 func convertDocsLintErr(err error) error {
-	var l docs.Lint
-	if errors.As(err, &l) {
+	if l, ok := errors.AsType[docs.Lint](err); ok {
 		return convertDocsLint(l)
 	}
 	return err

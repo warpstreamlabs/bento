@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -25,22 +23,15 @@ import (
 )
 
 func createKafkaTopicSaslOauthConn(ctx context.Context, address, id string, partitions int32) error {
-	topicName := fmt.Sprintf("topic-%v", id)
-
-	opts := []kgo.Opt{kgo.SeedBrokers(address)}
-	var token string
-
-	var err error
-	token, err = unsecuredToken("test-client", 30*time.Minute)
+	token, err := unsecuredToken("test-client", 30*time.Minute)
 	if err != nil {
 		return err
 	}
 
-	opts = append(opts, kgo.SASL(oauth.Auth{
-		Token: token,
-	}.AsMechanism()))
-
-	cl, err := kgo.NewClient(opts...)
+	cl, err := kgo.NewClient(
+		kgo.SeedBrokers(address),
+		kgo.SASL(oauth.Auth{Token: token}.AsMechanism()),
+	)
 	if err != nil {
 		return err
 	}
@@ -49,7 +40,7 @@ func createKafkaTopicSaslOauthConn(ctx context.Context, address, id string, part
 	createTopicsReq := kmsg.NewPtrCreateTopicsRequest()
 	topicReq := kmsg.NewCreateTopicsRequestTopic()
 	topicReq.NumPartitions = partitions
-	topicReq.Topic = topicName
+	topicReq.Topic = fmt.Sprintf("topic-%v", id)
 	topicReq.ReplicationFactor = 1
 	createTopicsReq.Topics = append(createTopicsReq.Topics, topicReq)
 
@@ -71,159 +62,119 @@ func TestIntegrationKafkaOauth2(t *testing.T) {
 	require.NoError(t, err)
 
 	kafkaPortStr := strconv.Itoa(kafkaPort)
+	brokerAddr := "localhost:" + kafkaPortStr
 
-	kafkaConfig := fmt.Sprintf(`
-process.roles=broker,controller
-node.id=1
-controller.quorum.voters=1@localhost:9093
-listeners=BROKER://0.0.0.0:9092,CONTROLLER://localhost:9093
-advertised.listeners=BROKER://localhost:%s
-listener.security.protocol.map=BROKER:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT
-inter.broker.listener.name=BROKER
-controller.listener.names=CONTROLLER
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-sasl.mechanism.inter.broker.protocol=OAUTHBEARER
-sasl.enabled.mechanisms=OAUTHBEARER
-sasl.server.callback.handler.class=org.apache.kafka.common.security.oauthbearer.internals.unsecured.OAuthBearerUnsecuredValidatorCallbackHandler
-sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.internals.unsecured.OAuthBearerUnsecuredLoginCallbackHandler
+	_ = pool.RunT(t, "apache/kafka-native",
+		// TODO: Currently only fixed in 4.4.0-rc1, so replace when officially released.
+		// See https://issues.apache.org/jira/browse/KAFKA-19583
+		dockertest.WithTag("4.4.0-rc1"),
+		dockertest.WithHostname("kafka"),
+		dockertest.WithPortBindings(dockernetwork.PortMap{
+			dockernetwork.MustParsePort("9092/tcp"): {{HostPort: kafkaPortStr}},
+		}),
+		dockertest.WithEnv([]string{
+			"KAFKA_NODE_ID=1",
+			"KAFKA_PROCESS_ROLES=broker,controller",
+			"KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093",
+			"KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_LISTENERS=BROKER://0.0.0.0:9092,CONTROLLER://localhost:9093",
+			"KAFKA_ADVERTISED_LISTENERS=BROKER://" + brokerAddr,
+			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=BROKER:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT",
+			"KAFKA_INTER_BROKER_LISTENER_NAME=BROKER",
+			"KAFKA_SASL_ENABLED_MECHANISMS=OAUTHBEARER",
+			"KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL=OAUTHBEARER",
+			"KAFKA_LISTENER_NAME_BROKER_OAUTHBEARER_SASL_JAAS_CONFIG=" +
+				`org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required unsecuredLoginStringClaim_sub="kafka-broker";`,
+			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1",
+			"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1",
+			"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1",
+			"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0",
+		}),
+		dockertest.WithoutReuse(),
+	)
 
-offsets.topic.replication.factor=1
-transaction.state.log.replication.factor=1
-`, kafkaPortStr)
-
-	jaasConfig := `KafkaServer {
-  org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
-  unsecuredLoginStringClaim_sub="kafka-broker";
-};
-KafkaClient {
-  org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
-  unsecuredLoginStringClaim_sub="kafka-broker";
-};`
-
-	// write kafka & jaas config to file to mount later
-	tmpDir := t.TempDir()
-	kafkaConfigPath := fmt.Sprintf("%s/server.properties", tmpDir)
-	jaasConfigPath := fmt.Sprintf("%s/kafka_server_jaas.conf", tmpDir)
-
-	err = os.WriteFile(kafkaConfigPath, []byte(kafkaConfig), 0644)
-	require.NoError(t, err)
-
-	err = os.WriteFile(jaasConfigPath, []byte(jaasConfig), 0644)
-	require.NoError(t, err)
-
-	// set up kafka container
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	options := &dockertest.RunOptions{
-		Repository:   "apache/kafka",
-		Tag:          "4.1.2",
-		Hostname:     "kafka",
-		ExposedPorts: []string{"9092"},
-		PortBindings: map[docker.Port][]docker.PortBinding{
-			"9092/tcp": {{HostIP: "", HostPort: kafkaPortStr}},
-		},
-		Env: []string{"KAFKA_OPTS=-Djava.security.auth.login.config=/tmp/kafka_server_jaas.conf"},
-		Mounts: []string{
-			fmt.Sprintf("%s:/tmp", tmpDir),
-		},
-		Cmd: []string{
-			"sh", "-c",
-			`/opt/kafka/bin/kafka-storage.sh format -t MkU3OEVBNTcwNTJENDM2Qk -c /tmp/server.properties --ignore-formatted && exec /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties`,
-		},
-	}
-
-	pool.MaxWait = time.Minute
-	resource, err := pool.RunWithOptions(options)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
-		return createKafkaTopicSaslOauthConn(context.Background(), "localhost:"+kafkaPortStr, "sasloauth", 1)
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
+		return createKafkaTopicSaslOauthConn(t.Context(), brokerAddr, "sasloauth", 1)
 	}))
 
 	oAuthMockServer := StartMockOAuthServer(t)
+	tokenURL := oAuthMockServer.URL + "/oauth2/token"
 
-	t.Run("kafka franz", func(t *testing.T) {
-		template := fmt.Sprintf(`
-        output:
-          kafka_franz:
-            seed_brokers: [ localhost:$PORT ]
-            topic: $ID
-            sasl:
-              - mechanism: OAUTHBEARER
-                oauth2:
-                  enabled: true
-                  client_key: foo
-                  client_secret: bar
-                  token_url: %s/oauth2/token
-        input:
-          kafka_franz:
-            seed_brokers: [ localhost:$PORT ]
-            topics: [ $ID ]
-            consumer_group: consumer-group-$ID
-            sasl:
-              - mechanism: OAUTHBEARER
-                oauth2:
-                  enabled: true
-                  client_key: foo
-                  client_secret: bar
-                  token_url: %s/oauth2/token`, oAuthMockServer.URL, oAuthMockServer.URL)
-
-		suite := integration.StreamTests(
-			integration.StreamTestSendBatch(10),
-		)
-
-		suite.Run(
-			t, template,
-			integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
-				require.NoError(t, createKafkaTopicSaslOauthConn(context.Background(), "localhost:"+kafkaPortStr, vars.ID, 1))
-			}),
-			integration.StreamTestOptPort(kafkaPortStr),
-		)
-	})
-
-	t.Run("kafka sarama", func(t *testing.T) {
-		template := fmt.Sprintf(`
-        output:
-          kafka:
-            addresses: [ localhost:$PORT ]
-            topic: $ID
-            sasl:
-              mechanism: OAUTHBEARER
-              oauth2:
-                enabled: true
-                client_key: foo
-                client_secret: bar
-                token_url: %s/oauth2/token
-        input:
-          kafka:
-            addresses: [ localhost:$PORT ]
-            topics: [ $ID ]
-            consumer_group: consumer-group-$ID
-            sasl:
-              mechanism: OAUTHBEARER
-              oauth2:
-                enabled: true
-                client_key: foo
-                client_secret: bar
-                token_url: %s/oauth2/token`, oAuthMockServer.URL, oAuthMockServer.URL)
-
-		suite := integration.StreamTests(
-			integration.StreamTestSendBatch(10),
-		)
-
-		suite.Run(
-			t, template,
-			integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
-				require.NoError(t, createKafkaTopicSaslOauthConn(context.Background(), "localhost:"+kafkaPortStr, vars.ID, 1))
-			}),
-			integration.StreamTestOptPort(kafkaPortStr),
-		)
-	})
+	for _, tc := range []struct {
+		name     string
+		template string
+	}{
+		{
+			name: "kafka franz",
+			template: fmt.Sprintf(`
+output:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topic: topic-$ID
+    sasl:
+      - mechanism: OAUTHBEARER
+        oauth2:
+          enabled: true
+          client_key: foo
+          client_secret: bar
+          token_url: %[1]s
+input:
+  kafka_franz:
+    seed_brokers: [ localhost:$PORT ]
+    topics: [ topic-$ID ]
+    consumer_group: consumer-group-$ID
+    sasl:
+      - mechanism: OAUTHBEARER
+        oauth2:
+          enabled: true
+          client_key: foo
+          client_secret: bar
+          token_url: %[1]s
+`, tokenURL),
+		},
+		{
+			name: "kafka sarama",
+			template: fmt.Sprintf(`
+output:
+  kafka:
+    addresses: [ localhost:$PORT ]
+    topic: topic-$ID
+    sasl:
+      mechanism: OAUTHBEARER
+      oauth2:
+        enabled: true
+        client_key: foo
+        client_secret: bar
+        token_url: %[1]s
+input:
+  kafka:
+    addresses: [ localhost:$PORT ]
+    topics: [ topic-$ID ]
+    consumer_group: consumer-group-$ID
+    sasl:
+      mechanism: OAUTHBEARER
+      oauth2:
+        enabled: true
+        client_key: foo
+        client_secret: bar
+        token_url: %[1]s
+`, tokenURL),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			integration.StreamTests(
+				integration.StreamTestSendBatch(10),
+			).Run(
+				t, tc.template,
+				integration.StreamTestOptPreTest(func(t testing.TB, ctx context.Context, vars *integration.StreamTestConfigVars) {
+					require.NoError(t, createKafkaTopicSaslOauthConn(ctx, brokerAddr, vars.ID, 1))
+				}),
+				integration.StreamTestOptPort(kafkaPortStr),
+			)
+		})
+	}
 }
 
 //------------------------------------------------------------------------------

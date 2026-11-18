@@ -60,6 +60,7 @@ type Reader struct {
 	streamsPaths     []string
 	overrides        []string
 	ConfigFromEnvVar string
+	RemoteConfigPath string
 
 	modTimeLastRead map[string]time.Time
 
@@ -189,6 +190,27 @@ func OptUseFS(fs ifs.FS) OptFunc {
 func OptLoadFromEnvVar(config string) OptFunc {
 	return func(r *Reader) {
 		r.ConfigFromEnvVar = config
+	}
+}
+
+// RemoteConfigFetcher is a function that, given the raw bytes of a
+// remote-config spec file, fetches and returns the main config bytes.
+// Registered from the httpclient package via init() to avoid import cycles.
+type RemoteConfigFetcher func(ctx context.Context, specBytes []byte) ([]byte, error)
+
+var remoteConfigFetcher RemoteConfigFetcher
+
+// SetRemoteConfigFetcher registers the function used to fetch remote configs.
+// Called from the httpclient package via init().
+func SetRemoteConfigFetcher(fn RemoteConfigFetcher) {
+	remoteConfigFetcher = fn
+}
+
+// OptSetRemoteConfigPath configures the reader to fetch the main config from a
+// remote URL described by the given local spec file.
+func OptSetRemoteConfigPath(path string) OptFunc {
+	return func(r *Reader) {
+		r.RemoteConfigPath = path
 	}
 }
 
@@ -333,6 +355,30 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
 			return
 		}
+	} else if r.RemoteConfigPath != "" {
+		if remoteConfigFetcher == nil {
+			err = errors.New("remote config fetcher not initialised: ensure the httpclient package is imported")
+			return
+		}
+		var specBytes []byte
+		if specBytes, err = os.ReadFile(r.RemoteConfigPath); err != nil {
+			err = fmt.Errorf("failed to read remote config spec %v: %w", r.RemoteConfigPath, err)
+			return
+		}
+		// Expand env vars in the spec file (e.g. ${MY_TOKEN} in headers)
+		if specBytes, err = ReplaceEnvVariables(specBytes, os.LookupEnv); err != nil {
+			return
+		}
+		if confBytes, err = remoteConfigFetcher(context.Background(), specBytes); err != nil {
+			err = fmt.Errorf("%v: %w", r.RemoteConfigPath, err)
+			return
+		}
+		if confBytes, err = ReplaceEnvVariables(confBytes, os.LookupEnv); err != nil {
+			return
+		}
+		if rawNode, err = docs.UnmarshalYAML(confBytes); err != nil {
+			return
+		}
 	} else {
 		var tmpNode yaml.Node
 		if err = tmpNode.Encode(map[string]any{}); err != nil {
@@ -383,6 +429,12 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 // the provided main update func, and apply changes to resources to the provided
 // manager as appropriate.
 func (r *Reader) TriggerMainUpdate(mgr bundle.NewManagement, strict bool, newPath string) error {
+	if r.RemoteConfigPath != "" {
+		// Remote configs are fetched once at startup via --remote-config.
+		// File watching is not supported and is rejected at the CLI layer,
+		// so this is a defensive no-op.
+		return nil
+	}
 	conf, _, lints, lintWarns, err := r.readMain(newPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		if r.mainPath != newPath {

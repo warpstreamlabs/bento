@@ -51,6 +51,7 @@ input:
     dequeue_visibility_timeout: 30s
     max_in_flight: 10
     track_properties: false
+    delete_message: true
 ```
 
 </TabItem>
@@ -66,6 +67,10 @@ This input adds the following metadata fields to each message:
 ```
 
 Only one authentication method is required, `storage_connection_string` or `storage_account` and `storage_access_key`. If both are set then the `storage_connection_string` is given priority.
+
+### Delivery Guarantees
+
+When a message is acknowledged it is deleted from the queue, unless `delete_message` is set to `false`. When a message is rejected (nacked) it is never deleted; it is left on the queue and becomes visible again for redelivery once its `dequeue_visibility_timeout` expires.
 
 ## Fields
 
@@ -132,5 +137,13 @@ If set to `true` the queue is polled on each read request for information such a
 
 Type: `bool`  
 Default: `false`  
+
+### `delete_message`
+
+Whether to delete messages from the queue once they have been acknowledged. When set to `false` acknowledged messages are left on the queue and become visible again once their `dequeue_visibility_timeout` expires, which means they will be redelivered unless something else removes them. Nacked messages are never deleted, regardless of this setting.
+
+
+Type: `bool`  
+Default: `true`  
 
 

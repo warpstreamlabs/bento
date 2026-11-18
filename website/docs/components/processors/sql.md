@@ -67,7 +67,7 @@ For basic inserts or select queries use either the [`sql_insert`](/docs/componen
 
 ### `driver`
 
-A database [driver](#drivers) to use.
+A database [driver](/docs/components/processors/sql_raw#drivers) to use.
 
 
 Type: `string`  

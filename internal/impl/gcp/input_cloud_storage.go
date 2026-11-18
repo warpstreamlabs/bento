@@ -10,6 +10,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 
 	"github.com/warpstreamlabs/bento/public/service"
 	"github.com/warpstreamlabs/bento/public/service/codec"
@@ -27,6 +28,7 @@ type csiConfig struct {
 	Prefix        *service.InterpolatedString
 	DeleteObjects bool
 	Codec         codec.DeprecatedFallbackCodec
+	ClientOptions []option.ClientOption
 }
 
 func csiConfigFromParsed(pConf *service.ParsedConfig) (conf csiConfig, err error) {
@@ -40,6 +42,9 @@ func csiConfigFromParsed(pConf *service.ParsedConfig) (conf csiConfig, err error
 		return
 	}
 	if conf.DeleteObjects, err = pConf.FieldBool(csiFieldDeleteObjects); err != nil {
+		return
+	}
+	if conf.ClientOptions, err = gcpClientOptionsFromParsed(pConf); err != nil {
 		return
 	}
 	return
@@ -83,6 +88,7 @@ By default Bento will use a shared credentials file when connecting to GCP servi
 				Description("Whether to delete downloaded objects from the bucket once they are processed.").
 				Advanced().
 				Default(false),
+			gcpCredentialsField(),
 		)
 }
 
@@ -258,7 +264,7 @@ func newGCPCloudStorageInput(conf csiConfig, res *service.Resources) (*gcpCloudS
 // Cloud Storage bucket.
 func (g *gcpCloudStorageInput) Connect(ctx context.Context) error {
 	var err error
-	g.client, err = storage.NewClient(context.Background())
+	g.client, err = storage.NewClient(context.Background(), g.conf.ClientOptions...)
 	if err != nil {
 		return err
 	}

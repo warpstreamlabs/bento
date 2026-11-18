@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service/integration"
@@ -18,23 +17,17 @@ func TestIntegrationNatsJetstream(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "nats",
-		Tag:        "latest",
-		Cmd:        []string{"--js"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "nats",
+		dockertest.WithTag("latest"),
+		dockertest.WithCmd([]string{"--js"}),
+		dockertest.WithoutReuse(),
+	)
 
 	var natsConn *nats.Conn
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	var err error
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		natsConn, err = nats.Connect(fmt.Sprintf("tcp://localhost:%v", resource.GetPort("4222/tcp")))
 		return err
 	}))
@@ -88,23 +81,17 @@ func TestIntegrationNatsPullConsumer(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 30
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "nats",
-		Tag:        "latest",
-		Cmd:        []string{"--js"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "nats",
+		dockertest.WithTag("latest"),
+		dockertest.WithCmd([]string{"--js"}),
+		dockertest.WithoutReuse(),
+	)
 
 	var natsConn *nats.Conn
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	var err error
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		natsConn, err = nats.Connect(fmt.Sprintf("tcp://localhost:%v", resource.GetPort("4222/tcp")))
 		return err
 	}))

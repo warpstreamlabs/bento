@@ -178,13 +178,11 @@ func publicToInternalErr(err error) error {
 		return nil
 	}
 
-	var e *ErrBackOff
-	if errors.As(err, &e) {
+	if e, ok := errors.AsType[*ErrBackOff](err); ok {
 		return &component.ErrBackOff{Err: publicToInternalErr(e.Err), Wait: e.Wait}
 	}
 
-	var bErr *BatchError
-	if errors.As(err, &bErr) {
+	if bErr, ok := errors.AsType[*BatchError](err); ok {
 		return bErr.wrapped
 	}
 

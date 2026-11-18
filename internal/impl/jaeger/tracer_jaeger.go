@@ -58,7 +58,7 @@ func jaegerConfigSpec() *service.ConfigSpec {
 				Description("The sampler type to use.").
 				Default("const"),
 			service.NewFloatField(jtFieldSamplerParam).
-				Description("A parameter to use for sampling. This field is unused for some sampling types.").
+				Description("A parameter to use for sampling. This field is unused for some sampling types. For the `const` sampler type this is the ratio at which root spans are sampled; spans with a sampled parent (for example, extracted from an incoming `traceparent` header) follow their parent's sampling decision rather than this ratio.").
 				Default(1.0).
 				Advanced(),
 			service.NewStringMapField(jtFieldTags).
@@ -110,7 +110,7 @@ func NewJaeger(config jaegerConfig) (trace.TracerProvider, error) {
 		// TODO: https://github.com/open-telemetry/opentelemetry-go-contrib/pull/936
 		switch strings.ToLower(sType) {
 		case "const":
-			sampler = tracesdk.TraceIDRatioBased(config.SamplerParam)
+			sampler = tracesdk.ParentBased(tracesdk.TraceIDRatioBased(config.SamplerParam))
 		case "probabilistic":
 			return nil, errors.New("probabalistic sampling is no longer available")
 		case "ratelimiting":

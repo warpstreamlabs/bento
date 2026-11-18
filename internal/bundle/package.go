@@ -120,8 +120,7 @@ func wrapComponentErr(mgr NewManagement, typeStr string, err error) error {
 		return nil
 	}
 
-	var existing *componentErr
-	if errors.As(err, &existing) {
+	if _, ok := errors.AsType[*componentErr](err); ok {
 		return err
 	}
 

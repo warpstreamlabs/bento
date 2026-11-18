@@ -11,7 +11,7 @@ import (
 	"time"
 
 	goEs "github.com/elastic/go-elasticsearch/v9"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,32 +31,43 @@ func outputFromConfV2(t testing.TB, conf string, args ...any) *elasticsearch.EsO
 
 	return o
 }
+
+func TestOutputV2NegativeIntFields(t *testing.T) {
+	for _, field := range []string{"retry_on_conflict", "num_workers"} {
+		t.Run(field, func(t *testing.T) {
+			pConf, err := elasticsearch.OutputSpecV2().ParseYAML(fmt.Sprintf(`
+index: foo
+urls: [ http://localhost:9200 ]
+%s: -1
+`, field), nil)
+			require.NoError(t, err)
+
+			_, err = elasticsearch.EsoOutputConstructor(pConf, service.MockResources())
+			require.ErrorContains(t, err, "must be 0 or more")
+		})
+	}
+}
+
 func TestIntegrationWriterV2(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Skipf("Could not connect to docker: %s", err)
-	}
-	pool.MaxWait = time.Minute * 3
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	resource, err := pool.Run("elasticsearch", "8.16.5", []string{
-		"discovery.type=single-node",
-		"xpack.security.enabled=false",
-		"xpack.security.transport.ssl.enabled=false",
-		"xpack.security.http.ssl.enabled=false",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m",
-	})
+	resource, err := pool.Run(t.Context(), "elasticsearch",
+		dockertest.WithTag("8.16.5"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"xpack.security.enabled=false",
+			"xpack.security.transport.ssl.enabled=false",
+			"xpack.security.http.ssl.enabled=false",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m",
+		}),
+		dockertest.WithoutReuse(),
+	)
 	if err != nil {
 		t.Fatalf("Could not start resource: %s", err)
 	}
-	defer func() {
-		if err := pool.Purge(resource); err != nil {
-			t.Fatalf("Could not purge resource: %s", err)
-		}
-	}()
-
 	urls := []string{fmt.Sprintf("http://127.0.0.1:%v", resource.GetPort("9200/tcp"))}
 
 	cfg := goEs.Config{
@@ -65,7 +76,7 @@ func TestIntegrationWriterV2(t *testing.T) {
 	client, err := goEs.NewClient(cfg)
 	require.NoError(t, err)
 
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		res, err := client.Cluster.Health()
 		if err != nil {
 			return err
@@ -155,6 +166,109 @@ func TestIntegrationWriterV2(t *testing.T) {
 	t.Run("TestElasticBatchUpsertV2", func(te *testing.T) {
 		testElasticBatchUpsertV2(urls, client, te)
 	})
+
+	t.Run("TestElasticUpsertRetryOnConflictV2", func(te *testing.T) {
+		testElasticUpsertRetryOnConflictV2(urls, client, te)
+	})
+
+	t.Run("TestElasticUpsertSameIDSingleWorkerV2", func(te *testing.T) {
+		testElasticUpsertSameIDSingleWorkerV2(urls, client, te)
+	})
+}
+
+func getSourceV2(t *testing.T, client *goEs.Client, index, id string) map[string]any {
+	t.Helper()
+
+	get, err := client.Get(index, id)
+	require.NoError(t, err)
+	defer get.Body.Close()
+	require.Equal(t, 200, get.StatusCode)
+
+	var res struct {
+		Source map[string]any `json:"_source"`
+	}
+	require.NoError(t, json.NewDecoder(get.Body).Decode(&res))
+	return res.Source
+}
+
+// Concurrent upserts to the same document conflict on its version; with
+// retry_on_conflict Elasticsearch retries them internally, so every write
+// succeeds and none of the partial updates is lost.
+func testElasticUpsertRetryOnConflictV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: upsert_retry_on_conflict
+id: 'same-doc'
+urls: %v
+action: upsert
+retry_on_conflict: 10
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	N := 10
+
+	startChan := make(chan struct{})
+	wg := sync.WaitGroup{}
+	wg.Add(N)
+
+	for i := range N {
+		go func(i int) {
+			defer wg.Done()
+			<-startChan
+			assert.NoError(t, o.WriteBatch(ctx, service.MessageBatch{
+				service.NewMessage(fmt.Appendf(nil, `{"field_%v":%v}`, i, i)),
+			}))
+		}(i)
+	}
+
+	close(startChan)
+	wg.Wait()
+
+	source := getSourceV2(t, client, "upsert_retry_on_conflict", "same-doc")
+	for i := range N {
+		assert.Contains(t, source, fmt.Sprintf("field_%v", i))
+	}
+}
+
+// With a single worker a batch is sent as one bulk request, which
+// Elasticsearch applies in order, so several upserts to the same document in
+// one batch all succeed.
+func testElasticUpsertSameIDSingleWorkerV2(urls []string, client *goEs.Client, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	o := outputFromConfV2(t, `
+index: upsert_single_worker
+id: 'same-doc'
+urls: %v
+action: upsert
+num_workers: 1
+`, urls)
+
+	require.NoError(t, o.Connect(ctx))
+	defer func() {
+		require.NoError(t, o.Close(ctx))
+	}()
+
+	N := 10
+
+	var batch service.MessageBatch
+	for i := range N {
+		batch = append(batch, service.NewMessage(fmt.Appendf(nil, `{"field_%v":%v,"last":%v}`, i, i, i)))
+	}
+	require.NoError(t, o.WriteBatch(ctx, batch))
+
+	source := getSourceV2(t, client, "upsert_single_worker", "same-doc")
+	for i := range N {
+		assert.Contains(t, source, fmt.Sprintf("field_%v", i))
+	}
+	assert.EqualValues(t, N-1, source["last"])
 }
 
 func testElasticNoIndexV2(urls []string, client *goEs.Client, t *testing.T) {

@@ -109,7 +109,7 @@ func NewTextClassificationPipeline(conf *service.ParsedConfig, mgr *service.Reso
 		Options:   opts,
 	}
 
-	p.pipeline, err = hugot.NewPipeline(p.session, cfg)
+	p.pipeline, err = p.session.NewPipeline(cfg)
 	if err != nil {
 		return nil, err
 	}

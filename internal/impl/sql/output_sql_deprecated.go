@@ -20,7 +20,7 @@ func sqlDeprecatedOutputConfig() *service.ConfigSpec {
 ## Alternatives
 
 For basic inserts use the ` + "[`sql_insert`](/docs/components/outputs/sql)" + ` output. For more complex queries use the ` + "[`sql_raw`](/docs/components/outputs/sql_raw)" + ` output.`).
-		Field(driverField).
+		Field(deprecatedDriverField("/docs/components/outputs/sql_raw")).
 		Field(service.NewStringField("data_source_name").Description("Data source name.")).
 		Field(rawQueryField().
 			Example("INSERT INTO footable (foo, bar, baz) VALUES (?, ?, ?);")).

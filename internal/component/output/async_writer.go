@@ -127,8 +127,7 @@ func (w *AsyncWriter) loop() {
 
 				var nextBoff time.Duration
 
-				var ebo *component.ErrBackOff
-				if errors.As(err, &ebo) {
+				if ebo, ok := errors.AsType[*component.ErrBackOff](err); ok {
 					nextBoff = ebo.Wait
 				} else {
 					nextBoff = connBackoff.NextBackOff()

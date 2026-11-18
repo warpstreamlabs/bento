@@ -8,7 +8,7 @@ import (
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/dbtype"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,23 +20,15 @@ import (
 )
 
 func setupNeo4j(t *testing.T, env []string) string {
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Second * 60
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "neo4j",
-		Tag:        "latest",
-		Env:        env,
-	})
-	require.NoError(t, err)
+	resource := pool.RunT(t, "neo4j",
+		dockertest.WithTag("latest"),
+		dockertest.WithEnv(env),
+		dockertest.WithoutReuse(),
+	)
 
 	neo4jDockerAddress := fmt.Sprintf("bolt://localhost:%s", resource.GetPort("7687/tcp"))
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
 
 	return neo4jDockerAddress
 }

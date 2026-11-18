@@ -17,6 +17,7 @@ const (
 	qsiFieldQueueName                = "queue_name"
 	qsiFieldDequeueVisibilityTimeout = "dequeue_visibility_timeout"
 	qsiFieldTrackProperties          = "track_properties"
+	qsiFieldDeleteMessage            = "delete_message"
 )
 
 type qsiConfig struct {
@@ -25,6 +26,7 @@ type qsiConfig struct {
 	DequeueVisibilityTimeout time.Duration
 	MaxInFlight              int
 	TrackProperties          bool
+	DeleteMessage            bool
 }
 
 func qsiConfigFromParsed(pConf *service.ParsedConfig) (conf qsiConfig, err error) {
@@ -41,6 +43,9 @@ func qsiConfigFromParsed(pConf *service.ParsedConfig) (conf qsiConfig, err error
 		return
 	}
 	if conf.TrackProperties, err = pConf.FieldBool(qsiFieldTrackProperties); err != nil {
+		return
+	}
+	if conf.DeleteMessage, err = pConf.FieldBool(qsiFieldDeleteMessage); err != nil {
 		return
 	}
 	return
@@ -60,7 +65,11 @@ This input adds the following metadata fields to each message:
 - All user defined queue metadata
 `+"```"+`
 
-Only one authentication method is required, `+"`storage_connection_string`"+` or `+"`storage_account` and `storage_access_key`"+`. If both are set then the `+"`storage_connection_string`"+` is given priority.`).
+Only one authentication method is required, `+"`storage_connection_string`"+` or `+"`storage_account` and `storage_access_key`"+`. If both are set then the `+"`storage_connection_string`"+` is given priority.
+
+### Delivery Guarantees
+
+When a message is acknowledged it is deleted from the queue, unless `+"`delete_message`"+` is set to `+"`false`"+`. When a message is rejected (nacked) it is never deleted; it is left on the queue and becomes visible again for redelivery once its `+"`dequeue_visibility_timeout`"+` expires.`).
 		Fields(
 			service.NewInterpolatedStringField(qsiFieldQueueName).
 				Description("The name of the source storage queue.").
@@ -77,6 +86,10 @@ Only one authentication method is required, `+"`storage_connection_string`"+` or
 			service.NewBoolField(qsiFieldTrackProperties).
 				Description("If set to `true` the queue is polled on each read request for information such as the queue message lag. These properties are added to consumed messages as metadata, but will also have a negative performance impact.").
 				Default(false).
+				Advanced(),
+			service.NewBoolField(qsiFieldDeleteMessage).
+				Description("Whether to delete messages from the queue once they have been acknowledged. When set to `false` acknowledged messages are left on the queue and become visible again once their `dequeue_visibility_timeout` expires, which means they will be redelivered unless something else removes them. Nacked messages are never deleted, regardless of this setting.").
+				Default(true).
 				Advanced(),
 			service.NewStringField(bscFieldStorageSASToken).Deprecated().Default(""), // This field was never implemented
 		)
@@ -168,15 +181,28 @@ func (a *azureQueueStorage) ReadBatch(ctx context.Context) (batch service.Messag
 		batch = append(batch, part)
 		dqm[i] = queueMsg
 	}
-	return batch, func(ctx context.Context, res error) error {
-		for _, queueMsg := range dqm {
-			_, err = queueClient.DeleteMessage(ctx, *queueMsg.MessageID, *queueMsg.PopReceipt, nil)
-			if err != nil {
+	return batch, queueAckFn(queueClient, dqm, a.conf.DeleteMessage), nil
+}
+
+type queueMessageClient interface {
+	DeleteMessage(ctx context.Context, messageID, popReceipt string, o *azq.DeleteMessageOptions) (azq.DeleteMessageResponse, error)
+}
+
+// queueAckFn deletes messages on ack when deleteMessage is true. Nacked
+// messages, or acked messages when deleteMessage is false, are left in place
+// and become visible again once their visibility timeout expires.
+func queueAckFn(client queueMessageClient, msgs []*azq.DequeuedMessage, deleteMessage bool) service.AckFunc {
+	return func(ctx context.Context, res error) error {
+		if res != nil || !deleteMessage {
+			return nil
+		}
+		for _, queueMsg := range msgs {
+			if _, err := client.DeleteMessage(ctx, *queueMsg.MessageID, *queueMsg.PopReceipt, nil); err != nil {
 				return fmt.Errorf("error deleting message: %v", err)
 			}
 		}
 		return nil
-	}, nil
+	}
 }
 
 func (a *azureQueueStorage) Close(ctx context.Context) error {

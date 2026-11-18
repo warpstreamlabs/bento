@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"strings"
+	"time"
 
 	"github.com/nats-io/nats.go"
 
@@ -71,6 +72,11 @@ func (c *connectionDetails) get(_ context.Context, extraOpts ...nats.Option) (*n
 	opts = append(opts, nats.Name(c.label))
 	opts = append(opts, errorHandlerOption(c.logger))
 	opts = append(opts, authConfToOptions(c.authConf, c.fs)...)
+	// Detect dead connections within ~60s (2 pings × 30s) instead of the
+	// 4-minute default. Unlimited reconnects so streams recover automatically
+	// from extended NATS outages without giving up.
+	opts = append(opts, nats.PingInterval(30*time.Second))
+	opts = append(opts, nats.MaxReconnects(-1))
 	opts = append(opts, extraOpts...)
 	return nats.Connect(c.urls, opts...)
 }

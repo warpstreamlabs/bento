@@ -11,7 +11,11 @@ import (
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	"cloud.google.com/go/bigquery/storage/managedwriter"
-	"github.com/ory/dockertest/v3"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	mobyclient "github.com/moby/moby/client"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -117,27 +121,28 @@ func setupBigQueryEmulator(t *testing.T, projectID, datasetID, tableID string, s
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = 30 * time.Second
+	maxWait := 30 * time.Second
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "ghcr.io/goccy/bigquery-emulator",
-		Tag:          "latest",
-		ExposedPorts: []string{"9050/tcp", "9060/tcp"},
-		Cmd:          []string{"--project", projectID, "--dataset", datasetID, "--log-level", "debug"},
-		Platform:     "linux/x86_64",
-	})
-	require.NoError(t, err)
-	require.NoError(t, resource.Expire(900))
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
 
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	pullAMD64(t, pool, "ghcr.io/goccy/bigquery-emulator:latest")
+
+	resource := pool.RunT(t, "ghcr.io/goccy/bigquery-emulator",
+		dockertest.WithTag("latest"),
+		// Neither port is bound, and GetPort reads both below, so v4 needs the
+		// declaration in order to wait for the bindings.
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("9050/tcp"): {},
+				dockernetwork.MustParsePort("9060/tcp"): {},
+			}
+		}),
+		dockertest.WithCmd([]string{"--project", projectID, "--dataset", datasetID, "--log-level", "debug"}),
+		dockertest.WithoutReuse(),
+	)
 
 	httpEndpoint := "http://localhost:" + resource.GetPort("9050/tcp")
 	grpcEndpoint := "localhost:" + resource.GetPort("9060/tcp")
@@ -148,7 +153,7 @@ func setupBigQueryEmulator(t *testing.T, projectID, datasetID, tableID string, s
 	emulator, err := newBigQueryEmulator(ctx, projectID, httpEndpoint, grpcEndpoint, schema)
 	assert.NoError(t, err)
 
-	retryErr := pool.Retry(func() error {
+	retryErr := pool.Retry(t.Context(), 0, func() error {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 		return emulator.setup(ctx, projectID, datasetID, tableID)
@@ -237,4 +242,19 @@ func TestParseQueryPriority_Unrecognised(t *testing.T) {
 	priority, err := parseQueryPriority(conf, "foo")
 	require.ErrorContains(t, err, "unrecognised query priority")
 	require.Equal(t, priority, bigquery.QueryPriority(""))
+}
+
+// pullAMD64 fetches an image for linux/amd64 before Run would pull it. v4 has
+// no equivalent of v3's RunOptions.Platform, but Run skips its own pull when
+// the image already inspects cleanly, so pre-pulling picks the architecture.
+// The emulator publishes no arm64 image, so this is required on Apple silicon.
+func pullAMD64(t *testing.T, pool dockertest.Pool, ref string) {
+	t.Helper()
+
+	resp, err := pool.Client().ImagePull(t.Context(), ref, mobyclient.ImagePullOptions{
+		Platforms: []ocispec.Platform{{OS: "linux", Architecture: "amd64"}},
+	})
+	require.NoError(t, err)
+	defer resp.Close()
+	require.NoError(t, resp.Wait(t.Context()))
 }

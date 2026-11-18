@@ -37,6 +37,7 @@ func cloudTraceSpec() *service.ConfigSpec {
 			service.NewDurationField(ctFieldFlushInterval).
 				Description("The period of time between each flush of tracing spans.").
 				Optional(),
+			gcpCredentialsField(),
 		)
 }
 
@@ -64,7 +65,12 @@ func cloudTraceFromParsed(conf *service.ParsedConfig) (trace.TracerProvider, err
 		return nil, err
 	}
 
-	exp, err := gcptrace.New(gcptrace.WithProjectID(projID))
+	clientOpts, err := gcpClientOptionsFromParsed(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	exp, err := gcptrace.New(gcptrace.WithProjectID(projID), gcptrace.WithTraceClientOptions(clientOpts))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cloud trace exporter: %w", err)
 	}

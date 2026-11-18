@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,15 +20,12 @@ func TestIntegrationCassandra(t *testing.T) {
 
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute*3))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err := pool.Run("cassandra", "latest", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "cassandra",
+		dockertest.WithTag("latest"),
+		dockertest.WithoutReuse(),
+	)
 
 	var session *gocql.Session
 	t.Cleanup(func() {
@@ -37,8 +34,7 @@ func TestIntegrationCassandra(t *testing.T) {
 		}
 	})
 
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		if session == nil {
 			conn := gocql.NewCluster(fmt.Sprintf("localhost:%v", resource.GetPort("9042/tcp")))
 			conn.Consistency = gocql.All
@@ -72,7 +68,7 @@ output:
 			).Scan(&resID, &resContent); err != nil {
 				return "", nil, err
 			}
-			return fmt.Sprintf(`{"content":"%v","id":%v}`, resContent, resID), nil, err
+			return fmt.Sprintf(`{"content":"%v","id":%v}`, resContent, resID), nil, nil
 		}
 		suite := integration.StreamTests(
 			integration.StreamTestOutputOnlySendSequential(10, queryGetFn),
@@ -119,7 +115,7 @@ output:
 				return "", nil, fmt.Errorf("received bad created_at: %v", createdAt)
 			}
 			assert.Equal(t, []string{"first meow", "second meow"}, meows)
-			return fmt.Sprintf(`{"content":"%v","id":%v}`, resContent, resID), nil, err
+			return fmt.Sprintf(`{"content":"%v","id":%v}`, resContent, resID), nil, nil
 		}
 		suite := integration.StreamTests(
 			integration.StreamTestOutputOnlySendSequential(10, queryGetFn),
