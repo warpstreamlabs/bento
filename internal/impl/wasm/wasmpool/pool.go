@@ -17,8 +17,6 @@ type pooledInstance[T api.Module] struct {
 
 func (i *pooledInstance[T]) take() T {
 	i.cleanup.Stop()
-	// Keep the cleanup target reachable until cancellation is complete.
-	runtime.KeepAlive(i)
 	return i.module
 }
 
@@ -66,7 +64,8 @@ func (p *WasmModulePool[T]) Get(ctx context.Context) (T, error) {
 func (p *WasmModulePool[T]) Put(instance T) {
 	entry := &pooledInstance[T]{module: instance}
 	entry.cleanup = runtime.AddCleanup(entry, func(inst T) {
-		_ = inst.Close(context.Background())
+		// Close may be slow; don't block other cleanups (see the Go GC guide).
+		go func() { _ = inst.Close(context.Background()) }()
 	}, instance)
 
 	p.instancePool.Put(entry)
