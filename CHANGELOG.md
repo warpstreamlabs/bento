@@ -3,7 +3,13 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## 1.23.0 - 2026-11-14
+## Unreleased - TBD
+
+### Fixed
+
+ - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+
+## 1.23.0 - 2026-11-16
 
 ### Added
 
