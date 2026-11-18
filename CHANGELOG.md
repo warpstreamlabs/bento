@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - TBD
 
+### Added
+
+ - `ibm_mq` experimental input & output components enabling Bento to consume from and write to IBM MQ queues using native MQI, built with the `x_bento_extra` tag and included in the `-cgo` Docker image @estan
+
 ### Fixed
 
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot

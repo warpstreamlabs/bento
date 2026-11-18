@@ -4,3 +4,7 @@ package all
 
 // Import extra packages, these are packages only imported with the tag
 // x_bento_extra, which is normally reserved for -cgo suffixed builds
+
+import (
+	_ "github.com/warpstreamlabs/bento/public/components/ibmmq"
+)
