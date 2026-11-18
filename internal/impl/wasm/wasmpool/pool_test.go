@@ -25,10 +25,9 @@ func (m *testModule) Close(context.Context) error {
 
 func TestCleanupMustNotCloseBorrowedModule(t *testing.T) {
 	ctx := context.Background()
-	p, err := NewWasmModulePool(ctx, func(context.Context) (*testModule, error) { return &testModule{}, nil })
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := NewWasmModulePool(func(context.Context) (*testModule, error) { return &testModule{}, nil })
+	p.Put(&testModule{})
+
 	acquired, err := p.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -48,12 +47,15 @@ func TestCleanupMustNotCloseBorrowedWazeroModule(t *testing.T) {
 	ctx := context.Background()
 	r := wazero.NewRuntime(ctx)
 	defer r.Close(ctx)
-	p, err := NewWasmModulePool(ctx, func(ctx context.Context) (api.Module, error) {
+	ctor := func(ctx context.Context) (api.Module, error) {
 		return r.Instantiate(ctx, []byte{0, 97, 115, 109, 1, 0, 0, 0})
-	})
+	}
+	p := NewWasmModulePool(ctor)
+	mod, err := ctor(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	p.Put(mod)
 	acquired, err := p.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -70,12 +72,9 @@ func TestCleanupMustNotCloseBorrowedWazeroModule(t *testing.T) {
 }
 
 func TestCleanupClosesDiscardedIdleModule(t *testing.T) {
-	ctx := context.Background()
 	m := &testModule{}
-	p, err := NewWasmModulePool(ctx, func(context.Context) (*testModule, error) { return m, nil })
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := NewWasmModulePool(func(context.Context) (*testModule, error) { return m, nil })
+	p.Put(m)
 	deadline := time.Now().Add(5 * time.Second)
 	for !m.closed.Load() && time.Now().Before(deadline) {
 		runtime.GC()
@@ -90,10 +89,8 @@ func TestCleanupClosesDiscardedIdleModule(t *testing.T) {
 func TestCloseCancelsCleanup(t *testing.T) {
 	ctx := context.Background()
 	m := &testModule{}
-	p, err := NewWasmModulePool(ctx, func(context.Context) (*testModule, error) { return m, nil })
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := NewWasmModulePool(func(context.Context) (*testModule, error) { return m, nil })
+	p.Put(m)
 	if err := p.Close(ctx); err != nil {
 		t.Fatal(err)
 	}

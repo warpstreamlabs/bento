@@ -27,21 +27,11 @@ type WasmModulePool[T api.Module] struct {
 	instancePool sync.Pool
 }
 
-func NewWasmModulePool[T api.Module](ctx context.Context, ctor constructor[T]) (*WasmModulePool[T], error) {
-	pool := &WasmModulePool[T]{
+func NewWasmModulePool[T api.Module](ctor constructor[T]) *WasmModulePool[T] {
+	return &WasmModulePool[T]{
 		instancePool: sync.Pool{},
 		ctor:         ctor,
 	}
-
-	mod, err := ctor(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// warm up with one instance
-	pool.Put(mod)
-
-	return pool, nil
 }
 
 func (p *WasmModulePool[T]) newInstance(ctx context.Context) (T, error) {

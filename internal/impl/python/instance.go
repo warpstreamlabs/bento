@@ -30,18 +30,23 @@ func (p *pythonProcessor) newInstance(ctx context.Context) (*pythonInstance, err
 		WithStdin(inR).WithStdout(outW).WithStderr(errBuf).
 		WithArgs("python", filepath.Join("/", pythonEntrypointFile), strings.Join(p.imports, ","))
 
-	var mod api.Module
+	mod, err := p.runtime.InstantiateModule(ctx, p.compiled, cfg.WithStartFunctions())
+	if err != nil {
+		return nil, fmt.Errorf("instantiation failed: %w", err)
+	}
+
+	startCtx, stop := p.shutSig.SoftStopCtx(context.Background())
+	context.AfterFunc(startCtx, func() { inW.Close() })
 
 	instantiateErr := make(chan error, 1)
-	go func() {
-		var err error
-		// this is a blocking call, so we have to deploy in a goroutine
-		mod, err = p.runtime.InstantiateModule(ctx, p.compiled, cfg)
-		if err != nil {
+	p.running.Go(func() {
+		defer stop()
+		if _, err := mod.ExportedFunction("_start").Call(startCtx); err != nil {
 			instantiateErr <- fmt.Errorf("instantiation failed: %w", err)
-			outW.Close()
 		}
-	}()
+		outW.Close()
+		_ = mod.Close(context.Background())
+	})
 
 	handshakeErr := make(chan error, 1)
 	go func() {
@@ -62,11 +67,14 @@ func (p *pythonProcessor) newInstance(ctx context.Context) (*pythonInstance, err
 
 	select {
 	case <-ctx.Done():
+		stop()
 		return nil, ctx.Err()
 	case err := <-instantiateErr:
+		stop()
 		return nil, err
 	case err := <-handshakeErr:
 		if err != nil {
+			stop()
 			p.logger.Errorf("python handshake failed (stderr): %s)", err)
 			return nil, fmt.Errorf("handshake failed: %v", err)
 		}
@@ -77,6 +85,7 @@ func (p *pythonProcessor) newInstance(ctx context.Context) (*pythonInstance, err
 		stdinW:    inW,
 		stdoutR:   outR,
 		stderrBuf: errBuf,
+		stop:      stop,
 	}, nil
 }
 
@@ -87,6 +96,7 @@ type pythonInstance struct {
 	stdinW    io.WriteCloser
 	stdoutR   io.Reader
 	stderrBuf *bytes.Buffer
+	stop      context.CancelFunc
 }
 
 func (pi *pythonInstance) runRequest(input []byte) (stdout []byte, stderr []byte, err error) {
@@ -117,10 +127,7 @@ func (pi *pythonInstance) runRequest(input []byte) (stdout []byte, stderr []byte
 	return payload, stderr, nil
 }
 
-func (pi *pythonInstance) Close(ctx context.Context) error {
-	pi.stdinW.Close()
-	if pi.Module == nil {
-		return nil
-	}
-	return pi.Module.Close(ctx)
+func (pi *pythonInstance) Close(context.Context) error {
+	pi.stop()
+	return nil
 }
