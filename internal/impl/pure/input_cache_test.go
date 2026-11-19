@@ -138,3 +138,160 @@ cache_resources:
 		"bar": "bar_value",
 	}, received)
 }
+
+func TestCacheInputStreamDeleteAck(t *testing.T) {
+	listableTestCache := &listableTestCache{
+		cache: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+	}
+
+	env := service.NewEnvironment()
+	require.NoError(t, env.RegisterCache("test_listable_cache", testCacheConfigSpec,
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Cache, error) {
+			return listableTestCache, nil
+		},
+	))
+
+	sb := env.NewStreamBuilder()
+	require.NoError(t, sb.AddCacheYAML(`
+label: foocache
+test_listable_cache: {}
+`))
+	require.NoError(t, sb.AddInputYAML(`
+cache:
+  resource: foocache
+  delete_items: true
+`))
+
+	var mu sync.Mutex
+	received := map[string]string{}
+	require.NoError(t, sb.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
+		b, err := m.AsBytes()
+		if err != nil {
+			return err
+		}
+		key, _ := m.MetaGet("cache_key")
+		mu.Lock()
+		received[key] = string(b)
+		mu.Unlock()
+		return nil
+	}))
+
+	strm, err := sb.Build()
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*30)
+	defer cancel()
+	require.NoError(t, strm.Run(ctx))
+	require.Equal(t, map[string]string{"a": "1", "b": "2", "c": "3"}, received)
+
+	assert.Equal(t, map[string]string{}, listableTestCache.cache)
+}
+
+func TestCacheInputStreamDeleteNack(t *testing.T) {
+	listableTestCache := &listableTestCache{
+		cache: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+	}
+
+	env := service.NewEnvironment()
+	require.NoError(t, env.RegisterCache("test_listable_cache", testCacheConfigSpec,
+		func(conf *service.ParsedConfig, mgr *service.Resources) (service.Cache, error) {
+			return listableTestCache, nil
+		},
+	))
+
+	sb := env.NewStreamBuilder()
+	require.NoError(t, sb.AddCacheYAML(`
+label: foocache
+test_listable_cache: {}
+`))
+	require.NoError(t, sb.AddInputYAML(`
+cache:
+  resource: foocache
+  delete_items: true
+  auto_replay_nacks: false
+`))
+
+	var mu sync.Mutex
+	received := map[string]string{}
+	require.NoError(t, sb.AddConsumerFunc(func(ctx context.Context, m *service.Message) error {
+		b, err := m.AsBytes()
+		if err != nil {
+			return err
+		}
+		key, _ := m.MetaGet("cache_key")
+		mu.Lock()
+		received[key] = string(b)
+		mu.Unlock()
+		return errors.New("delivery failure")
+	}))
+
+	strm, err := sb.Build()
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*20)
+	defer cancel()
+
+	require.NoError(t, strm.Run(ctx))
+	mu.Lock()
+	assert.Equal(t, map[string]string{"a": "1", "b": "2", "c": "3"}, received)
+	mu.Unlock()
+	assert.Equal(t, map[string]string{"a": "1", "b": "2", "c": "3"}, listableTestCache.cache)
+}
+
+//------------------------------------------------------------------------------
+
+var testCacheConfigSpec = service.NewConfigSpec().Summary("A listable test cache")
+
+type listableTestCache struct {
+	cache   map[string]string
+	cacheMu sync.Mutex
+}
+
+func (ltc *listableTestCache) Get(ctx context.Context, key string) ([]byte, error) {
+	ltc.cacheMu.Lock()
+	defer ltc.cacheMu.Unlock()
+	return []byte(ltc.cache[key]), nil
+}
+
+func (ltc *listableTestCache) Exists(ctx context.Context, key string) (bool, error) {
+	return false, nil
+}
+
+func (ltc *listableTestCache) Set(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
+	return nil
+}
+
+func (ltc *listableTestCache) Add(ctx context.Context, key string, value []byte, ttl *time.Duration) error {
+	return nil
+}
+
+func (ltc *listableTestCache) Keys(_ context.Context) service.KeyIterator {
+	ltc.cacheMu.Lock()
+	defer ltc.cacheMu.Unlock()
+	return func(yield func(string, error) bool) {
+		for k := range ltc.cache {
+			if !yield(k, nil) {
+				return
+			}
+		}
+	}
+}
+
+func (ltc *listableTestCache) Delete(ctx context.Context, key string) error {
+	ltc.cacheMu.Lock()
+	defer ltc.cacheMu.Unlock()
+	delete(ltc.cache, key)
+	return nil
+}
+
+func (ltc *listableTestCache) Close(ctx context.Context) error {
+	return nil
+}

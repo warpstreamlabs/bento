@@ -8,7 +8,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-const ciFieldResource = "resource"
+const (
+	ciFieldResource    = "resource"
+	ciFieldDeleteItems = "delete_items"
+)
 
 func cacheInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
@@ -31,6 +34,9 @@ You can access these metadata fields using [function interpolation](/docs/config
 		Fields(
 			service.NewStringField(ciFieldResource).
 				Description("The [`cache` resource](/docs/components/caches/about) to read from."),
+			service.NewBoolField(ciFieldDeleteItems).
+				Description("Whether to delete items from the cache. They are deleted when they are successfully sent to the output.").
+				Default(false),
 			service.NewAutoRetryNacksToggleField(),
 		).
 		Example(
@@ -80,17 +86,25 @@ func newCacheInputFromConfig(conf *service.ParsedConfig, res *service.Resources)
 	if !res.HasCache(cacheName) {
 		return nil, fmt.Errorf("cache resource '%v' was not found", cacheName)
 	}
+
+	deleteItems, err := conf.FieldBool(ciFieldDeleteItems)
+	if err != nil {
+		return nil, err
+	}
+
 	return &cacheInput{
-		res:       res,
-		cacheName: cacheName,
+		res:         res,
+		cacheName:   cacheName,
+		deleteItems: deleteItems,
 	}, nil
 }
 
 //------------------------------------------------------------------------------
 
 type cacheInput struct {
-	res       *service.Resources
-	cacheName string
+	res         *service.Resources
+	cacheName   string
+	deleteItems bool
 
 	keys []string
 }
@@ -145,6 +159,25 @@ func (c *cacheInput) Read(ctx context.Context) (*service.Message, service.AckFun
 
 		msg := service.NewMessage(value)
 		msg.MetaSetMut("cache_key", key)
+
+		if c.deleteItems {
+			return msg, func(ctx context.Context, ackErr error) error {
+				if ackErr != nil {
+					return nil
+				}
+				var deleteErr error
+				if err := c.res.AccessCache(ctx, c.cacheName, func(cache service.Cache) {
+					deleteErr = cache.Delete(ctx, key)
+				}); err != nil {
+					return err
+				}
+				if deleteErr != nil && !errors.Is(deleteErr, service.ErrKeyNotFound) {
+					return deleteErr
+				}
+				return nil
+			}, nil
+		}
+
 		return msg, func(context.Context, error) error { return nil }, nil
 	}
 	return nil, nil, service.ErrEndOfInput
