@@ -15,12 +15,11 @@ const (
 
 func cacheInputSpec() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		Beta().
 		Categories("Utility").
-		Version("1.21.0").
+		Version("1.24.0").
 		Summary("Reads items stored within a [cache resource](/docs/components/caches/about), emitting each item as a message and shutting down once the contents of the cache have been fully consumed.").
 		Description(`
-The target cache must support listing its keys, which is an optional capability. Caches that currently support this are: `+"`aws_s3`, `file`, `gcp_cloud_storage` and `memory`"+`. Attempting to consume from any other cache will result in a connection error.
+The cache must support listing its keys, which is an optional capability. Attempting to consume from any other cache will result in a connection error.
 
 The set of keys to read is captured when the input connects, after which each item is read individually. Items deleted after the keys were captured are skipped, and items added after the keys were captured are not consumed. The order in which items are read is undefined. If the input disconnects mid-stream due to an error it will capture the set of keys again once it reconnects, in which case items may be emitted a second time.
 
