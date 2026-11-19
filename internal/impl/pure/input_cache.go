@@ -59,6 +59,70 @@ cache_resources:
     redis:
       url: tcp://localhost:6379
 `,
+		).
+		Example(
+			"Continuously read from a cache",
+			"Uses a `read_until` input to continuously read from a cache - deleting items when they are delivered to the output.",
+			`
+input:
+  read_until:
+    input:
+      cache:
+        resource: test_cache
+        delete_items: true
+    idle_timeout: 5s
+    restart_input: true
+
+output:
+  stdout: {}
+
+cache_resources:
+  - label: test_cache
+    file:
+      directory: ${PWD}/cache/
+`,
+		).
+		Example(
+			"Migrate cache items from multiple caches",
+			"Uses a sequence input to drain multiple caches into another cache",
+			`
+input:
+  sequence:
+    inputs:
+      - cache: 
+          resource: test_cache_romulus
+          delete_items: true
+      - cache: 
+          resource: test_cache_remus
+          delete_items: true
+
+output:
+  cache:
+    target: target_cache
+    key: ${! metadata("cache_key") }
+
+cache_resources:
+  - label: test_cache_romulus
+    file:
+      directory: ${PWD}/cache_romulus/
+
+  - label: test_cache_remus
+    file:
+      directory: ${PWD}/cache_remus/
+
+  - label: target_cache
+    sql:
+      driver: sqlite
+      dsn: file:${PWD}/test.db
+      table: test
+      key_column: key
+      value_column: value
+      init_statement: |
+        CREATE TABLE IF NOT EXISTS test (
+          key TEXT PRIMARY KEY,
+          value TEXT
+        );
+`,
 		)
 }
 
