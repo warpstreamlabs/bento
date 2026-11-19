@@ -3,6 +3,7 @@ package hdfs
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -129,15 +130,22 @@ func (h *hdfsWriter) WriteBatch(ctx context.Context, batch service.MessageBatch)
 
 		mBytes, err := m.AsBytes()
 		if err != nil {
+			_ = fw.Close()
 			return err
 		}
 
-		if _, err := fw.Write(mBytes); err != nil {
-			return err
-		}
-		fw.Close()
-		return nil
+		return writeAndClose(fw, mBytes)
 	})
+}
+
+// writeAndClose writes data to fw and closes it. HDFS only confirms written
+// data once the file is closed, so the error from Close must be returned.
+func writeAndClose(fw io.WriteCloser, data []byte) error {
+	if _, err := fw.Write(data); err != nil {
+		_ = fw.Close()
+		return err
+	}
+	return fw.Close()
 }
 
 func (h *hdfsWriter) Close(context.Context) error {
