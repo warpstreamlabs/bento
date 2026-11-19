@@ -27,6 +27,9 @@ func Spec() docs.FieldSpecs {
 			docs.FieldString(fieldFilePath, "The file path to write logs to, if the file does not exist it will be created. Leave this field empty or unset to disable file based logging.").HasDefault(""),
 			docs.FieldBool(fieldFileRotate, "Whether to rotate log files automatically.").HasDefault(false),
 			docs.FieldInt(fieldFileRotateMaxAge, "The maximum number of days to retain old log files based on the timestamp encoded in their filename, after which they are deleted. Setting to zero disables this mechanism.").HasDefault(0),
+			docs.FieldInt(fieldFileRotateMaxSize, "The maximum size in megabytes a log file can reach before it is rotated.").HasDefault(10).LinterBlobl(`root = if this < 1 { "rotate_max_size_mb must be at least 1" }`).AtVersion("1.23.0"),
+			docs.FieldInt(fieldFileRotateMaxBackups, "The maximum number of rotated log files to retain. Setting to zero retains all of them, although `rotate_max_age_days` may still delete them.").HasDefault(1).LinterBlobl(`root = if this < 0 { "rotate_max_backups cannot be negative" }`).AtVersion("1.23.0"),
+			docs.FieldBool(fieldFileRotateCompress, "Whether to compress rotated log files with gzip.").HasDefault(true).AtVersion("1.23.0"),
 		),
 		docs.FieldBool(fieldLogAllErrors, "Experimental: When set, the logger will promote any log containing an `error` type to the `ERROR` level.").HasDefault(false).Advanced().AtVersion("1.4.0"),
 	}

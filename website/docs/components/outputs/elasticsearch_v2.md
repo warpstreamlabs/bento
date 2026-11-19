@@ -96,6 +96,8 @@ output:
       - 502
       - 503
       - 504
+    retry_on_conflict: 0 # No default (optional)
+    num_workers: 0
     max_retries: 0
     backoff:
       initial_interval: 1s
@@ -515,6 +517,21 @@ HTTP Status codes that should be retried.
 
 Type: `array`  
 Default: `[502,503,504]`  
+
+### `retry_on_conflict`
+
+The number of times Elasticsearch retries an `update` or `upsert` action internally when it hits a version conflict, e.g. from concurrent writes to the same document. Not sent when unset.
+
+
+Type: `int`  
+
+### `num_workers`
+
+The number of workers of the [BulkIndexer](https://pkg.go.dev/github.com/elastic/go-elasticsearch/v9/esutil#BulkIndexer) used for each batch. 0 uses the library default, the number of CPUs.
+
+
+Type: `int`  
+Default: `0`  
 
 ### `max_retries`
 

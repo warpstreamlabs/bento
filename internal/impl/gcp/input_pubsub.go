@@ -3,13 +3,17 @@ package gcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
-	"cloud.google.com/go/pubsub" //nolint:staticcheck
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/api/option"
 
 	"github.com/warpstreamlabs/bento/public/service"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -34,6 +38,7 @@ type pbiConfig struct {
 	Sync                   bool
 	CreateEnabled          bool
 	CreateTopicID          string
+	ClientOptions          []option.ClientOption
 }
 
 func pbiConfigFromParsed(pConf *service.ParsedConfig) (conf pbiConfig, err error) {
@@ -63,6 +68,9 @@ func pbiConfigFromParsed(pConf *service.ParsedConfig) (conf pbiConfig, err error
 		if conf.CreateTopicID, err = createConf.FieldString(pbiFieldCreateSubTopicID); err != nil {
 			return
 		}
+	}
+	if conf.ClientOptions, err = gcpClientOptionsFromParsed(pConf); err != nil {
+		return
 	}
 	return
 }
@@ -101,6 +109,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Default(""),
 			service.NewBoolField(pbiFieldSync).
 				Description("Enable synchronous pull mode.").
+				Deprecated().
 				Default(false),
 			service.NewIntField(pbiFieldMaxOutstandingMessages).
 				Description("The maximum number of outstanding pending messages to be consumed at a given time.").
@@ -119,6 +128,7 @@ You can access these metadata fields using [function interpolation](/docs/config
 				Advanced(),
 			service.NewExtractTracingSpanMappingField().Version("1.21.0"),
 			service.NewRootSpanWithLinkField().Version("1.21.0"),
+			gcpCredentialsField(),
 		)
 }
 
@@ -141,33 +151,40 @@ func init() {
 }
 
 func createSubscription(conf pbiConfig, client *pubsub.Client, log *service.Logger) {
-	subsExists, err := client.Subscription(conf.SubscriptionID).Exists(context.Background())
-	if err != nil {
-		log.Errorf("Error checking if subscription exists: %v", err)
-		return
-	}
-
-	if subsExists {
-		log.Infof("Subscription '%v' already exists", conf.SubscriptionID)
-		return
-	}
-
 	if conf.CreateTopicID == "" {
 		log.Infof("Subscription won't be created because TopicID is not defined")
 		return
 	}
 
-	log.Infof("Creating subscription '%v' on topic '%v'\n", conf.SubscriptionID, conf.CreateTopicID)
-	_, err = client.CreateSubscription(context.Background(), conf.SubscriptionID, pubsub.SubscriptionConfig{Topic: client.Topic(conf.CreateTopicID)})
-	if err != nil {
-		log.Errorf("Error creating subscription %v", err)
+	subName := qualifiedName(client.Project(), "subscriptions", conf.SubscriptionID)
+	topicName := qualifiedName(client.Project(), "topics", conf.CreateTopicID)
+
+	log.Infof("Creating subscription '%v' on topic '%v'", subName, topicName)
+	_, err := client.SubscriptionAdminClient.CreateSubscription(context.Background(), &pubsubpb.Subscription{
+		Name:  subName,
+		Topic: topicName,
+	})
+	if err == nil {
+		return
 	}
+	if status.Code(err) == codes.AlreadyExists {
+		log.Infof("Subscription '%v' already exists", subName)
+		return
+	}
+	log.Errorf("Error creating subscription: %v", err)
+}
+
+func qualifiedName(project, kind, id string) string {
+	if strings.HasPrefix(id, "projects/") {
+		return id
+	}
+	return fmt.Sprintf("projects/%s/%s/%s", project, kind, id)
 }
 
 type gcpPubSubReader struct {
 	conf pbiConfig
 
-	subscription *pubsub.Subscription
+	subscription *pubsub.Subscriber
 	msgsChan     chan *pubsub.Message
 	closeFunc    context.CancelFunc
 	subMut       sync.Mutex
@@ -178,9 +195,9 @@ type gcpPubSubReader struct {
 }
 
 func newGCPPubSubReader(conf pbiConfig, res *service.Resources) (*gcpPubSubReader, error) {
-	var opt []option.ClientOption
+	opt := conf.ClientOptions
 	if strings.TrimSpace(conf.Endpoint) != "" {
-		opt = []option.ClientOption{option.WithEndpoint(conf.Endpoint)}
+		opt = append(opt, option.WithEndpoint(conf.Endpoint))
 	}
 
 	client, err := pubsub.NewClient(context.Background(), conf.ProjectID, opt...)
@@ -209,10 +226,9 @@ func (c *gcpPubSubReader) Connect(ignored context.Context) error {
 		return nil
 	}
 
-	sub := c.client.Subscription(c.conf.SubscriptionID)
+	sub := c.client.Subscriber(c.conf.SubscriptionID)
 	sub.ReceiveSettings.MaxOutstandingMessages = c.conf.MaxOutstandingMessages
 	sub.ReceiveSettings.MaxOutstandingBytes = c.conf.MaxOutstandingBytes
-	sub.ReceiveSettings.Synchronous = c.conf.Sync
 
 	subCtx, cancel := context.WithCancel(context.Background())
 	msgsChan := make(chan *pubsub.Message, 1)

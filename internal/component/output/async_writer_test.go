@@ -16,7 +16,7 @@ import (
 )
 
 type mockAsyncWriter struct {
-	msgsTotal uint64
+	msgsTotal atomic.Uint64
 	msgsRcvd  sync.Map
 	connChan  chan error
 	writeChan chan error
@@ -34,7 +34,7 @@ func (w *mockAsyncWriter) Connect(ctx context.Context) error {
 }
 
 func (w *mockAsyncWriter) WriteBatch(ctx context.Context, msg message.Batch) error {
-	w.msgsRcvd.Store(atomic.AddUint64(&w.msgsTotal, 1), msg)
+	w.msgsRcvd.Store(w.msgsTotal.Add(1), msg)
 	return <-w.writeChan
 }
 func (w *mockAsyncWriter) Close(context.Context) error { return nil }

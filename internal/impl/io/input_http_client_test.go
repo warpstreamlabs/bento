@@ -45,7 +45,7 @@ func TestHTTPClientGET(t *testing.T) {
 		"foo5",
 	}
 
-	var reqCount uint32
+	var reqCount atomic.Uint32
 	index := 0
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func TestHTTPClientGET(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, reqBytes)
 
-		atomic.AddUint32(&reqCount, 1)
+		reqCount.Add(1)
 		_, _ = w.Write([]byte(inputs[index%len(inputs)]))
 		index++
 	}))
@@ -96,7 +96,7 @@ http_client:
 	h.TriggerStopConsuming()
 	require.NoError(t, h.WaitForClose(tCtx))
 
-	if exp, act := uint32(len(inputs)), atomic.LoadUint32(&reqCount); exp != act && exp+1 != act {
+	if exp, act := uint32(len(inputs)), reqCount.Load(); exp != act && exp+1 != act {
 		t.Errorf("Wrong count of HTTP attempts: %v != %v", act, exp)
 	}
 }
@@ -276,7 +276,7 @@ func TestHTTPClientPOST(t *testing.T) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*5)
 	defer done()
 
-	var reqCount uint32
+	var reqCount atomic.Uint32
 	inputs := []string{
 		"foo1",
 		"foo2",
@@ -301,7 +301,7 @@ func TestHTTPClientPOST(t *testing.T) {
 			t.Errorf("Wrong post body: %v != %v", act, exp)
 		}
 
-		atomic.AddUint32(&reqCount, 1)
+		reqCount.Add(1)
 		_, _ = w.Write([]byte(inputs[index%len(inputs)]))
 		index++
 	}))
@@ -342,7 +342,7 @@ http_client:
 	h.TriggerStopConsuming()
 	require.NoError(t, h.WaitForClose(tCtx))
 
-	if exp, act := uint32(len(inputs)), atomic.LoadUint32(&reqCount); exp != act && exp+1 != act {
+	if exp, act := uint32(len(inputs)), reqCount.Load(); exp != act && exp+1 != act {
 		t.Errorf("Wrong count of HTTP attempts: %v != %v", act, exp)
 	}
 }
@@ -351,12 +351,12 @@ func TestHTTPClientGETMultipart(t *testing.T) {
 	tCtx, done := context.WithTimeout(context.Background(), time.Second*5)
 	defer done()
 
-	var reqCount uint32
+	var reqCount atomic.Uint32
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if exp, act := "GET", r.Method; exp != act {
 			t.Errorf("Wrong method: %v != %v", act, exp)
 		}
-		atomic.AddUint32(&reqCount, 1)
+		reqCount.Add(1)
 
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
@@ -420,7 +420,7 @@ http_client:
 	h.TriggerStopConsuming()
 	require.NoError(t, h.WaitForClose(tCtx))
 
-	if exp, act := uint32(1), atomic.LoadUint32(&reqCount); exp != act && exp+1 != act {
+	if exp, act := uint32(1), reqCount.Load(); exp != act && exp+1 != act {
 		t.Errorf("Wrong count of HTTP attempts: %v != %v", act, exp)
 	}
 }

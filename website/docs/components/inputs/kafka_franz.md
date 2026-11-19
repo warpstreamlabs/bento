@@ -63,6 +63,7 @@ input:
     fetch_max_bytes: 50MiB
     fetch_max_partition_bytes: 1MiB
     fetch_max_wait: 5s
+    broker_read_max_bytes: 100MiB
     preferring_lag: 0 # No default (optional)
     transaction_isolation_level: read_uncommitted
     tls:
@@ -298,6 +299,23 @@ Type: `string`
 Default: `"5s"`  
 Requires version 1.3.0 or newer  
 
+### `broker_read_max_bytes`
+
+broker_read_max_bytes sets the maximum response size that can be read from Kafka.
+
+
+Type: `string`  
+Default: `"100MiB"`  
+Requires version 1.21.0 or newer  
+
+```yml
+# Examples
+
+broker_read_max_bytes: 100MB
+
+broker_read_max_bytes: 50mib
+```
+
 ### `preferring_lag`
 
 This allows you to re-order partitions before they are fetched, given each partition's current lag.
@@ -479,6 +497,14 @@ sasl:
   - mechanism: SCRAM-SHA-512
     password: bar
     username: foo
+
+sasl:
+  - kerberos_config_path: /etc/krb5.conf
+    keytab_path: /etc/security/keytabs/kafka.keytab
+    mechanism: GSSAPI
+    principal: kafka_client/host.example.com
+    realm: EXAMPLE.COM
+    service_name: kafka
 ```
 
 ### `sasl[].mechanism`
@@ -491,6 +517,7 @@ Type: `string`
 | Option | Summary |
 |---|---|
 | `AWS_MSK_IAM` | AWS IAM based authentication as specified by the 'aws-msk-iam-auth' java library. |
+| `GSSAPI` | GSSAPI / Kerberos based authentication. |
 | `OAUTHBEARER` | OAuth Bearer based authentication. |
 | `PLAIN` | Plain text authentication. |
 | `SCRAM-SHA-256` | SCRAM based authentication as specified in RFC5802. |
@@ -686,6 +713,54 @@ Allow the credentials to trigger refreshing prior to the credentials actually ex
 
 Type: `string`  
 Default: `""`  
+
+### `sasl[].kerberos_config_path`
+
+The path to a kerberos configuration file (krb5.conf). Used when mechanism is set to `GSSAPI`.
+
+
+Type: `string`  
+Default: `"/etc/krb5.conf"`  
+
+### `sasl[].keytab_path`
+
+The path to a keytab file to use for authentication with the kerberos client.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].principal`
+
+The principal to use for kerberos authentication, e.g. `kafka_client/host.example.com`.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].realm`
+
+The realm to use for kerberos authentication.
+
+
+Type: `string`  
+Default: `""`  
+
+### `sasl[].service_name`
+
+The service name to use when constructing a service ticket with the kerberos client, e.g. `kafka` (default).
+
+
+Type: `string`  
+Default: `"kafka"`  
+
+### `sasl[].disable_pafx_fast`
+
+Controls whether to use PA_FX_FAST in AS_REQ (pre-authentication fast).
+
+
+Type: `bool`  
+Default: `false`  
 
 ### `multi_header`
 

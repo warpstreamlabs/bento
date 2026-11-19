@@ -27,7 +27,7 @@ xml_documents:
 
 ### `operator`
 
-An XML [operation](#operators) to apply to messages.
+An XML [operation](/docs/components/processors/xml#operators) to apply to messages.
 
 
 Type: `string`  

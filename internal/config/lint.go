@@ -98,8 +98,7 @@ func ReadFileEnvSwap(store ifs.FS, path string, lookupEnvFn func(name string) (s
 	}
 
 	if configBytes, err = ReplaceEnvVariables(configBytes, lookupEnvFn); err != nil {
-		var errEnvMissing *ErrMissingEnvVars
-		if errors.As(err, &errEnvMissing) {
+		if errEnvMissing, ok := errors.AsType[*ErrMissingEnvVars](err); ok {
 			configBytes = errEnvMissing.BestAttempt
 			lints = append(lints, docs.NewLintError(1, docs.LintMissingEnvVar, err))
 			err = nil
@@ -121,8 +120,7 @@ func ReadBentoConfigEnvVarEnvSwap(config string, lookupEnvFn func(name string) (
 	}
 
 	if configBytes, err = ReplaceEnvVariables(configBytes, lookupEnvFn); err != nil {
-		var errEnvMissing *ErrMissingEnvVars
-		if errors.As(err, &errEnvMissing) {
+		if errEnvMissing, ok := errors.AsType[*ErrMissingEnvVars](err); ok {
 			configBytes = errEnvMissing.BestAttempt
 			lints = append(lints, docs.NewLintError(1, docs.LintMissingEnvVar, err))
 			err = nil

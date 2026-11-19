@@ -112,11 +112,11 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 			Options:   tt.opts,
 		}
 
-		pipeline, err := hugot.NewPipeline(session, config)
+		pipeline, err := session.NewPipeline(config)
 		require.NoError(t, err, "Failed to create pipeline")
 
 		t.Cleanup(func() {
-			require.NoError(t, pipeline.GetModel().Destroy())
+			require.NoError(t, session.ClosePipeline(tt.name))
 		})
 
 		// Run the pipeline and save the results
@@ -137,12 +137,12 @@ func TestSnapshot_CreateFeatureExtractionData(t *testing.T) {
 		snapshot := Snapshot{
 			Results: results,
 			TokenizerStats: Stats{
-				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
-				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+				Duration: time.Duration(pipeline.TokenizerTimings.TotalNS),
+				Calls:    pipeline.TokenizerTimings.NumCalls,
 			},
 			PipelineStats: Stats{
-				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
-				Calls:    pipeline.PipelineTimings.NumCalls,
+				Duration: time.Duration(pipeline.ONNXTimings.TotalNS),
+				Calls:    pipeline.ONNXTimings.NumCalls,
 			},
 			Metadata: Metadata{
 				TestName:  tt.name,
@@ -207,11 +207,11 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 			Options:   tt.opts,
 		}
 
-		pipeline, err := hugot.NewPipeline(session, config)
+		pipeline, err := session.NewPipeline(config)
 		require.NoError(t, err, "Failed to create pipeline")
 
 		t.Cleanup(func() {
-			require.NoError(t, pipeline.GetModel().Destroy())
+			require.NoError(t, session.ClosePipeline(tt.name))
 		})
 		// Run the pipeline and save the results
 		var results []Result
@@ -231,12 +231,12 @@ func TestSnapshot_CreateTokenClassificationData(t *testing.T) {
 		snapshot := Snapshot{
 			Results: results,
 			TokenizerStats: Stats{
-				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
-				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+				Duration: time.Duration(pipeline.TokenizerTimings.TotalNS),
+				Calls:    pipeline.TokenizerTimings.NumCalls,
 			},
 			PipelineStats: Stats{
-				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
-				Calls:    pipeline.PipelineTimings.NumCalls,
+				Duration: time.Duration(pipeline.ONNXTimings.TotalNS),
+				Calls:    pipeline.ONNXTimings.NumCalls,
 			},
 			Metadata: Metadata{
 				TestName:  tt.name,
@@ -313,11 +313,11 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 			Options:   tt.opts,
 		}
 
-		pipeline, err := hugot.NewPipeline(session, config)
+		pipeline, err := session.NewPipeline(config)
 		require.NoError(t, err, "Failed to create pipeline")
 
 		t.Cleanup(func() {
-			require.NoError(t, pipeline.GetModel().Destroy())
+			require.NoError(t, session.ClosePipeline(tt.name))
 		})
 
 		// Run the pipeline and save the results
@@ -338,12 +338,12 @@ func TestSnapshot_CreateClassificationData(t *testing.T) {
 		snapshot := Snapshot{
 			Results: results,
 			TokenizerStats: Stats{
-				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
-				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+				Duration: time.Duration(pipeline.TokenizerTimings.TotalNS),
+				Calls:    pipeline.TokenizerTimings.NumCalls,
 			},
 			PipelineStats: Stats{
-				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
-				Calls:    pipeline.PipelineTimings.NumCalls,
+				Duration: time.Duration(pipeline.ONNXTimings.TotalNS),
+				Calls:    pipeline.ONNXTimings.NumCalls,
 			},
 			Metadata: Metadata{
 				TestName:  tt.name,
@@ -429,11 +429,11 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 			Options:   modelOpts,
 		}
 
-		pipeline, err := hugot.NewPipeline(session, config)
+		pipeline, err := session.NewPipeline(config)
 		require.NoError(t, err, "Failed to create pipeline")
 
 		t.Cleanup(func() {
-			require.NoError(t, pipeline.GetModel().Destroy())
+			require.NoError(t, session.ClosePipeline(tt.name))
 		})
 		// Run the pipeline and save the results
 		var results []Result
@@ -453,12 +453,12 @@ func TestSnapshot_ZeroShotClassificationData(t *testing.T) {
 		snapshot := Snapshot{
 			Results: results,
 			TokenizerStats: Stats{
-				Duration: time.Duration(pipeline.Model.Tokenizer.TokenizerTimings.TotalNS),
-				Calls:    pipeline.Model.Tokenizer.TokenizerTimings.NumCalls,
+				Duration: time.Duration(pipeline.TokenizerTimings.TotalNS),
+				Calls:    pipeline.TokenizerTimings.NumCalls,
 			},
 			PipelineStats: Stats{
-				Duration: time.Duration(pipeline.PipelineTimings.TotalNS),
-				Calls:    pipeline.PipelineTimings.NumCalls,
+				Duration: time.Duration(pipeline.ONNXTimings.TotalNS),
+				Calls:    pipeline.ONNXTimings.NumCalls,
 			},
 			Metadata: Metadata{
 				TestName:  tt.name,

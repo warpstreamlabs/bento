@@ -84,7 +84,8 @@ type nsqReader struct {
 	consumer *nsq.Consumer
 	cMut     sync.Mutex
 
-	unAckMsgs []*nsq.Message
+	unAckMut  sync.Mutex
+	unAckMsgs map[nsq.MessageID]*nsq.Message
 
 	tlsConf         *tls.Config
 	authSecret      string
@@ -105,6 +106,7 @@ type nsqReader struct {
 func newNSQReaderFromParsed(conf *service.ParsedConfig, mgr *service.Resources) (n *nsqReader, err error) {
 	n = &nsqReader{
 		log:              mgr.Logger(),
+		unAckMsgs:        map[nsq.MessageID]*nsq.Message{},
 		internalMessages: make(chan *nsq.Message),
 		interruptChan:    make(chan struct{}),
 	}
@@ -227,11 +229,13 @@ func (n *nsqReader) read(ctx context.Context) (*nsq.Message, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-n.interruptChan:
-		for _, m := range n.unAckMsgs {
+		n.unAckMut.Lock()
+		for id, m := range n.unAckMsgs {
 			m.Requeue(-1)
 			m.Finish()
+			delete(n.unAckMsgs, id)
 		}
-		n.unAckMsgs = nil
+		n.unAckMut.Unlock()
 		_ = n.disconnect()
 		return nil, service.ErrEndOfInput
 	}
@@ -242,7 +246,9 @@ func (n *nsqReader) Read(ctx context.Context) (*service.Message, service.AckFunc
 	if err != nil {
 		return nil, nil, err
 	}
-	n.unAckMsgs = append(n.unAckMsgs, msg)
+	n.unAckMut.Lock()
+	n.unAckMsgs[msg.ID] = msg
+	n.unAckMut.Unlock()
 
 	part := service.NewMessage(msg.Body)
 	part.MetaSetMut("nsq_attempts", strconv.Itoa(int(msg.Attempts)))
@@ -251,6 +257,10 @@ func (n *nsqReader) Read(ctx context.Context) (*service.Message, service.AckFunc
 	part.MetaSetMut("nsq_nsqd_address", msg.NSQDAddress)
 
 	return part, func(rctx context.Context, res error) error {
+		n.unAckMut.Lock()
+		delete(n.unAckMsgs, msg.ID)
+		n.unAckMut.Unlock()
+
 		if res != nil {
 			msg.Requeue(-1)
 		}

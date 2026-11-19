@@ -21,7 +21,7 @@ type chaosOutput struct {
 	t        *testing.T
 	expected string
 	eRate    float64
-	seen     int64
+	seen     atomic.Int64
 }
 
 func (c *chaosOutput) Connect(ctx context.Context) error {
@@ -33,7 +33,7 @@ func (c *chaosOutput) Write(ctx context.Context, m *service.Message) error {
 	require.NoError(c.t, err)
 	assert.Equal(c.t, c.expected, string(mBytes))
 
-	_ = atomic.AddInt64(&c.seen, 1)
+	_ = c.seen.Add(1)
 
 	// Whether or not we acknowledge is random
 	if f := rand.Float64(); f <= c.eRate {
@@ -43,7 +43,7 @@ func (c *chaosOutput) Write(ctx context.Context, m *service.Message) error {
 }
 
 func (c *chaosOutput) Close(ctx context.Context) error {
-	assert.Greater(c.t, atomic.LoadInt64(&c.seen), int64(0), c.expected)
+	assert.Greater(c.t, c.seen.Load(), int64(0), c.expected)
 	return nil
 }
 

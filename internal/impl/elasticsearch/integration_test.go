@@ -14,8 +14,7 @@ import (
 	"time"
 
 	"github.com/olivere/elastic/v7"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 
 	"github.com/warpstreamlabs/bento/public/service"
@@ -45,23 +44,22 @@ func TestIntegrationElasticsearchV8(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err := pool.Run("elasticsearch", "8.1.2", []string{
-		"discovery.type=single-node",
-		"xpack.security.enabled=false",
-		"xpack.security.http.ssl.enabled=false",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "elasticsearch",
+		dockertest.WithTag("8.1.2"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"xpack.security.enabled=false",
+			"xpack.security.http.ssl.enabled=false",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
+		}),
+		dockertest.WithoutReuse(),
+	)
 
+	var err error
 	var client *elastic.Client
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		opts := []elastic.ClientOptionFunc{
 			elastic.SetURL(fmt.Sprintf("http://localhost:%v", resource.GetPort("9200/tcp"))),
 			elastic.SetHttpClient(&http.Client{
@@ -82,8 +80,6 @@ func TestIntegrationElasticsearchV8(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	_ = resource.Expire(900)
 
 	template := `
 output:
@@ -128,21 +124,20 @@ func TestIntegrationElasticsearchV7(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err := pool.Run("elasticsearch", "7.17.2", []string{
-		"discovery.type=single-node",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "elasticsearch",
+		dockertest.WithTag("7.17.2"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
+		}),
+		dockertest.WithoutReuse(),
+	)
 
+	var err error
 	var client *elastic.Client
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(t.Context(), 0, func() error {
 		opts := []elastic.ClientOptionFunc{
 			elastic.SetURL(fmt.Sprintf("http://localhost:%v", resource.GetPort("9200/tcp"))),
 			elastic.SetHttpClient(&http.Client{
@@ -166,8 +161,6 @@ func TestIntegrationElasticsearchV7(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	_ = resource.Expire(900)
 
 	template := `
 output:
@@ -211,24 +204,22 @@ output:
 func TestIntegrationConnectTLS(t *testing.T) {
 	integration.CheckSkip(t)
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err := pool.Run("elasticsearch", "8.16.5", []string{
-		"discovery.type=single-node",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m",
-		"ELASTIC_PASSWORD=password",
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	resource := pool.RunT(t, "elasticsearch",
+		dockertest.WithTag("8.16.5"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m",
+			"ELASTIC_PASSWORD=password",
+		}),
+		dockertest.WithoutReuse(),
+	)
 
 	// give elasticsearch a moment to create a tls cert
 	time.Sleep(time.Second * 20)
 
-	containerName := resource.Container.Name[1:]
+	containerName := resource.Container().Name[1:]
 	cmd := exec.Command("docker", "exec", containerName, "cat", "config/certs/http_ca.crt")
 	output, err := cmd.Output()
 	require.NoError(t, err)
@@ -244,7 +235,7 @@ func TestIntegrationConnectTLS(t *testing.T) {
 	polllURL := fmt.Sprintf("https://elastic:password@localhost:%s", resource.GetPort("9200/tcp"))
 	configURL := fmt.Sprintf("https://localhost:%s", resource.GetPort("9200/tcp"))
 
-	err = pool.Retry(func() error {
+	err = pool.Retry(t.Context(), 0, func() error {
 		resp, err := client.Get(fmt.Sprintf("%s/_cluster/health", polllURL))
 		if err != nil {
 			return err
@@ -285,21 +276,20 @@ tls:
 func BenchmarkIntegrationElasticsearch(b *testing.B) {
 	integration.CheckSkip(b)
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(b, err)
+	pool := dockertest.NewPoolT(b, "", dockertest.WithMaxWait(time.Minute))
 
-	pool.MaxWait = time.Minute * 3
-	resource, err := pool.Run("elasticsearch", "7.13.4", []string{
-		"discovery.type=single-node",
-		"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
-	})
-	require.NoError(b, err)
-	b.Cleanup(func() {
-		assert.NoError(b, pool.Purge(resource))
-	})
+	resource := pool.RunT(b, "elasticsearch",
+		dockertest.WithTag("7.13.4"),
+		dockertest.WithEnv([]string{
+			"discovery.type=single-node",
+			"ES_JAVA_OPTS=-Xms512m -Xmx512m", // By default ES immediately gobbles half the available RAM, what a psychopath.
+		}),
+		dockertest.WithoutReuse(),
+	)
 
+	var err error
 	var client *elastic.Client
-	if err = pool.Retry(func() error {
+	if err = pool.Retry(b.Context(), 0, func() error {
 		opts := []elastic.ClientOptionFunc{
 			elastic.SetURL(fmt.Sprintf("http://localhost:%v", resource.GetPort("9200/tcp"))),
 			elastic.SetHttpClient(&http.Client{
@@ -320,8 +310,6 @@ func BenchmarkIntegrationElasticsearch(b *testing.B) {
 	}); err != nil {
 		b.Fatalf("Could not connect to docker resource: %s", err)
 	}
-
-	_ = resource.Expire(900)
 
 	template := `
 output:

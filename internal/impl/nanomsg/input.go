@@ -176,9 +176,11 @@ func (s *nanomsgReader) Connect(ctx context.Context) (err error) {
 		return err
 	}
 
-	for _, filter := range s.subFilters {
-		if err := socket.SetOption(mangos.OptionSubscribe, []byte(filter)); err != nil {
-			return err
+	if s.socketType == "SUB" {
+		for _, filter := range s.subFilters {
+			if err := socket.SetOption(mangos.OptionSubscribe, []byte(filter)); err != nil {
+				return err
+			}
 		}
 	}
 	s.socket = socket

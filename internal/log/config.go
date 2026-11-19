@@ -3,18 +3,21 @@ package log
 import "github.com/warpstreamlabs/bento/internal/docs"
 
 const (
-	fieldLogLevel         = "level"
-	fieldFormat           = "format"
-	fieldAddTimeStamp     = "add_timestamp"
-	fieldLevelName        = "level_name"
-	fieldMessageName      = "message_name"
-	fieldTimestampName    = "timestamp_name"
-	fieldStaticFields     = "static_fields"
-	fieldFile             = "file"
-	fieldFilePath         = "path"
-	fieldFileRotate       = "rotate"
-	fieldFileRotateMaxAge = "rotate_max_age_days"
-	fieldLogAllErrors     = "log_all_errors"
+	fieldLogLevel             = "level"
+	fieldFormat               = "format"
+	fieldAddTimeStamp         = "add_timestamp"
+	fieldLevelName            = "level_name"
+	fieldMessageName          = "message_name"
+	fieldTimestampName        = "timestamp_name"
+	fieldStaticFields         = "static_fields"
+	fieldFile                 = "file"
+	fieldFilePath             = "path"
+	fieldFileRotate           = "rotate"
+	fieldFileRotateMaxAge     = "rotate_max_age_days"
+	fieldFileRotateMaxSize    = "rotate_max_size_mb"
+	fieldFileRotateMaxBackups = "rotate_max_backups"
+	fieldFileRotateCompress   = "rotate_compress"
+	fieldLogAllErrors         = "log_all_errors"
 )
 
 // Config holds configuration options for a logger object.
@@ -32,9 +35,12 @@ type Config struct {
 
 // File contains configuration for file based logging.
 type File struct {
-	Path         string `yaml:"path"`
-	Rotate       bool   `yaml:"rotate"`
-	RotateMaxAge int    `yaml:"rotate_max_age_days"`
+	Path             string `yaml:"path"`
+	Rotate           bool   `yaml:"rotate"`
+	RotateMaxAge     int    `yaml:"rotate_max_age_days"`
+	RotateMaxSize    int    `yaml:"rotate_max_size_mb"`
+	RotateMaxBackups int    `yaml:"rotate_max_backups"`
+	RotateCompress   bool   `yaml:"rotate_compress"`
 }
 
 // NewConfig returns a config struct with the default values for each field.
@@ -49,6 +55,11 @@ func NewConfig() Config {
 		MessageName:   "msg",
 		StaticFields: map[string]string{
 			"@service": "bento",
+		},
+		File: File{
+			RotateMaxSize:    10,
+			RotateMaxBackups: 1,
+			RotateCompress:   true,
 		},
 	}
 }
@@ -109,6 +120,15 @@ func FromParsed(pConf *docs.ParsedConfig) (conf Config, err error) {
 			return
 		}
 		if conf.File.RotateMaxAge, err = fConf.FieldInt(fieldFileRotateMaxAge); err != nil {
+			return
+		}
+		if conf.File.RotateMaxSize, err = fConf.FieldInt(fieldFileRotateMaxSize); err != nil {
+			return
+		}
+		if conf.File.RotateMaxBackups, err = fConf.FieldInt(fieldFileRotateMaxBackups); err != nil {
+			return
+		}
+		if conf.File.RotateCompress, err = fConf.FieldBool(fieldFileRotateCompress); err != nil {
 			return
 		}
 	}

@@ -22,6 +22,7 @@ type bigQuerySelectInputConfig struct {
 	argsMapping   *bloblang.Executor
 	queryPriority bigquery.QueryPriority
 	jobLabels     map[string]string
+	clientOptions []option.ClientOption
 }
 
 func bigQuerySelectInputConfigFromParsed(inConf *service.ParsedConfig) (conf bigQuerySelectInputConfig, err error) {
@@ -29,6 +30,10 @@ func bigQuerySelectInputConfigFromParsed(inConf *service.ParsedConfig) (conf big
 	conf.queryParts = queryParts
 
 	if conf.project, err = inConf.FieldString("project"); err != nil {
+		return
+	}
+
+	if conf.clientOptions, err = gcpClientOptionsFromParsed(inConf); err != nil {
 		return
 	}
 
@@ -105,6 +110,7 @@ func newBigQuerySelectInputConfig() *service.ConfigSpec {
 		Field(service.NewStringField("suffix").
 			Description("An optional suffix to append to the select query.").
 			Optional()).
+		Field(gcpCredentialsField()).
 		Example("Word counts",
 			`
 Here we query the public corpus of Shakespeare's works to generate a stream of the top 10 words that are 3 or more characters long:`,
@@ -155,7 +161,7 @@ func newBigQuerySelectInput(inConf *service.ParsedConfig, logger *service.Logger
 		logger:        logger,
 		config:        &conf,
 		shutdownSig:   shutdown.NewSignaller(),
-		clientOptions: clientOptions,
+		clientOptions: append(conf.clientOptions, clientOptions...),
 	}, nil
 }
 

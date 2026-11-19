@@ -2,6 +2,7 @@ package output
 
 import (
 	"context"
+	"slices"
 
 	"github.com/warpstreamlabs/bento/internal/component"
 	iprocessor "github.com/warpstreamlabs/bento/internal/component/processor"
@@ -36,8 +37,8 @@ func WrapWithPipeline(out Streamed, pipeConstructor iprocessor.PipelineConstruct
 // WrapWithPipelines wraps an output with a variadic number of pipelines.
 func WrapWithPipelines(out Streamed, pipeConstructors ...iprocessor.PipelineConstructorFunc) (Streamed, error) {
 	var err error
-	for i := len(pipeConstructors) - 1; i >= 0; i-- {
-		if out, err = WrapWithPipeline(out, pipeConstructors[i]); err != nil {
+	for _, pipeConstructor := range slices.Backward(pipeConstructors) {
+		if out, err = WrapWithPipeline(out, pipeConstructor); err != nil {
 			return nil, err
 		}
 	}

@@ -3,20 +3,119 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## Unreleased - TBD
+
+### Fixed
+
+ - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+
+## 1.23.0 - 2026-11-16
+
+### Added
+
+ - WASM-based plugin system for Bento @gregfurman
+ - `tls` field added to `socket` output enabling TLS connections when `network` is `tcp` @weird-oecophylla
+ - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
+ - `aws_bedrock_chat` processor enables sending messages to LLMs via the model-agnostic `Converse` API @zcmack
+ - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
+ - CLI flag `--remote-config` enables fetching Bento stream config from HTTP servers on start @Omar1H1 & @jem-davies
+
+### Changed
+
+ - Shutdown timeouts that may cause duplicate delivery are now logged at `WARN` instead of `INFO` @piratecarrot
+ - The Hugging Face processors use hugot v0.8.3, which replaces the ONNX Runtime backend, and `enable_download` now creates the `path` directory when it is missing @slachiewicz
+ - `gcp_pubsub` components migrated to v2 - deprecates `sync` field as a no-op @jem-davies
+
+### Fixed
+
+ - `sftp` output now drops its client after a lost connection, so the next `Connect` re-establishes it instead of reusing the dead client and never delivering messages again @pcbeingused333
+ - `elasticsearch_v2` output no longer acks a batch whose whole `_bulk` request failed (unreachable cluster, non-2xx response): `github.com/elastic/go-elasticsearch/v9` is bumped to v9.3.6, which reports such failures per document, so they reach `fallback`/nacks like any other write error @jaasco
+ - `service.AutoRetryNacks` and `service.AutoRetryNacksBatched` no longer drop a pending retry when a read is cancelled during backoff @ReguiguiMohamed
+ - `elasticsearch_v2` output now aborts the in-flight `_bulk` request when the write context is cancelled, instead of leaving it running in the background until `timeout` @pcbeingused333
+ - `aws_kinesis_firehose` output includes a check to ensure request payload size is <4MiB @alecmerdler
+ - `nsq` input no longer keeps consumed messages in memory until shutdown which was causing unbounded memory usage @mwchatten
+ - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
+
+## 1.22.0 - 2026-10-09
+
+### Added
+
+ - `statsd` metric new fields: `send_queue_capacity`, `buf_pool_capacity` & `send_loop_count` @triddell
+ - `credentials` object to GCP components with fields `impersonate_service_account` & `impersonate_delegates` @NguyenThanhDat741862
+ - `kafka_franz` components now include `GSSAPI` (kerberos) in available `sasl.mechanism` options @kmetaxas
+ - `redis_scan` input can now handle hash values with additional Bento config fields: `data_type`, `value_format`, `scan_count`, `hash_scan_count` @maxtheaxe
+ - `mqtt_v5` experimental input & output components enabling Bento to send/receive MQTT 5 messages @ifnesi
+ - `prefix` field added to `aws_s3` and `gcp_cloud_storage` caches enabling multiple caches to share a bucket, scoping all operations including key listings @ecordell
+ - `aws_sqs` input field `visibility_timeout` (default `30s`); set to `0` to use the queue's own timeout @ReguiguiMohamed
+ - `DATE` & `TIMESTAMP_MILLIS` type options added to `parquet_encode` processor @triddell
+ - `parse_bytes` bloblang method for parsing humanised byte sizes (such as `10MB` or `20MiB`) into an integer number of bytes @SJ1397
+ - `prefix_metadata_keys` added to `http_server` input enables prefixing metadata with the source i.e. header_, path_ @kshivam4781
+ - `azure_queue_storage` input field `delete_message`, defaulting to `true`, which can be set to `false` to leave acknowledged messages on the queue @istairbn
+
+### Fixed
+
+ - YAML merge keys `<<: *ref_field` are now resolved when running streams, aligning behaviour with the `lint` subcommand @youdie006
+ - `mongodb` cache operator `exists` correctly handling `mongo.ErrNoDocuments` & non-bytes return type @gregfurman
+ - `gcp_bigquery_write_api` output's `batching.byte_size` lint rule triggered at 1 MB while claiming a 10 MB limit, incorrectly flagging valid batch configurations well under BigQuery's actual `AppendRows` request size limit @SJ1397
+ - `aws_kinesis` input stop duplicate EFO shard consumers accumulating under backpressure @matus-tomlein
+ - `fsevent` reconnect on watcher error instead of stalling @henrikschristensen
+ - `azure_queue_storage` input deleted messages on nack, losing them; nacked messages are now left on the queue and redelivered once their visibility timeout expires @istairbn
+ - `kafka_franz` sends sasl extensions when oauth2 is enabled @bgajdzis-pentaleap
+ - Inputs that automatically retry nacked messages could stay blocked on shutdown when a read was cancelled during the retry backoff @ReguiguiMohamed
+ - `aws_sqs` input looked for the queue's `VisibilityTimeout` on each message, which `ReceiveMessage` never returns, so in-flight messages could not be refreshed with anything but 30s @ReguiguiMohamed
+
+### Changed
+
+ - `nats_kv` output & cache migrated to new jetstream package & connection retry logic (increased frequency of retries & indefinite number of retries) @henrikschristensen
+
+## 1.21.2 - 2026-09-11 
+
+### Changed
+
+ - Updated to Go version 1.27.1 @gregfurman
+ - migrated MSSQL driver to official microsoft/go-mssqldb @cmelanson
+ - upgraded apache/pulsar client to v0.21.0 @slachiewicz
+ - upgraded gosnowflake to v2 @jem-davies
+
+### Fixed
+
+- `aws_kinesis` input with `enhanced_fan_out` no longer accumulates duplicate shard consumers when the pipeline applies sustained backpressure, which previously grew memory usage until the process was killed @matus-tomlein
+
+## 1.21.1 - 2026-08-26
+
+### Fixed
+
+- `kafka_franz` output field `broker_write_max_bytes` misconfigured (introduced in version 1.21.0) @jem-davies
+
+## 1.21.0 - 2026-08-21
 
 ### Added
 
 - Optional `Keys` method for caches enabling consumers of cache resources to enumerate keys, caches that do not support key listing yield `ErrKeyListingNotSupported` @ecordell
 - `memory`, `file`, `aws_s3` and `gcp_cloud_storage` caches support `Keys` @ecordell
+- `bucket` field on `aws_s3` output supports bloblang interpolation @jem-davies
+- Cache operation `exists` which checks caches for keys @lublak
+- `extract_tracing_map` and `new_root_span_with_link` on the `gcp_pubsub` input & `inject_tracing_map` on the `gcp_pubsub` output @jesperanzasolo
+- `transaction_isolation_level` field to `kafka` & `kafka_franz` components @mbuckley2000
+- `send_ack` field on `nats` input enables/disables sending acknowledgement back to nats' input subject reply address @ahart97
+- Optional ListableCache interface for caches that support key listing - with implementations for `memory`, `file`, `aws_s3` & `gcp_cloud_storage`
+- `broker_read_max_bytes` to `kafka_franz` input and `broker_write_max_bytes` & `max_buffered_bytes` options to `kafka_franz` output @jem-davies
 
 ### Fixed
 
 - `parse_big_decimal` rejects scales above 16383 to avoid unbounded big-integer work @aratz-lasa
+- stale buffer example path in internal/impl README @youdie006
+- `fsevent` preserves file create events when watching new subdirs @mattfaltyn
+- `aws_s3_stream` handles files smaller than S3's minimum multipart size @triddell
+
+### Changed
+
+- `apache/pulsar-client-go` updated to v0.21.0, picking up fixes for a consumer busy-spin deadlock, a connection panic on close, and a race that dropped messages before handler registration @slachiewicz
 
 ### Security
 
 - **Breaking:** Addressed [GO-2026-5048](https://github.com/advisories/GHSA-mx64-mj3q-7prj) by replacing `github.com/hamba/avro/v2` with `github.com/iskorotkov/avro/v2`, temporarily disabling `go install github.com/warpstreamlabs/bento/cmd/bento@<version>` due to `replace` directive usage.
+- bump Go version to 1.26.6 to fix various CVEs in the standard library @jem-davies
 
 ## 1.20.0 - 2026-07-27
 

@@ -27,6 +27,7 @@ module.exports = {
     prism: {
       theme: require('./src/plugins/prism_themes/github'),
       darkTheme: require('./src/plugins/prism_themes/monokai'),
+      additionalLanguages: ['protobuf', 'wasm'],
     },
     colorMode: {
       defaultMode: 'light',
@@ -258,6 +259,7 @@ module.exports = {
   ],
   plugins: [
     path.resolve(__dirname, './src/plugins/analytics'),
+    path.resolve(__dirname, './src/plugins/raw_source'),
     [
       require.resolve("./src/plugins/cookbooks/compiled/index"),
       {
@@ -271,4 +273,3 @@ module.exports = {
     ],
   ],
 };
-

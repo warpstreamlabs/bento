@@ -1,12 +1,16 @@
+//go:build !wasm
+
 package message
 
 import (
+	"encoding/json"
 	"errors"
+	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 )
@@ -45,17 +49,17 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 			batch: func() Batch {
 				b := QuickBatch([][]byte{[]byte("data")})
 				b[0].MetaSetMut("key1", "value1")
-				b[0].MetaSetMut("key2", float64(42))
+				b[0].MetaSetMut("key2", "42")
 				return b
 			}(),
 			proto: &pb.Batch{
 				Parts: []*pb.Part{
 					{
 						Content: &pb.Part_Raw{Raw: []byte("data")},
-						Metadata: mustNewStruct(t, map[string]any{
+						Metadata: map[string]string{
 							"key1": "value1",
-							"key2": float64(42),
-						}),
+							"key2": "42",
+						},
 					},
 				},
 			},
@@ -96,7 +100,7 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 				Parts: []*pb.Part{
 					{
 						Content: &pb.Part_Raw{Raw: []byte("data")},
-						Error:   "processing failed",
+						Error:   &pb.Error{Message: "processing failed"},
 					},
 				},
 			},
@@ -182,10 +186,10 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 				Parts: []*pb.Part{
 					{
 						Content: &pb.Part_Raw{Raw: []byte("data")},
-						Metadata: mustNewStruct(t, map[string]any{
+						Metadata: map[string]string{
 							"source": "kafka",
-						}),
-						Error: "connection timeout",
+						},
+						Error: &pb.Error{Message: "connection timeout"},
 					},
 				},
 			},
@@ -206,9 +210,9 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 								"id": float64(123),
 							}),
 						},
-						Metadata: mustNewStruct(t, map[string]any{
+						Metadata: map[string]string{
 							"timestamp": "2024-01-01",
-						}),
+						},
 					},
 				},
 			},
@@ -236,17 +240,17 @@ func TestProtobufMessageRoundTrip(t *testing.T) {
 func testSerializeRoundTrip(t *testing.T, tests []protoTestCase) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			encodedBatchFirstTrip, err := MarshalBatchToProto(tt.batch)
+			encodedBatchFirstTrip, err := marshalBatch(tt.batch)
 			require.NoError(t, err)
 
-			decodedBatchFirstTrip, err := UnmarshalBatchFromProto(encodedBatchFirstTrip)
+			decodedBatchFirstTrip, err := unmarshalBatch(encodedBatchFirstTrip)
 			require.NoError(t, err)
 			compareBatches(t, tt.batch, decodedBatchFirstTrip)
 
-			encodedBatchSecondTrip, err := MarshalBatchToProto(decodedBatchFirstTrip)
+			encodedBatchSecondTrip, err := marshalBatch(decodedBatchFirstTrip)
 			require.NoError(t, err)
 
-			decodedBatchSecondTrip, err := UnmarshalBatchFromProto(encodedBatchSecondTrip)
+			decodedBatchSecondTrip, err := unmarshalBatch(encodedBatchSecondTrip)
 			require.NoError(t, err)
 
 			require.Equal(t, encodedBatchFirstTrip, encodedBatchSecondTrip)
@@ -261,16 +265,16 @@ func testSerializePartsRoundTrip(t *testing.T, tests []protoTestCase) {
 			var firstBatch, secondBatch Batch
 			for _, part := range tt.batch {
 
-				encodedPartFirstTrip, err := MarshalToProto(part)
+				encodedPartFirstTrip, err := marshalPart(part)
 				require.NoError(t, err)
 
-				decodedPartFirstTrip, err := UnmarshalFromProto(encodedPartFirstTrip)
+				decodedPartFirstTrip, err := unmarshalPart(encodedPartFirstTrip)
 				require.NoError(t, err)
 
-				encodedPartSecondTrip, err := MarshalToProto(decodedPartFirstTrip)
+				encodedPartSecondTrip, err := marshalPart(decodedPartFirstTrip)
 				require.NoError(t, err)
 
-				decodedPartSecondTrip, err := UnmarshalFromProto(encodedPartSecondTrip)
+				decodedPartSecondTrip, err := unmarshalPart(encodedPartSecondTrip)
 				require.NoError(t, err)
 
 				require.Equal(t, encodedPartFirstTrip, encodedPartSecondTrip)
@@ -296,10 +300,10 @@ func testDeserializeRoundTrip(t *testing.T, tests []protoTestCase) {
 			encodedProtoFirstTrip, err := opts.Marshal(tt.proto)
 			require.NoError(t, err)
 
-			decodedBatchFirstTrip, err := UnmarshalBatchFromProto(encodedProtoFirstTrip)
+			decodedBatchFirstTrip, err := unmarshalBatch(encodedProtoFirstTrip)
 			require.NoError(t, err)
 
-			encodedBatchSecondTrip, err := MarshalBatchToProto(decodedBatchFirstTrip)
+			encodedBatchSecondTrip, err := marshalBatch(decodedBatchFirstTrip)
 			require.NoError(t, err)
 
 			batch := &pb.Batch{}
@@ -327,10 +331,10 @@ func testDeserializePartsRoundTrip(t *testing.T, tests []protoTestCase) {
 				encodedPartFirstTrip, err := opts.Marshal(protoPart)
 				require.NoError(t, err, "Failed to marshal baseline proto part %d", i)
 
-				decodedPartFirstTrip, err := UnmarshalFromProto(encodedPartFirstTrip)
+				decodedPartFirstTrip, err := unmarshalPart(encodedPartFirstTrip)
 				require.NoError(t, err, "Failed to unmarshal encoded part %d", i)
 
-				encodedPartSecondTrip, err := MarshalToProto(decodedPartFirstTrip)
+				encodedPartSecondTrip, err := marshalPart(decodedPartFirstTrip)
 				require.NoError(t, err, "Failed to marshal back decoded part %d", i)
 
 				require.Equal(t, encodedPartFirstTrip, encodedPartSecondTrip, "Part %d: Byte serialization mismatch after single round trip", i)
@@ -345,6 +349,38 @@ func testDeserializePartsRoundTrip(t *testing.T, tests []protoTestCase) {
 
 		})
 	}
+}
+
+func marshalPart(part *Part) ([]byte, error) {
+	protoPart, err := PartToProto(part)
+	if err != nil {
+		return nil, err
+	}
+	return proto.MarshalOptions{Deterministic: true}.Marshal(protoPart)
+}
+
+func unmarshalPart(b []byte) (*Part, error) {
+	protoPart := &pb.Part{}
+	if err := proto.Unmarshal(b, protoPart); err != nil {
+		return nil, err
+	}
+	return toPart(protoPart)
+}
+
+func marshalBatch(batch Batch) ([]byte, error) {
+	protoBatch, err := BatchToProto(batch)
+	if err != nil {
+		return nil, err
+	}
+	return proto.MarshalOptions{Deterministic: true}.Marshal(protoBatch)
+}
+
+func unmarshalBatch(b []byte) (Batch, error) {
+	protoBatch := &pb.Batch{}
+	if err := proto.Unmarshal(b, protoBatch); err != nil {
+		return nil, err
+	}
+	return BatchFromProto(protoBatch)
 }
 
 func compareBatches(t testing.TB, exp Batch, act Batch) {
@@ -373,16 +409,76 @@ func comparePart(t testing.TB, index int, exp *Part, act *Part) {
 	require.Equal(t, exp.data.metadata, act.data.metadata)
 }
 
-func mustNewStruct(t *testing.T, m map[string]any) *structpb.Struct {
+func mustNewValue(t *testing.T, v any) *pb.Value {
 	t.Helper()
-	s, err := structpb.NewStruct(m)
-	require.NoError(t, err)
-	return s
-}
-
-func mustNewValue(t *testing.T, v any) *structpb.Value {
-	t.Helper()
-	val, err := structpb.NewValue(v)
+	val, err := toProtoValue(v)
 	require.NoError(t, err)
 	return val
+}
+
+func TestProtoStructuredValueTypes(t *testing.T) {
+	ts := time.Date(2026, 11, 2, 12, 30, 0, 123456789, time.UTC)
+
+	tests := []struct {
+		name string
+		in   any
+		out  any
+	}{
+		{name: "null", in: nil, out: nil},
+		{name: "bool", in: true, out: true},
+		{name: "string", in: "hello", out: "hello"},
+		{name: "int64 beyond float64 precision", in: int64(9007199254740993), out: int64(9007199254740993)},
+		{name: "int", in: 5, out: int64(5)},
+		{name: "uint64", in: uint64(math.MaxUint64), out: uint64(math.MaxUint64)},
+		{name: "float64", in: 1.5, out: 1.5},
+		{name: "float32", in: float32(0.5), out: 0.5},
+		{name: "bytes", in: []byte("hi"), out: []byte("hi")},
+		{name: "decimal", in: json.Number("0.1000000000000000055511151231257827"), out: json.Number("0.1000000000000000055511151231257827")},
+		{name: "timestamp", in: ts, out: ts},
+		{name: "timestamp in another zone", in: ts.In(time.FixedZone("UTC+2", 2*60*60)), out: ts},
+		{
+			name: "nested",
+			in:   map[string]any{"list": []any{int64(1), "two", map[string]any{"three": []byte("3")}}},
+			out:  map[string]any{"list": []any{int64(1), "two", map[string]any{"three": []byte("3")}}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			part := NewPart(nil)
+			part.SetStructured(test.in)
+
+			encoded, err := marshalPart(part)
+			require.NoError(t, err)
+
+			decoded, err := unmarshalPart(encoded)
+			require.NoError(t, err)
+
+			v, err := decoded.AsStructured()
+			require.NoError(t, err)
+			require.Equal(t, test.out, v)
+		})
+	}
+}
+
+func TestProtoStructuredValueUnsupported(t *testing.T) {
+	part := NewPart(nil)
+	part.SetStructured(map[string]any{"ch": make(chan int)})
+
+	_, err := marshalPart(part)
+	require.EqualError(t, err, "unsupported structured value of type chan int")
+}
+
+func TestProtoMetadataAsStrings(t *testing.T) {
+	part := NewPart([]byte("data"))
+	part.MetaSetMut("int", int64(1000000))
+	part.MetaSetMut("float", 1.5)
+	part.MetaSetMut("bool", true)
+
+	encoded, err := marshalPart(part)
+	require.NoError(t, err)
+
+	decoded, err := unmarshalPart(encoded)
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"int": "1000000", "float": "1.5", "bool": "true"}, decoded.data.metadata)
 }

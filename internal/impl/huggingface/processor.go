@@ -144,6 +144,12 @@ func newPipelineProcessor(conf *service.ParsedConfig, mgr *service.Resources) (*
 			return nil, err
 		}
 
+		// hugot.DownloadModel requires the destination to be an existing
+		// directory, so create it first.
+		if err := mgr.FS().MkdirAll(p.modelPath, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create download path: %w", err)
+		}
+
 		start := time.Now()
 		if p.modelPath, err = hugot.DownloadModel(context.Background(), modelRepo, p.modelPath, opts); err != nil {
 			return nil, fmt.Errorf("failed to download model %s from HuggingFace to %s: %w", modelRepo, modelPath, err)
@@ -211,7 +217,7 @@ func (p *pipelineProcessor) ProcessBatch(ctx context.Context, b service.MessageB
 }
 
 func (p *pipelineProcessor) Close(context.Context) error {
-	return p.pipeline.GetModel().Destroy()
+	return p.session.ClosePipeline(p.pipelineName)
 }
 
 func convertPipelineOutput(output backends.PipelineBatchOutput) []any {

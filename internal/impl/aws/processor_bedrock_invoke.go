@@ -129,6 +129,7 @@ func init() {
 
 type bedrockRuntimeAPI interface {
 	InvokeModel(context.Context, *bedrockruntime.InvokeModelInput, ...func(*bedrockruntime.Options)) (*bedrockruntime.InvokeModelOutput, error)
+	Converse(context.Context, *bedrockruntime.ConverseInput, ...func(*bedrockruntime.Options)) (*bedrockruntime.ConverseOutput, error)
 }
 
 type bedrockInvokeProc struct {

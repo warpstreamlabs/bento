@@ -81,7 +81,7 @@ When downloading large files it's often necessary to process it in streamed part
 
 ## Streaming New Files
 
-By default this input will consume all files found within the target container and will then gracefully terminate. This is referred to as a "batch" mode of operation. However, it's possible to instead configure a container as [an Event Grid source](https://learn.microsoft.com/en-gb/azure/event-grid/event-schema-blob-storage) and then use this as a [`targets_input`](#targetsinput), in which case new files are consumed as they're uploaded and Bento will continue listening for and downloading files as they arrive. This is referred to as a "streamed" mode of operation.
+By default this input will consume all files found within the target container and will then gracefully terminate. This is referred to as a "batch" mode of operation. However, it's possible to instead configure a container as [an Event Grid source](https://learn.microsoft.com/en-gb/azure/event-grid/event-schema-blob-storage) and then use this as a [`targets_input`](#targets_input), in which case new files are consumed as they're uploaded and Bento will continue listening for and downloading files as they arrive. This is referred to as a "streamed" mode of operation.
 
 ## Metadata
 

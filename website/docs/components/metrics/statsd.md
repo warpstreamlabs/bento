@@ -16,8 +16,16 @@ import TabItem from '@theme/TabItem';
 
 Pushes metrics using the [StatsD protocol](https://github.com/statsd/statsd). Supported tagging formats are 'none', 'datadog' and 'influxdb'.
 
+
+<Tabs defaultValue="common" values={[
+  { label: 'Common', value: 'common', },
+  { label: 'Advanced', value: 'advanced', },
+]}>
+
+<TabItem value="common">
+
 ```yml
-# Config fields, showing default values
+# Common config fields, showing default values
 metrics:
   statsd:
     address: "" # No default (required)
@@ -25,6 +33,25 @@ metrics:
     tag_format: none
   mapping: ""
 ```
+
+</TabItem>
+<TabItem value="advanced">
+
+```yml
+# All config fields, showing default values
+metrics:
+  statsd:
+    address: "" # No default (required)
+    flush_period: 100ms
+    tag_format: none
+    send_queue_capacity: 10
+    buf_pool_capacity: 20
+    send_loop_count: 1
+  mapping: ""
+```
+
+</TabItem>
+</Tabs>
 
 ## Fields
 
@@ -51,5 +78,29 @@ Metrics tagging is supported in a variety of formats.
 Type: `string`  
 Default: `"none"`  
 Options: `none`, `datadog`, `influxdb`.
+
+### `send_queue_capacity`
+
+The size of the internal queue of packets ready to be sent over UDP. Increase this if you see '[STATSD] N packets lost (overflow)' warnings under high throughput or CPU-constrained environments.
+
+
+Type: `int`  
+Default: `10`  
+
+### `buf_pool_capacity`
+
+The size of the pre-allocated UDP packet buffer pool.
+
+
+Type: `int`  
+Default: `20`  
+
+### `send_loop_count`
+
+The number of goroutines sending UDP packets. Increase under high throughput.
+
+
+Type: `int`  
+Default: `1`  
 
 

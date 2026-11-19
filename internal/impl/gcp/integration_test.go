@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/iterator"
 
@@ -34,26 +35,23 @@ func TestIntegrationGCP(t *testing.T) {
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = 30 * time.Second
+	maxWait := time.Minute
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository:   "fsouza/fake-gcs-server",
-		Tag:          "latest",
-		ExposedPorts: []string{"4443/tcp"},
-		Cmd:          []string{"-scheme", "http", "-public-host", "localhost"},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
 
-	_ = resource.Expire(900)
+	resource := pool.RunT(t, "fsouza/fake-gcs-server",
+		dockertest.WithTag("latest"),
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("4443/tcp"): {},
+			}
+		}),
+		dockertest.WithCmd([]string{"-scheme", "http", "-public-host", "localhost"}),
+		dockertest.WithoutReuse(),
+	)
 
 	os.Setenv("STORAGE_EMULATOR_HOST", "localhost:"+resource.GetPort("4443/tcp")) //nolint: tenv // this test runs in parallel
 	t.Cleanup(func() {
@@ -61,7 +59,7 @@ func TestIntegrationGCP(t *testing.T) {
 	})
 
 	// Wait for fake-gcs-server to properly start up
-	err = pool.Retry(func() error {
+	err := pool.Retry(t.Context(), 0, func() error {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 

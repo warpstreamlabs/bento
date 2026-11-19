@@ -20,5 +20,5 @@ The target destination of Bento metrics is configurable from the [metrics sectio
 Bento also [emits opentracing events][tracing.about] to a tracer of your choice, which can be used to visualise the processors within a pipeline.
 
 [metrics.about]: /docs/components/metrics/about
-[metrics.names]: /docs/components/metrics/about#metric_names
+[metrics.names]: /docs/components/metrics/about#metric-names
 [tracing.about]: /docs/components/tracers/about

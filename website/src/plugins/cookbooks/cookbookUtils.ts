@@ -9,28 +9,27 @@ import fs from 'fs-extra';
 import path from 'path';
 import logger from '@docusaurus/logger';
 import {
-  parseMarkdownString,
+  parseMarkdownFile,
   normalizeUrl,
   aliasedSitePath,
   getFolderContainingFile,
   posixPath,
-  replaceMarkdownLinks,
   Globby,
   getContentPathList,
+  type SourceToPermalink,
 } from '@docusaurus/utils';
-import type {LoadContext} from '@docusaurus/types';
+import type {LoadContext, ParseFrontMatter} from '@docusaurus/types';
 import { validateCookbookPostFrontMatter } from './frontMatter';
 import type {
   PluginOptions,
   CookbookPost,
   CookbookContentPaths,
-  CookbookMarkdownLoaderOptions,
 } from './types';
 
-export function getSourceToPermalink(cookbookPosts: CookbookPost[]): {
-  [aliasedPath: string]: string;
-} {
-  return Object.fromEntries(
+export function getSourceToPermalink(
+  cookbookPosts: CookbookPost[],
+): SourceToPermalink {
+  return new Map(
     cookbookPosts.map(({metadata: {source, permalink}}) => [source, permalink]),
   );
 }
@@ -61,10 +60,19 @@ export function parseCookbookFileName(
   return {date: undefined, text, slug};
 }
 
-async function parseCookbookPostMarkdownFile(blogSourceAbsolute: string) {
-  const markdownString = await fs.readFile(blogSourceAbsolute, 'utf-8');
+async function parseCookbookPostMarkdownFile({
+  filePath,
+  parseFrontMatter,
+}: {
+  filePath: string;
+  parseFrontMatter: ParseFrontMatter;
+}) {
+  const fileContent = await fs.readFile(filePath, 'utf-8');
   try {
-    const result = parseMarkdownString(markdownString, {
+    const result = await parseMarkdownFile({
+      filePath,
+      fileContent,
+      parseFrontMatter,
       removeContentTitle: true,
     });
     return {
@@ -72,7 +80,7 @@ async function parseCookbookPostMarkdownFile(blogSourceAbsolute: string) {
       frontMatter: validateCookbookPostFrontMatter(result.frontMatter),
     };
   } catch (err) {
-    logger.error`Error while parsing blog post file path=${blogSourceAbsolute}.`;
+    logger.error`Error while parsing blog post file path=${filePath}.`;
     throw err;
   }
 }
@@ -84,7 +92,7 @@ async function processCookbookSourceFile(
   options: PluginOptions,
 ): Promise<CookbookPost | undefined> {
   const {
-    siteConfig: {baseUrl},
+    siteConfig: {baseUrl, markdown: {parseFrontMatter}},
     siteDir,
     i18n,
   } = context;
@@ -101,7 +109,10 @@ async function processCookbookSourceFile(
   const cookbookSourceAbsolute = path.join(cookbookDirPath, cookbookSourceRelative);
 
   const {frontMatter, content, contentTitle, excerpt} =
-    await parseCookbookPostMarkdownFile(cookbookSourceAbsolute);
+    await parseCookbookPostMarkdownFile({
+      filePath: cookbookSourceAbsolute,
+      parseFrontMatter,
+    });
 
   const aliasedSource = aliasedSitePath(cookbookSourceAbsolute, siteDir);
 
@@ -168,33 +179,4 @@ export async function generateCookbookPosts(
     )
   ).filter(Boolean) as CookbookPost[];
   return cookbookPosts;
-}
- 
-export type LinkifyParams = {
-  filePath: string;
-  fileString: string;
-} & Pick<
-  CookbookMarkdownLoaderOptions,
-  'sourceToPermalink' | 'siteDir' | 'contentPaths' | 'onBrokenMarkdownLink'
->;
-
-export function linkify({
-  filePath,
-  contentPaths,
-  fileString,
-  siteDir,
-  sourceToPermalink,
-  onBrokenMarkdownLink,
-}: LinkifyParams): string {
-  const {newContent, brokenMarkdownLinks} = replaceMarkdownLinks({
-    siteDir,
-    fileString,
-    filePath,
-    contentPaths,
-    sourceToPermalink,
-  });
-
-  brokenMarkdownLinks.forEach((l) => onBrokenMarkdownLink(l));
-
-  return newContent;
 }

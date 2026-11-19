@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v4"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 )
 
 func doSetupAndAssertions(setQueueDeclareAutoDelete bool, t *testing.T) {
-	assertQueueStateFromRabbitMQManagementAPI := func(resource *dockertest.Resource) {
+	assertQueueStateFromRabbitMQManagementAPI := func(resource dockertest.Resource) {
 		require.NotNil(t, resource)
 
 		type Queue struct {
@@ -96,19 +96,14 @@ input:
 	integration.CheckSkip(t)
 	t.Parallel()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(time.Second*30))
 
-	pool.MaxWait = time.Second * 30
+	resource := pool.RunT(t, "rabbitmq",
+		dockertest.WithTag("management"),
+		dockertest.WithoutReuse(),
+	)
 
-	resource, err := pool.Run("rabbitmq", "management", nil)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
-	require.NoError(t, pool.Retry(func() error {
+	require.NoError(t, pool.Retry(t.Context(), 0, func() error {
 		client, err := amqp.Dial(fmt.Sprintf("amqp://guest:guest@localhost:%v/", resource.GetPort("5672/tcp")))
 		if err == nil {
 			_ = client.Close()

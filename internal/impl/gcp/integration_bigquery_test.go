@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/ory/dockertest/v3"
-	"github.com/stretchr/testify/assert"
+	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
+	"github.com/ory/dockertest/v4"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/option"
 
@@ -51,36 +52,35 @@ func TestIntegrationBigQuery(t *testing.T) {
 
 	ctx := context.Background()
 
-	pool, err := dockertest.NewPool("")
-	require.NoError(t, err)
-
-	pool.MaxWait = 30 * time.Second
+	maxWait := 30 * time.Second
 	if deadline, ok := t.Deadline(); ok {
-		pool.MaxWait = time.Until(deadline) - 100*time.Millisecond
+		maxWait = time.Until(deadline) - 100*time.Millisecond
 	}
 
-	runOpts := dockertest.RunOptions{
-		Name:         "gcp_bigquery_emulator",
-		Repository:   "ghcr.io/goccy/bigquery-emulator",
-		Tag:          "latest",
-		ExposedPorts: []string{"9050/tcp", "9060/tcp"},
-		Cmd:          []string{"--project", "test-project"},
-	}
+	pool := dockertest.NewPoolT(t, "", dockertest.WithMaxWait(maxWait))
 
 	if runtime.GOOS == "darwin" {
-		runOpts.Platform = "linux/amd64"
+		// v4 has no Platform option; pre-pulling picks the architecture because
+		// Run skips its own pull once the image inspects cleanly.
+		pullAMD64(t, pool, "ghcr.io/goccy/bigquery-emulator:latest")
 	}
 
-	resource, err := pool.RunWithOptions(&runOpts)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, pool.Purge(resource))
-	})
-
-	_ = resource.Expire(900)
+	resource := pool.RunT(t, "ghcr.io/goccy/bigquery-emulator",
+		dockertest.WithName("gcp_bigquery_emulator"),
+		dockertest.WithTag("latest"),
+		// Unbound ports that GetHostPort reads below.
+		dockertest.WithContainerConfig(func(c *dockercontainer.Config) {
+			c.ExposedPorts = dockernetwork.PortSet{
+				dockernetwork.MustParsePort("9050/tcp"): {},
+				dockernetwork.MustParsePort("9060/tcp"): {},
+			}
+		}),
+		dockertest.WithCmd([]string{"--project", "test-project"}),
+		dockertest.WithoutReuse(),
+	)
 
 	// wait for ready
-	err = pool.Retry(func() error {
+	err := pool.Retry(t.Context(), 0, func() error {
 		conn, err := net.Dial("tcp", resource.GetHostPort("9050/tcp"))
 		if err != nil {
 			return err
@@ -100,7 +100,7 @@ func TestIntegrationBigQuery(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	err = pool.Retry(func() error {
+	err = pool.Retry(t.Context(), 0, func() error {
 		return client.Dataset("test_dataset").Create(ctx, &bigquery.DatasetMetadata{})
 	})
 	require.NoError(t, err)

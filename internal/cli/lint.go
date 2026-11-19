@@ -99,8 +99,7 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 
 		pConf, err := spec.ParsedConfigFromAny(cNode)
 		if err != nil {
-			var l docs.Lint
-			if errors.As(err, &l) {
+			if l, ok := errors.AsType[docs.Lint](err); ok {
 				l.Line += snippetLine - 1
 				pathLints = append(pathLints, pathLint{
 					source: path,
@@ -115,8 +114,7 @@ func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (p
 		}
 
 		if _, err := config.FromParsed(lConf.DocsProvider, pConf, nil); err != nil {
-			var l docs.Lint
-			if errors.As(err, &l) {
+			if l, ok := errors.AsType[docs.Lint](err); ok {
 				l.Line += snippetLine - 1
 				pathLints = append(pathLints, pathLint{
 					source: path,
@@ -171,6 +169,13 @@ files with the .yaml or .yml extension.`)[1:],
 				Value: false,
 				Usage: "Do not produce lint errors when environment interpolations exist without defaults within configs but aren't defined.",
 			},
+		},
+		Before: func(c *cli.Context) error {
+			if c.String("remote-config") != "" {
+				fmt.Printf("remote-config flag not supported with the lint subcommand\n")
+				os.Exit(1)
+			}
+			return nil
 		},
 		Action: func(c *cli.Context) error {
 			if code := LintAction(c, cliOpts, os.Stderr); code != 0 {

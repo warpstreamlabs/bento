@@ -138,6 +138,10 @@ schema:
   - { name: e, type: INT64, optional: true }
   - { name: f, type: INT64 }
   - { name: g, type: UTF8 }
+  - { name: date, type: DATE }
+  - { name: time_ms, type: TIMESTAMP_MILLIS }
+  - { name: o_date, type: DATE, optional: true }
+  - { name: o_time_ms, type: TIMESTAMP_MILLIS, optional: true }
   - name: nested_stuff
     optional: true
     fields:
@@ -211,6 +215,10 @@ schema:
   - { name: e, type: INT64, optional: true }
   - { name: f, type: INT64 }
   - { name: g, type: UTF8 }
+  - { name: date, type: DATE }
+  - { name: time_ms, type: TIMESTAMP_MILLIS }
+  - { name: o_date, type: DATE, optional: true }
+  - { name: o_time_ms, type: TIMESTAMP_MILLIS, optional: true }
   - name: nested_stuff
     optional: true
     fields:
@@ -285,6 +293,10 @@ schema:
   - { name: e, type: INT64, optional: true }
   - { name: f, type: INT64 }
   - { name: g, type: UTF8 }
+  - { name: date, type: DATE }
+  - { name: time_ms, type: TIMESTAMP_MILLIS }
+  - { name: o_date, type: DATE, optional: true }
+  - { name: o_time_ms, type: TIMESTAMP_MILLIS, optional: true }
   - name: nested_stuff
     optional: true
     fields:
@@ -412,7 +424,11 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   },
   "canary":"not in schema",
   "h": 1.0,
-  "ob":{"ob_name":"test","bidValue":0.15}
+  "ob":{"ob_name":"test","bidValue":0.15},
+  "date": 20719,
+  "time_ms": 1790162333035,
+  "o_date": 20719,
+  "o_time_ms": 1790162333035
 }`,
 			output: `{
   "id": 3,
@@ -428,7 +444,11 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
     "b_stuff": "b value"
   },
   "h": 1.0,
-  "ob":{"ob_name":"test","bidValue":0.15}
+  "ob":{"ob_name":"test","bidValue":0.15},
+  "date": 20719,
+  "time_ms": 1790162333035,
+  "o_date": 20719,
+  "o_time_ms": 1790162333035
 }`,
 		},
 		{
@@ -453,7 +473,11 @@ func testParquetEncodeDecodeRoundTrip(t *testing.T, encodeProc *parquetEncodePro
   "g": "logical string represent",
   "nested_stuff": null,
   "h": null,
-  "ob": null
+  "ob": null,
+  "date": 0,
+  "time_ms": 0,
+  "o_date": null,
+  "o_time_ms": null
 }`,
 		},
 	} {

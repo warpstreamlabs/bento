@@ -98,7 +98,7 @@ func AutoRetryNacksBatched(i BatchInput) BatchInput {
 type autoRetryInputBatched struct {
 	retryList   *autoretry.List[MessageBatch]
 	child       BatchInput
-	inputClosed int32
+	inputClosed atomic.Int32
 }
 
 func (i *autoRetryInputBatched) Connect(ctx context.Context) error {
@@ -107,14 +107,14 @@ func (i *autoRetryInputBatched) Connect(ctx context.Context) error {
 	// we act like we're still open. Read will be called and we can either
 	// return the pending messages or wait for them.
 	if errors.Is(err, ErrEndOfInput) && !i.retryList.Exhausted() {
-		atomic.StoreInt32(&i.inputClosed, 1)
+		i.inputClosed.Store(1)
 		err = nil
 	}
 	return err
 }
 
 func (i *autoRetryInputBatched) ReadBatch(ctx context.Context) (MessageBatch, AckFunc, error) {
-	batch, rAckFn, err := i.retryList.Shift(ctx, atomic.LoadInt32(&i.inputClosed) == 0)
+	batch, rAckFn, err := i.retryList.Shift(ctx, i.inputClosed.Load() == 0)
 	if err != nil {
 		if errors.Is(err, autoretry.ErrExhausted) {
 			return nil, nil, ErrEndOfInput
@@ -122,7 +122,7 @@ func (i *autoRetryInputBatched) ReadBatch(ctx context.Context) (MessageBatch, Ac
 		if errors.Is(err, ErrEndOfInput) {
 			// Mark our input as being closed and trigger an immediate re-read
 			// in order to clear any pending retries.
-			atomic.StoreInt32(&i.inputClosed, 1)
+			i.inputClosed.Store(1)
 			return i.ReadBatch(ctx)
 		}
 		// Otherwise we have an unknown error from our reader that we should
