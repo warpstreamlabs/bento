@@ -2,7 +2,7 @@
 title: cache
 slug: cache
 type: input
-status: beta
+status: experimental
 categories: ["Utility"]
 ---
 
@@ -15,12 +15,12 @@ categories: ["Utility"]
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::caution BETA
-This component is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with the component is found.
+:::caution EXPERIMENTAL
+This component is experimental and therefore subject to change or removal outside of major version releases.
 :::
 Reads items stored within a [cache resource](/docs/components/caches/about), emitting each item as a message and shutting down once the contents of the cache have been fully consumed.
 
-Introduced in version 1.21.0.
+Introduced in version 1.24.0.
 
 ```yml
 # Config fields, showing default values
@@ -28,10 +28,11 @@ input:
   label: ""
   cache:
     resource: "" # No default (required)
+    delete_items: false
     auto_replay_nacks: true
 ```
 
-The target cache must support listing its keys, which is an optional capability. Caches that currently support this are: `aws_s3`, `file`, `gcp_cloud_storage` and `memory`. Attempting to consume from any other cache will result in a connection error.
+The cache must support listing its keys, which is an optional capability. Attempting to consume from any other cache will result in a connection error.
 
 The set of keys to read is captured when the input connects, after which each item is read individually. Items deleted after the keys were captured are skipped, and items added after the keys were captured are not consumed. The order in which items are read is undefined. If the input disconnects mid-stream due to an error it will capture the set of keys again once it reconnects, in which case items may be emitted a second time.
 
@@ -52,6 +53,14 @@ The [`cache` resource](/docs/components/caches/about) to read from.
 
 Type: `string`  
 
+### `delete_items`
+
+Whether to delete items from the cache. They are deleted when they are successfully sent to the output.
+
+
+Type: `bool`  
+Default: `false`  
+
 ### `auto_replay_nacks`
 
 Whether messages that are rejected (nacked) at the output level should be automatically replayed indefinitely, eventually resulting in back pressure if the cause of the rejections is persistent. If set to `false` these messages will instead be deleted. Disabling auto replays can greatly improve memory efficiency of high throughput streams as the original shape of the data can be discarded immediately upon consumption and mutation.
@@ -64,6 +73,8 @@ Default: `true`
 
 <Tabs defaultValue="Migrate cache items" values={[
 { label: 'Migrate cache items', value: 'Migrate cache items', },
+{ label: 'Continuously read from a cache', value: 'Continuously read from a cache', },
+{ label: 'Migrate cache items from multiple caches', value: 'Migrate cache items from multiple caches', },
 ]}>
 
 <TabItem value="Migrate cache items">
@@ -87,6 +98,74 @@ cache_resources:
   - label: destination
     redis:
       url: tcp://localhost:6379
+```
+
+</TabItem>
+<TabItem value="Continuously read from a cache">
+
+Uses a `read_until` input to continuously read from a cache - deleting items when they are delivered to the output.
+
+```yaml
+input:
+  read_until:
+    input:
+      cache:
+        resource: test_cache
+        delete_items: true
+    idle_timeout: 5s
+    restart_input: true
+
+output:
+  stdout: {}
+
+cache_resources:
+  - label: test_cache
+    file:
+      directory: ${PWD}/cache/
+```
+
+</TabItem>
+<TabItem value="Migrate cache items from multiple caches">
+
+Uses a sequence input to drain multiple caches into another cache
+
+```yaml
+input:
+  sequence:
+    inputs:
+      - cache: 
+          resource: test_cache_romulus
+          delete_items: true
+      - cache: 
+          resource: test_cache_remus
+          delete_items: true
+
+output:
+  cache:
+    target: target_cache
+    key: ${! metadata("cache_key") }
+
+cache_resources:
+  - label: test_cache_romulus
+    file:
+      directory: ${PWD}/cache_romulus/
+
+  - label: test_cache_remus
+    file:
+      directory: ${PWD}/cache_remus/
+
+  - label: target_cache
+    sql:
+      driver: sqlite
+      dsn: file:${PWD}/test.db
+      table: test
+      key_column: key
+      value_column: value
+      init_statement: |
+        CREATE TABLE IF NOT EXISTS test (
+          key TEXT PRIMARY KEY,
+          value TEXT
+        );
 ```
 
 </TabItem>
