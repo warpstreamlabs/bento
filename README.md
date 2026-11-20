@@ -136,7 +136,7 @@ It's pretty easy to write your own custom plugins for Bento in Go, for informati
 
 ## Extra Plugins
 
-By default Bento does not build with components that require linking to external libraries, such as the `zmq4` input and outputs. If you wish to build Bento locally with these dependencies then set the build tag `x_bento_extra`:
+By default Bento does not build with components that require linking to external libraries, such as the `zmq4` and `ibm_mq` input and outputs. If you wish to build Bento locally with these dependencies then set the build tag `x_bento_extra`:
 
 ```shell
 # With go

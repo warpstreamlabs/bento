@@ -10,6 +10,13 @@ RUN go mod download
 
 RUN apt-get update && apt-get install -y --no-install-recommends libzmq3-dev
 
+RUN curl -fsSL -o /tmp/mqc.tar.gz https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/9.4.0.30-IBM-MQC-Redist-LinuxX64.tar.gz \
+ && echo "7826a6f00e28349f4155ef6f526b329d7f69ac3224575ec1ec40ebdda34360fb  /tmp/mqc.tar.gz" | sha256sum -c - \
+ && mkdir -p /opt/mqm \
+ && tar -xzf /tmp/mqc.tar.gz -C /opt/mqm \
+ && rm /tmp/mqc.tar.gz \
+ && genmqpkg_inctls=1 /opt/mqm/bin/genmqpkg.sh -b /opt/mqm-runtime
+
 # Build
 COPY . /go/src/github.com/warpstreamlabs/bento/
 
@@ -25,6 +32,7 @@ WORKDIR /root/
 
 RUN apt-get update && apt-get install -y --no-install-recommends libzmq3-dev
 
+COPY --from=build /opt/mqm-runtime /opt/mqm
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /go/src/github.com/warpstreamlabs/bento/target/bin/bento .
 COPY ./config/docker.yaml /bento.yaml
