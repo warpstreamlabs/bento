@@ -35,6 +35,7 @@ All notable changes to this project will be documented in this file.
  - `aws_kinesis_firehose` output includes a check to ensure request payload size is <4MiB @alecmerdler
  - `nsq` input no longer keeps consumed messages in memory until shutdown which was causing unbounded memory usage @mwchatten
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
+ - `aws_dynamodb_partiql` processor no longer panics when `args_mapping` deletes the message or when a statement fails without an error message; the former now returns an error
 
 ## 1.22.0 - 2026-10-09
 
