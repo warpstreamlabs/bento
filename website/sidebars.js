@@ -135,6 +135,7 @@ module.exports = {
             'guides/plugins/developing_plugins',
             'guides/plugins/fields',
             'guides/plugins/plugin_abi',
+            'guides/plugins/single_file_plugins'
           ],
         },
         {
