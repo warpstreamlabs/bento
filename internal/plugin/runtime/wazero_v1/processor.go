@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/experimental"
+	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/message"
@@ -15,10 +19,13 @@ import (
 )
 
 type wasmProcessor struct {
-	pool runtime.Pool[*instance]
+	pool  runtime.Pool[*instance]
+	hosts map[string]api.Module
 }
 
-func newWasmProcessor(pConf *docs.ParsedConfig, cm *compiledPlugin) (*wasmProcessor, error) {
+func newWasmProcessor(pConf *docs.ParsedConfig, cm *compiledPlugin, mgr bundle.NewManagement) (*wasmProcessor, error) {
+	proc := &wasmProcessor{}
+
 	var conf []byte
 	if pluginConf, ok := pConf.Field(); ok {
 		rawConf, err := json.Marshal(pluginConf)
@@ -28,11 +35,26 @@ func newWasmProcessor(pConf *docs.ParsedConfig, cm *compiledPlugin) (*wasmProces
 		conf = rawConf
 	}
 
-	pool := runtime.NewInstancePool(func(ctx context.Context) (*instance, error) {
+	proc.hosts = make(map[string]api.Module, len(cm.hosts))
+	for _, provider := range cm.hosts {
+		mod, err := provider.Instantiate(context.TODO(), cm.runtime, mgr)
+		if err != nil {
+			_ = proc.Close(context.TODO())
+			return nil, fmt.Errorf("failed to instantiate host module %q: %w", provider.Name(), err)
+		}
+		proc.hosts[provider.Name()] = mod
+	}
+
+	proc.pool = runtime.NewInstancePool(func(ctx context.Context) (*instance, error) {
+		if len(proc.hosts) > 0 {
+			ctx = experimental.WithImportResolver(ctx, func(name string) api.Module {
+				return proc.hosts[name]
+			})
+		}
 		return newInstance(ctx, cm, conf)
 	})
 
-	return &wasmProcessor{pool: pool}, nil
+	return proc, nil
 }
 
 func (p *wasmProcessor) Process(ctx context.Context, part *message.Part) ([]*message.Part, error) {
@@ -104,5 +126,14 @@ func (p *wasmProcessor) ProcessBatch(ctx *processor.BatchProcContext, batch mess
 }
 
 func (p *wasmProcessor) Close(ctx context.Context) error {
-	return p.pool.Close(ctx)
+	var errs []error
+	if p.pool != nil {
+		errs = append(errs, p.pool.Close(ctx))
+	}
+
+	for _, mod := range p.hosts {
+		errs = append(errs, mod.Close(ctx))
+	}
+
+	return errors.Join(errs...)
 }

@@ -1,0 +1,13 @@
+name: logger
+type: processor
+status: experimental
+summary: Logs each message it processes to the Bento logger
+description: |
+  A WebAssembly-based processor that logs each message it processes, and
+  passes it on unchanged. This demonstrates a plugin using the bento_log_v1
+  host module, which must be enabled in its manifest.
+
+runtime:
+  wasm:
+    logger:
+      enabled: true

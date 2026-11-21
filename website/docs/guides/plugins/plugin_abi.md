@@ -15,7 +15,18 @@ export const WatExport = ({name}) => {
   return <CodeBlock language="wasm">{lines.slice(start, end + 1).join('\n')}</CodeBlock>;
 };
 
-This page is the application binary interface (ABI) reference for processor plugins that implement Bento's WebAssembly (WASM) interface directly. It defines the runtime, memory ownership, message formats, exports, and error behavior for a 32-bit WASM module.
+export const WatImport = ({module}) => {
+  const lines = abi.split('\n').map((line) => line.trim());
+  const isImport = (line) => line.startsWith(`(import "${module}"`);
+  let start = lines.findIndex(isImport);
+  const end = lines.findLastIndex(isImport);
+  while (start > 0 && lines[start - 1].startsWith(';;')) {
+    start--;
+  }
+  return <CodeBlock language="wasm">{lines.slice(start, end + 1).join('\n')}</CodeBlock>;
+};
+
+This page is the application binary interface (ABI) reference for processor plugins that implement Bento's WebAssembly (WASM) interface directly. It defines the runtime, memory ownership, message formats, exports, imports, and error behavior for a 32-bit WASM module.
 
 The [Go plugin development kit (PDK)][developing] implements this interface for you. Complete implementations without a PDK are available in the [Rust examples][examples]. See [About plugins][about] for an overview and [Manifest fields][fields] for plugin configuration.
 
@@ -36,6 +47,8 @@ The plugin runs only while Bento calls it. Work for a call must finish before it
 Plugins have access to WASI preview 1, with clocks and a secure random source. Filesystem access is limited to directories mounted with [`runtime.wasm.mounts`][mounts], although symbolic links within those directories can lead outside them. Mounts are read-only by default.
 
 [`runtime.wasm.memory.max_pages`][memory-limit] limits each instance's linear memory in 64 KiB pages. Without a configured limit, each instance can allocate up to 4 GiB.
+
+Any other host resource, such as Bento's logger, is only available through an [import](#imports) that the manifest enables.
 
 ## Memory
 
@@ -118,7 +131,7 @@ The returned messages replace the input. An empty result drops the input; return
 
 ## Exports
 
-The signatures below are rendered directly from [`abi.wat`][abi-wat], the ABI reference in WebAssembly text format (WAT). The file describes export signatures; it is not a compilable module.
+The signatures below are rendered directly from [`abi.wat`][abi-wat], the ABI reference in WebAssembly text format (WAT). The file describes export and [import](#imports) signatures; it is not a compilable module.
 
 A plugin must export `memory`, `malloc`, `free`, and at least one of `process_batch` or `process`. If both processing exports exist, Bento uses `process_batch`. Bento checks the signatures of all ABI functions present, including optional functions and an unused `process` export.
 
@@ -164,6 +177,28 @@ Bento calls this export once per input batch.
 
 Bento calls this export once per input message when `process_batch` is absent.
 
+## Imports
+
+To preserve the [sandbox](#sandbox), a plugin has no access to Bento's host resources by default. Bento exposes each host resource as a separate, versioned host module that a plugin imports functions from, and that its manifest must enable.
+
+| Module                          | Resource       | Enabled by                              |
+|---------------------------------|----------------|-----------------------------------------|
+| [`bento_log_v1`](#bento_log_v1) | Bento's logger | [`runtime.wasm.logger.enabled`][logger] |
+
+If a module imports a host module that its manifest does not enable, Bento rejects it when the plugin is first used. WASI preview 1 imports are always available.
+
+### `bento_log_v1`
+
+<WatImport module="bento_log_v1" />
+
+Messages are written to the logger of the processor that the instance belongs to, so they carry its `label` along with the plugin's name as `plugin`, and are subject to the top-level [`logger` configuration][logger-config]. With JSON logging, a line includes:
+
+```json
+{"label":"my_processor","level":"info","msg":"hello from the plugin","plugin":"logger"}
+```
+
+A plugin can log from any export, including `_initialize` and `init_plugin`. A message outside plugin memory traps the call. See [Errors](#errors).
+
 ## Errors
 
 A call failure preserves the original input messages and marks them with the error. For `process`, this affects one message; for `process_batch`, it affects the whole batch.
@@ -174,7 +209,9 @@ If `init_plugin` returns an error, Bento discards the instance and fails the cal
 
 A trap is a WebAssembly execution failure, such as an out-of-bounds memory access. If an export traps, `malloc` returns `0`, or a buffer is outside plugin memory, Bento fails the call and discards the instance. It creates a replacement when a later call needs one; it does not retry the failed call automatically.
 
-If a required function is missing or an ABI function has an invalid signature, Bento rejects the module when the plugin is first used. No instance is created.
+If a required function is missing, an ABI function has an invalid signature, or the module [imports](#imports) a host module that its manifest does not enable, Bento rejects the module when the plugin is first used. No instance is created.
+
+If an imported function's signature does not match its host module, no instance can be created, and every call fails.
 
 See [Error handling][errors] for handling failed messages in a pipeline.
 
@@ -189,3 +226,5 @@ See [Error handling][errors] for handling failed messages in a pipeline.
 [fields]: /docs/guides/plugins/fields
 [mounts]: /docs/guides/plugins/fields#runtimewasmmounts
 [memory-limit]: /docs/guides/plugins/fields#runtimewasmmemorymax_pages
+[logger]: /docs/guides/plugins/fields#runtimewasmloggerenabled
+[logger-config]: /docs/components/logger/about

@@ -30,6 +30,7 @@ type WasmRuntimeConfig struct {
 	Path   string        `yaml:"path"`
 	Mounts []MountConfig `yaml:"mounts"`
 	Memory MemoryConfig  `yaml:"memory"`
+	Logger LoggerConfig  `yaml:"logger"`
 }
 
 // MemoryConfig contains memory-related configuration for the WASM runtime.
@@ -42,6 +43,11 @@ type MountConfig struct {
 	HostPath  string `yaml:"host_path"`
 	GuestPath string `yaml:"guest_path"`
 	ReadOnly  *bool  `yaml:"read_only,omitempty"`
+}
+
+// LoggerConfig describes a plugin's logger configuration.
+type LoggerConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 func (m Manifest) ComponentSpec() (docs.ComponentSpec, error) {
@@ -120,6 +126,9 @@ func wasmRuntimeSpec() docs.FieldSpec {
 		),
 		docs.FieldObject("memory", "Describes the limits on the memory the plugin may be allocated.").WithChildren(
 			docs.FieldInt("max_pages", "The max amount of pages each instance of the plugin can allocate. One page is 64KiB. When omitted or zero, an instance can allocate up to 4GiB.").Optional(),
+		).Optional(),
+		docs.FieldObject("logger", "Describes a plugin's access to the Bento host logger, where all calls made are subject to the top-level [`logger` configuration](https://warpstreamlabs.github.io/bento/docs/components/logger/about).").WithChildren(
+			docs.FieldBool("enabled", "Whether to provide plugin access to Bento's host logger. ").Optional().HasDefault(false),
 		).Optional(),
 	)
 }

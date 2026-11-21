@@ -3,7 +3,6 @@ package wazerov1
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
@@ -16,24 +15,8 @@ var _ runtime.Plugin = (*wazeroPlugin)(nil)
 type wazeroPlugin struct {
 	spec docs.ComponentSpec
 
-	compile  func() (*compiledPlugin, error)
+	loader   *loader
 	compiled *compiledPlugin
-}
-
-func newPlugin(spec docs.ComponentSpec, compile func() (*compiledPlugin, error)) *wazeroPlugin {
-	p := &wazeroPlugin{spec: spec}
-
-	p.compile = sync.OnceValues(func() (*compiledPlugin, error) {
-		m, err := compile()
-		if err != nil {
-			return nil, err
-		}
-
-		p.compiled = m
-		return m, nil
-	})
-
-	return p
 }
 
 func (p *wazeroPlugin) Name() string {
@@ -59,17 +42,20 @@ func (p *wazeroPlugin) newProcessor(conf processor.Config, nm bundle.NewManageme
 		return nil, err
 	}
 
-	compiled, err := p.compile()
+	if p.compiled == nil {
+		compiled, err := p.loader.compile(context.TODO())
+		if err != nil {
+			return nil, err
+		}
+		p.compiled = compiled
+	}
+
+	proc, err := newWasmProcessor(pconf, p.compiled, nm)
 	if err != nil {
 		return nil, err
 	}
 
-	proc, err := newWasmProcessor(pconf, compiled)
-	if err != nil {
-		return nil, err
-	}
-
-	if compiled.processFn == pluginProcessBatchFn {
+	if p.compiled.processFn == pluginProcessBatchFn {
 		return processor.NewAutoObservedBatchedProcessor(conf.Type, proc, nm), nil
 	}
 

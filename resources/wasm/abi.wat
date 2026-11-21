@@ -5,9 +5,18 @@
 ;; empty output. Bento reads the output, then frees it and the input with the
 ;; plugin's free.
 ;;
-;; These are signatures to compare with a module's exports, such as with
-;; `wasm-tools print`, not a module that compiles.
+;; These are signatures to compare with a module's exports and imports, such as
+;; with `wasm-tools print`, not a module that compiles.
 (module
+  ;; Optional, when runtime.wasm.logger.enabled is true. Logs the UTF-8 message
+  ;; at $address and $length at the level each function is named for. Bento
+  ;; copies the message during the call and never frees it.
+  (import "bento_log_v1" "trace" (func (param $address i32) (param $length i32)))
+  (import "bento_log_v1" "debug" (func (param $address i32) (param $length i32)))
+  (import "bento_log_v1" "info"  (func (param $address i32) (param $length i32)))
+  (import "bento_log_v1" "warn"  (func (param $address i32) (param $length i32)))
+  (import "bento_log_v1" "error" (func (param $address i32) (param $length i32)))
+
   ;; Required. The memory that buffers refer to.
   (memory (export "memory") 0)
 
