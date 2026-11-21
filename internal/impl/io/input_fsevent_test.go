@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -18,14 +19,80 @@ import (
 	_ "github.com/warpstreamlabs/bento/internal/impl/io"
 )
 
+// fseventInput creates the input and waits until it has connected. For fsevent
+// a connected input has registered its paths with fsnotify, so any change made
+// afterwards is delivered.
 func fseventInput(t testing.TB, confPattern string, args ...any) input.Streamed {
+	t.Helper()
+
 	iConf, err := testutil.InputFromYAML(fmt.Sprintf(confPattern, args...))
 	require.NoError(t, err)
 
 	i, err := mock.NewManager().NewInput(iConf)
 	require.NoError(t, err)
 
+	require.Eventually(t, func() bool {
+		return i.ConnectionStatus().AllActive()
+	}, time.Second*10, time.Millisecond*10, "input did not connect")
+
 	return i
+}
+
+type fsEvent struct {
+	path      string
+	operation string
+}
+
+func (e fsEvent) is(path string, operations ...string) bool {
+	return e.path == path && slices.Contains(operations, e.operation)
+}
+
+// nextEvent acks and returns the next event delivered by the input, failing
+// the test once ctx expires.
+func nextEvent(t *testing.T, ctx context.Context, i input.Streamed) fsEvent {
+	t.Helper()
+
+	select {
+	case tran := <-i.TransactionChan():
+		require.NoError(t, tran.Ack(ctx, nil))
+		require.Equal(t, 1, tran.Payload.Len())
+
+		part := tran.Payload.Get(0)
+		e := fsEvent{
+			path:      part.MetaGetStr("fsevent_path"),
+			operation: part.MetaGetStr("fsevent_operation"),
+		}
+		return e
+	case <-ctx.Done():
+		require.FailNow(t, "timed out waiting for filesystem event")
+		return fsEvent{}
+	}
+}
+
+// awaitEvent reads events until one satisfies match, returning every event
+// seen up to and including it.
+func awaitEvent(t *testing.T, ctx context.Context, i input.Streamed, match func(fsEvent) bool) []fsEvent {
+	t.Helper()
+
+	var seen []fsEvent
+	for {
+		e := nextEvent(t, ctx, i)
+		seen = append(seen, e)
+		if match(e) {
+			return seen
+		}
+	}
+}
+
+// awaitSubdirWatched waits for the CREATE event of a new subdirectory. The
+// input registers the directory with fsnotify before it emits that event, so
+// files created in the directory afterwards are watched.
+func awaitSubdirWatched(t *testing.T, ctx context.Context, i input.Streamed, subdir string) {
+	t.Helper()
+
+	awaitEvent(t, ctx, i, func(e fsEvent) bool {
+		return e.is(subdir, "CREATE")
+	})
 }
 
 func TestFSEventBasic(t *testing.T) {
@@ -41,11 +108,7 @@ fsevent:
   paths: [ "%v" ]
 `, testFile)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
-
-	err := os.WriteFile(testFile, []byte("modified content"), 0o644)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(testFile, []byte("modified content"), 0o644))
 
 	select {
 	case tran := <-i.TransactionChan():
@@ -63,7 +126,7 @@ fsevent:
 		operation := part.MetaGetStr("fsevent_operation")
 		assert.Contains(t, operation, "WRITE")
 
-	case <-time.After(time.Second * 5):
+	case <-ctx.Done():
 		t.Fatal("timed out waiting for filesystem event")
 	}
 }
@@ -78,28 +141,12 @@ fsevent:
   paths: [ "%v" ]
 `, dir)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
-
 	newFile := filepath.Join(dir, "newfile.txt")
-	err := os.WriteFile(newFile, []byte("new file content"), 0o644)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(newFile, []byte("new file content"), 0o644))
 
-	select {
-	case tran := <-i.TransactionChan():
-		require.NoError(t, tran.Ack(ctx, nil))
-		msg := tran.Payload
-		assert.Equal(t, 1, msg.Len())
-
-		part := msg.Get(0)
-		assert.Equal(t, newFile, part.MetaGetStr("fsevent_path"))
-
-		operation := part.MetaGetStr("fsevent_operation")
-		assert.Contains(t, operation, "CREATE")
-
-	case <-time.After(time.Second * 5):
-		t.Fatal("timed out waiting for create event")
-	}
+	e := nextEvent(t, ctx, i)
+	assert.Equal(t, newFile, e.path)
+	assert.Contains(t, e.operation, "CREATE")
 }
 
 func TestFSEventDeleteFile(t *testing.T) {
@@ -115,28 +162,12 @@ fsevent:
   paths: [ "%v" ]
 `, testFile)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
+	require.NoError(t, os.Remove(testFile))
 
-	err := os.Remove(testFile)
-	require.NoError(t, err)
-
-	select {
-	case tran := <-i.TransactionChan():
-		require.NoError(t, tran.Ack(ctx, nil))
-		msg := tran.Payload
-		assert.Equal(t, 1, msg.Len())
-
-		part := msg.Get(0)
-		assert.Equal(t, testFile, part.MetaGetStr("fsevent_path"))
-
-		// The operation should be REMOVE or CHMOD (some filesystems send CHMOD before REMOVE)
-		operation := part.MetaGetStr("fsevent_operation")
-		assert.Contains(t, operation, "CHMOD", "Expected CHMOD operation, got: %s", operation)
-
-	case <-time.After(time.Second * 5):
-		t.Fatal("timed out waiting for delete event")
-	}
+	e := nextEvent(t, ctx, i)
+	assert.Equal(t, testFile, e.path)
+	// The operation should be REMOVE or CHMOD (some filesystems send CHMOD before REMOVE)
+	assert.Contains(t, e.operation, "CHMOD", "Expected CHMOD operation, got: %s", e.operation)
 }
 
 func TestFSEventMultipleDirs(t *testing.T) {
@@ -151,66 +182,23 @@ fsevent:
   paths: [ "%v", "%v" ]
 `, dir1, dir2)
 
-	// Give the watcher a moment to start up
-	time.Sleep(time.Second)
-
 	file1 := filepath.Join(dir1, "file1.txt")
 	file2 := filepath.Join(dir2, "file2.txt")
 
+	isWriteOrCreate := func(e fsEvent) {
+		t.Helper()
+		assert.True(t, e.operation == "WRITE" || e.operation == "CREATE", "Expected WRITE or CREATE operation, got: %s", e.operation)
+	}
+
 	require.NoError(t, os.WriteFile(file1, []byte("content1"), 0o644))
-
-	// Wait for event from file1
-	var dir1Event bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-			assert.True(t, operation == "WRITE" || operation == "CREATE", "Expected WRITE or CREATE operation, got: %s", operation)
-
-			if eventPath == file1 {
-				dir1Event = true
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
+	for _, e := range awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.path == file1 }) {
+		isWriteOrCreate(e)
 	}
 
 	require.NoError(t, os.WriteFile(file2, []byte("content2"), 0o644))
-
-	// Wait for event from file2
-	var dir2Event bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-			assert.True(t, operation == "WRITE" || operation == "CREATE", "Expected WRITE or CREATE operation, got: %s", operation)
-
-			if eventPath == file2 {
-				dir2Event = true
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
+	for _, e := range awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.path == file2 }) {
+		isWriteOrCreate(e)
 	}
-
-	assert.True(t, dir1Event, "Should have received event from dir1")
-	assert.True(t, dir2Event, "Should have received event from dir2")
 }
 
 func TestFSEventWatchNewSubdirs(t *testing.T) {
@@ -224,48 +212,13 @@ fsevent:
   watch_new_subdirs: true
 `, dir)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
-
 	subdir := filepath.Join(dir, "subdir")
 	require.NoError(t, os.Mkdir(subdir, 0o755))
-
-	// Wait a bit for the CREATE event to be processed
-	time.Sleep(time.Second)
+	awaitSubdirWatched(t, ctx, i, subdir)
 
 	fileInSubdir := filepath.Join(subdir, "file.txt")
 	require.NoError(t, os.WriteFile(fileInSubdir, nil, 0o644))
-
-	// We should receive events for both the subdir creation and the file creation
-	var subdirCreated, fileCreated bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-
-			if eventPath == subdir && operation == "CREATE" {
-				subdirCreated = true
-			} else if eventPath == fileInSubdir && operation == "CREATE" {
-				fileCreated = true
-			}
-
-			if subdirCreated && fileCreated {
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
-	}
-
-	assert.True(t, subdirCreated, "Should have received CREATE event for subdirectory")
-	assert.True(t, fileCreated, "Should have received event for file in subdirectory")
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.is(fileInSubdir, "CREATE") })
 }
 
 func TestFSEventWatchNewSubdirsDisabled(t *testing.T) {
@@ -279,47 +232,21 @@ fsevent:
   watch_new_subdirs: false
 `, dir)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
-
 	subdir := filepath.Join(dir, "subdir")
 	require.NoError(t, os.Mkdir(subdir, 0o755))
-
-	// Wait a bit for the CREATE event to be processed
-	time.Sleep(time.Second)
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.is(subdir, "CREATE") })
 
 	fileInSubdir := filepath.Join(subdir, "file.txt")
 	require.NoError(t, os.WriteFile(fileInSubdir, []byte("content"), 0o644))
 
-	var subdirCreated, fileCreated bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-
-			if eventPath == subdir && operation == "CREATE" {
-				subdirCreated = true
-			} else if eventPath == fileInSubdir && (operation == "WRITE" || operation == "CREATE") {
-				fileCreated = true
-			}
-
-			if fileCreated {
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
+	// A change in the watched directory made after the subdirectory write acts
+	// as a sentinel: if the subdirectory had been watched, its event would
+	// have been delivered before this one.
+	sentinel := filepath.Join(dir, "sentinel.txt")
+	require.NoError(t, os.WriteFile(sentinel, []byte("content"), 0o644))
+	for _, e := range awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.path == sentinel }) {
+		assert.NotEqual(t, fileInSubdir, e.path, "Should NOT have received event for file in subdirectory when watch_new_subdirs is disabled")
 	}
-
-	assert.True(t, subdirCreated, "Should have received CREATE event for subdirectory")
-	assert.False(t, fileCreated, "Should NOT have received event for file in subdirectory when watch_new_subdirs is disabled")
 }
 
 func TestFSEventWatchNewSubdirsDeleteRecreate(t *testing.T) {
@@ -333,117 +260,36 @@ fsevent:
   watch_new_subdirs: true
 `, dir)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
-
 	subdir := filepath.Join(dir, "subdir")
 	require.NoError(t, os.Mkdir(subdir, 0o755))
-
-	// Wait a bit for the CREATE event to be processed
-	time.Sleep(time.Second)
+	awaitSubdirWatched(t, ctx, i, subdir)
 
 	file1 := filepath.Join(subdir, "file1.txt")
 	require.NoError(t, os.WriteFile(file1, []byte("content1"), 0o644))
-
-	var subdirCreated, file1Created bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-
-			if eventPath == subdir && operation == "CREATE" {
-				subdirCreated = true
-			} else if eventPath == file1 && (operation == "WRITE" || operation == "CREATE") {
-				file1Created = true
-			}
-
-			if subdirCreated && file1Created {
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
-	}
-
-	assert.True(t, subdirCreated, "Should have received CREATE event for subdirectory")
-	assert.True(t, file1Created, "Should have received event for file in subdirectory")
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.is(file1, "WRITE", "CREATE") })
 
 	require.NoError(t, os.RemoveAll(subdir))
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.is(subdir, "REMOVE") })
 
-	var subdirDeleted bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
+	// fsnotify can report the removal of a watched directory more than once,
+	// and each report drops whatever watch is under that path, so recreating
+	// the directory straight away can lose the new watch to a stale report.
+	// Events are handled in order, so once a later change to the parent has
+	// been delivered every report of the removal has been processed.
+	settled := filepath.Join(dir, "settled.txt")
+	require.NoError(t, os.WriteFile(settled, nil, 0o644))
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.path == settled })
 
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-
-			if eventPath == subdir && (operation == "REMOVE" || operation == "CHMOD") {
-				subdirDeleted = true
-			}
-
-			if subdirDeleted {
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
-	}
-
-	assert.True(t, subdirDeleted, "Should have received DELETE event for subdirectory")
-
-	time.Sleep(time.Second) // Give it a moment
 	require.NoError(t, os.Mkdir(subdir, 0o755))
+	awaitSubdirWatched(t, ctx, i, subdir)
 
-	time.Sleep(time.Second) // Give it a moment
 	file2 := filepath.Join(subdir, "file2.txt")
 	require.NoError(t, os.WriteFile(file2, []byte("content2"), 0o644))
-
-	var subdirRecreated, file2Created bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-
-			if eventPath == subdir && operation == "CREATE" {
-				subdirRecreated = true
-			} else if eventPath == file2 && (operation == "WRITE" || operation == "CREATE") {
-				file2Created = true
-			}
-
-			if subdirRecreated && file2Created {
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
-	}
-
-	assert.True(t, subdirRecreated, "Should have received CREATE event for recreated subdirectory")
-	assert.True(t, file2Created, "Should have received event for file in recreated subdirectory")
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.is(file2, "WRITE", "CREATE") })
 }
 
 func TestFSEventWatchNewSubdirsNestedLogic(t *testing.T) {
-	// This test specifically targets the nested logic at line 158 in input_fsevent.go
+	// This test specifically targets the nested logic in input_fsevent.go
 	// that handles watching newly created subdirectories
 	dir := t.TempDir()
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
@@ -455,51 +301,16 @@ fsevent:
   watch_new_subdirs: true
 `, dir)
 
-	// Wait for the input to connect and start watching
-	time.Sleep(time.Second)
-
 	// Create a new subdirectory - this should trigger the nested logic
 	subdir := filepath.Join(dir, "newsubdir")
 	require.NoError(t, os.Mkdir(subdir, 0o755))
-
-	// Wait for the CREATE event to be processed
-	time.Sleep(time.Second)
+	awaitSubdirWatched(t, ctx, i, subdir)
 
 	// Now create a file in the new subdirectory - this should work because
 	// the nested logic should have added the subdirectory to the watcher
 	fileInSubdir := filepath.Join(subdir, "testfile.txt")
 	require.NoError(t, os.WriteFile(fileInSubdir, []byte("test content"), 0o644))
-
-	// We should receive events for both the subdir creation and the file creation
-	var subdirCreated, fileCreated bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			msg := tran.Payload
-			assert.Equal(t, 1, msg.Len())
-
-			part := msg.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			operation := part.MetaGetStr("fsevent_operation")
-
-			if eventPath == subdir && operation == "CREATE" {
-				subdirCreated = true
-			} else if eventPath == fileInSubdir && (operation == "WRITE" || operation == "CREATE") {
-				fileCreated = true
-			}
-
-			if subdirCreated && fileCreated {
-				break
-			}
-
-		case <-time.After(time.Second * 1):
-			continue
-		}
-	}
-
-	assert.True(t, subdirCreated, "Should have received CREATE event for new subdirectory")
-	assert.True(t, fileCreated, "Should have received event for file in new subdirectory (nested logic working)")
+	awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.is(fileInSubdir, "WRITE", "CREATE") })
 }
 
 func TestFSEventExtensionFilter(t *testing.T) {
@@ -513,36 +324,16 @@ fsevent:
   extensions: [ ".txt" ]
 `, dir)
 
-	time.Sleep(time.Second)
-
 	// This file should be filtered out
 	ignoredFile := filepath.Join(dir, "ignored.log")
 	require.NoError(t, os.WriteFile(ignoredFile, []byte("should be ignored"), 0o644))
 
-	time.Sleep(500 * time.Millisecond)
-
-	// This file should trigger an event
+	// This file should trigger an event, and any event for the ignored file
+	// would have been delivered before it.
 	matchedFile := filepath.Join(dir, "matched.txt")
 	require.NoError(t, os.WriteFile(matchedFile, []byte("should be seen"), 0o644))
 
-	var gotEvent bool
-	for range 10 {
-		select {
-		case tran := <-i.TransactionChan():
-			require.NoError(t, tran.Ack(ctx, nil))
-			part := tran.Payload.Get(0)
-			eventPath := part.MetaGetStr("fsevent_path")
-			assert.NotEqual(t, ignoredFile, eventPath, "Should not receive events for filtered extensions")
-			if eventPath == matchedFile {
-				gotEvent = true
-			}
-		case <-time.After(time.Second * 1):
-			if gotEvent {
-				return
-			}
-			continue
-		}
+	for _, e := range awaitEvent(t, ctx, i, func(e fsEvent) bool { return e.path == matchedFile }) {
+		assert.NotEqual(t, ignoredFile, e.path, "Should not receive events for filtered extensions")
 	}
-
-	assert.True(t, gotEvent, "Should have received event for .txt file")
 }
