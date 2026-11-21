@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/warpstreamlabs/bento/internal/log"
@@ -26,6 +27,12 @@ func (a *airGapLogger) WithFields(fields map[string]string) log.Modular {
 		WithFields(fields map[string]string) log.Modular
 	}:
 		return &airGapLogger{l: t.WithFields(fields)}
+	case *slog.Logger:
+		args := make([]any, 0, len(fields)*2)
+		for k, v := range fields {
+			args = append(args, slog.String(k, v))
+		}
+		return &airGapLogger{l: t.With(args...)}
 	}
 
 	return a.clone()
@@ -41,13 +48,39 @@ func (a *airGapLogger) With(keyValues ...any) log.Modular {
 		With(keyValues ...any) log.Modular
 	}:
 		return &airGapLogger{l: t.With(keyValues...)}
+	case *slog.Logger:
+		return &airGapLogger{l: t.With(keyValues...)}
 	}
 
 	return a.clone()
 }
 
+// printf formats format/v the same way fmt.Sprintf does when there are
+// arguments, but leaves a no-arg message untouched so a literal '%' in it
+// isn't mangled into %!(NOVERB).
+func printf(format string, v ...any) string {
+	if len(v) == 0 {
+		return format
+	}
+	return fmt.Sprintf(format, v...)
+}
+
+// slogForward formats format/v and logs the result through fn, used for the
+// *slog.Logger case of each level below: slog.Logger.Error etc. treat v as
+// key/value attrs rather than printf args, so the message must be formatted
+// before forwarding. Calling the concrete *slog.Logger method (rather than
+// through the LeveledLogger interface) also keeps go vet from flagging the
+// resulting non-constant message as a bad format string.
+func slogForward(fn func(string, ...any), format string, v ...any) {
+	fn(printf(format, v...))
+}
+
 func (a *airGapLogger) Error(format string, v ...any) {
 	if a.l == nil {
+		return
+	}
+	if sl, ok := a.l.(*slog.Logger); ok {
+		slogForward(sl.Error, format, v...)
 		return
 	}
 	a.l.Error(format, v...)
@@ -56,16 +89,28 @@ func (a *airGapLogger) Warn(format string, v ...any) {
 	if a.l == nil {
 		return
 	}
+	if sl, ok := a.l.(*slog.Logger); ok {
+		slogForward(sl.Warn, format, v...)
+		return
+	}
 	a.l.Warn(format, v...)
 }
 func (a *airGapLogger) Info(format string, v ...any) {
 	if a.l == nil {
 		return
 	}
+	if sl, ok := a.l.(*slog.Logger); ok {
+		slogForward(sl.Info, format, v...)
+		return
+	}
 	a.l.Info(format, v...)
 }
 func (a *airGapLogger) Debug(format string, v ...any) {
 	if a.l == nil {
+		return
+	}
+	if sl, ok := a.l.(*slog.Logger); ok {
+		slogForward(sl.Debug, format, v...)
 		return
 	}
 	a.l.Debug(format, v...)
@@ -83,7 +128,7 @@ func (a *airGapLogger) Trace(format string, v ...any) {
 		return
 	}
 	// Logger does not implement Trace, so fallback to Debug.
-	a.l.Debug(format, v...)
+	a.Debug(format, v...)
 }
 
 func (a *airGapLogger) Fatal(format string, v ...any) {
@@ -100,7 +145,7 @@ func (a *airGapLogger) Fatal(format string, v ...any) {
 	}
 	// Logger does not implement Fatal, so fallback to
 	// Error and exit with a status code 1.
-	a.l.Error(format, v...)
+	a.Error(format, v...)
 	os.Exit(1)
 }
 
