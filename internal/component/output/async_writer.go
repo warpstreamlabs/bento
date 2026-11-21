@@ -227,6 +227,9 @@ func (w *AsyncWriter) loop() {
 				} else {
 					w.log.Debug("Rejecting message: %v\n", err)
 				}
+				for _, s := range spans {
+					s.Error(err)
+				}
 			} else {
 				mBatchSent.Incr(1)
 				mSent.Incr(int64(batch.MessageCollapsedCount(ts.Payload)))

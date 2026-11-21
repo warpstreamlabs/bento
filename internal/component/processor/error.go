@@ -24,5 +24,6 @@ func MarkErr(part *message.Part, span *tracing.Span, err error) {
 			"event", "error",
 			"type", err.Error(),
 		)
+		span.Error(err)
 	}
 }
