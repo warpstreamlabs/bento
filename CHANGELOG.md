@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - TBD
 
+### Added
+
+ - `iceberg` beta output appends structured messages to an Apache Iceberg table registered in AWS Glue or an Iceberg REST catalog @joaolcorreia
+
 ### Fixed
 
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot

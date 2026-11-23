@@ -1,0 +1,355 @@
+{
+  "app_id": "snwcat",
+  "br_colordepth": "24",
+  "br_cookies": true,
+  "br_features_director": false,
+  "br_features_flash": false,
+  "br_features_gears": false,
+  "br_features_java": false,
+  "br_features_pdf": true,
+  "br_features_quicktime": false,
+  "br_features_realplayer": false,
+  "br_features_silverlight": false,
+  "br_features_windowsmedia": false,
+  "br_lang": "en-US",
+  "br_viewheight": 380,
+  "br_viewwidth": 2135,
+  "collector_tstamp": "2022-03-21T22:12:43.358Z",
+  "contexts": {
+    "com_clearbit_company": {
+      "data": [
+        {
+          "domain": "snowcatcloud.com",
+          "geo.city": "San Diego",
+          "geo.country": "United States",
+          "geo.state": "California",
+          "industry": "Internet Software \u0026 Services",
+          "industryGroup": "Software \u0026 Services",
+          "metrics.annualRevenue": null,
+          "metrics.employees": 5,
+          "name": "SnowcatCloud",
+          "sector": "Information Technology",
+          "site.url": "snowcatcloud.com",
+          "tags": [
+            "Internet"
+          ],
+          "tech": [
+            "google_apps",
+            "cloud_flare",
+            "zendesk",
+            "sendgrid",
+            "heroku",
+            "mandrill",
+            "amazon_ses",
+            "google_tag_manager",
+            "customer_io",
+            "facebook_advertiser",
+            "snowplow_analytics",
+            "google_analytics"
+          ]
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "com_fingerprintjs_fingerprint": {
+      "data": [
+        {
+          "confidence": {
+            "score": 0.9986469217469743
+          },
+          "requestId": "1647900762966.WcixoX",
+          "visitorFound": true,
+          "visitorId": "nmnY3NEe0lGJc4tzh5KM"
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "com_snowcatcloud_iceberg_group": {
+      "data": [
+        {
+          "domain": "snowcatcloud.com",
+          "id": "snowcatcloud.com",
+          "name": "SnowcatCloud"
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "com_snowplowanalytics_snowplow_web_page": {
+      "data": [
+        {
+          "id": "9689656e-ebab-4c10-9413-59a6dcefadd2"
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "org_w3_PerformanceTiming": {
+      "data": [
+        {
+          "connectEnd": 1647900761737,
+          "connectStart": 1647900761737,
+          "domComplete": 0,
+          "domContentLoadedEventEnd": 1647900762255,
+          "domContentLoadedEventStart": 1647900762255,
+          "domInteractive": 1647900762058,
+          "domLoading": 1647900761911,
+          "domainLookupEnd": 1647900761737,
+          "domainLookupStart": 1647900761737,
+          "fetchStart": 1647900761737,
+          "loadEventEnd": 0,
+          "loadEventStart": 0,
+          "navigationStart": 1647900761735,
+          "redirectEnd": 0,
+          "redirectStart": 0,
+          "requestStart": 1647900761737,
+          "responseEnd": 1647900761952,
+          "responseStart": 1647900761803,
+          "secureConnectionStart": 0,
+          "unloadEventEnd": 1647900761905,
+          "unloadEventStart": 1647900761905
+        }
+      ],
+      "version": "1-0-0"
+    }
+  },
+  "derived_contexts": {
+    "com_dbip_isp": {
+      "data": [
+        {
+          "traits": {
+            "autonomous_system_number": 20001,
+            "autonomous_system_organization": "Charter Communications Inc",
+            "connection_type": "Corporate",
+            "isp": "Charter Communications",
+            "organization": "Spectrum"
+          }
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "com_dbip_location": {
+      "data": [
+        {
+          "city": {
+            "geoname_id": 5342353,
+            "names": {
+              "en": "Del Mar",
+              "fa": "دل مار، کالیفرنیا",
+              "ja": "デル・マー",
+              "zh-CN": "德尔马"
+            }
+          },
+          "continent": {
+            "code": "NA",
+            "geoname_id": 6255149,
+            "names": {
+              "de": "Nordamerika",
+              "en": "North America",
+              "es": "Norteamérica",
+              "fa": " امریکای شمالی",
+              "fr": "Amérique Du Nord",
+              "ja": "北アメリカ大陸",
+              "ko": "북아메리카",
+              "pt-BR": "América Do Norte",
+              "ru": "Северная Америка",
+              "zh-CN": "北美洲"
+            }
+          },
+          "country": {
+            "geoname_id": 6252001,
+            "is_in_european_union": false,
+            "iso_code": "US",
+            "names": {
+              "de": "Vereinigte Staaten von Amerika",
+              "en": "United States",
+              "es": "Estados Unidos de América (los)",
+              "fa": "ایالات متحدهٔ امریکا",
+              "fr": "États-Unis",
+              "ja": "アメリカ合衆国",
+              "ko": "미국",
+              "pt-BR": "Estados Unidos",
+              "ru": "США",
+              "zh-CN": "美国"
+            }
+          },
+          "location": {
+            "latitude": 32.9595,
+            "longitude": -117.265,
+            "time_zone": "America/Los_Angeles",
+            "weather_code": "USCA0288"
+          },
+          "postal": {
+            "code": "92014"
+          },
+          "subdivisions": [
+            {
+              "geoname_id": 5332921,
+              "iso_code": "CA",
+              "names": {
+                "de": "Kalifornien",
+                "en": "California",
+                "es": "California",
+                "fa": "کالیفرنیا",
+                "fr": "Californie",
+                "ja": "カリフォルニア州",
+                "ko": "캘리포니아 주",
+                "pt-BR": "Califórnia",
+                "ru": "Калифорния",
+                "zh-CN": "加州"
+              }
+            },
+            {
+              "geoname_id": 5391832,
+              "names": {
+                "en": "San Diego",
+                "es": "Condado de San Diego",
+                "fa": "شهرستان سن دیگو، کالیفرنیا",
+                "fr": "Comté de San Diego",
+                "ja": "サンディエゴ郡",
+                "ko": "샌디에이고 군",
+                "pt-BR": "Condado de San Diego",
+                "ru": "Сан-Диего",
+                "zh-CN": "圣迭戈县"
+              }
+            }
+          ]
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "com_snowplowanalytics_snowplow_ua_parser_context": {
+      "data": [
+        {
+          "deviceFamily": "Other",
+          "osFamily": "Mac OS X",
+          "osMajor": "10",
+          "osMinor": "15",
+          "osPatch": "7",
+          "osPatchMinor": null,
+          "osVersion": "Mac OS X 10.15.7",
+          "useragentFamily": "Chrome",
+          "useragentMajor": "99",
+          "useragentMinor": "0",
+          "useragentPatch": "4844",
+          "useragentVersion": "Chrome 99.0.4844"
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "nl_basjes_yauaa_context": {
+      "data": [
+        {
+          "agentClass": "Browser",
+          "agentName": "Chrome",
+          "agentNameVersion": "Chrome 99.0.4844.74",
+          "agentNameVersionMajor": "Chrome 99",
+          "agentVersion": "99.0.4844.74",
+          "agentVersionMajor": "99",
+          "deviceBrand": "Apple",
+          "deviceClass": "Desktop",
+          "deviceCpu": "Intel",
+          "deviceCpuBits": "32",
+          "deviceName": "Apple Macintosh",
+          "layoutEngineClass": "Browser",
+          "layoutEngineName": "Blink",
+          "layoutEngineNameVersion": "Blink 99.0",
+          "layoutEngineNameVersionMajor": "Blink 99",
+          "layoutEngineVersion": "99.0",
+          "layoutEngineVersionMajor": "99",
+          "operatingSystemClass": "Desktop",
+          "operatingSystemName": "Mac OS X",
+          "operatingSystemNameVersion": "Mac OS X 10.15.7",
+          "operatingSystemNameVersionMajor": "Mac OS X 10",
+          "operatingSystemVersion": "10.15.7",
+          "operatingSystemVersionMajor": "10"
+        }
+      ],
+      "version": "1-0-2"
+    },
+    "org_ietf_http_cookie": {
+      "data": [
+        {
+          "name": "_gaexp",
+          "value": "gaexpvalue"
+        },
+        {
+          "name": "ajs_user_id",
+          "value": "ajsuseridvalue"
+        },
+        {
+          "name": "cart",
+          "value": "cartvalueexample"
+        },
+        {
+          "name": "ajs_anonymous_id",
+          "value": "ajs_anonymous_idvalue"
+        }
+      ],
+      "version": "1-0-0"
+    },
+    "org_ietf_http_header": {
+      "data": [
+        {
+          "name": "X-Forwarded-For",
+          "value": "75.80.110.186"
+        },
+        {
+          "name": "Host",
+          "value": "sp.snowcatcloud.com"
+        },
+        {
+          "name": "User-Agent",
+          "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.74 Safari/537.36"
+        },
+        {
+          "name": "Origin",
+          "value": "https://www.snowcatcloud.com"
+        },
+        {
+          "name": "Referer",
+          "value": "https://www.snowcatcloud.com/"
+        }
+      ],
+      "version": "1-0-0"
+    }
+  },
+  "derived_tstamp": "2022-03-21T22:12:43.226Z",
+  "doc_charset": "UTF-8",
+  "doc_height": 6344,
+  "doc_width": 2135,
+  "domain_sessionid": "76255390-7115-4aa0-8a23-a1b1d4ef8d7c",
+  "domain_sessionidx": 36,
+  "domain_userid": "d67ba93a-0ada-4f04-a8ce-9634d14fa9c9",
+  "dvce_created_tstamp": "2022-03-21T22:12:43.007Z",
+  "dvce_screenheight": 1440,
+  "dvce_screenwidth": 3440,
+  "dvce_sent_tstamp": "2022-03-21T22:12:43.139Z",
+  "etl_tstamp": "2022-03-21T22:12:44.79Z",
+  "event": "page_view",
+  "event_fingerprint": "eca23f7cfc0c763e96ce4de2bb7ad273",
+  "event_format": "jsonschema",
+  "event_id": "9fd5fd06-24ad-471b-9f73-f1a054cb0b31",
+  "event_name": "page_view",
+  "event_vendor": "com.snowplowanalytics.snowplow",
+  "event_version": "1-0-0",
+  "mkt_campaign": "campaign",
+  "mkt_content": "content",
+  "mkt_medium": "medium",
+  "mkt_source": "source",
+  "mkt_term": "term",
+  "name_tracker": "cf",
+  "network_userid": "77a06a7f-58b2-464c-8916-653edd8d6788",
+  "os_timezone": "America/Los_Angeles",
+  "page_title": "SnowcatCloud: Hosted Snowplow Analytics",
+  "page_url": "https://www.snowcatcloud.com/",
+  "page_urlhost": "www.snowcatcloud.com",
+  "page_urlpath": "/fingerprint",
+  "page_urlport": 443,
+  "page_urlscheme": "https",
+  "platform": "web",
+  "user_id": "joaocorreia",
+  "user_ipaddress": "75.80.110.186",
+  "useragent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.74 Safari/537.36",
+  "v_collector": "ssc-2.3.0-kinesis",
+  "v_etl": "stream-2.0.1-common-2.0.1",
+  "v_tracker": "js-2.14.0"
+}
