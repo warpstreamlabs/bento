@@ -36,7 +36,10 @@ func TestPluginRegister(t *testing.T) {
 	manifest, _, err := runtime.ReadManifestYAML(pluginManifest)
 	require.NoError(t, err)
 
-	compiledPlugin, err := rt.Register(manifest, runtime.ByteSource(pluginWasm))
+	rtConf, _, err := runtime.Resolve(manifest, runtime.Grant{}, runtime.ResolveOptions{})
+	require.NoError(t, err)
+
+	compiledPlugin, err := rt.Register(manifest, runtime.ByteSource(pluginWasm), rtConf)
 	require.NoError(t, err)
 
 	env := bundle.NewEnvironment()
@@ -62,7 +65,10 @@ func TestPluginExecute(t *testing.T) {
 	manifest, _, err := runtime.ReadManifestYAML(pluginManifest)
 	require.NoError(t, err)
 
-	compiledPlugin, err := rt.Register(manifest, runtime.ByteSource(pluginWasm))
+	rtConf, _, err := runtime.Resolve(manifest, runtime.Grant{}, runtime.ResolveOptions{})
+	require.NoError(t, err)
+
+	compiledPlugin, err := rt.Register(manifest, runtime.ByteSource(pluginWasm), rtConf)
 	require.NoError(t, err)
 
 	err = compiledPlugin.RegisterWith(mgr.Environment())

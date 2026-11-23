@@ -49,6 +49,26 @@ func lintFile(path string, skipEnvVarCheck bool, spec docs.FieldSpecs, lConf doc
 	return
 }
 
+func loadFilePlugins(path string) (pathLints []pathLint) {
+	confBytes, _, _, err := config.ReadFileEnvSwap(ifs.OS(), path, os.LookupEnv)
+	if err != nil {
+		// Reported when the file is linted.
+		return nil
+	}
+	root, err := docs.UnmarshalYAML(confBytes)
+	if err != nil {
+		return nil
+	}
+	lints, _, err := common.LoadConfigPlugins(root)
+	if err != nil {
+		return []pathLint{{source: path, lint: docs.NewLintError(1, docs.LintFailedRead, err)}}
+	}
+	for _, l := range lints {
+		pathLints = append(pathLints, pathLint{source: path, lint: docs.NewLintError(1, docs.LintFailedRead, errors.New(l))})
+	}
+	return
+}
+
 func lintMDSnippets(path string, spec docs.FieldSpecs, lConf docs.LintConfig) (pathLints []pathLint) {
 	rawBytes, err := ifs.ReadFile(ifs.OS(), path)
 	if err != nil {
@@ -209,6 +229,15 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 
 	var pathLintMut sync.Mutex
 	var pathLints []pathLint
+
+	// Plugins listed in a config must be loaded before any config is linted,
+	// as configs may use them.
+	for _, target := range targets {
+		if target == "" || path.Ext(target) == ".md" {
+			continue
+		}
+		pathLints = append(pathLints, loadFilePlugins(target)...)
+	}
 	threads := runtime.NumCPU()
 	var wg sync.WaitGroup
 	wg.Add(threads)

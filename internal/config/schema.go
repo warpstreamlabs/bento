@@ -11,6 +11,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/log"
 	"github.com/warpstreamlabs/bento/internal/manager"
+	"github.com/warpstreamlabs/bento/internal/plugin"
 	"github.com/warpstreamlabs/bento/internal/stream"
 )
 
@@ -80,6 +81,7 @@ func Spec() docs.FieldSpecs {
 	fields = append(fields, observabilityFields()...)
 	fields = append(fields, errorHandlingFields()...)
 	fields = append(fields, test.ConfigSpec().Advanced())
+	fields = append(fields, plugin.ConfigSpec())
 	return fields
 }
 

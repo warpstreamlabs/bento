@@ -19,27 +19,57 @@ my-plugin/
 └── plugin.wasm  # Compiled WASM binary (required)
 ```
 
-Load the plugin with `-p` (or `--plugin`):
+## Loading Plugins
 
-```sh
-bento -p ./my-plugin -c config.yaml
-```
-
-The `-p` flag can be used multiple times to load multiple plugins.
-
-Configure it as a processor in `config.yaml`. The processor name must match `name` in the manifest:
+List the plugins to load in the `plugins` section of your config, then use each one as a processor. The processor name must match `name` in the plugin's manifest:
 
 ```yml
+plugins:
+  - source: ./my-plugin
+
 pipeline:
   processors:
     - my-plugin: {}
 ```
 
-Pass the same `-p` flag to commands that read the config, such as `test` and `lint`:
+Bento loads the plugins in the `plugins` section before checking the rest of the config, so commands that read the config, such as `lint` and `test`, load them too:
 
 ```sh
-bento -p ./my-plugin test config.yaml
-bento -p ./my-plugin lint config.yaml
+bento -c config.yaml
+bento lint config.yaml
+bento test config.yaml
+```
+
+### Granting Mounts and Memory
+
+A plugin's manifest lists the capabilities it [`requires`][fields], such as directories it expects to be mounted. It can't grant them to itself: you decide which host directories it gets and how much memory it may use, in the same `plugins` entry:
+
+```yml
+plugins:
+  - source: ./my-plugin
+    memory:
+      max_pages: 128 # Limits each instance to 8MiB (64KiB per page)
+    mounts:
+      data: # The name of a mount the plugin requires
+        host_path: ./data
+        writable: false
+```
+
+Bento refuses to load a plugin when:
+
+- It requires a mount that isn't granted, unless the mount is optional.
+- A mount is granted that the plugin doesn't request.
+- A mount is granted as writable but the plugin only requests read access.
+- `max_pages` is below the `min_pages` the plugin requires.
+
+Without `max_pages`, a plugin has no memory limit, the same as components compiled into Bento.
+
+### The `-p` Flag
+
+Plugins can also be loaded with `-p` (or `--plugin`), which can be used multiple times and supports glob patterns. Plugins loaded this way get no mounts or memory limits, so use the `plugins` section for plugins that need them. If a plugin is passed with `-p` and also listed in the `plugins` section with mounts or a memory limit, Bento refuses to start.
+
+```sh
+bento -p ./my-plugin -c config.yaml
 ```
 
 See [Unit Testing][unit-testing] for writing tests.
@@ -56,9 +86,9 @@ Bento WASM plugins sit between the two: they introduce custom logic while runnin
 
 This isolation requires copying messages into and out of the plugin's memory on each call. Plugins can only be processors, and they can't use Bento [resources][resources] such as caches. Use a custom build when you need another component type or access to those resources.
 
-:::warning Inspect manifests before loading
-Because host permissions are configured in `plugin.yaml`, always audit a third-party plugin's [`runtime.wasm` settings][wasm-fields] before loading it:
-- **Filesystem access:** Check for mounted directories and write permissions. A plugin can follow symlinks inside a mounted directory to targets outside it.
+:::warning Check what a plugin asks for
+A plugin only gets the host access you grant it in the `plugins` section, but check its [`requires`][fields] before granting it:
+- **Filesystem access:** A plugin can follow symlinks inside a mounted directory to targets outside it. Only grant write access where it's needed.
 - **Memory limits:** Without `memory.max_pages`, each instance can allocate up to 4 GiB, and concurrent calls can spawn multiple instances.
 
 See the [Sandbox][sandbox] in the Plugin ABI guide for full details on runtime capabilities.
@@ -89,6 +119,46 @@ func init() {
 	}
 }
 ```
+
+Plugins registered from Go are trusted, so no mounts are granted to them through the config. They may still use the deprecated `runtime` block of the manifest.
+
+## Migrating from the `runtime` Block
+
+Earlier manifests set mounts and memory limits in a `runtime.wasm` block, which let a plugin choose its own access to the host. That block is deprecated and will be removed in a future release. Plugins that use it still load from a local directory, with a warning that shows the replacement.
+
+To migrate a plugin, replace its `runtime` block with `requires`:
+
+```yml title="Before: plugin.yaml"
+runtime:
+  wasm:
+    path: plugin.wasm
+    mounts:
+      - host_path: ./data
+        guest_path: /data
+    memory:
+      max_pages: 128
+```
+
+```yml title="After: plugin.yaml"
+requires:
+  mounts:
+    - name: data
+      guest_path: /data
+```
+
+And move the host path and memory limit into the config that runs it:
+
+```yml title="config.yaml"
+plugins:
+  - source: ./my-plugin
+    memory:
+      max_pages: 128
+    mounts:
+      data:
+        host_path: ./data
+```
+
+The WASM binary must be named `plugin.wasm`, as `runtime.wasm.path` has no replacement. Mounts were read-only unless `read_only: false` was set; request `writable: true` and grant it with `writable: true` for the same behavior.
 
 ## Language Support
 
@@ -121,7 +191,6 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 [developing]: /docs/guides/plugins/developing_plugins
 [fields]: /docs/guides/plugins/fields
 [unit-testing]: /docs/configuration/unit_testing
-[wasm-fields]: /docs/guides/plugins/fields#runtimewasm
 [sandbox]: /docs/guides/plugins/plugin_abi#sandbox
 [examples]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples
 [uppercase-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/uppercase

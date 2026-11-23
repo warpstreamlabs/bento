@@ -43,13 +43,12 @@ func NewPluginRuntime() *WazeroRuntime {
 	return &WazeroRuntime{}
 }
 
-func (rt *WazeroRuntime) Register(manifest *runtime.Manifest, source runtime.Source) (runtime.Plugin, error) {
+func (rt *WazeroRuntime) Register(manifest *runtime.Manifest, source runtime.Source, conf runtime.WasmRuntimeConfig) (runtime.Plugin, error) {
 	spec, err := manifest.ComponentSpec()
 	if err != nil {
 		return nil, err
 	}
 
-	conf := manifest.Runtime.Wasm
 	moduleConf, err := toModuleConfig(conf)
 	if err != nil {
 		return nil, err
@@ -57,7 +56,7 @@ func (rt *WazeroRuntime) Register(manifest *runtime.Manifest, source runtime.Sou
 
 	path := conf.Path
 	if path == "" {
-		path = "plugin.wasm"
+		path = runtime.DefaultWasmPath
 	}
 
 	var wasm []byte
@@ -184,6 +183,7 @@ var exportSignatures = map[string][]signature{
 	pluginProcessFn:      {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
 	pluginProcessBatchFn: {{params: []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, results: []api.ValueType{api.ValueTypeI64}}},
 	"_initialize":        {{}},
+	"bento_abi_v1":       {{}},
 }
 
 // hasExportSignatures returns an error naming each export of the ABI whose

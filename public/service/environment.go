@@ -720,7 +720,7 @@ func (e *Environment) RegisterWasmPlugin(manifestYAML string, wasm []byte) error
 		return err
 	}
 
-	return plugin.Register(e.internal, manifest, runtime.ByteSource(wasm))
+	return plugin.Register(e.internal, manifest, wasm)
 }
 
 // XFormatConfigJSON returns a byte slice of the Bento configuration spec

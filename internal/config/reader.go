@@ -79,6 +79,9 @@ type Reader struct {
 	resourceFileInfo map[string]resourceFileInfo
 	resourceSources  *resourceSourceInfo
 
+	// Called with the main config after it is read and before it is linted.
+	onMainRead MainReadFunc
+
 	mainUpdateFn   MainUpdateFunc
 	streamUpdateFn StreamUpdateFunc
 	watcher        fileWatcher
@@ -182,6 +185,20 @@ func OptSetStreamPaths(streamsPaths ...string) OptFunc {
 func OptUseFS(fs ifs.FS) OptFunc {
 	return func(r *Reader) {
 		r.fs = fs
+	}
+}
+
+// MainReadFunc is called with the main config once it has been read and
+// before it is linted, such that sections of it (like plugins) can be
+// processed before the rest of the config is checked. Lints and warnings it
+// returns are reported alongside those of the config.
+type MainReadFunc func(root *yaml.Node) (lints, warnings []string, err error)
+
+// OptOnMainRead sets a function to call with the main config after it has
+// been read and before it is linted, each time it is read.
+func OptOnMainRead(fn MainReadFunc) OptFunc {
+	return func(r *Reader) {
+		r.onMainRead = fn
 	}
 }
 
@@ -395,6 +412,16 @@ func (r *Reader) readMain(mainPath string) (conf Type, pConf *docs.ParsedConfig,
 	}
 	if err = applyOverrides(confSpec, rawNode, r.overrides...); err != nil {
 		return
+	}
+
+	if r.onMainRead != nil {
+		var hLints, hWarns []string
+		hLints, hWarns, err = r.onMainRead(rawNode)
+		lints = append(lints, hLints...)
+		lintWarns = append(lintWarns, hWarns...)
+		if err != nil {
+			return
+		}
 	}
 
 	if !bytes.HasPrefix(confBytes, []byte("# BENTO LINT DISABLE")) {

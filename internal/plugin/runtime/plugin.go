@@ -18,7 +18,9 @@ type Plugin interface {
 // Runtime is the interface for a plugin runtime. A runtime owns the plugins it
 // registers, which remain valid until Close is called.
 type Runtime interface {
-	Register(manifest *Manifest, source Source) (Plugin, error)
+	// Register a plugin from its manifest and WASM binary, run with the
+	// configuration returned by Resolve.
+	Register(manifest *Manifest, source Source, conf WasmRuntimeConfig) (Plugin, error)
 	Close(ctx context.Context) error
 }
 

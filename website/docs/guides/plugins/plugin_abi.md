@@ -33,9 +33,9 @@ The plugin runs only while Bento calls it. Work for a call must finish before it
 
 ### Sandbox
 
-Plugins have access to WASI preview 1, with clocks and a secure random source. Filesystem access is limited to directories mounted with [`runtime.wasm.mounts`][mounts], although symbolic links within those directories can lead outside them. Mounts are read-only by default.
+Plugins have access to WASI preview 1, with clocks and a secure random source. Filesystem access is limited to the directories a plugin [requests][mounts] and is granted in the [`plugins` section][loading] of the Bento config, although symbolic links within those directories can lead outside them. Mounts are read-only unless the plugin requests write access and the config grants it.
 
-[`runtime.wasm.memory.max_pages`][memory-limit] limits each instance's linear memory in 64 KiB pages. Without a configured limit, each instance can allocate up to 4 GiB.
+The `memory.max_pages` limit in the `plugins` section limits each instance's linear memory in 64 KiB pages. Without a configured limit, each instance can allocate up to 4 GiB, the same as plugins compiled into Bento have no limit of their own.
 
 ## Memory
 
@@ -142,6 +142,12 @@ If `malloc` returns `0` or an address whose requested byte range extends outside
 
 <WatExport name="_initialize" />
 
+### `bento_abi_v1`
+
+<WatExport name="bento_abi_v1" />
+
+Declares that the plugin implements version 1 of this ABI. Bento never calls it: it reads which `bento_abi_v<N>` export a plugin has when loading it, and refuses plugins built for a version it doesn't support. Plugins without one are assumed to be version 1 and produce a warning. The Go PDK adds this export for you.
+
 Bento calls this export, if present, before `init_plugin`. It never calls `_start`.
 
 ### `init_plugin`
@@ -187,5 +193,5 @@ See [Error handling][errors] for handling failed messages in a pipeline.
 [about]: /docs/guides/plugins/about
 [developing]: /docs/guides/plugins/developing_plugins
 [fields]: /docs/guides/plugins/fields
-[mounts]: /docs/guides/plugins/fields#runtimewasmmounts
-[memory-limit]: /docs/guides/plugins/fields#runtimewasmmemorymax_pages
+[mounts]: /docs/guides/plugins/fields#requiresmounts
+[loading]: /docs/guides/plugins/about#loading-plugins

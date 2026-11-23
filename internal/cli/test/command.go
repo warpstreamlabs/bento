@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"gopkg.in/yaml.v3"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/config"
@@ -18,6 +19,7 @@ import (
 	ifilepath "github.com/warpstreamlabs/bento/internal/filepath"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/log"
+	"github.com/warpstreamlabs/bento/internal/plugin"
 )
 
 var (
@@ -106,11 +108,31 @@ func lintTarget(spec docs.FieldSpecs, path, testSuffix string) ([]docs.Lint, err
 	// environment variables, so in order to test env vars properly we would
 	// need to lint for each case.
 	skipEnvVarCheck := true
+
+	// Plugins listed in the config must be loaded before it's linted.
+	if confBytes, _, _, err := config.ReadFileEnvSwap(ifs.OS(), confPath, os.LookupEnv); err == nil {
+		if root, err := docs.UnmarshalYAML(confBytes); err == nil {
+			if err := loadPlugins(root); err != nil {
+				return nil, fmt.Errorf("%v: %w", confPath, err)
+			}
+		}
+	}
+
 	_, lints, err := config.ReadYAMLFileLinted(ifs.OS(), spec, confPath, skipEnvVarCheck, docs.NewLintConfig(bundle.GlobalEnvironment))
 	if err != nil {
 		return nil, err
 	}
 	return lints, nil
+}
+
+// loadPlugins loads the plugins listed in the plugins section of a config.
+func loadPlugins(root *yaml.Node) error {
+	entries, err := plugin.EntriesFromConfig(root)
+	if err != nil {
+		return err
+	}
+	_, _, err = plugin.GlobalLoader().Load(entries...)
+	return err
 }
 
 //------------------------------------------------------------------------------

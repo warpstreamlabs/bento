@@ -24,6 +24,10 @@
   ;; Optional. Initializes a WASI reactor when each instance is created.
   (func (export "_initialize"))
 
+  ;; Recommended. Declares the version of this ABI the plugin is built against.
+  ;; Bento never calls it. Plugins without it are assumed to be version 1.
+  (func (export "bento_abi_v1"))
+
   ;; Optional. Configures an instance with its config, as JSON. Its output is
   ;; empty, or a UTF-8 error message.
   (func (export "init_plugin") (param $address i32) (param $length i32) (result i64))

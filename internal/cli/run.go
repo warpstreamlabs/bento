@@ -19,7 +19,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/filepath"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/internal/plugin"
 	"github.com/warpstreamlabs/bento/internal/template"
 )
 
@@ -137,7 +136,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 		&cli.StringSliceFlag{
 			Name:    "plugin",
 			Aliases: []string{"p"},
-			Usage:   "EXPERIMENTAL: path to a Bento plugin's directory.",
+			Usage:   "EXPERIMENTAL: path to a Bento plugin's directory, supports glob patterns. Plugins that need mounts or memory limits are listed in the plugins section of the config instead.",
 		},
 		&cli.StringFlag{
 			Name:    "remote-config",
@@ -193,20 +192,12 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 		os.Exit(1)
 	}
 
-	pluginPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("plugin"))
+	pLints, err := common.LoadFlagPlugins(c, os.Stderr)
 	if err != nil {
-		fmt.Printf("Failed to resolve plugin glob pattern: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
 		os.Exit(1)
 	}
-
-	if len(pluginPaths) > 0 {
-		pLints, err := plugin.InitPlugins(c.Context, bundle.GlobalEnvironment, plugin.GlobalRuntime, pluginPaths...)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
-			os.Exit(1)
-		}
-		lints = append(lints, pLints...)
-	}
+	lints = append(lints, pLints...)
 
 	if !c.Bool("chilled") && len(lints) > 0 {
 		for _, lint := range lints {

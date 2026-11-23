@@ -304,6 +304,10 @@ func (p *ProcessorsProvider) getConfs(jsonPtr string, environment map[string]str
 		return confs, fmt.Errorf("failed to parse config file '%v': %v", targetPath, err)
 	}
 
+	if err := loadPlugins(root); err != nil {
+		return confs, fmt.Errorf("failed to load plugins of config file '%v': %v", targetPath, err)
+	}
+
 	confSpec := p.spec
 
 	// Replace mock components, starting with all absolute paths in JSON pointer

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - TBD
 
+### Added
+
+ - WASM plugins can be listed in a new `plugins` section of the config, which also grants each plugin its mounts and memory limit, and is loaded by `lint` and `test` without `-p` @erichardson-lee
+ - WASM plugin manifests declare the mounts and memory they need with `requires` @erichardson-lee
+ - WASM plugins declare the ABI version they're built for with a `bento_abi_v1` export, added by the Go PDK, and Bento refuses plugins built for an unsupported version @erichardson-lee
+
+### Changed
+
+ - The `runtime` block of WASM plugin manifests is deprecated in favour of `requires` and the `plugins` config section. Plugins that use it still load from a directory, with a warning showing the replacement @erichardson-lee
+
 ### Fixed
 
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot

@@ -3,7 +3,9 @@ title: Manifest Fields
 sidebar_label: Fields
 ---
 
-The `plugin.yaml` manifest defines a plugin's name, its config fields, and its sandbox limits. Only `name` and `type` are required at the root level. If you define fields, each needs a `name` and `type`; if you define mounts, each needs a `host_path` and `guest_path`.
+The `plugin.yaml` manifest describes a plugin: its name, its config fields, and the capabilities it `requires`. Only `name` and `type` are required at the root level. If you define fields, each needs a `name` and `type`; if you request mounts, each needs a `name` and `guest_path`.
+
+The manifest only contains what is fixed when the plugin is built. Whoever runs the plugin decides which host directories it gets and how much memory it may use, in the [`plugins` section][plugins-config] of their Bento config.
 
 ## Example
 
@@ -19,15 +21,31 @@ fields:
     type: string
     default: ""
 
-runtime:
-  wasm:
-    path: plugin.wasm
-    mounts:
-      - host_path: ./data
-        guest_path: /data
+requires:
+  memory:
+    min_pages: 64
+  mounts:
+    - name: data
+      guest_path: /data
+      description: Lookup tables read at startup.
+```
+
+And the Bento config that runs it, granting the `data` mount:
+
+```yml
+plugins:
+  - source: ./uppercase
     memory:
       max_pages: 128
+    mounts:
+      data:
+        host_path: ./data
 ```
+
+The `runtime` block is deprecated. See [Migrating from the `runtime` block][migrating].
+
+[plugins-config]: /docs/guides/plugins/about#loading-plugins
+[migrating]: /docs/guides/plugins/about#migrating-from-the-runtime-block
 
 ## Fields
 
@@ -139,68 +157,69 @@ Whether this field is considered advanced.
 Type: `bool`  
 Default: `false`  
 
-### `runtime`
+### `requires`
 
-The runtime configuration for the plugin.
-
-
-Type: `object`  
-
-### `runtime.wasm`
-
-The WASM runtime configuration.
+The capabilities the plugin needs. Whoever runs the plugin grants them in the `plugins` section of their Bento config.
 
 
 Type: `object`  
 
-### `runtime.wasm.path`
+### `requires.memory`
 
-The path to the WASM binary relative to the plugin directory. Ignored when the binary is provided directly, such as when registering from Go.
+The memory the plugin needs.
 
 
-Type: `string`  
-Default: `"plugin.wasm"`  
+Type: `object`  
 
-### `runtime.wasm.mounts`
+### `requires.memory.min_pages`
 
-A list of directory mounts.
+The fewest pages of memory each instance of the plugin needs. One page is 64KiB. Bento refuses to run the plugin with a lower `max_pages` limit.
+
+
+Type: `int`  
+
+### `requires.mounts`
+
+Directories the plugin expects to be mounted.
 
 
 Type: list of `object`  
 
-### `runtime.wasm.mounts[].host_path`
+### `requires.mounts[].name`
 
-The path on the host machine to mount. A relative path is relative to the working directory of Bento.
-
-
-Type: `string`  
-
-### `runtime.wasm.mounts[].guest_path`
-
-The path inside the WASM container.
+The name the mount is granted by.
 
 
 Type: `string`  
 
-### `runtime.wasm.mounts[].read_only`
+### `requires.mounts[].guest_path`
 
-Whether to mount the path read-only.
+The path the plugin expects the directory at.
+
+
+Type: `string`  
+
+### `requires.mounts[].writable`
+
+Whether the plugin needs to write to the directory.
 
 
 Type: `bool`  
-Default: `true`  
+Default: `false`  
 
-### `runtime.wasm.memory`
+### `requires.mounts[].optional`
 
-Describes the limits on the memory the plugin may be allocated.
-
-
-Type: `object`  
-
-### `runtime.wasm.memory.max_pages`
-
-The max amount of pages each instance of the plugin can allocate. One page is 64KiB. When omitted or zero, an instance can allocate up to 4GiB.
+Whether the plugin can run without the mount.
 
 
-Type: `int`  
+Type: `bool`  
+Default: `false`  
+
+### `requires.mounts[].description`
+
+What the plugin uses the directory for.
+
+
+Type: `string`  
+Default: `""`  
 

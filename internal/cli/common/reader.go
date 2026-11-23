@@ -19,6 +19,7 @@ func ReadConfig(c *cli.Context, cliOpts *CLIOpts, streamsMode bool) (mainPath st
 		config.OptAddOverrides(c.StringSlice("set")...),
 		config.OptTestSuffix("_bento_test"),
 		config.OptSetLintConfigWarnDeprecated(),
+		config.OptOnMainRead(PluginsOnMainRead()),
 	}
 
 	path := c.String("config")
