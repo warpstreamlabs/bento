@@ -18,7 +18,7 @@ func ConfigSpec() docs.FieldSpec {
 	return docs.FieldObject(FieldPlugins, "EXPERIMENTAL: WASM plugins to load, and the mounts and memory each one is allowed. Plugins are loaded before the rest of the config is read, so changes to this section need a restart.").
 		Array().
 		WithChildren(append(docs.FieldSpecs{
-			docs.FieldString("source", "The path to a plugin's directory.", "./plugins/uppercase"),
+			docs.FieldString("source", "A plugin's directory, or an `oci://` reference to a plugin in a container registry.", "./plugins/uppercase", "oci://ghcr.io/me/uppercase:1.0.0"),
 		}, runtime.GrantSpec()...)...).
 		Optional().
 		Advanced()

@@ -29,6 +29,10 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /go/src/github.com/warpstreamlabs/bento/target/bin/bento .
 COPY ./config/docker.yaml /bento.yaml
 
+# The store for WASM plugins pulled from registries.
+RUN mkdir /plugins
+ENV BENTO_PLUGIN_STORE=/plugins
+
 EXPOSE 4195
 
 ENTRYPOINT ["./bento"]

@@ -1,4 +1,4 @@
-.PHONY: all serverless deps docker docker-cgo clean docs generate protos test test-race test-integration fmt lint install deploy-docs playground
+.PHONY: all serverless plugins deps docker docker-cgo clean docs generate protos test test-race test-integration fmt lint install deploy-docs playground
 TAGS ?=
 
 GOMAXPROCS         ?= 1
@@ -9,6 +9,8 @@ PATHINSTBIN        = $(DEST_DIR)/bin
 PATHINSTTOOLS      = $(DEST_DIR)/tools
 PATHINSTSERVERLESS = $(DEST_DIR)/serverless
 PATHINSTDOCKER     = $(DEST_DIR)/docker
+PATHINSTPLUGINS    = $(DEST_DIR)/plugins
+PLUGIN_REGISTRY    ?= ghcr.io/warpstreamlabs/bento-plugins
 DOCKER_IMAGE       ?= ghcr.io/warpstreamlabs/bento
 
 VERSION   := $(shell git describe --tags 2>/dev/null || echo "v0.0.0")
@@ -35,6 +37,20 @@ install: $(APPS) ## Install binaries to $(INSTALL_DIR)
 	@install -d $(INSTALL_DIR)
 	@rm -f $(INSTALL_DIR)/bento
 	@cp $(PATHINSTBIN)/* $(INSTALL_DIR)/
+
+WASM_EXAMPLES = uppercase reverse
+
+plugins: $(APPS) ## Build the example WASM plugins into the plugin store, tagged $(PLUGIN_REGISTRY)/<name>:$(VERSION)
+	@for p in $(WASM_EXAMPLES); do \
+		mkdir -p $(PATHINSTPLUGINS)/$$p && \
+		GOOS=wasip1 GOARCH=wasm go build -C public/wasm/examples/$$p -buildmode=c-shared \
+			-o $(abspath $(PATHINSTPLUGINS))/$$p/plugin.wasm . && \
+		cp public/wasm/examples/$$p/testdata/plugin.yaml $(PATHINSTPLUGINS)/$$p/ && \
+		$(PATHINSTBIN)/bento plugin build -t $(PLUGIN_REGISTRY)/$$p:$(VERSION) \
+			--annotation org.opencontainers.image.version=$(VERSION) \
+			--annotation org.opencontainers.image.source=https://github.com/warpstreamlabs/bento \
+			$(PATHINSTPLUGINS)/$$p || exit 1; \
+	done
 
 deps: ## Go mod tidy
 	@go mod tidy
@@ -112,6 +128,7 @@ clean:
 	rm -rf $(DEST_DIR)/tools
 	rm -rf $(DEST_DIR)/serverless
 	rm -rf $(PATHINSTDOCKER)
+	rm -rf $(PATHINSTPLUGINS)
 	rm -rf $(WEBSITE_DIR)/static/playground
 
 docs: $(APPS) $(TOOLS)

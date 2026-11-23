@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 
  - WASM plugins can be listed in a new `plugins` section of the config, which also grants each plugin its mounts and memory limit, and is loaded by `lint` and `test` without `-p` @erichardson-lee
  - WASM plugin manifests declare the mounts and memory they need with `requires` @erichardson-lee
+ - WASM plugins can be shared through container registries as OCI artifacts, with `oci://` plugin sources and new `bento plugin` commands (`build`, `push`, `pull`, `ls`, `inspect`, `tag`, `rm`, `prune`, `save`, `load`, `login` and `logout`) that work like their `docker` equivalents @erichardson-lee
+ - CLI flags `--plugin-store` and `--plugin-pull` set where plugins from registries are kept and when they're pulled @erichardson-lee
  - WASM plugins declare the ABI version they're built for with a `bento_abi_v1` export, added by the Go PDK, and Bento refuses plugins built for an unsupported version @erichardson-lee
 
 ### Changed

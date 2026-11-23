@@ -68,9 +68,25 @@ type Loader struct {
 	env *bundle.Environment
 	rt  runtime.Runtime
 
+	// Fetches plugins from sources that aren't directories, by prefix.
+	remotes map[string]RemoteFetchFunc
+
 	mu      sync.Mutex
 	sources map[string]loaded // by source
 	names   map[string]string // plugin name to source
+}
+
+// RemoteFetchFunc fetches the manifest and WASM binary of a plugin that isn't
+// in a local directory, such as an OCI artifact.
+type RemoteFetchFunc func(ctx context.Context, source string) (manifest, wasm []byte, err error)
+
+// SetRemote sets how plugins with sources starting with prefix, such as
+// oci://, are fetched. Plugins fetched this way aren't trusted, so may not use
+// the deprecated runtime block of manifests.
+func (l *Loader) SetRemote(prefix string, fetch RemoteFetchFunc) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.remotes[prefix] = fetch
 }
 
 type loaded struct {
@@ -83,6 +99,7 @@ func NewLoader(env *bundle.Environment, rt runtime.Runtime) *Loader {
 	return &Loader{
 		env:     env,
 		rt:      rt,
+		remotes: map[string]RemoteFetchFunc{},
 		sources: map[string]loaded{},
 		names:   map[string]string{},
 	}
@@ -136,13 +153,9 @@ func (l *Loader) load(e Entry) (lints, warnings []string, err error) {
 		return nil, nil, fmt.Errorf("plugin %v is loaded more than once with different permissions; if it's passed with -p, remove that and use only the plugins section of the config", prev.name)
 	}
 
-	if strings.Contains(e.Source, "://") {
-		return nil, nil, errors.New("only plugin directories are supported")
-	}
-
-	manifestBytes, err := ifs.ReadFile(ifs.OS(), filepath.Join(e.Source, "plugin.yaml"))
+	manifestBytes, wasm, trusted, err := l.fetch(e.Source)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read manifest: %w", err)
+		return nil, nil, err
 	}
 
 	manifest, manifestLints, err := runtime.ReadManifestYAML(manifestBytes)
@@ -159,15 +172,16 @@ func (l *Loader) load(e Entry) (lints, warnings []string, err error) {
 
 	// Plugins in local directories are trusted, so may still use the
 	// deprecated runtime block.
-	conf, resolveWarns, err := runtime.Resolve(manifest, e.Grant, runtime.ResolveOptions{AllowLegacy: true})
+	conf, resolveWarns, err := runtime.Resolve(manifest, e.Grant, runtime.ResolveOptions{AllowLegacy: trusted})
 	if err != nil {
 		return lints, nil, err
 	}
 	warnings = append(warnings, resolveWarns...)
 
-	wasm, err := ifs.ReadFile(ifs.OS(), filepath.Join(e.Source, conf.Path))
-	if err != nil {
-		return lints, warnings, fmt.Errorf("failed to read wasm binary: %w", err)
+	if wasm == nil {
+		if wasm, err = ifs.ReadFile(ifs.OS(), filepath.Join(e.Source, conf.Path)); err != nil {
+			return lints, warnings, fmt.Errorf("failed to read wasm binary: %w", err)
+		}
 	}
 
 	_, abiWarns, err := runtime.CheckABI(wasm)
@@ -183,6 +197,26 @@ func (l *Loader) load(e Entry) (lints, warnings []string, err error) {
 	l.sources[key] = loaded{name: manifest.Name, grant: e.Grant}
 	l.names[manifest.Name] = e.Source
 	return lints, warnings, nil
+}
+
+// fetch returns the manifest of a plugin, and its WASM binary if it isn't in
+// a local directory, along with whether it is trusted.
+func (l *Loader) fetch(source string) (manifest, wasm []byte, trusted bool, err error) {
+	if i := strings.Index(source, "://"); i >= 0 {
+		prefix := source[:i+3]
+		fetch, exists := l.remotes[prefix]
+		if !exists {
+			return nil, nil, false, fmt.Errorf("unsupported plugin source %q, expected a directory", prefix)
+		}
+		manifest, wasm, err = fetch(context.Background(), source)
+		return manifest, wasm, false, err
+	}
+
+	manifest, err = ifs.ReadFile(ifs.OS(), filepath.Join(source, "plugin.yaml"))
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to read manifest: %w", err)
+	}
+	return manifest, nil, true, nil
 }
 
 func sourceKey(source string) string {

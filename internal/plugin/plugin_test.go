@@ -149,7 +149,7 @@ func TestLoaderErrors(t *testing.T) {
 	t.Run("not a directory", func(t *testing.T) {
 		l := NewLoader(bundle.NewEnvironment(), &fakeRuntime{})
 		_, _, err := l.Load(Entry{Source: "oci://ghcr.io/foo/bar:1"})
-		require.ErrorContains(t, err, "only plugin directories are supported")
+		require.ErrorContains(t, err, `unsupported plugin source "oci://"`)
 	})
 }
 

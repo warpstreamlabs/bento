@@ -32,6 +32,8 @@ pipeline:
     - my-plugin: {}
 ```
 
+A `source` is either a plugin directory, or an `oci://` reference to a plugin in a container registry, such as `oci://ghcr.io/me/my-plugin:1.0.0`. See [Distributing Plugins][distributing] for publishing plugins to a registry.
+
 Bento loads the plugins in the `plugins` section before checking the rest of the config, so commands that read the config, such as `lint` and `test`, load them too:
 
 ```sh
@@ -179,9 +181,11 @@ Complete plugins are available at [`public/wasm/examples`][examples]:
 
 - [Developing Plugins][developing]: build, run, and test your first plugin with the Go PDK.
 - [Manifest Fields][fields]: every field of `plugin.yaml`.
+- [Distributing Plugins][distributing]: build plugins into OCI artifacts, push them to registries, and run them from there.
 - [Plugin ABI][plugin-abi]: how plugins run, how errors behave, and the ABI.
 
 [plugin-abi]: /docs/guides/plugins/plugin_abi
+[distributing]: /docs/guides/plugins/distributing_plugins
 [custom-build]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service
 [register-wasm]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/service#RegisterWasmPlugin
 [pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
