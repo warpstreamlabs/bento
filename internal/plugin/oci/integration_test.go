@@ -74,7 +74,7 @@ func TestRegistryIntegration(t *testing.T) {
 	}))
 
 	ref := registryAddr + "/plugins/uppercase:test"
-	remote := oci.RegistryRemote(nil)
+	remote := oci.NewRegistries(nil, nil).Remote()
 
 	// Build and push.
 	builder, err := oci.OpenStore(t.Context(), t.TempDir(), remote)
@@ -98,7 +98,7 @@ func TestRegistryIntegration(t *testing.T) {
 		loader.SetRemote(oci.SourcePrefix, func(ctx context.Context, source string) ([]byte, []byte, error) {
 			return store.Fetch(ctx, source, policy)
 		})
-		_, _, err = loader.Load(plugin.Entry{Source: source, Grant: pluginruntime.Grant{
+		_, _, err = loader.Load(t.Context(), plugin.Entry{Source: source, Grant: pluginruntime.Grant{
 			Mounts: map[string]pluginruntime.MountGrant{"data": {HostPath: t.TempDir()}},
 		}})
 		require.NoError(t, err)

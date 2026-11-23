@@ -12,6 +12,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
+	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 
 	"github.com/warpstreamlabs/bento/internal/cli/common"
@@ -380,20 +381,21 @@ func pluginLoginCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "login",
 		Usage:     "Log in to a registry",
-		ArgsUsage: "REGISTRY",
+		ArgsUsage: "[SERVER]",
 		Description: `
-Saves credentials for a registry, in the same place as docker login, so either
-can be used.
+Logs in to a registry, Docker Hub if no server is given, and saves the
+credentials in the same place as docker login, so either can be used. Like
+docker login, credentials are kept in a credential helper if one is configured,
+and in Docker's config file otherwise.
 
   echo $GITHUB_TOKEN | bento plugin login ghcr.io -u me --password-stdin`[1:],
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "username", Aliases: []string{"u"}, Usage: "the username"},
-			&cli.StringFlag{Name: "password", Aliases: []string{"p"}, Usage: "the password, prefer --password-stdin"},
-			&cli.BoolFlag{Name: "password-stdin", Usage: "read the password from stdin"},
+			&cli.StringFlag{Name: "username", Aliases: []string{"u"}, Usage: "Username"},
+			&cli.StringFlag{Name: "password", Aliases: []string{"p"}, Usage: "Password or Personal Access Token (PAT)"},
+			&cli.BoolFlag{Name: "password-stdin", Usage: "Take the Password or Personal Access Token (PAT) from stdin"},
 		},
 		Action: func(c *cli.Context) error {
-			err := pluginLogin(c)
-			if err != nil {
+			if err := pluginLogin(c); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(1)
 			}
@@ -403,15 +405,24 @@ can be used.
 }
 
 func pluginLogin(c *cli.Context) error {
-	if err := requireArgs(c, 1, 1, "login [-u USERNAME] [--password-stdin] REGISTRY"); err != nil {
+	if err := requireArgs(c, 0, 1, "login [OPTIONS] [SERVER]"); err != nil {
 		return err
 	}
-	registry := c.Args().First()
+	registry := oci.DefaultRegistry
+	if c.Args().Len() > 0 {
+		registry = c.Args().First()
+	}
 
-	username, password := c.String("username"), c.String("password")
+	username, password := strings.TrimSpace(c.String("username")), c.String("password")
+	if password != "" {
+		fmt.Fprintln(os.Stderr, "WARNING! Using --password via the CLI is insecure. Use --password-stdin.")
+		if c.Bool("password-stdin") {
+			return errors.New("--password and --password-stdin are mutually exclusive")
+		}
+	}
 	if c.Bool("password-stdin") {
-		if password != "" {
-			return errors.New("--password and --password-stdin can't be used together")
+		if username == "" {
+			return errors.New("Must provide --username with --password-stdin") //nolint:staticcheck // Matches docker.
 		}
 		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -420,37 +431,78 @@ func pluginLogin(c *cli.Context) error {
 		password = strings.TrimRight(string(b), "\r\n")
 	}
 
-	interactive := term.IsTerminal(int(os.Stdin.Fd()))
-	if username == "" {
-		if !interactive {
-			return errors.New("a --username is needed")
-		}
-		fmt.Print("Username: ")
-		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err != nil {
-			return err
-		}
-		username = strings.TrimSpace(line)
-	}
-	if password == "" {
-		if !interactive {
-			return errors.New("a password is needed, use --password-stdin")
-		}
-		fmt.Print("Password: ")
-		b, err := term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Println()
-		if err != nil {
-			return err
-		}
-		password = string(b)
-	}
-
 	creds, err := oci.CredentialStore()
 	if err != nil {
 		return err
 	}
-	if err := oci.Login(c.Context, creds, registry, username, password); err != nil {
+	registries, err := common.PluginRegistries(c)
+	if err != nil {
 		return err
+	}
+
+	// With no credentials given, try the saved ones first, as docker does.
+	var stored auth.Credential
+	if username == "" && password == "" {
+		stored, _ = creds.Get(c.Context, oci.ServerAddress(registry))
+		if stored.Username != "" && stored.Password != "" {
+			fmt.Printf("Authenticating with existing credentials... [Username: %v]\n", stored.Username)
+			err := registries.Login(c.Context, creds, registry, stored.Username, stored.Password)
+			if err == nil {
+				return loginSucceeded(creds, registry)
+			}
+			fmt.Fprintf(os.Stderr, "Login did not succeed, error: %v\n", err)
+		}
+	}
+
+	if username == "" || password == "" {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			return errors.New("Cannot perform an interactive login from a non TTY device") //nolint:staticcheck // Matches docker.
+		}
+		in := bufio.NewReader(os.Stdin)
+		if username == "" {
+			if stored.Username != "" {
+				fmt.Printf("Username (%v): ", stored.Username)
+			} else {
+				fmt.Print("Username: ")
+			}
+			line, err := in.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			if username = strings.TrimSpace(line); username == "" {
+				username = stored.Username
+			}
+			if username == "" {
+				return errors.New("Username is required") //nolint:staticcheck // Matches docker.
+			}
+		}
+		if password == "" {
+			fmt.Print("Password: ")
+			b, err := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
+			if err != nil {
+				return err
+			}
+			if password = string(b); password == "" {
+				return errors.New("Password is required") //nolint:staticcheck // Matches docker.
+			}
+		}
+	}
+
+	if err := registries.Login(c.Context, creds, registry, username, password); err != nil {
+		return fmt.Errorf("login failed: %w", err)
+	}
+	return loginSucceeded(creds, registry)
+}
+
+func loginSucceeded(creds *credentials.DynamicStore, registry string) error {
+	if oci.StoredInPlaintext(creds, registry) {
+		fmt.Fprintf(os.Stderr, `
+WARNING! Your credentials are stored unencrypted in '%v'.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/go/credential-store/
+
+`, creds.ConfigPath())
 	}
 	fmt.Println("Login Succeeded")
 	return nil
@@ -458,23 +510,38 @@ func pluginLogin(c *cli.Context) error {
 
 func pluginLogoutCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "logout",
-		Usage:     "Log out of a registry",
-		ArgsUsage: "REGISTRY",
+		Name:        "logout",
+		Usage:       "Log out from a registry",
+		ArgsUsage:   "[SERVER]",
+		Description: "Removes the saved credentials of a registry, Docker Hub if no server is given.",
 		Action: func(c *cli.Context) error {
-			err := requireArgs(c, 1, 1, "logout REGISTRY")
-			if err == nil {
-				var creds credentials.Store
-				if creds, err = oci.CredentialStore(); err == nil {
-					err = oci.Logout(c.Context, creds, c.Args().First())
-				}
-			}
-			if err != nil {
+			if err := pluginLogout(c); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Removed login credentials for %v\n", c.Args().First())
 			return nil
 		},
 	}
+}
+
+func pluginLogout(c *cli.Context) error {
+	if err := requireArgs(c, 0, 1, "logout [SERVER]"); err != nil {
+		return err
+	}
+	registry := oci.DefaultRegistry
+	if c.Args().Len() > 0 {
+		registry = c.Args().First()
+	}
+
+	creds, err := oci.CredentialStore()
+	if err != nil {
+		return err
+	}
+	if stored, err := creds.Get(c.Context, oci.ServerAddress(registry)); err != nil || stored == auth.EmptyCredential {
+		fmt.Printf("Not logged in to %v\n", registry)
+		return nil
+	}
+
+	fmt.Printf("Removing login credentials for %v\n", registry)
+	return oci.Logout(c.Context, creds, registry)
 }

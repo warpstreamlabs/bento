@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/docs"
@@ -113,6 +114,7 @@ func Resolve(m *Manifest, g Grant, opts ResolveOptions) (WasmRuntimeConfig, []st
 
 	var errs []error
 	requested := map[string]struct{}{}
+	guestPaths := map[string]string{}
 	for _, req := range m.Requires.Mounts {
 		if req.Name == "" || req.GuestPath == "" {
 			errs = append(errs, errors.New("requires.mounts entries need both a name and guest_path"))
@@ -123,6 +125,11 @@ func Resolve(m *Manifest, g Grant, opts ResolveOptions) (WasmRuntimeConfig, []st
 			continue
 		}
 		requested[req.Name] = struct{}{}
+		if other, exists := guestPaths[path.Clean(req.GuestPath)]; exists {
+			errs = append(errs, fmt.Errorf("mounts %q and %q both use the guest_path %v", other, req.Name, req.GuestPath))
+			continue
+		}
+		guestPaths[path.Clean(req.GuestPath)] = req.Name
 
 		grant, granted := g.Mounts[req.Name]
 		if !granted {

@@ -75,7 +75,7 @@ func TestLoaderLoadsDirectory(t *testing.T) {
 	dir := writePlugin(t, dataManifest, map[string][]byte{"plugin.wasm": wasm})
 
 	grant := runtime.Grant{Mounts: map[string]runtime.MountGrant{"data": {HostPath: "./data"}}}
-	lints, warnings, err := l.Load(Entry{Source: dir, Grant: grant})
+	lints, warnings, err := l.Load(t.Context(), Entry{Source: dir, Grant: grant})
 	require.NoError(t, err)
 	assert.Empty(t, lints)
 	assert.Empty(t, warnings)
@@ -87,15 +87,15 @@ func TestLoaderLoadsDirectory(t *testing.T) {
 	assert.Equal(t, "./data", rt.registered[0].conf.Mounts[0].HostPath)
 
 	// Loading the same source with the same grant again does nothing.
-	_, _, err = l.Load(Entry{Source: dir + "/", Grant: grant})
+	_, _, err = l.Load(t.Context(), Entry{Source: dir + "/", Grant: grant})
 	require.NoError(t, err)
 	assert.Len(t, rt.registered, 1)
 
 	// Loading it with a different grant is an error.
-	_, _, err = l.Load(Entry{Source: dir, Grant: runtime.Grant{
+	_, _, err = l.Load(t.Context(), Entry{Source: dir, Grant: runtime.Grant{
 		Mounts: map[string]runtime.MountGrant{"data": {HostPath: "./other"}},
 	}})
-	require.ErrorContains(t, err, "loaded more than once with different permissions")
+	require.ErrorContains(t, err, "with different permissions")
 }
 
 func TestLoaderErrors(t *testing.T) {
@@ -139,7 +139,7 @@ func TestLoaderErrors(t *testing.T) {
 			rt := &fakeRuntime{}
 			l := NewLoader(bundle.NewEnvironment(), rt)
 			dir := writePlugin(t, test.manifest, test.files)
-			_, _, err := l.Load(Entry{Source: dir, Grant: test.grant})
+			_, _, err := l.Load(t.Context(), Entry{Source: dir, Grant: test.grant})
 			require.ErrorContains(t, err, test.err)
 			assert.Contains(t, err.Error(), "plugin "+dir)
 			assert.Empty(t, rt.registered)
@@ -148,7 +148,7 @@ func TestLoaderErrors(t *testing.T) {
 
 	t.Run("not a directory", func(t *testing.T) {
 		l := NewLoader(bundle.NewEnvironment(), &fakeRuntime{})
-		_, _, err := l.Load(Entry{Source: "oci://ghcr.io/foo/bar:1"})
+		_, _, err := l.Load(t.Context(), Entry{Source: "oci://ghcr.io/foo/bar:1"})
 		require.ErrorContains(t, err, `unsupported plugin source "oci://"`)
 	})
 }
@@ -167,7 +167,7 @@ runtime:
       max_pages: 64
 `, map[string][]byte{"custom.wasm": wasmModule()})
 
-	_, warnings, err := l.Load(Entry{Source: dir})
+	_, warnings, err := l.Load(t.Context(), Entry{Source: dir})
 	require.NoError(t, err)
 	require.Len(t, warnings, 2)
 	assert.Contains(t, warnings[0], "deprecated `runtime` block")
@@ -178,12 +178,65 @@ runtime:
 	assert.Equal(t, uint32(64), rt.registered[0].conf.Memory.MaxPages)
 }
 
-func TestLoaderDuplicateNames(t *testing.T) {
-	l := NewLoader(bundle.NewEnvironment(), &fakeRuntime{})
+func TestLoaderIdentifiesPluginsByContent(t *testing.T) {
+	rt := &fakeRuntime{}
+	l := NewLoader(bundle.NewEnvironment(), rt)
 	files := map[string][]byte{"plugin.wasm": wasmModule("bento_abi_v1")}
+
+	// The same plugin from two sources, as with a tag and a digest.
 	a := writePlugin(t, "name: foo\ntype: processor\n", files)
 	b := writePlugin(t, "name: foo\ntype: processor\n", files)
+	_, _, err := l.Load(t.Context(), Entry{Source: a}, Entry{Source: b})
+	require.NoError(t, err)
+	assert.Len(t, rt.registered, 1)
 
-	_, _, err := l.Load(Entry{Source: a}, Entry{Source: b})
-	require.ErrorContains(t, err, "a plugin named foo is already loaded from "+a)
+	// The same manifest as JSON, as in an OCI artifact.
+	l.SetRemote("test://", func(context.Context, string) ([]byte, []byte, error) {
+		return []byte(`{"type":"processor","name":"foo"}`), files["plugin.wasm"], nil
+	})
+	_, _, err = l.Load(t.Context(), Entry{Source: "test://foo"})
+	require.NoError(t, err)
+	assert.Len(t, rt.registered, 1)
+
+	// A different plugin with the same name.
+	c := writePlugin(t, "name: foo\ntype: processor\nsummary: different\n", files)
+	_, _, err = l.Load(t.Context(), Entry{Source: c})
+	require.ErrorContains(t, err, "a different plugin named foo is already loaded from "+a)
+	require.ErrorContains(t, err, "set a different `name`")
+
+	// The same plugin with a different grant.
+	_, _, err = l.Load(t.Context(), Entry{Source: b, Grant: runtime.Grant{Memory: runtime.MemoryConfig{MaxPages: 9}}})
+	require.ErrorContains(t, err, "already loaded from "+a+" with different permissions")
+}
+
+func TestLoaderNames(t *testing.T) {
+	rt := &fakeRuntime{}
+	l := NewLoader(bundle.NewEnvironment(), rt)
+	dir := writePlugin(t, dataManifest, map[string][]byte{"plugin.wasm": wasmModule("bento_abi_v1")})
+
+	// The same plugin twice, under different names and with different
+	// mounts.
+	_, _, err := l.Load(t.Context(),
+		Entry{Source: dir, Name: "foo_a", Grant: runtime.Grant{Mounts: map[string]runtime.MountGrant{"data": {HostPath: "./a"}}}},
+		Entry{Source: dir, Name: "foo_b", Grant: runtime.Grant{Mounts: map[string]runtime.MountGrant{"data": {HostPath: "./b"}}}},
+	)
+	require.NoError(t, err)
+	require.Len(t, rt.registered, 2)
+	assert.Equal(t, "foo_a", rt.registered[0].manifest.Name)
+	assert.Equal(t, "./a", rt.registered[0].conf.Mounts[0].HostPath)
+	assert.Equal(t, "foo_b", rt.registered[1].manifest.Name)
+	assert.Equal(t, "./b", rt.registered[1].conf.Mounts[0].HostPath)
+}
+
+func TestLoaderCancelled(t *testing.T) {
+	l := NewLoader(bundle.NewEnvironment(), &fakeRuntime{})
+	l.SetRemote("test://", func(ctx context.Context, _ string) ([]byte, []byte, error) {
+		<-ctx.Done()
+		return nil, nil, ctx.Err()
+	})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, _, err := l.Load(ctx, Entry{Source: "test://foo"})
+	require.ErrorIs(t, err, context.Canceled)
 }

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -335,4 +337,34 @@ func TestParseReference(t *testing.T) {
 	assert.True(t, isLocalRegistry("127.0.0.1:5000"))
 	assert.True(t, isLocalRegistry("[::1]:5000"))
 	assert.False(t, isLocalRegistry("ghcr.io"))
+}
+
+func TestConcurrentStores(t *testing.T) {
+	// Two handles on one directory, as two processes would have. Without the
+	// lock and index reloads, they overwrite each other's tags.
+	dir := t.TempDir()
+	a, err := OpenStore(t.Context(), dir, nil)
+	require.NoError(t, err)
+	b, err := OpenStore(t.Context(), dir, nil)
+	require.NoError(t, err)
+
+	plugin := writePlugin(t, testManifest, wasmModule("bento_abi_v1"))
+
+	const n = 20
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() {
+			store := a
+			if i%2 == 1 {
+				store = b
+			}
+			_, err := store.Build(t.Context(), plugin, []string{fmt.Sprintf("ghcr.io/me/p:%d", i)}, nil)
+			assert.NoError(t, err)
+		})
+	}
+	wg.Wait()
+
+	entries, err := a.List(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, entries, n)
 }

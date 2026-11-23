@@ -24,6 +24,7 @@ input:
 plugins:
   - source: ./a
   - source: ./b
+    name: b_two
     memory:
       max_pages: 512
     mounts:
@@ -36,7 +37,7 @@ plugins:
 	require.NoError(t, err)
 	assert.Equal(t, []Entry{
 		{Source: "./a"},
-		{Source: "./b", Grant: runtime.Grant{
+		{Source: "./b", Name: "b_two", Grant: runtime.Grant{
 			Memory: runtime.MemoryConfig{MaxPages: 512},
 			Mounts: map[string]runtime.MountGrant{"data": {HostPath: "./data", Writable: true}},
 		}},

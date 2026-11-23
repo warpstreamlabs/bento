@@ -30,7 +30,7 @@ echo $GITHUB_TOKEN | bento plugin login ghcr.io -u me --password-stdin
 bento plugin push ghcr.io/me/uppercase:1.0.0
 ```
 
-`bento plugin login` saves credentials in the same place as `docker login`, so either can be used.
+`bento plugin login` works like `docker login`, and saves credentials in the same place, so either can be used. Credentials are kept in a credential helper if one is configured in Docker's config file (`~/.docker/config.json`, or `$DOCKER_CONFIG`), and in the file itself otherwise, with a warning. With no server given it logs in to Docker Hub, and run again with no username it reuses the saved credentials.
 
 To run the plugin, list it in the `plugins` section of the config with an `oci://` source, along with anything it's [granted][granting]:
 
@@ -85,10 +85,21 @@ Manage the store with:
 | `bento plugin prune` | `docker image prune` | Remove untagged plugins and unused content. |
 | `bento plugin save -o FILE REF...` | `docker save` | Save plugins to a tar archive. |
 | `bento plugin load -i FILE` | `docker load` | Load plugins from a tar archive. |
-| `bento plugin login REGISTRY` | `docker login` | Save registry credentials. |
-| `bento plugin logout REGISTRY` | `docker logout` | Remove registry credentials. |
+| `bento plugin login [SERVER]` | `docker login` | Log in to a registry and save the credentials. |
+| `bento plugin logout [SERVER]` | `docker logout` | Remove a registry's saved credentials. |
 
-References need a registry, such as `ghcr.io/me/uppercase:1.0.0`, as there's no default registry for plugins. A reference without a tag gets the tag `latest`. Registries on `localhost` are reached over plain HTTP.
+References need a registry, such as `ghcr.io/me/uppercase:1.0.0`, as there's no default registry for plugins. A reference without a tag gets the tag `latest`.
+
+Several Bento processes can share one store, such as pipelines on one machine, as Bento locks it while using it.
+
+### Insecure Registries
+
+As with Docker, registries on `localhost` are treated as insecure: Bento connects over HTTPS without verifying the certificate, or over plain HTTP if the registry doesn't support HTTPS. To treat other registries the same way, such as one inside a cluster, list them with `--plugin-insecure-registry` (repeatable) or `BENTO_PLUGIN_INSECURE_REGISTRIES` (comma separated):
+
+```sh
+bento --plugin-insecure-registry registry.internal:5000 -c config.yaml
+bento --plugin-insecure-registry registry.internal:5000 plugin push registry.internal:5000/me/uppercase:1.0.0
+```
 
 ## Sharing Without a Registry
 

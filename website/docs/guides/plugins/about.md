@@ -66,6 +66,29 @@ Bento refuses to load a plugin when:
 
 Without `max_pages`, a plugin has no memory limit, the same as components compiled into Bento.
 
+### Loading a Plugin More Than Once
+
+To use the same plugin with different mounts or memory limits, load it more than once and give each copy its own processor name with `name`:
+
+```yml
+plugins:
+  - source: ./my-plugin
+    name: my_plugin_eu
+    mounts:
+      data: { host_path: ./data/eu }
+  - source: ./my-plugin
+    name: my_plugin_us
+    mounts:
+      data: { host_path: ./data/us }
+
+pipeline:
+  processors:
+    - my_plugin_eu: {}
+    - my_plugin_us: {}
+```
+
+Plugins are identified by their content, not where they're loaded from, so the same plugin from two sources (such as a directory and a registry, or a tag and a digest) is the same plugin. Bento refuses to start if two different plugins, or the same plugin with different mounts or limits, are loaded under one name.
+
 ### The `-p` Flag
 
 Plugins can also be loaded with `-p` (or `--plugin`), which can be used multiple times and supports glob patterns. Plugins loaded this way get no mounts or memory limits, so use the `plugins` section for plugins that need them. If a plugin is passed with `-p` and also listed in the `plugins` section with mounts or a memory limit, Bento refuses to start.

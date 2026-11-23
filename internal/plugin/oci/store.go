@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -17,6 +19,8 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/errdef"
+	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
@@ -69,10 +73,16 @@ type RemoteFunc func(ctx context.Context, ref Reference) (oras.Target, error)
 // Store is a local store of plugins, kept as an OCI image layout directory
 // that other OCI tools can read. Tags are full references, such as
 // ghcr.io/org/plugin:1.0.0.
+//
+// Processes sharing a store take a file lock on it, shared to read and
+// exclusive to change it, and reload its index each time, so they see each
+// other's changes and don't overwrite them.
 type Store struct {
 	dir    string
-	oci    *oci.Store
 	remote RemoteFunc
+
+	mu  sync.Mutex // serialises use of the store within this process
+	oci *oci.Store // valid only while locked
 }
 
 // OpenStore opens the local store in dir, creating it if needed. Registries
@@ -81,11 +91,29 @@ func OpenStore(ctx context.Context, dir string, remote RemoteFunc) (*Store, erro
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create plugin store: %w", err)
 	}
-	s, err := oci.NewWithContext(ctx, dir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open plugin store %v: %w", dir, err)
+	s := &Store{dir: dir, remote: remote}
+	// Check the store can be opened, which creates its layout if it's new.
+	if err := s.locked(ctx, false, func() error { return nil }); err != nil {
+		return nil, err
 	}
-	return &Store{dir: dir, oci: s, remote: remote}, nil
+	return s, nil
+}
+
+// locked runs fn with the store locked, and its index freshly loaded.
+func (s *Store) locked(ctx context.Context, exclusive bool, fn func() error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	unlock, err := lockStore(s.dir, exclusive)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	if s.oci, err = oci.NewWithContext(ctx, s.dir); err != nil {
+		return fmt.Errorf("failed to open plugin store %v: %w", s.dir, err)
+	}
+	return fn()
 }
 
 // Dir returns the directory of the store.
@@ -155,19 +183,24 @@ func (s *Store) Build(ctx context.Context, dir string, tags []string, extra map[
 		return nil, err
 	}
 
-	for _, blob := range []struct {
-		desc ocispec.Descriptor
-		b    []byte
-	}{{configDesc, config}, {layerDesc, wasm}, {desc, manifestBytes}} {
-		if err := s.pushBlob(ctx, blob.desc, blob.b); err != nil {
-			return nil, err
+	err = s.locked(ctx, true, func() error {
+		for _, blob := range []struct {
+			desc ocispec.Descriptor
+			b    []byte
+		}{{configDesc, config}, {layerDesc, wasm}, {desc, manifestBytes}} {
+			if err := s.pushBlob(ctx, blob.desc, blob.b); err != nil {
+				return err
+			}
 		}
-	}
-
-	for _, ref := range refs {
-		if err := s.oci.Tag(ctx, desc, ref.String()); err != nil {
-			return nil, fmt.Errorf("failed to tag %v: %w", ref, err)
+		for _, ref := range refs {
+			if err := s.oci.Tag(ctx, desc, ref.String()); err != nil {
+				return fmt.Errorf("failed to tag %v: %w", ref, err)
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return &BuildResult{Descriptor: desc, Name: manifest.Name, Warnings: warnings}, nil
 }
@@ -216,16 +249,20 @@ func (s *Store) resolve(ctx context.Context, ref Reference) (ocispec.Descriptor,
 
 // Get reads a plugin from the store. The WASM binary is only read if withWasm
 // is true.
-func (s *Store) Get(ctx context.Context, reference string, withWasm bool) (*Plugin, error) {
+func (s *Store) Get(ctx context.Context, reference string, withWasm bool) (p *Plugin, err error) {
 	ref, err := ParseReference(reference)
 	if err != nil {
 		return nil, err
 	}
-	desc, err := s.resolve(ctx, ref)
-	if err != nil {
-		return nil, err
-	}
-	return readPlugin(ctx, s.oci, desc, withWasm)
+	err = s.locked(ctx, false, func() error {
+		desc, err := s.resolve(ctx, ref)
+		if err != nil {
+			return err
+		}
+		p, err = readPlugin(ctx, s.oci, desc, withWasm)
+		return err
+	})
+	return p, err
 }
 
 // Fetch returns the config and WASM binary of a plugin, pulling it from its
@@ -236,7 +273,13 @@ func (s *Store) Fetch(ctx context.Context, reference string, policy PullPolicy) 
 		return nil, nil, err
 	}
 
-	_, resolveErr := s.resolve(ctx, ref)
+	var resolveErr error
+	if err := s.locked(ctx, false, func() error {
+		_, resolveErr = s.resolve(ctx, ref)
+		return nil
+	}); err != nil {
+		return nil, nil, err
+	}
 	stored := resolveErr == nil
 	if resolveErr != nil && !errors.Is(resolveErr, errdef.ErrNotFound) {
 		return nil, nil, resolveErr
@@ -269,11 +312,19 @@ func (s *Store) repository(ctx context.Context, ref Reference) (oras.Target, err
 
 // Pull copies a plugin from its registry into the store. The plugin is
 // checked before its content is downloaded.
-func (s *Store) Pull(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+func (s *Store) Pull(ctx context.Context, reference string) (desc ocispec.Descriptor, err error) {
 	ref, err := ParseReference(reference)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
+	err = s.locked(ctx, true, func() error {
+		desc, err = s.pull(ctx, ref)
+		return err
+	})
+	return desc, err
+}
+
+func (s *Store) pull(ctx context.Context, ref Reference) (ocispec.Descriptor, error) {
 	repo, err := s.repository(ctx, ref)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -281,19 +332,30 @@ func (s *Store) Pull(ctx context.Context, reference string) (ocispec.Descriptor,
 
 	desc, err := repo.Resolve(ctx, ref.Reference.Reference)
 	if err != nil {
-		return desc, fmt.Errorf("failed to find %v: %w", ref, err)
+		return desc, withLoginHint(ref, fmt.Errorf("failed to find %v: %w", ref, err))
 	}
 	if _, err := fetchManifest(ctx, repo, desc); err != nil {
 		return desc, fmt.Errorf("%v: %w", ref, err)
 	}
 
 	if err := oras.CopyGraph(ctx, repo, s.oci, desc, oras.DefaultCopyGraphOptions); err != nil {
-		return desc, fmt.Errorf("failed to pull %v: %w", ref, err)
+		return desc, withLoginHint(ref, fmt.Errorf("failed to pull %v: %w", ref, err))
 	}
 	if err := s.oci.Tag(ctx, desc, ref.String()); err != nil {
 		return desc, fmt.Errorf("failed to tag %v: %w", ref, err)
 	}
 	return desc, nil
+}
+
+// withLoginHint adds a hint to log in to errors caused by missing or rejected
+// credentials.
+func withLoginHint(ref Reference, err error) error {
+	var resp *errcode.ErrorResponse
+	if errors.Is(err, auth.ErrBasicCredentialNotFound) ||
+		(errors.As(err, &resp) && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden)) {
+		return fmt.Errorf("%w\nlog in with `bento plugin login %v` or `docker login %v`", err, ref.Registry, ref.Registry)
+	}
+	return err
 }
 
 // Push copies a plugin from the store to its registry.
@@ -305,22 +367,25 @@ func (s *Store) Push(ctx context.Context, reference string) (ocispec.Descriptor,
 	if ref.IsDigest() {
 		return ocispec.Descriptor{}, fmt.Errorf("%v: a tag is needed to push, not a digest", ref)
 	}
-	desc, err := s.resolve(ctx, ref)
-	if err != nil {
-		return desc, err
-	}
-	if _, err := readPlugin(ctx, s.oci, desc, false); err != nil {
-		return desc, err
-	}
 
-	repo, err := s.repository(ctx, ref)
-	if err != nil {
-		return desc, err
-	}
-	if _, err := oras.Copy(ctx, s.oci, ref.String(), repo, ref.Reference.Reference, oras.DefaultCopyOptions); err != nil {
-		return desc, fmt.Errorf("failed to push %v: %w", ref, err)
-	}
-	return desc, nil
+	var desc ocispec.Descriptor
+	err = s.locked(ctx, false, func() error {
+		if desc, err = s.resolve(ctx, ref); err != nil {
+			return err
+		}
+		if _, err := readPlugin(ctx, s.oci, desc, false); err != nil {
+			return err
+		}
+		repo, err := s.repository(ctx, ref)
+		if err != nil {
+			return err
+		}
+		if _, err := oras.Copy(ctx, s.oci, ref.String(), repo, ref.Reference.Reference, oras.DefaultCopyOptions); err != nil {
+			return withLoginHint(ref, fmt.Errorf("failed to push %v: %w", ref, err))
+		}
+		return nil
+	})
+	return desc, err
 }
 
 //------------------------------------------------------------------------------
@@ -335,11 +400,13 @@ func (s *Store) Tag(ctx context.Context, source, target string) error {
 	if err != nil {
 		return err
 	}
-	desc, err := s.resolve(ctx, src)
-	if err != nil {
-		return err
-	}
-	return s.oci.Tag(ctx, desc, refs[0].String())
+	return s.locked(ctx, true, func() error {
+		desc, err := s.resolve(ctx, src)
+		if err != nil {
+			return err
+		}
+		return s.oci.Tag(ctx, desc, refs[0].String())
+	})
 }
 
 // Remove removes a tag from the store, and the plugin it refers to if no
@@ -349,6 +416,10 @@ func (s *Store) Remove(ctx context.Context, reference string) error {
 	if err != nil {
 		return err
 	}
+	return s.locked(ctx, true, func() error { return s.remove(ctx, ref) })
+}
+
+func (s *Store) remove(ctx context.Context, ref Reference) error {
 	desc, err := s.resolve(ctx, ref)
 	if err != nil {
 		return err
@@ -360,7 +431,7 @@ func (s *Store) Remove(ctx context.Context, reference string) error {
 		}
 	} else {
 		// Remove every tag of the digest.
-		entries, err := s.List(ctx)
+		entries, err := s.list(ctx)
 		if err != nil {
 			return err
 		}
@@ -384,7 +455,7 @@ func (s *Store) Remove(ctx context.Context, reference string) error {
 }
 
 func (s *Store) isTagged(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
-	entries, err := s.List(ctx)
+	entries, err := s.list(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -398,7 +469,20 @@ func (s *Store) isTagged(ctx context.Context, desc ocispec.Descriptor) (bool, er
 
 // Prune removes plugins that have no tags, and any content they leave
 // unused. It returns the digests of the removed plugins.
-func (s *Store) Prune(ctx context.Context) ([]string, error) {
+func (s *Store) Prune(ctx context.Context) (removed []string, err error) {
+	err = s.locked(ctx, true, func() error {
+		removed, err = s.prune(ctx)
+		return err
+	})
+	return removed, err
+}
+
+// prune finds untagged manifests from the store's index.json, which the OCI
+// image layout spec defines, as oras doesn't list them.
+func (s *Store) prune(ctx context.Context) ([]string, error) {
+	if err := s.oci.SaveIndex(); err != nil {
+		return nil, err
+	}
 	index, err := s.readIndex()
 	if err != nil {
 		return nil, err
@@ -452,7 +536,15 @@ func (e Entry) Size() int64 {
 
 // List returns the tagged plugins in the store, sorted by tag. Tagged
 // artifacts that aren't plugins are skipped.
-func (s *Store) List(ctx context.Context) ([]Entry, error) {
+func (s *Store) List(ctx context.Context) (entries []Entry, err error) {
+	err = s.locked(ctx, false, func() error {
+		entries, err = s.list(ctx)
+		return err
+	})
+	return entries, err
+}
+
+func (s *Store) list(ctx context.Context) ([]Entry, error) {
 	var tags []string
 	if err := s.oci.Tags(ctx, "", func(t []string) error {
 		tags = append(tags, t...)

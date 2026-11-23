@@ -33,21 +33,27 @@ func (s *Store) Save(ctx context.Context, references []string, w io.Writer) erro
 	if err != nil {
 		return err
 	}
-	for _, r := range references {
-		ref, err := ParseReference(r)
-		if err != nil {
-			return err
+	err = s.locked(ctx, false, func() error {
+		for _, r := range references {
+			ref, err := ParseReference(r)
+			if err != nil {
+				return err
+			}
+			desc, err := s.resolve(ctx, ref)
+			if err != nil {
+				return err
+			}
+			if _, err := readPlugin(ctx, s.oci, desc, false); err != nil {
+				return fmt.Errorf("%v: %w", ref, err)
+			}
+			if _, err := oras.Copy(ctx, s.oci, desc.Digest.String(), layout, ref.String(), oras.DefaultCopyOptions); err != nil {
+				return fmt.Errorf("failed to save %v: %w", ref, err)
+			}
 		}
-		desc, err := s.resolve(ctx, ref)
-		if err != nil {
-			return err
-		}
-		if _, err := readPlugin(ctx, s.oci, desc, false); err != nil {
-			return fmt.Errorf("%v: %w", ref, err)
-		}
-		if _, err := oras.Copy(ctx, s.oci, desc.Digest.String(), layout, ref.String(), oras.DefaultCopyOptions); err != nil {
-			return fmt.Errorf("failed to save %v: %w", ref, err)
-		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	return tarDir(tmp, w)
 }
@@ -85,10 +91,16 @@ func (s *Store) Load(ctx context.Context, path string) ([]string, error) {
 		}
 	}
 
-	for i, tag := range tags {
-		if _, err := oras.Copy(ctx, archive, descs[i].Digest.String(), s.oci, tag, oras.DefaultCopyOptions); err != nil {
-			return nil, fmt.Errorf("failed to load %v: %w", tag, err)
+	err = s.locked(ctx, true, func() error {
+		for i, tag := range tags {
+			if _, err := oras.Copy(ctx, archive, descs[i].Digest.String(), s.oci, tag, oras.DefaultCopyOptions); err != nil {
+				return fmt.Errorf("failed to load %v: %w", tag, err)
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return tags, nil
 }

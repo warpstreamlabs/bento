@@ -102,6 +102,15 @@ func TestResolve(t *testing.T) {
 			errs:     []string{"requested more than once"},
 		},
 		{
+			name: "two mounts at one guest path",
+			requires: Requirements{Mounts: []MountRequirement{
+				{Name: "a", GuestPath: "/data"},
+				{Name: "b", GuestPath: "/data/"},
+			}},
+			grant: Grant{Mounts: map[string]MountGrant{"a": {HostPath: "./a"}, "b": {HostPath: "./b"}}},
+			errs:  []string{`mounts "a" and "b" both use the guest_path /data/`},
+		},
+		{
 			name:     "mount request without guest path",
 			requires: Requirements{Mounts: []MountRequirement{{Name: "data"}}},
 			errs:     []string{"need both a name and guest_path"},

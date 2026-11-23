@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -49,17 +50,8 @@ func lintFile(path string, skipEnvVarCheck bool, spec docs.FieldSpecs, lConf doc
 	return
 }
 
-func loadFilePlugins(path string) (pathLints []pathLint) {
-	confBytes, _, _, err := config.ReadFileEnvSwap(ifs.OS(), path, os.LookupEnv)
-	if err != nil {
-		// Reported when the file is linted.
-		return nil
-	}
-	root, err := docs.UnmarshalYAML(confBytes)
-	if err != nil {
-		return nil
-	}
-	lints, _, err := common.LoadConfigPlugins(root)
+func loadFilePlugins(ctx context.Context, path string) (pathLints []pathLint) {
+	lints, _, err := common.LoadConfigFilePlugins(ctx, path)
 	if err != nil {
 		return []pathLint{{source: path, lint: docs.NewLintError(1, docs.LintFailedRead, err)}}
 	}
@@ -236,7 +228,7 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 		if target == "" || path.Ext(target) == ".md" {
 			continue
 		}
-		pathLints = append(pathLints, loadFilePlugins(target)...)
+		pathLints = append(pathLints, loadFilePlugins(c.Context, target)...)
 	}
 	threads := runtime.NumCPU()
 	var wg sync.WaitGroup

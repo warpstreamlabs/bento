@@ -43,7 +43,7 @@ func (r Reference) Repo() string {
 }
 
 // isLocalRegistry returns true for registries on the local machine, which
-// are reached over plain HTTP, as Docker does.
+// are treated as insecure, as Docker does.
 func isLocalRegistry(host string) bool {
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h

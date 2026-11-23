@@ -2,12 +2,17 @@ package plugin
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
@@ -59,21 +64,28 @@ func register(env *bundle.Environment, rt runtime.Runtime, manifest *runtime.Man
 // Entry is a plugin to load, and what it is granted.
 type Entry struct {
 	Source string
-	Grant  runtime.Grant
+
+	// Name, if set, is the name the plugin is registered as instead of the
+	// name in its manifest, so the same plugin can be loaded more than once.
+	Name string
+
+	Grant runtime.Grant
 }
 
-// Loader loads plugins into an environment. Loading the same source again
-// with the same grant does nothing, so configs can be read more than once.
+// Loader loads plugins into an environment.
+//
+// Plugins are identified by their content, not their source, so the same
+// plugin from different sources (such as a tag and a digest) is the same
+// plugin. Loading a plugin under a name already in use does nothing if it's
+// the same plugin with the same grant, so configs can be read more than once,
+// and is an error otherwise.
 type Loader struct {
 	env *bundle.Environment
 	rt  runtime.Runtime
 
-	// Fetches plugins from sources that aren't directories, by prefix.
-	remotes map[string]RemoteFetchFunc
-
 	mu      sync.Mutex
-	sources map[string]loaded // by source
-	names   map[string]string // plugin name to source
+	remotes map[string]RemoteFetchFunc // by source prefix
+	loaded  map[string]loaded          // by registered name
 }
 
 // RemoteFetchFunc fetches the manifest and WASM binary of a plugin that isn't
@@ -90,8 +102,9 @@ func (l *Loader) SetRemote(prefix string, fetch RemoteFetchFunc) {
 }
 
 type loaded struct {
-	name  string
-	grant runtime.Grant
+	source   string
+	identity string
+	grant    runtime.Grant
 }
 
 // NewLoader returns a loader that registers plugins with env using rt.
@@ -100,8 +113,7 @@ func NewLoader(env *bundle.Environment, rt runtime.Runtime) *Loader {
 		env:     env,
 		rt:      rt,
 		remotes: map[string]RemoteFetchFunc{},
-		sources: map[string]loaded{},
-		names:   map[string]string{},
+		loaded:  map[string]loaded{},
 	}
 }
 
@@ -120,13 +132,10 @@ func GlobalLoader() *Loader {
 
 // Load loads each plugin. Lints are problems with a plugin's manifest, and
 // warnings are things the plugin's author or user should fix but which don't
-// prevent it from running.
-func (l *Loader) Load(entries ...Entry) (lints, warnings []string, err error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
+// prevent it from running. Fetching plugins can be cancelled with ctx.
+func (l *Loader) Load(ctx context.Context, entries ...Entry) (lints, warnings []string, err error) {
 	for _, e := range entries {
-		eLints, eWarns, err := l.load(e)
+		eLints, eWarns, err := l.load(ctx, e)
 		for _, lint := range eLints {
 			lints = append(lints, fmt.Sprintf("plugin %v: %v", e.Source, lint))
 		}
@@ -140,20 +149,13 @@ func (l *Loader) Load(entries ...Entry) (lints, warnings []string, err error) {
 	return lints, warnings, nil
 }
 
-func (l *Loader) load(e Entry) (lints, warnings []string, err error) {
+func (l *Loader) load(ctx context.Context, e Entry) (lints, warnings []string, err error) {
 	if e.Source == "" {
 		return nil, nil, errors.New("source must be set")
 	}
-	key := sourceKey(e.Source)
 
-	if prev, exists := l.sources[key]; exists {
-		if reflect.DeepEqual(normaliseGrant(prev.grant), normaliseGrant(e.Grant)) {
-			return nil, nil, nil
-		}
-		return nil, nil, fmt.Errorf("plugin %v is loaded more than once with different permissions; if it's passed with -p, remove that and use only the plugins section of the config", prev.name)
-	}
-
-	manifestBytes, wasm, trusted, err := l.fetch(e.Source)
+	// Fetching may need the network, so happens without holding the lock.
+	manifestBytes, wasm, trusted, err := l.fetch(ctx, e.Source)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -165,9 +167,11 @@ func (l *Loader) load(e Entry) (lints, warnings []string, err error) {
 	for _, lint := range manifestLints {
 		lints = append(lints, lint.Error())
 	}
-
-	if other, exists := l.names[manifest.Name]; exists {
-		return lints, nil, fmt.Errorf("a plugin named %v is already loaded from %v", manifest.Name, other)
+	if e.Name != "" {
+		manifest.Name = e.Name
+	}
+	if manifest.Name == "" {
+		return lints, nil, errors.New("plugin has no name")
 	}
 
 	// Plugins in local directories are trusted, so may still use the
@@ -190,25 +194,59 @@ func (l *Loader) load(e Entry) (lints, warnings []string, err error) {
 	}
 	warnings = append(warnings, abiWarns...)
 
+	identity := contentIdentity(manifestBytes, wasm)
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if prev, exists := l.loaded[manifest.Name]; exists {
+		switch {
+		case prev.identity != identity:
+			return lints, warnings, fmt.Errorf("a different plugin named %v is already loaded from %v; set a different `name` for one of them in the plugins section", manifest.Name, prev.source)
+		case !reflect.DeepEqual(normaliseGrant(prev.grant), normaliseGrant(e.Grant)):
+			return lints, warnings, fmt.Errorf("plugin %v is already loaded from %v with different permissions; to load it twice, set a different `name` for one of them in the plugins section, or if it's also passed with -p, remove that", manifest.Name, prev.source)
+		}
+		// Already loaded, which happens when a config is read again.
+		return nil, nil, nil
+	}
+
 	if err := register(l.env, l.rt, manifest, wasm, conf); err != nil {
 		return lints, warnings, err
 	}
-
-	l.sources[key] = loaded{name: manifest.Name, grant: e.Grant}
-	l.names[manifest.Name] = e.Source
+	l.loaded[manifest.Name] = loaded{source: e.Source, identity: identity, grant: e.Grant}
 	return lints, warnings, nil
+}
+
+// contentIdentity identifies a plugin by its content. The manifest is
+// normalised first, so a plugin.yaml and the same manifest as the JSON config
+// of an OCI artifact are the same.
+func contentIdentity(manifest, wasm []byte) string {
+	var generic any
+	if err := yaml.Unmarshal(manifest, &generic); err == nil {
+		if normalised, err := json.Marshal(generic); err == nil {
+			manifest = normalised
+		}
+	}
+
+	h := sha256.New()
+	h.Write(manifest)
+	h.Write([]byte{0})
+	h.Write(wasm)
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // fetch returns the manifest of a plugin, and its WASM binary if it isn't in
 // a local directory, along with whether it is trusted.
-func (l *Loader) fetch(source string) (manifest, wasm []byte, trusted bool, err error) {
+func (l *Loader) fetch(ctx context.Context, source string) (manifest, wasm []byte, trusted bool, err error) {
 	if i := strings.Index(source, "://"); i >= 0 {
 		prefix := source[:i+3]
+		l.mu.Lock()
 		fetch, exists := l.remotes[prefix]
+		l.mu.Unlock()
 		if !exists {
 			return nil, nil, false, fmt.Errorf("unsupported plugin source %q, expected a directory", prefix)
 		}
-		manifest, wasm, err = fetch(context.Background(), source)
+		manifest, wasm, err = fetch(ctx, source)
 		return manifest, wasm, false, err
 	}
 
@@ -217,16 +255,6 @@ func (l *Loader) fetch(source string) (manifest, wasm []byte, trusted bool, err 
 		return nil, nil, false, fmt.Errorf("failed to read manifest: %w", err)
 	}
 	return manifest, nil, true, nil
-}
-
-func sourceKey(source string) string {
-	if strings.Contains(source, "://") {
-		return source
-	}
-	if abs, err := filepath.Abs(source); err == nil {
-		return abs
-	}
-	return filepath.Clean(source)
 }
 
 func normaliseGrant(g runtime.Grant) runtime.Grant {

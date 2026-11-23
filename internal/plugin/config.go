@@ -19,6 +19,7 @@ func ConfigSpec() docs.FieldSpec {
 		Array().
 		WithChildren(append(docs.FieldSpecs{
 			docs.FieldString("source", "A plugin's directory, or an `oci://` reference to a plugin in a container registry.", "./plugins/uppercase", "oci://ghcr.io/me/uppercase:1.0.0"),
+			docs.FieldString("name", "The name to use the plugin by, instead of the name in its manifest. Set it to load the same plugin more than once, such as with different mounts.").Optional(),
 		}, runtime.GrantSpec()...)...).
 		Optional().
 		Advanced()
@@ -26,6 +27,7 @@ func ConfigSpec() docs.FieldSpec {
 
 type configEntry struct {
 	Source        string `yaml:"source"`
+	Name          string `yaml:"name"`
 	runtime.Grant `yaml:",inline"`
 }
 
@@ -44,7 +46,7 @@ func EntriesFromConfig(root *yaml.Node) ([]Entry, error) {
 
 	entries := make([]Entry, len(confs))
 	for i, c := range confs {
-		entries[i] = Entry{Source: c.Source, Grant: c.Grant}
+		entries[i] = Entry{Source: c.Source, Name: c.Name, Grant: c.Grant}
 	}
 	return entries, nil
 }
