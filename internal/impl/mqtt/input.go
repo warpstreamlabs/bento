@@ -115,20 +115,22 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 
 	var msgMut sync.Mutex
 	msgChan := make(chan mqtt.Message)
-	readChan := msgChan // closeMsgChan sets msgChan to nil, which can happen before client.Connect returns
+	msgChanClosed := false
 
 	// closeMsgChan disconnects the client, as auto reconnect is off and nothing
-	// else would, then closes the channel so that Read drops the client.
+	// else would, then closes the channel so that Read drops the client. The
+	// channel itself is never set to nil, because Connect may only store it
+	// after a handler has already closed it, and Read must still see it closed.
 	closeMsgChan := func(c mqtt.Client) bool {
 		c.Disconnect(0)
 		msgMut.Lock()
-		chanOpen := msgChan != nil
-		if chanOpen {
-			close(msgChan)
-			msgChan = nil
+		defer msgMut.Unlock()
+		if msgChanClosed {
+			return false
 		}
-		msgMut.Unlock()
-		return chanOpen
+		msgChanClosed = true
+		close(msgChan)
+		return true
 	}
 
 	conf := m.clientBuilder.apply(mqtt.NewClientOptions()).
@@ -145,7 +147,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 
 			tok := c.SubscribeMultiple(topics, func(c mqtt.Client, msg mqtt.Message) {
 				msgMut.Lock()
-				if msgChan != nil {
+				if !msgChanClosed {
 					select {
 					case msgChan <- msg:
 					case <-m.interruptChan:
@@ -186,7 +188,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 	}()
 
 	m.client = client
-	m.msgChan = readChan
+	m.msgChan = msgChan
 	return nil
 }
 
