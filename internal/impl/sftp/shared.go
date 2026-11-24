@@ -1,7 +1,9 @@
 package sftp
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 
@@ -113,7 +115,24 @@ func (c Credentials) GetClient(fs fs.FS, address string) (*sftp.Client, error) {
 		return nil, err
 	}
 
+	// Closing the SFTP client only ends its session, so close the SSH
+	// connection under it once the client has closed or lost its connection.
+	go func() {
+		_ = client.Wait()
+		_ = conn.Close()
+	}()
+
 	return client, nil
+}
+
+// isConnLost reports whether err means the SSH connection under an SFTP
+// client is gone. Requests made on a client whose connection has already
+// closed fail with ErrSSHFxConnectionLost, while a request sent as the
+// connection closes fails with an error that wraps io.EOF ("failed to send
+// packet: EOF"). Callers must not pass errors in which io.EOF means the end of
+// a file.
+func isConnLost(err error) bool {
+	return errors.Is(err, sftp.ErrSSHFxConnectionLost) || errors.Is(err, io.EOF)
 }
 
 // Server contains connection data for connecting to an SFTP server.

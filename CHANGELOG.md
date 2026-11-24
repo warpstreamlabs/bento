@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+ - `sftp` input now reconnects after the SSH connection drops. Static paths no longer skip the remaining files or panic, the watcher no longer polls the dead connection forever, and a file cut short by the drop is read again instead of being acked (and deleted with `delete_on_finish`) as fully read. The `sftp` input and output also close the SSH connection when they close or drop their client, which used to leak it @brokenjacobs
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
 
 ## 1.23.0 - 2026-11-16
