@@ -349,21 +349,34 @@ type watcherPathProvider struct {
 }
 
 func (w *watcherPathProvider) Next(ctx context.Context, client *sftp.Client) (string, error) {
-	if len(w.expandedPaths) > 0 {
-		nextPath := w.expandedPaths[0]
-		w.expandedPaths = w.expandedPaths[1:]
-		return nextPath, nil
-	}
-
-	if waitFor := time.Until(w.nextPoll); waitFor > 0 {
-		w.nextPoll = time.Now().Add(w.pollInterval)
-		select {
-		case <-time.After(waitFor):
-		case <-ctx.Done():
-			return "", ctx.Err()
+	for {
+		if len(w.expandedPaths) > 0 {
+			nextPath := w.expandedPaths[0]
+			w.expandedPaths = w.expandedPaths[1:]
+			return nextPath, nil
 		}
-	}
 
+		// The first poll runs straight away, and each later one waits until
+		// poll_interval has passed since the previous one started.
+		if !w.nextPoll.IsZero() {
+			select {
+			case <-time.After(time.Until(w.nextPoll)):
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+		}
+		w.nextPoll = time.Now().Add(w.pollInterval)
+
+		if err := w.findNewPaths(ctx, client); err != nil {
+			return "", err
+		}
+		w.followUpPoll = true
+	}
+}
+
+// findNewPaths scans the target paths once and queues every file that is old
+// enough and not already in the cache.
+func (w *watcherPathProvider) findNewPaths(ctx context.Context, client *sftp.Client) error {
 	if cerr := w.mgr.AccessCache(ctx, w.cacheName, func(cache service.Cache) {
 		for _, p := range w.targetPaths {
 			paths, err := client.Glob(p)
@@ -400,10 +413,9 @@ func (w *watcherPathProvider) Next(ctx context.Context, client *sftp.Client) (st
 			}
 		}
 	}); cerr != nil {
-		return "", fmt.Errorf("error obtaining cache: %v", cerr)
+		return fmt.Errorf("error obtaining cache: %v", cerr)
 	}
-	w.followUpPoll = true
-	return w.Next(ctx, client)
+	return nil
 }
 
 func (w *watcherPathProvider) Ack(ctx context.Context, name string, err error) (outErr error) {

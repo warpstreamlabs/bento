@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+ - `sftp` input's watcher now waits `watcher.poll_interval` between polls, and stops polling when the input shuts down. It used to poll the server again as soon as a poll finished, with a new stack frame per poll @brokenjacobs
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
 
 ## 1.23.0 - 2026-11-16
