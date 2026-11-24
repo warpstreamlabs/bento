@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
- - `opensearch` output now cancels in-flight bulk requests triggered mid-batch when the batch context is cancelled
+ - `opensearch` output now cancels in-flight bulk requests triggered mid-batch when the batch context is cancelled (upgrades `opensearch-go` to v4.8.2)
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
 
 ## 1.23.0 - 2026-11-16

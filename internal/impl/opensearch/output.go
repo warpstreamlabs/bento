@@ -288,9 +288,10 @@ func (e *Output) WriteBatch(ctx context.Context, msg service.MessageBatch) error
 	start := time.Now()
 	b, _ := opensearchutil.NewBulkIndexer(opensearchutil.BulkIndexerConfig{
 		Client: e.client,
-		// Flushes would otherwise run under context.Background() and ignore
-		// cancellation of the batch context.
-		OnFlushStart: func(context.Context) context.Context { return ctx },
+		// Bound the indexer workers and their flushes to the batch context;
+		// otherwise flushes run under context.Background() and ignore its
+		// cancellation.
+		Context: ctx,
 	})
 
 	var bErrMut sync.Mutex
