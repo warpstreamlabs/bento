@@ -9,6 +9,7 @@ import (
 
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/docs"
+	"github.com/warpstreamlabs/bento/internal/impl/wasm/wasmpool"
 	"github.com/warpstreamlabs/bento/internal/message"
 	pb "github.com/warpstreamlabs/bento/internal/message/messagepb"
 	"github.com/warpstreamlabs/bento/internal/plugin/runtime"
@@ -28,7 +29,7 @@ func newWasmProcessor(pConf *docs.ParsedConfig, cm *compiledPlugin) (*wasmProces
 		conf = rawConf
 	}
 
-	pool := runtime.NewInstancePool(func(ctx context.Context) (*instance, error) {
+	pool := wasmpool.NewWasmModulePool(func(ctx context.Context) (*instance, error) {
 		return newInstance(ctx, cm, conf)
 	})
 
