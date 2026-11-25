@@ -1,4 +1,4 @@
-name: uppercase
+name: rust_uppercase
 type: processor
 status: stable
 summary: Converts message content to uppercase using WebAssembly

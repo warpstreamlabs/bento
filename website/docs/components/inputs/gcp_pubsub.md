@@ -33,7 +33,6 @@ input:
     project: "" # No default (required)
     subscription: "" # No default (required)
     endpoint: ""
-    sync: false
     max_outstanding_messages: 1000
     max_outstanding_bytes: 1e+09
 ```
@@ -49,7 +48,6 @@ input:
     project: "" # No default (required)
     subscription: "" # No default (required)
     endpoint: ""
-    sync: false
     max_outstanding_messages: 1000
     max_outstanding_bytes: 1e+09
     create_subscription:
@@ -113,14 +111,6 @@ endpoint: us-central1-pubsub.googleapis.com:443
 
 endpoint: us-west3-pubsub.googleapis.com:443
 ```
-
-### `sync`
-
-Enable synchronous pull mode.
-
-
-Type: `bool`  
-Default: `false`  
 
 ### `max_outstanding_messages`
 

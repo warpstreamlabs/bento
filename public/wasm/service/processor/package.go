@@ -11,21 +11,21 @@ import (
 )
 
 //go:wasmexport process
-func process(input wasm.Buffer) wasm.Buffer {
+func process(address, length uint32) wasm.Buffer {
 	res := &messagepb.Process_Response{}
 
-	batch, err := processMessage(input.Slice())
+	batch, err := processMessage(wasm.NewBuffer(address, length).Slice())
 	if err != nil {
 		res.Error = &messagepb.Error{Message: err.Error()}
 	} else {
 		res.Batch = toProtoBatch(batch)
 	}
 
-	output, err := res.MarshalVT()
-	if err != nil {
+	output := wasm.Alloc(uint32(res.SizeVT()))
+	if _, err := res.MarshalToSizedBufferVT(output.Slice()); err != nil {
 		panic(err)
 	}
-	return wasm.Retain(output)
+	return output
 }
 
 func processMessage(input []byte) (service.MessageBatch, error) {

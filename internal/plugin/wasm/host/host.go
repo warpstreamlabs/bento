@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -50,16 +49,12 @@ func Free(ctx context.Context, free api.Function, buffer wasm.Buffer) error {
 	return nil
 }
 
-// Take copies a buffer returned by the plugin, and releases it.
-func Take(ctx context.Context, memory api.Memory, free api.Function, buffer wasm.Buffer) ([]byte, error) {
+// Read returns the data of a buffer returned by the plugin, which is a view of
+// the plugin's memory that is only valid until it's next called.
+func Read(memory api.Memory, buffer wasm.Buffer) ([]byte, error) {
 	data, ok := memory.Read(buffer.Address(), buffer.Length())
 	if !ok {
 		return nil, fmt.Errorf("plugin returned an out of bounds buffer of %d bytes at %d", buffer.Length(), buffer.Address())
-	}
-
-	data = bytes.Clone(data)
-	if err := Free(ctx, free, buffer); err != nil {
-		return nil, err
 	}
 	return data, nil
 }
