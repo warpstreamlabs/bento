@@ -2,6 +2,7 @@ package hdfs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -129,14 +130,12 @@ func (h *hdfsWriter) WriteBatch(ctx context.Context, batch service.MessageBatch)
 
 		mBytes, err := m.AsBytes()
 		if err != nil {
+			_ = fw.Close()
 			return err
 		}
 
-		if _, err := fw.Write(mBytes); err != nil {
-			return err
-		}
-		fw.Close()
-		return nil
+		_, err = fw.Write(mBytes)
+		return errors.Join(err, fw.Close())
 	})
 }
 
