@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
  - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
+ - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite
 
 ## 1.23.0 - 2026-11-16
 
