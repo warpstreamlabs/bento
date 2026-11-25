@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
  - `elasticsearch_v2` output fields `retry_on_conflict` (let Elasticsearch retry `update`/`upsert` actions on version conflicts) and `num_workers` (number of BulkIndexer workers per batch; `0` keeps the library default) @JoranDox
  - `aws_bedrock_chat` processor enables sending messages to LLMs via the model-agnostic `Converse` API @zcmack
  - `logger.file` fields `rotate_max_size_mb`, `rotate_max_backups` & `rotate_compress`, which were previously fixed at 10 MB, one backup & gzip @piratecarrot
+ - CLI flag `--remote-config` enables fetching Bento stream config from HTTP servers on start @Omar1H1 & @jem-davies
 
 ### Changed
 

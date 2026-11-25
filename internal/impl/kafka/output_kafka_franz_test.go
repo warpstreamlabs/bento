@@ -151,9 +151,6 @@ partitioner: crc32_hash
 	out, err := newFranzKafkaWriterFromConfig(pConf, service.MockResources().Logger())
 	require.NoError(t, err)
 
-	// Partitions observed for these keys on a 24 partition topic produced to by a
-	// librdkafka consistent partitioner. Keys such as "32478" have the high bit of
-	// their checksum set, which catches signed conversions of the hash.
 	expected := map[string]int{
 		"1":     23,
 		"2":     13,

@@ -39,7 +39,7 @@ This output often out-performs the traditional ` + "`kafka`" + ` output as well 
 			Description("An optional key to populate for each message.").Optional()).
 		Field(service.NewStringAnnotatedEnumField("partitioner", map[string]string{
 			"murmur2_hash":  "Kafka's default hash algorithm that uses a 32-bit murmur2 hash of the key to compute which partition the record will be on.",
-			"crc32_hash":    "Uses a 32-bit CRC32 (IEEE) hash of the key modulo the number of partitions. This matches the `consistent` and `consistent_random` partitioners of librdkafka based clients.",
+			"crc32_hash":    "Uses a 32-bit CRC32 (IEEE) hash of the key modulo the number of partitions.",
 			"round_robin":   "Round-robin's messages through all available partitions. This algorithm has lower throughput and causes higher CPU load on brokers, but can be useful if you want to ensure an even distribution of records to partitions.",
 			"least_backup":  "Chooses the least backed up partition (the partition with the fewest amount of buffered records). Partitions are selected per batch.",
 			"uniform_bytes": "Partitions based on byte size, with options for adaptive partitioning and key-based hashing in the `uniform_bytes_options` component.",
@@ -532,9 +532,8 @@ func (ie *interpolationExecutor) exec(i int) (topic string, key []byte, partitio
 }
 
 // crc32Hasher maps a record key to a partition using an IEEE CRC32 checksum
-// modulo the number of partitions in the topic, matching librdkafka's
-// consistent partitioner. The modulo is done on the unsigned checksum so that
-// the result is identical on 32 and 64 bit platforms.
+// modulo the number of partitions in the topic. The modulo is done on the
+// unsigned checksum so that the result is identical on 32 and 64 bit platforms
 func crc32Hasher(key []byte, n int) int {
 	return int(crc32.ChecksumIEEE(key) % uint32(n))
 }
