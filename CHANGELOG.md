@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+ - `aws_s3_stream` output now retries a part upload triggered by `max_buffer_period` with the same backoff as size-triggered uploads, instead of aborting the multipart upload on the first failure
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
  - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
  - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite

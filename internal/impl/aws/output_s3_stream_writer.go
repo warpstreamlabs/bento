@@ -303,7 +303,9 @@ func (w *S3StreamingWriter) flushIfNeeded(ctx context.Context) {
 		// Only flush a full part on the timer; a sub-5 MiB buffer must not become a
 		// non-final part, so keep buffering until Close() or the buffer fills.
 		if w.uploadSize >= s3MinMultipartPartSize {
-			w.forceFlush(ctx)
+			// Same retry policy as the size-triggered flush. There is no caller
+			// to report to here, so the error is dropped.
+			_ = w.flush(ctx)
 		}
 	}
 
@@ -318,7 +320,7 @@ func (w *S3StreamingWriter) flushIfNeeded(ctx context.Context) {
 	})
 }
 
-// forceFlush uploads whatever is in the buffer, even if under 5MB threshold
+// forceFlush uploads whatever is in the buffer, even if under 5MB threshold.
 func (w *S3StreamingWriter) forceFlush(ctx context.Context) error {
 	if w.uploadBuffer.Len() == 0 {
 		return nil

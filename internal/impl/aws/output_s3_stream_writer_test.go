@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"io"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1188,4 +1191,67 @@ func TestS3StreamingWriterGzipEmpty(t *testing.T) {
 	assert.True(t, putObjectCalled, "empty gzip object should use PutObject")
 	assert.NotEmpty(t, capturedPut, "empty gzip object should still contain a gzip header/footer")
 	assert.Empty(t, gunzip(t, capturedPut), "empty gzip object should decompress to nothing")
+}
+
+func TestS3StreamingWriterTimerFlushRetriesFailedPart(t *testing.T) {
+	var mu sync.Mutex
+	var partNumbers []int32
+	var aborts, completedParts int
+
+	mockClient := &mockS3StreamClient{
+		uploadPartFunc: func(ctx context.Context, input *s3.UploadPartInput, opts ...func(*s3.Options)) (*s3.UploadPartOutput, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			partNumbers = append(partNumbers, *input.PartNumber)
+			if len(partNumbers) == 1 {
+				return nil, errors.New("transient upload failure")
+			}
+			return &s3.UploadPartOutput{ETag: aws.String("test-etag")}, nil
+		},
+		completeMultipartUploadFunc: func(ctx context.Context, input *s3.CompleteMultipartUploadInput, opts ...func(*s3.Options)) (*s3.CompleteMultipartUploadOutput, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			completedParts = len(input.MultipartUpload.Parts)
+			return &s3.CompleteMultipartUploadOutput{}, nil
+		},
+		abortMultipartUploadFunc: func(ctx context.Context, input *s3.AbortMultipartUploadInput, opts ...func(*s3.Options)) (*s3.AbortMultipartUploadOutput, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			aborts++
+			return &s3.AbortMultipartUploadOutput{}, nil
+		},
+	}
+
+	writer, err := NewS3StreamingWriter(S3StreamingWriterConfig{
+		S3Client:        mockClient,
+		Bucket:          "test-bucket",
+		Key:             "test-key",
+		MaxBufferBytes:  10 * 1024 * 1024,
+		MaxBufferPeriod: 50 * time.Millisecond,
+		BackoffCtor: func() backoff.BackOff {
+			return backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond), 3)
+		},
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, writer.Initialize(ctx))
+
+	// Above the minimum part size but below MaxBufferBytes, so only the timer
+	// can upload it.
+	require.NoError(t, writer.WriteBytes(ctx, make([]byte, 6*1024*1024)))
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(partNumbers) >= 2 || aborts > 0
+	}, 5*time.Second, 10*time.Millisecond)
+
+	require.NoError(t, writer.Close(ctx))
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []int32{1, 1}, partNumbers)
+	assert.Zero(t, aborts)
+	assert.Equal(t, 1, completedParts)
 }
