@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+ - `sftp` input's watcher now waits `watcher.poll_interval` between polls, and stops polling when the input shuts down. It used to poll the server again as soon as a poll finished, with a new stack frame per poll @brokenjacobs
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
  - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
  - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite
