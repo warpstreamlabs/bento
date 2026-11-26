@@ -7,6 +7,6 @@ import (
 )
 
 //go:wasmexport init_plugin
-func init_plugin(conf wasm.Buffer) wasm.Buffer {
-	return wasm.FromError(plugin.Init(conf.Slice()))
+func init_plugin(address, length uint32) wasm.Buffer {
+	return wasm.FromError(plugin.Init(wasm.NewBuffer(address, length).Slice()))
 }

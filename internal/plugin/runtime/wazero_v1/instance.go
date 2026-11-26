@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/tetratelabs/wazero/api"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/warpstreamlabs/bento/internal/plugin/wasm"
 	"github.com/warpstreamlabs/bento/internal/plugin/wasm/host"
@@ -47,42 +48,38 @@ func (inst *instance) init(ctx context.Context, fn api.Function, conf []byte) er
 		return fmt.Errorf("failed to write plugin config: %w", err)
 	}
 
-	results, err := fn.Call(ctx, uint64(in))
+	results, err := fn.Call(ctx, uint64(in.Address()), uint64(in.Length()))
 	if err != nil {
 		return err
 	}
 
-	message, err := host.Take(ctx, inst.Memory(), inst.free, wasm.Buffer(results[0]))
+	out := wasm.Buffer(results[0])
+	message, err := host.Read(inst.Memory(), out)
 	if err != nil {
 		return err
 	}
-
-	if err := host.Free(ctx, inst.free, in); err != nil {
-		return err
-	}
-
 	if len(message) > 0 {
-		return errors.New(string(message))
+		err = errors.New(string(message))
 	}
-	return nil
+	return errors.Join(err, host.Free(ctx, inst.free, out), host.Free(ctx, inst.free, in))
 }
 
-func (inst *instance) call(ctx context.Context, input []byte) (_ []byte, err error) {
+func (inst *instance) call(ctx context.Context, input []byte, res proto.Message) error {
 	in, err := host.Malloc(ctx, inst.Memory(), inst.malloc, input)
 	if err != nil {
-		return nil, fmt.Errorf("failed to write plugin input: %w", err)
+		return fmt.Errorf("failed to write plugin input: %w", err)
 	}
 
-	defer func() {
-		if freeErr := host.Free(ctx, inst.free, in); freeErr != nil {
-			err = errors.Join(err, fmt.Errorf("free plugin input: %w", freeErr))
-		}
-	}()
-
-	results, err := inst.process.Call(ctx, uint64(in))
+	results, err := inst.process.Call(ctx, uint64(in.Address()), uint64(in.Length()))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return host.Take(ctx, inst.Memory(), inst.free, wasm.Buffer(results[0]))
+	out := wasm.Buffer(results[0])
+	output, err := host.Read(inst.Memory(), out)
+	if err != nil {
+		return err
+	}
+
+	return errors.Join(proto.Unmarshal(output, res), host.Free(ctx, inst.free, out), host.Free(ctx, inst.free, in))
 }

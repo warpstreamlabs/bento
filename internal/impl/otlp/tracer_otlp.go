@@ -56,7 +56,7 @@ func oltpSpec() *service.ConfigSpec {
 				Description("Whether to enable sampling.").
 				Default(false),
 			service.NewFloatField("ratio").
-				Description("Sets the ratio of traces to sample.").
+				Description("Sets the ratio at which root spans are sampled. Spans with a sampled parent (for example, extracted from an incoming `traceparent` header) follow their parent's sampling decision rather than this ratio.").
 				Examples(0.85, 0.5).
 				Optional()).
 			Description("Settings for trace sampling. Sampling is recommended for high-volume production workloads."))
@@ -179,7 +179,7 @@ func newOtlp(config *otlp) (trace.TracerProvider, error) {
 	var opts []tracesdk.TracerProviderOption
 
 	if config.sampling.enabled {
-		opts = append(opts, tracesdk.WithSampler(tracesdk.TraceIDRatioBased(config.sampling.ratio)))
+		opts = append(opts, tracesdk.WithSampler(tracesdk.ParentBased(tracesdk.TraceIDRatioBased(config.sampling.ratio))))
 	}
 
 	opts, err := addGrpcCollectors(ctx, config.grpc, opts)

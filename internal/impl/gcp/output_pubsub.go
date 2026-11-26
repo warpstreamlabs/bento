@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	"cloud.google.com/go/pubsub" //nolint:staticcheck
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/sourcegraph/conc/pool"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/warpstreamlabs/bento/public/service"
 )
@@ -96,8 +98,8 @@ pipeline:
 }
 
 type pubsubOutput struct {
-	topicMut sync.Mutex
-	topics   map[string]pubsubTopic
+	publisherMut sync.Mutex
+	publisher    map[string]pubsubPublisher
 
 	project         string
 	clientOpts      []option.ClientOption
@@ -188,7 +190,7 @@ func newPubSubOutput(conf *service.ParsedConfig) (*pubsubOutput, error) {
 	}
 
 	return &pubsubOutput{
-		topics:          make(map[string]pubsubTopic),
+		publisher:       make(map[string]pubsubPublisher),
 		project:         project,
 		clientOpts:      opt,
 		publishSettings: &settings,
@@ -217,7 +219,7 @@ func (out *pubsubOutput) Connect(_ context.Context) error {
 }
 
 func (out *pubsubOutput) WriteBatch(ctx context.Context, batch service.MessageBatch) error {
-	topics := make(map[string]pubsubTopic)
+	publishers := make(map[string]pubsubPublisher)
 	p := pool.NewWithResults[*serverResult]().WithContext(ctx)
 
 	var batchErr *service.BatchError
@@ -229,7 +231,7 @@ func (out *pubsubOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 	}
 
 	for i, msg := range batch {
-		res, err := out.writeMessage(ctx, topics, msg)
+		res, err := out.writeMessage(ctx, publishers, msg)
 		if err != nil {
 			batchErrFailed(i, err)
 			continue
@@ -263,13 +265,13 @@ func (out *pubsubOutput) WriteBatch(ctx context.Context, batch service.MessageBa
 }
 
 func (out *pubsubOutput) Close(_ context.Context) error {
-	out.topicMut.Lock()
-	defer out.topicMut.Unlock()
+	out.publisherMut.Lock()
+	defer out.publisherMut.Unlock()
 
-	for _, t := range out.topics {
+	for _, t := range out.publisher {
 		t.Stop()
 	}
-	out.topics = nil
+	out.publisher = nil
 
 	if out.clientCancel != nil {
 		out.clientCancel()
@@ -278,7 +280,7 @@ func (out *pubsubOutput) Close(_ context.Context) error {
 	return nil
 }
 
-func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[string]pubsubTopic, msg *service.Message) (publishResult, error) {
+func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[string]pubsubPublisher, msg *service.Message) (publishResult, error) {
 	topicName, err := out.topicQ.TryString(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve topic name: %w", err)
@@ -287,7 +289,7 @@ func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[stri
 	topic, found := cachedTopics[topicName]
 
 	if !found {
-		t, err := out.getTopic(ctx, topicName)
+		t, err := out.getPublisher(ctx, topicName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get topic: %s: %w", topicName, err)
 		}
@@ -323,29 +325,28 @@ func (out *pubsubOutput) writeMessage(ctx context.Context, cachedTopics map[stri
 	}), nil
 }
 
-func (out *pubsubOutput) getTopic(ctx context.Context, name string) (pubsubTopic, error) {
-	out.topicMut.Lock()
-	defer out.topicMut.Unlock()
+func (out *pubsubOutput) getPublisher(ctx context.Context, name string) (pubsubPublisher, error) {
+	out.publisherMut.Lock()
+	defer out.publisherMut.Unlock()
 
-	if t, exists := out.topics[name]; exists {
+	if t, exists := out.publisher[name]; exists {
 		return t, nil
 	}
 
-	t := out.client.Topic(name, out.publishSettings)
-	exists, err := t.Exists(ctx)
+	p, err := out.client.Publisher(ctx, name, out.publishSettings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to validate topic '%v': %v", name, err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("topic '%v' does not exist", name)
+		if status.Code(err) == codes.NotFound {
+			return nil, fmt.Errorf("topic '%v' does not exist", name)
+		}
+		return nil, fmt.Errorf("failed to validate topic '%v': %w", name, err)
 	}
 
 	if out.orderingKeyQ != nil {
-		t.EnableOrdering()
+		p.EnableOrdering()
 	}
 
-	out.topics[name] = t
-	return t, nil
+	out.publisher[name] = p
+	return p, nil
 }
 
 type serverResult struct {

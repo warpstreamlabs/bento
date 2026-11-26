@@ -4,7 +4,11 @@ pub mod messagepb {
 }
 
 use csv::ReaderBuilder;
-use messagepb::{part::Content, process::{Request, Response}, Batch, Error, Part};
+use messagepb::{
+    part::Content,
+    process::{Request, Response},
+    Batch, Error, Part,
+};
 use prost::Message;
 use serde_json::{Map, Value};
 
@@ -19,7 +23,11 @@ fn parse_csv(mut part: Part) -> Batch {
     };
     match json {
         Ok(json) => part.content = Some(Content::Raw(json)),
-        Err(e) => part.error = Some(Error { message: format!("CSV error: {}", e) }),
+        Err(e) => {
+            part.error = Some(Error {
+                message: format!("CSV error: {}", e),
+            })
+        }
     }
     Batch { parts: vec![part] }
 }
@@ -27,11 +35,10 @@ fn parse_csv(mut part: Part) -> Batch {
 /// Converts CSV with a header row into a JSON array, with an object for each
 /// record that maps each header to its value.
 fn csv_to_json(csv_data: &[u8]) -> Result<Vec<u8>, String> {
-    let mut rdr = ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(csv_data);
+    let mut rdr = ReaderBuilder::new().has_headers(true).from_reader(csv_data);
 
-    let hdrs = rdr.headers()
+    let hdrs = rdr
+        .headers()
         .map_err(|e| format!("Header error: {}", e))?
         .clone();
 
@@ -46,10 +53,8 @@ fn csv_to_json(csv_data: &[u8]) -> Result<Vec<u8>, String> {
         rows.push(Value::Object(obj));
     }
 
-    serde_json::to_vec(&rows)
-        .map_err(|e| format!("JSON error: {}", e))
+    serde_json::to_vec(&rows).map_err(|e| format!("JSON error: {}", e))
 }
-
 
 //------------------------------------------------------------------------------
 // The ABI, which resources/wasm/abi.wat defines.
@@ -61,20 +66,22 @@ pub extern "C" fn _malloc(size: u32) -> *mut u8 {
 
 #[cfg_attr(target_arch = "wasm32", export_name = "free")]
 pub unsafe extern "C" fn _free(ptr: *mut u8, size: u32) {
-    drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, size as usize)));
+    drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+        ptr,
+        size as usize,
+    )));
 }
 
-/// Returns the bytes of an input buffer, which Bento frees once the call
-/// returns.
-unsafe fn read<'a>(buffer: u64) -> &'a [u8] {
-    let (ptr, len) = ((buffer >> 32) as *const u8, buffer as u32 as usize);
+/// Returns the bytes of an input, which Bento frees once the call returns.
+unsafe fn read<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
     if len == 0 {
         return &[];
     }
     std::slice::from_raw_parts(ptr, len)
 }
 
-/// Returns bytes as a buffer, which Bento frees with [`_free`].
+/// Transfers ownership of bytes to Bento, which frees them with [`_free`], and
+/// returns their address and length packed as an i64.
 fn write(bytes: Vec<u8>) -> u64 {
     if bytes.is_empty() {
         return 0;
@@ -85,10 +92,18 @@ fn write(bytes: Vec<u8>) -> u64 {
 }
 
 #[cfg_attr(target_arch = "wasm32", export_name = "process")]
-pub unsafe extern "C" fn _process(request: u64) -> u64 {
-    let response = match Request::decode(read(request)) {
-        Ok(request) => Response { batch: Some(parse_csv(request.part.unwrap_or_default())), error: None },
-        Err(err) => Response { batch: None, error: Some(Error { message: err.to_string() }) },
+pub unsafe extern "C" fn _process(ptr: *const u8, len: usize) -> u64 {
+    let response = match Request::decode(read(ptr, len)) {
+        Ok(request) => Response {
+            batch: Some(parse_csv(request.part.unwrap_or_default())),
+            error: None,
+        },
+        Err(err) => Response {
+            batch: None,
+            error: Some(Error {
+                message: err.to_string(),
+            }),
+        },
     };
     write(response.encode_to_vec())
 }
