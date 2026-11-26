@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -206,7 +207,12 @@ func (b *bedrockChatProcessor) Process(ctx context.Context, msg *service.Message
 	if !ok {
 		return nil, fmt.Errorf("unexpected output: %T", resp)
 	}
-	content := respOut.Value.Content
+	// Reasoning models return their reasoning as separate blocks alongside the
+	// answer, which aren't part of the generated response.
+	content := slices.DeleteFunc(slices.Clone(respOut.Value.Content), func(c bedrocktypes.ContentBlock) bool {
+		_, isReasoning := c.(*bedrocktypes.ContentBlockMemberReasoningContent)
+		return isReasoning
+	})
 	if len(content) != 1 {
 		return nil, fmt.Errorf("unexpected number of response content: %d", len(content))
 	}
