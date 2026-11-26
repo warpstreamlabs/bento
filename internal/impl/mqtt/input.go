@@ -117,10 +117,10 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 	msgChan := make(chan mqtt.Message)
 	msgChanClosed := false
 
-	// closeMsgChan disconnects the client, as auto reconnect is off and nothing
-	// else would, then closes the channel so that Read drops the client. The
-	// channel itself is never set to nil, because Connect may only store it
-	// after a handler has already closed it, and Read must still see it closed.
+	// NOTE: Since auto reconnect is off, closeMsgChan ensures the client is
+	// always disconnected. The channel is _marked_ as closed rather than set to
+	// nil, since a handler may actually trigger a close before Connect manages
+	// to store it.
 	closeMsgChan := func(c mqtt.Client) bool {
 		c.Disconnect(0)
 		msgMut.Lock()
