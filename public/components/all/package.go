@@ -27,6 +27,7 @@ import (
 	_ "github.com/warpstreamlabs/bento/public/components/grpc"
 	_ "github.com/warpstreamlabs/bento/public/components/hdfs"
 	_ "github.com/warpstreamlabs/bento/public/components/huggingface"
+	_ "github.com/warpstreamlabs/bento/public/components/iceberg"
 	_ "github.com/warpstreamlabs/bento/public/components/influxdb"
 	_ "github.com/warpstreamlabs/bento/public/components/io"
 	_ "github.com/warpstreamlabs/bento/public/components/jaeger"

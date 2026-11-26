@@ -1,0 +1,161 @@
+pipeline:
+  processors:
+    - opensnowcat:
+        output_format: enriched_json
+
+output:
+  fallback:
+    - iceberg:
+        catalog:
+          type: glue
+        warehouse: s3://my-lake
+        namespace: analytics
+        table: events
+        region: us-east-1
+        partition_by:
+          - day(collector_tstamp)
+        table_properties:
+          # Min/max statistics for the columns queries filter on, counts for
+          # the rest: keeps manifests small with this many columns.
+          write.metadata.metrics.default: counts
+          write.metadata.metrics.column.collector_tstamp: full
+          write.metadata.metrics.column.derived_tstamp: full
+          write.metadata.metrics.column.event_name: full
+          write.metadata.metrics.column.app_id: full
+          write.metadata.metrics.column.event_id: full
+        schema:
+          - { name: app_id, type: string }
+          - { name: platform, type: string }
+          - { name: etl_tstamp, type: timestamptz }
+          - { name: collector_tstamp, type: timestamptz }
+          - { name: dvce_created_tstamp, type: timestamptz }
+          - { name: event, type: string }
+          - { name: event_id, type: string }
+          - { name: txn_id, type: int }
+          - { name: name_tracker, type: string }
+          - { name: v_tracker, type: string }
+          - { name: v_collector, type: string }
+          - { name: v_etl, type: string }
+          - { name: user_id, type: string }
+          - { name: user_ipaddress, type: string }
+          - { name: user_fingerprint, type: string }
+          - { name: domain_userid, type: string }
+          - { name: domain_sessionidx, type: int }
+          - { name: network_userid, type: string }
+          - { name: geo_country, type: string }
+          - { name: geo_region, type: string }
+          - { name: geo_city, type: string }
+          - { name: geo_zipcode, type: string }
+          - { name: geo_latitude, type: double }
+          - { name: geo_longitude, type: double }
+          - { name: geo_region_name, type: string }
+          - { name: ip_isp, type: string }
+          - { name: ip_organization, type: string }
+          - { name: ip_domain, type: string }
+          - { name: ip_netspeed, type: string }
+          - { name: page_url, type: string }
+          - { name: page_title, type: string }
+          - { name: page_referrer, type: string }
+          - { name: page_urlscheme, type: string }
+          - { name: page_urlhost, type: string }
+          - { name: page_urlport, type: int }
+          - { name: page_urlpath, type: string }
+          - { name: page_urlquery, type: string }
+          - { name: page_urlfragment, type: string }
+          - { name: refr_urlscheme, type: string }
+          - { name: refr_urlhost, type: string }
+          - { name: refr_urlport, type: int }
+          - { name: refr_urlpath, type: string }
+          - { name: refr_urlquery, type: string }
+          - { name: refr_urlfragment, type: string }
+          - { name: refr_medium, type: string }
+          - { name: refr_source, type: string }
+          - { name: refr_term, type: string }
+          - { name: mkt_medium, type: string }
+          - { name: mkt_source, type: string }
+          - { name: mkt_term, type: string }
+          - { name: mkt_content, type: string }
+          - { name: mkt_campaign, type: string }
+          - { name: contexts, type: string }
+          - { name: se_category, type: string }
+          - { name: se_action, type: string }
+          - { name: se_label, type: string }
+          - { name: se_property, type: string }
+          - { name: se_value, type: string }
+          - { name: unstruct_event, type: string }
+          - { name: tr_orderid, type: string }
+          - { name: tr_affiliation, type: string }
+          - { name: tr_total, type: double }
+          - { name: tr_tax, type: double }
+          - { name: tr_shipping, type: double }
+          - { name: tr_city, type: string }
+          - { name: tr_state, type: string }
+          - { name: tr_country, type: string }
+          - { name: ti_orderid, type: string }
+          - { name: ti_sku, type: string }
+          - { name: ti_name, type: string }
+          - { name: ti_category, type: string }
+          - { name: ti_price, type: double }
+          - { name: ti_quantity, type: int }
+          - { name: pp_xoffset_min, type: int }
+          - { name: pp_xoffset_max, type: int }
+          - { name: pp_yoffset_min, type: int }
+          - { name: pp_yoffset_max, type: int }
+          - { name: useragent, type: string }
+          - { name: br_name, type: string }
+          - { name: br_family, type: string }
+          - { name: br_version, type: string }
+          - { name: br_type, type: string }
+          - { name: br_renderengine, type: string }
+          - { name: br_lang, type: string }
+          - { name: br_features_pdf, type: boolean }
+          - { name: br_features_flash, type: boolean }
+          - { name: br_features_java, type: boolean }
+          - { name: br_features_director, type: boolean }
+          - { name: br_features_quicktime, type: boolean }
+          - { name: br_features_realplayer, type: boolean }
+          - { name: br_features_windowsmedia, type: boolean }
+          - { name: br_features_gears, type: boolean }
+          - { name: br_features_silverlight, type: boolean }
+          - { name: br_cookies, type: boolean }
+          - { name: br_colordepth, type: string }
+          - { name: br_viewwidth, type: int }
+          - { name: br_viewheight, type: int }
+          - { name: os_name, type: string }
+          - { name: os_family, type: string }
+          - { name: os_manufacturer, type: string }
+          - { name: os_timezone, type: string }
+          - { name: dvce_type, type: string }
+          - { name: dvce_ismobile, type: boolean }
+          - { name: dvce_screenwidth, type: int }
+          - { name: dvce_screenheight, type: int }
+          - { name: doc_charset, type: string }
+          - { name: doc_width, type: int }
+          - { name: doc_height, type: int }
+          - { name: tr_currency, type: string }
+          - { name: tr_total_base, type: double }
+          - { name: tr_tax_base, type: double }
+          - { name: tr_shipping_base, type: double }
+          - { name: ti_currency, type: string }
+          - { name: ti_price_base, type: double }
+          - { name: base_currency, type: string }
+          - { name: geo_timezone, type: string }
+          - { name: mkt_clickid, type: string }
+          - { name: mkt_network, type: string }
+          - { name: etl_tags, type: string }
+          - { name: dvce_sent_tstamp, type: timestamptz }
+          - { name: refr_domain_userid, type: string }
+          - { name: refr_device_tstamp, type: timestamptz }
+          - { name: derived_contexts, type: string }
+          - { name: domain_sessionid, type: string }
+          - { name: derived_tstamp, type: timestamptz }
+          - { name: event_vendor, type: string }
+          - { name: event_name, type: string }
+          - { name: event_format, type: string }
+          - { name: event_version, type: string }
+          - { name: event_fingerprint, type: string }
+          - { name: true_tstamp, type: timestamptz }
+    # Events that don't fit the table are kept instead of dropped.
+    - aws_s3:
+        bucket: my-bad-rows
+        path: opensnowcat/${! timestamp_unix_nano() }.json
