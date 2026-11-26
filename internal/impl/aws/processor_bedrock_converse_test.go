@@ -396,3 +396,26 @@ credentials:
 	require.Error(t, err)
 	require.ErrorContains(t, err, "max_tokens")
 }
+
+func TestBedrockChatProcessorSkipsReasoningContent(t *testing.T) {
+	srv := newBedrockConverseTestServer(t, func(_ []byte) (int, []byte) {
+		return http.StatusOK, []byte(`{"output":{"message":{"role":"assistant","content":[
+{"reasoningContent":{"reasoningText":{"text":"thinking...","signature":"abc"}}},
+{"text":"Paris"}]}}}`)
+	})
+
+	pConf, err := bedrockChatProcSpec().ParseYAML(fmt.Sprintf(converseBaseYAML, srv.URL), nil)
+	require.NoError(t, err)
+
+	proc, err := bedrockChatProcessorFromParsed(pConf, service.MockResources())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = proc.Close(context.Background()) })
+
+	batch, err := proc.Process(context.Background(), service.NewMessage([]byte("capital of France?")))
+	require.NoError(t, err)
+	require.Len(t, batch, 1)
+
+	out, err := batch[0].AsBytes()
+	require.NoError(t, err)
+	require.Equal(t, "Paris", string(out))
+}
