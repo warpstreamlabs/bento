@@ -3,6 +3,7 @@ package pure
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/Jeffail/shutdown"
 
@@ -156,10 +157,18 @@ func (t *fallbackBroker) ConnectionStatus() (s component.ConnectionStatuses) {
 
 // loop is an internal loop that brokers incoming messages to many outputs.
 func (t *fallbackBroker) loop() {
+	var (
+		closeMu sync.RWMutex
+		closed  bool
+	)
+
 	defer func() {
+		closeMu.Lock()
+		closed = true
 		for _, c := range t.outputTSChans {
 			close(c)
 		}
+		closeMu.Unlock()
 		_ = closeAllOutputs(context.Background(), t.outputs)
 		t.shutSig.TriggerHasStopped()
 	}()
@@ -227,6 +236,13 @@ func (t *fallbackBroker) loop() {
 			}
 
 			if t.shutSig.IsHardStopSignalled() {
+				return nil
+			}
+
+			// Held across the send so loop() cannot close the channel underneath it.
+			closeMu.RLock()
+			defer closeMu.RUnlock()
+			if closed {
 				return nil
 			}
 

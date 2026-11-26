@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
  - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
  - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite
  - `mqtt` input no longer leaves a connection open each time it reconnects after a failed subscription, such as one with an invalid topic filter (`a/#/b`) or a `qos` above 2 @triswell
+ - `fallback` output no longer panics with `send on closed channel` when an output fails a batch while the stream is shutting down @weird-oecophylla
 
 ## 1.23.0 - 2026-11-16
 
