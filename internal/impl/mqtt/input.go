@@ -115,23 +115,28 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 
 	var msgMut sync.Mutex
 	msgChan := make(chan mqtt.Message)
+	msgChanClosed := false
 
-	closeMsgChan := func() bool {
+	// NOTE: Since auto reconnect is off, closeMsgChan ensures the client is
+	// always disconnected. The channel is _marked_ as closed rather than set to
+	// nil, since a handler may actually trigger a close before Connect manages
+	// to store it.
+	closeMsgChan := func(c mqtt.Client) bool {
+		c.Disconnect(0)
 		msgMut.Lock()
-		chanOpen := msgChan != nil
-		if chanOpen {
-			close(msgChan)
-			msgChan = nil
+		defer msgMut.Unlock()
+		if msgChanClosed {
+			return false
 		}
-		msgMut.Unlock()
-		return chanOpen
+		msgChanClosed = true
+		close(msgChan)
+		return true
 	}
 
 	conf := m.clientBuilder.apply(mqtt.NewClientOptions()).
 		SetCleanSession(m.cleanSession).
 		SetConnectionLostHandler(func(client mqtt.Client, reason error) {
-			client.Disconnect(0)
-			closeMsgChan()
+			closeMsgChan(client)
 			m.log.Errorf("Connection lost due to: %v\n", reason)
 		}).
 		SetOnConnectHandler(func(c mqtt.Client) {
@@ -142,7 +147,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 
 			tok := c.SubscribeMultiple(topics, func(c mqtt.Client, msg mqtt.Message) {
 				msgMut.Lock()
-				if msgChan != nil {
+				if !msgChanClosed {
 					select {
 					case msgChan <- msg:
 					case <-m.interruptChan:
@@ -154,7 +159,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 			if err := tok.Error(); err != nil {
 				m.log.Errorf("Failed to subscribe to topics '%v': %v", m.topics, err)
 				m.log.Error("Shutting connection down.")
-				closeMsgChan()
+				closeMsgChan(c)
 			}
 		})
 
@@ -171,7 +176,7 @@ func (m *mqttReader) Connect(ctx context.Context) error {
 			select {
 			case <-time.After(time.Second):
 				if !client.IsConnected() {
-					if closeMsgChan() {
+					if closeMsgChan(client) {
 						m.log.Error("Connection lost for unknown reasons.")
 					}
 					return
