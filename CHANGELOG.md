@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
  - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
+ - The `sftp` output now returns the error from closing a written file, instead of only logging it and acknowledging the message
  - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite
  - `mqtt` input no longer leaves a connection open each time it reconnects after a failed subscription, such as one with an invalid topic filter (`a/#/b`) or a `qos` above 2 @triswell
  - `fallback` output no longer panics with `send on closed channel` when an output fails a batch while the stream is shutting down @weird-oecophylla
