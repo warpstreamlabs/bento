@@ -240,3 +240,59 @@ root."-".S = json("content")
 
 	assert.Equal(t, expected, requests)
 }
+
+func TestDynamoDBPartiqlArgsMappingDeletesRoot(t *testing.T) {
+	mapping, err := bloblang.Parse(`root = deleted()`)
+	require.NoError(t, err)
+
+	called := false
+	client := &mockProcDynamoDB{
+		pbatchFn: func(_ context.Context, _ *dynamodb.BatchExecuteStatementInput) (*dynamodb.BatchExecuteStatementOutput, error) {
+			called = true
+			return &dynamodb.BatchExecuteStatementOutput{}, nil
+		},
+	}
+
+	db := newDynamoDBPartiQL(nil, client, `SELECT * FROM "FooTable"`, nil, mapping)
+
+	reqBatch := service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"foo"}`)),
+	}
+
+	require.NotPanics(t, func() {
+		_, err = db.ProcessBatch(context.Background(), reqBatch)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deleted")
+	assert.False(t, called)
+}
+
+func TestDynamoDBPartiqlStatementErrorWithoutMessage(t *testing.T) {
+	mapping, err := bloblang.Parse(`root = []`)
+	require.NoError(t, err)
+
+	client := &mockProcDynamoDB{
+		pbatchFn: func(_ context.Context, _ *dynamodb.BatchExecuteStatementInput) (*dynamodb.BatchExecuteStatementOutput, error) {
+			return &dynamodb.BatchExecuteStatementOutput{
+				Responses: []types.BatchStatementResponse{
+					{Error: &types.BatchStatementError{Code: types.BatchStatementErrorCodeEnumThrottlingError}},
+				},
+			}, nil
+		},
+	}
+
+	db := newDynamoDBPartiQL(nil, client, `SELECT * FROM "FooTable"`, nil, mapping)
+
+	reqBatch := service.MessageBatch{
+		service.NewMessage([]byte(`{"id":"foo"}`)),
+	}
+
+	var resBatch []service.MessageBatch
+	require.NotPanics(t, func() {
+		resBatch, err = db.ProcessBatch(context.Background(), reqBatch)
+	})
+	require.NoError(t, err)
+	require.Len(t, resBatch, 1)
+	require.Len(t, resBatch[0], 1)
+	assert.Error(t, resBatch[0][0].GetError())
+}

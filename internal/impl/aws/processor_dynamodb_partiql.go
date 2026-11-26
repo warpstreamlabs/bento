@@ -123,6 +123,10 @@ func (d *dynamoDBPartiQL) ProcessBatch(ctx context.Context, batch service.Messag
 			return nil, fmt.Errorf("error evaluating arg mapping at index %d: %v", i, err)
 		}
 
+		if argMsg == nil {
+			return nil, fmt.Errorf("arg mapping deleted the message at index %d, expected an array", i)
+		}
+
 		argStructured, err := argMsg.AsStructured()
 		if err != nil {
 			return nil, fmt.Errorf("error evaluating arg mapping as structured at index %d: %v", i, err)
@@ -154,7 +158,11 @@ func (d *dynamoDBPartiQL) ProcessBatch(ctx context.Context, batch service.Messag
 	for i, res := range batchResult.Responses {
 		if res.Error != nil {
 			code := fmt.Sprintf(" (%v)", res.Error.Code)
-			batch[i].SetError(fmt.Errorf("failed to process statement%v: %v", code, *res.Error.Message))
+			errMsg := "no error message returned"
+			if res.Error.Message != nil {
+				errMsg = *res.Error.Message
+			}
+			batch[i].SetError(fmt.Errorf("failed to process statement%v: %v", code, errMsg))
 			continue
 		}
 		if res.Item != nil {
