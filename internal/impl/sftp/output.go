@@ -221,8 +221,13 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 		s.handle = handle
 		s.handlePath = path
 	} else {
+		// The server may only report a failed write when the file is closed.
 		if err := handle.Close(); err != nil {
-			s.log.With("error", err).Error("Failed to close written file")
+			if errors.Is(err, sftp.ErrSshFxConnectionLost) {
+				s.dropClient()
+				return service.ErrNotConnected
+			}
+			return err
 		}
 	}
 	return nil
