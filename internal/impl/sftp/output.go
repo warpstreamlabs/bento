@@ -2,7 +2,6 @@ package sftp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -153,7 +152,7 @@ func (s *sftpWriter) writeTo(wtr io.Writer, p *service.Message) error {
 	return nil
 }
 
-func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
+func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) (err error) {
 	s.handleMut.Lock()
 	defer s.handleMut.Unlock()
 
@@ -161,20 +160,24 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 		return service.ErrNotConnected
 	}
 
+	// A write that failed because the connection is gone drops the client,
+	// otherwise every later write fails on the same dead client. Reporting
+	// ErrNotConnected makes the output reconnect and retry the message.
+	defer func() {
+		if err != nil && isConnLost(err) {
+			s.log.With("error", err).Warnf("Lost connection to SFTP server at %s, reconnecting", s.address)
+			s.dropClient()
+			err = service.ErrNotConnected
+		}
+	}()
+
 	path, err := s.path.TryString(msg)
 	if err != nil {
 		return fmt.Errorf("path interpolation error: %w", err)
 	}
 
 	if s.handle != nil && path == s.handlePath {
-		if err := s.writeTo(s.handle, msg); err != nil {
-			if errors.Is(err, sftp.ErrSshFxConnectionLost) {
-				s.dropClient()
-				return service.ErrNotConnected
-			}
-			return err
-		}
-		return nil
+		return s.writeTo(s.handle, msg)
 	}
 	if s.handle != nil {
 		if err := s.handle.Close(); err != nil {
@@ -192,28 +195,16 @@ func (s *sftpWriter) Write(ctx context.Context, msg *service.Message) error {
 	}
 
 	if err := s.client.MkdirAll(filepath.Dir(path)); err != nil {
-		if errors.Is(err, sftp.ErrSshFxConnectionLost) {
-			s.dropClient()
-			return service.ErrNotConnected
-		}
 		return err
 	}
 
 	handle, err := s.client.OpenFile(path, flag)
 	if err != nil {
-		if errors.Is(err, sftp.ErrSshFxConnectionLost) {
-			s.dropClient()
-			return service.ErrNotConnected
-		}
 		return err
 	}
 
 	if err := s.writeTo(handle, msg); err != nil {
 		_ = handle.Close()
-		if errors.Is(err, sftp.ErrSshFxConnectionLost) {
-			s.dropClient()
-			return service.ErrNotConnected
-		}
 		return err
 	}
 
