@@ -436,3 +436,23 @@ func TestFallbackAllFailParallel(t *testing.T) {
 	close(readChan)
 	require.NoError(t, oTM.WaitForClose(tCtx))
 }
+
+func TestFallbackAckAfterInputClosed(t *testing.T) {
+	primary, secondary := &mock.OutputChanneled{}, &mock.OutputChanneled{}
+	f, err := newFallbackBroker([]output.Streamed{primary, secondary})
+	require.NoError(t, err)
+
+	in := make(chan message.Transaction)
+	require.NoError(t, f.Consume(in))
+
+	in <- message.NewTransaction(message.QuickBatch([][]byte{[]byte("hello")}), make(chan error, 1))
+	tran := <-primary.TChan
+
+	// fan_out and switch close the input before calling TriggerCloseNow
+	close(in)
+	<-primary.TChan
+	<-secondary.TChan
+
+	// the primary output fails the batch in between
+	assert.NotPanics(t, func() { _ = tran.Ack(context.Background(), errors.New("failed")) })
+}
