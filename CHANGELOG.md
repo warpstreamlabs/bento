@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
+ - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
+ - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite
  - `mqtt` input no longer leaves a connection open each time it reconnects after a failed subscription, such as one with an invalid topic filter (`a/#/b`) or a `qos` above 2 @triswell
 
 ## 1.23.0 - 2026-11-16

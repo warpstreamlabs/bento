@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Jeffail/shutdown"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 
@@ -117,6 +118,9 @@ type pythonProcessor struct {
 
 	pool *wasmpool.WasmModulePool[*pythonInstance]
 
+	shutSig *shutdown.Signaller
+	running sync.WaitGroup
+
 	logger *service.Logger
 }
 
@@ -159,13 +163,18 @@ func newPythonProcessor(conf *service.ParsedConfig, mgr *service.Resources) (ser
 		compiled: compiled,
 		imports:  imports,
 		script:   script,
+		shutSig:  shutdown.NewSignaller(),
 		logger:   mgr.Logger(),
 	}
 
-	proc.pool, err = wasmpool.NewWasmModulePool[*pythonInstance](ctx, proc.newInstance)
+	proc.pool = wasmpool.NewWasmModulePool[*pythonInstance](proc.newInstance)
+
+	instance, err := proc.pool.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	proc.pool.Put(instance)
 
 	return proc, nil
 }
@@ -198,5 +207,18 @@ func (p *pythonProcessor) Process(ctx context.Context, msg *service.Message) (se
 }
 
 func (p *pythonProcessor) Close(ctx context.Context) error {
-	return p.runtime.Close(ctx)
+	p.shutSig.TriggerHardStop()
+
+	go func() {
+		_ = p.pool.Close(context.Background())
+		p.running.Wait()
+		p.shutSig.TriggerHasStopped()
+	}()
+
+	select {
+	case <-p.shutSig.HasStoppedChan():
+		return p.runtime.Close(ctx)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
