@@ -39,6 +39,7 @@ All notable changes to this project will be documented in this file.
  - `aws_kinesis_firehose` output includes a check to ensure request payload size is <4MiB @alecmerdler
  - `nsq` input no longer keeps consumed messages in memory until shutdown which was causing unbounded memory usage @mwchatten
  - `http` processor now sends its requests with the processing context, so a forced stop of the stream ends their rate limit waits instead of leaving them to retry forever @weird-oecophylla
+ - `http_client` input in stream mode now ends its rate limit wait and connection attempt when stopped, instead of retrying forever once the stream has closed its resources @weird-oecophylla
 
 ## 1.22.0 - 2026-10-09
 
