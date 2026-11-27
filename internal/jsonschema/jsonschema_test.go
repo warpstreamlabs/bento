@@ -82,3 +82,17 @@ func TestValidateEnforces2020Keywords(t *testing.T) {
 	assert.Error(t, Validate(s, map[string]any{"n": 50}))
 	assert.NoError(t, Validate(s, map[string]any{"n": 5}))
 }
+
+// A schema without `$schema` is compiled as the latest draft, so keywords
+// next to a `$ref` apply instead of being ignored as they were in draft 7.
+func TestCompileDefaultsToLatestDraft(t *testing.T) {
+	s, err := CompileString(`{
+  "$defs": { "Str": { "type": "string" } },
+  "$ref": "#/$defs/Str",
+  "maxLength": 2
+}`)
+	require.NoError(t, err)
+
+	require.NoError(t, Validate(s, "ab"))
+	require.Error(t, Validate(s, "abc"))
+}
