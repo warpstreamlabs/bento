@@ -4,29 +4,29 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/xeipuuv/gojsonschema"
-
+	"github.com/warpstreamlabs/bento/internal/jsonschema"
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-func resolveJSONSchema(ctx context.Context, client *schemaRegistryClient, info SchemaInfo) (*gojsonschema.Schema, error) {
-	sl := gojsonschema.NewSchemaLoader()
+// jsonSchemaRootName is the synthetic name given to the schema being compiled,
+// so that references supplied by the registry resolve as its siblings.
+const jsonSchemaRootName = "bento-schema-root.json"
 
-	if len(info.References) == 0 {
-		if err := sl.AddSchemas(); err != nil {
-			return nil, fmt.Errorf("failed to parse root schema: %w", err)
-		}
-
-		return sl.Compile(gojsonschema.NewStringLoader(info.Schema))
-	}
+func resolveJSONSchema(ctx context.Context, client *schemaRegistryClient, info SchemaInfo) (*jsonschema.Schema, error) {
+	compiler := jsonschema.NewRegistryCompiler()
 
 	if err := client.WalkReferences(ctx, info.References, func(ctx context.Context, name string, info SchemaInfo) error {
-		return sl.AddSchemas(gojsonschema.NewStringLoader(info.Schema))
+		return jsonschema.AddResourceString(compiler, jsonschema.RegistryURL(name), info.Schema)
 	}); err != nil {
 		return nil, err
 	}
 
-	return sl.Compile(gojsonschema.NewStringLoader(info.Schema))
+	rootURL := jsonschema.RegistryURL(jsonSchemaRootName)
+	if err := jsonschema.AddResourceString(compiler, rootURL, info.Schema); err != nil {
+		return nil, fmt.Errorf("failed to parse root schema: %w", err)
+	}
+
+	return compiler.Compile(rootURL)
 }
 
 func (s *schemaRegistryEncoder) getJSONEncoder(ctx context.Context, info SchemaInfo) (schemaEncoder, error) {
@@ -52,13 +52,13 @@ func getJSONTranscoder(ctx context.Context, cl *schemaRegistryClient, info Schem
 		}
 
 		// -- verify the json message against the schema
-		res, err := sch.Validate(gojsonschema.NewBytesLoader(b))
+		doc, err := jsonschema.UnmarshalBytes(b)
 		if err != nil {
 			return err
 		}
 
-		if !res.Valid() {
-			return fmt.Errorf("json message does not conform to schema: %v", res.Errors())
+		if err := sch.Validate(doc); err != nil {
+			return fmt.Errorf("json message does not conform to schema: %v", jsonschema.FormatError(err))
 		}
 
 		return nil
