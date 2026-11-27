@@ -5,6 +5,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -49,6 +50,17 @@ func (s *Span) SetTag(key, value string) {
 		return
 	}
 	s.w.SetAttributes(attribute.String(key, value))
+}
+
+// Error records err as an exception event and sets the span status to
+// Error, so that tracing backends that key off the span status (such as
+// Jaeger or Grafana Tempo) surface it as a failed span.
+func (s *Span) Error(err error) {
+	if s == nil || err == nil {
+		return
+	}
+	s.w.RecordError(err)
+	s.w.SetStatus(codes.Error, err.Error())
 }
 
 // Finish the span.
