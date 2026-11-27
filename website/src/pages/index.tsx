@@ -205,7 +205,12 @@ const features = [
           Sometimes the components that come with Bento aren't enough. Luckily, Bento has been designed to be easily plugged with whatever components you need.
         </p>
         <p>
-          You can either write plugins <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/public" aria-label="Learn how to write Bento plugins in Go">directly in Go (recommended)</a> or you can have Bento run your plugin as a <a href="/bento/docs/components/processors/subprocess" aria-label="Learn about Bento subprocess plugins">subprocess</a>.
+          You can either 
+          <ul>
+            <li>Make a custom build <a href="https://pkg.go.dev/github.com/warpstreamlabs/bento/public" aria-label="Learn how to write Bento plugins in Go">directly in Go (recommended)</a></li>
+            <li>Have Bento run your plugin as a <a href="/bento/docs/components/processors/subprocess" aria-label="Learn about Bento subprocess plugins">subprocess</a></li>
+            <li>Use the new (experimental) <a href="/bento/docs/guides/plugins/about">WASM based plugin system</a></li>
+          </ul>
         </p>
       </>
     ),

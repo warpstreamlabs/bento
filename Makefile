@@ -1,4 +1,4 @@
-.PHONY: all serverless deps docker docker-cgo clean docs generate protos test test-race test-integration fmt lint install deploy-docs playground
+.PHONY: all serverless plugins deps docker docker-cgo clean docs generate protos test test-race test-integration fmt lint install deploy-docs playground
 TAGS ?=
 
 GOMAXPROCS         ?= 1
@@ -9,6 +9,7 @@ PATHINSTBIN        = $(DEST_DIR)/bin
 PATHINSTTOOLS      = $(DEST_DIR)/tools
 PATHINSTSERVERLESS = $(DEST_DIR)/serverless
 PATHINSTDOCKER     = $(DEST_DIR)/docker
+PATHINSTPLUGINS    = $(DEST_DIR)/plugins
 DOCKER_IMAGE       ?= ghcr.io/warpstreamlabs/bento
 
 VERSION   := $(shell git describe --tags 2>/dev/null || echo "v0.0.0")
@@ -68,6 +69,18 @@ $(PATHINSTSERVERLESS)/%: $(SOURCE_FILES)
 
 $(SERVERLESS): %: $(PATHINSTSERVERLESS)/%
 
+WASM_EXAMPLES_DIR = public/wasm/examples
+WASM_PLUGINS      = uppercase reverse
+plugins: $(WASM_PLUGINS:%=$(PATHINSTPLUGINS)/%.bpz) ## Build example WASM plugin bundles (.bpz)
+
+$(PATHINSTPLUGINS)/%.bpz: $(SOURCE_FILES)
+	@mkdir -p $(PATHINSTPLUGINS)/.build/$*
+	@GOOS=wasip1 GOARCH=wasm go build -C $(WASM_EXAMPLES_DIR)/$* -buildmode=c-shared \
+		-o $(abspath $(PATHINSTPLUGINS)/.build/$*/plugin.wasm) .
+	@rm -f $@
+	@zip -q -j $@ $(WASM_EXAMPLES_DIR)/$*/testdata/plugin.yaml $(PATHINSTPLUGINS)/.build/$*/plugin.wasm
+	@echo "Plugin generated: $@"
+
 docker-tags:
 	@echo "latest,$(VER_CUT),$(VER_MAJOR).$(VER_MINOR),$(VER_MAJOR)" > .tags
 
@@ -112,6 +125,7 @@ clean:
 	rm -rf $(DEST_DIR)/tools
 	rm -rf $(DEST_DIR)/serverless
 	rm -rf $(PATHINSTDOCKER)
+	rm -rf $(PATHINSTPLUGINS)
 	rm -rf $(WEBSITE_DIR)/static/playground
 
 docs: $(APPS) $(TOOLS)
