@@ -70,6 +70,7 @@ path: /path/to/models/
 enable_download: true
 `,
 			expectError: true,
+			errContains: "repository",
 		},
 	}
 
