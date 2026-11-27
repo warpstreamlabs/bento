@@ -182,6 +182,10 @@ func TestIntegration(t *testing.T) {
 	t.Run("TestOpenSearchBatchCreate", func(te *testing.T) {
 		testOpenSearchBatchCreate(urls, client, te)
 	})
+
+	t.Run("TestOpenSearchInterruptWrite", func(te *testing.T) {
+		testOpenSearchInterruptWrite(urls, te)
+	})
 }
 
 func testOpenSearchNoIndex(urls []string, client *osapi.Client, t *testing.T) {
@@ -780,4 +784,28 @@ action: create
 	}
 	err = o3.WriteBatch(ctx, testBatch)
 	require.ErrorContains(t, err, "document already exists")
+}
+
+func testOpenSearchInterruptWrite(urls []string, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	m := outputFromConf(t, `
+index: does_not_exist
+id: 'foo-${!count("interruptWriteTest")}'
+urls: %v
+action: index
+`, urls)
+
+	require.NoError(t, m.Connect(ctx))
+	defer func() {
+		require.NoError(t, m.Close(ctx))
+	}()
+
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	err := m.WriteBatch(cancelCtx, service.MessageBatch{
+		service.NewMessage([]byte(`{"message":"hello world","user":"1"}`)),
+	})
+	require.ErrorIs(t, err, context.Canceled)
 }

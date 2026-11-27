@@ -285,14 +285,26 @@ func (e *Output) WriteBatch(ctx context.Context, msg service.MessageBatch) error
 		requests[i] = pbi
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	// NewBulkIndexer panics if its context is cancelled while the workers are
+	// starting (opensearch-project/opensearch-go#1392), so the batch context is
+	// only linked to the workers once it has returned.
+	workerCtx, cancelWorkers := context.WithCancel(context.WithoutCancel(ctx))
+	defer cancelWorkers()
+
 	start := time.Now()
 	b, _ := opensearchutil.NewBulkIndexer(opensearchutil.BulkIndexerConfig{
 		Client: e.client,
 		// Bound the indexer workers and their flushes to the batch context;
 		// otherwise flushes run under context.Background() and ignore its
 		// cancellation.
-		Context: ctx,
+		Context: workerCtx,
 	})
+	stop := context.AfterFunc(ctx, cancelWorkers)
+	defer stop()
 
 	var bErrMut sync.Mutex
 	var bErr *service.BatchError
