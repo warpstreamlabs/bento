@@ -34,12 +34,9 @@ fields:
     description: Added before the content of each message.
     type: string
     default: ""
-
-runtime:
-  wasm:
-    memory:
-      max_pages: 128 # Limits each instance to 8MiB (64KiB per page)
 ```
+
+If your plugin needs to read or write files, request a mount with [`requires.mounts`][fields]. The memory limit and the host directory for each mount are set by whoever runs the plugin, in the [`plugins` section][loading] of their Bento config.
 
 ## 3. Write the Processor
 
@@ -191,3 +188,5 @@ Test 'config.yaml' succeeded
 [pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service
 [batch-pdk]: https://pkg.go.dev/github.com/warpstreamlabs/bento/public/wasm/service/batch_processor
 [reverse-example]: https://github.com/warpstreamlabs/bento/tree/main/public/wasm/examples/reverse
+[loading]: /docs/guides/plugins/about#loading-plugins
+[fields]: /docs/guides/plugins/fields

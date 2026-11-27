@@ -28,6 +28,11 @@ COPY --from=build /etc/passwd /etc/passwd
 COPY --from=build /go/src/github.com/warpstreamlabs/bento/target/bin/bento .
 COPY ./config/docker.yaml /bento.yaml
 
+# The store for WASM plugins pulled from registries, writable by the bento user
+# so that a volume mounted here is too.
+RUN mkdir /plugins && chown 10001:10001 /plugins
+ENV BENTO_PLUGIN_STORE=/plugins
+
 USER bento
 
 EXPOSE 4195

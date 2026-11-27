@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -12,6 +13,7 @@ import (
 	"github.com/fatih/color"
 
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/config/test"
 	"github.com/warpstreamlabs/bento/internal/docs"
@@ -106,6 +108,12 @@ func lintTarget(spec docs.FieldSpecs, path, testSuffix string) ([]docs.Lint, err
 	// environment variables, so in order to test env vars properly we would
 	// need to lint for each case.
 	skipEnvVarCheck := true
+
+	// Plugins listed in the config must be loaded before it's linted.
+	if _, _, err := common.LoadConfigFilePlugins(context.Background(), confPath); err != nil {
+		return nil, fmt.Errorf("%v: %w", confPath, err)
+	}
+
 	_, lints, err := config.ReadYAMLFileLinted(ifs.OS(), spec, confPath, skipEnvVarCheck, docs.NewLintConfig(bundle.GlobalEnvironment))
 	if err != nil {
 		return nil, err

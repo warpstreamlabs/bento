@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -45,6 +46,17 @@ func lintFile(path string, skipEnvVarCheck bool, spec docs.FieldSpecs, lConf doc
 			source: path,
 			lint:   l,
 		})
+	}
+	return
+}
+
+func loadFilePlugins(ctx context.Context, path string) (pathLints []pathLint) {
+	lints, _, err := common.LoadConfigFilePlugins(ctx, path)
+	if err != nil {
+		return []pathLint{{source: path, lint: docs.NewLintError(1, docs.LintFailedRead, err)}}
+	}
+	for _, l := range lints {
+		pathLints = append(pathLints, pathLint{source: path, lint: docs.NewLintError(1, docs.LintFailedRead, errors.New(l))})
 	}
 	return
 }
@@ -209,6 +221,15 @@ func LintAction(c *cli.Context, opts *common.CLIOpts, stderr io.Writer) int {
 
 	var pathLintMut sync.Mutex
 	var pathLints []pathLint
+
+	// Plugins listed in a config must be loaded before any config is linted,
+	// as configs may use them.
+	for _, target := range targets {
+		if target == "" || path.Ext(target) == ".md" {
+			continue
+		}
+		pathLints = append(pathLints, loadFilePlugins(c.Context, target)...)
+	}
 	threads := runtime.NumCPU()
 	var wg sync.WaitGroup
 	wg.Add(threads)

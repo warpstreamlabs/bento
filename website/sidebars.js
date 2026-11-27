@@ -134,6 +134,8 @@ module.exports = {
             'guides/plugins/about',
             'guides/plugins/developing_plugins',
             'guides/plugins/fields',
+            'guides/plugins/distributing_plugins',
+            'guides/plugins/oci_artifacts',
             'guides/plugins/plugin_abi',
           ],
         },

@@ -11,8 +11,3 @@ fields:
   - name: prefix
     description: An optional prefix to add before the uppercase content
     type: string
-
-runtime:
-  wasm:
-    memory:
-      max_pages: 512

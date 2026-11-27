@@ -52,6 +52,10 @@ pub extern "C" fn _malloc(size: u32) -> *mut u8 {
     Box::into_raw(vec![0u8; size as usize].into_boxed_slice()) as *mut u8
 }
 
+/// Declares that this plugin is built against version 1 of the ABI.
+#[cfg_attr(target_arch = "wasm32", export_name = "bento_abi_v1")]
+pub extern "C" fn _bento_abi_v1() {}
+
 #[cfg_attr(target_arch = "wasm32", export_name = "free")]
 pub unsafe extern "C" fn _free(ptr: *mut u8, size: u32) {
     drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(

@@ -19,7 +19,6 @@ import (
 	"github.com/warpstreamlabs/bento/internal/docs"
 	"github.com/warpstreamlabs/bento/internal/filepath"
 	"github.com/warpstreamlabs/bento/internal/filepath/ifs"
-	"github.com/warpstreamlabs/bento/internal/plugin"
 	"github.com/warpstreamlabs/bento/internal/template"
 )
 
@@ -96,7 +95,7 @@ func traverseHelp(cmd *cli.Command, pieces []string) []pluginHelp {
 }
 
 func runFlags(opts *common.CLIOpts) []cli.Flag {
-	return []cli.Flag{
+	flags := []cli.Flag{
 		&cli.StringFlag{
 			Name:  "log.level",
 			Value: "",
@@ -137,7 +136,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 		&cli.StringSliceFlag{
 			Name:    "plugin",
 			Aliases: []string{"p"},
-			Usage:   "EXPERIMENTAL: path to a Bento plugin's directory.",
+			Usage:   "EXPERIMENTAL: a Bento plugin's directory (supports glob patterns), or an oci:// reference to a plugin in a registry. Plugins that need mounts or memory limits are listed in the plugins section of the config instead.",
 		},
 		&cli.StringFlag{
 			Name:    "remote-config",
@@ -145,6 +144,7 @@ func runFlags(opts *common.CLIOpts) []cli.Flag {
 			Usage:   "EXPERIMENTAL: a path to a YAML file describing an HTTP request used to fetch the main configuration at startup",
 		},
 	}
+	return append(flags, common.PluginStoreFlags()...)
 }
 
 func preRun(c *cli.Context, opts *common.CLIOpts) error {
@@ -193,20 +193,16 @@ func preRun(c *cli.Context, opts *common.CLIOpts) error {
 		os.Exit(1)
 	}
 
-	pluginPaths, err := filepath.Globs(ifs.OS(), c.StringSlice("plugin"))
-	if err != nil {
-		fmt.Printf("Failed to resolve plugin glob pattern: %v\n", err)
+	if err := common.EnableRegistryPlugins(c); err != nil {
+		fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
 		os.Exit(1)
 	}
-
-	if len(pluginPaths) > 0 {
-		pLints, err := plugin.InitPlugins(c.Context, bundle.GlobalEnvironment, plugin.GlobalRuntime, pluginPaths...)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
-			os.Exit(1)
-		}
-		lints = append(lints, pLints...)
+	pLints, err := common.LoadFlagPlugins(c, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
+		os.Exit(1)
 	}
+	lints = append(lints, pLints...)
 
 	if !c.Bool("chilled") && len(lints) > 0 {
 		for _, lint := range lints {
@@ -323,6 +319,7 @@ variables have been resolved:
 				},
 			},
 			lintCliCommand(opts),
+			pluginCliCommand(),
 			{
 				Name:   "run",
 				Hidden: !opts.ShowRunCommand,

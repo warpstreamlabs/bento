@@ -16,6 +16,7 @@ import (
 	"github.com/warpstreamlabs/bento/internal/bloblang/mapping"
 	"github.com/warpstreamlabs/bento/internal/bloblang/parser"
 	"github.com/warpstreamlabs/bento/internal/bundle"
+	"github.com/warpstreamlabs/bento/internal/cli/common"
 	"github.com/warpstreamlabs/bento/internal/component/processor"
 	"github.com/warpstreamlabs/bento/internal/config"
 	"github.com/warpstreamlabs/bento/internal/docs"
@@ -302,6 +303,10 @@ func (p *ProcessorsProvider) getConfs(jsonPtr string, environment map[string]str
 	root, err := docs.UnmarshalYAML(configBytes)
 	if err != nil {
 		return confs, fmt.Errorf("failed to parse config file '%v': %v", targetPath, err)
+	}
+
+	if _, _, err := common.LoadConfigPlugins(context.Background(), root); err != nil {
+		return confs, fmt.Errorf("failed to load plugins of config file '%v': %v", targetPath, err)
 	}
 
 	confSpec := p.spec
