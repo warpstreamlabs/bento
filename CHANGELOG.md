@@ -5,8 +5,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - TBD
 
+### Changed
+
+ - upgrade `opensearch-go` from `v4.5.0` to `v4.8.2` @pcbeingused333
+
 ### Fixed
 
+ - `opensearch` output now cancels in-flight bulk requests triggered mid-batch when the batch context is cancelled
  - `open_telemetry_collector` and `jaeger` tracers now follow an incoming parent span's sampling decision, applying the configured ratio only to root spans @piratecarrot
  - The `hdfs` output now returns the error from closing the file, which is when HDFS confirms the written data, instead of silently dropping it
  - `kafka_franz` output `partitioner` option `crc32_hash`, which partitions by a CRC32 hash of the key modulo the topic's partition @clayton-midnite

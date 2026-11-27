@@ -56,7 +56,7 @@ func TestIntegration(t *testing.T) {
 
 	urls := []string{fmt.Sprintf("http://127.0.0.1:%v", resource.GetPort("9200/tcp"))}
 
-	var client *os.Client
+	var client *osapi.Client
 
 	if err = pool.Retry(t.Context(), 0, func() error {
 		opts := os.Config{
@@ -65,7 +65,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		var cerr error
-		client, cerr = os.NewClient(opts)
+		client, cerr = osapi.NewClient(osapi.Config{Client: opts})
 
 		if cerr == nil {
 			index := `{
@@ -86,15 +86,15 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 }`
-			_, cerr = client.Do(context.Background(), osapi.IndicesCreateReq{
+			_, cerr = doRequest(context.Background(), client, http.MethodPut, osapi.IndicesCreateReq{
 				Index: "test_conn_index",
 				Body:  strings.NewReader(index),
-			}, nil)
+			})
 			if cerr == nil {
-				_, cerr = client.Do(context.Background(), osapi.IndicesCreateReq{
+				_, cerr = doRequest(context.Background(), client, http.MethodPut, osapi.IndicesCreateReq{
 					Index: "test_conn_index_2",
 					Body:  strings.NewReader(index),
-				}, nil)
+				})
 			}
 			if cerr == nil {
 				// Create index template for data stream
@@ -125,16 +125,16 @@ func TestIntegration(t *testing.T) {
 	}
 }`
 
-				_, cerr = client.Do(context.Background(), osapi.IndexTemplateCreateReq{
+				_, cerr = doRequest(context.Background(), client, http.MethodPut, osapi.IndexTemplateCreateReq{
 					IndexTemplate: "test_datastream_template",
 					Body:          strings.NewReader(template),
-				}, nil)
+				})
 			}
 			if cerr == nil {
 				// Create an index to trigger data stream creation
-				_, cerr = client.Do(context.Background(), osapi.DataStreamCreateReq{
+				_, cerr = doRequest(context.Background(), client, http.MethodPut, osapi.DataStreamCreateReq{
 					DataStream: "test_datastream",
-				}, nil)
+				})
 			}
 
 		}
@@ -182,9 +182,13 @@ func TestIntegration(t *testing.T) {
 	t.Run("TestOpenSearchBatchCreate", func(te *testing.T) {
 		testOpenSearchBatchCreate(urls, client, te)
 	})
+
+	t.Run("TestOpenSearchInterruptWrite", func(te *testing.T) {
+		testOpenSearchInterruptWrite(urls, te)
+	})
 }
 
-func testOpenSearchNoIndex(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchNoIndex(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -211,13 +215,19 @@ action: index
 
 	for i := range 3 {
 		id := fmt.Sprintf("foo-%v", i+1)
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "does_not_exist",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 		assert.False(t, get.IsError())
 	}
+}
+
+// doRequest performs a raw request so tests can inspect the status code and
+// body of error responses, which the typed opensearchapi methods turn into errors.
+func doRequest(ctx context.Context, client *osapi.Client, method string, req os.Request) (*os.Response, error) {
+	return os.Do[os.NoBody](ctx, client.Client, method, req, nil)
 }
 
 func resEqualsJSON(t testing.TB, res *os.Response, exp string) {
@@ -230,7 +240,7 @@ func resEqualsJSON(t testing.TB, res *os.Response, exp string) {
 	assert.JSONEq(t, exp, string(tmp.Source))
 }
 
-func testOpenSearchParallelWrites(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchParallelWrites(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -270,10 +280,10 @@ action: index
 	wg.Wait()
 
 	for id, exp := range docs {
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "new_index_parallel_writes",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 		assert.False(t, get.IsError())
 
@@ -281,7 +291,7 @@ action: index
 	}
 }
 
-func testOpenSearchErrorHandling(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchErrorHandling(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -307,7 +317,7 @@ action: index
 	}))
 }
 
-func testOpenSearchConnect(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchConnect(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -337,10 +347,10 @@ action: index
 	}
 	for i := range N {
 		id := fmt.Sprintf("foo-%v", i+1)
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "test_conn_index",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 		assert.False(t, get.IsError())
 
@@ -348,7 +358,7 @@ action: index
 	}
 }
 
-func testOpenSearchIndexInterpolation(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchIndexInterpolation(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -377,10 +387,10 @@ action: index
 	}
 	for i := range N {
 		id := fmt.Sprintf("bar-%v", i+1)
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "test_conn_index",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 		assert.False(t, get.IsError())
 
@@ -388,7 +398,7 @@ action: index
 	}
 }
 
-func testOpenSearchBatch(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchBatch(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -418,10 +428,10 @@ action: index
 
 	for i := range N {
 		id := fmt.Sprintf("baz-%v", i+1)
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "test_conn_index",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 		assert.False(t, get.IsError())
 
@@ -429,7 +439,7 @@ action: index
 	}
 }
 
-func testOpenSearchBatchDelete(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchBatchDelete(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -461,10 +471,10 @@ action: ${! @elastic_action }
 
 	for i := range N {
 		id := fmt.Sprintf("buz-%v", i+1)
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "test_conn_index",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 		assert.False(t, get.IsError())
 
@@ -480,10 +490,10 @@ action: ${! @elastic_action }
 
 	for i := range N {
 		id := fmt.Sprintf("buz-%v", i+1)
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "test_conn_index",
 			DocumentID: id,
-		}, nil)
+		})
 		require.NoError(t, err, id)
 
 		partAction, _ := testBatch[i].MetaGet("elastic_action")
@@ -514,10 +524,10 @@ action: delete
 	}))
 
 	// Verify the document was not found
-	get, err := client.Do(ctx, osapi.DocumentGetReq{
+	get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 		Index:      "test_conn_index",
 		DocumentID: "non-existing-id",
-	}, nil)
+	})
 	require.NoError(t, err)
 	if get.IsError() {
 		if respCode := get.StatusCode; respCode == http.StatusNotFound {
@@ -530,7 +540,7 @@ action: delete
 	}
 }
 
-func testOpenSearchBatchIDCollision(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchBatchIDCollision(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -562,10 +572,10 @@ action: index
 
 	for i := range 2 {
 		index, _ := testBatch[i].MetaGet("index")
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      index,
 			DocumentID: "bar-id",
-		}, nil)
+		})
 		require.NoError(t, err)
 		assert.False(t, get.IsError())
 
@@ -591,10 +601,10 @@ action: update
 	}
 	require.NoError(t, m2.WriteBatch(ctx, testBatch))
 
-	get, err := client.Do(ctx, osapi.DocumentGetReq{
+	get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 		Index:      "test_conn_index",
 		DocumentID: "bar-id",
-	}, nil)
+	})
 	require.NoError(t, err)
 	assert.False(t, get.IsError())
 
@@ -608,7 +618,7 @@ action: update
 	assert.Equal(t, "goodbye", tmp.Source["message"])
 }
 
-func testOpenSearchDataStream(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchDataStream(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -635,9 +645,9 @@ action: create
 	err := m.WriteBatch(ctx, testBatch)
 	require.NoError(t, err, "Failed to write batch to data stream")
 
-	_, err = client.Do(ctx, osapi.IndicesRefreshReq{
-		Indices: []string{"test_datastream"},
-	}, nil)
+	_, err = doRequest(ctx, client, http.MethodPost, osapi.IndicesRefreshReq{
+		Index: []string{"test_datastream"},
+	})
 	require.NoError(t, err, "Failed to refresh data stream")
 
 	searchReq := osapi.SearchReq{
@@ -648,7 +658,7 @@ action: create
 			}
 		}`),
 	}
-	searchRes, err := client.Do(ctx, searchReq, nil)
+	searchRes, err := doRequest(ctx, client, http.MethodPost, searchReq)
 	require.NoError(t, err)
 	assert.False(t, searchRes.IsError())
 
@@ -667,7 +677,7 @@ action: create
 
 }
 
-func testOpenSearchBatchCreate(urls []string, client *os.Client, t *testing.T) {
+func testOpenSearchBatchCreate(urls []string, client *osapi.Client, t *testing.T) {
 	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
 	defer done()
 
@@ -699,10 +709,10 @@ action: index
 
 	for i := range 2 {
 
-		get, err := client.Do(ctx, osapi.DocumentGetReq{
+		get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 			Index:      "test_index",
 			DocumentID: strconv.Itoa(i),
-		}, nil)
+		})
 		require.NoError(t, err)
 		assert.Equal(t, 200, get.StatusCode)
 
@@ -734,10 +744,10 @@ action: create
 	}
 	require.NoError(t, o2.WriteBatch(ctx, testBatch))
 
-	get, err := client.Do(ctx, osapi.DocumentGetReq{
+	get, err := doRequest(ctx, client, http.MethodGet, osapi.DocumentGetReq{
 		Index:      "test_index",
 		DocumentID: "3",
-	}, nil)
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 200, get.StatusCode)
 
@@ -774,4 +784,28 @@ action: create
 	}
 	err = o3.WriteBatch(ctx, testBatch)
 	require.ErrorContains(t, err, "document already exists")
+}
+
+func testOpenSearchInterruptWrite(urls []string, t *testing.T) {
+	ctx, done := context.WithTimeout(context.Background(), time.Second*30)
+	defer done()
+
+	m := outputFromConf(t, `
+index: does_not_exist
+id: 'foo-${!count("interruptWriteTest")}'
+urls: %v
+action: index
+`, urls)
+
+	require.NoError(t, m.Connect(ctx))
+	defer func() {
+		require.NoError(t, m.Close(ctx))
+	}()
+
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	err := m.WriteBatch(cancelCtx, service.MessageBatch{
+		service.NewMessage([]byte(`{"message":"hello world","user":"1"}`)),
+	})
+	require.ErrorIs(t, err, context.Canceled)
 }
